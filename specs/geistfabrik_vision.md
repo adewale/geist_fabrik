@@ -19,6 +19,8 @@ GeistFabrik draws on Gordon Brander's explorations of tools for thought, particu
 
 **Diverge/converge feedback loops** - Brander's framework of creativity as alternating phases of divergence (generating options) and convergence (making choices), connected through cybernetic feedback loops where outputs become inputs for new creative exploration.
 
+The name "Geists" also brings to mind Hegel and his owl of Minerva that flies at dusk—wisdom and understanding come after the fact, through reflection on what has already occurred. GeistFabrik's geists similarly work retrospectively, finding patterns and questions in the knowledge you've already accumulated.
+
 GeistFabrik takes these ideas and grounds them in a concrete, extensible system for Obsidian vaults—a spirit factory that generates different questions to ask of your thinking.
 
 ## Core Architecture
@@ -89,25 +91,29 @@ YAML files using Tracery grammar with vault-aware expansions. Functions register
 
 #### Geist Journal
 
-**Format undecided** - two options under consideration:
+Sessions are captured as individual notes in a folder at `<vault>/GeistFabrik Sessions/`.
 
-**Option 1: Single reverse-chronological file**
-- Location: `<vault>/Geist Journal.md`
-- Newest entries prepended to top
-- Date-separated with horizontal rules
-- Simple, traditional journal format
+Each session creates a note: `YYYY-MM-DD.md`
 
-**Option 2: Folder of session notes**
-- Location: `<vault>/GeistFabrik Sessions/`
-- One note per session: `2025-01-15.md`, `2025-01-16.md`
-- Each session is a discrete artifact
-- Can link to specific sessions: `[[GeistFabrik Sessions/2025-01-15]]`
+Example: `GeistFabrik Sessions/2025-01-15.md`
 
-Both formats contain:
-- Date heading
-- Geist identifier as subheading for each suggestion
-- Stable block IDs for deep-linking (`^g001`, `^g002`)
-- Variable-length suggestions (geist determines appropriate length)
+```markdown
+# GeistFabrik Session – 2025-01-15
+
+## connection_finder ^g20250115-001
+[[Project Planning]] × [[Fermentation]] – what if they follow the same cycles?
+
+## columbo ^g20250115-002
+I think you're lying about your claim in [[Democracy Note]] that "direct democracy scales" 
+because your [[Scaling Systems]] note argues that coordination costs grow superlinearly...
+```
+
+Each suggestion includes:
+- Geist identifier as heading
+- Stable block ID (format: `^gYYYYMMDD-NNN`) for deep-linking
+- Variable-length text (geist determines appropriate length)
+
+Sessions are linkable: `[[GeistFabrik Sessions/2025-01-15]]`
 
 **Duplicate Prevention**: System checks SQLite database to avoid generating suggestions for dates already processed.
 
@@ -135,10 +141,10 @@ All registered vault functions automatically become available in Tracery grammar
 
 - **Identity**: Each geist has unique ID, used in journal headings
 - **All geists run**: Every geist executes each session; filtering prevents overwhelm
-- **Read-only & Additive**: Never modifies existing vault notes; only writes Geist Journal
+- **Read-only & Additive**: Never modifies existing vault notes; only writes to GeistFabrik Sessions
 - **Deterministic**: Same vault state + date = same suggestions
-- **Location**: System data in `~/.geistfabrik/`, journal in vault
-- **Ritual, not routine**: Intermittent and deliberate engagement, not automatic consumption
+- **Location**: System data in `~/.geistfabrik/`, sessions in vault
+- **Intermittent engagement**: Invoked deliberately by user, not continuous background process
 
 ## Invocation Modes
 
