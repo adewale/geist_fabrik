@@ -91,11 +91,11 @@ YAML files using Tracery grammar with vault-aware expansions. Functions register
 
 #### Geist Journal
 
-Sessions are captured as individual notes in a folder at `<vault>/GeistFabrik Sessions/`.
+Sessions are captured as individual notes in a folder at `<vault>/geist journal/`.
 
 Each session creates a note: `YYYY-MM-DD.md`
 
-Example: `GeistFabrik Sessions/2025-01-15.md`
+Example: `geist journal/2025-01-15.md`
 
 ```markdown
 # GeistFabrik Session – 2025-01-15
@@ -113,7 +113,7 @@ Each suggestion includes:
 - Stable block ID (format: `^gYYYYMMDD-NNN`) for deep-linking
 - Variable-length text (geist determines appropriate length)
 
-Sessions are linkable: `[[GeistFabrik Sessions/2025-01-15]]`
+Sessions are linkable: `[[geist journal/2025-01-15]]`
 
 **Duplicate Prevention**: System checks SQLite database to avoid generating suggestions for dates already processed.
 
@@ -121,13 +121,13 @@ Sessions are linkable: `[[GeistFabrik Sessions/2025-01-15]]`
 
 #### 1. Metadata Inference
 
-Users can add Python modules to `~/.geistfabrik/Metadata/` that infer additional properties about notes (reading time, complexity, mood, etc.).
+Users can add Python modules to `<vault>/_geistfabrik/metadata_inference/` that infer additional properties about notes (reading time, complexity, mood, etc.).
 
 **Note on Extensibility**: Over time, as more explicit and inferred metadata becomes available, this extension happens through the metadata system and VaultContext, not by expanding the Note class. Notes remain lightweight data structures representing vault content, while VaultContext provides the intelligence layer where metadata inference occurs.
 
 #### 2. Vault Functions
 
-Core provides basic functions; users can add more in `~/.geistfabrik/Functions/` that filter or select notes in custom ways.
+Core provides basic functions; users can add more in `<vault>/_geistfabrik/vault_functions/` that filter or select notes in custom ways.
 
 **Critical Role**: Vault functions are how **metadata becomes available to Tracery geists**. While code geists can directly call `vault.metadata(note)`, Tracery geists can only use functions. Each metadata type needs a corresponding function to be Tracery-accessible.
 
@@ -141,9 +141,9 @@ All registered vault functions automatically become available in Tracery grammar
 
 - **Identity**: Each geist has unique ID, used in journal headings
 - **All geists run**: Every geist executes each session; filtering prevents overwhelm
-- **Read-only & Additive**: Never modifies existing vault notes; only writes to GeistFabrik Sessions
+- **Read-only & Additive**: Never modifies existing vault notes; only writes to geist journal
 - **Deterministic**: Same vault state + date = same suggestions
-- **Location**: System data in `~/.geistfabrik/`, sessions in vault
+- **Location**: System data in `<vault>/_geistfabrik/`, sessions in `<vault>/geist journal/`
 - **Intermittent engagement**: Invoked deliberately by user, not continuous background process
 
 ## Invocation Modes

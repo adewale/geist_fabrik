@@ -161,7 +161,7 @@ class VaultContext:
 
 ### Persistence Layer (SQLite + sqlite-vec)
 
-GeistFabrik uses a **single SQLite database** at `~/.geistfabrik/vault.db` for all persistence needs: notes, links, embeddings, metadata, and execution history.
+GeistFabrik uses a **single SQLite database** at `<vault>/_geistfabrik/vault.db` for all persistence needs: notes, links, embeddings, metadata, and execution history.
 
 #### Why SQLite?
 
@@ -328,17 +328,17 @@ def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
 
 ```
 1. Startup:
-   vault = Vault(vault_path, "~/.geistfabrik/vault.db")
+   vault = Vault(vault_path, vault_path / "_geistfabrik/vault.db")
    vault.sync()  # Incremental: only process changed files
-   
+
 2. Geist Execution:
    ctx = VaultContext(vault, seed=today)
    suggestions = []
    for geist in active_geists:
        suggestions.extend(geist.suggest(ctx))  # All queries hit SQLite
-   
+
 3. Output:
-   write_journal(suggestions)  # To vault's "Geist Journal.md"
+   write_journal(suggestions)  # To vault's "geist journal/YYYY-MM-DD.md"
    record_run(date, geist_id, suggestions)  # To geist_runs table
 ```
 
@@ -347,8 +347,8 @@ def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
 - **Fast startup** - First run computes everything, subsequent runs only process changes
 - **Efficient queries** - SQL indexes make graph operations instant
 - **Vector search** - sqlite-vec optimized for nearest-neighbor queries
-- **Single file** - Entire vault intelligence in `~/.geistfabrik/vault.db`
-- **Portable** - Copy .db file, everything works
+- **Single file** - Entire vault intelligence in `_geistfabrik/vault.db`
+- **Portable** - Copy .db file with vault, everything works
 - **Deterministic** - Same vault state = same query results
 - **No external services** - Embeddings computed locally via sentence-transformers
 
@@ -514,7 +514,7 @@ GeistFabrik is extensible at three dimensions, each building on the last:
 
 #### Dimension 1: Metadata Inference
 
-`~/.geistfabrik/Metadata/` modules export:
+`<vault>/_geistfabrik/metadata_inference/` modules export:
 
 ```python
 def infer(note: Note, vault: VaultContext) -> Dict:
@@ -559,7 +559,7 @@ As GeistFabrik evolves, new metadata types (graph centrality, semantic novelty, 
 
 #### Dimension 2: Vault Functions
 
-`~/.geistfabrik/Functions/` modules export decorated functions:
+`<vault>/_geistfabrik/vault_functions/` modules export decorated functions:
 
 ```python
 from geistfabrik import vault_function
@@ -616,10 +616,10 @@ def by_complexity(vault: VaultContext, level: str, k=10):
 **Extensibility Flow**:
 
 ```
-1. Add metadata module (Metadata/)
+1. Add metadata module (metadata_inference/)
    → Computes "novelty" property
 
-2. Add vault function (Functions/)
+2. Add vault function (vault_functions/)
    → @vault_function("novel_notes")
    → Filters by novelty threshold
 
@@ -645,7 +645,7 @@ tracery:
 
 #### Code Geists
 
-Located in `~/.geistfabrik/Extensions/`, exporting:
+Located in `<vault>/_geistfabrik/geists/code/`, exporting:
 
 ```python
 def suggest(vault: VaultContext) -> List[Suggestion]:
@@ -658,7 +658,7 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
 **Example**: A geist using the rich context:
 
 ```python
-# ~/.geistfabrik/Extensions/connection_finder.py
+# <vault>/_geistfabrik/geists/code/connection_finder.py
 def suggest(vault: VaultContext):
     """Use semantic search and sampling utilities"""
     pairs = vault.unlinked_pairs(k=10)  # Graph operation
@@ -680,7 +680,7 @@ def suggest(vault: VaultContext):
 
 #### Tracery Geists
 
-Located in `~/.geistfabrik/Prompts/`, using enhanced Tracery:
+Located in `<vault>/_geistfabrik/geists/tracery/`, using enhanced Tracery:
 
 ```yaml
 type: geist-tracery
@@ -693,7 +693,7 @@ tracery:
 
 ### Journal Management
 
-Each session creates a discrete note at `<vault>/GeistFabrik Sessions/YYYY-MM-DD.md`:
+Each session creates a discrete note at `<vault>/geist journal/YYYY-MM-DD.md`:
 
 ```markdown
 # GeistFabrik Session – 2025-01-15
@@ -713,7 +713,7 @@ Your understanding of [[emergence]] shifted significantly between last session a
 ```
 
 **Properties**:
-- Each session is linkable: `[[GeistFabrik Sessions/2025-01-15]]`
+- Each session is linkable: `[[geist journal/2025-01-15]]`
 - Block IDs follow format: `^gYYYYMMDD-NNN` (date-based + sequential)
 - **Variable-length suggestions** - Each geist determines appropriate length for its suggestion
 - Sessions can be revisited, linked, or embedded like any other note
@@ -760,45 +760,48 @@ $ geistfabrik invoke --date 2025-01-15
 ### File Structure
 
 ```
-~/.geistfabrik/
-├── vault.db                 # SQLite database (everything)
-│                            # - notes, links, tags
-│                            # - embeddings (sqlite-vec)
-│                            # - computed metadata
-│                            # - geist execution history
-│                            # - block reference tracking
-├── Extensions/              # Code geists
-│   ├── __init__.py
-│   ├── collider.py
-│   ├── skeptic.py
-│   └── ...
-├── Prompts/                # Tracery geists
-│   ├── connections.yaml
-│   ├── inversions.yaml
-│   └── ...
-├── Metadata/              # Metadata inference modules
-│   ├── __init__.py
-│   ├── complexity.py
-│   ├── sentiment.py
-│   └── ...
-└── Functions/             # Custom vault functions
-    ├── __init__.py
-    ├── contrarian.py
-    ├── temporal.py
-    └── ...
-
 <vault>/
-└── Geist Journal.md        # Output: reverse-chronological suggestions
+├── _geistfabrik/
+│   ├── vault.db                 # SQLite database (everything)
+│   │                            # - notes, links, tags
+│   │                            # - embeddings (sqlite-vec)
+│   │                            # - computed metadata
+│   │                            # - geist execution history
+│   │                            # - block reference tracking
+│   ├── config.yaml              # Vault-specific settings
+│   ├── geists/
+│   │   ├── code/                # Code geists
+│   │   │   ├── __init__.py
+│   │   │   ├── collider.py
+│   │   │   ├── skeptic.py
+│   │   │   └── ...
+│   │   └── tracery/             # Tracery geists
+│   │       ├── connections.yaml
+│   │       ├── inversions.yaml
+│   │       └── ...
+│   ├── metadata_inference/      # Metadata inference modules
+│   │   ├── __init__.py
+│   │   ├── complexity.py
+│   │   ├── sentiment.py
+│   │   └── ...
+│   └── vault_functions/         # Custom vault functions
+│       ├── __init__.py
+│       ├── contrarian.py
+│       ├── temporal.py
+│       └── ...
+├── geist journal/               # Output: session notes
+│   └── 2025-01-15.md
+└── (user's notes)
 ```
 
 ### Configuration
 
 ```yaml
-# ~/.geistfabrik/config.yaml
+# <vault>/_geistfabrik/config.yaml
 
 vault:
   path: "/path/to/obsidian/vault"
-  database: "~/.geistfabrik/vault.db"
+  database: "./_geistfabrik/vault.db"
 
 embeddings:
   enabled: true
@@ -855,20 +858,20 @@ tracery:
   max_depth: 10
   enable_vault_functions: true
   
-metadata:
+metadata_inference:
   # Modules loaded in this order
   enabled_modules: ["complexity", "sentiment", "temporal"]
   cache_per_session: true
   verify_on_launch: true
-  
-functions:
+
+vault_functions:
   enabled_modules: ["contrarian", "questions", "mood"]
 
 logging:
   benchmark: true      # Log execution times
   errors: true
   test_commands: true  # Log test commands for failures
-  log_file: "~/.geistfabrik/geistfabrik.log"
+  log_file: "./_geistfabrik/geistfabrik.log"
 ```
 
 ## Built-in Components
@@ -957,10 +960,10 @@ Each comes in both code and Tracery versions where appropriate.
 ```python
 def invoke_session(date: datetime, mode: str = "default"):
     """Complete session invocation flow"""
-    
+
     # 1. Initialize vault and sync filesystem
-    vault = Vault(vault_path="~/Documents/MyVault", 
-                  db_path="~/.geistfabrik/vault.db")
+    vault = Vault(vault_path="~/Documents/MyVault",
+                  db_path="~/Documents/MyVault/_geistfabrik/vault.db")
     
     start_time = time.time()
     vault.sync()  # Incremental: only process changed files
@@ -1062,7 +1065,7 @@ def increment_failure_count(geist_id: str):
 def log_test_command(geist_id: str, date: datetime):
     """Log command to reproduce session that caused failure"""
     cmd = f"geistfabrik test {geist_id} --date {date.isoformat()}"
-    log_file = Path("~/.geistfabrik/error.log")
+    log_file = Path("./_geistfabrik/error.log")
     with log_file.open('a') as f:
         f.write(f"{datetime.now()}: Test command: {cmd}\n")
 ```
@@ -1184,15 +1187,15 @@ class MetadataSystem:
     def __init__(self, config: dict):
         self.config = config
         self.modules = {}
-        self.load_order = config.get('metadata', {}).get('enabled_modules', [])
+        self.load_order = config.get('metadata_inference', {}).get('enabled_modules', [])
         self.verify_and_load()
-    
+
     def verify_and_load(self):
         """Load modules in config order with conflict detection"""
         provided_keys = {}  # Track which module provides which keys
-        
+
         for module_name in self.load_order:
-            module_path = Path(f"~/.geistfabrik/Metadata/{module_name}.py")
+            module_path = Path(f"./_geistfabrik/metadata_inference/{module_name}.py")
             
             if not module_path.exists():
                 print(f"⚠️  Module {module_name} not found, skipping")
@@ -1267,7 +1270,7 @@ class FunctionRegistry:
     
     def discover_user_functions(self):
         """Load all @vault_function decorated functions"""
-        for module in Path("~/.geistfabrik/Functions").glob("*.py"):
+        for module in Path("./_geistfabrik/vault_functions").glob("*.py"):
             mod = import_module(module)
             for name, func in inspect.getmembers(mod):
                 if hasattr(func, '_vault_function'):
