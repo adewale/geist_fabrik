@@ -92,11 +92,39 @@ def invoke_command(args: argparse.Namespace) -> int:
         else:
             session_date = datetime.now()
 
+        # Load metadata inference modules
+        metadata_dir = geistfabrik_dir / "metadata_inference"
+        metadata_loader = None
+        if metadata_dir.exists():
+            from geistfabrik import MetadataLoader
+
+            metadata_loader = MetadataLoader(metadata_dir)
+            metadata_loader.load_modules()
+            print(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
+
+        # Load vault function modules
+        functions_dir = geistfabrik_dir / "vault_functions"
+        function_registry = None
+        if functions_dir.exists():
+            from geistfabrik import FunctionRegistry
+
+            function_registry = FunctionRegistry(functions_dir)
+            function_registry.load_modules()
+            print(f"Loaded {len(function_registry.functions)} vault functions")
+        else:
+            # Always create function registry with built-in functions
+            from geistfabrik import FunctionRegistry
+
+            function_registry = FunctionRegistry()
+            print(f"Using {len(function_registry.functions)} built-in vault functions")
+
         # Create session and context
         session = Session(session_date, vault.db)
         print(f"Computing embeddings for {len(vault.all_notes())} notes...")
         session.compute_embeddings(vault.all_notes())
-        context = VaultContext(vault, session)
+        context = VaultContext(
+            vault, session, metadata_loader=metadata_loader, function_registry=function_registry
+        )
 
         # Load and execute geists
         geists_dir = vault_path / "_geistfabrik" / "geists" / "code"

@@ -1,0 +1,53 @@
+type: geist-tracery
+id: what_if
+description: Generates "What if" prompts for creative thinking
+
+tracery:
+  origin:
+    - "What if #subject# #verb# #object#?"
+    - "What if the opposite of [[#note#]] were true?"
+    - "What if you approached [[#note#]] from #direction#?"
+    - "What if #constraint# #result#?"
+
+  subject:
+    - "you"
+    - "your vault"
+    - "your thinking"
+    - "the connections between notes"
+
+  verb:
+    - "explored"
+    - "questioned"
+    - "inverted"
+    - "reframed"
+    - "simplified"
+    - "complicated"
+
+  object:
+    - "what you take for granted"
+    - "the gaps in your knowledge"
+    - "the assumptions in your notes"
+    - "the unlinked connections"
+
+  note:
+    - "$vault.sample_notes(1)"
+
+  direction:
+    - "a completely different angle"
+    - "the perspective of a beginner"
+    - "first principles"
+    - "the meta-level"
+
+  constraint:
+    - "you could only use one note"
+    - "you had to explain it to a child"
+    - "you had to draw it"
+    - "you wrote it as a dialogue"
+
+  result:
+    - "what would you choose"
+    - "how would it change"
+    - "what would you learn"
+    - "what would emerge"
+
+suggestions_per_invocation: 3

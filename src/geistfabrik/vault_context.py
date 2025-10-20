@@ -2,11 +2,15 @@
 
 import random
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from .embeddings import Session, cosine_similarity, find_similar_notes
 from .models import Link, Note
 from .vault import Vault
+
+if TYPE_CHECKING:
+    from .function_registry import FunctionRegistry
+    from .metadata_system import MetadataLoader
 
 
 class VaultContext:
@@ -22,6 +26,8 @@ class VaultContext:
         vault: Vault,
         session: Session,
         seed: Optional[int] = None,
+        metadata_loader: Optional["MetadataLoader"] = None,
+        function_registry: Optional["FunctionRegistry"] = None,
     ):
         """Initialize vault context.
 
@@ -29,6 +35,8 @@ class VaultContext:
             vault: Vault instance
             session: Session with embeddings computed
             seed: Random seed for deterministic operations. If None, use date-based seed.
+            metadata_loader: Optional metadata inference loader
+            function_registry: Optional function registry for vault functions
         """
         self.vault = vault
         self.session = session
@@ -42,9 +50,13 @@ class VaultContext:
 
         # Function registry (for extensibility)
         self._functions: Dict[str, Callable[..., Any]] = {}
+        self._function_registry = function_registry
 
         # Cache for metadata
         self._metadata_cache: Dict[str, Dict[str, Any]] = {}
+
+        # Metadata loader for extensible metadata inference
+        self._metadata_loader = metadata_loader
 
         # Cache for embeddings (loaded from session)
         self._embeddings = session.get_all_embeddings()
@@ -332,14 +344,24 @@ class VaultContext:
         if note.path in self._metadata_cache:
             return self._metadata_cache[note.path]
 
-        # For now, return basic metadata
-        # Metadata inference system will be added in Phase 2C
+        # Start with basic built-in metadata
         metadata = {
             "word_count": len(note.content.split()),
             "link_count": len(note.links),
             "tag_count": len(note.tags),
             "age_days": (datetime.now() - note.created).days,
         }
+
+        # Run metadata inference modules if available
+        if self._metadata_loader is not None:
+            try:
+                inferred = self._metadata_loader.infer_all(note, self)
+                metadata.update(inferred)
+            except Exception as e:
+                # Log error but don't fail - metadata inference is optional
+                import logging
+
+                logging.getLogger(__name__).error(f"Error inferring metadata for {note.path}: {e}")
 
         self._metadata_cache[note.path] = metadata
         return metadata
@@ -382,14 +404,18 @@ class VaultContext:
             name: Function name
             func: Callable function
         """
-        self._functions[name] = func
+        if self._function_registry is not None:
+            self._function_registry.register(name, func)
+        else:
+            self._functions[name] = func
 
-    def call_function(self, name: str, **kwargs: Any) -> Any:
+    def call_function(self, name: str, *args: Any, **kwargs: Any) -> Any:
         """Call registered vault function.
 
         Args:
             name: Function name
-            **kwargs: Function arguments
+            *args: Positional arguments
+            **kwargs: Keyword arguments
 
         Returns:
             Function result
@@ -397,6 +423,12 @@ class VaultContext:
         Raises:
             KeyError: If function not found
         """
+        # Try function registry first
+        if self._function_registry is not None:
+            if self._function_registry.has_function(name):
+                return self._function_registry.call(name, self, *args, **kwargs)
+
+        # Fall back to local functions dict
         if name not in self._functions:
             raise KeyError(f"Function '{name}' not registered")
 

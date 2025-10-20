@@ -1,0 +1,29 @@
+type: geist-tracery
+id: note_combinations
+description: Suggests combining random notes in creative ways
+
+tracery:
+  origin:
+    - "What if you combined [[#note1#]] with [[#note2#]]? #reason#"
+    - "Consider connecting [[#note1#]] and [[#note2#]]. #reason#"
+    - "[[#note1#]] and [[#note2#]] might #relationship# in interesting ways."
+
+  note1:
+    - "$vault.sample_notes(1)"
+
+  note2:
+    - "$vault.sample_notes(1)"
+
+  reason:
+    - "They might reveal unexpected patterns."
+    - "The contrast could clarify your thinking."
+    - "A synthesis might emerge from the tension."
+    - "Their intersection could be fertile ground."
+
+  relationship:
+    - "complement each other"
+    - "challenge each other"
+    - "illuminate each other"
+    - "transform each other"
+
+suggestions_per_invocation: 2
