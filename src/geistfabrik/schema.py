@@ -94,6 +94,19 @@ CREATE TABLE IF NOT EXISTS suggestion_notes (
 
 CREATE INDEX IF NOT EXISTS idx_suggestion_notes_suggestion ON suggestion_notes(suggestion_id);
 CREATE INDEX IF NOT EXISTS idx_suggestion_notes_note ON suggestion_notes(note_path);
+
+-- Session suggestions (for novelty filtering and history tracking)
+CREATE TABLE IF NOT EXISTS session_suggestions (
+    session_date TEXT NOT NULL,
+    geist_id TEXT NOT NULL,
+    suggestion_text TEXT NOT NULL,
+    block_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (session_date, block_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_suggestions_date ON session_suggestions(session_date);
+CREATE INDEX IF NOT EXISTS idx_session_suggestions_geist ON session_suggestions(geist_id);
 """
 
 

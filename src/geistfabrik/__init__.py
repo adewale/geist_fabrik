@@ -1,7 +1,9 @@
 """GeistFabrik: A Python-based divergence engine for Obsidian vaults."""
 
 from .embeddings import EmbeddingComputer, Session, cosine_similarity, find_similar_notes
+from .filtering import SuggestionFilter, select_suggestions
 from .geist_executor import GeistExecutor, GeistMetadata
+from .journal_writer import JournalWriter
 from .models import Link, Note, Suggestion
 from .vault import Vault
 from .vault_context import VaultContext
@@ -21,4 +23,7 @@ __all__ = [
     "find_similar_notes",
     "GeistExecutor",
     "GeistMetadata",
+    "SuggestionFilter",
+    "select_suggestions",
+    "JournalWriter",
 ]

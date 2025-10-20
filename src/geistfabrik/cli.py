@@ -6,8 +6,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .embeddings import Session
+from .embeddings import EmbeddingComputer, Session
+from .filtering import SuggestionFilter, select_suggestions
 from .geist_executor import GeistExecutor
+from .journal_writer import JournalWriter
 from .vault import Vault
 from .vault_context import VaultContext
 
@@ -126,30 +128,72 @@ def invoke_command(args: argparse.Namespace) -> int:
         else:
             results = executor.execute_all(context)
 
+        # Collect all suggestions
+        all_suggestions = []
+        for suggestions in results.values():
+            all_suggestions.extend(suggestions)
+
+        print(f"Generated {len(all_suggestions)} raw suggestions")
+
+        # Filter suggestions
+        embedding_computer = EmbeddingComputer()
+        filter = SuggestionFilter(vault.db, embedding_computer)
+        filtered = filter.filter_all(all_suggestions, session_date)
+        print(f"Filtered to {len(filtered)} suggestions")
+
+        # Select final suggestions based on mode
+        mode = "full" if args.full else "default"
+        count = args.count if hasattr(args, "count") else 5
+        seed = int(session_date.timestamp())
+        final = select_suggestions(filtered, mode, count, seed)
+        print(f"Selected {len(final)} final suggestions\n")
+
+        # Write to journal if requested
+        if args.write:
+            journal_writer = JournalWriter(vault_path, vault.db)
+
+            # Check if session already exists
+            if journal_writer.session_exists(session_date):
+                if not args.force:
+                    print(
+                        f"\n⚠️  Session note already exists for {session_date.strftime('%Y-%m-%d')}"
+                    )
+                    print("Use --force to overwrite, or delete the existing note first.")
+                    vault.close()
+                    return 1
+                else:
+                    # Delete existing session note
+                    existing_path = (
+                        vault_path / "geist journal" / f"{session_date.strftime('%Y-%m-%d')}.md"
+                    )
+                    existing_path.unlink()
+
+            try:
+                journal_path = journal_writer.write_session(session_date, final, mode)
+                print(f"✓ Wrote session note: {journal_path.relative_to(vault_path)}\n")
+            except Exception as e:
+                print(f"Error writing session note: {e}", file=sys.stderr)
+                vault.close()
+                return 1
+
         # Display results
-        print(f"\n{'=' * 80}")
+        print(f"{'=' * 80}")
         print(f"GeistFabrik Session - {session_date.strftime('%Y-%m-%d')}")
         print(f"{'=' * 80}\n")
 
-        total_suggestions = 0
-        for geist_id, suggestions in results.items():
-            if not suggestions:
-                continue
-
-            print(f"\n## {geist_id} ({len(suggestions)} suggestions)\n")
-            for i, suggestion in enumerate(suggestions, 1):
-                print(f"{i}. {suggestion.text}")
+        if not final:
+            print("No suggestions to display.")
+        else:
+            for i, suggestion in enumerate(final, 1):
+                print(f"## {suggestion.geist_id}")
+                print(f"{suggestion.text}")
                 if suggestion.notes:
                     note_refs = ", ".join(f"[[{note}]]" for note in suggestion.notes)
-                    print(f"   Notes: {note_refs}")
+                    print(f"_Notes: {note_refs}_")
                 print()
-                total_suggestions += 1
 
-        if total_suggestions == 0:
-            print("No suggestions generated.")
-        else:
-            print(f"\n{'=' * 80}")
-            print(f"Total: {total_suggestions} suggestions from {len(results)} geists")
+            print(f"{'=' * 80}")
+            print(f"Total: {len(final)} suggestions")
             print(f"{'=' * 80}\n")
 
         # Display execution log if there were errors
@@ -215,7 +259,23 @@ Examples:
     invoke_parser.add_argument(
         "--full",
         action="store_true",
-        help="Show all suggestions (firehose mode - not yet implemented)",
+        help="Show all suggestions (firehose mode)",
+    )
+    invoke_parser.add_argument(
+        "--count",
+        type=int,
+        default=5,
+        help="Number of suggestions to select in default mode (default: 5)",
+    )
+    invoke_parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Write suggestions to geist journal note",
+    )
+    invoke_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing session note (use with --write)",
     )
 
     args = parser.parse_args()
