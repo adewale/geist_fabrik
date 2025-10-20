@@ -37,14 +37,19 @@ DEFAULT_BATCH_SIZE = 8  # Limit batch size to reduce parallel workers
 class EmbeddingComputer:
     """Handles embedding computation using sentence-transformers."""
 
-    def __init__(self, model_name: str = MODEL_NAME):
+    def __init__(
+        self,
+        model_name: str = MODEL_NAME,
+        model: Optional[SentenceTransformer] = None,
+    ):
         """Initialize embedding computer.
 
         Args:
             model_name: Name of sentence-transformers model to use
+            model: Pre-initialized model (for testing/injection), if None will lazy-load
         """
         self.model_name = model_name
-        self._model: Optional[SentenceTransformer] = None
+        self._model: Optional[SentenceTransformer] = model
 
     @property
     def model(self) -> SentenceTransformer:
@@ -149,17 +154,23 @@ class EmbeddingComputer:
 class Session:
     """Represents a GeistFabrik session with temporal embeddings."""
 
-    def __init__(self, date: datetime, db: sqlite3.Connection):
+    def __init__(
+        self,
+        date: datetime,
+        db: sqlite3.Connection,
+        computer: Optional[EmbeddingComputer] = None,
+    ):
         """Initialize session.
 
         Args:
             date: Session date
             db: Database connection
+            computer: EmbeddingComputer instance (for testing/injection), if None will create new
         """
         self.date = date
         self.db = db
         self.session_id = self._get_or_create_session()
-        self.computer = EmbeddingComputer()
+        self.computer = computer if computer is not None else EmbeddingComputer()
 
     def _get_or_create_session(self) -> int:
         """Get existing session ID or create new session.

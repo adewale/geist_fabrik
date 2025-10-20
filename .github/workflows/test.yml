@@ -49,6 +49,12 @@ jobs:
           # Force uv to cache aggressively
           UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
 
+      - name: Pre-download sentence-transformers model
+        run: |
+          uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+        continue-on-error: true
+        timeout-minutes: 5
+
       - name: Set thread limits for ML libraries
         run: |
           echo "OMP_NUM_THREADS=1" >> $GITHUB_ENV
@@ -59,7 +65,7 @@ jobs:
           echo "TOKENIZERS_PARALLELISM=false" >> $GITHUB_ENV
 
       - name: Run tests
-        run: uv run pytest -v
+        run: uv run pytest -v -m "not slow"
 
       - name: Run linting
         run: uv run ruff check src/ tests/

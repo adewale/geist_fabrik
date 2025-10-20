@@ -37,7 +37,7 @@ addopts = "-v --strict-markers"
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
-    "slow: Slow tests",
+    "slow: Slow tests that require network access (model downloads)",
 ]
 
 [tool.ruff]
@@ -58,6 +58,7 @@ disallow_untyped_defs = true
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.2.0",
     "ruff>=0.1.0",
     "mypy>=1.5.0",
     "pre-commit>=3.5.0",

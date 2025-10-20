@@ -16,8 +16,9 @@ def test_init_db_memory() -> None:
     assert "links" in tables
     assert "tags" in tables
     assert "embeddings" in tables
-    assert "suggestions" in tables
-    assert "suggestion_notes" in tables
+    assert "sessions" in tables
+    assert "session_embeddings" in tables
+    assert "session_suggestions" in tables
 
     conn.close()
 
