@@ -37,7 +37,7 @@ addopts = "-v --strict-markers"
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
-    "slow: Slow tests",
+    "slow: Slow tests that require network access (model downloads)",
 ]
 
 [tool.ruff]
