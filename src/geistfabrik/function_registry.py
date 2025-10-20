@@ -130,6 +130,9 @@ class FunctionRegistry:
                 return []
             return vault.neighbors(note, k)
 
+        # Transfer built-in functions from global registry to instance
+        self.functions.update(_GLOBAL_REGISTRY)
+
     def load_modules(self, enabled_modules: Optional[List[str]] = None) -> None:
         """Load vault function modules from directory.
 
@@ -166,6 +169,9 @@ class FunctionRegistry:
             except Exception as e:
                 logger.error(f"Failed to load function module {module_name}: {e}")
                 continue
+
+        # Transfer any functions added to global registry during module loading
+        self.functions.update(_GLOBAL_REGISTRY)
 
         logger.info(f"Loaded {len(self.functions)} vault functions")
 
