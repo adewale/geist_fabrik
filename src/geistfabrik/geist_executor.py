@@ -23,7 +23,7 @@ class GeistMetadata:
     is_enabled: bool = True
 
 
-class TimeoutError(Exception):
+class GeistTimeoutError(Exception):
     """Raised when a geist exceeds its execution timeout."""
 
     pass
@@ -31,7 +31,7 @@ class TimeoutError(Exception):
 
 def timeout_handler(signum: int, frame: Any) -> None:
     """Signal handler for geist timeouts."""
-    raise TimeoutError("Geist execution timed out")
+    raise GeistTimeoutError("Geist execution timed out")
 
 
 class GeistExecutor:
@@ -167,7 +167,7 @@ class GeistExecutor:
                 if sys.platform != "win32":
                     signal.alarm(0)
 
-        except TimeoutError:
+        except GeistTimeoutError:
             self._handle_failure(geist_id, "timeout", "Execution timed out")
             return []
 

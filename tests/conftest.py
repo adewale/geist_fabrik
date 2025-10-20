@@ -1,5 +1,6 @@
 """Pytest configuration and shared fixtures."""
 
+import sqlite3
 import tempfile
 from pathlib import Path
 from typing import Generator
@@ -46,7 +47,7 @@ def shared_embedding_computer() -> Generator[EmbeddingComputer, None, None]:
 
 
 @pytest.fixture
-def test_db():  # type: ignore[type-arg]
+def test_db() -> Generator[sqlite3.Connection, None, None]:
     """Function-scoped database with cleanup.
 
     Use this instead of manually calling init_db() and db.close().
