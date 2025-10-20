@@ -64,8 +64,8 @@ This document contains all acceptance criteria for each implementation phase. Us
 
 | ID | Status | Criteria | Verification |
 |----|--------|----------|--------------|
-| AC-1.8 | ⬜ | Broken markdown handling | `uv run pytest tests/unit/test_markdown_parser.py::test_parse_{malformed_frontmatter,unclosed_code_blocks,invalid_links} -v` |
-| AC-1.9 | ⬜ | Empty vault handling | Create empty vault, sync, verify 0 notes without errors |
+| AC-1.8 | ⬜ | Broken markdown handling | `uv run pytest tests/unit/test_markdown_parser.py::test_parse_malformed_frontmatter tests/unit/test_markdown_parser.py::test_parse_unclosed_code_blocks tests/unit/test_markdown_parser.py::test_extract_links_invalid -v` |
+| AC-1.9 | ⬜ | Empty vault handling | `uv run pytest tests/integration/test_scenarios.py::test_scenario_empty_vault -v` |
 | AC-1.10 | ⬜ | Large file handling | `uv run pytest tests/unit/test_vault.py::test_large_note -v` (handle notes >1MB) |
 | AC-1.11 | ⬜ | Invalid UTF-8 handling | `uv run pytest tests/unit/test_markdown_parser.py::test_parse_invalid_utf8 -v` |
 | AC-1.12 | ⬜ | Circular link detection | `uv run pytest tests/unit/test_vault.py::test_circular_links -v` (A→B→C→A handled) |
