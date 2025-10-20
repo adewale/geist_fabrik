@@ -1,5 +1,7 @@
 # GeistFabrik
 
+[![Test](https://github.com/adewale/geist_fabrik/actions/workflows/test.yml/badge.svg)](https://github.com/adewale/geist_fabrik/actions/workflows/test.yml)
+
 **A Python-based divergence engine for Obsidian vaults**
 
 GeistFabrik (German for "spirit factory") generates creative suggestions through both code and Tracery grammars. It's a tool for thought that acts as a muse, not an oracle - offering provocative "What if...?" questions rather than prescriptive answers.
