@@ -43,7 +43,7 @@ Notes are lightweight, immutable data structures. All derived intelligence (meta
 class Suggestion:
     """A geist-generated provocation"""
     text: str           # 1-2 sentence suggestion
-    notes: List[str]    # Referenced note titles  
+    notes: List[str]    # Referenced note titles
     geist_id: str       # Identifier of creating geist
     title: str = None   # Optional suggested note title
 ```
@@ -61,17 +61,17 @@ class Vault:
         self.vault_path = vault_path
         self.db = sqlite3.connect(db_path)
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-    
+
     def sync(self):
         """Incrementally update database with changed files"""
         # Parse changed markdown files
         # Update notes, links, tags tables
         # Compute embeddings for new/modified notes
         # Invalidate stale metadata
-    
+
     def all_notes(self) -> List[Note]:
         """Load all notes from database"""
-    
+
     def get_note(self, path: str) -> Note:
         """Retrieve specific note"""
 ```
@@ -95,55 +95,55 @@ class VaultContext:
         self.vault = vault
         self.db = vault.db
         self.rng = Random(seed)  # Deterministic randomness
-    
+
     # Direct vault access (delegated)
     def notes(self) -> List[Note]:
         return self.vault.all_notes()
-    
+
     def get_note(self, path: str) -> Note:
         return self.vault.get_note(path)
-    
+
     def read(self, note: Note) -> str:
         return note.content
-    
+
     # Semantic search (sqlite-vec)
     def neighbors(self, note: Note, k: int) -> List[Note]:
         """Find k semantically similar notes"""
-    
+
     def similarity(self, a: Note, b: Note) -> float:
         """Calculate semantic similarity between notes"""
-    
+
     # Graph operations (SQL)
     def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
         """Find note pairs with no links between them"""
-    
+
     def orphans(self, k: int) -> List[Note]:
         """Find notes with no links"""
-    
+
     def hubs(self, k: int) -> List[Note]:
         """Find most-linked-to notes"""
-    
+
     def links_between(self, a: Note, b: Note) -> List[Link]:
         """Find all links between two notes"""
-    
+
     # Temporal queries
     def old_notes(self, k: int) -> List[Note]:
         """Find least recently modified notes"""
-    
+
     def recent_notes(self, k: int) -> List[Note]:
         """Find most recently modified notes"""
-    
+
     # Metadata access (user-extensible)
     def metadata(self, note: Note) -> Dict:
         """Retrieve all inferred metadata for a note"""
-    
+
     # Deterministic sampling
     def sample(self, items: List, k: int) -> List:
         """Deterministically sample k items"""
-    
+
     def random_notes(self, k: int) -> List[Note]:
         """Sample k random notes"""
-    
+
     # Dynamic function calls
     def call_function(self, name: str, **kwargs) -> Any:
         """Call registered vault function"""
@@ -251,33 +251,33 @@ class Vault:
         """Incrementally update database with changed files"""
         for md_file in self.vault_path.rglob("*.md"):
             file_hash = self.hash_file(md_file)
-            
+
             # Check if file changed since last sync
             cached = self.db.execute(
-                "SELECT hash FROM notes WHERE path = ?", 
+                "SELECT hash FROM notes WHERE path = ?",
                 (str(md_file),)
             ).fetchone()
-            
+
             if cached and cached[0] == file_hash:
                 continue  # No change, skip
-            
+
             # Parse and update
             note = self.parse_markdown(md_file)
             self.upsert_note(note, file_hash)
             self.update_embeddings(note)
             self.invalidate_metadata(note.path)
-        
+
         self.db.commit()
-    
+
     def update_embeddings(self, note: Note):
         """Compute and store embeddings using sentence-transformers"""
         title_emb = self.embedding_model.encode(note.title)
         content_emb = self.embedding_model.encode(
             note.content[:1000]  # Truncate long content
         )
-        
+
         self.db.execute("""
-            INSERT OR REPLACE INTO note_embeddings 
+            INSERT OR REPLACE INTO note_embeddings
             (path, title_embedding, content_embedding)
             VALUES (?, ?, ?)
         """, (note.path, title_emb.tolist(), content_emb.tolist()))
@@ -294,16 +294,16 @@ def neighbors(self, note: Note, k: int) -> List[Note]:
         "SELECT content_embedding FROM note_embeddings WHERE path = ?",
         (note.path,)
     ).fetchone()[0]
-    
+
     paths = self.db.execute("""
-        SELECT path 
-        FROM note_embeddings 
+        SELECT path
+        FROM note_embeddings
         WHERE content_embedding MATCH ?
           AND path != ?
-        ORDER BY distance 
+        ORDER BY distance
         LIMIT ?
     """, (embedding, note.path, k)).fetchall()
-    
+
     return [self.get_note(p[0]) for p in paths]
 
 def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
@@ -313,14 +313,14 @@ def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
         FROM notes a, notes b
         WHERE a.path < b.path
           AND NOT EXISTS (
-            SELECT 1 FROM links 
+            SELECT 1 FROM links
             WHERE (source_path = a.path AND target_path = b.path)
                OR (source_path = b.path AND target_path = a.path)
           )
         ORDER BY RANDOM()
         LIMIT ?
     """, (k,)).fetchall()
-    
+
     return [(self.get_note(a), self.get_note(b)) for a, b in pairs]
 ```
 
@@ -364,13 +364,13 @@ class Session:
         self.date = date
         self.session_id = self.generate_session_id(date)
         self.embeddings = self.compute_session_embeddings(vault)
-        
+
     def compute_session_embeddings(self, vault: Vault):
         """Compute time-aware embeddings for all notes"""
         for note in vault.notes():
             # Semantic embedding (384 dims)
             semantic = self.embed_model.encode(note.content)
-            
+
             # Temporal features (3 dims)
             age_at_session = (self.date - note.created).days
             temporal_features = [
@@ -378,15 +378,15 @@ class Session:
                 get_season(note.created) / 4,  # Season written
                 get_season(self.date) / 4,     # Season of session
             ]
-            
+
             # Combined embedding (387 dims)
             # Weight semantic and temporal equally (50/50) until we gather usage data
             semantic_weight = 0.5
             temporal_weight = 0.5
-            
+
             semantic_scaled = semantic * semantic_weight
             temporal_scaled = np.array(temporal_features) * temporal_weight
-            
+
             embedding = np.concatenate([semantic_scaled, temporal_scaled])
             self.store_embedding(note.path, embedding, self.session_id)
 ```
@@ -483,8 +483,8 @@ Temporal embeddings unlock two powerful dimensions:
 # Compare note across sessions
 def get_embedding_history(note_path: str):
     return db.execute("""
-        SELECT session_id, embedding 
-        FROM session_embeddings 
+        SELECT session_id, embedding
+        FROM session_embeddings
         WHERE note_path = ?
         ORDER BY session_id
     """, (note_path,))
@@ -567,7 +567,7 @@ from geistfabrik import vault_function
 @vault_function("find_questions")
 def find_question_notes(vault: VaultContext, k=5):
     """Find notes that are phrased as questions"""
-    questions = [n for n in vault.notes() 
+    questions = [n for n in vault.notes()
                  if vault.metadata(n).get("is_question", False)]
     return vault.sample(questions, k)
 
@@ -583,12 +583,12 @@ def find_contrarian(vault: VaultContext, note_title: str, k=3):
 @vault_function("notes_by_mood")
 def notes_by_mood(vault: VaultContext, mood: str, k=10):
     """Find notes matching a mood"""
-    matching = [n for n in vault.notes() 
+    matching = [n for n in vault.notes()
                 if vault.metadata(n).get("mood") == mood]
     return vault.sample(matching, k)
 ```
 
-**Critical Architectural Role**: Vault functions are the **bridge between metadata and Tracery**. 
+**Critical Architectural Role**: Vault functions are the **bridge between metadata and Tracery**.
 
 - **Code geists**: Can directly access `vault.metadata(note)` for any property
 - **Tracery geists**: Can only call vault functions with simple string arguments
@@ -663,18 +663,18 @@ def suggest(vault: VaultContext):
     """Use semantic search and sampling utilities"""
     pairs = vault.unlinked_pairs(k=10)  # Graph operation
     suggestions = []
-    
+
     for note_a, note_b in pairs:
         # Check if they're semantically similar despite no link
         similarity = vault.similarity(note_a, note_b)
-        
+
         if similarity > 0.7:  # Embeddings comparison
             suggestions.append(Suggestion(
                 text=f"[[{note_a.title}]] × [[{note_b.title}]] – surprisingly similar ({similarity:.2f})",
                 notes=[note_a.title, note_b.title],
                 geist_id="connection_finder"
             ))
-    
+
     return vault.sample(suggestions, k=2)  # Deterministic sampling
 ```
 
@@ -702,10 +702,10 @@ Each session creates a discrete note at `<vault>/geist journal/YYYY-MM-DD.md`:
 [[Project Planning]] × [[Fermentation]] – what if they follow the same cycles?
 
 ## columbo ^g20250115-002
-I think you're lying about your claim in [[Democracy Note]] that "direct democracy scales" 
-because your [[Scaling Systems]] note argues that coordination costs grow superlinearly 
-with group size, and your [[Athens]] note describes how Athenian democracy only worked 
-with 30,000 citizens. Either democracy doesn't scale, or you've changed your definition 
+I think you're lying about your claim in [[Democracy Note]] that "direct democracy scales"
+because your [[Scaling Systems]] note argues that coordination costs grow superlinearly
+with group size, and your [[Athens]] note describes how Athenian democracy only worked
+with 30,000 citizens. Either democracy doesn't scale, or you've changed your definition
 of "scale," or there's a missing piece about how modern technology changes coordination costs.
 
 ## session_drift ^g20250115-003
@@ -810,45 +810,45 @@ embeddings:
   temporal_features: true
   semantic_weight: 0.5  # 50/50 split until we gather usage data
   temporal_weight: 0.5
-  
+
 boundaries:
   exclude_paths: ["People/", "Private/", "Archive/"]
-  
+
 session:
   default_suggestions: 5  # For default mode
   novelty_window_days: 60
   diversity_threshold: 0.85
-  
+
 quality:
   min_length: 10       # Minimum suggestion text length
   max_length: 2000     # Maximum suggestion text length
   check_repetition: true
-  
+
 geist_execution:
   timeout: 5           # Seconds before timeout
   max_failures: 3      # Disable geist after N failures
   execution_mode: "serial"  # Only serial supported
-  
+
 filtering:
   # All options available with easy swapping
   strategies: ["boundary", "novelty", "diversity", "quality"]
-  
+
   # Boundary enforcement
   boundary:
     enabled: true
-  
+
   # Novelty checking
   novelty:
     enabled: true
     method: "embedding_similarity"  # or "text_match"
     threshold: 0.85
-  
+
   # Diversity within batch
   diversity:
     enabled: true
     method: "embedding_similarity"
     threshold: 0.85
-  
+
   # Quality baseline
   quality:
     enabled: true
@@ -857,7 +857,7 @@ filtering:
 tracery:
   max_depth: 10
   enable_vault_functions: true
-  
+
 metadata_inference:
   # Modules loaded in this order
   enabled_modules: ["complexity", "sentiment", "temporal"]
@@ -911,7 +911,7 @@ def infer(note: Note, vault: VaultContext) -> Dict:
         "depth": estimate_conceptual_depth(note, vault)
     }
 
-# temporal.py  
+# temporal.py
 def infer(note: Note, vault: VaultContext) -> Dict:
     return {
         "day_of_week": note.created.strftime("%A"),
@@ -964,28 +964,28 @@ def invoke_session(date: datetime, mode: str = "default"):
     # 1. Initialize vault and sync filesystem
     vault = Vault(vault_path="~/Documents/MyVault",
                   db_path="~/Documents/MyVault/_geistfabrik/vault.db")
-    
+
     start_time = time.time()
     vault.sync()  # Incremental: only process changed files
     sync_time = time.time() - start_time
     log_benchmark("vault_sync", sync_time)
-    
+
     # 2. Create session and compute embeddings
     start_time = time.time()
     session = Session(date, vault)
     session.compute_embeddings()  # Stores in session_embeddings table
     embedding_time = time.time() - start_time
     log_benchmark("compute_embeddings", embedding_time)
-    
+
     # 3. Create VaultContext with session reference
     ctx = VaultContext(vault, session, seed=date)
-    
+
     # 4. Load and execute all geists (serially)
     start_time = time.time()
     all_suggestions = []
     geists = load_all_geists()
     executor = GeistExecutor(timeout=5)  # 5 second default timeout
-    
+
     for geist in geists:
         geist_start = time.time()
         try:
@@ -1000,42 +1000,42 @@ def invoke_session(date: datetime, mode: str = "default"):
             log_error(geist.id, str(e))
             log_test_command(geist.id, date)  # Log command to reproduce
             increment_failure_count(geist.id)
-    
+
     execution_time = time.time() - start_time
     log_benchmark("geist_execution", execution_time)
-    
+
     # 5. Filter suggestions
     start_time = time.time()
     filtered = filter_suggestions(all_suggestions, date, vault)
     filter_time = time.time() - start_time
     log_benchmark("filtering", filter_time)
-    
+
     # 6. Sample based on mode
     final = select_suggestions(filtered, mode, date)
-    
+
     # 7. Write to journal
     write_session_journal(date, final, mode)
-    
+
     # 8. Record in database
     record_session(date, geists, all_suggestions, filtered, final)
-    
+
     total_time = time.time() - session_start_time
     log_benchmark("total_session", total_time)
 
 class GeistExecutor:
     def __init__(self, timeout: int = 5):
         self.timeout = timeout
-    
+
     def execute_with_timeout(self, geist, ctx):
         """Execute geist with timeout"""
         import signal
-        
+
         def timeout_handler(signum, frame):
             raise GeistTimeoutError(f"Geist {geist.id} exceeded {self.timeout}s")
-        
+
         signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(self.timeout)
-        
+
         try:
             suggestions = geist.suggest(ctx)
             signal.alarm(0)  # Cancel alarm
@@ -1051,14 +1051,14 @@ def increment_failure_count(geist_id: str):
         "SELECT failure_count FROM geist_status WHERE geist_id = ?",
         (geist_id,)
     ).fetchone()
-    
+
     new_count = (count[0] if count else 0) + 1
-    
+
     db.execute("""
         INSERT OR REPLACE INTO geist_status (geist_id, failure_count, disabled)
         VALUES (?, ?, ?)
     """, (geist_id, new_count, new_count >= 3))  # Disable after 3 failures
-    
+
     if new_count >= 3:
         print(f"⚠️  Geist '{geist_id}' disabled after 3 failures")
 
@@ -1114,21 +1114,21 @@ class Vault:
         for md_file in self.vault_path.rglob("*.md"):
             if self.should_exclude(md_file):
                 continue
-            
+
             # Hash only content (including frontmatter), not mtime
             with open(md_file, 'rb') as f:
                 content = f.read()
-            
+
             file_hash = hashlib.sha256(content).hexdigest()
             file_hashes.append((str(md_file), file_hash))
-        
+
         # Sort for deterministic ordering
         file_hashes.sort()
-        
+
         # Hash the hashes
         combined = ''.join(h for _, h in file_hashes)
         state_hash = hashlib.sha256(combined.encode()).hexdigest()
-        
+
         return state_hash
 ```
 
@@ -1141,42 +1141,42 @@ def filter_quality(suggestions: List[Suggestion], config: dict) -> List[Suggesti
     """Global quality filtering with configurable thresholds"""
     min_length = config.get('min_length', 10)
     max_length = config.get('max_length', 2000)
-    
+
     quality = []
     recent_texts = set()
-    
+
     for suggestion in suggestions:
         text = suggestion.text.strip()
-        
+
         # Length checks
         if len(text) < min_length:
             continue
         if len(text) > max_length:
             continue
-        
+
         # Repetition check (exact duplicates within batch)
         if text in recent_texts:
             continue
         recent_texts.add(text)
-        
+
         # Basic validation
         if not suggestion.geist_id:
             continue
         if not suggestion.notes:
             continue
-        
+
         quality.append(suggestion)
-    
+
     return quality
 
 # Geists can implement own quality bar
 def suggest(vault: VaultContext) -> List[Suggestion]:
     suggestions = generate_suggestions(vault)
-    
+
     # Geist-specific quality check
     if not meets_my_quality_bar(suggestions):
         return []  # Sentinel: no good suggestions this time
-    
+
     return suggestions
 ```
 
@@ -1196,25 +1196,25 @@ class MetadataSystem:
 
         for module_name in self.load_order:
             module_path = Path(f"./_geistfabrik/metadata_inference/{module_name}.py")
-            
+
             if not module_path.exists():
                 print(f"⚠️  Module {module_name} not found, skipping")
                 continue
-            
+
             try:
                 # Load module
                 spec = importlib.util.spec_from_file_location(module_name, module_path)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                
+
                 if not hasattr(module, 'infer'):
                     print(f"✗ Module {module_name} has no infer() function")
                     continue
-                
+
                 # Test run to detect provided keys
                 test_note = Note(...)  # Minimal test note
                 test_result = module.infer(test_note, None)
-                
+
                 # Check for conflicts
                 for key in test_result.keys():
                     if key in provided_keys:
@@ -1223,24 +1223,24 @@ class MetadataSystem:
                             f"'{provided_keys[key]}' and '{module_name}'"
                         )
                     provided_keys[key] = module_name
-                
+
                 self.modules[module_name] = module.infer
                 print(f"✓ Loaded metadata module: {module_name}")
-                
+
             except ConflictError as e:
                 print(f"✗ Conflict detected: {e}")
                 sys.exit(1)
             except Exception as e:
                 print(f"✗ Failed to load {module_name}: {e}")
                 sys.exit(1)
-    
+
     def infer_all(self, note: Note, vault: VaultContext, session_id: int) -> Dict:
         """Run all modules and cache results for session"""
         # Check cache first
         cached = self.get_cached(note.path, session_id)
         if cached is not None:
             return cached
-        
+
         # Compute metadata
         metadata = {}
         for module_name in self.load_order:
@@ -1251,10 +1251,10 @@ class MetadataSystem:
                 metadata.update(result)
             except Exception as e:
                 print(f"⚠️  {module_name} failed for {note.path}: {e}")
-        
+
         # Cache for session
         self.cache_metadata(note.path, session_id, metadata)
-        
+
         return metadata
 ```
 
@@ -1267,7 +1267,7 @@ class FunctionRegistry:
         self.functions = {}
         self.load_builtin_functions()
         self.discover_user_functions()
-    
+
     def discover_user_functions(self):
         """Load all @vault_function decorated functions"""
         for module in Path("./_geistfabrik/vault_functions").glob("*.py"):
@@ -1275,7 +1275,7 @@ class FunctionRegistry:
             for name, func in inspect.getmembers(mod):
                 if hasattr(func, '_vault_function'):
                     self.register(func._vault_function_name, func)
-    
+
     def make_tracery_context(self, vault: VaultContext):
         """Create $vault.* namespace for Tracery"""
         return {f"vault.{name}": partial(func, vault)
@@ -1314,22 +1314,22 @@ def suggest(vault: VaultContext):
     """Find notes that could bridge disconnected graph clusters"""
     clusters = vault.find_clusters(min_size=3, max_size=10)
     suggestions = []
-    
+
     for cluster in clusters:
         # Find notes semantically near cluster but not in it
         boundary_notes = []
         for note in vault.notes():
             if note in cluster:
                 continue
-            
+
             # Average similarity to cluster members
             similarities = [vault.similarity(note, c) for c in cluster]
             avg_sim = sum(similarities) / len(similarities)
-            
+
             # Close enough to bridge, not so close it should be in cluster
             if 0.5 < avg_sim < 0.8:
                 boundary_notes.append((note, avg_sim))
-        
+
         if boundary_notes:
             bridge = max(boundary_notes, key=lambda x: x[1])[0]
             cluster_sample = vault.sample(list(cluster), k=2)
@@ -1339,7 +1339,7 @@ def suggest(vault: VaultContext):
                 notes=[bridge.title] + [n.title for n in cluster_sample],
                 geist_id="island_hopper"
             ))
-    
+
     return vault.sample(suggestions, k=3)
 ```
 
@@ -1351,15 +1351,15 @@ def suggest(vault: VaultContext):
 def suggest(vault: VaultContext):
     """Find notes that are semantically important but under-connected"""
     suggestions = []
-    
+
     for note in vault.notes():
         # Actual link count
         link_count = len(note.links) + len(vault.get_backlinks(note))
-        
+
         # Semantic centrality
         neighbors = vault.neighbors(note, k=50)
         semantic_centrality = len(neighbors)
-        
+
         # High semantic centrality, low graph centrality
         if semantic_centrality > 20 and link_count < 5:
             suggestions.append(Suggestion(
@@ -1368,7 +1368,7 @@ def suggest(vault: VaultContext):
                 notes=[note.title],
                 geist_id="hidden_hub"
             ))
-    
+
     return vault.sample(suggestions, k=3)
 ```
 
@@ -1381,11 +1381,11 @@ def suggest(vault: VaultContext):
     """Find semantic paths where no graph path exists"""
     pairs = vault.unlinked_pairs(k=20)
     suggestions = []
-    
+
     for note_a, note_b in pairs:
         # Find semantic path using embeddings
         path = vault.semantic_path(note_a, note_b, max_hops=5)
-        
+
         if path and len(path) > 2:
             path_str = " → ".join([f"[[{n.title}]]" for n in path])
             suggestions.append(Suggestion(
@@ -1393,7 +1393,7 @@ def suggest(vault: VaultContext):
                 notes=[n.title for n in path],
                 geist_id="bridge_hunter"
             ))
-    
+
     return vault.sample(suggestions, k=2)
 ```
 
@@ -1405,22 +1405,22 @@ def suggest(vault: VaultContext):
 def suggest(vault: VaultContext):
     """Find dense links with sparse meaning, or vice versa"""
     suggestions = []
-    
+
     for note in vault.notes():
         neighbors = vault.get_graph_neighbors(note)
         if len(neighbors) < 3:
             continue
-        
+
         # Graph density (how interconnected are neighbors?)
-        edges = sum(1 for n1 in neighbors for n2 in neighbors 
+        edges = sum(1 for n1 in neighbors for n2 in neighbors
                    if vault.has_link(n1, n2))
         graph_density = edges / (len(neighbors) * (len(neighbors) - 1))
-        
+
         # Semantic density (how similar are neighbors?)
-        similarities = [vault.similarity(n1, n2) 
+        similarities = [vault.similarity(n1, n2)
                        for n1 in neighbors for n2 in neighbors if n1 != n2]
         semantic_density = sum(similarities) / len(similarities)
-        
+
         # Flag inversions
         if graph_density > 0.7 and semantic_density < 0.3:
             suggestions.append(Suggestion(
@@ -1436,7 +1436,7 @@ def suggest(vault: VaultContext):
                 notes=[note.title],
                 geist_id="density_inversion"
             ))
-    
+
     return vault.sample(suggestions, k=2)
 ```
 
@@ -1451,21 +1451,21 @@ def suggest(vault: VaultContext):
     recent_sessions = vault.get_recent_sessions(n=5)
     if len(recent_sessions) < 3:
         return []
-    
+
     coverage_by_session = []
     for session in recent_sessions:
         embeddings = session.get_all_embeddings()
-        
+
         # Measure dispersion (standard deviation from centroid)
         centroid = np.mean(embeddings, axis=0)
         distances = [np.linalg.norm(e - centroid) for e in embeddings]
         coverage = np.std(distances)
-        
+
         coverage_by_session.append((session.date, coverage))
-    
+
     recent = coverage_by_session[-1][1]
     older = coverage_by_session[-3][1]
-    
+
     if recent < older * 0.8:  # Significant convergence
         return [Suggestion(
             text=f"Your recent notes explore less semantic territory than before—"
@@ -1480,7 +1480,7 @@ def suggest(vault: VaultContext):
             notes=[],
             geist_id="vocabulary_expansion"
         )]
-    
+
     return []
 ```
 
@@ -1496,7 +1496,7 @@ As sessions accumulate, storage of embeddings grows. A pruning strategy will sel
 - Keep one session per month for historical snapshots
 - Keep sessions where average embedding shift exceeds threshold (significant changes)
 
-**Storage Impact**: 
+**Storage Impact**:
 - Without pruning: 1.5MB per session × unlimited sessions
 - With pruning: ~30MB for typical usage (keeping ~20 sessions worth of embeddings)
 

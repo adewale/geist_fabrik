@@ -43,7 +43,7 @@ Syntax: `[variable:value]` saves generated text for reuse within the expansion.
 
 #### Built-in Modifiers
 - `.capitalize` - Capitalizes first letter
-- `.s` - Pluralizes 
+- `.s` - Pluralizes
 - `.ed` - Past tense
 - `.a` - Adds appropriate article (a/an)
 - `.capitalizeAll` - Capitalizes all words
@@ -156,12 +156,12 @@ class TraceryGeist {
     this.vault = vault;
     this.grammar = this.buildGrammarFromVault();
   }
-  
+
   buildGrammarFromVault() {
     const recentNotes = this.vault.getRecentNotes(7);
     const randomNotes = this.vault.getRandomNotes(10);
     const tags = this.vault.getAllTags();
-    
+
     return {
       origin: "[[Daily Prompt]]: #method# [[#recentNote#]] #connection# [[#randomNote#]]",
       method: ["What would happen if", "Draw a diagram showing how", "Write the opposite of"],
@@ -170,7 +170,7 @@ class TraceryGeist {
       randomNote: randomNotes.map(n => n.title)
     };
   }
-  
+
   generatePrompt() {
     const grammar = tracery.createGrammar(this.grammar);
     return grammar.flatten('#origin#');
@@ -198,26 +198,26 @@ Complete grammar for inverting statements philosophically:
 {
   "origin": "#inversion_type#",
   "inversion_type": ["#logical_inverse#", "#temporal_inverse#", "#scale_inverse#", "#value_inverse#", "#perspective_inverse#"],
-  
+
   "logical_inverse": "If '#statement#' is true, then #inverse_logic# must be false.",
   "inverse_logic": ["its opposite", "what everyone believes", "the obvious solution", "the comfortable path"],
-  
+
   "temporal_inverse": "You believe '#statement#' today. #when# you believed #opposite#.",
   "when": ["Yesterday", "In a year", "As a child", "Before the crisis", "After the success"],
   "opposite": ["the exact opposite", "nothing mattered", "everything mattered", "it was impossible"],
-  
+
   "scale_inverse": "'#statement#' is true at this scale. Zoom #direction# and #inversion#.",
   "direction": ["out far enough", "in close enough"],
   "inversion": ["it becomes meaningless", "its opposite becomes true", "the question dissolves"],
-  
+
   "value_inverse": "You value '#statement#'. Someone who valued #antivalue# would #reaction#.",
   "antivalue": ["chaos over order", "questions over answers", "destruction over creation"],
   "reaction": ["laugh at your certainty", "see freedom where you see prison", "find wisdom in folly"],
-  
+
   "perspective_inverse": "'#statement#' assumes #assumption#. Without that assumption, #result#.",
   "assumption": ["linear time", "individual identity", "cause and effect", "words mean things"],
   "result": ["the statement becomes meaningless", "its opposite is equally true", "silence is the only answer"],
-  
+
   "statement": ["Productivity equals value", "Knowledge is power", "Time is money", "Growth is good"]
 }
 ```
@@ -246,7 +246,7 @@ Complete grammar for inverting statements philosophically:
 
 ### For Integration with Note-Taking Systems
 1. Parse existing content to populate grammar variables
-2. Use timestamps and metadata for temporal variations  
+2. Use timestamps and metadata for temporal variations
 3. Cache generated content to avoid regeneration spam
 4. Allow user editing/saving of generated provocations
 5. Track which provocations led to new insights

@@ -36,10 +36,10 @@ A Python library provides deep understanding of the Obsidian vault through two l
 - Syncs filesystem to SQLite database for fast queries
 - Parses all vault notes, extracting:
   - Titles, paths, content
-  - Links (`[[note]]` and `[[note#heading]]` formats)  
+  - Links (`[[note]]` and `[[note#heading]]` formats)
   - Embeds/transclusions (`![[note]]` and `![[note#^block]]`)
   - Queries and other Obsidian syntax
-  
+
 - Intelligently handles:
   - Atomic notes (one concept per file)
   - Collection notes (date-separated entries within a single file)
@@ -56,17 +56,17 @@ Geists receive a **VaultContext** - a rich, intelligent wrapper that provides:
   - Pre-computed embeddings stored in SQLite
   - Fast vector similarity using sqlite-vec
   - Nearest-neighbor queries via SQL
-  
+
 - **Inferred Metadata**:
   - Creation date, tags, links, backlinks
   - User-extensible metadata (complexity, mood, reading time, etc.)
   - Stored in SQLite for fast filtering
-  
+
 - **Convenient Functions**:
   - Sampling utilities (random selection with deterministic seeds)
   - Graph operations via SQL (neighbors, clusters, orphans, hubs)
   - Temporal queries (old notes, recent notes, staleness)
-  
+
 - **Function Registry**:
   - Core vault functions built-in
   - User-added functions automatically available
@@ -104,7 +104,7 @@ Example: `geist journal/2025-01-15.md`
 [[Project Planning]] × [[Fermentation]] – what if they follow the same cycles?
 
 ## columbo ^g20250115-002
-I think you're lying about your claim in [[Democracy Note]] that "direct democracy scales" 
+I think you're lying about your claim in [[Democracy Note]] that "direct democracy scales"
 because your [[Scaling Systems]] note argues that coordination costs grow superlinearly...
 ```
 
