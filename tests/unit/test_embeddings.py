@@ -15,7 +15,7 @@ from geistfabrik.models import Note
 from geistfabrik.schema import init_db
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def sample_notes():
     """Create sample notes for testing."""
     base_date = datetime(2023, 1, 1)
