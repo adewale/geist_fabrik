@@ -1,5 +1,17 @@
 """Embeddings computation for GeistFabrik."""
 
+import os
+
+# CRITICAL: Limit thread/process spawning for ML libraries
+# These MUST be set before importing numpy, torch, or transformers
+# to prevent runaway process spawning during test execution and production use
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import hashlib
 import math
 import pickle
@@ -35,7 +47,10 @@ class EmbeddingComputer:
     def model(self) -> SentenceTransformer:
         """Lazy-load the sentence-transformers model."""
         if self._model is None:
-            self._model = SentenceTransformer(self.model_name)
+            self._model = SentenceTransformer(
+                self.model_name,
+                device="cpu",  # Explicit CPU to avoid GPU worker spawning
+            )
         return self._model
 
     def compute_semantic(self, text: str) -> np.ndarray:
@@ -104,6 +119,28 @@ class EmbeddingComputer:
         # Concatenate
         embedding = np.concatenate([semantic_scaled, temporal_scaled])
         return embedding
+
+    def close(self) -> None:
+        """Clean up model resources."""
+        if self._model is not None:
+            self._model = None
+
+    def __enter__(self) -> "EmbeddingComputer":
+        """Context manager entry."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Context manager exit."""
+        self.close()
+
+    def __del__(self) -> None:
+        """Cleanup when object is garbage collected."""
+        self.close()
 
 
 class Session:
@@ -186,7 +223,10 @@ class Session:
         # Batch compute semantic embeddings for all notes
         texts = [note.content for note in notes]
         semantic_embeddings = self.computer.model.encode(
-            texts, convert_to_numpy=True, show_progress_bar=False
+            texts,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+            batch_size=8,  # Limit batch size to reduce parallel workers
         )
 
         # Compute temporal features and combine with semantic embeddings

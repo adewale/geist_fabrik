@@ -30,6 +30,15 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Set thread limits for ML libraries
+        run: |
+          echo "OMP_NUM_THREADS=1" >> $GITHUB_ENV
+          echo "MKL_NUM_THREADS=1" >> $GITHUB_ENV
+          echo "NUMEXPR_NUM_THREADS=1" >> $GITHUB_ENV
+          echo "OPENBLAS_NUM_THREADS=1" >> $GITHUB_ENV
+          echo "VECLIB_MAXIMUM_THREADS=1" >> $GITHUB_ENV
+          echo "TOKENIZERS_PARALLELISM=false" >> $GITHUB_ENV
+
       - name: Run tests
         run: uv run pytest -v
 

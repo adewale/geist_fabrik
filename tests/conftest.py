@@ -6,6 +6,9 @@ from typing import Generator
 
 import pytest
 
+from geistfabrik.embeddings import EmbeddingComputer
+from geistfabrik.schema import init_db
+
 
 @pytest.fixture
 def temp_dir() -> Generator[Path, None, None]:
@@ -27,3 +30,28 @@ def sample_vault(temp_dir: Path) -> Path:
     (vault_path / "note2.md").write_text("# Note 2\n\nThis links to [[note1]].")
 
     return vault_path
+
+
+@pytest.fixture(scope="session")
+def shared_embedding_computer() -> Generator[EmbeddingComputer, None, None]:
+    """Single shared EmbeddingComputer for all tests that need direct model access.
+
+    Note: Most embedding tests should use the shared_session_with_embeddings
+    fixture instead, which includes pre-computed embeddings. This fixture is
+    for tests that specifically need to test EmbeddingComputer behavior.
+    """
+    computer = EmbeddingComputer()
+    yield computer
+    computer.close()
+
+
+@pytest.fixture
+def test_db():  # type: ignore[type-arg]
+    """Function-scoped database with cleanup.
+
+    Use this instead of manually calling init_db() and db.close().
+    Ensures cleanup happens even if test fails.
+    """
+    db = init_db()
+    yield db
+    db.close()

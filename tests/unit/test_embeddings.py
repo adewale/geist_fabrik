@@ -50,6 +50,78 @@ def sample_notes():
     ]
 
 
+@pytest.fixture(scope="module")
+def shared_session_with_embeddings(sample_notes):
+    """Pre-computed embeddings shared across all tests in module.
+
+    This fixture computes embeddings ONCE for the entire test module,
+    then reuses them across all tests that only need to read/query embeddings.
+    This dramatically reduces process spawning and test execution time.
+    """
+    db = init_db()
+
+    # Insert notes into database (required for foreign key constraints)
+    for note in sample_notes:
+        db.execute(
+            """
+            INSERT INTO notes (path, title, content, created, modified, file_mtime)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                note.path,
+                note.title,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+                note.modified.timestamp(),
+            ),
+        )
+    db.commit()
+
+    # Create session and compute embeddings ONCE for entire module
+    session = Session(datetime(2023, 6, 15), db)
+    session.compute_embeddings(sample_notes)
+
+    yield session
+
+    db.close()
+
+
+@pytest.fixture
+def isolated_session(sample_notes):
+    """Isolated session for tests that need to test computation behavior.
+
+    Use this fixture for tests that specifically test:
+    - Session creation
+    - Embedding computation process
+    - Vault state hashing
+    - Session reuse logic
+    """
+    db = init_db()
+
+    # Insert notes into database
+    for note in sample_notes:
+        db.execute(
+            """
+            INSERT INTO notes (path, title, content, created, modified, file_mtime)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                note.path,
+                note.title,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+                note.modified.timestamp(),
+            ),
+        )
+    db.commit()
+
+    yield db
+
+    db.close()
+
+
 def test_embedding_computer_initialization():
     """Test EmbeddingComputer initialization."""
     computer = EmbeddingComputer()
@@ -99,9 +171,9 @@ def test_compute_temporal_embedding(sample_notes):
     assert embedding.shape == (387,)  # 384 semantic + 3 temporal
 
 
-def test_session_creation():
+def test_session_creation(isolated_session):
     """Test session creation and retrieval."""
-    db = init_db()
+    db = isolated_session
     date = datetime(2023, 6, 15)
 
     session = Session(date, db)
@@ -116,12 +188,10 @@ def test_session_creation():
     assert row is not None
     assert row[0] == "2023-06-15"
 
-    db.close()
 
-
-def test_session_reuse():
+def test_session_reuse(isolated_session):
     """Test that sessions with same date are reused."""
-    db = init_db()
+    db = isolated_session
     date = datetime(2023, 6, 15)
 
     session1 = Session(date, db)
@@ -129,12 +199,10 @@ def test_session_reuse():
 
     assert session1.session_id == session2.session_id
 
-    db.close()
 
-
-def test_compute_vault_state_hash(sample_notes):
+def test_compute_vault_state_hash(isolated_session, sample_notes):
     """Test vault state hash computation."""
-    db = init_db()
+    db = isolated_session
     session = Session(datetime(2023, 6, 15), db)
 
     hash1 = session.compute_vault_state_hash(sample_notes)
@@ -149,30 +217,10 @@ def test_compute_vault_state_hash(sample_notes):
     hash3 = session.compute_vault_state_hash(modified_notes)
     assert hash1 != hash3
 
-    db.close()
 
-
-def test_compute_embeddings(sample_notes):
+def test_compute_embeddings(isolated_session, sample_notes):
     """Test embedding computation for all notes."""
-    db = init_db()
-
-    # First, insert notes into database (required for foreign key constraint)
-    for note in sample_notes:
-        db.execute(
-            """
-            INSERT INTO notes (path, title, content, created, modified, file_mtime)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                note.path,
-                note.title,
-                note.content,
-                note.created.isoformat(),
-                note.modified.isoformat(),
-                note.modified.timestamp(),
-            ),
-        )
-    db.commit()
+    db = isolated_session
 
     session = Session(datetime(2023, 6, 15), db)
     session.compute_embeddings(sample_notes)
@@ -191,42 +239,15 @@ def test_compute_embeddings(sample_notes):
         assert embedding is not None
         assert embedding.shape == (387,)
 
-    db.close()
 
-
-def test_get_all_embeddings(sample_notes):
+def test_get_all_embeddings(shared_session_with_embeddings, sample_notes):
     """Test retrieving all embeddings for a session."""
-    db = init_db()
-
-    # Insert notes
-    for note in sample_notes:
-        db.execute(
-            """
-            INSERT INTO notes (path, title, content, created, modified, file_mtime)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                note.path,
-                note.title,
-                note.content,
-                note.created.isoformat(),
-                note.modified.isoformat(),
-                note.modified.timestamp(),
-            ),
-        )
-    db.commit()
-
-    session = Session(datetime(2023, 6, 15), db)
-    session.compute_embeddings(sample_notes)
-
-    embeddings = session.get_all_embeddings()
+    embeddings = shared_session_with_embeddings.get_all_embeddings()
 
     assert len(embeddings) == len(sample_notes)
     for note in sample_notes:
         assert note.path in embeddings
         assert embeddings[note.path].shape == (387,)
-
-    db.close()
 
 
 def test_cosine_similarity():
@@ -272,32 +293,9 @@ def test_find_similar_notes():
     assert "note1.md" not in [r[0] for r in results]
 
 
-def test_semantic_similarity(sample_notes):
+def test_semantic_similarity(shared_session_with_embeddings):
     """Test that semantically similar notes have similar embeddings."""
-    db = init_db()
-
-    # Insert notes
-    for note in sample_notes:
-        db.execute(
-            """
-            INSERT INTO notes (path, title, content, created, modified, file_mtime)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                note.path,
-                note.title,
-                note.content,
-                note.created.isoformat(),
-                note.modified.isoformat(),
-                note.modified.timestamp(),
-            ),
-        )
-    db.commit()
-
-    session = Session(datetime(2023, 6, 15), db)
-    session.compute_embeddings(sample_notes)
-
-    embeddings = session.get_all_embeddings()
+    embeddings = shared_session_with_embeddings.get_all_embeddings()
 
     # AI notes (note1 and note2) should be more similar to each other
     # than to the cooking note (note3)
@@ -306,12 +304,10 @@ def test_semantic_similarity(sample_notes):
 
     assert sim_ai > sim_cooking
 
-    db.close()
 
-
-def test_embed_very_long_note() -> None:
+def test_embed_very_long_note(isolated_session) -> None:
     """Test handling of very long notes (AC-2.7)."""
-    db = init_db()
+    db = isolated_session
 
     # Create a note with very long content (>10000 words)
     long_content = " ".join(["word" for _ in range(15000)])
@@ -350,12 +346,10 @@ def test_embed_very_long_note() -> None:
     assert embedding is not None
     assert embedding.shape == (387,)
 
-    db.close()
 
-
-def test_empty_embedding_handling() -> None:
+def test_empty_embedding_handling(isolated_session) -> None:
     """Test handling of notes with minimal/empty content (AC-2.14)."""
-    db = init_db()
+    db = isolated_session
 
     # Create a note with only frontmatter/whitespace
     note = Note(
@@ -393,12 +387,10 @@ def test_empty_embedding_handling() -> None:
     assert embedding is not None
     assert embedding.shape == (387,)
 
-    db.close()
 
-
-def test_embedding_persistence() -> None:
+def test_embedding_persistence(isolated_session) -> None:
     """Test that embeddings persist across session reloads (AC-2.15)."""
-    db = init_db()
+    db = isolated_session
 
     note = Note(
         path="persist.md",
@@ -440,5 +432,3 @@ def test_embedding_persistence() -> None:
     assert embedding2 is not None
     assert embedding1 is not None
     assert np.array_equal(embedding1, embedding2)
-
-    db.close()
