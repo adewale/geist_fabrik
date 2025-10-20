@@ -183,21 +183,38 @@ class Session:
         # Delete existing embeddings for this session (if recomputing)
         self.db.execute("DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,))
 
-        # Compute embeddings for each note
-        for note in notes:
-            embedding = self.computer.compute_temporal_embedding(note, self.date)
+        # Batch compute semantic embeddings for all notes
+        texts = [note.content for note in notes]
+        semantic_embeddings = self.computer.model.encode(
+            texts, convert_to_numpy=True, show_progress_bar=False
+        )
+
+        # Compute temporal features and combine with semantic embeddings
+        embedding_rows = []
+        for i, note in enumerate(notes):
+            semantic = semantic_embeddings[i]
+            temporal = self.computer.compute_temporal_features(note, self.date)
+
+            # Weight and combine (matching compute_temporal_embedding logic)
+            semantic_weight = 0.9
+            temporal_weight = 0.1
+            semantic_scaled = semantic * semantic_weight
+            temporal_scaled = temporal * temporal_weight
+            embedding = np.concatenate([semantic_scaled, temporal_scaled])
 
             # Serialize embedding to bytes
             embedding_bytes = pickle.dumps(embedding)
 
-            # Store in database
-            self.db.execute(
-                """
-                INSERT INTO session_embeddings (session_id, note_path, embedding)
-                VALUES (?, ?, ?)
-                """,
-                (self.session_id, note.path, embedding_bytes),
-            )
+            embedding_rows.append((self.session_id, note.path, embedding_bytes))
+
+        # Batch insert all embeddings
+        self.db.executemany(
+            """
+            INSERT INTO session_embeddings (session_id, note_path, embedding)
+            VALUES (?, ?, ?)
+            """,
+            embedding_rows,
+        )
 
         self.db.commit()
 

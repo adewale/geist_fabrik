@@ -89,12 +89,18 @@ class Vault:
             processed_count += 1
 
         # Remove notes that no longer exist in filesystem
-        all_db_paths = [row[0] for row in self.db.execute("SELECT path FROM notes").fetchall()]
+        # Build set of existing paths for efficient lookup
         existing_paths = {str(f.relative_to(self.vault_path)) for f in md_files}
 
-        for db_path in all_db_paths:
-            if db_path not in existing_paths:
-                self.db.execute("DELETE FROM notes WHERE path = ?", (db_path,))
+        # Use parameterized query with tuple of existing paths for efficiency
+        if existing_paths:
+            placeholders = ",".join("?" * len(existing_paths))
+            self.db.execute(
+                f"DELETE FROM notes WHERE path NOT IN ({placeholders})", tuple(existing_paths)
+            )
+        else:
+            # No files exist, delete all notes
+            self.db.execute("DELETE FROM notes")
 
         self.db.commit()
         return processed_count
@@ -157,47 +163,51 @@ class Vault:
         Returns:
             List of all Note objects
         """
+        # Batch load all notes
         cursor = self.db.execute(
             "SELECT path, title, content, created, modified FROM notes ORDER BY path"
         )
+        note_rows = cursor.fetchall()
 
+        # Batch load all links and group by source_path
+        link_cursor = self.db.execute(
+            "SELECT source_path, target, display_text, is_embed, block_ref FROM links"
+        )
+        links_by_path: dict[str, List[Link]] = {}
+        for link_row in link_cursor.fetchall():
+            source_path = link_row[0]
+            if source_path not in links_by_path:
+                links_by_path[source_path] = []
+            links_by_path[source_path].append(
+                Link(
+                    target=link_row[1],
+                    display_text=link_row[2],
+                    is_embed=bool(link_row[3]),
+                    block_ref=link_row[4],
+                )
+            )
+
+        # Batch load all tags and group by note_path
+        tag_cursor = self.db.execute("SELECT note_path, tag FROM tags ORDER BY note_path, tag")
+        tags_by_path: dict[str, List[str]] = {}
+        for tag_row in tag_cursor.fetchall():
+            note_path = tag_row[0]
+            if note_path not in tags_by_path:
+                tags_by_path[note_path] = []
+            tags_by_path[note_path].append(tag_row[1])
+
+        # Assemble Note objects
         notes = []
-        for row in cursor.fetchall():
+        for row in note_rows:
             path, title, content, created_str, modified_str = row
 
-            # Load links for this note
-            link_cursor = self.db.execute(
-                """
-                SELECT target, display_text, is_embed, block_ref
-                FROM links
-                WHERE source_path = ?
-                """,
-                (path,),
-            )
-            links = [
-                Link(
-                    target=link_row[0],
-                    display_text=link_row[1],
-                    is_embed=bool(link_row[2]),
-                    block_ref=link_row[3],
-                )
-                for link_row in link_cursor.fetchall()
-            ]
-
-            # Load tags for this note
-            tag_cursor = self.db.execute(
-                "SELECT tag FROM tags WHERE note_path = ? ORDER BY tag", (path,)
-            )
-            tags = [tag_row[0] for tag_row in tag_cursor.fetchall()]
-
-            # Create Note object
             notes.append(
                 Note(
                     path=path,
                     title=title,
                     content=content,
-                    links=links,
-                    tags=tags,
+                    links=links_by_path.get(path, []),
+                    tags=tags_by_path.get(path, []),
                     created=datetime.fromisoformat(created_str),
                     modified=datetime.fromisoformat(modified_str),
                 )
