@@ -22,6 +22,37 @@ def test_vault_path_is_file(tmp_path: Path) -> None:
         Vault(test_file)
 
 
+def test_permission_denied(tmp_path: Path) -> None:
+    """Test Vault handles permission denied errors gracefully (AC-1.15)."""
+    import sys
+
+    # Skip on Windows where permission model is different
+    if sys.platform == "win32":
+        pytest.skip("Permission test not applicable on Windows")
+
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create a note with no read permissions
+    note_file = vault_path / "test.md"
+    note_file.write_text("# Test\n\nContent")
+    note_file.chmod(0o000)
+
+    # Create vault
+    vault = Vault(vault_path, ":memory:")
+
+    try:
+        # Sync should handle permission error gracefully (skip the file)
+        # It should not crash, just skip unreadable files
+        count = vault.sync()
+        # Should process 0 files (the file is unreadable)
+        assert count == 0
+    finally:
+        # Restore permissions for cleanup
+        note_file.chmod(0o644)
+        vault.close()
+
+
 def test_vault_init(tmp_path: Path) -> None:
     """Test Vault initializes correctly."""
     vault_path = tmp_path / "vault"

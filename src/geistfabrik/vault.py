@@ -62,8 +62,8 @@ class Vault:
             # File is new or modified, process it
             try:
                 content = md_file.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                # Handle invalid UTF-8 by skipping the file
+            except (UnicodeDecodeError, PermissionError):
+                # Handle invalid UTF-8 or permission denied by skipping the file
                 continue
 
             # Parse markdown

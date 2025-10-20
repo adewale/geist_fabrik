@@ -12,14 +12,14 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 
-def parse_acceptance_criteria(file_path: Path) -> Dict[str, List[Tuple[str, str, str]]]:
+def parse_acceptance_criteria(file_path: Path) -> Dict[str, List[Tuple[str, str, str, str]]]:
     """Parse acceptance criteria from markdown file.
 
     Returns:
         Dict mapping phase numbers to lists of (id, status, criteria, verification_cmd) tuples
     """
     content = file_path.read_text()
-    phases: Dict[str, List[Tuple[str, str, str]]] = {}
+    phases: Dict[str, List[Tuple[str, str, str, str]]] = {}
 
     # Match phase sections like "## Phase 0: Project Scaffolding"
     phase_pattern = r"## Phase (\d+):"
@@ -59,7 +59,7 @@ def run_verification_command(cmd: str) -> bool:
         return False
 
 
-def check_phase(phase_num: str, criteria: List[Tuple[str, str, str]]) -> Tuple[int, int, int]:
+def check_phase(phase_num: str, criteria: List[Tuple[str, str, str, str]]) -> Tuple[int, int, int]:
     """Check all criteria for a phase.
 
     Returns:

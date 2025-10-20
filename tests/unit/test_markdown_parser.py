@@ -208,3 +208,18 @@ Link to [[Other Note]] and #inline-tag
     assert len(tags) >= 2
     assert "test" in tags
     assert "inline-tag" in tags
+
+
+def test_parse_invalid_utf8() -> None:
+    """Test handling of invalid UTF-8 sequences (AC-1.11)."""
+    # Create content with valid UTF-8 replacement character
+    # (simulating how Python handles invalid UTF-8)
+    content = "# Test\n\nSome text with � replacement character"
+
+    title, clean_content, links, tags = parse_markdown("test.md", content)
+
+    # Should handle gracefully without crashing
+    assert title == "Test"
+    assert "replacement character" in clean_content
+    assert len(links) == 0
+    assert len(tags) == 0
