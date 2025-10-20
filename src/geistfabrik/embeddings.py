@@ -14,7 +14,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import hashlib
 import math
-import pickle
 import sqlite3
 from datetime import datetime
 from typing import List, Optional
@@ -29,6 +28,10 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 SEMANTIC_DIM = 384  # Dimension of semantic embeddings
 TEMPORAL_DIM = 3  # Dimension of temporal features
 TOTAL_DIM = SEMANTIC_DIM + TEMPORAL_DIM  # 387 total
+
+# Embedding computation parameters
+DEFAULT_SEMANTIC_WEIGHT = 0.9
+DEFAULT_BATCH_SIZE = 8  # Limit batch size to reduce parallel workers
 
 
 class EmbeddingComputer:
@@ -93,7 +96,7 @@ class EmbeddingComputer:
         return np.array([note_age, creation_season, session_season])
 
     def compute_temporal_embedding(
-        self, note: Note, session_date: datetime, semantic_weight: float = 0.9
+        self, note: Note, session_date: datetime, semantic_weight: float = DEFAULT_SEMANTIC_WEIGHT
     ) -> np.ndarray:
         """Compute combined temporal embedding.
 
@@ -226,7 +229,7 @@ class Session:
             texts,
             convert_to_numpy=True,
             show_progress_bar=False,
-            batch_size=8,  # Limit batch size to reduce parallel workers
+            batch_size=DEFAULT_BATCH_SIZE,
         )
 
         # Compute temporal features and combine with semantic embeddings
@@ -236,14 +239,15 @@ class Session:
             temporal = self.computer.compute_temporal_features(note, self.date)
 
             # Weight and combine (matching compute_temporal_embedding logic)
-            semantic_weight = 0.9
-            temporal_weight = 0.1
+            semantic_weight = DEFAULT_SEMANTIC_WEIGHT
+            temporal_weight = 1.0 - DEFAULT_SEMANTIC_WEIGHT
             semantic_scaled = semantic * semantic_weight
             temporal_scaled = temporal * temporal_weight
             embedding = np.concatenate([semantic_scaled, temporal_scaled])
 
-            # Serialize embedding to bytes
-            embedding_bytes = pickle.dumps(embedding)
+            # Serialize embedding to bytes using numpy's native format (safe)
+            # Store as float32 to reduce storage size (sufficient precision for embeddings)
+            embedding_bytes = embedding.astype(np.float32).tobytes()
 
             embedding_rows.append((self.session_id, note.path, embedding_bytes))
 
@@ -279,7 +283,8 @@ class Session:
         if row is None:
             return None
 
-        embedding: np.ndarray = pickle.loads(row[0])
+        # Deserialize from numpy bytes (safe, no code execution risk)
+        embedding: np.ndarray = np.frombuffer(row[0], dtype=np.float32)
         return embedding
 
     def get_all_embeddings(self) -> dict[str, np.ndarray]:
@@ -299,7 +304,8 @@ class Session:
         embeddings = {}
         for row in cursor.fetchall():
             note_path, embedding_bytes = row
-            embeddings[note_path] = pickle.loads(embedding_bytes)
+            # Deserialize from numpy bytes (safe, no code execution risk)
+            embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
 
         return embeddings
 

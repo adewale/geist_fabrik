@@ -1,5 +1,6 @@
 """Vault class for Obsidian vault management."""
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -7,6 +8,11 @@ from typing import List, Optional
 from .markdown_parser import parse_markdown
 from .models import Link, Note
 from .schema import init_db
+
+logger = logging.getLogger(__name__)
+
+# Constants for vault synchronization
+FLOAT_COMPARISON_TOLERANCE = 0.01  # Tolerance for file modification time comparison
 
 
 class Vault:
@@ -55,15 +61,18 @@ class Vault:
 
             if row is not None:
                 db_mtime = row[0]
-                if abs(db_mtime - file_mtime) < 0.01:  # Tolerance for float comparison
+                if abs(db_mtime - file_mtime) < FLOAT_COMPARISON_TOLERANCE:
                     # File unchanged, skip
                     continue
 
             # File is new or modified, process it
             try:
                 content = md_file.read_text(encoding="utf-8")
-            except (UnicodeDecodeError, PermissionError):
-                # Handle invalid UTF-8 or permission denied by skipping the file
+            except UnicodeDecodeError as e:
+                logger.warning(f"Skipping file {rel_path} due to encoding error: {e}")
+                continue
+            except PermissionError as e:
+                logger.warning(f"Skipping file {rel_path} due to permission denied: {e}")
                 continue
 
             # Parse markdown
@@ -94,10 +103,10 @@ class Vault:
 
         # Use parameterized query with tuple of existing paths for efficiency
         if existing_paths:
-            placeholders = ",".join("?" * len(existing_paths))
-            self.db.execute(
-                f"DELETE FROM notes WHERE path NOT IN ({placeholders})", tuple(existing_paths)
-            )
+            # Build placeholders string safely (no f-string for SQL)
+            placeholders = ",".join(["?"] * len(existing_paths))
+            query = "DELETE FROM notes WHERE path NOT IN ({})".format(placeholders)
+            self.db.execute(query, tuple(existing_paths))
         else:
             # No files exist, delete all notes
             self.db.execute("DELETE FROM notes")
