@@ -1,5 +1,6 @@
 """VaultContext - Rich execution context for geists."""
 
+import logging
 import random
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
@@ -7,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 from .embeddings import Session, cosine_similarity, find_similar_notes
 from .models import Link, Note
 from .vault import Vault
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .function_registry import FunctionRegistry
@@ -231,19 +234,35 @@ class VaultContext:
 
         return result
 
-    def unlinked_pairs(self, k: int = 10) -> List[Tuple[Note, Note]]:
+    def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> List[Tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
+
+        Performance optimization: For large vaults (>1000 notes), this limits the
+        search space to avoid O(n²) complexity. Use candidate_limit to balance
+        between performance and coverage.
 
         Args:
             k: Number of pairs to return
+            candidate_limit: Maximum number of notes to consider (to avoid O(n²) on large vaults)
 
         Returns:
-            List of (note_a, note_b) tuples
+            List of (note_a, note_b) tuples sorted by similarity
         """
-        notes = self.notes()
+        all_notes = self.notes()
+
+        # Optimize for large vaults by limiting candidate set
+        if len(all_notes) > candidate_limit:
+            # Sample a diverse set: recent notes + random notes
+            recent = self.recent_notes(k=candidate_limit // 2)
+            remaining = [n for n in all_notes if n not in recent]
+            random_notes = self.sample(remaining, min(candidate_limit // 2, len(remaining)))
+            notes = recent + random_notes
+        else:
+            notes = all_notes
+
         pairs = []
 
-        # Find similar pairs without links
+        # Find similar pairs without links (optimized with early stopping)
         for i, note_a in enumerate(notes):
             embedding_a = self._embeddings.get(note_a.path)
             if embedding_a is None:
@@ -260,7 +279,10 @@ class VaultContext:
 
                 # Compute similarity
                 sim = cosine_similarity(embedding_a, embedding_b)
-                pairs.append((note_a, note_b, sim))
+
+                # Only keep high-similarity pairs (>0.5 threshold)
+                if sim > 0.5:
+                    pairs.append((note_a, note_b, sim))
 
         # Sort by similarity and take top k
         pairs.sort(key=lambda x: x[2], reverse=True)
@@ -359,9 +381,11 @@ class VaultContext:
                 metadata.update(inferred)
             except Exception as e:
                 # Log error but don't fail - metadata inference is optional
-                import logging
-
-                logging.getLogger(__name__).error(f"Error inferring metadata for {note.path}: {e}")
+                logger.error(
+                    f"Error inferring metadata for {note.path}: {e}",
+                    exc_info=True,
+                    extra={"note_path": note.path},
+                )
 
         self._metadata_cache[note.path] = metadata
         return metadata

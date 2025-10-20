@@ -16,6 +16,12 @@ from typing import Any, Dict, List, Set
 from .embeddings import EmbeddingComputer, cosine_similarity
 from .models import Suggestion
 
+# Default filtering thresholds
+DEFAULT_SIMILARITY_THRESHOLD = 0.85
+DEFAULT_NOVELTY_WINDOW_DAYS = 60
+DEFAULT_MIN_SUGGESTION_LENGTH = 10
+DEFAULT_MAX_SUGGESTION_LENGTH = 2000
+
 
 class SuggestionFilter:
     """Filters suggestions through boundary, novelty, diversity, and quality checks."""
@@ -45,18 +51,18 @@ class SuggestionFilter:
             "novelty": {
                 "enabled": True,
                 "method": "embedding_similarity",
-                "threshold": 0.85,
-                "window_days": 60,
+                "threshold": DEFAULT_SIMILARITY_THRESHOLD,
+                "window_days": DEFAULT_NOVELTY_WINDOW_DAYS,
             },
             "diversity": {
                 "enabled": True,
                 "method": "embedding_similarity",
-                "threshold": 0.85,
+                "threshold": DEFAULT_SIMILARITY_THRESHOLD,
             },
             "quality": {
                 "enabled": True,
-                "min_length": 10,
-                "max_length": 2000,
+                "min_length": DEFAULT_MIN_SUGGESTION_LENGTH,
+                "max_length": DEFAULT_MAX_SUGGESTION_LENGTH,
                 "check_repetition": True,
             },
         }
