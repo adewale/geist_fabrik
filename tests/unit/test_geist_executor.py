@@ -170,7 +170,9 @@ def suggest(vault):
     assert "syntax_error" not in executor.geists
 
     log = executor.get_execution_log()
-    assert any(entry["geist_id"] == "syntax_error" and entry["status"] == "load_error" for entry in log)
+    assert any(
+        entry["geist_id"] == "syntax_error" and entry["status"] == "load_error" for entry in log
+    )
 
 
 def test_geist_import_error(geists_dir: Path):
@@ -190,7 +192,9 @@ def suggest(vault):
     assert "import_error" not in executor.geists
 
     log = executor.get_execution_log()
-    assert any(entry["geist_id"] == "import_error" and entry["status"] == "load_error" for entry in log)
+    assert any(
+        entry["geist_id"] == "import_error" and entry["status"] == "load_error" for entry in log
+    )
 
 
 def test_geist_invalid_return(geists_dir: Path, sample_context: VaultContext):
@@ -437,9 +441,7 @@ def suggest(vault):
 
     log = executor.get_execution_log()
     error_entry = next(
-        entry
-        for entry in log
-        if entry["geist_id"] == "exception" and entry["status"] == "error"
+        entry for entry in log if entry["geist_id"] == "exception" and entry["status"] == "error"
     )
 
     assert error_entry["error_type"] == "exception"
