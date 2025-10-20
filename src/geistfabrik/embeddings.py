@@ -202,8 +202,71 @@ class Session:
             hasher.update(str(note.modified).encode())
         return hasher.hexdigest()
 
+    def _compute_content_hash(self, content: str) -> str:
+        """Compute hash of note content for cache invalidation.
+
+        Args:
+            content: Note content
+
+        Returns:
+            SHA256 hash of content
+        """
+        return hashlib.sha256(content.encode()).hexdigest()
+
+    def _get_cached_semantic_embedding(self, note: Note) -> Optional[np.ndarray]:
+        """Get cached semantic embedding if available and valid.
+
+        Args:
+            note: Note to get embedding for
+
+        Returns:
+            Cached semantic embedding or None if not found/invalid
+        """
+        content_hash = self._compute_content_hash(note.content)
+
+        cursor = self.db.execute(
+            """
+            SELECT embedding FROM embeddings
+            WHERE note_path = ? AND model_version = ?
+            """,
+            (note.path, f"{MODEL_NAME}:{content_hash}"),
+        )
+        row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        embedding: np.ndarray = pickle.loads(row[0])
+        return embedding
+
+    def _cache_semantic_embedding(self, note: Note, embedding: np.ndarray) -> None:
+        """Cache semantic embedding for a note.
+
+        Args:
+            note: Note to cache embedding for
+            embedding: Semantic embedding to cache
+        """
+        content_hash = self._compute_content_hash(note.content)
+        embedding_bytes = pickle.dumps(embedding)
+
+        self.db.execute(
+            """
+            INSERT OR REPLACE INTO embeddings (note_path, embedding, model_version, computed_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                note.path,
+                embedding_bytes,
+                f"{MODEL_NAME}:{content_hash}",
+                datetime.now().isoformat(),
+            ),
+        )
+
     def compute_embeddings(self, notes: List[Note]) -> None:
         """Compute and store session embeddings for all notes.
+
+        Uses cached semantic embeddings when available (content unchanged),
+        only recomputing temporal features each session for performance.
 
         Args:
             notes: List of all notes in vault
@@ -220,19 +283,43 @@ class Session:
         # Delete existing embeddings for this session (if recomputing)
         self.db.execute("DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,))
 
-        # Batch compute semantic embeddings for all notes
-        texts = [note.content for note in notes]
-        semantic_embeddings = self.computer.model.encode(
-            texts,
-            convert_to_numpy=True,
-            show_progress_bar=False,
-            batch_size=8,  # Limit batch size to reduce parallel workers
-        )
+        # Separate notes into cached and uncached
+        cached_notes: List[tuple[Note, np.ndarray]] = []
+        uncached_notes: List[Note] = []
+
+        for note in notes:
+            cached_embedding = self._get_cached_semantic_embedding(note)
+            if cached_embedding is not None:
+                cached_notes.append((note, cached_embedding))
+            else:
+                uncached_notes.append(note)
+
+        # Batch compute semantic embeddings for uncached notes only
+        semantic_embeddings: dict[str, np.ndarray] = {}
+
+        if uncached_notes:
+            texts = [note.content for note in uncached_notes]
+            computed_embeddings = self.computer.model.encode(
+                texts,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+                batch_size=8,  # Limit batch size to reduce parallel workers
+            )
+
+            # Cache newly computed embeddings
+            for i, note in enumerate(uncached_notes):
+                semantic = computed_embeddings[i]
+                semantic_embeddings[note.path] = semantic
+                self._cache_semantic_embedding(note, semantic)
+
+        # Add cached embeddings to lookup dict
+        for note, semantic in cached_notes:
+            semantic_embeddings[note.path] = semantic
 
         # Compute temporal features and combine with semantic embeddings
         embedding_rows = []
-        for i, note in enumerate(notes):
-            semantic = semantic_embeddings[i]
+        for note in notes:
+            semantic = semantic_embeddings[note.path]
             temporal = self.computer.compute_temporal_features(note, self.date)
 
             # Weight and combine (matching compute_temporal_embedding logic)
@@ -257,6 +344,16 @@ class Session:
         )
 
         self.db.commit()
+
+        # Log cache statistics
+        total = len(notes)
+        cached = len(cached_notes)
+        computed = len(uncached_notes)
+        cache_hit_rate = (cached / total * 100) if total > 0 else 0
+        print(
+            f"Embedding cache: {cached}/{total} cached ({cache_hit_rate:.1f}% hit rate), "
+            f"{computed} computed"
+        )
 
     def get_embedding(self, note_path: str) -> Optional[np.ndarray]:
         """Get embedding for a note in this session.
