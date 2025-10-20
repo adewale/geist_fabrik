@@ -24,11 +24,16 @@ def test_vault_path_is_file(tmp_path: Path) -> None:
 
 def test_permission_denied(tmp_path: Path) -> None:
     """Test Vault handles permission denied errors gracefully (AC-1.15)."""
+    import os
     import sys
 
     # Skip on Windows where permission model is different
     if sys.platform == "win32":
         pytest.skip("Permission test not applicable on Windows")
+
+    # Skip if running as root (chmod won't prevent root from reading)
+    if os.geteuid() == 0:
+        pytest.skip("Permission test not applicable when running as root")
 
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
