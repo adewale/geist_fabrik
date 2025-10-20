@@ -11,7 +11,7 @@ Each filter can be enabled/disabled via configuration.
 
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Set
+from typing import Any, Dict, List, Set
 
 from .embeddings import EmbeddingComputer, cosine_similarity
 from .models import Suggestion
@@ -24,7 +24,7 @@ class SuggestionFilter:
         self,
         db: sqlite3.Connection,
         embedding_computer: EmbeddingComputer,
-        config: dict | None = None,
+        config: Dict[str, Any] | None = None,
     ):
         """Initialize filter with database and configuration.
 
@@ -37,7 +37,7 @@ class SuggestionFilter:
         self.embedding_computer = embedding_computer
         self.config = config or self._default_config()
 
-    def _default_config(self) -> dict:
+    def _default_config(self) -> Dict[str, Any]:
         """Return default filtering configuration."""
         return {
             "strategies": ["boundary", "novelty", "diversity", "quality"],
