@@ -24,3 +24,12 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: detect-unused-tables
+        name: Detect unused database tables
+        entry: python3 scripts/detect_unused_tables.py
+        language: system
+        files: ^src/geistfabrik/(schema\.py|.*\.py)$
+        pass_filenames: false

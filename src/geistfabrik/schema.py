@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Optional
 
 # Schema version for migrations
-SCHEMA_VERSION = 2
+# Version 3: Removed unused `suggestions` and `suggestion_notes` tables
+SCHEMA_VERSION = 3
 
 SCHEMA_SQL = """
 -- Notes table
@@ -75,27 +76,10 @@ CREATE TABLE IF NOT EXISTS session_embeddings (
 
 CREATE INDEX IF NOT EXISTS idx_session_embeddings_path ON session_embeddings(note_path);
 
--- Suggestions table
-CREATE TABLE IF NOT EXISTS suggestions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    text TEXT NOT NULL,
-    geist_id TEXT NOT NULL,
-    title TEXT,
-    created TEXT NOT NULL
-);
-
--- Suggestion-note associations
-CREATE TABLE IF NOT EXISTS suggestion_notes (
-    suggestion_id INTEGER NOT NULL,
-    note_path TEXT NOT NULL,
-    FOREIGN KEY (suggestion_id) REFERENCES suggestions(id) ON DELETE CASCADE,
-    FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_suggestion_notes_suggestion ON suggestion_notes(suggestion_id);
-CREATE INDEX IF NOT EXISTS idx_suggestion_notes_note ON suggestion_notes(note_path);
-
 -- Session suggestions (for novelty filtering and history tracking)
+-- NOTE: This table serves the same purpose as the previously-defined
+-- "suggestions" + "suggestion_notes" tables but with a denormalized design.
+-- The normalized tables were never used and have been removed (see commit history).
 CREATE TABLE IF NOT EXISTS session_suggestions (
     session_date TEXT NOT NULL,
     geist_id TEXT NOT NULL,
