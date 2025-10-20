@@ -275,7 +275,6 @@ def test_real_empty_content_handling(db_with_notes):
     db_with_notes.commit()
 
     # Should handle gracefully
-    computer = EmbeddingComputer()
     session = Session(datetime(2023, 6, 15), db_with_notes)
     session.compute_embeddings([note])
 
@@ -320,7 +319,6 @@ def test_real_very_long_content(db_with_notes):
     db_with_notes.commit()
 
     # Should not crash (model will truncate)
-    computer = EmbeddingComputer()
     session = Session(datetime(2023, 6, 15), db_with_notes)
     session.compute_embeddings([note])
 

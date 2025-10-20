@@ -9,7 +9,7 @@ from typing import Any, Generator, List, Union, cast
 import numpy as np
 import pytest
 
-from geistfabrik.embeddings import EmbeddingComputer, SEMANTIC_DIM
+from geistfabrik.embeddings import SEMANTIC_DIM, EmbeddingComputer
 from geistfabrik.schema import init_db
 
 
@@ -122,16 +122,22 @@ def pytest_configure(config: Any) -> None:
     # This is needed because embeddings.py may have already imported SentenceTransformer
     from geistfabrik import embeddings
 
-    # Save the original init
-    original_init = embeddings.EmbeddingComputer.__init__
+    def patched_init(
+        self: Any,
+        model_name: str = embeddings.MODEL_NAME,
+        model: Any = None,
+    ) -> None:
+        """Patched init that uses stub instead of real SentenceTransformer.
 
-    def patched_init(self: Any, model_name: str = embeddings.MODEL_NAME) -> None:
-        """Patched init that uses stub instead of real SentenceTransformer."""
+        Args:
+            model_name: Name of model (used for stub creation)
+            model: Pre-initialized model (if provided, uses this instead of creating stub)
+        """
         self.model_name = model_name
-        self._model = None
+        self._model = model  # Use provided model or None (will be lazy-loaded)
 
-    def patched_model_property(self: Any) -> SentenceTransformerStub:
-        """Patched model property that returns stub."""
+    def patched_model_property(self: Any) -> Any:
+        """Patched model property that returns stub or injected model."""
         if self._model is None:
             self._model = SentenceTransformerStub(self.model_name, device="cpu")
         return self._model

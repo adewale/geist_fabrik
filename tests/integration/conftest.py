@@ -1,6 +1,5 @@
 """Configuration for integration tests."""
 
-import pytest
 
 
 def pytest_configure(config):
