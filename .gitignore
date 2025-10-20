@@ -51,3 +51,5 @@ Thumbs.db
 # Project specific
 *.db
 *.db-journal
+geist journal/
+_geistfabrik/
