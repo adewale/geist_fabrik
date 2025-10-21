@@ -13,7 +13,7 @@ def infer(note: "Note", vault: "VaultContext") -> Dict[str, Any]:
     """Infer text complexity metrics for a note.
 
     Args:
-        note: Note to analyze
+        note: Note to analyse
         vault: VaultContext for accessing vault data
 
     Returns:

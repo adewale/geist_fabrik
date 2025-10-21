@@ -14,7 +14,7 @@ def infer(note: "Note", vault: "VaultContext") -> Dict[str, Any]:
     """Infer structural metadata for a note.
 
     Args:
-        note: Note to analyze
+        note: Note to analyse
         vault: VaultContext for accessing vault data
 
     Returns:

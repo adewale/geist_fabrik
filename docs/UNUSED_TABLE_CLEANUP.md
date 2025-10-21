@@ -188,7 +188,7 @@ This addresses one of the gaps identified in `docs/EMBEDDING_CACHE_AUDIT.md`:
 >
 > Hypothetical tool that analyzes SQL usage:
 > ```bash
-> $ sql-analyze --schema schema.py --code src/
+> $ sql-analyse --schema schema.py --code src/
 >
 > ❌ UNUSED TABLE: embeddings
 >    Defined: src/geistfabrik/schema.py:48

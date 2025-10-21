@@ -101,7 +101,7 @@ This document contains all acceptance criteria for each implementation phase. Us
 | AC-2.1 | ⬜ | Embedding tests pass | `uv run pytest tests/unit/test_embeddings.py -v` (15+ tests) |
 | AC-2.2 | ⬜ | Embeddings computed for kepano vault | `uv run pytest tests/integration/test_kepano_vault.py::test_kepano_embeddings -v` (16 embeddings: 8×2) |
 | AC-2.3 | ⬜ | Embedding dimensions correct | Verify content_embedding has 384 dimensions |
-| AC-2.4 | ⬜ | Similarity search works | Verify neighbors() returns ≤k results, excludes query note |
+| AC-2.4 | ⬜ | Similarity search works | Verify neighbours() returns ≤k results, excludes query note |
 | AC-2.5 | ⬜ | Performance target | `uv run pytest tests/performance/test_benchmark_embedding_computation -v` (8 notes in <5s) |
 
 ### Edge Cases & Error Handling
@@ -137,8 +137,8 @@ This document contains all acceptance criteria for each implementation phase. Us
 
 | ID | Status | Criteria | Verification |
 |----|--------|----------|--------------|
-| AC-3.1 | ⬜ | VaultContext tests pass | `uv run pytest tests/unit/test_vault_context.py -v` (25+ tests) |
-| AC-3.2 | ⬜ | Semantic search via context | Verify neighbors() via VaultContext returns ≤k results |
+| AC-3.1 | ✅ | VaultContext tests pass | `uv run pytest tests/unit/test_vault_context.py -v` (25+ tests) |
+| AC-3.2 | ⬜ | Semantic search via context | Verify neighbours() via VaultContext returns ≤k results |
 | AC-3.3 | ⬜ | Graph operations work | Verify orphans(), hubs(), unlinked_pairs() return correct types |
 | AC-3.4 | ⬜ | Deterministic sampling | Same seed = same sample results |
 | AC-3.5 | ⬜ | Temporal queries | `uv run pytest tests/unit/test_vault_context.py::test_{old_notes,recent_notes} -v` |

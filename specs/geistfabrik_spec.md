@@ -107,7 +107,7 @@ class VaultContext:
         return note.content
 
     # Semantic search (sqlite-vec)
-    def neighbors(self, note: Note, k: int) -> List[Note]:
+    def neighbours(self, note: Note, k: int) -> List[Note]:
         """Find k semantically similar notes"""
 
     def similarity(self, a: Note, b: Note) -> float:
@@ -288,7 +288,7 @@ class Vault:
 All VaultContext operations query the database:
 
 ```python
-def neighbors(self, note: Note, k: int) -> List[Note]:
+def neighbours(self, note: Note, k: int) -> List[Note]:
     """Semantic search using sqlite-vec"""
     embedding = self.db.execute(
         "SELECT content_embedding FROM note_embeddings WHERE path = ?",
@@ -346,7 +346,7 @@ def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
 
 - **Fast startup** - First run computes everything, subsequent runs only process changes
 - **Efficient queries** - SQL indexes make graph operations instant
-- **Vector search** - sqlite-vec optimized for nearest-neighbor queries
+- **Vector search** - sqlite-vec optimized for nearest-neighbour queries
 - **Single file** - Entire vault intelligence in `_geistfabrik/vault.db`
 - **Portable** - Copy .db file with vault, everything works
 - **Deterministic** - Same vault state = same query results
@@ -507,7 +507,7 @@ GeistFabrik is extensible at three dimensions, each building on the last:
 
 **Why This Matters**:
 - Metadata is contextual (depends on vault state, embeddings, other notes)
-- Multiple contexts can analyze the same notes differently
+- Multiple contexts can analyse the same notes differently
 - Notes stay simple: `Note(title, path, content, links, created, modified)`
 - Intelligence accumulates in VaultContext: `vault.metadata(note)` runs all inference modules
 - Future metadata expansions don't require Note schema changes
@@ -882,7 +882,7 @@ logging:
 # Always available in Tracery
 $vault.sample_notes(k)           # Random k notes
 $vault.unlinked_pairs(k)         # k unlinked note pairs
-$vault.neighbors(title, k)       # k similar notes
+$vault.neighbours(title, k)       # k similar notes
 $vault.old_notes(k)              # k least recently touched
 $vault.tagged(tag, k)            # k notes with tag
 $vault.recent_notes(k)           # k most recently modified
@@ -1357,8 +1357,8 @@ def suggest(vault: VaultContext):
         link_count = len(note.links) + len(vault.get_backlinks(note))
 
         # Semantic centrality
-        neighbors = vault.neighbors(note, k=50)
-        semantic_centrality = len(neighbors)
+        neighbours = vault.neighbours(note, k=50)
+        semantic_centrality = len(neighbours)
 
         # High semantic centrality, low graph centrality
         if semantic_centrality > 20 and link_count < 5:
@@ -1407,31 +1407,31 @@ def suggest(vault: VaultContext):
     suggestions = []
 
     for note in vault.notes():
-        neighbors = vault.get_graph_neighbors(note)
-        if len(neighbors) < 3:
+        neighbours = vault.get_graph_neighbors(note)
+        if len(neighbours) < 3:
             continue
 
-        # Graph density (how interconnected are neighbors?)
-        edges = sum(1 for n1 in neighbors for n2 in neighbors
+        # Graph density (how interconnected are neighbours?)
+        edges = sum(1 for n1 in neighbours for n2 in neighbours
                    if vault.has_link(n1, n2))
-        graph_density = edges / (len(neighbors) * (len(neighbors) - 1))
+        graph_density = edges / (len(neighbours) * (len(neighbours) - 1))
 
-        # Semantic density (how similar are neighbors?)
+        # Semantic density (how similar are neighbours?)
         similarities = [vault.similarity(n1, n2)
-                       for n1 in neighbors for n2 in neighbors if n1 != n2]
+                       for n1 in neighbours for n2 in neighbours if n1 != n2]
         semantic_density = sum(similarities) / len(similarities)
 
         # Flag inversions
         if graph_density > 0.7 and semantic_density < 0.3:
             suggestions.append(Suggestion(
-                text=f"[[{note.title}]]: tightly linked neighbors are semantically "
+                text=f"[[{note.title}]]: tightly linked neighbours are semantically "
                      f"scattered—coherent topic?",
                 notes=[note.title],
                 geist_id="density_inversion"
             ))
         elif graph_density < 0.3 and semantic_density > 0.7:
             suggestions.append(Suggestion(
-                text=f"[[{note.title}]]: semantically similar neighbors aren't linked—"
+                text=f"[[{note.title}]]: semantically similar neighbours aren't linked—"
                      f"missing connections?",
                 notes=[note.title],
                 geist_id="density_inversion"

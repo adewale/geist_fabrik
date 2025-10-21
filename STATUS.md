@@ -99,7 +99,7 @@
 ### Phase 3: VaultContext (`vault_context.py`)
 - [x] Rich query API wrapping Vault
 - [x] Semantic search:
-  - [x] `neighbors(note, k)` - similar notes
+  - [x] `neighbours(note, k)` - similar notes
   - [x] `similarity(a, b)` - cosine similarity
 - [x] Graph operations:
   - [x] `orphans()` - notes with no links
@@ -495,7 +495,7 @@ uv run python scripts/check_phase_completion.py
 - **Complete function extensibility system** (Phase 9)
   - @vault_function decorator for easy registration
   - FunctionRegistry with dynamic loading
-  - 6 built-in vault functions (sample_notes, old_notes, recent_notes, orphans, hubs, neighbors)
+  - 6 built-in vault functions (sample_notes, old_notes, recent_notes, orphans, hubs, neighbours)
   - Full Tracery integration via $vault.function_name(args)
   - 2 example function modules (contrarian, questions)
 - **Extensive example collection** (Phase 11)

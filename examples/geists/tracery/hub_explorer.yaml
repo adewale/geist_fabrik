@@ -1,0 +1,39 @@
+type: geist-tracery
+id: hub_explorer
+description: Highlights hub notes with many connections for review and refinement
+
+tracery:
+  origin:
+    - "[[#hub#]] connects many ideas—what's the #unifying_theme#?"
+    - "Your hub note [[#hub#]] has grown—time to #action#?"
+    - "[[#hub#]] is central to your vault. What makes it a #hub_type#?"
+    - "Many paths lead through [[#hub#]]. Is it still #coherent#?"
+
+  hub:
+    - "$vault.hubs(1)"
+
+  unifying_theme:
+    - "common thread"
+    - "hidden pattern"
+    - "underlying principle"
+    - "core question"
+
+  action:
+    - "review and refine"
+    - "split into subtopics"
+    - "trace the connections"
+    - "find what's missing"
+
+  hub_type:
+    - "junction"
+    - "anchor"
+    - "convergence point"
+    - "knowledge hub"
+
+  coherent:
+    - "coherent"
+    - "well-organised"
+    - "clearly defined"
+    - "still relevant"
+
+count: 2

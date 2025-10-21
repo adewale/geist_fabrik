@@ -59,7 +59,7 @@ PEP 8 is the official style guide created by Guido van Rossum, Barry Warsaw, and
 - Two blank lines between top-level definitions
 - One blank line between method definitions within a class
 
-#### Import Organization
+#### Import Organisation
 
 ```python
 # Standard library imports
@@ -543,7 +543,7 @@ black your_module.py
 
 #### isort (Import Organizer)
 
-**Purpose**: Automatically organize imports
+**Purpose**: Automatically organise imports
 
 **Features**:
 - Sorts imports alphabetically
@@ -1118,7 +1118,7 @@ def test_custom_exception():
         account.withdraw(1000000)
 ```
 
-### Test Organization Best Practices
+### Test Organisation Best Practices
 
 #### 1. Test Structure
 
@@ -1946,7 +1946,7 @@ This comprehensive checklist consolidates all heuristics for auditing Python cod
   - [ ] `_leading_underscore` for private/internal
   - [ ] No single-letter names except loop counters
 
-- [ ] **Import Organization**: Imports properly organized
+- [ ] **Import Organisation**: Imports properly organised
   - [ ] Grouped: standard library, third-party, local
   - [ ] Alphabetically sorted within groups
   - [ ] No wildcard imports (`from module import *`)
@@ -2134,9 +2134,9 @@ This comprehensive checklist consolidates all heuristics for auditing Python cod
 - [ ] **Pythonic Idioms**: enumerate, zip, itertools used appropriately
 - [ ] **No Premature Optimization**: Profile before optimizing
 
-### 11. Code Organization
+### 11. Code Organisation
 
-- [ ] **Module Structure**: Logical module organization
+- [ ] **Module Structure**: Logical module organisation
   - [ ] Related functionality grouped
   - [ ] Clear separation of concerns
   - [ ] No circular dependencies
@@ -2278,7 +2278,7 @@ This document provides a comprehensive framework for auditing Python codebases, 
 - **Correctness**: Logic errors, API misuse, completeness
 - **Security**: Injection, secrets, cryptography
 - **Performance**: Data structures, algorithms, caching
-- **Maintainability**: Testing, organization, clarity
+- **Maintainability**: Testing, organisation, clarity
 
 Regular application of these heuristics, combined with automated tooling, ensures high-quality, secure, and maintainable Python code.
 

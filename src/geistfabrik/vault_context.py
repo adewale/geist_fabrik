@@ -98,12 +98,12 @@ class VaultContext:
 
     # Semantic search
 
-    def neighbors(self, note: Note, k: int = 10) -> List[Note]:
+    def neighbours(self, note: Note, k: int = 10) -> List[Note]:
         """Find k semantically similar notes.
 
         Args:
             note: Query note
-            k: Number of neighbors to return
+            k: Number of neighbours to return
 
         Returns:
             List of similar notes, sorted by similarity descending
