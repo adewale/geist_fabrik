@@ -1,0 +1,36 @@
+type: geist-tracery
+id: temporal_mirror
+description: Compare old and new notes to see how thinking evolves over time
+
+tracery:
+  origin:
+    - "#timeframe# you wrote #old_note#. Today's #new_note# #relationship#"
+
+  timeframe:
+    - "#months# months ago"
+    - "#years# years ago"
+
+  months:
+    - "3"
+    - "6"
+    - "9"
+    - "12"
+
+  years:
+    - "1"
+    - "2"
+    - "5"
+
+  old_note:
+    - "$vault.old_notes(1)"
+
+  new_note:
+    - "$vault.recent_notes(1)"
+
+  relationship:
+    - "might be the answer you were looking for"
+    - "contradicts everything you believed then"
+    - "shows how far you've traveled"
+    - "suggests you're walking in circles"
+
+count: 2
