@@ -113,9 +113,9 @@ class FunctionRegistry:
             return vault.recent_notes(k)
 
         @vault_function("orphans")
-        def orphans(vault: "VaultContext") -> List[Any]:
-            """Get all orphan notes (no incoming or outgoing links)."""
-            return vault.orphans()
+        def orphans(vault: "VaultContext", k: int = 5) -> List[Any]:
+            """Get k orphan notes (no incoming or outgoing links)."""
+            return vault.orphans(k)
 
         @vault_function("hubs")
         def hubs(vault: "VaultContext", k: int = 5) -> List[Any]:

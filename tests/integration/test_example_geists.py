@@ -5,8 +5,7 @@ with a real vault. Uses stubs (kepano-obsidian-main test vault), not mocks.
 
 Tests cover:
 - All 10 code geists in examples/geists/code/
-- All 3 Tracery geists in examples/geists/tracery/
-- The new temporal_mirror Tracery geist
+- All 7 Tracery geists in examples/geists/tracery/
 
 Performance target: All tests should complete in < 10 seconds total
 """
@@ -205,7 +204,7 @@ def test_recent_focus_geist(vault_context: VaultContext, geist_executor: GeistEx
 
 
 # ============================================================================
-# Tracery Geists Tests (4 geists)
+# Tracery Geists Tests (7 geists)
 # ============================================================================
 
 
@@ -304,6 +303,84 @@ def test_temporal_mirror_tracery_geist(vault_context: VaultContext):
         assert "[[" in suggestion.text
         # Should mention timeframe
         assert "month" in suggestion.text.lower() or "year" in suggestion.text.lower()
+
+
+def test_orphan_connector_tracery_geist(vault_context: VaultContext):
+    """Test orphan_connector Tracery geist."""
+    geist_path = (
+        Path(__file__).parent.parent.parent
+        / "examples"
+        / "geists"
+        / "tracery"
+        / "orphan_connector.yaml"
+    )
+
+    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
+    assert geist.geist_id == "orphan_connector"
+    assert geist.count == 2
+
+    suggestions = geist.suggest(vault_context)
+    assert isinstance(suggestions, list)
+    assert len(suggestions) == 2
+
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "orphan_connector"
+        # Should reference orphan notes
+        assert "[[" in suggestion.text
+
+
+def test_hub_explorer_tracery_geist(vault_context: VaultContext):
+    """Test hub_explorer Tracery geist."""
+    geist_path = (
+        Path(__file__).parent.parent.parent
+        / "examples"
+        / "geists"
+        / "tracery"
+        / "hub_explorer.yaml"
+    )
+
+    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
+    assert geist.geist_id == "hub_explorer"
+    assert geist.count == 2
+
+    suggestions = geist.suggest(vault_context)
+    assert isinstance(suggestions, list)
+    assert len(suggestions) == 2
+
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "hub_explorer"
+        # Should reference hub notes
+        assert "[[" in suggestion.text
+
+
+def test_semantic_neighbors_tracery_geist(vault_context: VaultContext):
+    """Test semantic_neighbors Tracery geist."""
+    geist_path = (
+        Path(__file__).parent.parent.parent
+        / "examples"
+        / "geists"
+        / "tracery"
+        / "semantic_neighbors.yaml"
+    )
+
+    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
+    assert geist.geist_id == "semantic_neighbors"
+    assert geist.count == 2
+
+    suggestions = geist.suggest(vault_context)
+    assert isinstance(suggestions, list)
+    assert len(suggestions) == 2
+
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "semantic_neighbors"
+        # Should reference seed note and neighbor notes
+        assert "[[" in suggestion.text
 
 
 # ============================================================================

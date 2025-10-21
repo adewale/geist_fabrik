@@ -1,0 +1,27 @@
+type: geist-tracery
+id: orphan_connector
+description: Suggests connections for orphaned notes with no links
+
+tracery:
+  origin:
+    - "[[#orphan#]] has no connections yet—what if it relates to #topic#?"
+    - "Found an isolated note: [[#orphan#]]. Could it be a #metaphor# for something in your vault?"
+    - "[[#orphan#]] stands alone. What question does it answer?"
+    - "Orphaned thought: [[#orphan#]]. Where does it fit in your thinking?"
+
+  orphan:
+    - "$vault.orphans(1)"
+
+  topic:
+    - "your recent work"
+    - "a larger theme"
+    - "something you're developing"
+    - "a gap in your understanding"
+
+  metaphor:
+    - "bridge"
+    - "seed"
+    - "key"
+    - "missing piece"
+
+count: 2
