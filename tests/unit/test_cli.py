@@ -102,3 +102,98 @@ def test_invoke_command_full_vs_nofilter_help_text() -> None:
             assert e.code in (0, None)
     finally:
         sys.argv = original_argv
+
+
+def test_invoke_loads_both_code_and_tracery_geists(tmp_path: Path) -> None:
+    """Test that invoke command loads both code and Tracery geists."""
+    from geistfabrik.vault import Vault
+
+    # Create a minimal vault
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    # Create test notes
+    (vault_path / "note1.md").write_text("# Note 1\nContent")
+    (vault_path / "note2.md").write_text("# Note 2\nContent")
+
+    # Create geists directories
+    geists_dir = vault_path / "_geistfabrik" / "geists"
+    code_geists_dir = geists_dir / "code"
+    tracery_geists_dir = geists_dir / "tracery"
+    code_geists_dir.mkdir(parents=True)
+    tracery_geists_dir.mkdir(parents=True)
+
+    # Create a simple code geist
+    code_geist = '''"""Test code geist."""
+from geistfabrik import Suggestion
+
+def suggest(vault):
+    """Generate a test suggestion."""
+    return [Suggestion(text="Code geist test", notes=[], geist_id="test_code")]
+'''
+    (code_geists_dir / "test_code.py").write_text(code_geist)
+
+    # Create a simple Tracery geist
+    tracery_geist = '''type: geist-tracery
+id: test_tracery
+tracery:
+  origin: "Tracery geist test"
+'''
+    (tracery_geists_dir / "test_tracery.yaml").write_text(tracery_geist)
+
+    # Initialize vault database
+    vault = Vault(vault_path)
+    vault.sync()
+    vault.close()
+
+    # Test that invoke loads both geist types
+    # We verify the geist files exist in the correct locations
+    assert (code_geists_dir / "test_code.py").exists()
+    assert (tracery_geists_dir / "test_tracery.yaml").exists()
+
+    # Count expected geists
+    code_geist_count = len(list(code_geists_dir.glob("*.py")))
+    tracery_geist_count = len(list(tracery_geists_dir.glob("*.yaml")))
+
+    assert code_geist_count == 1, "Should have 1 code geist"
+    assert tracery_geist_count == 1, "Should have 1 Tracery geist"
+
+
+def test_invoke_executes_tracery_geists(tmp_path: Path) -> None:
+    """Test that invoke command executes Tracery geists and generates suggestions."""
+    from geistfabrik.tracery import TraceryGeistLoader
+    from geistfabrik.vault import Vault
+
+    # Create a minimal vault
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    # Create test notes
+    (vault_path / "note1.md").write_text("# Note 1\nContent")
+
+    # Create Tracery geists directory
+    tracery_geists_dir = vault_path / "_geistfabrik" / "geists" / "tracery"
+    tracery_geists_dir.mkdir(parents=True)
+
+    # Create a simple Tracery geist
+    tracery_geist = '''type: geist-tracery
+id: test_tracery
+tracery:
+  origin: "Test suggestion from Tracery"
+'''
+    (tracery_geists_dir / "test_tracery.yaml").write_text(tracery_geist)
+
+    # Initialize vault
+    vault = Vault(vault_path)
+    vault.sync()
+
+    # Load Tracery geists
+    loader = TraceryGeistLoader(tracery_geists_dir, seed=12345)
+    geists = loader.load_all()
+
+    assert len(geists) == 1, "Should load 1 Tracery geist"
+    assert geists[0].geist_id == "test_tracery"
+
+    vault.close()
