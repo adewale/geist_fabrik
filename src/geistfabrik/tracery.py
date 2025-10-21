@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 import yaml
 
-from .models import Suggestion
+from .models import Note, Suggestion
 from .vault_context import VaultContext
 
 
@@ -169,8 +169,8 @@ class TraceryEngine:
             return ""
 
         # If items are Note objects, use their titles (without brackets)
-        if hasattr(items[0], "title"):
-            titles = [item.title for item in items]
+        if isinstance(items[0], Note):
+            titles: List[str] = [item.title for item in items if isinstance(item, Note)]
             if len(titles) == 1:
                 return titles[0]
             elif len(titles) == 2:
