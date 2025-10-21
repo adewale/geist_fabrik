@@ -229,7 +229,8 @@ class TraceryGeist:
 
         geist_id = data["id"]
         grammar = data["tracery"]
-        count = data.get("count", 1)
+        # Support both "count" and "suggestions_per_invocation" for backwards compatibility
+        count = data.get("count") or data.get("suggestions_per_invocation", 1)
 
         return cls(geist_id, grammar, count, seed)
 
