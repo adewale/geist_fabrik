@@ -1,0 +1,13 @@
+type: geist-tracery
+id: contradictor_simple
+count: 1
+
+tracery:
+  origin: "#suggestion#"
+  suggestion:
+    - "[[#note#]] exists. But what about the opposite?"
+    - "You wrote [[#note#]]. What would the opposite look like?"
+    - "[[#note#]] - have you considered the inverse perspective?"
+    - "What contradicts [[#note#]]?"
+  note:
+    - "$vault.random_note_title()"
