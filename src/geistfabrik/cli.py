@@ -67,6 +67,19 @@ def init_command(args: argparse.Namespace) -> int:
 
     print(f"Initializing GeistFabrik in: {vault_path}\n")
 
+    # Display first-run warnings
+    print("⚠️  GeistFabrik will:")
+    print("   • Read all markdown files in your vault")
+    print("   • Create a database at _geistfabrik/vault.db")
+    print("   • Compute embeddings for all notes (stored locally)")
+    print("   • Create session notes in 'geist journal/' when you invoke with --write")
+    print()
+    print("✅ GeistFabrik will NEVER:")
+    print("   • Modify your existing notes (read-only access)")
+    print("   • Send data to the internet (100% local)")
+    print("   • Delete any files")
+    print()
+
     # Create _geistfabrik directory structure
     geistfabrik_dir = vault_path / "_geistfabrik"
 
@@ -135,6 +148,22 @@ def init_command(args: argparse.Namespace) -> int:
         note_count = vault.sync()
         vault.close()
         print(f"✓ Synced {note_count} notes to database")
+
+        # Display summary stats
+        db_size_mb = db_path.stat().st_size / (1024 * 1024)
+        geist_count = 0
+        if args.examples:
+            code_geists = geistfabrik_dir / "geists" / "code"
+            tracery_geists = geistfabrik_dir / "geists" / "tracery"
+            geist_count = sum(1 for f in code_geists.iterdir() if f.suffix == ".py")
+            geist_count += sum(1 for f in tracery_geists.iterdir() if f.suffix in [".yaml", ".yml"])
+
+        print("\n📊 Vault Summary:")
+        print(f"   Notes found: {note_count}")
+        print(f"   Database size: {db_size_mb:.2f} MB")
+        if args.examples:
+            print(f"   Example geists installed: {geist_count}")
+
     except Exception as e:
         print(f"Error initializing database: {e}", file=sys.stderr)
         return 1
@@ -298,8 +327,31 @@ def invoke_command(args: argparse.Namespace) -> int:
         final = select_suggestions(filtered, mode, count, seed)
         print(f"Selected {len(final)} final suggestions\n")
 
-        # Write to journal if requested
-        if args.write:
+        # Handle --diff mode
+        if args.diff:
+            journal_writer = JournalWriter(vault_path, vault.db)
+            recent_suggestions = journal_writer.get_recent_suggestions(days=60)
+            if recent_suggestions:
+                from difflib import SequenceMatcher
+
+                print("🔍 Diff Mode: Comparing to recent sessions...\n")
+                for suggestion in final:
+                    # Check similarity to recent suggestions
+                    max_similarity = 0.0
+                    for recent in recent_suggestions:
+                        similarity = SequenceMatcher(None, suggestion.text, recent).ratio()
+                        max_similarity = max(max_similarity, similarity)
+
+                    if max_similarity > 0.8:
+                        print(f"  ⚠️  Similar to recent: {suggestion.text[:60]}...")
+                    elif max_similarity > 0.5:
+                        print(f"  ⚡ Somewhat similar: {suggestion.text[:60]}...")
+                    else:
+                        print(f"  ✨ New: {suggestion.text[:60]}...")
+                print()
+
+        # Write to journal if requested (and not dry-run)
+        if args.write and not args.dry_run:
             journal_writer = JournalWriter(vault_path, vault.db)
 
             # Check if session already exists
@@ -603,6 +655,16 @@ Examples:
         "--force",
         action="store_true",
         help="Overwrite existing session note (use with --write)",
+    )
+    invoke_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview suggestions without writing to journal",
+    )
+    invoke_parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="Show what changed since last session",
     )
 
     # Test command

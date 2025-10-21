@@ -75,22 +75,84 @@ uv run geistfabrik invoke /path/to/your/vault
 # /path/to/your/vault/geist journal/YYYY-MM-DD.md
 ```
 
+### Try on Sample Vault (Risk-Free)
+
+Test GeistFabrik on our sample vault before using your own:
+
+```bash
+# After installation, try on sample vault
+uv run geistfabrik init testdata/kepano-obsidian-main --examples
+uv run geistfabrik invoke testdata/kepano-obsidian-main --write
+
+# View results
+cat "testdata/kepano-obsidian-main/geist journal/$(date +%Y-%m-%d).md"
+
+# Clean up when done
+rm -rf testdata/kepano-obsidian-main/_geistfabrik
+rm -rf testdata/kepano-obsidian-main/geist\ journal
+```
+
+This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
+
+## Privacy & Data Safety
+
+**What GeistFabrik stores (all locally):**
+- Note titles, content, links, and tags → SQLite database (`_geistfabrik/vault.db`)
+- Semantic embeddings (384-dim vectors) → SQLite database
+- Generated suggestions → Session notes in `geist journal/`
+
+**What GeistFabrik NEVER does:**
+- ❌ Modify your original notes (read-only access)
+- ❌ Send data to external servers (100% local processing)
+- ❌ Track usage or analytics
+- ❌ Require internet connection (after installation)
+- ❌ Delete any files
+
+**Your vault remains yours.** All processing happens locally using sentence-transformers for embeddings.
+
+## Uninstalling GeistFabrik
+
+To completely remove GeistFabrik from your vault:
+
+```bash
+# Delete GeistFabrik data
+rm -rf /path/to/vault/_geistfabrik
+
+# Delete session notes (optional - you may want to keep these)
+rm -rf /path/to/vault/geist\ journal
+```
+
+**That's it!** Your original notes are completely untouched.
+
+**What gets removed:**
+- `_geistfabrik/vault.db` - Embeddings and metadata
+- `_geistfabrik/geists/` - Your geists (code and Tracery)
+- `_geistfabrik/metadata_inference/` - Metadata modules
+- `_geistfabrik/vault_functions/` - Vault functions
+- `geist journal/` - Session notes (optional)
+
+**What stays:**
+- ✅ All your original notes (100% unchanged)
+
 ## Usage
 
 ### Basic Invocation
 
 ```bash
-# Default mode: Filtered + sampled (~5 suggestions)
-geistfabrik invoke ~/my-vault
+# Default mode: Filtered + sampled (~5 suggestions), write to journal
+geistfabrik invoke ~/my-vault --write
+
+# Preview without writing (dry-run)
+geistfabrik invoke ~/my-vault --dry-run
+
+# Compare to recent sessions
+geistfabrik invoke ~/my-vault --diff
 
 # Full firehose: All filtered suggestions (50-200+)
-geistfabrik invoke ~/my-vault --full
+geistfabrik invoke ~/my-vault --full --write
 
 # Single geist only
 geistfabrik invoke ~/my-vault --geist temporal_drift
-
-# Multiple specific geists
-geistfabrik invoke ~/my-vault --geists drift,collision,bridge
 
 # Replay specific date
 geistfabrik invoke ~/my-vault --date 2025-01-15
