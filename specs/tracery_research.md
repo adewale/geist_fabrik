@@ -1087,31 +1087,44 @@ def load_custom_modifiers():
 
 Features with limited use cases or design concerns.
 
-#### 10. Visual/Diagram Generation
+#### 10. Visual Emphasis with Formatting
 
-**What It Unlocks**: Mermaid diagram suggestions (niche but interesting)
+**What It Unlocks**: Typographically interesting provocations that use spacing and symbols for emphasis
 
 **Geists Enabled**:
 
 ```yaml
-# Diagram Suggester Geist - generates Mermaid syntax
+# Contrast Visualizer Geist - uses spacing to emphasize tension
 type: geist-tracery
-id: diagram_suggester
+id: visual_contrast
 tracery:
   origin: |
-    Try this diagram:
-    ```mermaid
-    graph LR
-      #node1# --> #node2#
-      #node2# --> #node3#
-      #node3# -.-> #node1#
-    ```
-  node1: ["$vault.sample_notes(1)"]
-  node2: ["$vault.sample_notes(1)"]
-  node3: ["$vault.sample_notes(1)"]
+    [[#note1#]]
+              ↕
+    [[#note2#]]
+
+    What sits in the space between?
+  note1: ["$vault.sample_notes(1)"]
+  note2: ["$vault.sample_notes(1)"]
 ```
 
-**Status**: Possible but niche. Most users want text provocations.
+```yaml
+# Symbol Metaphor Geist - uses unicode for visual metaphors
+type: geist-tracery
+id: symbol_metaphor
+tracery:
+  origin: "[[#note1#]] #symbol# [[#note2#]] — #interpretation#"
+  note1: ["$vault.sample_notes(1)"]
+  note2: ["$vault.sample_notes(1)"]
+  symbol: ["⇄", "⊗", "∞", "⊃", "≋", "⟷"]
+  interpretation:
+    - "what would this operation reveal?"
+    - "a relationship that has no name"
+    - "the same energy in different forms"
+# Output: "[[Project Planning]] ⇄ [[Gardening]] — the same energy in different forms"
+```
+
+**Status**: Enhances visual interest without being prescriptive. Uses Tracery's text generation for creative formatting rather than technical diagrams.
 
 ---
 
@@ -1193,7 +1206,7 @@ opposite: ["$vault.semantic_opposite(note, 1)"]  # If symbol reference worked
 | **Number formatting** | Statistical geists, count-based suggestions | Custom modifier | **Medium priority** |
 | **Grammar composition** | DRY development, consistent voice | YAML anchors or custom loader | **Low priority** |
 | **Custom modifier framework** | User extensibility, domain transformations | Built-in pytracery | **Document pattern** |
-| **Visual generation** | Diagram suggestions (Mermaid) | Tracery native | **Niche use case** |
+| **Visual formatting** | Typographic emphasis, unicode symbols | Tracery native | **Experimental** |
 | **Conditional expansion** | Adaptive geists | Anti-pattern - use code geists | **Avoid** |
 | **Semantic modifiers** | Embedding-aware text transforms | Very complex | **Use vault functions** |
 | **State persistence** | Multi-turn geists | Not needed (single expansion) | **Not applicable** |
