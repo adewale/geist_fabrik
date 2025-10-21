@@ -301,9 +301,13 @@ uv run geistfabrik invoke --vault ~/MyVault --date 2025-01-15 --write --force
 
 ⚠️ **DANGER ZONE** ⚠️
 
-Run ALL geists with ALL suggestions (no filtering) against a vault copy. This is the most comprehensive test but generates the most output.
+Run ALL geists with ALL raw suggestions (no filtering) against a vault copy. This is the most comprehensive test but generates the most output.
 
 **🚨 CRITICAL: Only run against a COPY of your vault, never the original! 🚨**
+
+**Understanding the difference:**
+- `--full`: All **filtered** suggestions (quality checks applied, no sampling)
+- `--nofilter`: All **raw** suggestions (no filtering, no quality checks)
 
 ```bash
 # Step 1: Create a fresh copy
@@ -316,8 +320,11 @@ tar -czf ../MyVault-FullTest-backup.tar.gz .
 # Step 3: Initialize with all examples
 uv run geistfabrik init ~/Documents/MyVault-FullTest --examples
 
-# Step 4: Run FULL firehose mode (all geists, all suggestions)
+# Step 4a: Try --full first (filtered but not sampled)
 uv run geistfabrik invoke --vault ~/Documents/MyVault-FullTest --full --write
+
+# Step 4b: For TRUE firehose, use --nofilter (completely unfiltered)
+uv run geistfabrik invoke --vault ~/Documents/MyVault-FullTest --nofilter --write --force
 
 # Step 5: Review the flood of suggestions
 cat ~/Documents/MyVault-FullTest/"geist journal"/$(date +%Y-%m-%d).md
@@ -335,27 +342,38 @@ rm ../MyVault-FullTest-backup.tar.gz
 ```
 
 **What to expect:**
-- 50-200+ suggestions (unfiltered)
-- You'll see what every geist thinks about your vault
-- Some suggestions will be redundant or low-quality
-- Perfect for understanding what GeistFabrik "sees" in your notes
+
+With `--full` (filtered):
+- 10-50 suggestions (quality-checked)
+- Redundant suggestions removed
+- Notes must exist in vault
+- Good for thorough review
+
+With `--nofilter` (raw):
+- 50-200+ suggestions (completely unfiltered)
+- You'll see EVERYTHING every geist thinks
+- May include low-quality, redundant, or broken suggestions
+- Some suggestions may reference non-existent notes
+- Perfect for understanding raw geist output
 
 **Why this is dangerous:**
-- While GeistFabrik never modifies your notes, running with `--full` generates a LOT of data
-- The session note can be overwhelming (10+ pages)
-- You'll see the "raw feed" before quality filtering
+- While GeistFabrik never modifies your notes, running with `--nofilter` generates a LOT of data
+- The session note can be overwhelming (10+ pages with `--nofilter`)
+- You'll see the "raw feed" with all its flaws
 - Some geists may crash or timeout (this is expected in beta)
 
 **Best for:**
-- Understanding vault patterns
-- Debugging custom geists
+- Understanding what filtering removes (`--full` vs `--nofilter`)
+- Debugging custom geists (see raw output)
 - Seeing maximum divergent thinking
 - Stress-testing the system
+- Understanding vault patterns
 
 **NOT recommended for:**
-- Daily use (way too noisy)
+- Daily use (way too noisy, especially `--nofilter`)
 - Your actual vault (use a copy!)
 - Production workflows
+- First-time users (start with default mode)
 
 ---
 
