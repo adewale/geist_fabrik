@@ -6,15 +6,9 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
-    hooks:
-      - id: mypy
-        files: ^(src|scripts)/
-        additional_dependencies:
-          - sentence-transformers>=2.2.0
-          - pyyaml>=6.0
-          - types-pyyaml>=6.0
+  # Note: mypy is INTENTIONALLY skipped in pre-commit due to heavy dependencies
+  # Run mypy manually with: uv run mypy src/ --strict
+  # OR run ./scripts/validate.sh before pushing (includes mypy check)
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
