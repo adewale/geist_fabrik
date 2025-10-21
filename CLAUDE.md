@@ -118,26 +118,23 @@ class Suggestion:
 
 ## Invocation Modes
 
-When implementation exists, the CLI will support:
+The CLI supports:
 
 ```bash
 # Default: filtered + sampled (~5 suggestions)
-geistfabrik invoke
+uv run geistfabrik invoke
 
 # Single geist mode
-geistfabrik invoke --geist columbo
-
-# Multiple geists
-geistfabrik invoke --geists columbo,drift,skeptic
+uv run geistfabrik invoke --geist columbo
 
 # Full firehose (all filtered suggestions, 50-200+)
-geistfabrik invoke --full
+uv run geistfabrik invoke --full
 
 # Replay specific session
-geistfabrik invoke --date 2025-01-15
+uv run geistfabrik invoke --date 2025-01-15
 
 # Test single geist during development
-geistfabrik test my_geist --vault ~/test-vault --date 2025-01-15
+uv run geistfabrik test my_geist --vault ~/test-vault --date 2025-01-15
 ```
 
 ## Implementation Approach

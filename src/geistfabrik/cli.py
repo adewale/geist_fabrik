@@ -182,7 +182,7 @@ def init_command(args: argparse.Namespace) -> int:
         print(f"   geistfabrik init {vault_path} --examples")
 
     print("\n🚀 Next steps:")
-    print(f"   geistfabrik invoke {vault_path}")
+    print(f"   geistfabrik invoke --vault {vault_path}")
     print("   # or just: geistfabrik invoke (from within the vault)\n")
 
     return 0

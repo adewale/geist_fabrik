@@ -7,7 +7,7 @@ This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide va
 ## What to Expect
 
 **Current Status:**
-- ✅ 181/182 tests passing (99.5%)
+- ✅ 132 tests passing (beta quality)
 - ✅ All core features implemented
 - ✅ 17 example geists included
 - ✅ Read-only vault access (your notes are safe)
@@ -40,15 +40,15 @@ uv sync
 uv run geistfabrik init testdata/kepano-obsidian-main --examples
 
 # 3. Run geists and view suggestions
-uv run geistfabrik invoke testdata/kepano-obsidian-main --write
+uv run geistfabrik invoke --vault testdata/kepano-obsidian-main --write
 
 # 4. Inspect results
-cat testdata/kepano-obsidian-main/geist\ journal/*.md
+cat "testdata/kepano-obsidian-main/geist journal"/*.md
 ls -la testdata/kepano-obsidian-main/_geistfabrik/
 
 # 5. Clean up
 rm -rf testdata/kepano-obsidian-main/_geistfabrik
-rm -rf testdata/kepano-obsidian-main/geist\ journal
+rm -rf "testdata/kepano-obsidian-main/geist journal"
 ```
 
 **Time:** 15 minutes
@@ -68,13 +68,13 @@ cp -r ~/Documents/MyVault ~/Documents/MyVault-Test
 uv run geistfabrik init ~/Documents/MyVault-Test --examples
 
 # 3. Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke ~/Documents/MyVault-Test
+uv run geistfabrik invoke --vault ~/Documents/MyVault-Test
 
 # 4. Check for similar suggestions (diff mode)
-uv run geistfabrik invoke ~/Documents/MyVault-Test --diff
+uv run geistfabrik invoke --vault ~/Documents/MyVault-Test --diff
 
 # 5. Write session note
-uv run geistfabrik invoke ~/Documents/MyVault-Test --write
+uv run geistfabrik invoke --vault ~/Documents/MyVault-Test --write
 
 # 6. Open in Obsidian
 # Add ~/Documents/MyVault-Test as vault
@@ -106,13 +106,13 @@ uv run geistfabrik init ~/Documents/MyVault --examples
 # You'll see warnings about what GeistFabrik will/won't do
 
 # 2. Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke ~/Documents/MyVault
+uv run geistfabrik invoke --vault ~/Documents/MyVault
 
 # 3. Compare to previous sessions
-uv run geistfabrik invoke ~/Documents/MyVault --diff
+uv run geistfabrik invoke --vault ~/Documents/MyVault --diff
 
 # 4. Write your first session note
-uv run geistfabrik invoke ~/Documents/MyVault --write
+uv run geistfabrik invoke --vault ~/Documents/MyVault --write
 
 # 5. View in Obsidian
 # Navigate to "geist journal/" folder
@@ -120,7 +120,7 @@ uv run geistfabrik invoke ~/Documents/MyVault --write
 
 # 6. Remove if not for you
 rm -rf ~/Documents/MyVault/_geistfabrik
-rm -rf ~/Documents/MyVault/geist\ journal
+rm -rf ~/Documents/MyVault/"geist journal"
 # (Your original notes are untouched)
 ```
 
@@ -188,7 +188,7 @@ MyVault/
 ### 3. Diff Mode
 
 ```bash
-geistfabrik invoke ~/MyVault --diff
+uv run geistfabrik invoke --vault ~/MyVault --diff
 # 🔍 Diff Mode: Comparing to recent sessions...
 #   ✨ New: What if you combined [[Note A]] with [[Note B]]?
 #   ⚠️  Similar to recent: Consider revisiting [[Old Note]]...
@@ -225,7 +225,7 @@ def suggest(vault):
     return vault.sample(suggestions, k=5)
 ```
 
-Test it: `geistfabrik test my_geist`
+Test it: `uv run geistfabrik test my_geist`
 
 **Q: What if a geist crashes?**
 A: System continues. Geists have:
@@ -269,7 +269,7 @@ Test each geist and rank them:
 ```bash
 for geist in temporal_drift creative_collision bridge_builder; do
     echo "Testing $geist..."
-    geistfabrik test $geist
+    uv run geistfabrik test $geist
 done
 ```
 
@@ -289,10 +289,10 @@ Run on the same date multiple times:
 
 ```bash
 # Day 1
-geistfabrik invoke ~/MyVault --date 2025-01-15 --write
+uv run geistfabrik invoke --vault ~/MyVault --date 2025-01-15 --write
 
 # Day 30 (vault has evolved)
-geistfabrik invoke ~/MyVault --date 2025-01-15 --write --force
+uv run geistfabrik invoke --vault ~/MyVault --date 2025-01-15 --write --force
 
 # Compare how suggestions changed as your vault grew
 ```
@@ -318,7 +318,7 @@ If anything goes wrong:
 
 # Remove GeistFabrik completely:
 rm -rf ~/MyVault/_geistfabrik
-rm -rf ~/MyVault/geist\ journal
+rm -rf ~/MyVault/"geist journal"
 
 # Your notes are untouched and safe.
 ```
