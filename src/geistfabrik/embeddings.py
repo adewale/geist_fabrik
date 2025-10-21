@@ -16,6 +16,7 @@ import hashlib
 import math
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
@@ -53,10 +54,26 @@ class EmbeddingComputer:
 
     @property
     def model(self) -> SentenceTransformer:
-        """Lazy-load the sentence-transformers model."""
+        """Lazy-load the sentence-transformers model.
+
+        Checks for bundled local model first (models/all-MiniLM-L6-v2/),
+        then falls back to HuggingFace cache/download.
+        """
         if self._model is None:
+            # Check for local bundled model first
+            # Project root is: src/geistfabrik -> src -> project_root
+            project_root = Path(__file__).parent.parent.parent
+            local_model_path = project_root / "models" / self.model_name
+
+            if local_model_path.exists():
+                # Use local bundled model (offline, faster, reproducible)
+                model_source = str(local_model_path)
+            else:
+                # Fall back to HuggingFace (auto-download to cache)
+                model_source = self.model_name
+
             self._model = SentenceTransformer(
-                self.model_name,
+                model_source,
                 device="cpu",  # Explicit CPU to avoid GPU worker spawning
             )
         return self._model
