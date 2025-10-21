@@ -630,312 +630,584 @@ other: ["$vault.sample_notes(1)"]
 
 ## Potential Features for GeistFabrik
 
-This section identifies Tracery features that could enhance GeistFabrik's Tracery geist capabilities.
+This section ranks Tracery features **by the creative geists they would unlock**, rather than just technical complexity. Each feature is evaluated by asking: "What kinds of provocations become possible?"
 
-### 1. Text Modifiers
+### Tier 1: Foundational Geist Enablers
 
-**What Tracery Provides**:
+These features unlock entire categories of geists and should be prioritized first.
+
+#### 1. Text Modifiers (.s, .ed, .a, .capitalize)
+
+**What It Unlocks**: Grammatically correct, natural-sounding suggestions
+
+**Modifiers Available in pytracery's `base_english`**:
 - `.capitalize` - "hello" → "Hello"
 - `.capitalizeAll` - "hello world" → "Hello World"
 - `.s` - "cat" → "cats" (pluralization)
 - `.ed` - "walk" → "walked" (past tense)
 - `.a` - "owl" → "an owl" (article selection)
 
-**GeistFabrik Status**: Unclear if implemented via pytracery's `base_english` modifiers.
-
-**Use Case**:
-```yaml
-origin: "What if [[#note.capitalize#]] were #verb.ed# differently?"
-note: ["$vault.sample_notes(1)"]
-verb: ["approach", "frame", "question"]
-```
-
-**Implementation**: Pytracery includes `tracery.modifiers.base_english` - verify it's loaded.
-
-### 2. Custom Modifiers
-
-**What Tracery Provides**: Ability to add custom text transformations.
-
-**JavaScript Example**:
-```javascript
-grammar.addModifiers({
-  'allcaps': (s) => s.toUpperCase(),
-  'reverse': (s) => s.split('').reverse().join('')
-});
-```
-
-**GeistFabrik Use Cases**:
-- `.backlink` - Convert "Note Title" → "[[Note Title]]"
-- `.tag` - Convert "topic" → "#topic"
-- `.truncate` - Limit length for long note titles
-- `.basename` - Extract filename from path
-
-**Example**:
-```yaml
-origin: "#note.backlink# relates to #tag.tag#"
-note: ["$vault.sample_notes(1)"]  # Returns "Project Planning"
-tag: ["project", "planning", "strategy"]
-# Output: [[Project Planning]] relates to #project
-```
-
-**Implementation Complexity**: Medium. Requires extending pytracery's modifier system.
-
-### 3. Conditional Expansion
-
-**What Tracery Lacks**: Native if/else logic within grammar.
-
-**Common Workaround**: Multiple origin rules with different patterns.
-
-**GeistFabrik Enhancement**:
-```yaml
-# Current: Must duplicate logic
-origin: ["#has_orphans#", "#no_orphans#"]
-has_orphans: "Orphan note: [[#orphan#]]"
-no_orphans: "No orphaned notes today"
-
-# Desired: Conditional based on vault state
-# (Not natively supported by Tracery)
-```
-
-**Alternative**: Code geist handles conditional logic; Tracery stays simple.
-
-**Priority**: Low - against Tracery's design philosophy of simplicity.
-
-### 4. Number Formatting
-
-**What Tracery Lacks**: Numeric operations or formatting.
-
-**Use Case**:
-```yaml
-origin: "You wrote #count# notes in #timeframe#"
-count: ["$vault.count_recent(7)"]  # Returns "42"
-timeframe: ["the last week"]
-# Desired: "42" → "forty-two" or handle plurals
-```
-
-**Workaround**: Vault function returns formatted string.
-
-**Enhancement**: Custom modifier for number formatting.
-
-### 5. SVG/Visual Generation
-
-**What Tracery Supports**: Can generate SVG markup for procedural graphics.
-
-**Kate Compton's Examples**: Tracery generating shapes, patterns, colors.
-
-**GeistFabrik Application**: Probably out of scope (text-focused suggestions).
-
-**Possible Use**: Generate Mermaid diagram syntax?
+**Geists Enabled**:
 
 ```yaml
-origin: "#mermaid_graph#"
-mermaid_graph: "graph TD\n  #node1# --> #node2#"
-node1: ["$vault.sample_notes(1)"]
-node2: ["$vault.sample_notes(1)"]
-```
-
-**Priority**: Low - niche use case.
-
-### 6. Distribution Control
-
-**What Tracery Lacks**: Weighted random selection (all rules equally likely).
-
-**Desired Feature**:
-```yaml
-# Want "rare" to appear less often
-mood:
-  - "the same journey" (weight: 5)
-  - "necessary opposites" (weight: 5)
-  - "false dichotomies" (weight: 2)
-  - "a cosmic joke" (weight: 1)  # rare
-```
-
-**Workaround**: Repeat common options.
-
-```yaml
-mood:
-  - "the same journey"
-  - "the same journey"  # 2x as likely
-  - "necessary opposites"
-  - "necessary opposites"
-  - "a cosmic joke"  # 1x
-```
-
-**Enhancement**: Custom grammar parser supporting weights.
-
-### 7. State Persistence
-
-**What Tracery Lacks**: State across multiple expansions.
-
-**GeistFabrik Context**: Each geist runs once per session (single expansion).
-
-**Potential Use**: If geist generated multiple suggestions:
-```yaml
-# Remember which notes already used
-origin: "#[used:#note1#]first# | #[used:#note2#]second#"
-# Ensure note2 ≠ note1
-```
-
-**Current Status**: Not needed (single expansion per geist).
-
-### 8. Recursive Depth Limiting
-
-**What Tracery Has**: Potential infinite recursion.
-
-```yaml
-origin: "#loop#"
-loop: ["#loop# forever"]  # ∞
-```
-
-**GeistFabrik Need**: Timeout/depth protection.
-
-**Implementation**: Pytracery likely has depth limits. Verify and configure.
-
-### 9. Multiline Support
-
-**What Tracery Supports**: Multiline strings in rules.
-
-**GeistFabrik Use**:
-```yaml
-origin: "#multiline_suggestion#"
-multiline_suggestion:
-  - |
-    What if [[#note1#]] and [[#note2#]] are:
-    - Two sides of the same coin
-    - Answering different versions of the same question
-    - Describing the same pattern at different scales
-```
-
-**YAML Compatibility**: Should work with YAML's `|` or `>` multiline syntax.
-
-**Status**: Test with pytracery to confirm.
-
-### 10. External Data Loading
-
-**What Tracery Supports** (in JavaScript): Loading external JSON files into grammars.
-
-**GeistFabrik Equivalent**: Vault functions already provide this (loading vault data).
-
-**Additional Feature**: Load static word lists?
-
-```python
-@vault_function("power_verbs")
-def power_verbs(vault: VaultContext) -> List[str]:
-    """Load curated verb list"""
-    with open('_geistfabrik/wordlists/power_verbs.txt') as f:
-        return [line.strip() for line in f]
+# Grammar Fixer Geist - ensures proper articles
+type: geist-tracery
+id: grammar_natural
+tracery:
+  origin: "What if [[#note#]] were #verb.ed# like #comparison.a#?"
+  note: ["$vault.sample_notes(1)"]
+  verb: ["treat", "approach", "frame", "question"]
+  comparison: ["experiment", "garden", "conversation", "organism"]
+# Output: "What if [[Project Planning]] were treated like an experiment?"
 ```
 
 ```yaml
-origin: "#verb.capitalize# the way you think about [[#note#]]"
-verb: ["$vault.power_verbs()"]
+# Plural Perspective Geist - handles singular/plural correctly
+type: geist-tracery
+id: perspective_shift
+tracery:
+  origin: "Your #count# #topic.s# might all be #relationship#"
+  count: ["three", "five", "seven"]
+  topic: ["assumption", "question", "project", "habit"]
+  relationship: ["symptoms of the same problem", "asking the same question"]
+# Output: "Your three assumptions might all be symptoms of the same problem"
 ```
 
-**Priority**: Medium - enables richer vocabularies without hardcoding.
+**Implementation Status**: Pytracery includes this. **Action: Verify loaded in GeistFabrik**.
 
-### 11. Grammar Composition
+---
 
-**Desired Feature**: Reusable grammar fragments across geists.
+#### 2. Obsidian-Specific Modifiers
 
-```yaml
-# _geistfabrik/geists/tracery/_fragments/provocations.yaml
-provocations:
-  - "What if"
-  - "Consider that"
-  - "Imagine"
+**What It Unlocks**: Syntax-aware geists that generate valid Obsidian markup
 
-# Then import in geists:
-# (Not currently supported)
-import: ["_fragments/provocations"]
-origin: "#provocations# [[#note#]] is backwards?"
-```
-
-**Workaround**: Duplicate common fragments or use vault functions.
-
-**Enhancement**: YAML includes/anchors or custom loader.
-
-### 12. Obsidian-Specific Modifiers
-
-**Custom Modifiers for Obsidian Syntax**:
-
+**Custom Modifiers Needed**:
 - `.wikilink` - "Note" → "[[Note]]"
 - `.embed` - "Note" → "![[Note]]"
-- `.heading` - "Note" → "[[Note#Heading]]"
-- `.block` - "Note" → "[[Note^block123]]"
 - `.tag` - "topic" → "#topic"
-- `.nestedtag` - "project/active" → "#project/active"
+- `.heading` - "Section" → "[[Note#Section]]"
+- `.block` - Generates block references
 
-**Example**:
+**Geists Enabled**:
+
 ```yaml
-origin: "Embed this: #note.embed#"
-note: ["$vault.sample_notes(1)"]
-# Output: "Embed this: ![[Note Title]]"
+# Embed Suggester Geist - proposes visual inclusions
+type: geist-tracery
+id: embed_suggester
+tracery:
+  origin: "Try embedding #note.embed# in your #context# note"
+  note: ["$vault.sample_notes(1)"]
+  context: ["current", "most recent", "active project"]
+# Output: "Try embedding ![[Diagram of Systems]] in your current note"
 ```
 
-**Implementation**: Add to pytracery modifiers dictionary.
+```yaml
+# Tag Bridge Geist - suggests tag connections
+type: geist-tracery
+id: tag_bridge
+tracery:
+  origin: "Notes tagged #tag1.tag# and #tag2.tag# might be about #theme#"
+  tag1: ["$vault.random_tag()"]
+  tag2: ["$vault.random_tag()"]
+  theme: ["the same pattern", "opposite approaches", "parallel evolution"]
+# Output: "Notes tagged #project and #philosophy might be about the same pattern"
+```
+
+```yaml
+# Section Linker Geist - creates heading links
+type: geist-tracery
+id: section_linker
+tracery:
+  origin: "The #section.heading# section might answer [[#question#]]"
+  section: ["Assumptions", "Future Work", "Open Questions", "Contradictions"]
+  question: ["$vault.find_questions(1)"]
+# Output: "The [[Note#Assumptions]] section might answer [[How does this scale?]]"
+```
+
+**Implementation**: Add custom modifiers to pytracery:
 
 ```python
 def obsidian_modifiers():
     return {
         'wikilink': lambda s: f"[[{s}]]",
         'embed': lambda s: f"![[{s}]]",
-        'tag': lambda s: f"#{s.replace(' ', '-')}",
+        'tag': lambda s: f"#{s.replace(' ', '-').lower()}",
+        'heading': lambda s: f"#{s}",  # For use inside wikilinks
     }
-
-grammar.add_modifiers(obsidian_modifiers())
 ```
 
-**Priority**: High - directly useful for GeistFabrik output.
+---
 
-### 13. Temporal Modifiers
+#### 3. Weighted Distributions
 
-**Custom Date/Time Formatting**:
+**What It Unlocks**: Geists with controlled serendipity (common patterns + rare surprises)
+
+**Current Limitation**: All rule options equally likely.
+
+**Geists Enabled**:
 
 ```yaml
-origin: "#timepoint.ago# you wrote [[#note#]]"
-timepoint: ["$vault.note_age_days(<note>)"]  # Returns "127"
-# With .ago modifier: "127" → "127 days ago" or "4 months ago"
+# Tonal Surprise Geist - mostly gentle, occasionally bold
+type: geist-tracery
+id: tonal_variety
+tracery:
+  origin: "#prompt# [[#note1#]] and [[#note2#]]?"
+  note1: ["$vault.sample_notes(1)"]
+  note2: ["$vault.sample_notes(1)"]
+  prompt:
+    # Gentle options (weight: 5 each via repetition)
+    - "What connects"
+    - "What connects"
+    - "What connects"
+    - "What connects"
+    - "What connects"
+    - "How might"
+    - "How might"
+    - "How might"
+    - "How might"
+    - "How might"
+    # Bold options (weight: 1 each)
+    - "What violence unites"
+    - "What cosmic joke connects"
+# Mostly outputs gentle prompts, occasionally surprising ones
 ```
 
-**Implementation**: Vault function returns formatted string instead.
+```yaml
+# Rare Insight Geist - surfaces unusual connections
+type: geist-tracery
+id: rare_connections
+tracery:
+  origin: "[[#note1#]] and [[#note2#]] are #relationship#"
+  note1: ["$vault.sample_notes(1)"]
+  note2: ["$vault.sample_notes(1)"]
+  relationship:
+    # Common (repeat 10x)
+    - "adjacent" - "adjacent" - "adjacent" - "adjacent" - "adjacent"
+    - "adjacent" - "adjacent" - "adjacent" - "adjacent" - "adjacent"
+    # Rare (1x each)
+    - "the same thing at different scales"
+    - "in violent disagreement yet necessary to each other"
+    - "two masks worn by the same truth"
+```
 
-**Alternative**: Custom modifier:
+**Workaround**: Repeat options (works but verbose).
+
+**Enhancement**: YAML syntax for weights:
+
+```yaml
+# Desired syntax (requires custom parser)
+prompt:
+  - "What connects" (weight: 10)
+  - "What violence unites" (weight: 1)
+```
+
+---
+
+#### 4. Multiline Support
+
+**What It Unlocks**: Structured provocations with bullets, steps, or multiple perspectives
+
+**YAML Native**: Should work with `|` or `>` syntax.
+
+**Geists Enabled**:
+
+```yaml
+# Multi-Perspective Geist - offers multiple framings
+type: geist-tracery
+id: three_lenses
+tracery:
+  origin: "#multiline#"
+  multiline:
+    - |
+      Three ways to read [[#note#]]:
+      - As a question: #question#
+      - As a warning: #warning#
+      - As an invitation: #invitation#
+  note: ["$vault.sample_notes(1)"]
+  question: ["What if this is the wrong problem?", "Who benefits from this framing?"]
+  warning: ["This path leads to infinite regress", "Certainty here is dangerous"]
+  invitation: ["Start from the opposite assumption", "Zoom out three levels"]
+```
+
+```yaml
+# Step-by-Step Provocation Geist
+type: geist-tracery
+id: process_inverter
+tracery:
+  origin: |
+    Invert your approach to [[#note#]]:
+
+    1. #step1#
+    2. #step2#
+    3. #step3#
+
+    What breaks? What emerges?
+  note: ["$vault.sample_notes(1)"]
+  step1: ["Start from the end", "Assume the opposite", "Remove the constraint"]
+  step2: ["Work backwards", "Embrace the contradiction", "Make it worse first"]
+  step3: ["Notice what's missing", "Ask who this serves", "Celebrate the failure"]
+```
+
+**Status**: **Needs testing** - verify YAML multiline works with pytracery.
+
+---
+
+### Tier 2: Rich Vocabulary Geists
+
+These features enable more evocative, domain-specific language.
+
+#### 5. External Wordlist Loading
+
+**What It Unlocks**: Geists with curated, domain-specific vocabularies
+
+**Geists Enabled**:
+
+```yaml
+# Power Language Geist - uses curated verb list
+type: geist-tracery
+id: reframe_verb
+tracery:
+  origin: "#verb.capitalize# [[#note#]] instead of analyzing it"
+  verb: ["$vault.power_verbs()"]  # Loads from wordlist
+  note: ["$vault.sample_notes(1)"]
+# Wordlist: dissolve, inhabit, interrogate, seduce, transmute, witness
+# Output: "Inhabit [[Systems Thinking]] instead of analyzing it"
+```
+
+```yaml
+# Evocative Adjectives Geist
+type: geist-tracery
+id: poetic_reframe
+tracery:
+  origin: "What if [[#note#]] is fundamentally #adjective#?"
+  note: ["$vault.sample_notes(1)"]
+  adjective: ["$vault.evocative_adjectives()"]
+# Wordlist: liminal, recursive, emergent, fugitive, generative, oblique
+```
+
+**Implementation**:
+
 ```python
-'ago': lambda days: format_timespan(int(days))
+# <vault>/_geistfabrik/vault_functions/wordlists.py
+@vault_function("power_verbs")
+def power_verbs(vault: VaultContext) -> List[str]:
+    """Load curated action verbs"""
+    wordlist_path = vault.geistfabrik_dir / "wordlists" / "power_verbs.txt"
+    with open(wordlist_path) as f:
+        return [line.strip() for line in f if line.strip()]
+
+@vault_function("evocative_adjectives")
+def evocative_adjectives(vault: VaultContext) -> List[str]:
+    """Load evocative descriptive words"""
+    wordlist_path = vault.geistfabrik_dir / "wordlists" / "evocative_adjectives.txt"
+    with open(wordlist_path) as f:
+        return [line.strip() for line in f if line.strip()]
 ```
 
-### 14. Semantic Modifiers
+**File Structure**:
+```
+<vault>/_geistfabrik/
+  wordlists/
+    power_verbs.txt
+    evocative_adjectives.txt
+    philosophical_terms.txt
+    scamper_prompts.txt
+```
 
-**Using Embeddings in Modifiers**:
+---
+
+### Tier 3: Temporal & Quantitative Geists
+
+These features enable time-aware and number-aware suggestions.
+
+#### 6. Temporal Modifiers
+
+**What It Unlocks**: Retrospective and anniversary-aware geists
+
+**Geists Enabled**:
 
 ```yaml
-origin: "[[#note#]] but #direction.semantic#"
-note: ["$vault.sample_notes(1)"]
-direction: ["opposite", "adjacent", "orthogonal"]
-# .semantic modifier uses embeddings to find semantically related concepts
+# Memory Mirror Geist - surfaces old notes with readable timespans
+type: geist-tracery
+id: memory_mirror
+tracery:
+  origin: "#timespan.ago# you wrote [[#old_note#]]. Today's [[#new_note#]] #relationship#"
+  old_note: ["$vault.old_notes(1)"]
+  new_note: ["$vault.recent_notes(1)"]
+  timespan: ["$vault.note_age_days(old_note)"]  # Returns "847"
+  relationship: ["answers it", "contradicts it", "completes it", "has forgotten it"]
+# With .ago modifier: "847" → "2 years ago"
+# Output: "2 years ago you wrote [[Early Thoughts]]. Today's [[Synthesis]] answers it"
 ```
 
-**Complexity**: Very high - would need embedding lookups in modifier.
+```yaml
+# Seasonal Rhythm Geist - detects patterns across time
+type: geist-tracery
+id: seasonal_notes
+tracery:
+  origin: "Every #season.capitalize#, you return to [[#topic#]]"
+  season: ["$vault.current_season()"]  # "spring", "fall", etc.
+  topic: ["$vault.notes_from_season(season, 1)"]
+```
 
-**Alternative**: Vault functions handle semantic operations.
+**Implementation Options**:
 
-**Priority**: Low - vault functions already provide this capability.
+1. **Vault function returns formatted string** (easier):
+```python
+@vault_function("note_age_formatted")
+def note_age_formatted(vault: VaultContext, note_title: str) -> List[str]:
+    days = vault.note_age_days(note_title)
+    if days < 30:
+        return [f"{days} days ago"]
+    elif days < 365:
+        return [f"{days // 30} months ago"]
+    else:
+        return [f"{days // 365} years ago"]
+```
 
-### Feature Priority Summary
+2. **Custom modifier** (more flexible):
+```python
+def temporal_modifier(days_str: str) -> str:
+    days = int(days_str)
+    if days < 30: return f"{days} days ago"
+    elif days < 365: return f"{days // 30} months ago"
+    else: return f"{days // 365} years ago"
 
-| Feature | Priority | Complexity | Tracery Native? |
-|---------|----------|------------|-----------------|
-| Text modifiers (.s, .ed, .a) | High | Low | Yes (via pytracery) |
-| Obsidian-specific modifiers | High | Low | No (custom) |
-| Custom modifiers framework | High | Medium | Yes (pytracery) |
-| Weighted distributions | Medium | Medium | No (workaround: repeat) |
-| External wordlist loading | Medium | Low | No (via vault functions) |
-| Multiline YAML support | Medium | Low | Yes (YAML native) |
-| Number formatting | Low | Low | No (custom modifier) |
-| Grammar composition/imports | Low | Medium | No (custom loader) |
-| Conditional expansion | Low | High | No (anti-pattern) |
-| Visual/diagram generation | Low | Medium | Yes (but niche) |
-| Semantic modifiers | Low | Very High | No (complex) |
+grammar.add_modifiers({'ago': temporal_modifier})
+```
+
+---
+
+#### 7. Number Formatting
+
+**What It Unlocks**: Statistical and count-based geists
+
+**Geists Enabled**:
+
+```yaml
+# Productivity Pattern Geist - uses counts
+type: geist-tracery
+id: writing_rhythm
+tracery:
+  origin: "You wrote #count# notes this week—#observation#"
+  count: ["$vault.count_recent(7)"]  # Returns "17"
+  observation:
+    - "a creative burst"
+    - "steady momentum"
+    - "is that more or less than usual?"
+# With .spell modifier: "17" → "seventeen"
+# Output: "You wrote seventeen notes this week—a creative burst"
+```
+
+**Implementation**: Custom modifier for number spelling/formatting.
+
+---
+
+### Tier 4: Developer Experience
+
+These features improve geist maintainability and extensibility.
+
+#### 8. Grammar Composition / Shared Fragments
+
+**What It Unlocks**: DRY geist development, consistent voice across geists
+
+**Geists Enabled**:
+
+```yaml
+# _geistfabrik/geists/tracery/_shared/provocations.yaml
+provocations:
+  - "What if"
+  - "Consider that"
+  - "Imagine"
+  - "What assumes"
+
+tone_gentle:
+  - "might be"
+  - "could be"
+  - "seems to be"
+
+tone_bold:
+  - "is definitely"
+  - "must be"
+  - "cannot be anything but"
+```
+
+```yaml
+# Multiple geists can import shared fragments
+type: geist-tracery
+id: assumption_challenger
+import: ["_shared/provocations", "_shared/tone_gentle"]
+tracery:
+  origin: "#provocations# [[#note#]] #tone_gentle# backwards?"
+  note: ["$vault.sample_notes(1)"]
+```
+
+**Workaround**: Use vault functions to return shared arrays.
+
+**Enhancement**: YAML anchors/aliases or custom `import:` directive.
+
+---
+
+#### 9. Custom Modifiers Framework
+
+**What It Unlocks**: Domain-specific transformations, user extensibility
+
+**Already Supported by pytracery** - just need to document pattern:
+
+```python
+# <vault>/_geistfabrik/tracery_modifiers.py
+def load_custom_modifiers():
+    """Load user-defined Tracery modifiers"""
+    return {
+        # Text transformations
+        'reverse': lambda s: s[::-1],
+        'shout': lambda s: s.upper() + '!',
+        'whisper': lambda s: s.lower() + '...',
+
+        # Obsidian syntax
+        'wikilink': lambda s: f"[[{s}]]",
+        'embed': lambda s: f"![[{s}]]",
+        'tag': lambda s: f"#{s.replace(' ', '-').lower()}",
+
+        # Length control
+        'truncate': lambda s: s[:50] + '...' if len(s) > 50 else s,
+        'first_word': lambda s: s.split()[0] if s else s,
+
+        # Custom formatting
+        'ago': lambda days: format_timespan(int(days)),
+        'spell': lambda n: num2words(int(n)),
+    }
+```
+
+**Geists Enabled**: Any of the above examples using custom modifiers.
+
+---
+
+### Tier 5: Experimental / Niche
+
+Features with limited use cases or design concerns.
+
+#### 10. Visual/Diagram Generation
+
+**What It Unlocks**: Mermaid diagram suggestions (niche but interesting)
+
+**Geists Enabled**:
+
+```yaml
+# Diagram Suggester Geist - generates Mermaid syntax
+type: geist-tracery
+id: diagram_suggester
+tracery:
+  origin: |
+    Try this diagram:
+    ```mermaid
+    graph LR
+      #node1# --> #node2#
+      #node2# --> #node3#
+      #node3# -.-> #node1#
+    ```
+  node1: ["$vault.sample_notes(1)"]
+  node2: ["$vault.sample_notes(1)"]
+  node3: ["$vault.sample_notes(1)"]
+```
+
+**Status**: Possible but niche. Most users want text provocations.
+
+---
+
+#### 11. Conditional Expansion
+
+**What It Unlocks**: Adaptive geists that respond to vault state
+
+**Design Concern**: Against Tracery's simplicity philosophy. Better handled by code geists.
+
+**Alternative Pattern**:
+
+```python
+# Code geist handles conditionals, delegates to Tracery
+def suggest(vault: VaultContext) -> List[Suggestion]:
+    if vault.count_orphans() > 0:
+        # Use "has_orphans" Tracery geist
+        return execute_tracery_geist('has_orphans', vault)
+    else:
+        # Use "no_orphans" Tracery geist
+        return execute_tracery_geist('no_orphans', vault)
+```
+
+---
+
+#### 12. Semantic Modifiers (Embedding-Aware)
+
+**What It Unlocks**: Modifiers that use vault embeddings
+
+**Complexity**: Very high - embeddings not accessible in modifier context.
+
+**Better Pattern**: Vault functions handle semantic operations:
+
+```python
+@vault_function("semantic_opposite")
+def semantic_opposite(vault: VaultContext, note_title: str, k: int) -> List[str]:
+    """Find notes semantically opposite to given note"""
+    embedding = vault.get_embedding(note_title)
+    # Find notes with maximum cosine distance
+    opposites = vault.semantic_search(-embedding, k=k)
+    return [n.title for n in opposites]
+```
+
+```yaml
+origin: "[[#note#]] vs [[#opposite#]]—same question, opposite answers?"
+note: ["$vault.sample_notes(1)"]
+opposite: ["$vault.semantic_opposite(note, 1)"]  # If symbol reference worked
+```
+
+---
+
+#### 13. State Persistence Across Expansions
+
+**What It Unlocks**: Multi-turn geists, memory across suggestions
+
+**Current Status**: Not needed - each geist runs once per session.
+
+**Future Use**: If geists generate multiple suggestions, could track which notes already used.
+
+---
+
+#### 14. Recursive Depth Limiting
+
+**What It Unlocks**: Protection against infinite recursion
+
+**Status**: Pytracery likely has built-in limits. **Action: Verify and configure**.
+
+---
+
+## Feature Priority by Geist Impact
+
+| Feature | Geist Categories Unlocked | Implementation | Status |
+|---------|---------------------------|----------------|--------|
+| **Text modifiers** (.s, .ed, .a) | Grammar-correct suggestions, natural language | Built-in pytracery | **Verify loaded** |
+| **Obsidian modifiers** (.wikilink, .embed, .tag) | Syntax-aware geists, embed suggestions, tag bridges | Custom modifiers (easy) | **Implement** |
+| **Weighted distributions** | Serendipity control, tonal variety, rare insights | Repeat options (workaround) or custom parser | **Workaround works** |
+| **Multiline support** | Structured provocations, multi-perspective geists | YAML native | **Test with pytracery** |
+| **External wordlists** | Domain-specific vocabulary, evocative language | Vault functions (easy) | **Implement pattern** |
+| **Temporal modifiers** | Retrospective geists, anniversary awareness | Custom modifier or vault function | **Medium priority** |
+| **Number formatting** | Statistical geists, count-based suggestions | Custom modifier | **Medium priority** |
+| **Grammar composition** | DRY development, consistent voice | YAML anchors or custom loader | **Low priority** |
+| **Custom modifier framework** | User extensibility, domain transformations | Built-in pytracery | **Document pattern** |
+| **Visual generation** | Diagram suggestions (Mermaid) | Tracery native | **Niche use case** |
+| **Conditional expansion** | Adaptive geists | Anti-pattern - use code geists | **Avoid** |
+| **Semantic modifiers** | Embedding-aware text transforms | Very complex | **Use vault functions** |
+| **State persistence** | Multi-turn geists | Not needed (single expansion) | **Not applicable** |
+| **Recursion limits** | Safety | Pytracery built-in | **Verify config** |
+
+## Recommended Implementation Order
+
+1. **Verify text modifiers loaded** (`base_english` from pytracery)
+2. **Implement Obsidian modifiers** (high impact, low complexity)
+3. **Document external wordlist pattern** (enables rich vocabulary)
+4. **Test multiline YAML support** (unlocks structured geists)
+5. **Add temporal modifiers** (retrospective geists)
+6. **Document custom modifier framework** (user extensibility)
+7. Consider weighted distributions enhancement (quality of life)
 
 ## Resources
 
