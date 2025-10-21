@@ -11,8 +11,8 @@ Inspired by Gordon Brander's work on tools for thought.
 ## Status
 
 **Version**: 0.9.0 (Beta)
-**Tests**: 152/152 passing ✅
-**Progress**: ~95% (Feature-complete, approaching 1.0)
+**Tests**: 181/182 passing ✅ (99.5%)
+**Progress**: ~98% (Feature-complete, approaching 1.0)
 
 See [STATUS.md](STATUS.md) for detailed implementation status and [examples/README.md](examples/README.md) for comprehensive examples.
 
@@ -62,8 +62,11 @@ uv run geistfabrik --help
 ### First Run
 
 ```bash
-# Initialize a vault (creates _geistfabrik directory with database and examples)
-uv run geistfabrik init /path/to/your/vault
+# Initialize a vault (creates _geistfabrik directory structure)
+uv run geistfabrik init /path/to/your/vault --examples
+
+# The --examples flag installs all 17 example geists
+# Omit it if you want to start with a clean setup
 
 # Run geists and generate suggestions
 uv run geistfabrik invoke /path/to/your/vault
@@ -259,7 +262,7 @@ Vault Files → Vault.sync() → SQLite Database
 
 ## Example Geists
 
-GeistFabrik includes 13 example geists demonstrating various patterns:
+GeistFabrik includes 17 example geists demonstrating various patterns:
 
 ### Code Geists (10)
 - **temporal_drift.py** - Find stale but important notes
@@ -267,25 +270,40 @@ GeistFabrik includes 13 example geists demonstrating various patterns:
 - **bridge_builder.py** - Connect disconnected clusters
 - **complexity_mismatch.py** - Find complexity/importance gaps
 - **question_generator.py** - Reframe statements as questions
-- **link_density_analyzer.py** - Analyse link patterns
+- **link_density_analyser.py** - Analyse link patterns
 - **task_archaeology.py** - Find old incomplete tasks
 - **concept_cluster.py** - Identify emergent themes
 - **stub_expander.py** - Develop short connected notes
 - **recent_focus.py** - Connect recent to old work
 
-### Tracery Geists (3)
+### Tracery Geists (7)
 - **random_prompts.yaml** - Creative writing prompts
 - **note_combinations.yaml** - Random note pairings
 - **what_if.yaml** - "What if" question generator
+- **hub_explorer.yaml** - Explore highly connected notes
+- **orphan_connector.yaml** - Connect isolated notes
+- **semantic_neighbours.yaml** - Find semantically similar notes
+- **temporal_mirror.yaml** - Compare notes across time periods
 
 See [examples/README.md](examples/README.md) for detailed documentation.
 
 ## Documentation
 
+### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
-- **[specs/](specs/)** - Complete specification documents
-- **[CLAUDE.md](CLAUDE.md)** - Development guidelines
+
+### Deep Dives
+- **[docs/TEMPORAL_EMBEDDINGS_EXAMPLES.md](docs/TEMPORAL_EMBEDDINGS_EXAMPLES.md)** - Temporal embeddings explained with examples
+- **[docs/TRACERY_COMPARISON.md](docs/TRACERY_COMPARISON.md)** - Tracery engine technical analysis
+
+### Development
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development setup and workflow
+- **[CLAUDE.md](CLAUDE.md)** - AI development guidelines
+- **[docs/CI_STRATEGY_ANALYSIS.md](docs/CI_STRATEGY_ANALYSIS.md)** - CI/CD troubleshooting
+
+### Specifications
+- **[specs/](specs/)** - Complete technical specification documents
 
 ## Performance
 
