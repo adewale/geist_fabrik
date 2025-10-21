@@ -106,10 +106,23 @@ def sample_vault(temp_dir: Path) -> Path:
 def pytest_configure(config: Any) -> None:
     """Pytest plugin hook to configure tests before they run.
 
-    This replaces SentenceTransformer with our stub before any tests import it.
+    This replaces SentenceTransformer with our stub ONLY when running unit tests
+    (with -m "not slow"). Integration tests (marked as slow) use the real model.
     """
     import sys
     import types
+
+    # Check if we're skipping slow tests (unit test mode)
+    markexpr = config.getoption("-m", default="")
+
+    # Only inject stub if we're explicitly filtering out slow tests with -m "not slow"
+    # This ensures integration tests (marked as @pytest.mark.slow) use the real model
+    # When running all tests (no -m flag), integration tests should get real model
+    should_use_stub = "not slow" in markexpr
+
+    if not should_use_stub:
+        # Either running integration tests or running all tests - use real model
+        return
 
     # Create a fake sentence_transformers module
     fake_module = types.ModuleType("sentence_transformers")
