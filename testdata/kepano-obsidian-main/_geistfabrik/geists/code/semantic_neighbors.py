@@ -10,13 +10,13 @@ def suggest(vault):
         return []
 
     note = notes[0]
-    neighbors = vault.neighbors(note, k=3)
+    neighbours = vault.neighbours(note, k=3)
 
     suggestions = []
-    for neighbor in neighbors:
-        text = f"[[{note.title}]] and [[{neighbor.title}]] seem related. What's the connection?"
+    for neighbour in neighbours:
+        text = f"[[{note.title}]] and [[{neighbour.title}]] seem related. What's the connection?"
         suggestions.append(
-            Suggestion(text=text, notes=[note.title, neighbor.title], geist_id="semantic_neighbors")
+            Suggestion(text=text, notes=[note.title, neighbour.title], geist_id="semantic_neighbors")
         )
 
     return suggestions
