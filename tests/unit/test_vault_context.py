@@ -172,6 +172,52 @@ def test_hubs(test_vault_with_notes):
     assert len(hubs) <= 2
 
 
+def test_hubs_returns_actual_notes_not_empty():
+    """Test that hubs() returns actual Note objects with titles, not empty results.
+
+    Regression test for bug where hubs() would return empty list because
+    it couldn't resolve link targets (which are note titles) to file paths.
+    """
+    with TemporaryDirectory() as tmpdir:
+        vault_path = Path(tmpdir)
+
+        # Create a hub note
+        (vault_path / "hub.md").write_text("# Hub Note\nA central note.")
+
+        # Create several notes that link to the hub using its title
+        (vault_path / "note1.md").write_text("# Note 1\nSee [[Hub Note]] for more.")
+        (vault_path / "note2.md").write_text("# Note 2\nCheck out [[Hub Note]].")
+        (vault_path / "note3.md").write_text("# Note 3\n[[Hub Note]] is important.")
+
+        # Create vault and sync
+        vault = Vault(vault_path)
+        vault.sync()
+
+        # Create session (no embeddings needed for link resolution test)
+        session_date = datetime(2023, 6, 15)
+        session = Session(session_date, vault.db)
+
+        # Create context
+        ctx = VaultContext(vault, session)
+
+        # Get hubs - should find the hub note
+        hubs = ctx.hubs(k=5)
+
+        # Verify we got actual notes back
+        assert len(hubs) > 0, "hubs() should find linked-to notes"
+
+        # Verify the hub note is in the results
+        hub_titles = [h.title for h in hubs]
+        assert "Hub Note" in hub_titles, f"Expected 'Hub Note' in hubs, got: {hub_titles}"
+
+        # Verify the note has a non-empty title (not [[]])
+        for hub in hubs:
+            assert hub.title, f"Hub note should have non-empty title, got: '{hub.title}'"
+            assert hub.path, f"Hub note should have non-empty path, got: '{hub.path}'"
+
+        vault.close()
+
+
 def test_unlinked_pairs(test_vault_with_notes):
     """Test finding similar but unlinked note pairs."""
     vault, session = test_vault_with_notes

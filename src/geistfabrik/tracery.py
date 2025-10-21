@@ -156,6 +156,9 @@ class TraceryEngine:
     def _format_list(self, items: List[Any]) -> str:
         """Format a list for text output.
 
+        Note: Returns note titles WITHOUT brackets. Tracery templates should
+        wrap results in [[...]] as needed.
+
         Args:
             items: List to format
 
@@ -165,9 +168,9 @@ class TraceryEngine:
         if not items:
             return ""
 
-        # If items are Note objects, use their titles
+        # If items are Note objects, use their titles (without brackets)
         if hasattr(items[0], "title"):
-            titles = [f"[[{item.title}]]" for item in items]
+            titles = [item.title for item in items]
             if len(titles) == 1:
                 return titles[0]
             elif len(titles) == 2:

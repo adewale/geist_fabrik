@@ -279,6 +279,48 @@ class Vault:
             modified=datetime.fromisoformat(modified_str),
         )
 
+    def resolve_link_target(self, target: str) -> Optional[Note]:
+        """Resolve a wiki-link target to a Note.
+
+        Wiki-links in Obsidian can reference notes by:
+        - Full path with extension: "path/to/note.md"
+        - Path without extension: "path/to/note"
+        - Note title: "Note Title"
+        - Basename: "note"
+
+        This method tries to resolve the target in order:
+        1. As exact path match
+        2. As path with .md extension added
+        3. As note title match
+
+        Args:
+            target: Link target string from wiki-link
+
+        Returns:
+            Note object if found, None otherwise
+        """
+        # Try as exact path first
+        note = self.get_note(target)
+        if note is not None:
+            return note
+
+        # Try adding .md extension
+        if not target.endswith(".md"):
+            note = self.get_note(f"{target}.md")
+            if note is not None:
+                return note
+
+        # Try looking up by title
+        cursor = self.db.execute(
+            "SELECT path FROM notes WHERE title = ?",
+            (target,),
+        )
+        row = cursor.fetchone()
+        if row is not None:
+            return self.get_note(row[0])
+
+        return None
+
     def close(self) -> None:
         """Close database connection."""
         self.db.close()
