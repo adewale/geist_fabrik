@@ -1,0 +1,29 @@
+type: geist-tracery
+id: contradictor
+count: 1
+
+tracery:
+  origin: "#suggestion#"
+  suggestion:
+    - "[[#note#]] exists. But what about the opposite?"
+    - "You wrote [[#note#]]. What would the opposite look like?"
+    - "[[#note#]] - have you considered the inverse perspective?"
+    - "What contradicts [[#note#]]?"
+    - "[[#note#]] - but what if you're wrong?"
+    - "Who would disagree with [[#note#]]?"
+    - "What's the antithesis of [[#note#]]?"
+    - "[[#note#]] - what would the reverse scenario be?"
+    - "What if [[#note#]] is only half the story?"
+    - "[[#note#]] assumes something. What if that's backwards?"
+    - "What would someone who hates [[#note#]] say?"
+    - "[[#note#]] - what does this exclude or ignore?"
+    - "If [[#note#]] is the thesis, what's the antithesis?"
+    - "[[#note#]] points one way. Where does the other direction lead?"
+    - "What's the shadow side of [[#note#]]?"
+    - "[[#note#]] - what would negating this reveal?"
+    - "Who benefits from the opposite of [[#note#]]?"
+    - "[[#note#]] - what happens if you flip every assumption?"
+    - "What's the complement to [[#note#]]?"
+    - "[[#note#]] - what's lurking in the negative space?"
+  note:
+    - "$vault.random_note_title()"
