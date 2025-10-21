@@ -314,11 +314,15 @@ def invoke_command(args: argparse.Namespace) -> int:
 
         print(f"Generated {len(all_suggestions)} raw suggestions")
 
-        # Filter suggestions
-        embedding_computer = EmbeddingComputer()
-        filter = SuggestionFilter(vault.db, embedding_computer)
-        filtered = filter.filter_all(all_suggestions, session_date)
-        print(f"Filtered to {len(filtered)} suggestions")
+        # Filter suggestions (unless --nofilter is specified)
+        if args.nofilter:
+            filtered = all_suggestions
+            print("Skipping filtering pipeline (--nofilter)")
+        else:
+            embedding_computer = EmbeddingComputer()
+            filter = SuggestionFilter(vault.db, embedding_computer)
+            filtered = filter.filter_all(all_suggestions, session_date)
+            print(f"Filtered to {len(filtered)} suggestions")
 
         # Select final suggestions based on mode
         mode = "full" if args.full else "default"
@@ -638,7 +642,12 @@ Examples:
     invoke_parser.add_argument(
         "--full",
         action="store_true",
-        help="Show all suggestions (firehose mode)",
+        help="Show all filtered suggestions (no sampling, filtering still applies)",
+    )
+    invoke_parser.add_argument(
+        "--nofilter",
+        action="store_true",
+        help="Skip filtering pipeline (raw output from all geists)",
     )
     invoke_parser.add_argument(
         "--count",

@@ -151,8 +151,11 @@ uv run geistfabrik invoke --vault ~/my-vault --write
 # Compare to recent sessions
 uv run geistfabrik invoke --vault ~/my-vault --diff
 
-# Full firehose: All filtered suggestions (50-200+)
+# Full mode: All filtered suggestions (no sampling)
 uv run geistfabrik invoke --vault ~/my-vault --full --write
+
+# No filter: Raw output from all geists (no filtering or sampling)
+uv run geistfabrik invoke --vault ~/my-vault --nofilter --write
 
 # Single geist only
 uv run geistfabrik invoke --vault ~/my-vault --geist temporal_drift
@@ -163,6 +166,33 @@ uv run geistfabrik invoke --vault ~/my-vault --date 2025-01-15
 # Test a geist during development
 uv run geistfabrik test my_geist --vault ~/my-vault --date 2025-01-15
 ```
+
+### Understanding Filtering Modes
+
+GeistFabrik has three invocation modes that control filtering and sampling:
+
+**Default mode** (recommended for daily use):
+- Applies 4-stage filtering (boundary, novelty, diversity, quality)
+- Samples ~5 suggestions
+- Balanced output
+
+**Full mode** (`--full`):
+- Applies 4-stage filtering (boundary, novelty, diversity, quality)
+- Returns ALL filtered suggestions (no sampling)
+- Good for seeing everything that passed quality checks
+- Typical output: 10-50 suggestions depending on vault size
+
+**No filter mode** (`--nofilter`):
+- Skips filtering pipeline entirely
+- Returns raw output from all geists
+- Maximum output volume
+- Typical output: 20-200+ suggestions depending on vault size and geist count
+- ⚠️ May include low-quality or redundant suggestions
+
+Example outputs for a 100-note vault:
+- Default: ~5 suggestions
+- `--full`: ~30 suggestions (after filtering)
+- `--nofilter`: ~150 suggestions (raw, unfiltered)
 
 ### Working with Session Notes
 
