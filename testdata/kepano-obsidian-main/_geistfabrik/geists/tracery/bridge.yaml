@@ -1,0 +1,21 @@
+type: geist-tracery
+id: bridge
+count: 1
+
+tracery:
+  origin: "#suggestion#"
+  suggestion:
+    - "[[#note1#]] and [[#note2#]] - what connects them?"
+    - "How does [[#note1#]] lead to [[#note2#]]?"
+    - "[[#note1#]] meets [[#note2#]] - what happens?"
+    - "What's the missing link between [[#note1#]] and [[#note2#]]?"
+    - "[[#note1#]] contradicts [[#note2#]] - or does it?"
+    - "What would merge [[#note1#]] with [[#note2#]]?"
+    - "[[#note1#]] is to [[#note2#]] as _____ is to _____?"
+    - "If [[#note1#]] is the question, is [[#note2#]] the answer?"
+    - "[[#note1#]] and [[#note2#]] - what do they both ignore?"
+    - "What pattern contains both [[#note1#]] and [[#note2#]]?"
+  note1:
+    - "$vault.random_note_title()"
+  note2:
+    - "$vault.random_note_title()"

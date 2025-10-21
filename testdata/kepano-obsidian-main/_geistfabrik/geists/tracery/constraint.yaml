@@ -1,0 +1,19 @@
+type: geist-tracery
+id: constraint
+count: 1
+
+tracery:
+  origin: "#suggestion#"
+  suggestion:
+    - "[[#note#]] - what if you had to explain this in one sentence?"
+    - "[[#note#]] but you can only use 10 words."
+    - "[[#note#]] - what if you couldn't use abstractions?"
+    - "Explain [[#note#]] without using jargon."
+    - "[[#note#]] - draw it, don't write it. What would you draw?"
+    - "[[#note#]] in exactly three bullet points."
+    - "[[#note#]] - what if you could only tell it as a story?"
+    - "[[#note#]] for someone who has 30 seconds."
+    - "[[#note#]] - express this through questions only."
+    - "What's the haiku version of [[#note#]]?"
+  note:
+    - "$vault.random_note_title()"

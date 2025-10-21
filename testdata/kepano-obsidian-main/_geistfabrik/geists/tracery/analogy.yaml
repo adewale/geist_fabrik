@@ -1,0 +1,19 @@
+type: geist-tracery
+id: analogy
+count: 1
+
+tracery:
+  origin: "#suggestion#"
+  suggestion:
+    - "[[#note#]] - what is this like in a completely different domain?"
+    - "If [[#note#]] were a pattern, where else does it appear?"
+    - "[[#note#]] reminds you of... what?"
+    - "What's a good metaphor for [[#note#]]?"
+    - "[[#note#]] - if this were a story, what story would it be?"
+    - "What does [[#note#]] have in common with something totally unrelated?"
+    - "[[#note#]] is similar to _____ in an unexpected way."
+    - "If you had to explain [[#note#]] to a child, what would you compare it to?"
+    - "[[#note#]] - what's the natural world equivalent?"
+    - "What historical event mirrors [[#note#]]?"
+  note:
+    - "$vault.random_note_title()"

@@ -1,0 +1,21 @@
+type: geist-tracery
+id: merge
+count: 1
+
+tracery:
+  origin: "#suggestion#"
+  suggestion:
+    - "[[#note1#]] + [[#note2#]] = ?"
+    - "What if you combined [[#note1#]] and [[#note2#]]?"
+    - "[[#note1#]] borrows an idea from [[#note2#]] - which one?"
+    - "Mash up [[#note1#]] with [[#note2#]]. What emerges?"
+    - "[[#note1#]] is the peanut butter, [[#note2#]] is the chocolate. What's the result?"
+    - "What happens at the intersection of [[#note1#]] and [[#note2#]]?"
+    - "[[#note1#]] × [[#note2#]] - what's this hybrid?"
+    - "Blend [[#note1#]] and [[#note2#]]. What new thing appears?"
+    - "[[#note1#]] and [[#note2#]] - what would their child look like?"
+    - "What synthesis emerges from [[#note1#]] and [[#note2#]]?"
+  note1:
+    - "$vault.random_note_title()"
+  note2:
+    - "$vault.random_note_title()"
