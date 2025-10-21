@@ -6,18 +6,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **GeistFabrik** is a Python-based divergence engine for Obsidian vaults that generates creative suggestions through both code and Tracery grammars. The name comes from German for "spirit factory" - the system is called GeistFabrik, and individual generative prompts are called "geists."
 
-This is a specification-stage project inspired by Gordon Brander's work on tools for thought. It implements "muses, not oracles" - suggestions that are provocative rather than prescriptive, generating "What if...?" questions rather than answers.
+Inspired by Gordon Brander's work on tools for thought, it implements "muses, not oracles" - suggestions that are provocative rather than prescriptive, generating "What if...?" questions rather than answers.
 
 ## Current Project State
 
-This repository currently contains:
-- **specs/**: Comprehensive technical specifications and design documents
+**Version**: 0.9.0 (Beta)
+**Status**: Feature-complete, approaching 1.0 release
+**Tests**: 201/201 passing ✅ (100%)
+**Code**: ~8,500 lines across 14 source modules
+
+This repository contains:
+- **src/geistfabrik/**: Complete implementation of all core modules
+- **tests/**: Comprehensive test suite (201 tests, 100% passing)
+- **examples/**: 17 example geists (10 code + 7 Tracery)
+- **specs/**: Original technical specifications (all implemented)
 - **testdata/**: Sample Obsidian vault notes from kepano's vault for testing
-- **No implementation yet**: This is purely specification phase
+- **models/**: Bundled sentence-transformers model (all-MiniLM-L6-v2) in Git LFS
 
-The specs define a complete architecture but no Python code has been written.
+The system is fully functional and operational. All phases of the specification have been implemented.
 
-## Core Architecture (from specs)
+## Core Architecture
 
 GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 
@@ -139,7 +147,7 @@ uv run geistfabrik test my_geist --vault ~/test-vault --date 2025-01-15
 
 ## Implementation Approach
 
-When implementing GeistFabrik:
+The following approach was used to implement GeistFabrik:
 
 1. **Start with Vault layer**: File parsing, SQLite schema, incremental sync
 2. **Add embeddings**: Integrate sentence-transformers and sqlite-vec
@@ -152,9 +160,9 @@ When implementing GeistFabrik:
 9. **Add temporal embeddings**: Session-based embedding computation and storage
 10. **Create CLI**: Argument parsing for different invocation modes
 
-## Dependencies (when implementing)
+## Dependencies
 
-Core dependencies will include:
+Core dependencies include:
 - `sentence-transformers` - Local embedding computation (all-MiniLM-L6-v2 model)
 - `sqlite-vec` - Vector similarity search in SQLite
 - `tracery` (pytracery) - Tracery grammar support
