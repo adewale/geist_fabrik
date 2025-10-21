@@ -196,6 +196,38 @@ uv run geistfabrik invoke --vault ~/MyVault --diff
 
 ---
 
+## Auditing Your Configuration
+
+Every time you run `geistfabrik invoke`, you'll see a configuration audit at the start:
+
+```
+============================================================
+GeistFabrik Configuration Audit
+============================================================
+Vault: /path/to/vault
+Geists directory: /path/to/vault/_geistfabrik/geists/code
+Total geists found: 17
+  - Enabled: 17
+Filtering: ENABLED (4-stage pipeline)
+Sampling: ENABLED (count=5)
+Mode: Default
+============================================================
+```
+
+This shows:
+- **Total geists found**: All `.py` files in the geists directory
+- **Enabled/Disabled**: Geists can be auto-disabled after 3 failures
+- **Filtering**: Whether the 4-stage filter pipeline is active
+- **Sampling**: Whether suggestions are sampled down
+- **Mode**: Current invocation mode
+
+If you see fewer geists than expected:
+- Check that geists are in `_geistfabrik/geists/code/`
+- Look for disabled geists (auto-disabled after failures)
+- Check the Execution Summary at the end for errors
+
+---
+
 ## Common Questions
 
 **Q: Will this slow down Obsidian?**

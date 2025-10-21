@@ -295,7 +295,36 @@ def invoke_command(args: argparse.Namespace) -> int:
             vault.close()
             return 0
 
-        print(f"\nExecuting {len(enabled_geists)} geists...")
+        # Show configuration summary
+        all_geist_ids = list(executor.geists.keys())
+        disabled_geists = [gid for gid in all_geist_ids if gid not in enabled_geists]
+
+        print(f"\n{'=' * 60}")
+        print("GeistFabrik Configuration Audit")
+        print(f"{'=' * 60}")
+        print(f"Vault: {vault_path}")
+        print(f"Geists directory: {geists_dir}")
+        print(f"Total geists found: {len(all_geist_ids)}")
+        print(f"  - Enabled: {len(enabled_geists)}")
+        if disabled_geists:
+            print(f"  - Disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
+        filtering_status = (
+            "DISABLED (--nofilter)" if args.nofilter else "ENABLED (4-stage pipeline)"
+        )
+        print(f"Filtering: {filtering_status}")
+        sampling_status = (
+            "DISABLED (--full or --nofilter)"
+            if (args.full or args.nofilter)
+            else f"ENABLED (count={args.count})"
+        )
+        print(f"Sampling: {sampling_status}")
+        mode = (
+            "Raw output" if args.nofilter else "Filtered output" if args.full else "Default"
+        )
+        print(f"Mode: {mode}")
+        print(f"{'=' * 60}\n")
+
+        print(f"Executing {len(enabled_geists)} geists...")
 
         # Execute specific geist or all geists
         if args.geist:
@@ -325,7 +354,8 @@ def invoke_command(args: argparse.Namespace) -> int:
             print(f"Filtered to {len(filtered)} suggestions")
 
         # Select final suggestions based on mode
-        mode = "full" if args.full else "default"
+        # Both --full and --nofilter should show all suggestions (no sampling)
+        mode = "full" if (args.full or args.nofilter) else "default"
         count = args.count if hasattr(args, "count") else 5
         seed = int(session_date.timestamp())
         final = select_suggestions(filtered, mode, count, seed)
@@ -402,14 +432,23 @@ def invoke_command(args: argparse.Namespace) -> int:
             print(f"Total: {len(final)} suggestions")
             print(f"{'=' * 80}\n")
 
-        # Display execution log if there were errors
+        # Display execution log summary
         log = executor.get_execution_log()
         errors = [entry for entry in log if entry["status"] == "error"]
+        timeouts = [entry for entry in log if "timeout" in str(entry.get("error", "")).lower()]
+        successful = [entry for entry in log if entry["status"] == "success"]
+
+        print(f"\n{'=' * 60}")
+        print("Execution Summary")
+        print(f"{'=' * 60}")
+        print(f"Successful: {len(successful)} geists")
         if errors:
-            print(f"\n⚠️  {len(errors)} geist(s) encountered errors:\n")
+            print(f"Errors: {len(errors)} geists")
             for entry in errors:
-                print(f"  - {entry['geist_id']}: {entry['error']}")
-            print()
+                print(f"  ✗ {entry['geist_id']}: {entry['error']}")
+        if timeouts:
+            print(f"Timeouts: {len(timeouts)} geists (consider increasing --timeout)")
+        print(f"{'=' * 60}\n")
 
         vault.close()
         return 0
