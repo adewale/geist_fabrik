@@ -85,6 +85,22 @@ class VaultContext:
         """
         return self.vault.get_note(path)
 
+    def resolve_link_target(self, target: str) -> Optional[Note]:
+        """Resolve a wiki-link target to a Note.
+
+        Tries multiple resolution strategies:
+        1. Exact path match
+        2. Path with .md extension
+        3. Lookup by note title
+
+        Args:
+            target: Link target (path or title)
+
+        Returns:
+            Note or None if not found
+        """
+        return self.vault.resolve_link_target(target)
+
     def read(self, note: Note) -> str:
         """Read note content.
 

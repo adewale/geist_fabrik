@@ -125,7 +125,7 @@ class FunctionRegistry:
         @vault_function("neighbours")
         def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> List[Any]:
             """Get k semantically similar notes to given note."""
-            note = vault.get_note(note_title)
+            note = vault.resolve_link_target(note_title)
             if note is None:
                 return []
             return vault.neighbours(note, k)
