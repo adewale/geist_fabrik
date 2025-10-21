@@ -277,35 +277,52 @@ def invoke_command(args: argparse.Namespace) -> int:
             vault, session, metadata_loader=metadata_loader, function_registry=function_registry
         )
 
-        # Load and execute geists
-        geists_dir = vault_path / "_geistfabrik" / "geists" / "code"
-        if not geists_dir.exists():
-            print(f"\nNo geists directory found at {geists_dir}")
-            print("Create geists in this directory to generate suggestions.")
+        # Load code geists
+        code_geists_dir = vault_path / "_geistfabrik" / "geists" / "code"
+        code_executor = None
+        code_geists_count = 0
+        if code_geists_dir.exists():
+            code_executor = GeistExecutor(code_geists_dir, timeout=args.timeout, max_failures=3)
+            code_executor.load_geists()
+            code_geists_count = len(code_executor.geists)
+
+        # Load Tracery geists
+        tracery_geists_dir = vault_path / "_geistfabrik" / "geists" / "tracery"
+        tracery_geists = []
+        if tracery_geists_dir.exists():
+            from geistfabrik.tracery import TraceryGeistLoader
+
+            seed = int(session_date.timestamp())
+            tracery_loader = TraceryGeistLoader(tracery_geists_dir, seed=seed)
+            tracery_geists = tracery_loader.load_all()
+
+        total_geists = code_geists_count + len(tracery_geists)
+        if total_geists == 0:
+            print(f"\nNo geists found in {vault_path / '_geistfabrik' / 'geists'}")
+            print("Run 'geistfabrik init --examples' to install example geists.")
             vault.close()
             return 0
 
-        executor = GeistExecutor(geists_dir, timeout=args.timeout, max_failures=3)
-        executor.load_geists()
-
-        enabled_geists = executor.get_enabled_geists()
-        if not enabled_geists:
-            print(f"\nNo geists found in {geists_dir}")
-            print("Create Python geists with a suggest(vault) function.")
-            vault.close()
-            return 0
+        # Get enabled code geists
+        enabled_code_geists = []
+        disabled_code_geists = []
+        if code_executor:
+            enabled_code_geists = code_executor.get_enabled_geists()
+            all_code_ids = list(code_executor.geists.keys())
+            disabled_code_geists = [gid for gid in all_code_ids if gid not in enabled_code_geists]
 
         # Show configuration summary
-        all_geist_ids = list(executor.geists.keys())
-        disabled_geists = [gid for gid in all_geist_ids if gid not in enabled_geists]
+        enabled_geists_count = len(enabled_code_geists) + len(tracery_geists)
+        disabled_geists = disabled_code_geists
 
         print(f"\n{'=' * 60}")
         print("GeistFabrik Configuration Audit")
         print(f"{'=' * 60}")
         print(f"Vault: {vault_path}")
-        print(f"Geists directory: {geists_dir}")
-        print(f"Total geists found: {len(all_geist_ids)}")
-        print(f"  - Enabled: {len(enabled_geists)}")
+        print(f"Geists directory: {vault_path / '_geistfabrik' / 'geists'}")
+        print(f"Total geists found: {total_geists}")
+        print(f"  - Code geists: {code_geists_count} ({len(enabled_code_geists)} enabled)")
+        print(f"  - Tracery geists: {len(tracery_geists)}")
         if disabled_geists:
             print(f"  - Disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
         filtering_status = (
@@ -324,22 +341,71 @@ def invoke_command(args: argparse.Namespace) -> int:
         print(f"Mode: {mode}")
         print(f"{'=' * 60}\n")
 
-        print(f"Executing {len(enabled_geists)} geists...")
+        print(f"Executing {enabled_geists_count} geists...")
 
         # Execute specific geist or all geists
+        all_suggestions = []
+        code_results = {}
+        tracery_results = {}
+
         if args.geist:
-            if args.geist not in executor.geists:
+            # Check if it's a code geist
+            if code_executor and args.geist in code_executor.geists:
+                code_results = {args.geist: code_executor.execute_geist(args.geist, context)}
+            # Check if it's a Tracery geist
+            elif any(g.geist_id == args.geist for g in tracery_geists):
+                tracery_geist = next(g for g in tracery_geists if g.geist_id == args.geist)
+                try:
+                    suggestions = tracery_geist.suggest(context)
+                    tracery_results = {args.geist: suggestions}
+                except Exception as e:
+                    print(f"Error executing Tracery geist {args.geist}: {e}", file=sys.stderr)
+                    tracery_results = {args.geist: []}
+            else:
                 print(f"Error: Geist '{args.geist}' not found", file=sys.stderr)
                 vault.close()
                 return 1
-            results = {args.geist: executor.execute_geist(args.geist, context)}
         else:
-            results = executor.execute_all(context)
+            # Execute all code geists
+            if code_executor:
+                code_results = code_executor.execute_all(context)
 
-        # Collect all suggestions
-        all_suggestions = []
-        for suggestions in results.values():
+            # Execute all Tracery geists
+            for tracery_geist in tracery_geists:
+                try:
+                    suggestions = tracery_geist.suggest(context)
+                    tracery_results[tracery_geist.geist_id] = suggestions
+                except Exception as e:
+                    print(
+                        f"Error executing Tracery geist {tracery_geist.geist_id}: {e}",
+                        file=sys.stderr,
+                    )
+                    tracery_results[tracery_geist.geist_id] = []
+
+        # Collect all suggestions from both code and Tracery geists
+        for suggestions in code_results.values():
             all_suggestions.extend(suggestions)
+        for suggestions in tracery_results.values():
+            all_suggestions.extend(suggestions)
+
+        # Show execution summary
+        code_success = sum(1 for s in code_results.values() if s)
+        code_empty = sum(1 for s in code_results.values() if not s)
+        tracery_success = sum(1 for s in tracery_results.values() if s)
+        tracery_empty = sum(1 for s in tracery_results.values() if not s)
+
+        if code_results or tracery_results:
+            print("Execution summary:")
+            if code_results:
+                print(
+                    f"  - Code geists: {code_success} generated suggestions, "
+                    f"{code_empty} returned empty"
+                )
+            if tracery_results:
+                print(
+                    f"  - Tracery geists: {tracery_success} generated suggestions, "
+                    f"{tracery_empty} returned empty"
+                )
 
         print(f"Generated {len(all_suggestions)} raw suggestions")
 
@@ -432,23 +498,25 @@ def invoke_command(args: argparse.Namespace) -> int:
             print(f"Total: {len(final)} suggestions")
             print(f"{'=' * 80}\n")
 
-        # Display execution log summary
-        log = executor.get_execution_log()
-        errors = [entry for entry in log if entry["status"] == "error"]
-        timeouts = [entry for entry in log if "timeout" in str(entry.get("error", "")).lower()]
-        successful = [entry for entry in log if entry["status"] == "success"]
+        # Display execution log summary (for code geists only - they have detailed logs)
+        if code_executor:
+            log = code_executor.get_execution_log()
+            errors = [entry for entry in log if entry["status"] == "error"]
+            timeouts = [entry for entry in log if "timeout" in str(entry.get("error", "")).lower()]
+            successful = [entry for entry in log if entry["status"] == "success"]
 
-        print(f"\n{'=' * 60}")
-        print("Execution Summary")
-        print(f"{'=' * 60}")
-        print(f"Successful: {len(successful)} geists")
-        if errors:
-            print(f"Errors: {len(errors)} geists")
-            for entry in errors:
-                print(f"  ✗ {entry['geist_id']}: {entry['error']}")
-        if timeouts:
-            print(f"Timeouts: {len(timeouts)} geists (consider increasing --timeout)")
-        print(f"{'=' * 60}\n")
+            if errors or timeouts:
+                print(f"\n{'=' * 60}")
+                print("Detailed Execution Log")
+                print(f"{'=' * 60}")
+                print(f"Successful: {len(successful)} geists")
+                if errors:
+                    print(f"Errors: {len(errors)} geists")
+                    for entry in errors:
+                        print(f"  ✗ {entry['geist_id']}: {entry['error']}")
+                if timeouts:
+                    print(f"Timeouts: {len(timeouts)} geists (consider increasing --timeout)")
+                print(f"{'=' * 60}\n")
 
         vault.close()
         return 0
