@@ -7,8 +7,17 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from geistfabrik import Session, Vault
+from geistfabrik.function_registry import _GLOBAL_REGISTRY
 from geistfabrik.models import Note
 from geistfabrik.vault_context import VaultContext
+
+
+@pytest.fixture(autouse=True)
+def clear_global_registry():
+    """Clear the global function registry before each test."""
+    _GLOBAL_REGISTRY.clear()
+    yield
+    _GLOBAL_REGISTRY.clear()
 
 
 @pytest.fixture
@@ -267,16 +276,18 @@ def test_hubs_resolves_title_based_links():
 
 
 def test_neighbours_resolves_by_title():
-    """Test that neighbours vault function resolves notes by title.
+    """Test that neighbours vault function works as adapter layer.
 
-    This verifies that the neighbours() vault function (used by Tracery geists)
-    can accept a note title string and resolve it to a Note object.
+    This verifies that the neighbours() vault function (adapter layer):
+    - Accepts string (title) from Tracery
+    - Resolves string → Note internally
+    - Returns strings (titles) back to Tracery
 
     Real-world scenario: semantic_neighbours.yaml does:
-        seed: $vault.sample_notes(1)      # Returns Note, formatted as title string
-        neighbours: $vault.neighbours(#seed#, 3)  # Receives title string
+        seed: $vault.sample_notes(1)      # Returns strings (titles)
+        neighbours: $vault.neighbours(#seed#, 3)  # Receives string, returns strings
 
-    NOTE: This test only verifies title resolution logic, not actual semantic
+    NOTE: This test only verifies the adapter layer logic, not actual semantic
     similarity (which requires embeddings and network access to download models).
     """
     with TemporaryDirectory() as tmpdir:
@@ -294,7 +305,7 @@ def test_neighbours_resolves_by_title():
         session = Session(session_date, vault.db)
         ctx = VaultContext(vault, session, seed=42)
 
-        # Test 1: resolve_link_target() works with title (not path)
+        # Test 1: VaultContext (domain layer) works with Note objects
         ai_note = ctx.resolve_link_target("Artificial Intelligence")
         assert ai_note is not None, "resolve_link_target should find note by title"
         assert ai_note.title == "Artificial Intelligence"
@@ -305,22 +316,89 @@ def test_neighbours_resolves_by_title():
         assert ai_note_by_path is not None, "Should also work with path"
         assert ai_note_by_path.title == "Artificial Intelligence"
 
-        # Test 3: neighbours VAULT FUNCTION resolves title to Note
+        # Test 3: Vault functions (adapter layer) accept and return strings
         # This simulates what Tracery does when passing note titles
         from geistfabrik.function_registry import FunctionRegistry
         registry = FunctionRegistry()
 
-        # Call with title string - should resolve, even if no neighbors found
+        # Call with title string - vault function resolves it internally
         # (no embeddings computed, so will return empty list, but shouldn't error)
         result = registry.call("neighbours", ctx, "Artificial Intelligence", 3)
 
-        assert isinstance(result, list), "Should return list (empty if no embeddings)"
-        # If embeddings were computed, we'd get neighbors, but without them we get []
-        # The important thing is it doesn't crash when resolving the title
+        # Adapter layer should return strings (titles), not Note objects
+        assert isinstance(result, list), "Should return list"
+        assert all(isinstance(item, str) for item in result), "Should return strings, not Notes"
 
         # Test 4: Non-existent title returns empty list
         result_missing = registry.call("neighbours", ctx, "Nonexistent Note", 3)
         assert result_missing == [], "Should return empty list for missing note"
+
+        vault.close()
+
+
+def test_vault_functions_adapter_layer():
+    """Test that all vault functions work as proper adapter layer.
+
+    Verifies that vault functions (adapter layer) correctly:
+    - Accept strings from Tracery
+    - Work with Note objects internally (VaultContext methods)
+    - Return strings back to Tracery
+
+    This ensures clean separation: TraceryEngine only sees strings,
+    VaultContext only sees Notes, and vault functions bridge the two.
+    """
+    with TemporaryDirectory() as tmpdir:
+        vault_path = Path(tmpdir)
+
+        # Create test notes
+        (vault_path / "old.md").write_text("# Old Note\nOld content.")
+        (vault_path / "recent.md").write_text("# Recent Note\nRecent content.")
+        (vault_path / "hub.md").write_text("# Hub Note\nHub content.")
+        (vault_path / "orphan.md").write_text("# Orphan Note\nOrphan content.")
+        (vault_path / "note1.md").write_text("# Note 1\nLinks to [[Hub Note]].")
+
+        vault = Vault(vault_path)
+        vault.sync()
+
+        # Make old.md actually old
+        import time
+        time.sleep(0.01)
+
+        session_date = datetime(2023, 6, 15)
+        session = Session(session_date, vault.db)
+        ctx = VaultContext(vault, session, seed=42)
+
+        # Create FunctionRegistry with built-in functions
+        from geistfabrik.function_registry import FunctionRegistry
+        registry = FunctionRegistry()
+
+        # Test sample_notes: List[Note] → List[str]
+        result = registry.call("sample_notes", ctx, 2)
+        assert isinstance(result, list), "sample_notes should return list"
+        assert all(isinstance(item, str) for item in result), "Should return strings"
+        assert len(result) <= 2, "Should return at most k items"
+
+        # Test old_notes: List[Note] → List[str]
+        result = registry.call("old_notes", ctx, 1)
+        assert isinstance(result, list), "old_notes should return list"
+        assert all(isinstance(item, str) for item in result), "Should return strings"
+
+        # Test recent_notes: List[Note] → List[str]
+        result = registry.call("recent_notes", ctx, 1)
+        assert isinstance(result, list), "recent_notes should return list"
+        assert all(isinstance(item, str) for item in result), "Should return strings"
+
+        # Test orphans: List[Note] → List[str]
+        result = registry.call("orphans", ctx, 1)
+        assert isinstance(result, list), "orphans should return list"
+        assert all(isinstance(item, str) for item in result), "Should return strings"
+
+        # Test hubs: List[Note] → List[str]
+        result = registry.call("hubs", ctx, 5)
+        assert isinstance(result, list), "hubs should return list"
+        assert all(isinstance(item, str) for item in result), "Should return strings"
+        if result:  # If we found hubs
+            assert "Hub Note" in result, "Should find hub by title"
 
         vault.close()
 
