@@ -92,6 +92,24 @@ class TraceryEngine:
         # Recursively expand the selected rule
         return self.expand(selected, depth)
 
+    def _convert_arg(self, arg: str) -> int | str:
+        """Convert string argument to appropriate type.
+
+        Args:
+            arg: String argument from Tracery
+
+        Returns:
+            Converted argument (int if numeric, str otherwise)
+        """
+        # Try to convert to int
+        try:
+            return int(arg)
+        except ValueError:
+            pass
+
+        # Return as string
+        return arg
+
     def _expand_vault_functions(self, text: str) -> str:
         """Expand $vault.* function calls.
 
@@ -114,7 +132,9 @@ class TraceryEngine:
             # Parse arguments (simple comma-separated for now)
             args = []
             if args_str:
-                args = [arg.strip().strip("\"'") for arg in args_str.split(",")]
+                raw_args = [arg.strip().strip("\"'") for arg in args_str.split(",")]
+                # Convert arguments to appropriate types
+                args = [self._convert_arg(arg) for arg in raw_args]
 
             # Call the function
             try:
