@@ -75,7 +75,3 @@ jobs:
 
       - name: Check for unused database tables
         run: python scripts/detect_unused_tables.py
-
-      - name: Check phase completion
-        run: uv run python scripts/check_phase_completion.py
-        continue-on-error: true
