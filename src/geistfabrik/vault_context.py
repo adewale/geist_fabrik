@@ -85,6 +85,22 @@ class VaultContext:
         """
         return self.vault.get_note(path)
 
+    def resolve_link_target(self, target: str) -> Optional[Note]:
+        """Resolve a wiki-link target to a Note.
+
+        Tries multiple resolution strategies:
+        1. Exact path match
+        2. Path with .md extension
+        3. Lookup by note title
+
+        Args:
+            target: Link target (path or title)
+
+        Returns:
+            Note or None if not found
+        """
+        return self.vault.resolve_link_target(target)
+
     def read(self, note: Note) -> str:
         """Read note content.
 
@@ -217,20 +233,22 @@ class VaultContext:
             """
             SELECT target, COUNT(*) as link_count
             FROM links
-            WHERE target LIKE '%.md'
             GROUP BY target
             ORDER BY link_count DESC
             LIMIT ?
             """,
-            (k,),
+            (k * 3,),  # Get more candidates since some may not resolve
         )
 
         result = []
         for row in cursor.fetchall():
-            target_path = row[0]
-            note = self.get_note(target_path)
+            target = row[0]
+            # Resolve the link target to an actual note
+            note = self.vault.resolve_link_target(target)
             if note is not None:
                 result.append(note)
+                if len(result) >= k:
+                    break
 
         return result
 

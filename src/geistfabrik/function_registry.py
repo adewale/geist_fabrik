@@ -94,41 +94,87 @@ class FunctionRegistry:
         self._register_builtin_functions()
 
     def _register_builtin_functions(self) -> None:
-        """Register built-in vault functions."""
+        """Register built-in vault functions.
+
+        These functions act as the adapter layer between Tracery (string-based)
+        and VaultContext (Note-based). They:
+        - Accept strings from Tracery
+        - Work with Note objects internally
+        - Return strings (note titles) back to Tracery
+        """
 
         @vault_function("sample_notes")
-        def sample_notes(vault: "VaultContext", k: int = 5) -> List[Any]:
-            """Sample k random notes from vault."""
+        def sample_notes(vault: "VaultContext", k: int = 5) -> List[str]:
+            """Sample k random notes from vault.
+
+            Returns:
+                List of note titles (strings for Tracery)
+            """
             notes = vault.notes()
-            return vault.sample(notes, k)
+            sampled = vault.sample(notes, k)
+            return [note.title for note in sampled]
 
         @vault_function("old_notes")
-        def old_notes(vault: "VaultContext", k: int = 5) -> List[Any]:
-            """Get k least recently modified notes."""
-            return vault.old_notes(k)
+        def old_notes(vault: "VaultContext", k: int = 5) -> List[str]:
+            """Get k least recently modified notes.
+
+            Returns:
+                List of note titles (strings for Tracery)
+            """
+            notes = vault.old_notes(k)
+            return [note.title for note in notes]
 
         @vault_function("recent_notes")
-        def recent_notes(vault: "VaultContext", k: int = 5) -> List[Any]:
-            """Get k most recently modified notes."""
-            return vault.recent_notes(k)
+        def recent_notes(vault: "VaultContext", k: int = 5) -> List[str]:
+            """Get k most recently modified notes.
+
+            Returns:
+                List of note titles (strings for Tracery)
+            """
+            notes = vault.recent_notes(k)
+            return [note.title for note in notes]
 
         @vault_function("orphans")
-        def orphans(vault: "VaultContext", k: int = 5) -> List[Any]:
-            """Get k orphan notes (no incoming or outgoing links)."""
-            return vault.orphans(k)
+        def orphans(vault: "VaultContext", k: int = 5) -> List[str]:
+            """Get k orphan notes (no incoming or outgoing links).
+
+            Returns:
+                List of note titles (strings for Tracery)
+            """
+            notes = vault.orphans(k)
+            return [note.title for note in notes]
 
         @vault_function("hubs")
-        def hubs(vault: "VaultContext", k: int = 5) -> List[Any]:
-            """Get k notes with most incoming links."""
-            return vault.hubs(k)
+        def hubs(vault: "VaultContext", k: int = 5) -> List[str]:
+            """Get k notes with most incoming links.
+
+            Returns:
+                List of note titles (strings for Tracery)
+            """
+            notes = vault.hubs(k)
+            return [note.title for note in notes]
 
         @vault_function("neighbours")
-        def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> List[Any]:
-            """Get k semantically similar notes to given note."""
-            note = vault.get_note(note_title)
+        def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> List[str]:
+            """Get k semantically similar notes to given note.
+
+            Args:
+                note_title: Note title (string from Tracery)
+                k: Number of neighbors to return
+
+            Returns:
+                List of note titles (strings for Tracery)
+            """
+            # Resolve string → Note (adapter layer responsibility)
+            note = vault.resolve_link_target(note_title)
             if note is None:
                 return []
-            return vault.neighbours(note, k)
+
+            # Work with Note objects internally
+            neighbor_notes = vault.neighbours(note, k)
+
+            # Convert Note → string for Tracery
+            return [n.title for n in neighbor_notes]
 
         # Transfer built-in functions from global registry to instance
         self.functions.update(_GLOBAL_REGISTRY)

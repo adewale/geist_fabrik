@@ -4,7 +4,7 @@ description: Compare old and new notes to see how thinking evolves over time
 
 tracery:
   origin:
-    - "#timeframe# you wrote #old_note#. Today's #new_note# #relationship#"
+    - "#timeframe# you wrote [[#old_note#]]. Today's [[#new_note#]] #relationship#"
 
   timeframe:
     - "#months# months ago"

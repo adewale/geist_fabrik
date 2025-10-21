@@ -154,10 +154,14 @@ class TraceryEngine:
         return re.sub(pattern, replace_function, text)
 
     def _format_list(self, items: List[Any]) -> str:
-        """Format a list for text output.
+        """Format a list of primitive types for text output.
+
+        TraceryEngine is a template layer that only knows about strings and
+        numbers. Vault functions (adapter layer) convert domain objects to
+        strings before returning them.
 
         Args:
-            items: List to format
+            items: List of strings or numbers
 
         Returns:
             Formatted string representation
@@ -165,17 +169,16 @@ class TraceryEngine:
         if not items:
             return ""
 
-        # If items are Note objects, use their titles
-        if hasattr(items[0], "title"):
-            titles = [f"[[{item.title}]]" for item in items]
-            if len(titles) == 1:
-                return titles[0]
-            elif len(titles) == 2:
-                return f"{titles[0]} and {titles[1]}"
-            else:
-                return ", ".join(titles[:-1]) + f", and {titles[-1]}"
+        # Convert all items to strings
+        strings = [str(item) for item in items]
+
+        # Format nicely for natural language
+        if len(strings) == 1:
+            return strings[0]
+        elif len(strings) == 2:
+            return f"{strings[0]} and {strings[1]}"
         else:
-            return ", ".join(str(item) for item in items)
+            return ", ".join(strings[:-1]) + f", and {strings[-1]}"
 
 
 class TraceryGeist:

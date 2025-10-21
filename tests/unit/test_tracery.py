@@ -100,8 +100,8 @@ def test_tracery_engine_vault_function_no_args(tmp_path: Path) -> None:
 
     # Should expand without error and contain note reference
     assert "Notes:" in result
-    # Result should contain the note formatted as [[title]]
-    assert "[[" in result
+    # Result should contain the note title (without brackets - templates add those)
+    assert "Test" in result
 
     vault.close()
 
@@ -130,8 +130,8 @@ def test_tracery_engine_vault_function_with_int_arg(tmp_path: Path) -> None:
 
     # Should expand without error
     assert "Sample:" in result
-    # Should contain note references
-    assert "[[" in result
+    # Should contain note references (titles without brackets - templates add those)
+    assert "Note" in result  # At least one note title should be present
 
     vault.close()
 
@@ -208,8 +208,8 @@ def test_tracery_engine_hubs_function(tmp_path: Path) -> None:
     # Should expand without type error
     assert "Hubs:" in result
     assert "[Error" not in result  # No error messages
-    # Should return hub note
-    assert "[[" in result or result == "Hubs: "  # Either has a hub or returns empty
+    # Should return hub note title (without brackets - templates add those)
+    assert "Hub" in result or result == "Hubs: "  # Either has hub title or returns empty
 
     vault.close()
 
