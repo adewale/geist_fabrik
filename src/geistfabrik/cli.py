@@ -350,8 +350,8 @@ def invoke_command(args: argparse.Namespace) -> int:
                         print(f"  ✨ New: {suggestion.text[:60]}...")
                 print()
 
-        # Write to journal if requested (and not dry-run)
-        if args.write and not args.dry_run:
+        # Write to journal if requested
+        if args.write:
             journal_writer = JournalWriter(vault_path, vault.db)
 
             # Check if session already exists
@@ -655,11 +655,6 @@ Examples:
         "--force",
         action="store_true",
         help="Overwrite existing session note (use with --write)",
-    )
-    invoke_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Preview suggestions without writing to journal",
     )
     invoke_parser.add_argument(
         "--diff",

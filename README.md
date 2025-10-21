@@ -68,10 +68,13 @@ uv run geistfabrik init /path/to/your/vault --examples
 # The --examples flag installs all 17 example geists
 # Omit it if you want to start with a clean setup
 
-# Run geists and generate suggestions
+# Preview suggestions (read-only, no files created)
 uv run geistfabrik invoke /path/to/your/vault
 
-# View your first session note at:
+# Write suggestions to journal (creates session note)
+uv run geistfabrik invoke /path/to/your/vault --write
+
+# View your session note at:
 # /path/to/your/vault/geist journal/YYYY-MM-DD.md
 ```
 
@@ -139,11 +142,11 @@ rm -rf /path/to/vault/geist\ journal
 ### Basic Invocation
 
 ```bash
-# Default mode: Filtered + sampled (~5 suggestions), write to journal
-geistfabrik invoke ~/my-vault --write
+# Default: Preview suggestions (read-only, no files created)
+geistfabrik invoke ~/my-vault
 
-# Preview without writing (dry-run)
-geistfabrik invoke ~/my-vault --dry-run
+# Write suggestions to journal
+geistfabrik invoke ~/my-vault --write
 
 # Compare to recent sessions
 geistfabrik invoke ~/my-vault --diff
@@ -163,7 +166,7 @@ geistfabrik test my_geist --vault ~/my-vault --date 2025-01-15
 
 ### Working with Session Notes
 
-Each invocation creates a session note at:
+When using `--write`, session notes are created at:
 ```
 <vault>/geist journal/YYYY-MM-DD.md
 ```

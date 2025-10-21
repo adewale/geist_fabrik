@@ -67,8 +67,8 @@ cp -r ~/Documents/MyVault ~/Documents/MyVault-Test
 # 2. Initialize GeistFabrik
 uv run geistfabrik init ~/Documents/MyVault-Test --examples
 
-# 3. Preview suggestions (dry-run)
-uv run geistfabrik invoke ~/Documents/MyVault-Test --dry-run
+# 3. Preview suggestions (read-only, no files created)
+uv run geistfabrik invoke ~/Documents/MyVault-Test
 
 # 4. Check for similar suggestions (diff mode)
 uv run geistfabrik invoke ~/Documents/MyVault-Test --diff
@@ -105,8 +105,8 @@ cp -r ~/Documents/MyVault ~/Documents/MyVault.backup
 uv run geistfabrik init ~/Documents/MyVault --examples
 # You'll see warnings about what GeistFabrik will/won't do
 
-# 2. Preview suggestions first (no writes)
-uv run geistfabrik invoke ~/Documents/MyVault --dry-run
+# 2. Preview suggestions (read-only, no files created)
+uv run geistfabrik invoke ~/Documents/MyVault
 
 # 3. Compare to previous sessions
 uv run geistfabrik invoke ~/Documents/MyVault --diff
@@ -185,14 +185,7 @@ MyVault/
    Example geists installed: 17
 ```
 
-### 3. Dry-Run Mode
-
-```bash
-geistfabrik invoke ~/MyVault --dry-run
-# Shows suggestions without writing files
-```
-
-### 4. Diff Mode
+### 3. Diff Mode
 
 ```bash
 geistfabrik invoke ~/MyVault --diff
