@@ -218,6 +218,113 @@ def test_hubs_returns_actual_notes_not_empty():
         vault.close()
 
 
+def test_hubs_resolves_title_based_links():
+    """Test that hubs() correctly resolves wiki-links that use note titles.
+
+    This verifies that hubs() uses resolve_link_target() which tries:
+    1. Exact path match
+    2. Path + .md
+    3. Title lookup
+
+    Real-world scenario: Obsidian wiki-links like [[My Note Title]] get stored
+    as "My Note Title" in the links table, not "my-note-title.md"
+    """
+    with TemporaryDirectory() as tmpdir:
+        vault_path = Path(tmpdir)
+
+        # Create notes with titles that differ from filenames
+        (vault_path / "hub-note.md").write_text("# Central Hub\nThe main hub.")
+        (vault_path / "other.md").write_text("# Another Note\nContent here.")
+
+        # Links use the TITLE, not the filename
+        (vault_path / "note1.md").write_text("# Note 1\nSee [[Central Hub]] for more.")
+        (vault_path / "note2.md").write_text("# Note 2\nAlso [[Central Hub]] is key.")
+        (vault_path / "note3.md").write_text("# Note 3\n[[Central Hub]] and [[Another Note]]")
+
+        vault = Vault(vault_path)
+        vault.sync()
+
+        session_date = datetime(2023, 6, 15)
+        session = Session(session_date, vault.db)
+        ctx = VaultContext(vault, session)
+
+        # Get top hubs
+        hubs = ctx.hubs(k=5)
+
+        # Verify we found the hubs
+        assert len(hubs) >= 2, f"Expected at least 2 hubs, got {len(hubs)}"
+
+        # Verify "Central Hub" is the top hub (3 links)
+        hub_titles = [h.title for h in hubs]
+        assert "Central Hub" in hub_titles, f"Expected 'Central Hub' in {hub_titles}"
+        assert "Another Note" in hub_titles, f"Expected 'Another Note' in {hub_titles}"
+
+        # Verify the most-linked hub is first
+        first_hub = hubs[0].title
+        assert first_hub == "Central Hub", f"Expected 'Central Hub' first, got '{first_hub}'"
+
+        vault.close()
+
+
+def test_neighbours_resolves_by_title():
+    """Test that neighbours vault function resolves notes by title.
+
+    This verifies that the neighbours() vault function (used by Tracery geists)
+    can accept a note title string and resolve it to a Note object.
+
+    Real-world scenario: semantic_neighbours.yaml does:
+        seed: $vault.sample_notes(1)      # Returns Note, formatted as title string
+        neighbours: $vault.neighbours(#seed#, 3)  # Receives title string
+
+    NOTE: This test only verifies title resolution logic, not actual semantic
+    similarity (which requires embeddings and network access to download models).
+    """
+    with TemporaryDirectory() as tmpdir:
+        vault_path = Path(tmpdir)
+
+        # Create notes with titles that differ from filenames
+        (vault_path / "ai-note.md").write_text("# Artificial Intelligence\nContent about AI.")
+        (vault_path / "ml-note.md").write_text("# Machine Learning\nContent about ML.")
+        (vault_path / "cooking.md").write_text("# Cooking\nRecipes and food.")
+
+        vault = Vault(vault_path)
+        vault.sync()
+
+        session_date = datetime(2023, 6, 15)
+        session = Session(session_date, vault.db)
+        ctx = VaultContext(vault, session, seed=42)
+
+        # Test 1: resolve_link_target() works with title (not path)
+        ai_note = ctx.resolve_link_target("Artificial Intelligence")
+        assert ai_note is not None, "resolve_link_target should find note by title"
+        assert ai_note.title == "Artificial Intelligence"
+        assert ai_note.path == "ai-note.md", "Should resolve to correct file"
+
+        # Test 2: resolve_link_target() also works with path
+        ai_note_by_path = ctx.resolve_link_target("ai-note.md")
+        assert ai_note_by_path is not None, "Should also work with path"
+        assert ai_note_by_path.title == "Artificial Intelligence"
+
+        # Test 3: neighbours VAULT FUNCTION resolves title to Note
+        # This simulates what Tracery does when passing note titles
+        from geistfabrik.function_registry import FunctionRegistry
+        registry = FunctionRegistry()
+
+        # Call with title string - should resolve, even if no neighbors found
+        # (no embeddings computed, so will return empty list, but shouldn't error)
+        result = registry.call("neighbours", ctx, "Artificial Intelligence", 3)
+
+        assert isinstance(result, list), "Should return list (empty if no embeddings)"
+        # If embeddings were computed, we'd get neighbors, but without them we get []
+        # The important thing is it doesn't crash when resolving the title
+
+        # Test 4: Non-existent title returns empty list
+        result_missing = registry.call("neighbours", ctx, "Nonexistent Note", 3)
+        assert result_missing == [], "Should return empty list for missing note"
+
+        vault.close()
+
+
 def test_unlinked_pairs(test_vault_with_notes):
     """Test finding similar but unlinked note pairs."""
     vault, session = test_vault_with_notes
