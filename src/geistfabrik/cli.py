@@ -300,7 +300,7 @@ def invoke_command(args: argparse.Namespace) -> int:
         disabled_geists = [gid for gid in all_geist_ids if gid not in enabled_geists]
 
         print(f"\n{'=' * 60}")
-        print(f"GeistFabrik Configuration Audit")
+        print("GeistFabrik Configuration Audit")
         print(f"{'=' * 60}")
         print(f"Vault: {vault_path}")
         print(f"Geists directory: {geists_dir}")
@@ -308,9 +308,20 @@ def invoke_command(args: argparse.Namespace) -> int:
         print(f"  - Enabled: {len(enabled_geists)}")
         if disabled_geists:
             print(f"  - Disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
-        print(f"Filtering: {'DISABLED (--nofilter)' if args.nofilter else 'ENABLED (4-stage pipeline)'}")
-        print(f"Sampling: {'DISABLED (--full or --nofilter)' if (args.full or args.nofilter) else f'ENABLED (count={args.count})'}")
-        print(f"Mode: {'Raw output' if args.nofilter else 'Filtered output' if args.full else 'Default'}")
+        filtering_status = (
+            "DISABLED (--nofilter)" if args.nofilter else "ENABLED (4-stage pipeline)"
+        )
+        print(f"Filtering: {filtering_status}")
+        sampling_status = (
+            "DISABLED (--full or --nofilter)"
+            if (args.full or args.nofilter)
+            else f"ENABLED (count={args.count})"
+        )
+        print(f"Sampling: {sampling_status}")
+        mode = (
+            "Raw output" if args.nofilter else "Filtered output" if args.full else "Default"
+        )
+        print(f"Mode: {mode}")
         print(f"{'=' * 60}\n")
 
         print(f"Executing {len(enabled_geists)} geists...")
@@ -428,7 +439,7 @@ def invoke_command(args: argparse.Namespace) -> int:
         successful = [entry for entry in log if entry["status"] == "success"]
 
         print(f"\n{'=' * 60}")
-        print(f"Execution Summary")
+        print("Execution Summary")
         print(f"{'=' * 60}")
         print(f"Successful: {len(successful)} geists")
         if errors:
