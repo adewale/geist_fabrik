@@ -154,7 +154,7 @@ def init_command(args: argparse.Namespace) -> int:
 
     print("\n🚀 Next steps:")
     print(f"   geistfabrik invoke {vault_path}")
-    print(f"   # or just: geistfabrik invoke (from within the vault)\n")
+    print("   # or just: geistfabrik invoke (from within the vault)\n")
 
     return 0
 
@@ -456,7 +456,7 @@ def test_command(args: argparse.Namespace) -> int:
 
         # Create session and context
         session = Session(session_date, vault.db)
-        print(f"Computing embeddings...")
+        print("Computing embeddings...")
         session.compute_embeddings(vault.all_notes())
         context = VaultContext(
             vault, session, metadata_loader=metadata_loader, function_registry=function_registry
@@ -474,7 +474,7 @@ def test_command(args: argparse.Namespace) -> int:
 
         if geist_id not in executor.geists:
             print(f"\nError: Geist '{geist_id}' not found in {geists_dir}", file=sys.stderr)
-            print(f"\nAvailable geists:")
+            print("\nAvailable geists:")
             for gid in sorted(executor.geists.keys()):
                 print(f"  - {gid}")
             vault.close()
@@ -506,10 +506,10 @@ def test_command(args: argparse.Namespace) -> int:
         for entry in log:
             if entry["geist_id"] == geist_id:
                 if entry["status"] == "success":
-                    print(f"✓ Status: Success")
+                    print("✓ Status: Success")
                     print(f"  Execution time: {entry['execution_time']:.3f}s")
                 elif entry["status"] == "error":
-                    print(f"✗ Status: Error")
+                    print("✗ Status: Error")
                     print(f"  Error: {entry['error']}")
 
         print(f"\n{'=' * 60}\n")
