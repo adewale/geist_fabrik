@@ -92,7 +92,7 @@ cat "testdata/kepano-obsidian-main/geist journal/$(date +%Y-%m-%d).md"
 
 # Clean up when done
 rm -rf testdata/kepano-obsidian-main/_geistfabrik
-rm -rf testdata/kepano-obsidian-main/geist\ journal
+rm -rf testdata/kepano-obsidian-main/"geist journal"
 ```
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
@@ -122,7 +122,7 @@ To completely remove GeistFabrik from your vault:
 rm -rf /path/to/vault/_geistfabrik
 
 # Delete session notes (optional - you may want to keep these)
-rm -rf /path/to/vault/geist\ journal
+rm -rf /path/to/vault/"geist journal"
 ```
 
 **That's it!** Your original notes are completely untouched.
