@@ -425,15 +425,12 @@ tracery:
     vault.close()
 
 
-def test_tracery_sample_notes_with_single_origin_template_produces_same_notes(tmp_path: Path) -> None:
-    """Test that sample_notes() with single origin template produces consistent results.
+def test_tracery_sample_notes_produces_variety_across_expansions(tmp_path: Path) -> None:
+    """Test that sample_notes() produces variety across multiple expansions.
 
-    Even though sample_notes() uses the vault's RNG, when called multiple times
-    with the same grammar structure (single origin template), it produces the
-    same results due to deterministic seeding and expansion.
-
-    This is similar to Bug #2 - deterministic functions produce redundant suggestions
-    when count > 1 with a single origin template.
+    The vault's RNG should advance between calls, creating different samples
+    each time. This follows the "Sample, don't rank" principle - same seed
+    means same sequence (reproducible), but not identical duplicates.
     """
     # Create vault with many notes
     vault_path = tmp_path / "vault"
@@ -447,7 +444,7 @@ def test_tracery_sample_notes_with_single_origin_template_produces_same_notes(tm
     vault.sync()
     context = create_vault_context(vault)
 
-    # Create geist using sample_notes with count: 5 and SINGLE origin template
+    # Create geist using sample_notes with count: 5
     yaml_content = """type: geist-tracery
 id: sample_test
 count: 5
@@ -467,11 +464,11 @@ tracery:
     # Collect all note references
     all_note_sets = [set(s.notes) for s in suggestions]
 
-    # Due to deterministic RNG with single origin template,
-    # all expansions produce identical results
+    # Should have SOME variety (not all identical)
+    # The RNG should advance between expansions
     unique_sets = len(set(frozenset(ns) for ns in all_note_sets))
 
-    # All expansions should produce the same notes (due to determinism)
-    assert unique_sets == 1, "With single origin template and deterministic RNG, all expansions are identical"
+    # With 20 notes and sampling 2 at a time, RNG should produce variety
+    assert unique_sets > 1, "sample_notes() should create variety as RNG advances between expansions"
 
     vault.close()

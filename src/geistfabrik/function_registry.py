@@ -112,6 +112,26 @@ class FunctionRegistry:
             """Get k most recently modified notes."""
             return vault.recent_notes(k)
 
+        @vault_function("sample_old_notes")
+        def sample_old_notes(vault: "VaultContext", k: int = 1, pool_size: int = 10) -> List[Any]:
+            """Sample k notes from the pool_size oldest notes.
+
+            Follows 'Sample, don't rank' principle by randomly selecting from old notes
+            rather than deterministically returning THE oldest.
+            """
+            old_pool = vault.old_notes(pool_size)
+            return vault.sample(old_pool, k)
+
+        @vault_function("sample_recent_notes")
+        def sample_recent_notes(vault: "VaultContext", k: int = 1, pool_size: int = 10) -> List[Any]:
+            """Sample k notes from the pool_size most recently modified notes.
+
+            Follows 'Sample, don't rank' principle by randomly selecting from recent notes
+            rather than deterministically returning THE newest.
+            """
+            recent_pool = vault.recent_notes(pool_size)
+            return vault.sample(recent_pool, k)
+
         @vault_function("orphans")
         def orphans(vault: "VaultContext", k: int = 5) -> List[Any]:
             """Get k orphan notes (no incoming or outgoing links)."""

@@ -2,11 +2,13 @@
 
 **Date**: 2025-10-21
 **Component**: Tracery Geist System
-**Status**: Under Investigation
+**Status**: RESOLVED
 
 ## Summary
 
-Found inconsistency in parameter naming for specifying the number of suggestions to generate per invocation. Resolved by standardizing on `count` across all geists.
+Fixed two issues in the tracery geist system:
+1. **Parameter naming inconsistency**: Standardized on `count` parameter
+2. **Design violation**: Fixed temporal_mirror to follow "Sample, don't rank" principle
 
 ---
 
@@ -39,18 +41,20 @@ count = data.get("count", 1)  # Only reads "count", not "suggestions_per_invocat
 
 ---
 
-## Bug 2: Redundant Suggestions with Deterministic Functions
+## Bug 2: Design Violation - Ranking Instead of Sampling
 
 ### Description
-When a Tracery geist has:
-- `count > 1`
-- Only 1 origin template
-- Deterministic vault functions (e.g., `old_notes(1)`, `recent_notes(1)`, `hubs(1)`, `orphans(1)`)
+The `temporal_mirror` geist violated the core principle "Sample, don't rank" by using deterministic functions `old_notes()` and `recent_notes()` which always return THE oldest and THE newest notes.
 
-The same notes are referenced in multiple suggestions, creating redundancy.
+This created two problems:
+1. **No variety**: With `count: 2`, both suggestions referenced identical notes
+2. **Preferential attachment**: Always showing the same notes instead of sampling from a pool
 
-### Affected File (Fixed)
-- ✅ `examples/geists/tracery/temporal_mirror.yaml` - **FIXED** by reducing count from 2 to 1
+### Root Cause
+Functions like `old_notes(k)` and `recent_notes(k)` are deterministic by design - they use SQL ORDER BY to return specific notes. While useful for some use cases, using them directly in geists that need variety violates the "Sample, don't rank" principle.
+
+### Affected File
+- `examples/geists/tracery/temporal_mirror.yaml`
 
 ### Why This Happens
 Deterministic functions like `$vault.old_notes(1)` always return the same note(s) for a given vault state. When the TraceryEngine expands multiple suggestions using the same template, each expansion calls these functions with the same seed state, producing identical note references.
@@ -80,11 +84,16 @@ After reviewing all geists:
 **Incorrect Usage:**
 - `temporal_mirror.yaml`: Had count: 2 but only 1 origin template → redundant suggestions
 
-### Resolution
-For geists with:
-- Single origin template
-- Deterministic vault functions
-- `count` should be 1 to avoid redundancy
+### The Correct Fix
+**Created new sampling functions** that follow "Sample, don't rank":
+- `sample_old_notes(k, pool_size)` - Sample k notes from the pool_size oldest notes
+- `sample_recent_notes(k, pool_size)` - Sample k notes from the pool_size newest notes
+
+These functions:
+1. Get a pool of candidates (e.g., 10 oldest notes)
+2. Randomly sample from that pool using VaultContext RNG
+3. Create variety as the RNG advances between calls
+4. Remain deterministic (same seed = same sequence, but not identical duplicates)
 
 ---
 
@@ -102,10 +111,29 @@ For geists with:
 
 **Result**: Single, clear parameter name throughout the project
 
-### Fix 2: Documentation/Validation
-Add validation to warn when geists might produce redundant suggestions:
-- Detect single origin template + deterministic functions + count > 1
-- Emit warning during geist loading
+### Fix 2: Implement "Sample, Don't Rank" for Temporal Geist ✅
+
+**New Functions** (src/geistfabrik/function_registry.py):
+```python
+@vault_function("sample_old_notes")
+def sample_old_notes(vault, k=1, pool_size=10):
+    """Sample k notes from the pool_size oldest notes."""
+    old_pool = vault.old_notes(pool_size)
+    return vault.sample(old_pool, k)
+
+@vault_function("sample_recent_notes")
+def sample_recent_notes(vault, k=1, pool_size=10):
+    """Sample k notes from the pool_size newest notes."""
+    recent_pool = vault.recent_notes(pool_size)
+    return vault.sample(recent_pool, k)
+```
+
+**Updated temporal_mirror.yaml**:
+- Changed from `$vault.old_notes(1)` → `$vault.sample_old_notes(1, 10)`
+- Changed from `$vault.recent_notes(1)` → `$vault.sample_recent_notes(1, 10)`
+- Kept `count: 2` to generate variety
+
+**Result**: temporal_mirror now follows "Sample, don't rank" principle and produces varied suggestions
 
 ---
 
@@ -165,11 +193,19 @@ def test_sample_notes_creates_variety():
 
 ## Status
 
-- [x] Bug 2 FIXED: temporal_mirror.yaml (count: 2 → count: 1) - eliminates redundant suggestions
 - [x] Bug 1 FIXED: Standardized all geists to use `count` parameter only
-  - Updated note_combinations.yaml
-  - Updated what_if.yaml
-  - Updated random_prompts.yaml
-- [x] Code uses only `count` parameter (no backwards compatibility)
-- [x] Tests updated to reflect standardization
-- [x] All geists now use consistent parameter naming
+  - Updated note_combinations.yaml (suggestions_per_invocation → count)
+  - Updated what_if.yaml (suggestions_per_invocation → count)
+  - Updated random_prompts.yaml (suggestions_per_invocation → count)
+  - Code uses only `count` parameter (no backwards compatibility)
+
+- [x] Bug 2 FIXED: temporal_mirror now follows "Sample, don't rank" principle
+  - Created sample_old_notes() and sample_recent_notes() functions
+  - Updated temporal_mirror.yaml to use sampling functions
+  - Kept count: 2 to maintain variety in suggestions
+  - Tests updated to expect variety, not redundancy
+
+- [x] Tests corrected to reflect design intent
+  - Restored test_tracery_sample_notes_produces_variety_across_expansions
+  - Updated integration test expectations for count: 2
+  - All tests now align with "Sample, don't rank" principle

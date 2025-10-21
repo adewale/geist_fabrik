@@ -16,10 +16,10 @@ tracery:
     - "5 years ago"
 
   old_note:
-    - "$vault.old_notes(1)"
+    - "$vault.sample_old_notes(1, 10)"
 
   new_note:
-    - "$vault.recent_notes(1)"
+    - "$vault.sample_recent_notes(1, 10)"
 
   relationship:
     - "might be the answer you were looking for"
@@ -27,4 +27,4 @@ tracery:
     - "shows how far you've traveled"
     - "suggests you're walking in circles"
 
-count: 1
+count: 2
