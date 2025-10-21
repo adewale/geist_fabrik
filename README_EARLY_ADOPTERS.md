@@ -297,6 +297,66 @@ uv run geistfabrik invoke --vault ~/MyVault --date 2025-01-15 --write --force
 # Compare how suggestions changed as your vault grew
 ```
 
+### 4. Full Geist Firehose (Advanced - Maximum Testing)
+
+⚠️ **DANGER ZONE** ⚠️
+
+Run ALL geists with ALL suggestions (no filtering) against a vault copy. This is the most comprehensive test but generates the most output.
+
+**🚨 CRITICAL: Only run against a COPY of your vault, never the original! 🚨**
+
+```bash
+# Step 1: Create a fresh copy
+cp -r ~/Documents/MyVault ~/Documents/MyVault-FullTest
+cd ~/Documents/MyVault-FullTest
+
+# Step 2: Backup (extra safety)
+tar -czf ../MyVault-FullTest-backup.tar.gz .
+
+# Step 3: Initialize with all examples
+uv run geistfabrik init ~/Documents/MyVault-FullTest --examples
+
+# Step 4: Run FULL firehose mode (all geists, all suggestions)
+uv run geistfabrik invoke --vault ~/Documents/MyVault-FullTest --full --write
+
+# Step 5: Review the flood of suggestions
+cat ~/Documents/MyVault-FullTest/"geist journal"/$(date +%Y-%m-%d).md
+
+# Step 6: Count how many suggestions were generated
+grep -c "^## " ~/Documents/MyVault-FullTest/"geist journal"/$(date +%Y-%m-%d).md
+
+# Step 7: Analyze which geists are most active
+grep "^## " ~/Documents/MyVault-FullTest/"geist journal"/$(date +%Y-%m-%d).md | \
+  sort | uniq -c | sort -rn
+
+# Step 8: Clean up when done
+rm -rf ~/Documents/MyVault-FullTest
+rm ../MyVault-FullTest-backup.tar.gz
+```
+
+**What to expect:**
+- 50-200+ suggestions (unfiltered)
+- You'll see what every geist thinks about your vault
+- Some suggestions will be redundant or low-quality
+- Perfect for understanding what GeistFabrik "sees" in your notes
+
+**Why this is dangerous:**
+- While GeistFabrik never modifies your notes, running with `--full` generates a LOT of data
+- The session note can be overwhelming (10+ pages)
+- You'll see the "raw feed" before quality filtering
+- Some geists may crash or timeout (this is expected in beta)
+
+**Best for:**
+- Understanding vault patterns
+- Debugging custom geists
+- Seeing maximum divergent thinking
+- Stress-testing the system
+
+**NOT recommended for:**
+- Daily use (way too noisy)
+- Your actual vault (use a copy!)
+- Production workflows
+
 ---
 
 ## Known Limitations (v0.9.0)
