@@ -48,7 +48,7 @@ We didn't instrument the code to track:
 #### 1. **SQL Static Analysis Tool**
 ```bash
 # Hypothetical tool that analyzes SQL usage
-$ sql-analyze --schema schema.py --code src/
+$ sql-analyse --schema schema.py --code src/
 
 ❌ UNUSED TABLE: embeddings
    Defined: src/geistfabrik/schema.py:48
@@ -159,7 +159,7 @@ def test_multi_session_performance(benchmark_profile):
             session = Session(dates[i], db)
             session.compute_embeddings(notes)
 
-    # Analyze profile
+    # Analyse profile
     stats = benchmark_profile.stats
     if stats["sentence_transformer.encode"] > expected_calls:
         raise AssertionError(

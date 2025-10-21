@@ -222,7 +222,7 @@ For a typical session (100 notes, 10 geists):
 
 **Mitigation**:
 - Sample instead of exhaustive search
-- Limit k-nearest neighbors queries
+- Limit k-nearest neighbours queries
 - Cache similarity matrices
 
 **Time**:
@@ -237,7 +237,7 @@ For a typical session (100 notes, 10 geists):
 - bridge_builder: Finds k similar notes for each note
 - question_generator: Searches for semantically similar phrases
 
-**Why**: k-nearest neighbor queries for each note
+**Why**: k-nearest neighbour queries for each note
 
 **Time**: ~10-50ms for 100 notes (depends on k)
 
@@ -288,9 +288,9 @@ For a typical session (100 notes, 10 geists):
    - Could speed up execution 2-4x
    - Requires thread-safe VaultContext
 
-4. **Approximate nearest neighbors (ANN)**
+4. **Approximate nearest neighbours (ANN)**
    - Use FAISS or Annoy for similarity search
-   - O(log n) instead of O(n) for neighbor queries
+   - O(log n) instead of O(n) for neighbour queries
    - Most impact for vaults with 10,000+ notes
 
 5. **Embedding dimension reduction**
@@ -372,7 +372,7 @@ Total: ~30-60 minutes (first run), ~4-9 minutes (subsequent)
 **Priority optimizations**:
 1. GPU acceleration (biggest impact)
 2. Incremental sync (only embed changed notes)
-3. Approximate nearest neighbors for similarity search
+3. Approximate nearest neighbours for similarity search
 
 ### For Production Use
 
@@ -418,4 +418,4 @@ GeistFabrik's performance is **dominated by embedding computation** (70-85% of t
 - GPU support
 - Incremental embedding sync
 - Parallel geist execution
-- Approximate nearest neighbor search
+- Approximate nearest neighbour search

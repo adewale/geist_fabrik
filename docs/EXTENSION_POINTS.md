@@ -29,15 +29,15 @@ These functions are registered automatically in `FunctionRegistry` and available
 | `recent_notes(k)` | Most recent notes | **temporal_mirror** | `$vault.recent_notes(1)` |
 | `orphans()` | Notes with no links | ❌ **Unused** | - |
 | `hubs(k)` | Notes with most backlinks | ❌ **Unused** | - |
-| `neighbors(title, k)` | Semantically similar notes | ❌ **Unused** | - |
+| `neighbours(title, k)` | Semantically similar notes | ❌ **Unused** | - |
 | `find_questions()` | Notes ending in '?' | ❌ **Unused** | - |
 
 **Coverage**: 3/7 functions used (43%)
 
 **Analysis**:
 - ✅ Basic sampling functions (`sample_notes`, `old_notes`, `recent_notes`) are well-used
-- ❌ Advanced functions (`neighbors`, `hubs`, `orphans`) unused by Tracery geists
-- 💡 **Opportunity**: Create Tracery geists using `$vault.hubs()` and `$vault.neighbors()`
+- ❌ Advanced functions (`neighbours`, `hubs`, `orphans`) unused by Tracery geists
+- 💡 **Opportunity**: Create Tracery geists using `$vault.hubs()` and `$vault.neighbours()`
 
 ---
 
@@ -69,7 +69,7 @@ Core methods available to all code geists (Python).
 
 | Method | Purpose | Used By Geists | Usage Count |
 |--------|---------|----------------|-------------|
-| `neighbors(note, k)` | K-nearest notes by embedding | **bridge_builder**, **recent_focus**, **concept_cluster** | 3/10 |
+| `neighbours(note, k)` | K-nearest notes by embedding | **bridge_builder**, **recent_focus**, **concept_cluster** | 3/10 |
 | `similarity(a, b)` | Cosine similarity | **bridge_builder**, **creative_collision**, **concept_cluster** | 3/10 |
 
 ### Graph Query Methods
@@ -136,14 +136,14 @@ Modules in `examples/metadata_inference/` that add properties to notes.
 |-------|---------------------|------------------|----------------------|
 | **temporal_drift** | `old_notes`, `metadata`, `sample` | temporal | 4 |
 | **creative_collision** | `sample`, `similarity` | - | 2 |
-| **bridge_builder** | `hubs`, `neighbors`, `similarity`, `sample` | - | 4 |
+| **bridge_builder** | `hubs`, `neighbours`, `similarity`, `sample` | - | 4 |
 | **complexity_mismatch** | `metadata`, `backlinks`, `sample`, `notes` | complexity | 5 |
 | **question_generator** | `metadata`, `sample`, `notes` | structure | 4 |
 | **link_density_analyzer** | `metadata`, `sample`, `notes` | complexity | 4 |
 | **task_archaeology** | `metadata`, `sample`, `notes` | structure, complexity | 5 |
-| **concept_cluster** | `sample`, `neighbors`, `similarity`, `notes` | - | 4 |
+| **concept_cluster** | `sample`, `neighbours`, `similarity`, `notes` | - | 4 |
 | **stub_expander** | `metadata`, `backlinks`, `sample`, `notes` | complexity | 5 |
-| **recent_focus** | `recent_notes`, `neighbors`, `metadata`, `sample` | temporal | 5 |
+| **recent_focus** | `recent_notes`, `neighbours`, `metadata`, `sample` | temporal | 5 |
 
 **Average extension points per code geist**: 4.2
 
@@ -174,7 +174,7 @@ Modules in `examples/metadata_inference/` that add properties to notes.
 | `orphans()` | VaultContext | "Connect the Dots" geist - suggest links for orphaned notes |
 | `unlinked_pairs(k)` | VaultContext | Already used in spec examples (not in built geists) |
 | `hubs(k)` as vault function | Vault Function | Tracery geist highlighting hub notes |
-| `neighbors(title, k)` as vault function | Vault Function | Tracery geist showing semantic neighborhoods |
+| `neighbours(title, k)` as vault function | Vault Function | Tracery geist showing semantic neighborhoods |
 | `notes_with_metadata(key, value)` | Vault Function | Filter-based Tracery geist |
 | `contrarian_to(title)` | Vault Function | Devil's advocate geist |
 
@@ -189,7 +189,7 @@ def suggest(vault: VaultContext):
 
     for orphan in orphans:
         # Find semantically similar notes
-        similar = vault.neighbors(orphan, k=5)
+        similar = vault.neighbours(orphan, k=5)
         if similar:
             suggestions.append(Suggestion(
                 text=f"[[{orphan.title}]] has no links but is similar to "
@@ -266,7 +266,7 @@ Unused: 9 (32%)
 1. `vault.sample()` - **10/10 geists** (100%)
 2. `vault.notes()` - **10/10 geists** (100%)
 3. `vault.metadata()` - **7/10 code geists** (70%)
-4. `vault.neighbors()` - **3/10 code geists** (30%)
+4. `vault.neighbours()` - **3/10 code geists** (30%)
 5. `vault.similarity()` - **3/10 code geists** (30%)
 6. `$vault.sample_notes()` - **2/4 Tracery geists** (50%)
 7. Complexity metadata - **4/10 code geists** (40%)
@@ -281,7 +281,7 @@ Unused: 9 (32%)
 - `vault.get_note()` - 0 geists
 - `vault.read()` - 0 geists
 - `$vault.hubs()` - 0 Tracery geists
-- `$vault.neighbors()` - 0 Tracery geists
+- `$vault.neighbours()` - 0 Tracery geists
 - `$vault.notes_with_metadata()` - 0 geists
 - `$vault.contrarian_to()` - 0 geists
 
@@ -302,7 +302,7 @@ Unused: 9 (32%)
 **To expand GeistFabrik:**
 
 1. 🎯 **Build "connect_the_dots" geist** using `orphans()`
-2. 🎯 **Build Tracery geists** using `$vault.hubs()` and `$vault.neighbors()`
+2. 🎯 **Build Tracery geists** using `$vault.hubs()` and `$vault.neighbours()`
 3. 🎯 **Create hybrid geists** combining multiple metadata modules
 4. 📚 **Document patterns** - Show examples using all vault functions
 
@@ -327,7 +327,7 @@ No geist currently:
 
 **The extension system is working as designed:**
 - Core functionality (`sample`, `notes`, `metadata`) used by all geists
-- Advanced features (`neighbors`, `similarity`) used by sophisticated geists
+- Advanced features (`neighbours`, `similarity`) used by sophisticated geists
 - Simple declarative features (`$vault.sample_notes`) used by Tracery geists
 
-**Biggest opportunity**: Create more **Tracery geists** using advanced vault functions like `hubs()`, `neighbors()`, and metadata filters.
+**Biggest opportunity**: Create more **Tracery geists** using advanced vault functions like `hubs()`, `neighbours()`, and metadata filters.

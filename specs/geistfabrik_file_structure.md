@@ -95,7 +95,7 @@ MyVault/
 
 **Why grouped:**
 - Users understand "all geists live here"
-- Clear organization: simple (Tracery) vs advanced (Python)
+- Clear organisation: simple (Tracery) vs advanced (Python)
 - Natural progression: start with Tracery, graduate to code geists
 
 ---
@@ -174,7 +174,7 @@ tracery:
 
 **What goes here:**
 - `complexity.py` - Calculate reading complexity, concept density
-- `sentiment.py` - Analyze mood/tone of note
+- `sentiment.py` - Analyse mood/tone of note
 - `temporal.py` - Compute staleness, seasonal patterns
 
 **Example:**
@@ -212,7 +212,7 @@ def infer(note: Note, vault: VaultContext) -> Dict:
 - Automatically available in Tracery as `$vault.function_name()`
 
 **What goes here:**
-- Built-in: `sample_notes(k)`, `neighbors(note, k)`, `old_notes(k)`, etc.
+- Built-in: `sample_notes(k)`, `neighbours(note, k)`, `old_notes(k)`, etc.
 - Custom: `contrarian_to(note)`, `notes_by_mood(mood)`, `complex_notes(threshold)`
 
 **Example:**
@@ -259,7 +259,7 @@ I think you're lying about [[Democracy Note]]...
 ```
 
 **Why separate folder:**
-- Keeps sessions organized chronologically
+- Keeps sessions organised chronologically
 - Can be linked: `[[geist journal/2025-01-15]]`
 - Can be embedded: `![[geist journal/2025-01-15#columbo]]`
 

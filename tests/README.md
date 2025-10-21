@@ -1,6 +1,6 @@
 # GeistFabrik Test Suite
 
-This directory contains the test suite for GeistFabrik, organized into unit tests and integration tests.
+This directory contains the test suite for GeistFabrik, organised into unit tests and integration tests.
 
 ## Test Structure
 

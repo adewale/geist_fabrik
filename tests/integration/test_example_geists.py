@@ -138,17 +138,17 @@ def test_question_generator_geist(vault_context: VaultContext, geist_executor: G
         assert suggestion.geist_id == "question_generator"
 
 
-def test_link_density_analyzer_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
-    """Test link_density_analyzer geist returns valid suggestions."""
+def test_link_density_analyser_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test link_density_analyser geist returns valid suggestions."""
     geist_executor.load_geists()
-    suggestions = geist_executor.execute_geist("link_density_analyzer", vault_context)
+    suggestions = geist_executor.execute_geist("link_density_analyser", vault_context)
 
     assert isinstance(suggestions, list)
     for suggestion in suggestions:
         assert hasattr(suggestion, "text")
         assert hasattr(suggestion, "notes")
         assert hasattr(suggestion, "geist_id")
-        assert suggestion.geist_id == "link_density_analyzer"
+        assert suggestion.geist_id == "link_density_analyser"
 
 
 def test_task_archaeology_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
@@ -357,18 +357,18 @@ def test_hub_explorer_tracery_geist(vault_context: VaultContext):
         assert "[[" in suggestion.text
 
 
-def test_semantic_neighbors_tracery_geist(vault_context: VaultContext):
-    """Test semantic_neighbors Tracery geist."""
+def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
+    """Test semantic_neighbours Tracery geist."""
     geist_path = (
         Path(__file__).parent.parent.parent
         / "examples"
         / "geists"
         / "tracery"
-        / "semantic_neighbors.yaml"
+        / "semantic_neighbours.yaml"
     )
 
     geist = TraceryGeist.from_yaml(geist_path, seed=12345)
-    assert geist.geist_id == "semantic_neighbors"
+    assert geist.geist_id == "semantic_neighbours"
     assert geist.count == 2
 
     suggestions = geist.suggest(vault_context)
@@ -378,7 +378,7 @@ def test_semantic_neighbors_tracery_geist(vault_context: VaultContext):
     for suggestion in suggestions:
         assert hasattr(suggestion, "text")
         assert hasattr(suggestion, "geist_id")
-        assert suggestion.geist_id == "semantic_neighbors"
+        assert suggestion.geist_id == "semantic_neighbours"
         # Should reference seed note and neighbor notes
         assert "[[" in suggestion.text
 

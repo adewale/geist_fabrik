@@ -332,7 +332,7 @@ uv sync --upgrade
 
 ### Dependency Groups
 
-uv uses PEP 735 dependency groups for organizing different types of dependencies:
+uv uses PEP 735 dependency groups for organising different types of dependencies:
 
 ```toml
 [dependency-groups]
@@ -1253,7 +1253,7 @@ uvx migrate-to-uv
 
 ## Best Practices
 
-### 1. pyproject.toml Organization
+### 1. pyproject.toml Organisation
 
 ```toml
 # Group related sections logically
@@ -1443,10 +1443,10 @@ my-app/
 └── README.md
 ```
 
-### 7. Dependency Organization
+### 7. Dependency Organisation
 
 ```toml
-# Organize dependencies by purpose
+# Organise dependencies by purpose
 dependencies = [
     # Core dependencies
     "fastapi>=0.112.0",

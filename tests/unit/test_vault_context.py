@@ -113,7 +113,7 @@ def test_neighbors_semantic_search(test_vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
-    neighbors = ctx.neighbors(ai_note, k=2)
+    neighbors = ctx.neighbours(ai_note, k=2)
 
     # ml.md should be most similar to ai.md
     assert len(neighbors) >= 1

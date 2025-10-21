@@ -122,13 +122,13 @@ class FunctionRegistry:
             """Get k notes with most incoming links."""
             return vault.hubs(k)
 
-        @vault_function("neighbors")
-        def neighbors(vault: "VaultContext", note_title: str, k: int = 5) -> List[Any]:
+        @vault_function("neighbours")
+        def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> List[Any]:
             """Get k semantically similar notes to given note."""
             note = vault.get_note(note_title)
             if note is None:
                 return []
-            return vault.neighbors(note, k)
+            return vault.neighbours(note, k)
 
         # Transfer built-in functions from global registry to instance
         self.functions.update(_GLOBAL_REGISTRY)

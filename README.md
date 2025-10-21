@@ -267,7 +267,7 @@ GeistFabrik includes 13 example geists demonstrating various patterns:
 - **bridge_builder.py** - Connect disconnected clusters
 - **complexity_mismatch.py** - Find complexity/importance gaps
 - **question_generator.py** - Reframe statements as questions
-- **link_density_analyzer.py** - Analyze link patterns
+- **link_density_analyzer.py** - Analyse link patterns
 - **task_archaeology.py** - Find old incomplete tasks
 - **concept_cluster.py** - Identify emergent themes
 - **stub_expander.py** - Develop short connected notes

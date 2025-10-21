@@ -1,6 +1,6 @@
 """Recent focus geist - identifies what you've been thinking about lately.
 
-Analyzes recently modified notes to surface patterns in your current interests
+Analyses recently modified notes to surface patterns in your current interests
 and suggests related older notes you might want to revisit.
 """
 
@@ -29,7 +29,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # For each recent note, find old notes that are similar
     for recent_note in recent[:3]:  # Just check top 3
         # Find semantically similar notes
-        similar = vault.neighbors(recent_note, k=10)
+        similar = vault.neighbours(recent_note, k=10)
 
         # Filter to only old notes (not modified recently)
         old_similar = []

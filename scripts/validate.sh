@@ -15,11 +15,11 @@ if [ ! -f "pyproject.toml" ]; then
     exit 1
 fi
 
-# Color output
+# Colour output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m' # No Colour
 
 run_check() {
     local name="$1"

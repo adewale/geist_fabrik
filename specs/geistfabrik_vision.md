@@ -15,7 +15,7 @@ GeistFabrik draws on Gordon Brander's explorations of tools for thought, particu
 
 **Geists as oracles** - Brander's "Subconscious napkin sketch" (2022) introduced the concept of Geists: "little bots that live in your Subconscious... Some Geists will be focused on issuing oracular provocations. Others will take old notes and collide them in new ways, to provoke new ideas."
 
-**Self-organizing ideas** - His essay "Self-Organizing Ideas" (2021) explored systems where "related ideas begin to clump together... Old ideas give birth to new ones. The concepts refactor themselves, evolving into thoughts, theses, outlines, articles, even books, all organically grown from the bottom-up."
+**Self-organising ideas** - His essay "Self-Organising Ideas" (2021) explored systems where "related ideas begin to clump together... Old ideas give birth to new ones. The concepts refactor themselves, evolving into thoughts, theses, outlines, articles, even books, all organically grown from the bottom-up."
 
 **Diverge/converge feedback loops** - Brander's framework of creativity as alternating phases of divergence (generating options) and convergence (making choices), connected through cybernetic feedback loops where outputs become inputs for new creative exploration.
 
@@ -55,7 +55,7 @@ Geists receive a **VaultContext** - a rich, intelligent wrapper that provides:
 - **Embeddings & Semantic Search**:
   - Pre-computed embeddings stored in SQLite
   - Fast vector similarity using sqlite-vec
-  - Nearest-neighbor queries via SQL
+  - Nearest-neighbour queries via SQL
 
 - **Inferred Metadata**:
   - Creation date, tags, links, backlinks
@@ -64,7 +64,7 @@ Geists receive a **VaultContext** - a rich, intelligent wrapper that provides:
 
 - **Convenient Functions**:
   - Sampling utilities (random selection with deterministic seeds)
-  - Graph operations via SQL (neighbors, clusters, orphans, hubs)
+  - Graph operations via SQL (neighbours, clusters, orphans, hubs)
   - Temporal queries (old notes, recent notes, staleness)
 
 - **Function Registry**:

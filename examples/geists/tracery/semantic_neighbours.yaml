@@ -1,18 +1,18 @@
 type: geist-tracery
-id: semantic_neighbors
-description: Shows semantic neighborhoods to reveal hidden connections
+id: semantic_neighbours
+description: Shows semantic neighbourhoods to reveal hidden connections
 
 tracery:
   origin:
-    - "Notes near [[#seed#]] in meaning: #neighbors#. #prompt#"
-    - "Semantic cluster around [[#seed#]]: #neighbors#. What connects them?"
-    - "[[#seed#]] shares conceptual space with #neighbors#. #question#"
+    - "Notes near [[#seed#]] in meaning: #neighbours#. #prompt#"
+    - "Semantic cluster around [[#seed#]]: #neighbours#. What connects them?"
+    - "[[#seed#]] shares conceptual space with #neighbours#. #question#"
 
   seed:
     - "$vault.sample_notes(1)"
 
-  neighbors:
-    - "$vault.neighbors(#seed#, 3)"
+  neighbours:
+    - "$vault.neighbours(#seed#, 3)"
 
   prompt:
     - "What pattern emerges?"

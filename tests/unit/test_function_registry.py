@@ -50,7 +50,7 @@ def test_built_in_functions_loaded() -> None:
         "recent_notes",
         "orphans",
         "hubs",
-        "neighbors",
+        "neighbours",
     ]
 
     for func_name in expected_functions:

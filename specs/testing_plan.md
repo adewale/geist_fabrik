@@ -14,7 +14,7 @@ This document outlines the comprehensive testing strategy for GeistFabrik, inclu
 - Tasks: `- [x]` completed and `- [ ]` incomplete
 - Real-world content from Steph Ango's public vault
 
-## Test Organization
+## Test Organisation
 
 ```
 tests/
@@ -99,8 +99,8 @@ tests/
 - **test_read_note_delegation**: `ctx.read(note)` returns note.content
 
 #### Semantic Search (sqlite-vec)
-- **test_neighbors_basic**: Find k nearest neighbors by embedding similarity
-- **test_neighbors_excludes_self**: Neighbors don't include query note
+- **test_neighbors_basic**: Find k nearest neighbours by embedding similarity
+- **test_neighbors_excludes_self**: Neighbours don't include query note
 - **test_neighbors_empty_vault**: Handle vault with <k notes
 - **test_similarity_score**: Calculate cosine similarity between two notes
 - **test_similarity_range**: Similarity scores in [0, 1] range
@@ -567,7 +567,7 @@ def test_parse_transclusion_note():
 #### Link Graph Analysis
 ```python
 def test_kepano_link_graph():
-    """Analyze link structure across kepano vault"""
+    """Analyse link structure across kepano vault"""
     # Build link graph from all notes
     # Identify orphans (if any)
     # Find most-linked notes (hubs)
@@ -584,7 +584,7 @@ def test_kepano_backlinks():
 #### Tag Analysis
 ```python
 def test_kepano_tags():
-    """Extract and analyze all tags"""
+    """Extract and analyse all tags"""
     # Collect all unique tags
     # Both frontmatter and inline
     # Verify: daily, meetings, projects, clippings, 0🌲
@@ -618,7 +618,7 @@ def test_kepano_embeddings():
     # Compute embeddings for all 8 notes
     # Verify 384 dimensions
     # Test semantic similarity between related notes
-    # Find neighbors for "Evergreen notes"
+    # Find neighbours for "Evergreen notes"
     # Compare "Meetings" vs "Projects" semantic distance
 
 def test_kepano_semantic_clusters():
@@ -883,7 +883,7 @@ def test_temporal_divergent_evolution():
 ### conftest.py - Pytest Configuration
 
 ```python
-# Fixtures for test organization
+# Fixtures for test organisation
 
 @pytest.fixture
 def kepano_vault_path():
@@ -1005,7 +1005,7 @@ class PerformanceTests:
 
 ## Test Execution Strategy
 
-### Test Organization
+### Test Organisation
 ```bash
 # Run all tests
 pytest

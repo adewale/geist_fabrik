@@ -1,4 +1,4 @@
-"""Link density analyzer geist - finds notes with unusual link patterns.
+"""Link density analyser geist - finds notes with unusual link patterns.
 
 Identifies notes that have too many or too few links relative to their content,
 suggesting opportunities for better integration or focus.
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Analyze link density and suggest improvements.
+    """Analyse link density and suggest improvements.
 
     Returns:
         List of suggestions for link density improvements
@@ -29,7 +29,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         link_count = metadata.get("link_count", 0)
 
         if word_count < 50:
-            continue  # Too short to analyze
+            continue  # Too short to analyse
 
         # Calculate links per 100 words
         link_density = (link_count / word_count) * 100 if word_count > 0 else 0
@@ -45,7 +45,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 Suggestion(
                     text=text,
                     notes=[note.title],
-                    geist_id="link_density_analyzer",
+                    geist_id="link_density_analyser",
                 )
             )
 
@@ -60,7 +60,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 Suggestion(
                     text=text,
                     notes=[note.title],
-                    geist_id="link_density_analyzer",
+                    geist_id="link_density_analyser",
                 )
             )
 
