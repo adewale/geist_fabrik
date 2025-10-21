@@ -69,10 +69,10 @@ uv run geistfabrik init /path/to/your/vault --examples
 # Omit it if you want to start with a clean setup
 
 # Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke /path/to/your/vault
+uv run geistfabrik invoke --vault /path/to/your/vault
 
 # Write suggestions to journal (creates session note)
-uv run geistfabrik invoke /path/to/your/vault --write
+uv run geistfabrik invoke --vault /path/to/your/vault --write
 
 # View your session note at:
 # /path/to/your/vault/geist journal/YYYY-MM-DD.md
@@ -85,7 +85,7 @@ Test GeistFabrik on our sample vault before using your own:
 ```bash
 # After installation, try on sample vault
 uv run geistfabrik init testdata/kepano-obsidian-main --examples
-uv run geistfabrik invoke testdata/kepano-obsidian-main --write
+uv run geistfabrik invoke --vault testdata/kepano-obsidian-main --write
 
 # View results
 cat "testdata/kepano-obsidian-main/geist journal/$(date +%Y-%m-%d).md"
@@ -143,25 +143,25 @@ rm -rf /path/to/vault/geist\ journal
 
 ```bash
 # Default: Preview suggestions (read-only, no files created)
-geistfabrik invoke ~/my-vault
+uv run geistfabrik invoke --vault ~/my-vault
 
 # Write suggestions to journal
-geistfabrik invoke ~/my-vault --write
+uv run geistfabrik invoke --vault ~/my-vault --write
 
 # Compare to recent sessions
-geistfabrik invoke ~/my-vault --diff
+uv run geistfabrik invoke --vault ~/my-vault --diff
 
 # Full firehose: All filtered suggestions (50-200+)
-geistfabrik invoke ~/my-vault --full --write
+uv run geistfabrik invoke --vault ~/my-vault --full --write
 
 # Single geist only
-geistfabrik invoke ~/my-vault --geist temporal_drift
+uv run geistfabrik invoke --vault ~/my-vault --geist temporal_drift
 
 # Replay specific date
-geistfabrik invoke ~/my-vault --date 2025-01-15
+uv run geistfabrik invoke --vault ~/my-vault --date 2025-01-15
 
 # Test a geist during development
-geistfabrik test my_geist --vault ~/my-vault --date 2025-01-15
+uv run geistfabrik test my_geist --vault ~/my-vault --date 2025-01-15
 ```
 
 ### Working with Session Notes
