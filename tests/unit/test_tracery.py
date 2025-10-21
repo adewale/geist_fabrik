@@ -339,47 +339,6 @@ tracery:
     assert geist.count == 3
 
 
-def test_tracery_geist_suggestions_per_invocation_recognized(tmp_path: Path) -> None:
-    """Test that 'suggestions_per_invocation' is recognized for backwards compatibility.
-
-    Both 'count' and 'suggestions_per_invocation' should work,
-    with 'count' taking precedence if both are specified.
-    """
-    yaml_content = """type: geist-tracery
-id: test_suggestions_per_invocation
-suggestions_per_invocation: 3
-tracery:
-  origin: "Test suggestion"
-"""
-
-    yaml_file = tmp_path / "test_spi.yaml"
-    yaml_file.write_text(yaml_content)
-
-    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
-
-    # Should now correctly read suggestions_per_invocation
-    assert geist.count == 3
-
-
-def test_tracery_geist_count_takes_precedence_over_suggestions_per_invocation(tmp_path: Path) -> None:
-    """Test that 'count' takes precedence when both are specified."""
-    yaml_content = """type: geist-tracery
-id: test_precedence
-count: 5
-suggestions_per_invocation: 3
-tracery:
-  origin: "Test suggestion"
-"""
-
-    yaml_file = tmp_path / "test_precedence.yaml"
-    yaml_file.write_text(yaml_content)
-
-    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
-
-    # count should take precedence
-    assert geist.count == 5
-
-
 def test_tracery_geist_generates_multiple_suggestions_when_count_set(tmp_path: Path) -> None:
     """Test that geist generates the correct number of suggestions."""
     # Create vault

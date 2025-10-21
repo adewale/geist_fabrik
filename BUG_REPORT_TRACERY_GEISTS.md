@@ -6,7 +6,7 @@
 
 ## Summary
 
-Found two related bugs in the Tracery geist system affecting how geists specify the number of suggestions to generate per invocation.
+Found inconsistency in parameter naming for specifying the number of suggestions to generate per invocation. Resolved by standardizing on `count` across all geists.
 
 ---
 
@@ -90,20 +90,17 @@ For geists with:
 
 ## Fixes Implemented
 
-### Fix 1: Support Both Parameter Names ✅
-**Implemented**: Option A + Option B (best of both)
+### Fix 1: Standardize on `count` Parameter Only ✅
+**Decision**: Use `count` exclusively across the project for clarity and consistency.
 
-1. **Code fix** (src/geistfabrik/tracery.py:233):
-```python
-# Support both "count" and "suggestions_per_invocation" for backwards compatibility
-count = data.get("count") or data.get("suggestions_per_invocation", 1)
-```
-
-2. **YAML standardization**:
+**YAML standardization**:
 - Updated `examples/geists/tracery/note_combinations.yaml` (suggestions_per_invocation: 2 → count: 2)
 - Updated `examples/geists/tracery/what_if.yaml` (suggestions_per_invocation: 3 → count: 3)
+- Updated `examples/geists/tracery/random_prompts.yaml` (suggestions_per_invocation: 2 → count: 2)
 
-**Result**: Backwards compatible with both parameter names, `count` takes precedence, existing geists standardized
+**Code**: No backwards compatibility - `count` is the only supported parameter (src/geistfabrik/tracery.py:232)
+
+**Result**: Single, clear parameter name throughout the project
 
 ### Fix 2: Documentation/Validation
 Add validation to warn when geists might produce redundant suggestions:
@@ -116,15 +113,11 @@ Add validation to warn when geists might produce redundant suggestions:
 
 ### Test 1: Count Parameter Recognition
 ```python
-def test_suggestions_per_invocation_vs_count():
-    """Verify both parameter names work."""
-    # Test with "count"
-    geist1 = TraceryGeist.from_yaml("test_count.yaml")
-    assert geist1.count == 3
-
-    # Test with "suggestions_per_invocation"
-    geist2 = TraceryGeist.from_yaml("test_suggestions.yaml")
-    assert geist2.count == 3  # Should read suggestions_per_invocation
+def test_tracery_geist_count_parameter_recognized():
+    """Verify 'count' parameter is correctly read from YAML."""
+    # Only 'count' is supported
+    geist = TraceryGeist.from_yaml("test_count.yaml")
+    assert geist.count == 3
 ```
 
 ### Test 2: Deterministic Function Behavior
@@ -172,8 +165,11 @@ def test_sample_notes_creates_variety():
 
 ## Status
 
-- [x] Bug 2 fixed for temporal_mirror.yaml (count: 2 → count: 1)
-- [x] Bug 1 FIXED: TraceryGeist now supports both `count` and `suggestions_per_invocation`
-- [x] YAML files standardized to use `count` consistently
-- [x] Tests written and added to test_tracery.py
-- [ ] Tests pending execution to verify fixes work
+- [x] Bug 2 FIXED: temporal_mirror.yaml (count: 2 → count: 1) - eliminates redundant suggestions
+- [x] Bug 1 FIXED: Standardized all geists to use `count` parameter only
+  - Updated note_combinations.yaml
+  - Updated what_if.yaml
+  - Updated random_prompts.yaml
+- [x] Code uses only `count` parameter (no backwards compatibility)
+- [x] Tests updated to reflect standardization
+- [x] All geists now use consistent parameter naming
