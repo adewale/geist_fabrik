@@ -61,6 +61,9 @@ class VaultContext:
         # Metadata loader for extensible metadata inference
         self._metadata_loader = metadata_loader
 
+        # Track metadata inference errors
+        self.metadata_errors: Dict[str, List[str]] = {}  # note_path -> list of failed module names
+
         # Cache for embeddings (loaded from session)
         self._embeddings = session.get_all_embeddings()
 
@@ -401,8 +404,12 @@ class VaultContext:
         # Run metadata inference modules if available
         if self._metadata_loader is not None:
             try:
-                inferred = self._metadata_loader.infer_all(note, self)
+                inferred, failed_modules = self._metadata_loader.infer_all(note, self)
                 metadata.update(inferred)
+
+                # Track failed modules for this note
+                if failed_modules:
+                    self.metadata_errors[note.path] = failed_modules
             except Exception as e:
                 # Log error but don't fail - metadata inference is optional
                 logger.error(
@@ -489,3 +496,15 @@ class VaultContext:
             List of function names
         """
         return list(self._functions.keys())
+
+    def get_metadata_error_summary(self) -> Dict[str, int]:
+        """Get summary of metadata inference errors.
+
+        Returns:
+            Dictionary mapping module names to count of notes where they failed
+        """
+        module_error_counts: Dict[str, int] = {}
+        for note_path, failed_modules in self.metadata_errors.items():
+            for module_name in failed_modules:
+                module_error_counts[module_name] = module_error_counts.get(module_name, 0) + 1
+        return module_error_counts

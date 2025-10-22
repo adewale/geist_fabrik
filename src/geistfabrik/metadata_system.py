@@ -9,7 +9,7 @@ import importlib.util
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from .models import Note
 
@@ -123,7 +123,7 @@ class MetadataLoader:
         self.modules[module_name] = infer_func
         logger.debug(f"Loaded metadata module: {module_name}")
 
-    def infer_all(self, note: Note, vault: "VaultContext") -> Dict[str, Any]:
+    def infer_all(self, note: Note, vault: "VaultContext") -> Tuple[Dict[str, Any], List[str]]:
         """Run all metadata inference modules on a note.
 
         Args:
@@ -131,12 +131,13 @@ class MetadataLoader:
             vault: VaultContext for accessing vault data
 
         Returns:
-            Dictionary of all inferred metadata
+            Tuple of (metadata dict, list of failed module names)
 
         Raises:
             MetadataConflictError: If multiple modules return the same key
         """
         metadata: Dict[str, Any] = {}
+        failed_modules: List[str] = []
 
         for module_name, infer_func in self.modules.items():
             try:
@@ -147,6 +148,7 @@ class MetadataLoader:
                     logger.warning(
                         f"Metadata module {module_name} returned non-dict type: {type(result)}"
                     )
+                    failed_modules.append(module_name)
                     continue
 
                 # Detect key conflicts
@@ -175,9 +177,10 @@ class MetadataLoader:
                 logger.error(
                     f"Error running metadata module {module_name} on note {note.path}: {e}"
                 )
+                failed_modules.append(module_name)
                 continue
 
-        return metadata
+        return metadata, failed_modules
 
     def _is_valid_value(self, value: Any) -> bool:
         """Check if a value is a valid metadata type.
