@@ -7,7 +7,7 @@ Supports symbol expansion, modifiers, and vault function calls.
 import random
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import yaml
 
@@ -29,6 +29,214 @@ class TraceryEngine:
         self.rng = random.Random(seed)
         self.vault_context: VaultContext | None = None
         self.max_depth = 50
+        self.modifiers: Dict[str, Callable[[str], str]] = self._default_modifiers()
+
+    def _default_modifiers(self) -> Dict[str, Callable[[str], str]]:
+        """Get default English language modifiers.
+
+        Returns:
+            Dictionary mapping modifier names to transformation functions
+        """
+        return {
+            'capitalize': self._capitalize,
+            'capitalizeAll': self._capitalize_all,
+            's': self._pluralize,
+            'ed': self._past_tense,
+            'a': self._article,
+        }
+
+    def _capitalize(self, text: str) -> str:
+        """Capitalize first letter of text.
+
+        Args:
+            text: Input text
+
+        Returns:
+            Text with first letter capitalized
+        """
+        if not text:
+            return text
+        return text[0].upper() + text[1:]
+
+    def _capitalize_all(self, text: str) -> str:
+        """Capitalize first letter of each word.
+
+        Args:
+            text: Input text
+
+        Returns:
+            Text with each word capitalized
+        """
+        return ' '.join(word.capitalize() for word in text.split())
+
+    def _pluralize(self, text: str) -> str:
+        """Convert word to plural form.
+
+        Simple English pluralization rules:
+        - Words ending in 'y' (preceded by consonant) -> 'ies'
+        - Words ending in 's', 'x', 'z', 'ch', 'sh' -> add 'es'
+        - Default -> add 's'
+
+        Args:
+            text: Singular word
+
+        Returns:
+            Plural form of word
+        """
+        if not text:
+            return text
+
+        # Handle common irregular plurals
+        irregulars = {
+            'person': 'people',
+            'child': 'children',
+            'man': 'men',
+            'woman': 'women',
+            'tooth': 'teeth',
+            'foot': 'feet',
+            'mouse': 'mice',
+            'goose': 'geese',
+        }
+
+        lower_text = text.lower()
+        if lower_text in irregulars:
+            # Preserve original capitalization
+            result = irregulars[lower_text]
+            if text[0].isupper():
+                result = result.capitalize()
+            return result
+
+        # Words ending in consonant + y -> ies
+        if len(text) >= 2 and text[-1] == 'y' and text[-2] not in 'aeiou':
+            return text[:-1] + 'ies'
+
+        # Words ending in s, x, z, ch, sh -> es
+        if text.endswith(('s', 'x', 'z')) or text.endswith(('ch', 'sh')):
+            return text + 'es'
+
+        # Words ending in consonant + o -> es (with exceptions)
+        if len(text) >= 2 and text[-1] == 'o' and text[-2] not in 'aeiou':
+            # Common exceptions that just add 's'
+            if lower_text not in ['photo', 'piano', 'halo']:
+                return text + 'es'
+
+        # Default: add s
+        return text + 's'
+
+    def _past_tense(self, text: str) -> str:
+        """Convert verb to past tense.
+
+        Simple English past tense rules:
+        - Words ending in 'e' -> add 'd'
+        - Words ending in consonant + 'y' -> 'ied'
+        - Words ending in single consonant (preceded by single vowel) -> double + 'ed'
+        - Default -> add 'ed'
+
+        Args:
+            text: Present tense verb
+
+        Returns:
+            Past tense form
+        """
+        if not text:
+            return text
+
+        # Handle common irregular verbs
+        irregulars = {
+            'be': 'was',
+            'have': 'had',
+            'do': 'did',
+            'say': 'said',
+            'go': 'went',
+            'get': 'got',
+            'make': 'made',
+            'know': 'knew',
+            'think': 'thought',
+            'take': 'took',
+            'see': 'saw',
+            'come': 'came',
+            'want': 'wanted',
+            'use': 'used',
+            'find': 'found',
+            'give': 'gave',
+            'tell': 'told',
+            'work': 'worked',
+            'call': 'called',
+            'try': 'tried',
+            'ask': 'asked',
+            'need': 'needed',
+            'feel': 'felt',
+            'become': 'became',
+            'leave': 'left',
+            'put': 'put',
+        }
+
+        lower_text = text.lower()
+        if lower_text in irregulars:
+            # Preserve original capitalization
+            result = irregulars[lower_text]
+            if text[0].isupper():
+                result = result.capitalize()
+            return result
+
+        # Words ending in 'e' -> add 'd'
+        if text.endswith('e'):
+            return text + 'd'
+
+        # Words ending in consonant + 'y' -> 'ied'
+        if len(text) >= 2 and text[-1] == 'y' and text[-2] not in 'aeiou':
+            return text[:-1] + 'ied'
+
+        # Words ending in single consonant preceded by single vowel (CVC pattern)
+        # and stressed on last syllable -> double consonant + 'ed'
+        # Simplified: just check if last 3 chars match CVC pattern for short words
+        if len(text) >= 3:
+            if (text[-1] not in 'aeiouwxy' and  # consonant
+                text[-2] in 'aeiou' and         # vowel
+                text[-3] not in 'aeiou'):       # consonant
+                # Double last consonant for short words
+                if len(text) <= 5:
+                    return text + text[-1] + 'ed'
+
+        # Default: add 'ed'
+        return text + 'ed'
+
+    def _article(self, text: str) -> str:
+        """Add appropriate article (a/an) before word.
+
+        Args:
+            text: Word to add article to
+
+        Returns:
+            Word with appropriate article
+        """
+        if not text:
+            return text
+
+        # Use 'an' before vowel sounds
+        # Simplified: check first letter (doesn't handle silent 'h', 'u' as 'you', etc.)
+        first_char = text[0].lower()
+
+        # Special cases
+        if text.lower().startswith(('honest', 'hour', 'honor', 'heir')):
+            article = 'an'
+        elif text.lower().startswith('uni'):
+            article = 'a'  # 'university', 'unique' etc. have 'yoo' sound
+        elif first_char in 'aeiou':
+            article = 'an'
+        else:
+            article = 'a'
+
+        return f"{article} {text}"
+
+    def add_modifier(self, name: str, func: Callable[[str], str]) -> None:
+        """Add a custom modifier.
+
+        Args:
+            name: Modifier name (used as .name in templates)
+            func: Function that transforms text
+        """
+        self.modifiers[name] = func
 
     def set_vault_context(self, ctx: VaultContext) -> None:
         """Set vault context for function calls.
@@ -70,19 +278,28 @@ class TraceryEngine:
         return expanded
 
     def _expand_symbol(self, symbol: str, depth: int) -> str:
-        """Expand a single symbol.
+        """Expand a single symbol with optional modifiers.
+
+        Supports syntax: symbol.modifier1.modifier2
+        For example: animal.s.capitalize -> pluralize then capitalize
 
         Args:
-            symbol: Symbol name to expand
+            symbol: Symbol name with optional .modifiers
             depth: Current recursion depth
 
         Returns:
-            Randomly selected expansion from grammar rules
+            Expanded and modified text
         """
-        if symbol not in self.grammar:
+        # Split symbol and modifiers
+        parts = symbol.split('.')
+        symbol_name = parts[0]
+        modifier_names = parts[1:] if len(parts) > 1 else []
+
+        # Check if symbol exists in grammar
+        if symbol_name not in self.grammar:
             return f"#{symbol}#"  # Return unchanged if not in grammar
 
-        rules = self.grammar[symbol]
+        rules = self.grammar[symbol_name]
         if not rules:
             return ""
 
@@ -90,7 +307,18 @@ class TraceryEngine:
         selected = self.rng.choice(rules)
 
         # Recursively expand the selected rule
-        return self.expand(selected, depth)
+        expanded = self.expand(selected, depth)
+
+        # Apply modifiers in order
+        result = expanded
+        for modifier_name in modifier_names:
+            if modifier_name in self.modifiers:
+                result = self.modifiers[modifier_name](result)
+            else:
+                # Unknown modifier - leave as-is or could warn
+                pass
+
+        return result
 
     def _convert_arg(self, arg: str) -> int | str:
         """Convert string argument to appropriate type.

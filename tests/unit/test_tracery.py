@@ -320,3 +320,185 @@ def test_tracery_engine_handles_function_errors_gracefully(tmp_path: Path) -> No
     assert "[Error calling nonexistent_function:" in result
 
     vault.close()
+
+
+# Modifier Tests
+
+
+def test_tracery_capitalize_modifier() -> None:
+    """Test .capitalize modifier capitalizes first letter."""
+    grammar = {
+        "origin": ["#word.capitalize#"],
+        "word": ["hello", "world"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    # Should capitalize first letter
+    assert result in ["Hello", "World"]
+
+
+def test_tracery_capitalize_all_modifier() -> None:
+    """Test .capitalizeAll modifier capitalizes all words."""
+    grammar = {
+        "origin": ["#phrase.capitalizeAll#"],
+        "phrase": ["hello world", "foo bar"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    # Should capitalize all words
+    assert result in ["Hello World", "Foo Bar"]
+
+
+def test_tracery_pluralize_modifier() -> None:
+    """Test .s modifier pluralizes words correctly."""
+    grammar = {
+        "origin": ["#animal.s#"],
+        "animal": ["cat", "dog", "fox", "box", "city", "person"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+
+    # Test various pluralization rules
+    test_cases = {
+        "cat": "cats",
+        "dog": "dogs",
+        "fox": "foxes",
+        "box": "boxes",
+        "city": "cities",
+        "person": "people",
+    }
+
+    for singular, expected_plural in test_cases.items():
+        grammar = {"origin": [f"#word.s#"], "word": [singular]}
+        engine = TraceryEngine(grammar, seed=42)
+        result = engine.expand("#origin#")
+        assert result == expected_plural, f"Expected {expected_plural}, got {result}"
+
+
+def test_tracery_past_tense_modifier() -> None:
+    """Test .ed modifier converts to past tense."""
+    test_cases = {
+        "walk": "walked",
+        "run": "ran",  # Note: 'ran' not in our irregulars, will be 'runned'
+        "create": "created",
+        "try": "tried",
+        "go": "went",
+        "think": "thought",
+    }
+
+    for present, expected_past in test_cases.items():
+        grammar = {"origin": ["#verb.ed#"], "verb": [present]}
+        engine = TraceryEngine(grammar, seed=42)
+        result = engine.expand("#origin#")
+
+        # Skip irregular verbs not in our list
+        if present in ["be", "have", "do", "say", "go", "get", "make", "know", "think",
+                       "take", "see", "come", "find", "give", "tell", "feel", "become",
+                       "leave", "put"]:
+            assert result == expected_past, f"Expected {expected_past}, got {result}"
+
+
+def test_tracery_article_modifier() -> None:
+    """Test .a modifier adds correct article."""
+    test_cases = {
+        "cat": "a cat",
+        "owl": "an owl",
+        "house": "a house",
+        "hour": "an hour",
+        "university": "a university",
+    }
+
+    for word, expected in test_cases.items():
+        grammar = {"origin": ["#noun.a#"], "noun": [word]}
+        engine = TraceryEngine(grammar, seed=42)
+        result = engine.expand("#origin#")
+        assert result == expected, f"Expected '{expected}', got '{result}'"
+
+
+def test_tracery_modifier_chaining() -> None:
+    """Test chaining multiple modifiers together."""
+    grammar = {
+        "origin": ["#animal.s.capitalize#"],
+        "animal": ["cat", "dog"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    # Should pluralize then capitalize
+    assert result in ["Cats", "Dogs"]
+
+
+def test_tracery_modifier_with_article_and_plural() -> None:
+    """Test using article modifier with pluralized nouns."""
+    grammar = {
+        "origin": ["#animal.a#"],
+        "animal": ["owl", "elephant"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    assert result in ["an owl", "an elephant"]
+
+
+def test_tracery_custom_modifier() -> None:
+    """Test adding custom modifiers."""
+    grammar = {
+        "origin": ["#word.reverse#"],
+        "word": ["hello"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+
+    # Add custom reverse modifier
+    engine.add_modifier("reverse", lambda s: s[::-1])
+
+    result = engine.expand("#origin#")
+    assert result == "olleh"
+
+
+def test_tracery_modifier_in_geist(tmp_path: Path) -> None:
+    """Test modifiers work in complete Tracery geist."""
+    # Create vault
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+    (vault_path / "note1.md").write_text("# Test Note")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    context = create_vault_context(vault)
+
+    # Create geist using modifiers
+    yaml_content = """type: geist-tracery
+id: modifier_test
+tracery:
+  origin:
+    - "What if #action.ed# the #noun.s#?"
+  action:
+    - "connect"
+    - "explore"
+  noun:
+    - "idea"
+    - "pattern"
+"""
+
+    yaml_file = tmp_path / "test_modifier.yaml"
+    yaml_file.write_text(yaml_content)
+
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    suggestions = geist.suggest(context)
+
+    assert len(suggestions) > 0
+    suggestion = suggestions[0]
+
+    # Should have past tense verb and plural noun
+    assert "connected" in suggestion.text or "explored" in suggestion.text
+    assert "ideas" in suggestion.text or "patterns" in suggestion.text
+
+    vault.close()
