@@ -289,7 +289,7 @@ def test_temporal_mirror_tracery_geist(vault_context: VaultContext):
 
     geist = TraceryGeist.from_yaml(geist_path, seed=12345)
     assert geist.geist_id == "temporal_mirror"
-    assert geist.count == 2  # count: 2 in YAML
+    assert geist.count == 2  # count: 2 in YAML (samples from old/recent pools for variety)
 
     suggestions = geist.suggest(vault_context)
     assert isinstance(suggestions, list)
