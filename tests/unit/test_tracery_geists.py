@@ -100,14 +100,35 @@ class TestContradictor:
 
     def test_contradictor_is_deterministic(self, tmp_path: Path):
         """Test that same seed produces same output."""
-        context = create_test_vault_context(tmp_path)
-        geist_path = GEISTS_DIR / "contradictor.yaml"
+        # Create vault once with deterministic file times
+        import os
 
+        vault_path = tmp_path / "vault"
+        vault_path.mkdir()
+        (vault_path / ".obsidian").mkdir()
+
+        base_time = 1640000000.0
+        for i in range(10):
+            file_path = vault_path / f"note_{i:02d}.md"
+            file_path.write_text(f"# Note {i:02d}\nContent")
+            os.utime(file_path, (base_time + i, base_time + i))
+
+        vault = Vault(vault_path)
+        vault.sync()
+
+        session = Session(datetime(2025, 1, 15), vault.db)
+        function_registry = FunctionRegistry()
+
+        # Create two separate contexts with same seed
+        context1 = VaultContext(vault, session, seed=123, function_registry=function_registry)
+        context2 = VaultContext(vault, session, seed=123, function_registry=function_registry)
+
+        geist_path = GEISTS_DIR / "contradictor.yaml"
         geist1 = TraceryGeist.from_yaml(geist_path, seed=123)
         geist2 = TraceryGeist.from_yaml(geist_path, seed=123)
 
-        suggestions1 = geist1.suggest(context)
-        suggestions2 = geist2.suggest(context)
+        suggestions1 = geist1.suggest(context1)
+        suggestions2 = geist2.suggest(context2)
 
         assert suggestions1[0].text == suggestions2[0].text
 
