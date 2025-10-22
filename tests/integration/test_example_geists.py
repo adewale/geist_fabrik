@@ -4,10 +4,10 @@ These tests verify that all geists in examples/geists/ work correctly
 with a real vault. Uses stubs (kepano-obsidian-main test vault), not mocks.
 
 Tests cover:
-- All 10 code geists in examples/geists/code/
-- All 7 Tracery geists in examples/geists/tracery/
+- All 29 code geists in examples/geists/code/
+- All 8 Tracery geists in examples/geists/tracery/
 
-Performance target: All tests should complete in < 10 seconds total
+Performance target: All tests should complete in < 15 seconds total
 """
 
 from datetime import datetime
@@ -68,8 +68,11 @@ def geist_executor(test_vault_path: Path) -> GeistExecutor:
 
 
 # ============================================================================
-# Code Geists Tests (10 geists)
+# Code Geists Tests (29 geists)
 # ============================================================================
+
+
+# Original 10 geists
 
 
 def test_temporal_drift_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
@@ -203,8 +206,258 @@ def test_recent_focus_geist(vault_context: VaultContext, geist_executor: GeistEx
         assert suggestion.geist_id == "recent_focus"
 
 
+# New ambitious geists (19 total)
+
+
+def test_columbo_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test columbo geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("columbo", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "columbo"
+
+
+def test_session_drift_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test session_drift geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("session_drift", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "session_drift"
+
+
+def test_hermeneutic_instability_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test hermeneutic_instability geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("hermeneutic_instability", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "hermeneutic_instability"
+
+
+def test_temporal_clustering_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test temporal_clustering geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("temporal_clustering", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "temporal_clustering"
+
+
+def test_anachronism_detector_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test anachronism_detector geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("anachronism_detector", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "anachronism_detector"
+
+
+def test_seasonal_patterns_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test seasonal_patterns geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("seasonal_patterns", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "seasonal_patterns"
+
+
+def test_concept_drift_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test concept_drift geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("concept_drift", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "concept_drift"
+
+
+def test_convergent_evolution_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test convergent_evolution geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("convergent_evolution", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "convergent_evolution"
+
+
+def test_divergent_evolution_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test divergent_evolution geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("divergent_evolution", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "divergent_evolution"
+
+
+def test_island_hopper_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test island_hopper geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("island_hopper", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "island_hopper"
+
+
+def test_hidden_hub_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test hidden_hub geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("hidden_hub", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "hidden_hub"
+
+
+def test_bridge_hunter_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test bridge_hunter geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("bridge_hunter", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "bridge_hunter"
+
+
+def test_density_inversion_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test density_inversion geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("density_inversion", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "density_inversion"
+
+
+def test_vocabulary_expansion_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test vocabulary_expansion geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("vocabulary_expansion", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "vocabulary_expansion"
+
+
+def test_assumption_challenger_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test assumption_challenger geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("assumption_challenger", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "assumption_challenger"
+
+
+def test_pattern_finder_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test pattern_finder geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("pattern_finder", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "pattern_finder"
+
+
+def test_scale_shifter_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test scale_shifter geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("scale_shifter", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "scale_shifter"
+
+
+def test_method_scrambler_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test method_scrambler geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("method_scrambler", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "method_scrambler"
+
+
+def test_antithesis_generator_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test antithesis_generator geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("antithesis_generator", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "antithesis_generator"
+
+
 # ============================================================================
-# Tracery Geists Tests (7 geists)
+# Tracery Geists Tests (8 geists)
 # ============================================================================
 
 
@@ -392,8 +645,9 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all example code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 10 code geists in examples/geists/code/
-    assert len(geist_executor.geists) == 10
+    # We have 29 code geists in examples/geists/code/
+    # 10 original + 19 new ambitious geists
+    assert len(geist_executor.geists) == 29
 
 
 def test_all_geists_execute_without_crashing(

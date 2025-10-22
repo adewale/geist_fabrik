@@ -44,6 +44,9 @@ markers = [
 line-length = 100
 target-version = "py311"
 
+[tool.ruff.lint.per-file-ignores]
+"examples/geists/code/*.py" = ["E501"]  # Allow long lines in geist suggestion text
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
 ignore = []
