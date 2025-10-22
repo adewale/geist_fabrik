@@ -11,10 +11,10 @@ Inspired by Gordon Brander's work on tools for thought.
 ## Status
 
 **Version**: 0.9.0 (Beta)
-**Tests**: 201/201 passing ✅ (100%)
+**Example Geists**: 39 (29 code + 10 Tracery)
 **Progress**: ~98% (Feature-complete, approaching 1.0)
 
-See [STATUS.md](STATUS.md) for detailed implementation status and [examples/README.md](examples/README.md) for comprehensive examples.
+See [STATUS.md](STATUS.md) for detailed implementation status and test results, and [examples/README.md](examples/README.md) for comprehensive examples.
 
 ## Features
 
@@ -369,21 +369,17 @@ Vault Files → Vault.sync() → SQLite Database
 
 ## Example Geists
 
-GeistFabrik includes 17 example geists demonstrating various patterns:
+GeistFabrik includes 39 example geists demonstrating various patterns:
 
-### Code Geists (10)
-- **temporal_drift.py** - Find stale but important notes
-- **creative_collision.py** - Suggest unexpected note pairs
-- **bridge_builder.py** - Connect disconnected clusters
-- **complexity_mismatch.py** - Find complexity/importance gaps
-- **question_generator.py** - Reframe statements as questions
-- **link_density_analyser.py** - Analyse link patterns
-- **task_archaeology.py** - Find old incomplete tasks
-- **concept_cluster.py** - Identify emergent themes
-- **stub_expander.py** - Develop short connected notes
-- **recent_focus.py** - Connect recent to old work
+### Code Geists (29)
+Including patterns for:
+- **Temporal analysis** - temporal_drift, session_drift, hermeneutic_instability, temporal_clustering, seasonal_patterns, anachronism_detector, convergent_evolution, divergent_evolution, concept_drift
+- **Creative connections** - creative_collision, bridge_builder, bridge_hunter, island_hopper, hidden_hub
+- **Analysis & critique** - columbo, assumption_challenger, antithesis_generator, density_inversion, complexity_mismatch
+- **Pattern discovery** - pattern_finder, concept_cluster, question_generator, method_scrambler, scale_shifter
+- **Vault health** - link_density_analyser, task_archaeology, stub_expander, recent_focus, vocabulary_expansion
 
-### Tracery Geists (7)
+### Tracery Geists (10)
 - **random_prompts.yaml** - Creative writing prompts
 - **note_combinations.yaml** - Random note pairings
 - **what_if.yaml** - "What if" question generator
@@ -391,6 +387,9 @@ GeistFabrik includes 17 example geists demonstrating various patterns:
 - **orphan_connector.yaml** - Connect isolated notes
 - **semantic_neighbours.yaml** - Find semantically similar notes
 - **temporal_mirror.yaml** - Compare notes across time periods
+- **transformation_suggester.yaml** - Suggest note transformations
+- **dialectic.yaml** - Find thesis-antithesis pairs
+- **scale_shift.yaml** - Connect notes at different abstraction levels
 
 See [examples/README.md](examples/README.md) for detailed documentation.
 
@@ -447,19 +446,26 @@ uv run mypy src/ --strict
 
 ```
 geist_fabrik/
-├── src/geistfabrik/        # Core library
-│   ├── vault.py            # Vault management
-│   ├── embeddings.py       # Embedding computation
-│   ├── vault_context.py    # Rich query API
-│   ├── metadata_system.py  # Metadata inference
-│   ├── function_registry.py # Vault functions
-│   ├── geist_executor.py   # Geist execution
-│   ├── filtering.py        # Suggestion filtering
-│   └── cli.py              # Command-line interface
-├── tests/                  # Test suite (152 tests)
-├── examples/               # Example geists and extensions
-├── testdata/               # Sample vault for testing
-└── specs/                  # Design specifications
+├── src/geistfabrik/          # Core library (15 modules)
+│   ├── models.py             # Data structures (Note, Suggestion, Link)
+│   ├── schema.py             # SQLite database schema
+│   ├── vault.py              # Vault management and sync
+│   ├── markdown_parser.py    # Markdown parsing utilities
+│   ├── embeddings.py         # Embedding computation
+│   ├── vault_context.py      # Rich query API
+│   ├── metadata_system.py    # Metadata inference
+│   ├── function_registry.py  # Vault functions
+│   ├── geist_executor.py     # Geist execution
+│   ├── tracery.py            # Tracery grammar engine
+│   ├── filtering.py          # Suggestion filtering
+│   ├── journal_writer.py     # Session note generation
+│   ├── config.py             # Configuration management
+│   ├── cli.py                # Command-line interface
+│   └── __init__.py           # Package exports
+├── tests/                    # Test suite (see STATUS.md for details)
+├── examples/                 # Example geists and extensions (39 geists)
+├── testdata/                 # Sample vault for testing
+└── specs/                    # Design specifications
 ```
 
 ## Roadmap to 1.0

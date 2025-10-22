@@ -12,13 +12,13 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 **Version**: 0.9.0 (Beta)
 **Status**: Feature-complete, approaching 1.0 release
-**Tests**: 201/201 passing ✅ (100%)
-**Code**: ~8,500 lines across 14 source modules
+**Tests**: All passing ✅ (100%)
+**Code**: ~10,500 lines across 15 source modules
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-- **tests/**: Comprehensive test suite (201 tests, 100% passing)
-- **examples/**: 17 example geists (10 code + 7 Tracery)
+- **tests/**: Comprehensive test suite (all passing)
+- **examples/**: Example geists demonstrating all extension patterns
 - **specs/**: Original technical specifications (all implemented)
 - **testdata/**: Sample Obsidian vault notes from kepano's vault for testing
 - **models/**: Bundled sentence-transformers model (all-MiniLM-L6-v2) in Git LFS

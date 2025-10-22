@@ -11,8 +11,8 @@
 | Metric | Value |
 |--------|-------|
 | **Tests Passing** | 247/247 ✅ (100%) |
-| **Source Modules** | 14 |
-| **Test Files** | 15+ |
+| **Source Modules** | 15 |
+| **Test Files** | 17 |
 | **Lines of Code** | ~10,500 (src: ~4,600, tests: ~5,900) |
 | **Type Checking** | Mypy strict ✅ |
 | **Linting** | Ruff ✅ |
@@ -285,19 +285,26 @@
 
 ```
 geist_fabrik/
-├── src/geistfabrik/           # 8 modules, ~2,000 LOC
+├── src/geistfabrik/           # 15 modules, ~4,600 LOC
 │   ├── models.py              # Note, Link, Suggestion
 │   ├── schema.py              # SQLite schema
 │   ├── vault.py               # File system + persistence
 │   ├── markdown_parser.py     # Parsing utilities
 │   ├── embeddings.py          # Sentence transformers
 │   ├── vault_context.py       # Rich query API
+│   ├── metadata_system.py     # Metadata inference
+│   ├── function_registry.py   # Vault functions
 │   ├── geist_executor.py      # Geist loading & execution
+│   ├── tracery.py             # Tracery grammar engine
+│   ├── filtering.py           # Suggestion filtering
+│   ├── journal_writer.py      # Session note generation
+│   ├── config.py              # Configuration management
+│   ├── cli.py                 # Command-line interface
 │   └── __init__.py            # Package exports
 │
-├── tests/                     # 108 tests, ~3,500 LOC
-│   ├── unit/                  # 101 unit tests
-│   └── integration/           # 7 integration tests
+├── tests/                     # 247 tests, ~5,900 LOC
+│   ├── unit/                  # Unit tests
+│   └── integration/           # Integration tests
 │
 ├── testdata/                  # Real Obsidian vault for testing
 ├── specs/                     # Complete specification documents
