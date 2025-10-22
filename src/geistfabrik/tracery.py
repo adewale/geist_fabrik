@@ -169,6 +169,8 @@ class TraceryEngine:
             'become': 'became',
             'leave': 'left',
             'put': 'put',
+            'write': 'wrote',
+            'build': 'built',
         }
 
         lower_text = text.lower()

@@ -1,0 +1,199 @@
+type: geist-tracery
+id: transformation_suggester
+description: Showcase geist demonstrating all Tracery modifiers (.capitalize, .capitalizeAll, .s, .ed, .a)
+
+tracery:
+  origin:
+    # Showcase .capitalize and .ed
+    - "#opening.capitalize# you #action.ed# [[#note#]] like #metaphor.a#"
+
+    # Showcase .s and .capitalize
+    - "#observation.capitalize# about [[#note#]]: it has #count# #element.s#"
+
+    # Showcase .capitalizeAll with chaining
+    - "#concept.capitalizeAll#: [[#note#]] #relationship.s# with #num# other #item.s#"
+
+    # Showcase .a with different starting vowels/consonants
+    - "[[#note#]] could be #descriptor.a#, not #other_descriptor.a#"
+
+    # Showcase complex chaining: .s then .capitalize
+    - "#question_start.capitalize# the #pattern.s.capitalize# in [[#note#]] reveal #insight.a#?"
+
+    # Showcase .ed with irregular verbs + .capitalize
+    - "#time_phrase.capitalize#, you #verb.ed# [[#note#]]. #prompt.capitalize# now"
+
+    # Showcase all modifiers in one template
+    - "#starter.capitalize# [[#note#]] #transform_verb.ed# into #number# #new_form.s#. #question.capitalize#"
+
+    # Showcase .a with multiple noun types
+    - "treat [[#note#]] as #treatment.a#, apply #method.a#, discover #outcome.a#"
+
+  # Basic verbs (for .ed modifier)
+  opening:
+    - "what if"
+    - "imagine"
+    - "consider"
+
+  action:
+    - "view"
+    - "treat"
+    - "approach"
+    - "frame"
+    - "explore"
+
+  note:
+    - "$vault.sample_notes(1)"
+
+  # Nouns for .a modifier (mix of vowel/consonant starts)
+  metaphor:
+    - "organism"          # an organism
+    - "garden"            # a garden
+    - "ecosystem"         # an ecosystem
+    - "conversation"      # a conversation
+    - "experiment"        # an experiment
+    - "blueprint"         # a blueprint
+    - "map"              # a map
+    - "archive"          # an archive
+
+  observation:
+    - "interesting"
+    - "curious"
+    - "notable"
+
+  count:
+    - "three"
+    - "five"
+    - "seven"
+
+  # Singular nouns (for .s modifier)
+  element:
+    - "connection"
+    - "assumption"
+    - "question"
+    - "pattern"
+    - "gap"
+
+  # Multi-word concepts (for .capitalizeAll)
+  concept:
+    - "hidden pattern"
+    - "emerging theme"
+    - "key insight"
+    - "missing link"
+
+  relationship:
+    - "resonance"
+    - "tension"
+    - "connection"
+
+  num:
+    - "two"
+    - "three"
+    - "five"
+
+  item:
+    - "note"
+    - "idea"
+    - "concept"
+    - "thought"
+
+  # Descriptors (for .a modifier testing)
+  descriptor:
+    - "beginning"         # a beginning
+    - "end"              # an end
+    - "origin"           # an origin
+    - "destination"      # a destination
+    - "bridge"           # a bridge
+    - "anchor"           # an anchor
+    - "opening"          # an opening
+
+  other_descriptor:
+    - "conclusion"       # a conclusion
+    - "artifact"         # an artifact
+    - "tool"            # a tool
+    - "obstacle"        # an obstacle
+
+  question_start:
+    - "do"
+    - "could"
+    - "might"
+
+  # Singular patterns (for .s.capitalize chaining)
+  pattern:
+    - "assumption"
+    - "connection"
+    - "gap"
+    - "thread"
+
+  insight:
+    - "opportunity"      # an opportunity
+    - "answer"          # an answer
+    - "understanding"   # an understanding
+    - "truth"           # a truth
+
+  time_phrase:
+    - "last year"
+    - "three months ago"
+    - "recently"
+
+  # Irregular verbs (for .ed modifier)
+  verb:
+    - "write"           # wrote
+    - "think"           # thought
+    - "make"            # made
+    - "find"            # found
+    - "create"          # created
+    - "build"           # built
+
+  prompt:
+    - "revisit it"
+    - "expand it"
+    - "question it"
+    - "challenge it"
+
+  starter:
+    - "imagine if"
+    - "what if"
+    - "consider how"
+
+  transform_verb:
+    - "split"           # split
+    - "merge"           # merged
+    - "evolve"          # evolved
+    - "grow"            # grew
+
+  number:
+    - "three"
+    - "five"
+    - "seven"
+
+  new_form:
+    - "insight"
+    - "question"
+    - "perspective"
+    - "direction"
+
+  question:
+    - "what emerges"
+    - "what connects them"
+    - "where does this lead"
+
+  # Testing .a with different phonetic patterns
+  treatment:
+    - "hypothesis"       # a hypothesis
+    - "experiment"       # an experiment
+    - "inquiry"          # an inquiry
+    - "investigation"    # an investigation
+
+  method:
+    - "first principle approach"    # a first principle...
+    - "alternative lens"            # an alternative...
+    - "opposing view"               # an opposing...
+    - "historical perspective"      # a historical...
+
+  outcome:
+    - "insight"          # an insight
+    - "revelation"       # a revelation
+    - "understanding"    # an understanding
+    - "breakthrough"     # a breakthrough
+
+count: 3
