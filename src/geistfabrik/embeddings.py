@@ -13,6 +13,7 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import hashlib
+import logging
 import math
 import sqlite3
 from datetime import datetime
@@ -23,6 +24,8 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from .models import Note
+
+logger = logging.getLogger(__name__)
 
 # Model configuration
 MODEL_NAME = "all-MiniLM-L6-v2"
@@ -212,7 +215,11 @@ class Session:
             """,
             (date_str, datetime.now().isoformat()),
         )
-        self.db.commit()
+        try:
+            self.db.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database commit failed creating session: {e}")
+            raise
         session_id = cursor.lastrowid
         if session_id is None:
             raise RuntimeError("Failed to create session")
@@ -378,7 +385,11 @@ class Session:
             embedding_rows,
         )
 
-        self.db.commit()
+        try:
+            self.db.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database commit failed saving embeddings: {e}")
+            raise
 
         # Log cache statistics
         total = len(notes)

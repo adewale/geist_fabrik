@@ -1,6 +1,7 @@
 """Vault class for Obsidian vault management."""
 
 import logging
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -111,7 +112,11 @@ class Vault:
             # No files exist, delete all notes
             self.db.execute("DELETE FROM notes")
 
-        self.db.commit()
+        try:
+            self.db.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database commit failed during sync: {e}")
+            raise
         return processed_count
 
     def _update_note(

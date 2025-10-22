@@ -28,9 +28,13 @@ class Note:
     modified: datetime  # Last modification time
 
 
-@dataclass
+@dataclass(frozen=True)
 class Suggestion:
-    """A geist-generated provocation."""
+    """A geist-generated provocation.
+
+    Immutable to ensure suggestions cannot be modified after creation,
+    maintaining data integrity throughout the filtering pipeline.
+    """
 
     text: str  # 1-2 sentence suggestion
     notes: List[str]  # Referenced note titles
