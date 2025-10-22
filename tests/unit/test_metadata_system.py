@@ -121,10 +121,11 @@ def infer(note, vault):
         class MockVault:
             pass
 
-        metadata = loader.infer_all(note, MockVault())
+        metadata, failed_modules = loader.infer_all(note, MockVault())
 
         assert metadata["word_count_custom"] == 6
         assert metadata["has_title"] is True
+        assert failed_modules == []
 
 
 def test_metadata_conflict_detection() -> None:
@@ -198,8 +199,9 @@ def infer(note, vault):
             pass
 
         # Should skip module with invalid return
-        metadata = loader.infer_all(note, MockVault())
+        metadata, failed_modules = loader.infer_all(note, MockVault())
         assert len(metadata) == 0
+        assert "bad_return" in failed_modules
 
 
 def test_module_runtime_error() -> None:
@@ -232,8 +234,9 @@ def infer(note, vault):
             pass
 
         # Should skip module with runtime error
-        metadata = loader.infer_all(note, MockVault())
+        metadata, failed_modules = loader.infer_all(note, MockVault())
         assert len(metadata) == 0
+        assert "runtime_error" in failed_modules
 
 
 def test_is_valid_value() -> None:

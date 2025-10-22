@@ -4,6 +4,7 @@ Implements a Tracery-like grammar system for declarative geist definitions.
 Supports symbol expansion, modifiers, and vault function calls.
 """
 
+import logging
 import random
 import re
 from pathlib import Path
@@ -13,6 +14,8 @@ import yaml
 
 from .models import Suggestion
 from .vault_context import VaultContext
+
+logger = logging.getLogger(__name__)
 
 
 class TraceryEngine:
@@ -369,19 +372,15 @@ class TraceryEngine:
                 args = [self._convert_arg(arg) for arg in raw_args]
 
             # Call the function
-            try:
-                assert self.vault_context is not None  # Type narrowing for mypy
-                result = self.vault_context.call_function(func_name, *args)
+            assert self.vault_context is not None  # Type narrowing for mypy
+            result = self.vault_context.call_function(func_name, *args)
 
-                # Format result for text
-                if isinstance(result, list):
-                    # Join list items
-                    return self._format_list(result)
-                else:
-                    return str(result)
-
-            except Exception as e:
-                return f"[Error calling {func_name}: {e}]"
+            # Format result for text
+            if isinstance(result, list):
+                # Join list items
+                return self._format_list(result)
+            else:
+                return str(result)
 
         return re.sub(pattern, replace_function, text)
 
@@ -498,7 +497,7 @@ class TraceryGeist:
 
             except Exception as e:
                 # Skip failed expansions
-                print(f"Warning: Tracery expansion failed for {self.geist_id}: {e}")
+                logger.warning(f"Tracery expansion failed for {self.geist_id}: {e}")
                 continue
 
         return suggestions
@@ -532,7 +531,7 @@ class TraceryGeistLoader:
                 geist = TraceryGeist.from_yaml(yaml_file, self.seed)
                 geists.append(geist)
             except Exception as e:
-                print(f"Warning: Failed to load {yaml_file}: {e}")
+                logger.warning(f"Failed to load Tracery geist {yaml_file}: {e}")
                 continue
 
         return geists

@@ -13,14 +13,11 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Set
 
+from .config import (
+    get_default_filter_config,
+)
 from .embeddings import EmbeddingComputer, cosine_similarity
 from .models import Suggestion
-
-# Default filtering thresholds
-DEFAULT_SIMILARITY_THRESHOLD = 0.85
-DEFAULT_NOVELTY_WINDOW_DAYS = 60
-DEFAULT_MIN_SUGGESTION_LENGTH = 10
-DEFAULT_MAX_SUGGESTION_LENGTH = 2000
 
 
 class SuggestionFilter:
@@ -45,27 +42,7 @@ class SuggestionFilter:
 
     def _default_config(self) -> Dict[str, Any]:
         """Return default filtering configuration."""
-        return {
-            "strategies": ["boundary", "novelty", "diversity", "quality"],
-            "boundary": {"enabled": True},
-            "novelty": {
-                "enabled": True,
-                "method": "embedding_similarity",
-                "threshold": DEFAULT_SIMILARITY_THRESHOLD,
-                "window_days": DEFAULT_NOVELTY_WINDOW_DAYS,
-            },
-            "diversity": {
-                "enabled": True,
-                "method": "embedding_similarity",
-                "threshold": DEFAULT_SIMILARITY_THRESHOLD,
-            },
-            "quality": {
-                "enabled": True,
-                "min_length": DEFAULT_MIN_SUGGESTION_LENGTH,
-                "max_length": DEFAULT_MAX_SUGGESTION_LENGTH,
-                "check_repetition": True,
-            },
-        }
+        return get_default_filter_config()
 
     def filter_all(self, suggestions: List[Suggestion], session_date: datetime) -> List[Suggestion]:
         """Apply all enabled filters in sequence.

@@ -13,6 +13,7 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import hashlib
+import logging
 import math
 import sqlite3
 from datetime import datetime
@@ -22,17 +23,14 @@ from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from .config import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_SEMANTIC_WEIGHT,
+    MODEL_NAME,
+)
 from .models import Note
 
-# Model configuration
-MODEL_NAME = "all-MiniLM-L6-v2"
-SEMANTIC_DIM = 384  # Dimension of semantic embeddings
-TEMPORAL_DIM = 3  # Dimension of temporal features
-TOTAL_DIM = SEMANTIC_DIM + TEMPORAL_DIM  # 387 total
-
-# Embedding computation parameters
-DEFAULT_SEMANTIC_WEIGHT = 0.9
-DEFAULT_BATCH_SIZE = 8  # Limit batch size to reduce parallel workers
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingComputer:
@@ -212,7 +210,11 @@ class Session:
             """,
             (date_str, datetime.now().isoformat()),
         )
-        self.db.commit()
+        try:
+            self.db.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database commit failed creating session: {e}")
+            raise
         session_id = cursor.lastrowid
         if session_id is None:
             raise RuntimeError("Failed to create session")
@@ -378,7 +380,11 @@ class Session:
             embedding_rows,
         )
 
-        self.db.commit()
+        try:
+            self.db.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database commit failed saving embeddings: {e}")
+            raise
 
         # Log cache statistics
         total = len(notes)
