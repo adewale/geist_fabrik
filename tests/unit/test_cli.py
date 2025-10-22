@@ -47,8 +47,8 @@ def test_find_vault_root_current_dir_default(
     assert find_vault_root() == vault_path
 
 
-def test_invoke_command_nofilter_flag(tmp_path: Path) -> None:
-    """Test that --nofilter flag is recognized by argument parser."""
+def test_invoke_command_no_filter_flag(tmp_path: Path) -> None:
+    """Test that --no-filter flag is recognized by argument parser."""
     import sys
 
     from geistfabrik.cli import main
@@ -62,15 +62,14 @@ def test_invoke_command_nofilter_flag(tmp_path: Path) -> None:
     (vault_path / "test.md").write_text("# Test Note")
 
     # We can't easily test the full invoke command without mocking,
-    # but we can verify the argument parser accepts --nofilter
+    # but we can verify the argument parser accepts --no-filter
     original_argv = sys.argv
     try:
         sys.argv = [
             "geistfabrik",
             "invoke",
-            "--vault",
             str(vault_path),
-            "--nofilter",
+            "--no-filter",
             "--help",
         ]
         # This should not raise an error about unrecognized arguments
@@ -84,8 +83,8 @@ def test_invoke_command_nofilter_flag(tmp_path: Path) -> None:
         sys.argv = original_argv
 
 
-def test_invoke_command_full_vs_nofilter_help_text() -> None:
-    """Test that --full and --nofilter have distinct help text."""
+def test_invoke_command_full_vs_no_filter_help_text() -> None:
+    """Test that --full and --no-filter have distinct help text."""
     import sys
 
     from geistfabrik.cli import main
