@@ -7,9 +7,9 @@ This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide va
 ## What to Expect
 
 **Current Status:**
-- ✅ 132 tests passing (beta quality)
+- ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
-- ✅ 17 example geists included
+- ✅ 39 example geists included (29 code + 10 Tracery)
 - ✅ Read-only vault access (your notes are safe)
 
 **Expect:**
@@ -138,8 +138,8 @@ MyVault/
 ├── _geistfabrik/                    # GeistFabrik's directory
 │   ├── vault.db                     # SQLite (notes + embeddings)
 │   ├── geists/
-│   │   ├── code/                    # 10 Python geists
-│   │   └── tracery/                 # 7 YAML geists
+│   │   ├── code/                    # 29 Python geists
+│   │   └── tracery/                 # 10 YAML geists
 │   ├── metadata_inference/          # 3 metadata modules
 │   └── vault_functions/             # 2 query functions
 └── geist journal/                   # Session notes (--write only)
@@ -182,7 +182,7 @@ MyVault/
 📊 Vault Summary:
    Notes found: 247
    Database size: 12.34 MB
-   Example geists installed: 17
+   Example geists installed: 39 (29 code + 10 Tracery)
 ```
 
 ### 3. Diff Mode
@@ -206,8 +206,8 @@ GeistFabrik Configuration Audit
 ============================================================
 Vault: /path/to/vault
 Geists directory: /path/to/vault/_geistfabrik/geists/code
-Total geists found: 17
-  - Enabled: 17
+Total geists found: 29
+  - Enabled: 29
 Filtering: ENABLED (4-stage pipeline)
 Sampling: ENABLED (count=5)
 Mode: Default
