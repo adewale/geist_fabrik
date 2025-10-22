@@ -69,10 +69,10 @@ uv run geistfabrik init /path/to/your/vault --examples
 # Omit it if you want to start with a clean setup
 
 # Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke --vault /path/to/your/vault
+uv run geistfabrik invoke /path/to/your/vault
 
 # Write suggestions to journal (creates session note)
-uv run geistfabrik invoke --vault /path/to/your/vault --write
+uv run geistfabrik invoke /path/to/your/vault --write
 
 # View your session note at:
 # /path/to/your/vault/geist journal/YYYY-MM-DD.md
@@ -85,7 +85,7 @@ Test GeistFabrik on our sample vault before using your own:
 ```bash
 # After installation, try on sample vault
 uv run geistfabrik init testdata/kepano-obsidian-main --examples
-uv run geistfabrik invoke --vault testdata/kepano-obsidian-main --write
+uv run geistfabrik invoke testdata/kepano-obsidian-main --write
 
 # View results
 cat "testdata/kepano-obsidian-main/geist journal/$(date +%Y-%m-%d).md"
@@ -143,28 +143,40 @@ rm -rf /path/to/vault/"geist journal"
 
 ```bash
 # Default: Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke --vault ~/my-vault
+uv run geistfabrik invoke ~/my-vault
 
 # Write suggestions to journal
-uv run geistfabrik invoke --vault ~/my-vault --write
+uv run geistfabrik invoke ~/my-vault --write
 
 # Compare to recent sessions
-uv run geistfabrik invoke --vault ~/my-vault --diff
+uv run geistfabrik invoke ~/my-vault --diff
 
 # Full mode: All filtered suggestions (no sampling)
-uv run geistfabrik invoke --vault ~/my-vault --full --write
+uv run geistfabrik invoke ~/my-vault --full --write
 
 # No filter: Raw output from all geists (no filtering or sampling)
-uv run geistfabrik invoke --vault ~/my-vault --nofilter --write
+uv run geistfabrik invoke ~/my-vault --no-filter --write
 
 # Single geist only
-uv run geistfabrik invoke --vault ~/my-vault --geist temporal_drift
+uv run geistfabrik invoke ~/my-vault --geist temporal_drift
+
+# Multiple geists
+uv run geistfabrik invoke ~/my-vault --geists temporal_drift,creative_collision
 
 # Replay specific date
-uv run geistfabrik invoke --vault ~/my-vault --date 2025-01-15
+uv run geistfabrik invoke ~/my-vault --date 2025-01-15
+
+# Quiet mode (only show suggestions)
+uv run geistfabrik invoke ~/my-vault --quiet
+
+# Verbose mode (detailed output)
+uv run geistfabrik invoke ~/my-vault --verbose
 
 # Test a geist during development
-uv run geistfabrik test my_geist --vault ~/my-vault --date 2025-01-15
+uv run geistfabrik test my_geist ~/my-vault --date 2025-01-15
+
+# Test all geists
+uv run geistfabrik test-all ~/my-vault
 ```
 
 ### Understanding Filtering Modes
@@ -182,7 +194,7 @@ GeistFabrik has three invocation modes that control filtering and sampling:
 - Good for seeing everything that passed quality checks
 - Typical output: 10-50 suggestions depending on vault size
 
-**No filter mode** (`--nofilter`):
+**No filter mode** (`--no-filter`):
 - Skips filtering pipeline entirely
 - Returns raw output from all geists
 - Maximum output volume
@@ -192,7 +204,7 @@ GeistFabrik has three invocation modes that control filtering and sampling:
 Example outputs for a 100-note vault:
 - Default: ~5 suggestions
 - `--full`: ~30 suggestions (after filtering)
-- `--nofilter`: ~150 suggestions (raw, unfiltered)
+- `--no-filter`: ~150 suggestions (raw, unfiltered)
 
 ### Working with Session Notes
 

@@ -130,19 +130,25 @@ The CLI supports:
 
 ```bash
 # Default: filtered + sampled (~5 suggestions)
-uv run geistfabrik invoke
+uv run geistfabrik invoke ~/my-vault
 
 # Single geist mode
-uv run geistfabrik invoke --geist columbo
+uv run geistfabrik invoke ~/my-vault --geist columbo
+
+# Multiple geists mode
+uv run geistfabrik invoke ~/my-vault --geists columbo,drift,skeptic
 
 # Full firehose (all filtered suggestions, 50-200+)
-uv run geistfabrik invoke --full
+uv run geistfabrik invoke ~/my-vault --full
 
 # Replay specific session
-uv run geistfabrik invoke --date 2025-01-15
+uv run geistfabrik invoke ~/my-vault --date 2025-01-15
 
 # Test single geist during development
-uv run geistfabrik test my_geist --vault ~/test-vault --date 2025-01-15
+uv run geistfabrik test my_geist ~/test-vault --date 2025-01-15
+
+# Test all geists
+uv run geistfabrik test-all ~/test-vault
 ```
 
 ## Implementation Approach
@@ -219,7 +225,7 @@ The `testdata/kepano-obsidian-main/` directory contains real Obsidian notes for 
 From the spec:
 - Geists execute with 5-second timeout (configurable)
 - After 3 failures, geist automatically disabled
-- Error logs include test command to reproduce: `geistfabrik test geist_id --date YYYY-MM-DD`
+- Error logs include test command to reproduce: `geistfabrik test geist_id /path/to/vault --date YYYY-MM-DD`
 - System continues if individual geists fail
 - Metadata conflicts detected at startup, not runtime
 
