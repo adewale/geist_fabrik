@@ -372,7 +372,9 @@ tracery:
     vault.close()
 
 
-def test_tracery_deterministic_functions_produce_same_notes_with_multiple_count(tmp_path: Path) -> None:
+def test_tracery_deterministic_functions_produce_same_notes_with_multiple_count(
+    tmp_path: Path,
+) -> None:
     """Test that deterministic functions return same notes across expansions (Bug #2).
 
     This test documents how deterministic vault functions like old_notes() and
@@ -445,12 +447,17 @@ def test_tracery_sample_notes_produces_variety_across_expansions(tmp_path: Path)
     context = create_vault_context(vault)
 
     # Create geist using sample_notes with count: 5
+    # Note: Must wrap vault function results in [[...]] for note extraction
     yaml_content = """type: geist-tracery
 id: sample_test
 count: 5
 tracery:
   origin:
-    - "$vault.sample_notes(2)"
+    - "Consider [[#note1#]] and [[#note2#]]"
+  note1:
+    - "$vault.sample_notes(1)"
+  note2:
+    - "$vault.sample_notes(1)"
 """
 
     yaml_file = tmp_path / "test.yaml"
@@ -469,6 +476,8 @@ tracery:
     unique_sets = len(set(frozenset(ns) for ns in all_note_sets))
 
     # With 20 notes and sampling 2 at a time, RNG should produce variety
-    assert unique_sets > 1, "sample_notes() should create variety as RNG advances between expansions"
+    assert unique_sets > 1, (
+        "sample_notes() should create variety as RNG advances between expansions"
+    )
 
     vault.close()
