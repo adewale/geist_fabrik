@@ -4,13 +4,44 @@ description: Highlights hub notes with many connections for review and refinemen
 
 tracery:
   origin:
-    - "[[#hub#]] connects many ideas—what's the #unifying_theme#?"
-    - "Your hub note [[#hub#]] has grown—time to #action#?"
-    - "[[#hub#]] is central to your vault. What makes it a #hub_type#?"
-    - "Many paths lead through [[#hub#]]. Is it still #coherent#?"
+    - "[[#hub#]] #verb.s# many #element.s#—what's the #unifying_theme#?"
+    - "#possessive.capitalize# hub note [[#hub#]] has grown—time to #action#?"
+    - "[[#hub#]] is central to your vault. #question.capitalize#?"
+    - "Many #path.s# lead through [[#hub#]]. #prompt.capitalize#?"
 
   hub:
     - "$vault.hubs(1)"
+
+  verb:
+    - "connect"
+    - "link"
+    - "bridge"
+    - "unite"
+
+  element:
+    - "idea"
+    - "concept"
+    - "theme"
+    - "thought"
+
+  possessive:
+    - "your"
+    - "this"
+
+  question:
+    - "what makes it #hub_type.a#"
+    - "what holds it all together"
+    - "why does everything connect here"
+
+  path:
+    - "path"
+    - "thread"
+    - "connection"
+
+  prompt:
+    - "is it still #coherent#"
+    - "does it still make sense"
+    - "is the structure still clear"
 
   unifying_theme:
     - "common thread"

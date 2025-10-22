@@ -4,45 +4,99 @@ description: Generates "What if" prompts for creative thinking
 
 tracery:
   origin:
-    - "What if #subject# #verb# #object#?"
-    - "What if the opposite of [[#note#]] were true?"
-    - "What if you approached [[#note#]] from #direction#?"
-    - "What if #constraint# #result#?"
+    - "#question_start.capitalize# #subject# #verb.ed# #object#?"
+    - "#question_start.capitalize# the opposite of [[#note#]] were true?"
+    - "#question_start.capitalize# you #approach_verb.ed# [[#note#]] from #direction#?"
+    - "#question_start.capitalize# #constraint#, #result#?"
+
+  question_start:
+    - "what if"
 
   subject:
     - "you"
     - "your vault"
     - "your thinking"
-    - "the connections between notes"
+    - "the #connection.s# between #element.s#"
+
+  connection:
+    - "connection"
+    - "link"
+    - "relationship"
+
+  element:
+    - "note"
+    - "idea"
+    - "concept"
 
   verb:
-    - "explored"
-    - "questioned"
-    - "inverted"
-    - "reframed"
-    - "simplified"
-    - "complicated"
+    - "explore"
+    - "question"
+    - "invert"
+    - "reframe"
+    - "simplify"
+    - "complicate"
+
+  approach_verb:
+    - "approach"
+    - "view"
+    - "understand"
+    - "frame"
 
   object:
     - "what you take for granted"
-    - "the gaps in your knowledge"
-    - "the assumptions in your notes"
-    - "the unlinked connections"
+    - "the #gap.s# in your knowledge"
+    - "the #assumption.s# in your #element.s#"
+    - "the unlinked #connection.s#"
+
+  gap:
+    - "gap"
+    - "hole"
+    - "missing piece"
+
+  assumption:
+    - "assumption"
+    - "belief"
+    - "premise"
 
   note:
     - "$vault.sample_notes(1)"
 
   direction:
-    - "a completely different angle"
-    - "the perspective of a beginner"
+    - "#perspective.a#"
+    - "the perspective of #viewpoint.a#"
     - "first principles"
     - "the meta-level"
 
+  perspective:
+    - "completely different angle"
+    - "opposite viewpoint"
+    - "fresh perspective"
+
+  viewpoint:
+    - "beginner"
+    - "expert"
+    - "skeptic"
+
   constraint:
     - "you could only use one note"
-    - "you had to explain it to a child"
+    - "you had to explain it to #audience.a#"
     - "you had to draw it"
-    - "you wrote it as a dialogue"
+    - "you #write_verb.ed# it as #format.a#"
+
+  audience:
+    - "child"
+    - "expert"
+    - "skeptic"
+
+  write_verb:
+    - "write"
+    - "frame"
+    - "present"
+
+  format:
+    - "dialogue"
+    - "diagram"
+    - "story"
 
   result:
     - "what would you choose"
