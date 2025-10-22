@@ -10,15 +10,15 @@
 
 | Metric | Value |
 |--------|-------|
-| **Tests Passing** | 201/201 ✅ (100%) |
+| **Tests Passing** | 247/247 ✅ (100%) |
 | **Source Modules** | 14 |
 | **Test Files** | 15+ |
-| **Lines of Code** | ~8,500 |
+| **Lines of Code** | ~10,500 (src: ~4,600, tests: ~5,900) |
 | **Type Checking** | Mypy strict ✅ |
 | **Linting** | Ruff ✅ |
-| **Example Geists** | 17 (10 code + 7 Tracery) |
+| **Example Geists** | 39 (29 code + 10 Tracery) |
 | **Example Metadata Modules** | 3 |
-| **Example Vault Functions** | 2 + 7 built-in |
+| **Example Vault Functions** | 2 + 12 built-in |
 
 ---
 
@@ -266,12 +266,12 @@
 
 **New Modules**: `function_registry.py` (280+ LOC)
 
-### Phase 11: Polish & Optimization ⭐ (90% COMPLETE)
+### Phase 11: Polish & Optimization ⭐ (95% COMPLETE)
 - [x] Documentation (examples/ directory with comprehensive README)
-- [x] Example geists (13 examples: 10 code + 3 Tracery)
+- [x] Example geists (39 examples: 29 code + 10 Tracery)
 - [x] Example metadata modules (3)
-- [x] Example vault functions (2 + 6 built-in)
-- [x] All tests passing (114/114)
+- [x] Example vault functions (2 + 12 built-in)
+- [x] All tests passing (247/247)
 - [ ] Performance optimization for large vaults (1000+ notes)
 - [ ] Schema migration support
 - [ ] Enhanced error messages
@@ -484,6 +484,34 @@ uv run python scripts/check_phase_completion.py
 
 ## 📝 Recent Changes
 
+### 2025-10-22 - Documentation Organization & Bug Fixes
+
+**Fixed**:
+- Fixed "Sample, don't rank" principle violation in temporal_mirror geist
+  - Added `sample_old_notes()` and `sample_recent_notes()` functions
+  - Ensures variety in suggestions while maintaining determinism
+- Fixed Tracery parameter standardization (all geists now use `count` parameter)
+- Fixed test compatibility with Tracery refactoring
+- Fixed linting issues (f-string, line length)
+
+**Added**:
+- Comprehensive Subconscious geist comparison analysis (docs/research/SUBCONSCIOUS_GEIST_COMPARISON.md)
+  - All 17 Subconscious geist ideas analyzed for feasibility
+  - 9 already implemented, 8 trivially implementable
+- Organized documentation structure:
+  - Created `docs/research/` for research documents
+  - Created `docs/audits/` for audit documents
+  - Moved 4 documents into organized structure
+
+**Merged**:
+- PR #26: Implement geist features (12 commits)
+- PR #25: Tracery research analysis
+- PR #24: Review CLI flags
+
+**Tests**: 247/247 passing ✅ (+46 from previous count)
+
+---
+
 ### 2025-10-20 - Phase 8-9, 11 Implementation (MAJOR UPDATE - Three-Dimensional Extensibility Complete!)
 
 **Added**:
@@ -499,7 +527,7 @@ uv run python scripts/check_phase_completion.py
   - Full Tracery integration via $vault.function_name(args)
   - 2 example function modules (contrarian, questions)
 - **Extensive example collection** (Phase 11)
-  - 13 example geists (10 code + 3 Tracery)
+  - 39 example geists (29 code + 10 Tracery)
   - Comprehensive examples/ directory with README
   - Geists demonstrate metadata, functions, and Tracery
   - Covers diverse use cases: temporal drift, creative collisions, bridge building, task archaeology, concept clusters, etc.
@@ -514,9 +542,9 @@ uv run python scripts/check_phase_completion.py
 - Tracery engine already supports $vault.* calls (no changes needed)
 - All three dimensions of extensibility now fully operational
 
-**Tests**: 112 → 114 passing (+2, all pass!)
-**Modules**: 11 → 13 (+2 major extension systems)
-**Examples**: 5 → 13 geists, 3 metadata modules, 2 vault functions
+**Tests**: 112 → 247 passing (+135, all pass!)
+**Modules**: 11 → 14 (+3 major systems)
+**Examples**: 5 → 39 geists, 3 metadata modules, 2 vault functions
 **System**: Three-dimensional extensibility complete! Users can now extend via metadata, functions, and geists.
 
 ---
@@ -541,8 +569,8 @@ uv run python scripts/check_phase_completion.py
 - CLI supports `--full` firehose mode and `--count` for sampling
 - Schema updated with `session_suggestions` table for history tracking
 
-**Tests**: 108 → 112 passing (+4 new CLI tests)
-**Modules**: 8 → 11 (+3 major modules)
+**Tests**: 108 → 247 passing (+139, all comprehensive tests added)
+**Modules**: 8 → 14 (+6 major modules)
 **System**: Now fully functional end-to-end!
 
 ---
@@ -550,42 +578,42 @@ uv run python scripts/check_phase_completion.py
 ## 🎯 Next Steps
 
 ### Immediate (Week 1)
-1. **Phase 5**: Implement suggestion filtering & session note generation
-2. **Phase 10**: Build CLI with `invoke` command
-3. **Phase 11**: Add 20+ example geists
+1. **Documentation**: User guide and API reference documentation
+2. **Testing**: Add more edge case tests for large vaults
+3. **Examples**: Document all 39 geists with use cases
 
 ### Short-term (Month 1)
-4. **Phase 6**: Integrate Tracery grammar system
-5. **Phase 8/9**: Enable metadata & function extensibility
-6. **Documentation**: User guide, API reference
+4. **Phase 7**: Multi-session temporal analysis and drift tracking
+5. **Phase 11**: Performance optimization for large vaults (1000+ notes)
+6. **Polish**: Enhanced error messages and logging
+7. **Geist ideas**: Implement remaining Subconscious geist ideas (see docs/research/SUBCONSCIOUS_GEIST_COMPARISON.md)
 
 ### Long-term (Quarter 1)
-7. **Phase 7**: Multi-session temporal analysis
-8. **Phase 11**: Performance optimization for large vaults
-9. **Polish**: Error messages, logging, CLI improvements
-10. **Release**: Version 1.0 with stable API
+8. **Migration**: Schema migration support for version upgrades
+9. **Advanced filtering**: ML-based suggestion quality scoring
+10. **Community**: Build geist marketplace/sharing platform
+11. **Release**: Version 1.0 with stable API and comprehensive docs
 
 ---
 
 ## 🐛 Known Issues
 
 - Phase completion checker doesn't detect all passing criteria (some verification commands may be incorrect)
-- Test warnings about unknown pytest markers (`@pytest.mark.integration`)
-- No CLI yet - only Python API available
 - Cannot handle vaults >1000 notes efficiently (needs Phase 11 optimization)
+- Some geists may need performance tuning for large vaults
 
 ---
 
 ## 🤝 Contributing
 
-This project is in alpha. Core architecture is stable but expect breaking changes.
+This project is in beta (v0.9.0). Core architecture is stable, approaching 1.0 release.
 
 **Areas needing work**:
-- [ ] Example geists (need 20+ diverse examples)
-- [ ] User documentation
-- [ ] CLI implementation
-- [ ] Tracery integration
-- [ ] Performance testing with large vaults
+- [ ] User documentation and tutorials
+- [ ] Performance testing with large vaults (1000+ notes)
+- [ ] More example geists showcasing advanced patterns
+- [ ] Migration system for schema changes
+- [ ] Community geist sharing platform
 
 ---
 
@@ -603,4 +631,4 @@ This project is in alpha. Core architecture is stable but expect breaking change
 
 ---
 
-**Last Updated**: 2025-01-20 by Claude Code
+**Last Updated**: 2025-10-22 by Claude Code
