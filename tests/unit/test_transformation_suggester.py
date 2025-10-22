@@ -26,7 +26,9 @@ def create_mock_embedding_computer(num_notes: int) -> EmbeddingComputer:
     computer = EmbeddingComputer()
     mock_model = object.__new__(type('MockModel', (), {}))
     # Mock encode method that accepts all the kwargs the real model uses
-    mock_model.encode = lambda texts, **kwargs: np.random.rand(len(texts) if isinstance(texts, list) else num_notes, 387)
+    mock_model.encode = lambda texts, **kwargs: np.random.rand(
+        len(texts) if isinstance(texts, list) else num_notes, 387
+    )
     computer._model = mock_model
     return computer
 
@@ -207,7 +209,9 @@ def test_transformation_suggester_article_modifier(tmp_path: Path) -> None:
     has_article_a = " a " in all_text.lower()
     has_article_an = " an " in all_text.lower()
 
-    assert has_article_a or has_article_an, f"Expected to find articles 'a' or 'an'. Got: {all_text[:200]}"
+    assert has_article_a or has_article_an, (
+        f"Expected to find articles 'a' or 'an'. Got: {all_text[:200]}"
+    )
 
     vault.close()
 
@@ -296,7 +300,6 @@ def test_transformation_suggester_irregular_plurals(tmp_path: Path) -> None:
 
     vault = Vault(vault_path)
     vault.sync()
-    context = create_vault_context(vault)
 
     # Test the pluralization directly with TraceryEngine
     from geistfabrik.tracery import TraceryEngine
@@ -320,7 +323,9 @@ def test_transformation_suggester_irregular_plurals(tmp_path: Path) -> None:
 
     for singular, expected_plural in test_cases.items():
         result = engine._pluralize(singular)
-        assert result == expected_plural, f"Expected '{singular}' -> '{expected_plural}', got '{result}'"
+        assert result == expected_plural, (
+            f"Expected '{singular}' -> '{expected_plural}', got '{result}'"
+        )
 
     vault.close()
 
@@ -334,7 +339,6 @@ def test_transformation_suggester_irregular_verbs(tmp_path: Path) -> None:
 
     vault = Vault(vault_path)
     vault.sync()
-    context = create_vault_context(vault)
 
     # Test past tense directly with TraceryEngine
     from geistfabrik.tracery import TraceryEngine
@@ -452,13 +456,13 @@ def test_transformation_suggester_all_modifiers_in_output(tmp_path: Path) -> Non
     common_plurals = ["connections", "assumptions", "patterns", "ideas", "notes",
                      "questions", "insights", "perspectives"]
     has_plurals = any(plural in all_text for plural in common_plurals)
-    assert has_plurals, f"Expected plural forms in output"
+    assert has_plurals, "Expected plural forms in output"
 
     # 3. Past tense - should appear in suggestions
     past_tense = ["viewed", "approached", "explored", "created", "thought",
                  "made", "wrote", "found", "built"]
     has_past_tense = any(verb in all_text for verb in past_tense)
-    assert has_past_tense, f"Expected past tense verbs"
+    assert has_past_tense, "Expected past tense verbs"
 
     # 4. Articles - should appear with nouns
     has_articles = (" a " in all_text or " an " in all_text)

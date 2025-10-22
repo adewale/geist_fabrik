@@ -373,7 +373,7 @@ def test_tracery_pluralize_modifier() -> None:
     }
 
     for singular, expected_plural in test_cases.items():
-        grammar = {"origin": [f"#word.s#"], "word": [singular]}
+        grammar = {"origin": ["#word.s#"], "word": [singular]}
         engine = TraceryEngine(grammar, seed=42)
         result = engine.expand("#origin#")
         assert result == expected_plural, f"Expected {expected_plural}, got {result}"
