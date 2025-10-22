@@ -30,9 +30,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ("substitute", "What if you substituted [[{note}]] with [[{other}]]?"),
         ("combine", "What if you combined [[{note}]] and [[{other}]] into something new?"),
         ("adapt", "What if you adapted [[{note}]] to work like [[{other}]]?"),
-        ("modify", "What if you magnified or minimized aspects of [[{note}]] based on [[{other}]]?"),
-        ("put_to_use", "What if you used [[{note}]] for a completely different purpose, like [[{other}]]?"),
-        ("eliminate", "What if you eliminated the parts of [[{note}]] that overlap with [[{other}]]?"),
+        (
+            "modify",
+            "What if you magnified or minimized aspects of [[{note}]] based on [[{other}]]?",
+        ),
+        (
+            "put_to_use",
+            "What if you used [[{note}]] for a completely different purpose, like [[{other}]]?",
+        ),
+        (
+            "eliminate",
+            "What if you eliminated the parts of [[{note}]] that overlap with [[{other}]]?",
+        ),
         ("reverse", "What if you reversed the relationship between [[{note}]] and [[{other}]]?"),
     ]
 

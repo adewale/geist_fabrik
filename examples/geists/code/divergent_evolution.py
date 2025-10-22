@@ -83,8 +83,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 similarities.append(sim)
 
             # Check if similarity is decreasing (divergence)
-            early_sim = np.mean(similarities[:len(similarities)//2])
-            recent_sim = np.mean(similarities[len(similarities)//2:])
+            early_sim = np.mean(similarities[: len(similarities) // 2])
+            recent_sim = np.mean(similarities[len(similarities) // 2 :])
 
             if early_sim > recent_sim + 0.15:  # Significant divergence
                 text = (

@@ -27,15 +27,36 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Scale indicators
     abstract_words = [
-        "theory", "principle", "concept", "framework", "paradigm",
-        "model", "pattern", "system", "structure", "abstract",
-        "general", "universal", "category", "class",
+        "theory",
+        "principle",
+        "concept",
+        "framework",
+        "paradigm",
+        "model",
+        "pattern",
+        "system",
+        "structure",
+        "abstract",
+        "general",
+        "universal",
+        "category",
+        "class",
     ]
 
     concrete_words = [
-        "example", "case", "instance", "specific", "particular",
-        "detail", "concrete", "actual", "practical", "real",
-        "individual", "tangible", "implementation",
+        "example",
+        "case",
+        "instance",
+        "specific",
+        "particular",
+        "detail",
+        "concrete",
+        "actual",
+        "practical",
+        "real",
+        "individual",
+        "tangible",
+        "implementation",
     ]
 
     for note in vault.sample(notes, min(30, len(notes))):

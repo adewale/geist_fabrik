@@ -27,10 +27,20 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Assumption indicator phrases
     assumption_phrases = [
-        "obviously", "clearly", "of course", "everyone knows",
-        "it is well known", "naturally", "needless to say",
-        "without a doubt", "certainly", "undoubtedly",
-        "must be", "has to", "necessarily", "always",
+        "obviously",
+        "clearly",
+        "of course",
+        "everyone knows",
+        "it is well known",
+        "naturally",
+        "needless to say",
+        "without a doubt",
+        "certainly",
+        "undoubtedly",
+        "must be",
+        "has to",
+        "necessarily",
+        "always",
     ]
 
     for note in vault.sample(notes, min(40, len(notes))):
@@ -45,9 +55,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             # Look for notes with contrasting language (hedging, uncertainty)
             contrast_phrases = [
-                "maybe", "perhaps", "might", "could be",
-                "possibly", "uncertain", "unclear", "debatable",
-                "questionable", "depends", "varies", "sometimes",
+                "maybe",
+                "perhaps",
+                "might",
+                "could be",
+                "possibly",
+                "uncertain",
+                "unclear",
+                "debatable",
+                "questionable",
+                "depends",
+                "varies",
+                "sometimes",
             ]
 
             for other in similar:
@@ -73,8 +92,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Also look for causal claims without evidence
         causal_patterns = [
-            "because", "therefore", "thus", "hence",
-            "leads to", "results in", "causes", "due to",
+            "because",
+            "therefore",
+            "thus",
+            "hence",
+            "leads to",
+            "results in",
+            "causes",
+            "due to",
         ]
 
         causal_count = sum(1 for pattern in causal_patterns if pattern in content)

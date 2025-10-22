@@ -25,7 +25,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # This requires temporal embeddings - check if session history exists
     try:
         # Get recent sessions (requires temporal embedding support)
-        current_session = vault.session
         session_history = _get_session_history(vault, sessions_back=5)
 
         if len(session_history) < 2:

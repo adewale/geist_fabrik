@@ -4,8 +4,8 @@ Identifies topics, themes, or types of notes that recur seasonally or at
 specific times of year, revealing cyclical patterns in thinking.
 """
 
-from typing import TYPE_CHECKING
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
@@ -34,8 +34,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Month names for readable output
     month_names = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
     ]
 
     # Find months with distinctive semantic clusters
@@ -50,7 +60,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         similarities = []
 
         for i, note_a in enumerate(sample):
-            for note_b in sample[i + 1:]:
+            for note_b in sample[i + 1 :]:
                 sim = vault.similarity(note_a, note_b)
                 similarities.append(sim)
 
@@ -83,7 +93,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 # Check if notes from different years but same month are similar
                 cross_year_sims = []
                 for i, (year1, note1) in enumerate(year_samples):
-                    for year2, note2 in year_samples[i + 1:]:
+                    for year2, note2 in year_samples[i + 1 :]:
                         if year1 != year2:  # Different years
                             sim = vault.similarity(note1, note2)
                             cross_year_sims.append((note1, note2, sim))

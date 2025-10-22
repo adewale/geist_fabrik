@@ -38,7 +38,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Calculate graph density (how interconnected are the neighbors?)
         edges = 0
         for i, n1 in enumerate(graph_neighbors):
-            for n2 in graph_neighbors[i + 1:]:
+            for n2 in graph_neighbors[i + 1 :]:
                 if vault.links_between(n1, n2):
                     edges += 1
 
@@ -48,7 +48,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Calculate semantic density (how similar are the neighbors?)
         similarities = []
         for i, n1 in enumerate(graph_neighbors):
-            for n2 in graph_neighbors[i + 1:]:
+            for n2 in graph_neighbors[i + 1 :]:
                 sim = vault.similarity(n1, n2)
                 similarities.append(sim)
 

@@ -33,12 +33,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Find semantic neighbors (notes with high similarity)
         neighbors = vault.neighbours(note, k=30)
-        semantic_centrality = len(neighbors)
+        len(neighbors)
 
         # Filter to only high-similarity neighbors
-        high_similarity_count = sum(
-            1 for n in neighbors if vault.similarity(note, n) > 0.6
-        )
+        high_similarity_count = sum(1 for n in neighbors if vault.similarity(note, n) > 0.6)
 
         # High semantic centrality, low graph centrality = hidden hub
         if high_similarity_count > 10 and total_links < 5:

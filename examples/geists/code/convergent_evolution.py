@@ -45,7 +45,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         sample_notes = vault.sample(notes, min(30, len(notes)))
 
         for i, note_a in enumerate(sample_notes):
-            for note_b in sample_notes[i + 1:]:
+            for note_b in sample_notes[i + 1 :]:
                 pairs.append((note_a, note_b))
 
         # Check convergence for each pair
@@ -83,8 +83,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 similarities.append(sim)
 
             # Check if similarity is increasing (convergence)
-            early_sim = np.mean(similarities[:len(similarities)//2])
-            recent_sim = np.mean(similarities[len(similarities)//2:])
+            early_sim = np.mean(similarities[: len(similarities) // 2])
+            recent_sim = np.mean(similarities[len(similarities) // 2 :])
 
             if recent_sim > early_sim + 0.15:  # Significant convergence
                 # Check if they're currently similar but not linked

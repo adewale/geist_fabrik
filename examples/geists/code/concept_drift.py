@@ -63,8 +63,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             last_emb = trajectory[-1][1]
 
             # Calculate drift from first to last
-            drift = 1.0 - (np.dot(first_emb, last_emb) /
-                          (np.linalg.norm(first_emb) * np.linalg.norm(last_emb)))
+            drift = 1.0 - (
+                np.dot(first_emb, last_emb) / (np.linalg.norm(first_emb) * np.linalg.norm(last_emb))
+            )
 
             if drift > 0.2:  # Significant migration
                 # Try to characterize the drift by finding what it's moving toward

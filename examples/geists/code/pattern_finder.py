@@ -4,8 +4,8 @@ Discovers patterns, phrases, or conceptual themes that appear in multiple notes
 that aren't linked to each other, suggesting implicit recurring interests.
 """
 
-from typing import TYPE_CHECKING
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
@@ -36,7 +36,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Extract 2-3 word phrases
         for i in range(len(words) - 2):
             # Skip common words
-            phrase = " ".join(words[i:i+3])
+            phrase = " ".join(words[i : i + 3])
 
             # Filter out common phrases
             if len(phrase) > 15 and not any(
@@ -107,8 +107,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for cluster in clusters:
         # Check if cluster notes are linked
         link_count = sum(
-            1 for i, n1 in enumerate(cluster)
-            for n2 in cluster[i+1:]
+            1
+            for i, n1 in enumerate(cluster)
+            for n2 in cluster[i + 1 :]
             if vault.links_between(n1, n2)
         )
 

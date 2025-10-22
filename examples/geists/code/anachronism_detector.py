@@ -16,8 +16,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         List of suggestions highlighting temporal outliers
     """
-    from geistfabrik import Suggestion
     from datetime import datetime, timedelta
+
+    from geistfabrik import Suggestion
 
     suggestions = []
 
@@ -65,7 +66,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 best_old_match = max(old_matches, key=lambda x: x[1])
                 old_note, similarity = best_old_match
 
-                years_apart = (recent_note.created.year - old_note.created.year)
+                years_apart = recent_note.created.year - old_note.created.year
 
                 text = (
                     f"[[{recent_note.title}]] (written recently) semantically resembles "

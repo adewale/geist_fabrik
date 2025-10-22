@@ -27,9 +27,22 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Look for notes that make strong claims
     claim_indicators = [
-        "is", "are", "must", "should", "always", "never",
-        "will", "cannot", "impossible", "necessary", "essential",
-        "fundamental", "critical", "key", "important", "proves",
+        "is",
+        "are",
+        "must",
+        "should",
+        "always",
+        "never",
+        "will",
+        "cannot",
+        "impossible",
+        "necessary",
+        "essential",
+        "fundamental",
+        "critical",
+        "key",
+        "important",
+        "proves",
     ]
 
     for note in vault.sample(notes, min(30, len(notes))):
@@ -65,8 +78,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             antithesis = vault.sample(antithesis_candidates, k=1)[0]
 
             text = (
-                f"[[{note.title}]] makes strong claims. [[{antithesis.title}]] seems to challenge it—"
-                f"what if you developed this into a full dialectical pair? Thesis vs. antithesis?"
+                f"[[{note.title}]] makes strong claims. [[{antithesis.title}]] seems "
+                f"to challenge it—what if you developed this into a full dialectical "
+                f"pair? Thesis vs. antithesis?"
             )
 
             suggestions.append(
@@ -80,12 +94,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # Suggest creating an antithesis
             text = (
                 f"[[{note.title}]] makes strong claims. "
-                f"What if you wrote its antithesis—a note that systematically challenges each claim? "
-                f"What would the opposite perspective argue?"
+                f"What if you wrote its antithesis—a note that systematically "
+                f"challenges each claim? What would the opposite perspective argue?"
             )
 
             # Generate a suggested title for the antithesis
-            antithesis_title = f"Anti-{note.title}" if "the" not in note.title.lower() else f"Against {note.title}"
+            if "the" not in note.title.lower():
+                antithesis_title = f"Anti-{note.title}"
+            else:
+                antithesis_title = f"Against {note.title}"
 
             suggestions.append(
                 Suggestion(
@@ -109,13 +126,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 # Look for opposition markers
                 note_positive = sum(1 for w in ["yes", "always", "must", "is"] if w in note_content)
-                other_negative = sum(1 for w in ["no", "never", "not", "isn't"] if w in other_content)
+                other_negative = sum(
+                    1 for w in ["no", "never", "not", "isn't"] if w in other_content
+                )
 
                 if note_positive >= 2 and other_negative >= 2:
                     # Potential thesis/antithesis pair - suggest synthesis
                     text = (
-                        f"[[{note.title}]] and [[{other.title}]] seem dialectically opposed. "
-                        f"What would their synthesis be? What higher-level perspective reconciles them?"
+                        f"[[{note.title}]] and [[{other.title}]] seem dialectically "
+                        f"opposed. What would their synthesis be? What higher-level "
+                        f"perspective reconciles them?"
                     )
 
                     synthesis_title = f"Synthesis: {note.title} + {other.title}"

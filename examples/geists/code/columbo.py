@@ -49,16 +49,24 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             other_content = vault.read(other).lower()
 
             # Look for contradiction indicators
-            note_positive_words = sum(1 for w in ["always", "all", "must", "should"] if w in content)
+            note_positive_words = sum(
+                1 for w in ["always", "all", "must", "should"] if w in content
+            )
             other_negative_words = sum(
-                1 for w in ["never", "no", "not", "cannot", "but", "however", "except"] if w in other_content
+                1
+                for w in ["never", "no", "not", "cannot", "but", "however", "except"]
+                if w in other_content
             )
 
             # Also check reverse
             note_negative_words = sum(
-                1 for w in ["never", "no", "not", "cannot", "but", "however", "except"] if w in content
+                1
+                for w in ["never", "no", "not", "cannot", "but", "however", "except"]
+                if w in content
             )
-            other_positive_words = sum(1 for w in ["always", "all", "must", "should"] if w in other_content)
+            other_positive_words = sum(
+                1 for w in ["always", "all", "must", "should"] if w in other_content
+            )
 
             # High semantic similarity but opposite linguistic patterns suggests contradiction
             similarity = vault.similarity(note, other)
