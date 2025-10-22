@@ -556,9 +556,27 @@ def test_tracery_past_tense_modifier() -> None:
         result = engine.expand("#origin#")
 
         # Skip irregular verbs not in our list
-        if present in ["be", "have", "do", "say", "go", "get", "make", "know", "think",
-                       "take", "see", "come", "find", "give", "tell", "feel", "become",
-                       "leave", "put"]:
+        if present in [
+            "be",
+            "have",
+            "do",
+            "say",
+            "go",
+            "get",
+            "make",
+            "know",
+            "think",
+            "take",
+            "see",
+            "come",
+            "find",
+            "give",
+            "tell",
+            "feel",
+            "become",
+            "leave",
+            "put",
+        ]:
             assert result == expected_past, f"Expected {expected_past}, got {result}"
 
 
@@ -660,5 +678,61 @@ tracery:
     # Should have past tense verb and plural noun
     assert "connected" in suggestion.text or "explored" in suggestion.text
     assert "ideas" in suggestion.text or "patterns" in suggestion.text
+
+    vault.close()
+
+
+def test_tracery_multiple_suggestions_use_different_notes(tmp_path: Path) -> None:
+    """Test that count=2 produces suggestions with different sampled notes.
+
+    Regression test for temporal_mirror bug where both suggestions used
+    the same old_note and new_note despite having count: 2.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    # Create many notes to sample from (20 total)
+    for i in range(20):
+        (vault_path / f"note_{i:02d}.md").write_text(f"# Note {i:02d}\nContent for note {i}.")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    context = create_vault_context(vault)
+
+    # Create a geist similar to temporal_mirror with count: 2
+    # Each suggestion samples two different notes
+    yaml_content = """type: geist-tracery
+id: test_multiple_samples
+count: 2
+tracery:
+  origin:
+    - "Compare [[#old_note#]] with [[#new_note#]]"
+  old_note:
+    - "$vault.sample_old_notes(1, 10)"
+  new_note:
+    - "$vault.sample_recent_notes(1, 10)"
+"""
+
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(yaml_content)
+
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    suggestions = geist.suggest(context)
+
+    assert len(suggestions) == 2
+
+    # Extract notes from each suggestion
+    suggestion1_notes = set(suggestions[0].notes)
+    suggestion2_notes = set(suggestions[1].notes)
+
+    # The two suggestions should have DIFFERENT notes
+    # (not guaranteed 100% of time due to sampling, but with 10-note pools, very likely)
+    # This test will FAIL if the bug exists (both suggestions will have same notes)
+    assert suggestion1_notes != suggestion2_notes, (
+        f"Both suggestions used the same notes! "
+        f"Suggestion 1: {suggestions[0].text}, "
+        f"Suggestion 2: {suggestions[1].text}"
+    )
 
     vault.close()
