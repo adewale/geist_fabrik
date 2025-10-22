@@ -9,7 +9,8 @@ from typing import Any, Generator, List, Union, cast
 import numpy as np
 import pytest
 
-from geistfabrik.embeddings import SEMANTIC_DIM, EmbeddingComputer
+from geistfabrik.config import SEMANTIC_DIM
+from geistfabrik.embeddings import EmbeddingComputer
 from geistfabrik.schema import init_db
 
 
