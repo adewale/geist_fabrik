@@ -135,11 +135,11 @@ def suggest(vault):
     (code_geists_dir / "test_code.py").write_text(code_geist)
 
     # Create a simple Tracery geist
-    tracery_geist = '''type: geist-tracery
+    tracery_geist = """type: geist-tracery
 id: test_tracery
 tracery:
   origin: "Tracery geist test"
-'''
+"""
     (tracery_geists_dir / "test_tracery.yaml").write_text(tracery_geist)
 
     # Initialize vault database
@@ -178,11 +178,11 @@ def test_invoke_executes_tracery_geists(tmp_path: Path) -> None:
     tracery_geists_dir.mkdir(parents=True)
 
     # Create a simple Tracery geist
-    tracery_geist = '''type: geist-tracery
+    tracery_geist = """type: geist-tracery
 id: test_tracery
 tracery:
   origin: "Test suggestion from Tracery"
-'''
+"""
     (tracery_geists_dir / "test_tracery.yaml").write_text(tracery_geist)
 
     # Initialize vault

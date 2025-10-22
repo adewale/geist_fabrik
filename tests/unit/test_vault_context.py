@@ -319,6 +319,7 @@ def test_neighbours_resolves_by_title():
         # Test 3: Vault functions (adapter layer) accept and return strings
         # This simulates what Tracery does when passing note titles
         from geistfabrik.function_registry import FunctionRegistry
+
         registry = FunctionRegistry()
 
         # Call with title string - vault function resolves it internally
@@ -362,6 +363,7 @@ def test_vault_functions_adapter_layer():
 
         # Make old.md actually old
         import time
+
         time.sleep(0.01)
 
         session_date = datetime(2023, 6, 15)
@@ -370,6 +372,7 @@ def test_vault_functions_adapter_layer():
 
         # Create FunctionRegistry with built-in functions
         from geistfabrik.function_registry import FunctionRegistry
+
         registry = FunctionRegistry()
 
         # Test sample_notes: List[Note] → List[str]

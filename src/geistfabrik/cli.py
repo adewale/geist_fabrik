@@ -335,9 +335,7 @@ def invoke_command(args: argparse.Namespace) -> int:
             else f"ENABLED (count={args.count})"
         )
         print(f"Sampling: {sampling_status}")
-        mode = (
-            "Raw output" if args.nofilter else "Filtered output" if args.full else "Default"
-        )
+        mode = "Raw output" if args.nofilter else "Filtered output" if args.full else "Default"
         print(f"Mode: {mode}")
         print(f"{'=' * 60}\n")
 

@@ -1,7 +1,6 @@
 """Configuration for integration tests."""
 
 
-
 def pytest_configure(config):
     """Register custom markers for integration tests."""
     config.addinivalue_line("markers", "slow: marks tests as slow (requiring real model downloads)")

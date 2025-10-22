@@ -145,7 +145,9 @@ class FunctionRegistry:
             return vault.sample(old_pool, k)
 
         @vault_function("sample_recent_notes")
-        def sample_recent_notes(vault: "VaultContext", k: int = 1, pool_size: int = 10) -> List[Any]:
+        def sample_recent_notes(
+            vault: "VaultContext", k: int = 1, pool_size: int = 10
+        ) -> List[Any]:
             """Sample k notes from the pool_size most recently modified notes.
 
             Follows 'Sample, don't rank' principle by randomly selecting from recent notes

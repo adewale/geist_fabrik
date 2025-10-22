@@ -82,7 +82,7 @@ def benchmark_session(vault_path: str, geists_dir: str):
             session.compute_embeddings(notes)
 
     print(f"  Embeddings computed: {len(notes)}")
-    print(f"  Embedding dimension: 387 (384 semantic + 3 temporal)")
+    print("  Embedding dimension: 387 (384 semantic + 3 temporal)")
     print()
 
     # Phase 3: VaultContext Setup
