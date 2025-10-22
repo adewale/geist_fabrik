@@ -23,19 +23,14 @@ from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from .config import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_SEMANTIC_WEIGHT,
+    MODEL_NAME,
+)
 from .models import Note
 
 logger = logging.getLogger(__name__)
-
-# Model configuration
-MODEL_NAME = "all-MiniLM-L6-v2"
-SEMANTIC_DIM = 384  # Dimension of semantic embeddings
-TEMPORAL_DIM = 3  # Dimension of temporal features
-TOTAL_DIM = SEMANTIC_DIM + TEMPORAL_DIM  # 387 total
-
-# Embedding computation parameters
-DEFAULT_SEMANTIC_WEIGHT = 0.9
-DEFAULT_BATCH_SIZE = 8  # Limit batch size to reduce parallel workers
 
 
 class EmbeddingComputer:

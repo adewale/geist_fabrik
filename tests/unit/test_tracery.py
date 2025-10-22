@@ -314,10 +314,9 @@ def test_tracery_engine_handles_function_errors_gracefully(tmp_path: Path) -> No
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
 
-    result = engine.expand("#origin#")
-
-    # Should contain error message
-    assert "[Error calling nonexistent_function:" in result
+    # Should raise exception for non-existent function
+    with pytest.raises(KeyError, match="Function 'nonexistent_function' not registered"):
+        engine.expand("#origin#")
 
     vault.close()
 
