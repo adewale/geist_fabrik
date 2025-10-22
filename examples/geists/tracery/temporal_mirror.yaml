@@ -7,25 +7,19 @@ tracery:
     - "#timeframe# you wrote [[#old_note#]]. Today's [[#new_note#]] #relationship#"
 
   timeframe:
-    - "#months# months ago"
-    - "#years# years ago"
-
-  months:
-    - "3"
-    - "6"
-    - "9"
-    - "12"
-
-  years:
-    - "1"
-    - "2"
-    - "5"
+    - "3 months ago"
+    - "6 months ago"
+    - "9 months ago"
+    - "12 months ago"
+    - "1 year ago"
+    - "2 years ago"
+    - "5 years ago"
 
   old_note:
-    - "$vault.old_notes(1)"
+    - "$vault.sample_old_notes(1, 10)"
 
   new_note:
-    - "$vault.recent_notes(1)"
+    - "$vault.sample_recent_notes(1, 10)"
 
   relationship:
     - "might be the answer you were looking for"

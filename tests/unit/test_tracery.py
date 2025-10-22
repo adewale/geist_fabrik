@@ -322,6 +322,167 @@ def test_tracery_engine_handles_function_errors_gracefully(tmp_path: Path) -> No
     vault.close()
 
 
+def test_tracery_geist_count_parameter_recognized(tmp_path: Path) -> None:
+    """Test that 'count' parameter is correctly read from YAML."""
+    yaml_content = """type: geist-tracery
+id: test_count
+count: 3
+tracery:
+  origin: "Test suggestion"
+"""
+
+    yaml_file = tmp_path / "test_count.yaml"
+    yaml_file.write_text(yaml_content)
+
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+
+    assert geist.count == 3
+
+
+def test_tracery_geist_generates_multiple_suggestions_when_count_set(tmp_path: Path) -> None:
+    """Test that geist generates the correct number of suggestions."""
+    # Create vault
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+    (vault_path / "note1.md").write_text("# Note 1")
+    (vault_path / "note2.md").write_text("# Note 2")
+    (vault_path / "note3.md").write_text("# Note 3")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    context = create_vault_context(vault)
+
+    yaml_content = """type: geist-tracery
+id: test_multiple
+count: 3
+tracery:
+  origin:
+    - "Suggestion about $vault.sample_notes(1)"
+"""
+
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(yaml_content)
+
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    suggestions = geist.suggest(context)
+
+    assert len(suggestions) == 3
+
+    vault.close()
+
+
+def test_tracery_deterministic_functions_produce_same_notes_with_multiple_count(
+    tmp_path: Path,
+) -> None:
+    """Test that deterministic functions return same notes across expansions (Bug #2).
+
+    This test documents how deterministic vault functions like old_notes() and
+    recent_notes() return the same notes when a geist has count > 1, creating
+    redundant suggestions.
+    """
+    # Create vault with multiple notes
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    # Create notes with different modification times
+    import time
+
+    (vault_path / "old_note.md").write_text("# Old Note")
+    time.sleep(0.01)  # Small delay to ensure different mtimes
+    (vault_path / "middle_note.md").write_text("# Middle Note")
+    time.sleep(0.01)
+    (vault_path / "recent_note.md").write_text("# Recent Note")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    context = create_vault_context(vault)
+
+    # Create geist using deterministic functions with count: 2
+    yaml_content = """type: geist-tracery
+id: temporal_test
+count: 2
+tracery:
+  origin:
+    - "$vault.old_notes(1) and $vault.recent_notes(1)"
+"""
+
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(yaml_content)
+
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    suggestions = geist.suggest(context)
+
+    assert len(suggestions) == 2
+
+    # BUG: Both suggestions should reference the same notes because
+    # old_notes(1) and recent_notes(1) are deterministic
+    notes1 = suggestions[0].notes
+    notes2 = suggestions[1].notes
+
+    # This demonstrates the bug - both suggestions have identical note references
+    assert notes1 == notes2  # Both should be ["Old Note", "Recent Note"]
+
+    vault.close()
+
+
+def test_tracery_sample_notes_produces_variety_across_expansions(tmp_path: Path) -> None:
+    """Test that sample_notes() produces variety across multiple expansions.
+
+    The vault's RNG should advance between calls, creating different samples
+    each time. This follows the "Sample, don't rank" principle - same seed
+    means same sequence (reproducible), but not identical duplicates.
+    """
+    # Create vault with many notes
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    for i in range(20):
+        (vault_path / f"note_{i}.md").write_text(f"# Note {i}")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    context = create_vault_context(vault)
+
+    # Create geist using sample_notes with count: 5
+    # Note: Must wrap vault function results in [[...]] for note extraction
+    yaml_content = """type: geist-tracery
+id: sample_test
+count: 5
+tracery:
+  origin:
+    - "Consider [[#note1#]] and [[#note2#]]"
+  note1:
+    - "$vault.sample_notes(1)"
+  note2:
+    - "$vault.sample_notes(1)"
+"""
+
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(yaml_content)
+
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    suggestions = geist.suggest(context)
+
+    assert len(suggestions) == 5
+
+    # Collect all note references
+    all_note_sets = [set(s.notes) for s in suggestions]
+
+    # Should have SOME variety (not all identical)
+    # The RNG should advance between expansions
+    unique_sets = len(set(frozenset(ns) for ns in all_note_sets))
+
+    # With 20 notes and sampling 2 at a time, RNG should produce variety
+    assert unique_sets > 1, (
+        "sample_notes() should create variety as RNG advances between expansions"
+    )
+
+    vault.close()
+
+
 # Modifier Tests
 
 

@@ -197,19 +197,8 @@ def invoke_command(args: argparse.Namespace) -> int:
     Returns:
         Exit code (0 for success, 1 for error)
     """
-    # Determine vault path
-    if args.vault:
-        vault_path: Path = Path(args.vault)
-    else:
-        # Auto-detect vault
-        found_vault = find_vault_root()
-        if found_vault is None:
-            print(
-                "Error: Could not find Obsidian vault. Use --vault to specify path.",
-                file=sys.stderr,
-            )
-            return 1
-        vault_path = found_vault
+    # Get vault path from positional argument
+    vault_path: Path = Path(args.vault)
 
     if not vault_path.exists():
         print(f"Error: Vault path does not exist: {vault_path}", file=sys.stderr)
@@ -219,7 +208,17 @@ def invoke_command(args: argparse.Namespace) -> int:
         print(f"Error: Vault path is not a directory: {vault_path}", file=sys.stderr)
         return 1
 
-    print(f"Loading vault: {vault_path}")
+    # Check for conflicting flags
+    if args.quiet and args.verbose:
+        print("Error: Cannot use both --quiet and --verbose", file=sys.stderr)
+        return 1
+
+    if args.geist and args.geists:
+        print("Error: Cannot use both --geist and --geists", file=sys.stderr)
+        return 1
+
+    if not args.quiet:
+        print(f"Loading vault: {vault_path}")
 
     # Set up database path
     geistfabrik_dir = vault_path / "_geistfabrik"
@@ -230,7 +229,8 @@ def invoke_command(args: argparse.Namespace) -> int:
         # Load vault
         vault = Vault(vault_path, db_path)
         note_count = vault.sync()
-        print(f"Synced {note_count} notes")
+        if not args.quiet:
+            print(f"Synced {note_count} notes")
 
         # Determine session date
         if args.date:
@@ -251,7 +251,8 @@ def invoke_command(args: argparse.Namespace) -> int:
 
             metadata_loader = MetadataLoader(metadata_dir)
             metadata_loader.load_modules()
-            print(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
+            if not args.quiet:
+                print(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
 
         # Load vault function modules
         functions_dir = geistfabrik_dir / "vault_functions"
@@ -261,17 +262,20 @@ def invoke_command(args: argparse.Namespace) -> int:
 
             function_registry = FunctionRegistry(functions_dir)
             function_registry.load_modules()
-            print(f"Loaded {len(function_registry.functions)} vault functions")
+            if not args.quiet:
+                print(f"Loaded {len(function_registry.functions)} vault functions")
         else:
             # Always create function registry with built-in functions
             from geistfabrik import FunctionRegistry
 
             function_registry = FunctionRegistry()
-            print(f"Using {len(function_registry.functions)} built-in vault functions")
+            if not args.quiet:
+                print(f"Using {len(function_registry.functions)} built-in vault functions")
 
         # Create session and context
         session = Session(session_date, vault.db)
-        print(f"Computing embeddings for {len(vault.all_notes())} notes...")
+        if not args.quiet:
+            print(f"Computing embeddings for {len(vault.all_notes())} notes...")
         session.compute_embeddings(vault.all_notes())
         context = VaultContext(
             vault, session, metadata_loader=metadata_loader, function_registry=function_registry
@@ -298,8 +302,9 @@ def invoke_command(args: argparse.Namespace) -> int:
 
         total_geists = code_geists_count + len(tracery_geists)
         if total_geists == 0:
-            print(f"\nNo geists found in {vault_path / '_geistfabrik' / 'geists'}")
-            print("Run 'geistfabrik init --examples' to install example geists.")
+            if not args.quiet:
+                print(f"\nNo geists found in {vault_path / '_geistfabrik' / 'geists'}")
+                print("Run 'geistfabrik init --examples' to install example geists.")
             vault.close()
             return 0
 
@@ -315,56 +320,65 @@ def invoke_command(args: argparse.Namespace) -> int:
         enabled_geists_count = len(enabled_code_geists) + len(tracery_geists)
         disabled_geists = disabled_code_geists
 
-        print(f"\n{'=' * 60}")
-        print("GeistFabrik Configuration Audit")
-        print(f"{'=' * 60}")
-        print(f"Vault: {vault_path}")
-        print(f"Geists directory: {vault_path / '_geistfabrik' / 'geists'}")
-        print(f"Total geists found: {total_geists}")
-        print(f"  - Code geists: {code_geists_count} ({len(enabled_code_geists)} enabled)")
-        print(f"  - Tracery geists: {len(tracery_geists)}")
-        if disabled_geists:
-            print(f"  - Disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
-        filtering_status = (
-            "DISABLED (--nofilter)" if args.nofilter else "ENABLED (4-stage pipeline)"
-        )
-        print(f"Filtering: {filtering_status}")
-        sampling_status = (
-            "DISABLED (--full or --nofilter)"
-            if (args.full or args.nofilter)
-            else f"ENABLED (count={args.count})"
-        )
-        print(f"Sampling: {sampling_status}")
-        mode = (
-            "Raw output" if args.nofilter else "Filtered output" if args.full else "Default"
-        )
-        print(f"Mode: {mode}")
-        print(f"{'=' * 60}\n")
+        if not args.quiet or args.verbose:
+            print(f"\n{'=' * 60}")
+            print("GeistFabrik Configuration Audit")
+            print(f"{'=' * 60}")
+            print(f"Vault: {vault_path}")
+            print(f"Geists directory: {vault_path / '_geistfabrik' / 'geists'}")
+            print(f"Total geists found: {total_geists}")
+            print(f"  - Code geists: {code_geists_count} ({len(enabled_code_geists)} enabled)")
+            print(f"  - Tracery geists: {len(tracery_geists)}")
+            if disabled_geists:
+                print(f"  - Disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
+            filtering_status = (
+                "DISABLED (--no-filter)" if args.no_filter else "ENABLED (4-stage pipeline)"
+            )
+            print(f"Filtering: {filtering_status}")
+            sampling_status = (
+                "DISABLED (--full or --no-filter)"
+                if (args.full or args.no_filter)
+                else f"ENABLED (count={args.count})"
+            )
+            print(f"Sampling: {sampling_status}")
+            mode = "Raw output" if args.no_filter else "Filtered output" if args.full else "Default"
+            print(f"Mode: {mode}")
+            print(f"{'=' * 60}\n")
 
-        print(f"Executing {enabled_geists_count} geists...")
+        if not args.quiet:
+            print(f"Executing {enabled_geists_count} geists...")
 
-        # Execute specific geist or all geists
+        # Execute specific geist(s) or all geists
         all_suggestions = []
         code_results = {}
         tracery_results = {}
 
+        # Determine which geists to run
+        geists_to_run = None
         if args.geist:
-            # Check if it's a code geist
-            if code_executor and args.geist in code_executor.geists:
-                code_results = {args.geist: code_executor.execute_geist(args.geist, context)}
-            # Check if it's a Tracery geist
-            elif any(g.geist_id == args.geist for g in tracery_geists):
-                tracery_geist = next(g for g in tracery_geists if g.geist_id == args.geist)
-                try:
-                    suggestions = tracery_geist.suggest(context)
-                    tracery_results = {args.geist: suggestions}
-                except Exception as e:
-                    print(f"Error executing Tracery geist {args.geist}: {e}", file=sys.stderr)
-                    tracery_results = {args.geist: []}
-            else:
-                print(f"Error: Geist '{args.geist}' not found", file=sys.stderr)
-                vault.close()
-                return 1
+            geists_to_run = [args.geist]
+        elif args.geists:
+            geists_to_run = [g.strip() for g in args.geists.split(",")]
+
+        if geists_to_run:
+            # Run specific geist(s)
+            for geist_id in geists_to_run:
+                # Check if it's a code geist
+                if code_executor and geist_id in code_executor.geists:
+                    code_results[geist_id] = code_executor.execute_geist(geist_id, context)
+                # Check if it's a Tracery geist
+                elif any(g.geist_id == geist_id for g in tracery_geists):
+                    tracery_geist = next(g for g in tracery_geists if g.geist_id == geist_id)
+                    try:
+                        suggestions = tracery_geist.suggest(context)
+                        tracery_results[geist_id] = suggestions
+                    except Exception as e:
+                        print(f"Error executing Tracery geist {geist_id}: {e}", file=sys.stderr)
+                        tracery_results[geist_id] = []
+                else:
+                    print(f"Error: Geist '{geist_id}' not found", file=sys.stderr)
+                    vault.close()
+                    return 1
         else:
             # Execute all code geists
             if code_executor:
@@ -394,7 +408,7 @@ def invoke_command(args: argparse.Namespace) -> int:
         tracery_success = sum(1 for s in tracery_results.values() if s)
         tracery_empty = sum(1 for s in tracery_results.values() if not s)
 
-        if code_results or tracery_results:
+        if (code_results or tracery_results) and not args.quiet:
             print("Execution summary:")
             if code_results:
                 print(
@@ -407,25 +421,29 @@ def invoke_command(args: argparse.Namespace) -> int:
                     f"{tracery_empty} returned empty"
                 )
 
-        print(f"Generated {len(all_suggestions)} raw suggestions")
+        if not args.quiet:
+            print(f"Generated {len(all_suggestions)} raw suggestions")
 
-        # Filter suggestions (unless --nofilter is specified)
-        if args.nofilter:
+        # Filter suggestions (unless --no-filter is specified)
+        if args.no_filter:
             filtered = all_suggestions
-            print("Skipping filtering pipeline (--nofilter)")
+            if not args.quiet:
+                print("Skipping filtering pipeline (--no-filter)")
         else:
             embedding_computer = EmbeddingComputer()
             filter = SuggestionFilter(vault.db, embedding_computer)
             filtered = filter.filter_all(all_suggestions, session_date)
-            print(f"Filtered to {len(filtered)} suggestions")
+            if not args.quiet:
+                print(f"Filtered to {len(filtered)} suggestions")
 
         # Select final suggestions based on mode
-        # Both --full and --nofilter should show all suggestions (no sampling)
-        mode = "full" if (args.full or args.nofilter) else "default"
+        # Both --full and --no-filter should show all suggestions (no sampling)
+        mode = "full" if (args.full or args.no_filter) else "default"
         count = args.count if hasattr(args, "count") else 5
         seed = int(session_date.timestamp())
         final = select_suggestions(filtered, mode, count, seed)
-        print(f"Selected {len(final)} final suggestions\n")
+        if not args.quiet:
+            print(f"Selected {len(final)} final suggestions\n")
 
         # Handle --diff mode
         if args.diff:
@@ -457,10 +475,10 @@ def invoke_command(args: argparse.Namespace) -> int:
             # Check if session already exists
             if journal_writer.session_exists(session_date):
                 if not args.force:
-                    print(
-                        f"\n⚠️  Session note already exists for {session_date.strftime('%Y-%m-%d')}"
-                    )
-                    print("Use --force to overwrite, or delete the existing note first.")
+                    if not args.quiet:
+                        date_str = session_date.strftime("%Y-%m-%d")
+                        print(f"\n⚠️  Session note already exists for {date_str}")
+                        print("Use --force to overwrite, or delete the existing note first.")
                     vault.close()
                     return 1
                 else:
@@ -472,7 +490,8 @@ def invoke_command(args: argparse.Namespace) -> int:
 
             try:
                 journal_path = journal_writer.write_session(session_date, final, mode)
-                print(f"✓ Wrote session note: {journal_path.relative_to(vault_path)}\n")
+                if not args.quiet:
+                    print(f"✓ Wrote session note: {journal_path.relative_to(vault_path)}\n")
             except Exception as e:
                 print(f"Error writing session note: {e}", file=sys.stderr)
                 vault.close()
@@ -538,19 +557,8 @@ def test_command(args: argparse.Namespace) -> int:
     Returns:
         Exit code (0 for success, 1 for error)
     """
-    # Determine vault path
-    if args.vault:
-        vault_path: Path = Path(args.vault)
-    else:
-        # Auto-detect vault
-        found_vault = find_vault_root()
-        if found_vault is None:
-            print(
-                "Error: Could not find Obsidian vault. Use --vault to specify path.",
-                file=sys.stderr,
-            )
-            return 1
-        vault_path = found_vault
+    # Get vault path from positional argument
+    vault_path: Path = Path(args.vault)
 
     if not vault_path.exists():
         print(f"Error: Vault path does not exist: {vault_path}", file=sys.stderr)
@@ -562,7 +570,8 @@ def test_command(args: argparse.Namespace) -> int:
 
     geist_id = args.geist_id
 
-    print(f"Testing geist '{geist_id}' in vault: {vault_path}\n")
+    if args.verbose:
+        print(f"Testing geist '{geist_id}' in vault: {vault_path}\n")
 
     # Set up database path
     geistfabrik_dir = vault_path / "_geistfabrik"
@@ -577,7 +586,8 @@ def test_command(args: argparse.Namespace) -> int:
         # Load vault
         vault = Vault(vault_path, db_path)
         note_count = vault.sync()
-        print(f"Loaded {note_count} notes")
+        if args.verbose:
+            print(f"Loaded {note_count} notes")
 
         # Determine session date
         if args.date:
@@ -590,7 +600,8 @@ def test_command(args: argparse.Namespace) -> int:
         else:
             session_date = datetime.now()
 
-        print(f"Session date: {session_date.strftime('%Y-%m-%d')}")
+        if args.verbose:
+            print(f"Session date: {session_date.strftime('%Y-%m-%d')}")
 
         # Load metadata inference modules
         metadata_dir = geistfabrik_dir / "metadata_inference"
@@ -600,7 +611,8 @@ def test_command(args: argparse.Namespace) -> int:
 
             metadata_loader = MetadataLoader(metadata_dir)
             metadata_loader.load_modules()
-            print(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
+            if args.verbose:
+                print(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
 
         # Load vault function modules
         functions_dir = geistfabrik_dir / "vault_functions"
@@ -610,16 +622,19 @@ def test_command(args: argparse.Namespace) -> int:
 
             function_registry = FunctionRegistry(functions_dir)
             function_registry.load_modules()
-            print(f"Loaded {len(function_registry.functions)} vault functions")
+            if args.verbose:
+                print(f"Loaded {len(function_registry.functions)} vault functions")
         else:
             from geistfabrik import FunctionRegistry
 
             function_registry = FunctionRegistry()
-            print(f"Using {len(function_registry.functions)} built-in vault functions")
+            if args.verbose:
+                print(f"Using {len(function_registry.functions)} built-in vault functions")
 
         # Create session and context
         session = Session(session_date, vault.db)
-        print("Computing embeddings...")
+        if args.verbose:
+            print("Computing embeddings...")
         session.compute_embeddings(vault.all_notes())
         context = VaultContext(
             vault, session, metadata_loader=metadata_loader, function_registry=function_registry
@@ -688,6 +703,170 @@ def test_command(args: argparse.Namespace) -> int:
         return 1
 
 
+def test_all_command(args: argparse.Namespace) -> int:
+    """Execute the test-all command to test all geists.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    # Get vault path from positional argument
+    vault_path: Path = Path(args.vault)
+
+    if not vault_path.exists():
+        print(f"Error: Vault path does not exist: {vault_path}", file=sys.stderr)
+        return 1
+
+    if not vault_path.is_dir():
+        print(f"Error: Vault path is not a directory: {vault_path}", file=sys.stderr)
+        return 1
+
+    print(f"Testing all geists in vault: {vault_path}\n")
+
+    # Set up database path
+    geistfabrik_dir = vault_path / "_geistfabrik"
+    if not geistfabrik_dir.exists():
+        print(f"Error: GeistFabrik not initialized in {vault_path}", file=sys.stderr)
+        print(f"Run: geistfabrik init {vault_path}")
+        return 1
+
+    db_path = geistfabrik_dir / "vault.db"
+
+    try:
+        # Load vault
+        vault = Vault(vault_path, db_path)
+        note_count = vault.sync()
+        if args.verbose:
+            print(f"Loaded {note_count} notes")
+
+        # Determine session date
+        if args.date:
+            try:
+                session_date = datetime.strptime(args.date, "%Y-%m-%d")
+            except ValueError:
+                print(f"Error: Invalid date format '{args.date}'. Use YYYY-MM-DD.", file=sys.stderr)
+                vault.close()
+                return 1
+        else:
+            session_date = datetime.now()
+
+        if args.verbose:
+            print(f"Session date: {session_date.strftime('%Y-%m-%d')}")
+
+        # Load metadata inference modules
+        metadata_dir = geistfabrik_dir / "metadata_inference"
+        metadata_loader = None
+        if metadata_dir.exists():
+            from geistfabrik import MetadataLoader
+
+            metadata_loader = MetadataLoader(metadata_dir)
+            metadata_loader.load_modules()
+            if args.verbose:
+                print(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
+
+        # Load vault function modules
+        functions_dir = geistfabrik_dir / "vault_functions"
+        function_registry = None
+        if functions_dir.exists():
+            from geistfabrik import FunctionRegistry
+
+            function_registry = FunctionRegistry(functions_dir)
+            function_registry.load_modules()
+            if args.verbose:
+                print(f"Loaded {len(function_registry.functions)} vault functions")
+        else:
+            from geistfabrik import FunctionRegistry
+
+            function_registry = FunctionRegistry()
+            if args.verbose:
+                print(f"Using {len(function_registry.functions)} built-in vault functions")
+
+        # Create session and context
+        session = Session(session_date, vault.db)
+        if args.verbose:
+            print("Computing embeddings...")
+        session.compute_embeddings(vault.all_notes())
+        context = VaultContext(
+            vault, session, metadata_loader=metadata_loader, function_registry=function_registry
+        )
+
+        # Load code geists
+        geists_dir = vault_path / "_geistfabrik" / "geists" / "code"
+        if not geists_dir.exists():
+            print(f"\nError: No geists directory found at {geists_dir}", file=sys.stderr)
+            vault.close()
+            return 1
+
+        executor = GeistExecutor(geists_dir, timeout=args.timeout, max_failures=3)
+        executor.load_geists()
+
+        if not executor.geists:
+            print("\nNo code geists found to test")
+            vault.close()
+            return 0
+
+        print(f"\n{'=' * 60}")
+        print(f"Testing {len(executor.geists)} geists")
+        print(f"{'=' * 60}\n")
+
+        # Test all geists
+        results = {}
+        for geist_id in sorted(executor.geists.keys()):
+            print(f"Testing {geist_id}...", end=" ")
+            suggestions = executor.execute_geist(geist_id, context)
+
+            log_entry = None
+            for entry in executor.get_execution_log():
+                if entry["geist_id"] == geist_id:
+                    log_entry = entry
+                    break
+
+            if log_entry:
+                if log_entry["status"] == "success":
+                    print(f"✓ ({len(suggestions)} suggestions, {log_entry['execution_time']:.3f}s)")
+                    results[geist_id] = {"status": "success", "count": len(suggestions)}
+                else:
+                    print(f"✗ {log_entry['error']}")
+                    results[geist_id] = {"status": "error", "error": log_entry["error"]}
+            else:
+                print("? Unknown status")
+                results[geist_id] = {"status": "unknown"}
+
+        # Print summary
+        print(f"\n{'=' * 60}")
+        print("Summary")
+        print(f"{'=' * 60}")
+
+        success = sum(1 for r in results.values() if r["status"] == "success")
+        errors = sum(1 for r in results.values() if r["status"] == "error")
+        total = len(results)
+
+        print(f"Total: {total} geists")
+        print(f"Success: {success} ({success * 100 // total if total > 0 else 0}%)")
+        print(f"Errors: {errors}")
+
+        if errors > 0:
+            print("\nFailed geists:")
+            for geist_id, result in results.items():
+                if result["status"] == "error":
+                    print(f"  ✗ {geist_id}: {result.get('error', 'Unknown error')}")
+                    print(f"    Test with: geistfabrik test {geist_id} {vault_path}")
+
+        print(f"\n{'=' * 60}\n")
+
+        vault.close()
+        return 0 if errors == 0 else 1
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+
+        traceback.print_exc()
+        return 1
+
+
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -696,17 +875,26 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  geistfabrik invoke                    # Run in current vault with default settings
-  geistfabrik invoke --vault ~/notes    # Specify vault path
-  geistfabrik invoke --geist drift      # Run specific geist
-  geistfabrik invoke --date 2025-01-15  # Replay session from specific date
+  # Lifecycle: Setup → Preview → Write
+  geistfabrik init ~/my-vault --examples        # [1] Initialize vault
+  geistfabrik invoke ~/my-vault                 # [2] Preview suggestions
+  geistfabrik invoke ~/my-vault --write         # [3] Write to journal
+
+  # Advanced usage
+  geistfabrik invoke ~/my-vault --geist drift   # Run specific geist
+  geistfabrik invoke ~/my-vault --full          # All filtered suggestions
+  geistfabrik invoke ~/my-vault --date 2025-01-15  # Replay session
+  geistfabrik test my_geist ~/my-vault          # Test geist during development
         """,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Init command
-    init_parser = subparsers.add_parser("init", help="Initialize GeistFabrik in a vault")
+    init_parser = subparsers.add_parser(
+        "init",
+        help="[Step 1] Initialize GeistFabrik in a vault (creates _geistfabrik/ directory)",
+    )
     init_parser.add_argument(
         "vault",
         type=str,
@@ -715,7 +903,10 @@ Examples:
     init_parser.add_argument(
         "--examples",
         action="store_true",
-        help="Install example geists, metadata modules, and vault functions",
+        help=(
+            "Install 17 example geists (10 code + 7 Tracery) for learning. "
+            "You can modify or remove them later."
+        ),
     )
     init_parser.add_argument(
         "--force",
@@ -724,16 +915,27 @@ Examples:
     )
 
     # Invoke command
-    invoke_parser = subparsers.add_parser("invoke", help="Execute geists and generate suggestions")
+    invoke_parser = subparsers.add_parser(
+        "invoke",
+        help=(
+            "[Step 2] Run geists and generate suggestions "
+            "(preview mode by default, use --write to save)"
+        ),
+    )
     invoke_parser.add_argument(
-        "--vault",
+        "vault",
         type=str,
-        help="Path to Obsidian vault (auto-detects if not specified)",
+        help="Path to Obsidian vault",
     )
     invoke_parser.add_argument(
         "--geist",
         type=str,
-        help="Run specific geist by ID",
+        help="Run specific geist by ID (e.g., temporal_drift)",
+    )
+    invoke_parser.add_argument(
+        "--geists",
+        type=str,
+        help="Run multiple specific geists by ID, comma-separated (e.g., drift,columbo,skeptic)",
     )
     invoke_parser.add_argument(
         "--date",
@@ -752,8 +954,9 @@ Examples:
         help="Show all filtered suggestions (no sampling, filtering still applies)",
     )
     invoke_parser.add_argument(
-        "--nofilter",
+        "--no-filter",
         action="store_true",
+        dest="no_filter",
         help="Skip filtering pipeline (raw output from all geists)",
     )
     invoke_parser.add_argument(
@@ -765,7 +968,10 @@ Examples:
     invoke_parser.add_argument(
         "--write",
         action="store_true",
-        help="Write suggestions to geist journal note",
+        help=(
+            "Write suggestions to journal note at <vault>/geist journal/YYYY-MM-DD.md "
+            "(default: preview only)"
+        ),
     )
     invoke_parser.add_argument(
         "--force",
@@ -777,18 +983,31 @@ Examples:
         action="store_true",
         help="Show what changed since last session",
     )
+    invoke_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed execution information",
+    )
+    invoke_parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress non-essential output (only show suggestions)",
+    )
 
     # Test command
-    test_parser = subparsers.add_parser("test", help="Test a single geist")
+    test_parser = subparsers.add_parser(
+        "test",
+        help="[Debug] Test a single geist in isolation",
+    )
     test_parser.add_argument(
         "geist_id",
         type=str,
         help="ID of the geist to test",
     )
     test_parser.add_argument(
-        "--vault",
+        "vault",
         type=str,
-        help="Path to Obsidian vault (auto-detects if not specified)",
+        help="Path to Obsidian vault",
     )
     test_parser.add_argument(
         "--date",
@@ -800,6 +1019,38 @@ Examples:
         type=int,
         default=5,
         help="Geist execution timeout in seconds (default: 5)",
+    )
+    test_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed execution information",
+    )
+
+    # Test-all command
+    test_all_parser = subparsers.add_parser(
+        "test-all",
+        help="[Debug] Test all geists and report results",
+    )
+    test_all_parser.add_argument(
+        "vault",
+        type=str,
+        help="Path to Obsidian vault",
+    )
+    test_all_parser.add_argument(
+        "--date",
+        type=str,
+        help="Session date in YYYY-MM-DD format (defaults to today)",
+    )
+    test_all_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=5,
+        help="Geist execution timeout in seconds (default: 5)",
+    )
+    test_all_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed execution information",
     )
 
     args = parser.parse_args()
@@ -816,6 +1067,8 @@ Examples:
         return invoke_command(args)
     elif args.command == "test":
         return test_command(args)
+    elif args.command == "test-all":
+        return test_all_command(args)
 
     return 1
 

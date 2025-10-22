@@ -104,4 +104,4 @@ tracery:
     - "what would you learn"
     - "what would emerge"
 
-suggestions_per_invocation: 3
+count: 3

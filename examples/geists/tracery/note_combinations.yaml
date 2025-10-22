@@ -26,4 +26,4 @@ tracery:
     - "illuminate each other"
     - "transform each other"
 
-suggestions_per_invocation: 2
+count: 2

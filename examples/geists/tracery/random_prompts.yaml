@@ -41,4 +41,4 @@ tracery:
     - "historical context"
     - "future implications"
 
-suggestions_per_invocation: 2
+count: 2
