@@ -5,6 +5,8 @@ used throughout the application. These serve as default values that can
 be overridden by user configuration files or CLI arguments.
 """
 
+from typing import Any, Dict
+
 # Embedding Configuration
 # -----------------------
 # These constants define the dimensionality and behavior of the embedding system.
@@ -172,7 +174,7 @@ Recommended: 1000 (suitable for vaults with up to 1000 notes)
 """
 
 
-def get_default_filter_config() -> dict:
+def get_default_filter_config() -> Dict[str, Any]:
     """Get default filtering configuration dictionary.
 
     Returns:

@@ -46,7 +46,7 @@ run_check "Ruff linting" uv run ruff check src/ tests/ || FAILED=1
 run_check "Mypy type checking" uv run mypy src/ --strict || FAILED=1
 
 # 3. Unused database tables check
-run_check "Unused database tables check" python scripts/detect_unused_tables.py || FAILED=1
+run_check "Unused database tables check" uv run python scripts/detect_unused_tables.py || FAILED=1
 
 # 4. Unit tests
 run_check "Unit tests" uv run pytest tests/unit -v --timeout=60 || FAILED=1
