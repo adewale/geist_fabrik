@@ -3,7 +3,8 @@ id: contradictor
 count: 1
 
 tracery:
-  origin: "#suggestion#"
+  origin:
+    - "#suggestion#"
   suggestion:
     - "[[#note#]] exists. But what about the opposite?"
     - "You wrote [[#note#]]. What would the opposite look like?"

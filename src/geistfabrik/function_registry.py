@@ -164,6 +164,21 @@ class FunctionRegistry:
             sampled_notes = vault.sample(recent_pool, k)
             return [note.title for note in sampled_notes]
 
+        @vault_function("random_note_title")
+        def random_note_title(vault: "VaultContext") -> str:
+            """Get a random note title from the vault.
+
+            Uses deterministic randomness based on vault's RNG seed.
+
+            Returns:
+                Single note title (string for Tracery)
+            """
+            notes = vault.notes()
+            if not notes:
+                return ""
+            sampled = vault.sample(notes, 1)
+            return sampled[0].title if sampled else ""
+
         @vault_function("orphans")
         def orphans(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k orphan notes (no incoming or outgoing links).

@@ -403,6 +403,18 @@ def test_vault_functions_adapter_layer():
         if result:  # If we found hubs
             assert "Hub Note" in result, "Should find hub by title"
 
+        # Test random_note_title: Note → str
+        result = registry.call("random_note_title", ctx)
+        assert isinstance(result, str), "random_note_title should return string"
+        assert len(result) > 0, "Should return non-empty title"
+
+        # Test determinism: same seed = same result (use fresh contexts)
+        ctx_fresh1 = VaultContext(vault, session, seed=999)
+        ctx_fresh2 = VaultContext(vault, session, seed=999)
+        result1 = registry.call("random_note_title", ctx_fresh1)
+        result2 = registry.call("random_note_title", ctx_fresh2)
+        assert result1 == result2, "Same seed should give same random note"
+
         vault.close()
 
 
