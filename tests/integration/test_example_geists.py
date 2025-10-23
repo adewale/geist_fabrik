@@ -1,11 +1,11 @@
-"""Integration tests for all example geists.
+"""Integration tests for all bundled default geists.
 
-These tests verify that all geists in examples/geists/ work correctly
+These tests verify that all geists in src/geistfabrik/default_geists/ work correctly
 with a real vault. Uses stubs (kepano-obsidian-main test vault), not mocks.
 
 Tests cover:
-- All 29 code geists in examples/geists/code/
-- All 8 Tracery geists in examples/geists/tracery/
+- All 35 code geists in src/geistfabrik/default_geists/code/
+- All 10 Tracery geists in src/geistfabrik/default_geists/tracery/
 
 Performance target: All tests should complete in < 15 seconds total
 """
@@ -63,12 +63,13 @@ def vault_context(vault: Vault, session: Session) -> VaultContext:
 @pytest.fixture
 def geist_executor(test_vault_path: Path) -> GeistExecutor:
     """Create GeistExecutor for loading code geists."""
-    code_geists_dir = Path(__file__).parent.parent.parent / "examples" / "geists" / "code"
+    repo_root = Path(__file__).parent.parent.parent
+    code_geists_dir = repo_root / "src" / "geistfabrik" / "default_geists" / "code"
     return GeistExecutor(code_geists_dir, timeout=5)
 
 
 # ============================================================================
-# Code Geists Tests (29 geists)
+# Code Geists Tests (35 geists)
 # ============================================================================
 
 
@@ -457,7 +458,7 @@ def test_antithesis_generator_geist(vault_context: VaultContext, geist_executor:
 
 
 # ============================================================================
-# Tracery Geists Tests (8 geists)
+# Tracery Geists Tests (10 geists)
 # ============================================================================
 
 
@@ -465,8 +466,9 @@ def test_random_prompts_tracery_geist(vault_context: VaultContext):
     """Test random_prompts Tracery geist."""
     geist_path = (
         Path(__file__).parent.parent.parent
-        / "examples"
-        / "geists"
+        / "src"
+        / "geistfabrik"
+        / "default_geists"
         / "tracery"
         / "random_prompts.yaml"
     )
@@ -488,8 +490,9 @@ def test_note_combinations_tracery_geist(vault_context: VaultContext):
     """Test note_combinations Tracery geist."""
     geist_path = (
         Path(__file__).parent.parent.parent
-        / "examples"
-        / "geists"
+        / "src"
+        / "geistfabrik"
+        / "default_geists"
         / "tracery"
         / "note_combinations.yaml"
     )
@@ -511,9 +514,8 @@ def test_note_combinations_tracery_geist(vault_context: VaultContext):
 
 def test_what_if_tracery_geist(vault_context: VaultContext):
     """Test what_if Tracery geist."""
-    geist_path = (
-        Path(__file__).parent.parent.parent / "examples" / "geists" / "tracery" / "what_if.yaml"
-    )
+    repo_root = Path(__file__).parent.parent.parent
+    geist_path = repo_root / "src" / "geistfabrik" / "default_geists" / "tracery" / "what_if.yaml"
 
     geist = TraceryGeist.from_yaml(geist_path, seed=12345)
     assert geist.geist_id == "what_if"
@@ -534,8 +536,9 @@ def test_temporal_mirror_tracery_geist(vault_context: VaultContext):
     """Test temporal_mirror Tracery geist (new)."""
     geist_path = (
         Path(__file__).parent.parent.parent
-        / "examples"
-        / "geists"
+        / "src"
+        / "geistfabrik"
+        / "default_geists"
         / "tracery"
         / "temporal_mirror.yaml"
     )
@@ -562,8 +565,9 @@ def test_orphan_connector_tracery_geist(vault_context: VaultContext):
     """Test orphan_connector Tracery geist."""
     geist_path = (
         Path(__file__).parent.parent.parent
-        / "examples"
-        / "geists"
+        / "src"
+        / "geistfabrik"
+        / "default_geists"
         / "tracery"
         / "orphan_connector.yaml"
     )
@@ -588,8 +592,9 @@ def test_hub_explorer_tracery_geist(vault_context: VaultContext):
     """Test hub_explorer Tracery geist."""
     geist_path = (
         Path(__file__).parent.parent.parent
-        / "examples"
-        / "geists"
+        / "src"
+        / "geistfabrik"
+        / "default_geists"
         / "tracery"
         / "hub_explorer.yaml"
     )
@@ -614,8 +619,9 @@ def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
     """Test semantic_neighbours Tracery geist."""
     geist_path = (
         Path(__file__).parent.parent.parent
-        / "examples"
-        / "geists"
+        / "src"
+        / "geistfabrik"
+        / "default_geists"
         / "tracery"
         / "semantic_neighbours.yaml"
     )
@@ -642,12 +648,11 @@ def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
 
 
 def test_all_geists_are_loadable(geist_executor: GeistExecutor):
-    """Test that all example code geists can be loaded without errors."""
+    """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 34 code geists in examples/geists/code/
-    # 10 original + 19 ambitious + 5 default candidates
-    assert len(geist_executor.geists) == 34
+    # We have 35 code geists in src/geistfabrik/default_geists/code/
+    assert len(geist_executor.geists) == 35
 
 
 def test_all_geists_execute_without_crashing(
@@ -669,8 +674,9 @@ def test_geist_determinism(vault_context: VaultContext):
     """Test that geists produce deterministic output with same seed."""
     geist_path = (
         Path(__file__).parent.parent.parent
-        / "examples"
-        / "geists"
+        / "src"
+        / "geistfabrik"
+        / "default_geists"
         / "tracery"
         / "random_prompts.yaml"
     )
