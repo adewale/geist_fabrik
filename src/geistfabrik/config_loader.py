@@ -5,10 +5,9 @@ This module handles loading and saving vault configuration from config.yaml.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import yaml
-
 
 # List of all default geists (for reference and validation)
 DEFAULT_CODE_GEISTS = [

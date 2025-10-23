@@ -49,11 +49,12 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
             different_example = _find_different_structure(vault, dominant_type)
 
             if different_example:
+                different_structure = _classify_structure(vault, different_example)
                 text = (
                     f"Your last {len(recent)} notes are structurally similar "
                     f"({dominant_count} are {dominant_type}). "
-                    f"\n\n[[{different_example.title}]] has a different structure ({_classify_structure(vault, different_example)}). "
-                    f"What if you tried that style again?"
+                    f"\n\n[[{different_example.title}]] has a different structure "
+                    f"({different_structure}). What if you tried that style again?"
                 )
 
                 suggestions.append(

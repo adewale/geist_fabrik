@@ -34,11 +34,7 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
     for note in vault.notes():
         created = note.created
         # Same month and day, different year, and in the past
-        if (
-            created.month == today.month
-            and created.day == today.day
-            and created.year < today.year
-        ):
+        if created.month == today.month and created.day == today.day and created.year < today.year:
             years_ago = today.year - created.year
             same_date_notes.append((note, years_ago))
 
@@ -53,9 +49,7 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
             time_phrase = f"{years_ago} years ago today"
 
         text = f"{time_phrase}, you wrote [[{note.title}]]. What's changed since then?"
-        suggestions.append(
-            Suggestion(text=text, notes=[note.title], geist_id="on_this_day")
-        )
+        suggestions.append(Suggestion(text=text, notes=[note.title], geist_id="on_this_day"))
 
     # Sample up to 2 suggestions
     return vault.sample(suggestions, min(2, len(suggestions)))

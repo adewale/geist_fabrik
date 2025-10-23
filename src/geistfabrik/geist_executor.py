@@ -69,17 +69,11 @@ class GeistExecutor:
         """
         # Load default geists first
         if self.default_geists_dir and self.default_geists_dir.exists():
-            self._load_geists_from_directory(
-                self.default_geists_dir,
-                is_default=True
-            )
+            self._load_geists_from_directory(self.default_geists_dir, is_default=True)
 
         # Load custom geists
         if self.geists_dir.exists():
-            self._load_geists_from_directory(
-                self.geists_dir,
-                is_default=False
-            )
+            self._load_geists_from_directory(self.geists_dir, is_default=False)
 
     def _load_geists_from_directory(self, directory: Path, is_default: bool = False) -> None:
         """Load geists from a specific directory.
