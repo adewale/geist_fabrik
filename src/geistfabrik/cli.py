@@ -184,15 +184,22 @@ def init_command(args: argparse.Namespace) -> int:
     print("=" * 60)
     print(f"\nVault: {vault_path}")
     print(f"Configuration: {geistfabrik_dir.relative_to(vault_path)}")
+
+    # Inform about bundled defaults
+    print("\n🎁 14 default geists are bundled and ready to use:")
+    print("   • 5 code geists (blind_spot_detector, dialectic_triad, etc.)")
+    print("   • 9 Tracery geists (contradictor, hub_explorer, etc.)")
+    print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
+
     if args.examples:
-        print("\n📚 Example geists have been installed.")
-        print("   You can modify or remove them as needed.")
+        print("\n📚 Example extension code has been installed.")
+        print("   These are learning materials showing extension patterns.")
     else:
-        print("\n💡 Tip: Use --examples to install example geists:")
-        print(f"   geistfabrik init {vault_path} --examples")
+        print("\n💡 Optional: Use --examples to copy extension examples:")
+        print("   (for learning how to write custom geists, functions, etc.)")
 
     print("\n🚀 Next steps:")
-    print(f"   geistfabrik invoke --vault {vault_path}")
+    print(f"   geistfabrik invoke {vault_path}")
     print("   # or just: geistfabrik invoke (from within the vault)\n")
 
     return 0
