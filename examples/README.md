@@ -1,42 +1,34 @@
 # GeistFabrik Examples
 
-This directory contains example implementations of the three-dimensional extensibility system in GeistFabrik.
+This directory contains example implementations for extending GeistFabrik through metadata inference and vault functions.
+
+## Important: Geists are Bundled, Not in Examples
+
+**All 45 geists are now bundled with GeistFabrik** in `src/geistfabrik/default_geists/`. They work immediately on first run—no installation needed.
+
+This `examples/` directory focuses on:
+- **Metadata inference modules** - Adding custom properties to notes
+- **Vault functions** - Creating reusable functions for Tracery geists
+
+To create custom geists, refer to the bundled source code in `src/geistfabrik/default_geists/` as examples.
 
 ## Directory Structure
 
 ```
 examples/
-├── metadata_inference/     # Metadata inference modules (Phase 8)
+├── metadata_inference/     # Custom metadata modules
 │   ├── complexity.py       # Text complexity metrics
 │   ├── temporal.py         # Temporal/staleness metrics
 │   └── structure.py        # Document structure analysis
 │
-├── vault_functions/        # Vault functions for geists (Phase 9)
-│   ├── contrarian.py       # Find semantically dissimilar notes
-│   └── questions.py        # Find question notes and metadata queries
-│
-└── geists/                 # Example geists
-    ├── code/               # Python code geists
-    │   ├── temporal_drift.py          # Find stale but important notes
-    │   ├── creative_collision.py      # Suggest unexpected note combinations
-    │   ├── bridge_builder.py          # Find notes that could bridge clusters
-    │   ├── complexity_mismatch.py     # Find complexity/importance mismatches
-    │   ├── question_generator.py      # Reframe statements as questions
-    │   ├── link_density_analyzer.py   # Analyze link patterns
-    │   ├── task_archaeology.py        # Find old incomplete tasks
-    │   ├── concept_cluster.py         # Identify emergent concept clusters
-    │   ├── stub_expander.py           # Find stubs worth expanding
-    │   └── recent_focus.py            # Connect recent work to old notes
-    │
-    └── tracery/            # Tracery grammar geists
-        ├── random_prompts.yaml        # Random creative prompts
-        ├── note_combinations.yaml     # Combine random notes
-        └── what_if.yaml               # "What if" question generator
+└── vault_functions/        # Custom vault functions
+    ├── contrarian.py       # Find semantically dissimilar notes
+    └── questions.py        # Find question notes
 ```
 
 ## Installation
 
-To use these examples with your vault, copy them to your vault's `_geistfabrik` directory:
+Copy these examples to your vault's `_geistfabrik` directory:
 
 ```bash
 # Copy metadata inference modules
@@ -44,9 +36,6 @@ cp -r examples/metadata_inference/* /path/to/vault/_geistfabrik/metadata_inferen
 
 # Copy vault functions
 cp -r examples/vault_functions/* /path/to/vault/_geistfabrik/vault_functions/
-
-# Copy geists
-cp -r examples/geists/* /path/to/vault/_geistfabrik/geists/
 ```
 
 Or create symlinks for easier development:
@@ -54,7 +43,6 @@ Or create symlinks for easier development:
 ```bash
 ln -s $(pwd)/examples/metadata_inference /path/to/vault/_geistfabrik/metadata_inference
 ln -s $(pwd)/examples/vault_functions /path/to/vault/_geistfabrik/vault_functions
-ln -s $(pwd)/examples/geists /path/to/vault/_geistfabrik/geists
 ```
 
 ## Usage
@@ -64,7 +52,7 @@ ln -s $(pwd)/examples/geists /path/to/vault/_geistfabrik/geists
 Metadata modules automatically run when you invoke geists:
 
 ```python
-# In your geists, metadata is automatically available
+# In your custom geists, metadata is automatically available
 def suggest(vault):
     for note in vault.notes():
         metadata = vault.metadata(note)
@@ -108,33 +96,6 @@ tracery:
     - "$vault.contrarian_to('My Note', 2)"
 ```
 
-### Code Geists
-
-Code geists are Python modules with a `suggest(vault)` function:
-
-```bash
-# Run all geists
-uv run geistfabrik invoke
-
-# Run specific geist
-uv run geistfabrik invoke --geist temporal_drift
-
-# Write suggestions to journal
-uv run geistfabrik invoke --write
-```
-
-### Tracery Geists
-
-Tracery geists use YAML grammar definitions and are automatically discovered:
-
-```bash
-# Tracery geists run alongside code geists
-uv run geistfabrik invoke
-
-# Control how many suggestions per geist
-# (set in YAML: suggestions_per_invocation: 3)
-```
-
 ## Creating Your Own Extensions
 
 ### 1. Metadata Inference Module
@@ -167,14 +128,22 @@ def my_function(vault, arg1, k=5):
     return vault.sample(results, k)
 ```
 
-### 3. Code Geist
+### 3. Creating Custom Geists
+
+To create custom geists, view the bundled source code in `src/geistfabrik/default_geists/` for examples, then create your own:
+
+#### Code Geist
 
 Create `_geistfabrik/geists/code/my_geist.py`:
 
 ```python
 from geistfabrik import Suggestion
+from typing import TYPE_CHECKING
 
-def suggest(vault):
+if TYPE_CHECKING:
+    from geistfabrik import VaultContext
+
+def suggest(vault: "VaultContext") -> list[Suggestion]:
     """Generate suggestions based on vault analysis."""
     suggestions = []
 
@@ -193,7 +162,7 @@ def suggest(vault):
     return vault.sample(suggestions, k=5)
 ```
 
-### 4. Tracery Geist
+#### Tracery Geist
 
 Create `_geistfabrik/geists/tracery/my_geist.yaml`:
 
@@ -214,45 +183,40 @@ tracery:
     - "explored more"
     - "questioned assumptions"
 
-suggestions_per_invocation: 2
+count: 2
 ```
 
-## Example Geist Descriptions
+## Bundled Default Geists
 
-### temporal_drift.py
-Finds notes that haven't been modified in a long time but are well-connected in your vault. Suggests revisiting them to see if they still align with your current thinking.
+GeistFabrik includes **45 bundled default geists** (35 code + 10 Tracery) that work immediately:
 
-### creative_collision.py
-Randomly pairs notes from different domains to spark unexpected connections and creative insights.
+**Code geists include:**
+- temporal_drift, creative_collision, bridge_builder, complexity_mismatch
+- question_generator, link_density_analyser, task_archaeology, concept_cluster
+- stub_expander, recent_focus, columbo, session_drift, hermeneutic_instability
+- and 22 more...
 
-### bridge_builder.py
-Identifies notes that could serve as conceptual bridges between disconnected areas of your knowledge graph.
+**Tracery geists include:**
+- contradictor, hub_explorer, note_combinations, orphan_connector
+- perspective_shifter, random_prompts, semantic_neighbours, temporal_mirror
+- transformation_suggester, what_if
 
-### complexity_mismatch.py
-Finds notes where complexity doesn't match importance—either underdeveloped important notes or overcomplicated peripheral notes.
+View their source code in `src/geistfabrik/default_geists/` to learn patterns.
 
-### question_generator.py
-Suggests reframing declarative notes as questions to encourage deeper exploration and critical thinking.
+Enable/disable defaults in `_geistfabrik/config.yaml`:
 
-### link_density_analyzer.py
-Analyzes the ratio of links to content and suggests notes that might be over-linked (overwhelming) or under-linked (isolated).
-
-### task_archaeology.py
-Discovers old incomplete tasks in your notes and asks whether they're still relevant or should be archived.
-
-### concept_cluster.py
-Identifies emergent clusters of semantically related notes that might represent a theme worth naming and organizing.
-
-### stub_expander.py
-Finds very short notes with connections (stubs) that might be worth developing into more substantial notes.
-
-### recent_focus.py
-Analyzes your recently modified notes and connects them to older related notes, revealing how your thinking has evolved.
+```yaml
+default_geists:
+  temporal_drift: true
+  contradictor: false  # Disable this one
+  # ... rest default to true
+```
 
 ## Philosophy
 
-These examples demonstrate GeistFabrik's core principle: **muses, not oracles**. Each geist asks "What if?" rather than declaring "Here's how." They're designed to:
+These examples demonstrate GeistFabrik's core principle: **muses, not oracles**.
 
+Extensions should:
 - **Provoke** rather than prescribe
 - **Question** rather than answer
 - **Diverge** rather than converge
@@ -260,16 +224,28 @@ These examples demonstrate GeistFabrik's core principle: **muses, not oracles**.
 
 Geists should feel like opening a gift: surprising, delightful, and occasionally serendipitous.
 
+## Testing Your Extensions
+
+Test custom geists:
+
+```bash
+# Test a specific geist
+uv run geistfabrik test my_geist --vault ~/my-vault
+
+# Test with specific date for reproducibility
+uv run geistfabrik test my_geist --vault ~/my-vault --date 2025-01-15
+```
+
 ## Contributing
 
-To add your own example geists to this collection:
+To contribute example extensions:
 
-1. Create your geist following the patterns above
-2. Test it with `geistfabrik test my_geist --vault testdata/kepano-obsidian-main`
+1. Create your module following the patterns above
+2. Test it thoroughly
 3. Add documentation explaining what it does and why
-4. Submit a pull request with your example
+4. Submit a pull request
 
-Great geists:
+Great extensions:
 - Ask interesting questions
 - Respect the user's attention
 - Find surprising patterns
