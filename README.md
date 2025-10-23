@@ -63,10 +63,11 @@ uv run geistfabrik --help
 
 ```bash
 # Initialize a vault (creates _geistfabrik directory structure)
-uv run geistfabrik init /path/to/your/vault --examples
+uv run geistfabrik init /path/to/your/vault
 
-# The --examples flag installs all 17 example geists
-# Omit it if you want to start with a clean setup
+# This automatically configures 45 bundled default geists:
+# • 35 code geists (blind_spot_detector, temporal_drift, columbo, etc.)
+# • 10 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)
 
 # Preview suggestions (read-only, no files created)
 uv run geistfabrik invoke /path/to/your/vault
@@ -84,7 +85,7 @@ Test GeistFabrik on our sample vault before using your own:
 
 ```bash
 # After installation, try on sample vault
-uv run geistfabrik init testdata/kepano-obsidian-main --examples
+uv run geistfabrik init testdata/kepano-obsidian-main
 uv run geistfabrik invoke testdata/kepano-obsidian-main --write
 
 # View results
@@ -96,6 +97,8 @@ rm -rf testdata/kepano-obsidian-main/"geist journal"
 ```
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
+
+**Note**: 45 default geists work immediately - no installation needed!
 
 ## Privacy & Data Safety
 

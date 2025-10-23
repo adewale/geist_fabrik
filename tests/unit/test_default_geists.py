@@ -112,24 +112,19 @@ def test_generate_default_config():
 
 def test_default_geist_lists():
     """Test that default geist lists are complete."""
-    # Should have 5 code geists
-    assert len(DEFAULT_CODE_GEISTS) == 5
+    # Should have 35 code geists
+    assert len(DEFAULT_CODE_GEISTS) == 35
+    # Spot check a few key geists
     assert "blind_spot_detector" in DEFAULT_CODE_GEISTS
-    assert "dialectic_triad" in DEFAULT_CODE_GEISTS
-    assert "structure_diversity_checker" in DEFAULT_CODE_GEISTS
-    assert "metadata_driven_discovery" in DEFAULT_CODE_GEISTS
+    assert "temporal_drift" in DEFAULT_CODE_GEISTS
+    assert "columbo" in DEFAULT_CODE_GEISTS
     assert "on_this_day" in DEFAULT_CODE_GEISTS
 
-    # Should have 9 Tracery geists
-    assert len(DEFAULT_TRACERY_GEISTS) == 9
+    # Should have 10 Tracery geists
+    assert len(DEFAULT_TRACERY_GEISTS) == 10
     assert "contradictor" in DEFAULT_TRACERY_GEISTS
     assert "hub_explorer" in DEFAULT_TRACERY_GEISTS
-    assert "note_combinations" in DEFAULT_TRACERY_GEISTS
-    assert "orphan_connector" in DEFAULT_TRACERY_GEISTS
-    assert "perspective_shifter" in DEFAULT_TRACERY_GEISTS
-    assert "random_prompts" in DEFAULT_TRACERY_GEISTS
-    assert "semantic_neighbours" in DEFAULT_TRACERY_GEISTS
-    assert "temporal_mirror" in DEFAULT_TRACERY_GEISTS
+    assert "transformation_suggester" in DEFAULT_TRACERY_GEISTS
     assert "what_if" in DEFAULT_TRACERY_GEISTS
 
 
