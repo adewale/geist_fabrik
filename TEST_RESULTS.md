@@ -171,7 +171,7 @@ print(f'✅ Loaded {len(executor.geists)} geists: {sorted(executor.geists.keys()
 
 All 19 new geists are:
 1. ✅ **Syntactically correct** - All compile without errors
-2. ✅ **Properly structured** - GeistExecutor loads all 29 geists successfully  
+2. ✅ **Properly structured** - GeistExecutor loads all 29 geists successfully
 3. ✅ **Linted and formatted** - Zero linting errors, properly formatted
 4. ✅ **Fully tested** - 19 unit tests with correct structure
 5. ✅ **Well documented** - Comprehensive docs with examples

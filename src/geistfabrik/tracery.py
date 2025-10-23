@@ -41,11 +41,11 @@ class TraceryEngine:
             Dictionary mapping modifier names to transformation functions
         """
         return {
-            'capitalize': self._capitalize,
-            'capitalizeAll': self._capitalize_all,
-            's': self._pluralize,
-            'ed': self._past_tense,
-            'a': self._article,
+            "capitalize": self._capitalize,
+            "capitalizeAll": self._capitalize_all,
+            "s": self._pluralize,
+            "ed": self._past_tense,
+            "a": self._article,
         }
 
     def _capitalize(self, text: str) -> str:
@@ -70,7 +70,7 @@ class TraceryEngine:
         Returns:
             Text with each word capitalized
         """
-        return ' '.join(word.capitalize() for word in text.split())
+        return " ".join(word.capitalize() for word in text.split())
 
     def _pluralize(self, text: str) -> str:
         """Convert word to plural form.
@@ -91,14 +91,14 @@ class TraceryEngine:
 
         # Handle common irregular plurals
         irregulars = {
-            'person': 'people',
-            'child': 'children',
-            'man': 'men',
-            'woman': 'women',
-            'tooth': 'teeth',
-            'foot': 'feet',
-            'mouse': 'mice',
-            'goose': 'geese',
+            "person": "people",
+            "child": "children",
+            "man": "men",
+            "woman": "women",
+            "tooth": "teeth",
+            "foot": "feet",
+            "mouse": "mice",
+            "goose": "geese",
         }
 
         lower_text = text.lower()
@@ -110,21 +110,21 @@ class TraceryEngine:
             return result
 
         # Words ending in consonant + y -> ies
-        if len(text) >= 2 and text[-1] == 'y' and text[-2] not in 'aeiou':
-            return text[:-1] + 'ies'
+        if len(text) >= 2 and text[-1] == "y" and text[-2] not in "aeiou":
+            return text[:-1] + "ies"
 
         # Words ending in s, x, z, ch, sh -> es
-        if text.endswith(('s', 'x', 'z')) or text.endswith(('ch', 'sh')):
-            return text + 'es'
+        if text.endswith(("s", "x", "z")) or text.endswith(("ch", "sh")):
+            return text + "es"
 
         # Words ending in consonant + o -> es (with exceptions)
-        if len(text) >= 2 and text[-1] == 'o' and text[-2] not in 'aeiou':
+        if len(text) >= 2 and text[-1] == "o" and text[-2] not in "aeiou":
             # Common exceptions that just add 's'
-            if lower_text not in ['photo', 'piano', 'halo']:
-                return text + 'es'
+            if lower_text not in ["photo", "piano", "halo"]:
+                return text + "es"
 
         # Default: add s
-        return text + 's'
+        return text + "s"
 
     def _past_tense(self, text: str) -> str:
         """Convert verb to past tense.
@@ -146,36 +146,36 @@ class TraceryEngine:
 
         # Handle common irregular verbs
         irregulars = {
-            'be': 'was',
-            'have': 'had',
-            'do': 'did',
-            'say': 'said',
-            'go': 'went',
-            'get': 'got',
-            'make': 'made',
-            'know': 'knew',
-            'think': 'thought',
-            'take': 'took',
-            'see': 'saw',
-            'come': 'came',
-            'want': 'wanted',
-            'use': 'used',
-            'find': 'found',
-            'give': 'gave',
-            'tell': 'told',
-            'work': 'worked',
-            'call': 'called',
-            'try': 'tried',
-            'ask': 'asked',
-            'need': 'needed',
-            'feel': 'felt',
-            'become': 'became',
-            'leave': 'left',
-            'put': 'put',
-            'write': 'wrote',
-            'build': 'built',
-            'grow': 'grew',
-            'split': 'split',
+            "be": "was",
+            "have": "had",
+            "do": "did",
+            "say": "said",
+            "go": "went",
+            "get": "got",
+            "make": "made",
+            "know": "knew",
+            "think": "thought",
+            "take": "took",
+            "see": "saw",
+            "come": "came",
+            "want": "wanted",
+            "use": "used",
+            "find": "found",
+            "give": "gave",
+            "tell": "told",
+            "work": "worked",
+            "call": "called",
+            "try": "tried",
+            "ask": "asked",
+            "need": "needed",
+            "feel": "felt",
+            "become": "became",
+            "leave": "left",
+            "put": "put",
+            "write": "wrote",
+            "build": "built",
+            "grow": "grew",
+            "split": "split",
         }
 
         lower_text = text.lower()
@@ -187,26 +187,28 @@ class TraceryEngine:
             return result
 
         # Words ending in 'e' -> add 'd'
-        if text.endswith('e'):
-            return text + 'd'
+        if text.endswith("e"):
+            return text + "d"
 
         # Words ending in consonant + 'y' -> 'ied'
-        if len(text) >= 2 and text[-1] == 'y' and text[-2] not in 'aeiou':
-            return text[:-1] + 'ied'
+        if len(text) >= 2 and text[-1] == "y" and text[-2] not in "aeiou":
+            return text[:-1] + "ied"
 
         # Words ending in single consonant preceded by single vowel (CVC pattern)
         # and stressed on last syllable -> double consonant + 'ed'
         # Simplified: just check if last 3 chars match CVC pattern for short words
         if len(text) >= 3:
-            if (text[-1] not in 'aeiouwxy' and  # consonant
-                text[-2] in 'aeiou' and         # vowel
-                text[-3] not in 'aeiou'):       # consonant
+            if (
+                text[-1] not in "aeiouwxy"  # consonant
+                and text[-2] in "aeiou"  # vowel
+                and text[-3] not in "aeiou"
+            ):  # consonant
                 # Double last consonant for short words
                 if len(text) <= 5:
-                    return text + text[-1] + 'ed'
+                    return text + text[-1] + "ed"
 
         # Default: add 'ed'
-        return text + 'ed'
+        return text + "ed"
 
     def _article(self, text: str) -> str:
         """Add appropriate article (a/an) before word.
@@ -225,14 +227,14 @@ class TraceryEngine:
         first_char = text[0].lower()
 
         # Special cases
-        if text.lower().startswith(('honest', 'hour', 'honor', 'heir')):
-            article = 'an'
-        elif text.lower().startswith('uni'):
-            article = 'a'  # 'university', 'unique' etc. have 'yoo' sound
-        elif first_char in 'aeiou':
-            article = 'an'
+        if text.lower().startswith(("honest", "hour", "honor", "heir")):
+            article = "an"
+        elif text.lower().startswith("uni"):
+            article = "a"  # 'university', 'unique' etc. have 'yoo' sound
+        elif first_char in "aeiou":
+            article = "an"
         else:
-            article = 'a'
+            article = "a"
 
         return f"{article} {text}"
 
@@ -298,7 +300,7 @@ class TraceryEngine:
             Expanded and modified text
         """
         # Split symbol and modifiers
-        parts = symbol.split('.')
+        parts = symbol.split(".")
         symbol_name = parts[0]
         modifier_names = parts[1:] if len(parts) > 1 else []
 
@@ -506,27 +508,64 @@ class TraceryGeist:
 class TraceryGeistLoader:
     """Loads Tracery geists from a directory."""
 
-    def __init__(self, geists_dir: Path, seed: int | None = None):
+    def __init__(
+        self,
+        geists_dir: Path,
+        seed: int | None = None,
+        default_geists_dir: Path | None = None,
+        enabled_defaults: Dict[str, bool] | None = None,
+    ):
         """Initialize loader.
 
         Args:
-            geists_dir: Directory containing .yaml geist files
+            geists_dir: Directory containing custom .yaml geist files
             seed: Random seed for deterministic expansion
+            default_geists_dir: Directory containing default geists (optional)
+            enabled_defaults: Dictionary of default geist enabled states (optional)
         """
         self.geists_dir = geists_dir
         self.seed = seed
+        self.default_geists_dir = default_geists_dir
+        self.enabled_defaults = enabled_defaults or {}
 
     def load_all(self) -> List[TraceryGeist]:
-        """Load all Tracery geists from directory.
+        """Load all Tracery geists from directories.
+
+        Loads default geists first (if configured), then custom geists.
 
         Returns:
             List of loaded TraceryGeist instances
         """
-        if not self.geists_dir.exists():
-            return []
-
         geists = []
-        for yaml_file in self.geists_dir.glob("*.yaml"):
+
+        # Load default geists first
+        if self.default_geists_dir and self.default_geists_dir.exists():
+            geists.extend(self._load_from_directory(self.default_geists_dir, is_default=True))
+
+        # Load custom geists
+        if self.geists_dir.exists():
+            geists.extend(self._load_from_directory(self.geists_dir, is_default=False))
+
+        return geists
+
+    def _load_from_directory(self, directory: Path, is_default: bool = False) -> List[TraceryGeist]:
+        """Load Tracery geists from a specific directory.
+
+        Args:
+            directory: Directory containing .yaml geist files
+            is_default: Whether these are default geists
+
+        Returns:
+            List of loaded TraceryGeist instances
+        """
+        geists = []
+        for yaml_file in directory.glob("*.yaml"):
+            geist_id = yaml_file.stem
+
+            # For default geists, check if they're enabled in config
+            if is_default and not self.enabled_defaults.get(geist_id, True):
+                continue  # Skip disabled default geists
+
             try:
                 geist = TraceryGeist.from_yaml(yaml_file, self.seed)
                 geists.append(geist)

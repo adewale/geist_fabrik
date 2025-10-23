@@ -16,7 +16,11 @@ def suggest(vault):
     for neighbour in neighbours:
         text = f"[[{note.title}]] and [[{neighbour.title}]] seem related. What's the connection?"
         suggestions.append(
-            Suggestion(text=text, notes=[note.title, neighbour.title], geist_id="semantic_neighbors")
+            Suggestion(
+                text=text,
+                notes=[note.title, neighbour.title],
+                geist_id="semantic_neighbors",
+            )
         )
 
     return suggestions

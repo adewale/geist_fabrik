@@ -1,5 +1,6 @@
 """GeistFabrik: A Python-based divergence engine for Obsidian vaults."""
 
+from .config_loader import GeistFabrikConfig, generate_default_config, load_config, save_config
 from .embeddings import EmbeddingComputer, Session, cosine_similarity, find_similar_notes
 from .filtering import SuggestionFilter, select_suggestions
 from .function_registry import (
@@ -44,4 +45,8 @@ __all__ = [
     "FunctionRegistryError",
     "DuplicateFunctionError",
     "vault_function",
+    "GeistFabrikConfig",
+    "load_config",
+    "save_config",
+    "generate_default_config",
 ]

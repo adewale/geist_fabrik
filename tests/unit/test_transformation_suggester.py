@@ -24,7 +24,7 @@ def clear_global_registry():
 def create_mock_embedding_computer(num_notes: int) -> EmbeddingComputer:
     """Create a mocked EmbeddingComputer for testing."""
     computer = EmbeddingComputer()
-    mock_model = object.__new__(type('MockModel', (), {}))
+    mock_model = object.__new__(type("MockModel", (), {}))
     # Mock encode method that accepts all the kwargs the real model uses
     mock_model.encode = lambda texts, **kwargs: np.random.rand(
         len(texts) if isinstance(texts, list) else num_notes, 387
@@ -138,9 +138,21 @@ def test_transformation_suggester_plural_modifier(tmp_path: Path) -> None:
 
     # Should contain at least some plural forms
     # The geist uses #element.s#, #item.s#, #relationship.s#, #new_form.s#, #pattern.s#
-    plural_indicators = ["connections", "assumptions", "questions", "patterns",
-                        "notes", "ideas", "concepts", "thoughts", "insights",
-                        "perspectives", "directions", "gaps", "threads"]
+    plural_indicators = [
+        "connections",
+        "assumptions",
+        "questions",
+        "patterns",
+        "notes",
+        "ideas",
+        "concepts",
+        "thoughts",
+        "insights",
+        "perspectives",
+        "directions",
+        "gaps",
+        "threads",
+    ]
 
     has_plurals = any(plural in all_text.lower() for plural in plural_indicators)
     assert has_plurals, f"Expected to find plural forms in suggestions. Got: {all_text[:200]}"
@@ -171,9 +183,23 @@ def test_transformation_suggester_past_tense_modifier(tmp_path: Path) -> None:
 
     # Should contain past tense verbs
     # The geist uses #action.ed#, #verb.ed#, #transform_verb.ed#
-    past_tense_verbs = ["viewed", "treated", "approached", "framed", "explored",
-                       "wrote", "thought", "made", "found", "created", "built",
-                       "split", "merged", "evolved", "grew"]
+    past_tense_verbs = [
+        "viewed",
+        "treated",
+        "approached",
+        "framed",
+        "explored",
+        "wrote",
+        "thought",
+        "made",
+        "found",
+        "created",
+        "built",
+        "split",
+        "merged",
+        "evolved",
+        "grew",
+    ]
 
     has_past_tense = any(verb in all_text.lower() for verb in past_tense_verbs)
     assert has_past_tense, f"Expected to find past tense verbs. Got: {all_text[:200]}"
@@ -304,10 +330,7 @@ def test_transformation_suggester_irregular_plurals(tmp_path: Path) -> None:
     # Test the pluralization directly with TraceryEngine
     from geistfabrik.tracery import TraceryEngine
 
-    grammar = {
-        "origin": ["#word.s#"],
-        "word": ["person", "child", "man", "woman", "foot", "tooth"]
-    }
+    grammar = {"origin": ["#word.s#"], "word": ["person", "child", "man", "woman", "foot", "tooth"]}
 
     engine = TraceryEngine(grammar, seed=42)
 
@@ -318,7 +341,7 @@ def test_transformation_suggester_irregular_plurals(tmp_path: Path) -> None:
         "man": "men",
         "woman": "women",
         "foot": "feet",
-        "tooth": "teeth"
+        "tooth": "teeth",
     }
 
     for singular, expected_plural in test_cases.items():
@@ -343,10 +366,7 @@ def test_transformation_suggester_irregular_verbs(tmp_path: Path) -> None:
     # Test past tense directly with TraceryEngine
     from geistfabrik.tracery import TraceryEngine
 
-    grammar = {
-        "origin": ["#verb.ed#"],
-        "verb": ["go", "think", "make", "write", "build", "find"]
-    }
+    grammar = {"origin": ["#verb.ed#"], "verb": ["go", "think", "make", "write", "build", "find"]}
 
     engine = TraceryEngine(grammar, seed=42)
 
@@ -356,7 +376,7 @@ def test_transformation_suggester_irregular_verbs(tmp_path: Path) -> None:
         "think": "thought",
         "make": "made",
         "write": "wrote",
-        "find": "found"
+        "find": "found",
     }
 
     for present, expected_past in test_cases.items():
@@ -372,22 +392,30 @@ def test_transformation_suggester_article_vowel_consonant(tmp_path: Path) -> Non
 
     grammar = {
         "origin": ["#noun.a#"],
-        "noun": ["organism", "garden", "experiment", "map", "archive",
-                "understanding", "hypothesis", "insight"]
+        "noun": [
+            "organism",
+            "garden",
+            "experiment",
+            "map",
+            "archive",
+            "understanding",
+            "hypothesis",
+            "insight",
+        ],
     }
 
     engine = TraceryEngine(grammar, seed=42)
 
     # Test cases from the geist
     test_cases = {
-        "organism": "an organism",      # vowel
-        "garden": "a garden",            # consonant
-        "experiment": "an experiment",   # vowel
-        "map": "a map",                  # consonant
-        "archive": "an archive",         # vowel
+        "organism": "an organism",  # vowel
+        "garden": "a garden",  # consonant
+        "experiment": "an experiment",  # vowel
+        "map": "a map",  # consonant
+        "archive": "an archive",  # vowel
         "understanding": "an understanding",  # vowel
-        "hypothesis": "a hypothesis",    # consonant (h sound)
-        "insight": "an insight"          # vowel
+        "hypothesis": "a hypothesis",  # consonant (h sound)
+        "insight": "an insight",  # vowel
     }
 
     for word, expected in test_cases.items():
@@ -453,19 +481,36 @@ def test_transformation_suggester_all_modifiers_in_output(tmp_path: Path) -> Non
     assert has_capitals, "Expected capitalized text"
 
     # 2. Plurals - should appear in many suggestions
-    common_plurals = ["connections", "assumptions", "patterns", "ideas", "notes",
-                     "questions", "insights", "perspectives"]
+    common_plurals = [
+        "connections",
+        "assumptions",
+        "patterns",
+        "ideas",
+        "notes",
+        "questions",
+        "insights",
+        "perspectives",
+    ]
     has_plurals = any(plural in all_text for plural in common_plurals)
     assert has_plurals, "Expected plural forms in output"
 
     # 3. Past tense - should appear in suggestions
-    past_tense = ["viewed", "approached", "explored", "created", "thought",
-                 "made", "wrote", "found", "built"]
+    past_tense = [
+        "viewed",
+        "approached",
+        "explored",
+        "created",
+        "thought",
+        "made",
+        "wrote",
+        "found",
+        "built",
+    ]
     has_past_tense = any(verb in all_text for verb in past_tense)
     assert has_past_tense, "Expected past tense verbs"
 
     # 4. Articles - should appear with nouns
-    has_articles = (" a " in all_text or " an " in all_text)
+    has_articles = " a " in all_text or " an " in all_text
     assert has_articles, "Expected articles 'a' or 'an'"
 
     # 5. All suggestions should reference notes

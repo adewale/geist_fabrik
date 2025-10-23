@@ -25,6 +25,74 @@ This repository contains:
 
 The system is fully functional and operational. All phases of the specification have been implemented.
 
+## Development Workflow (CRITICAL)
+
+**BEFORE COMMITTING OR PUSHING CODE, ALWAYS FOLLOW THIS WORKFLOW:**
+
+### Pre-Commit (Automatic)
+Pre-commit hooks run automatically on `git commit`:
+- Ruff linting and formatting
+- Trailing whitespace removal
+- YAML validation
+- Basic checks
+
+### Before Pushing (MANDATORY)
+
+**Run the validation script:**
+```bash
+./scripts/validate.sh
+```
+
+This script runs the **exact same checks as CI**:
+1. `ruff check src/ tests/` - Linting
+2. `mypy src/ --strict` - Type checking (STRICT MODE)
+3. `python scripts/detect_unused_tables.py` - Database validation
+4. `pytest tests/unit -v` - Unit tests
+5. `pytest tests/integration -v -m "not slow"` - Integration tests
+
+**If validate.sh passes, CI will pass. If it fails, DO NOT PUSH.**
+
+### Common Mistakes to Avoid
+
+❌ **NEVER** run custom variations of CI checks:
+```bash
+# These are WRONG and will cause CI failures
+mypy src/geistfabrik --ignore-missing-imports
+mypy src/ --config-file mypy.ini
+pytest tests/ -k "unit"
+```
+
+✅ **ALWAYS** use the validated script:
+```bash
+./scripts/validate.sh
+```
+
+### Type Checking Requirements
+
+CI uses `mypy --strict` which requires:
+- Explicit type parameters for generics: `Dict[str, Any]` not `Dict`
+- Type hints on all function parameters and returns
+- No implicit `Any` types
+
+**Example**:
+```python
+# ❌ WRONG - Will fail CI
+def from_dict(cls, data: Dict) -> Config:
+    pass
+
+# ✅ CORRECT - Will pass CI
+from typing import Any, Dict
+
+def from_dict(cls, data: Dict[str, Any]) -> Config:
+    pass
+```
+
+### Why This Matters
+
+**Lesson from PR #30**: Skipping validate.sh causes CI failures that waste hours of debugging time. The validation script exists specifically to prevent this. Use it.
+
+**See**: `docs/CI_VALIDATION_GUIDE.md` and `docs/POST_MORTEM_PR30.md` for detailed explanation.
+
 ## Core Architecture
 
 GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:

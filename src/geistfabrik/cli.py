@@ -100,6 +100,16 @@ def init_command(args: argparse.Namespace) -> int:
         directory.mkdir(parents=True, exist_ok=True)
         print(f"✓ Created {directory.relative_to(vault_path)}")
 
+    # Create default config file
+    config_path = geistfabrik_dir / "config.yaml"
+    if not config_path.exists() or args.force:
+        from geistfabrik import generate_default_config
+
+        config_content = generate_default_config()
+        with open(config_path, "w") as f:
+            f.write(config_content)
+        print(f"✓ Created {config_path.relative_to(vault_path)}")
+
     # Copy examples if requested
     if args.examples:
         # Find the examples directory (relative to this file)
@@ -243,6 +253,21 @@ def invoke_command(args: argparse.Namespace) -> int:
         else:
             session_date = datetime.now()
 
+        # Load configuration
+        config_path = geistfabrik_dir / "config.yaml"
+        config = None
+        if config_path.exists():
+            from geistfabrik import load_config
+
+            config = load_config(config_path)
+            if not args.quiet:
+                print(f"Loaded configuration from {config_path.relative_to(vault_path)}")
+
+        # Get default geists directories
+        package_dir = Path(__file__).parent
+        default_code_geists_dir = package_dir / "default_geists" / "code"
+        default_tracery_geists_dir = package_dir / "default_geists" / "tracery"
+
         # Load metadata inference modules
         metadata_dir = geistfabrik_dir / "metadata_inference"
         metadata_loader = None
@@ -281,30 +306,38 @@ def invoke_command(args: argparse.Namespace) -> int:
             vault, session, metadata_loader=metadata_loader, function_registry=function_registry
         )
 
-        # Load code geists
+        # Load code geists (default + custom)
         code_geists_dir = vault_path / "_geistfabrik" / "geists" / "code"
-        code_executor = None
-        code_geists_count = 0
-        if code_geists_dir.exists():
-            code_executor = GeistExecutor(code_geists_dir, timeout=args.timeout, max_failures=3)
-            code_executor.load_geists()
-            code_geists_count = len(code_executor.geists)
+        code_executor = GeistExecutor(
+            code_geists_dir,
+            timeout=args.timeout,
+            max_failures=3,
+            default_geists_dir=default_code_geists_dir,
+            enabled_defaults=config.default_geists if config else {},
+        )
+        code_executor.load_geists()
+        code_geists_count = len(code_executor.geists)
 
-        # Load Tracery geists
+        # Load Tracery geists (default + custom)
         tracery_geists_dir = vault_path / "_geistfabrik" / "geists" / "tracery"
-        tracery_geists = []
-        if tracery_geists_dir.exists():
-            from geistfabrik.tracery import TraceryGeistLoader
+        from geistfabrik.tracery import TraceryGeistLoader
 
-            seed = int(session_date.timestamp())
-            tracery_loader = TraceryGeistLoader(tracery_geists_dir, seed=seed)
-            tracery_geists = tracery_loader.load_all()
+        seed = int(session_date.timestamp())
+        tracery_loader = TraceryGeistLoader(
+            tracery_geists_dir,
+            seed=seed,
+            default_geists_dir=default_tracery_geists_dir,
+            enabled_defaults=config.default_geists if config else {},
+        )
+        tracery_geists = tracery_loader.load_all()
 
         total_geists = code_geists_count + len(tracery_geists)
         if total_geists == 0:
             if not args.quiet:
-                print(f"\nNo geists found in {vault_path / '_geistfabrik' / 'geists'}")
-                print("Run 'geistfabrik init --examples' to install example geists.")
+                print("\nNo geists are enabled.")
+                print("Default geists ship with GeistFabrik but may be disabled in config.")
+                print(f"Check {config_path.relative_to(vault_path)} to enable default geists,")
+                print("or run 'geistfabrik init --examples' to install custom example geists.")
             vault.close()
             return 0
 

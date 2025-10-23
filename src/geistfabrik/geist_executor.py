@@ -37,36 +37,68 @@ def timeout_handler(signum: int, frame: Any) -> None:
 class GeistExecutor:
     """Executes code geists and manages their lifecycle."""
 
-    def __init__(self, geists_dir: Path, timeout: int = 5, max_failures: int = 3):
+    def __init__(
+        self,
+        geists_dir: Path,
+        timeout: int = 5,
+        max_failures: int = 3,
+        default_geists_dir: Optional[Path] = None,
+        enabled_defaults: Optional[Dict[str, bool]] = None,
+    ):
         """Initialize geist executor.
 
         Args:
-            geists_dir: Directory containing geist modules
+            geists_dir: Directory containing custom geist modules
             timeout: Execution timeout in seconds
             max_failures: Number of failures before disabling geist
+            default_geists_dir: Directory containing default geists (optional)
+            enabled_defaults: Dictionary of default geist enabled states (optional)
         """
         self.geists_dir = geists_dir
         self.timeout = timeout
         self.max_failures = max_failures
+        self.default_geists_dir = default_geists_dir
+        self.enabled_defaults = enabled_defaults or {}
         self.geists: Dict[str, GeistMetadata] = {}
         self.execution_log: List[Dict[str, Any]] = []
 
     def load_geists(self) -> None:
-        """Discover and load all geists from the geists directory."""
-        if not self.geists_dir.exists():
-            return
+        """Discover and load all geists from the geists directories.
 
+        Loads default geists first (if configured), then custom geists.
+        """
+        # Load default geists first
+        if self.default_geists_dir and self.default_geists_dir.exists():
+            self._load_geists_from_directory(self.default_geists_dir, is_default=True)
+
+        # Load custom geists
+        if self.geists_dir.exists():
+            self._load_geists_from_directory(self.geists_dir, is_default=False)
+
+    def _load_geists_from_directory(self, directory: Path, is_default: bool = False) -> None:
+        """Load geists from a specific directory.
+
+        Args:
+            directory: Directory containing geist files
+            is_default: Whether these are default geists
+        """
         # Find all .py files (except __init__.py)
-        geist_files = [f for f in self.geists_dir.glob("*.py") if f.name != "__init__.py"]
+        geist_files = [f for f in directory.glob("*.py") if f.name != "__init__.py"]
 
         for geist_file in geist_files:
+            geist_id = geist_file.stem
+
+            # For default geists, check if they're enabled in config
+            if is_default and not self.enabled_defaults.get(geist_id, True):
+                continue  # Skip disabled default geists
+
             try:
                 self._load_geist(geist_file)
             except Exception as e:
                 # Log error but continue loading other geists
                 self.execution_log.append(
                     {
-                        "geist_id": geist_file.stem,
+                        "geist_id": geist_id,
                         "status": "load_error",
                         "error": str(e),
                         "traceback": traceback.format_exc(),
