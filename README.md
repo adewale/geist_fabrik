@@ -77,10 +77,6 @@ uv run geistfabrik invoke /path/to/your/vault --write
 
 # View your session note at:
 # /path/to/your/vault/geist journal/YYYY-MM-DD.md
-
-# Optional: Install example extension code for learning
-uv run geistfabrik init /path/to/your/vault --examples
-# (Shows patterns for writing custom geists, functions, metadata modules)
 ```
 
 ### Try on Sample Vault (Risk-Free)

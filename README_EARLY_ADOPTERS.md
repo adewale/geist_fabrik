@@ -9,7 +9,7 @@ This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide va
 **Current Status:**
 - ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
-- ✅ 39 example geists included (29 code + 10 Tracery)
+- ✅ 14 default geists bundled (5 code + 9 Tracery)
 - ✅ Read-only vault access (your notes are safe)
 
 **Expect:**
@@ -37,7 +37,7 @@ cd geist_fabrik
 uv sync
 
 # 2. Initialize sample vault
-uv run geistfabrik init testdata/kepano-obsidian-main --examples
+uv run geistfabrik init testdata/kepano-obsidian-main
 
 # 3. Run geists and view suggestions
 uv run geistfabrik invoke --vault testdata/kepano-obsidian-main --write
@@ -65,7 +65,7 @@ Create a copy of your vault for realistic testing without risk.
 cp -r ~/Documents/MyVault ~/Documents/MyVault-Test
 
 # 2. Initialize GeistFabrik
-uv run geistfabrik init ~/Documents/MyVault-Test --examples
+uv run geistfabrik init ~/Documents/MyVault-Test
 
 # 3. Preview suggestions (read-only, no files created)
 uv run geistfabrik invoke --vault ~/Documents/MyVault-Test
@@ -102,7 +102,7 @@ Use your actual vault. Safe because GeistFabrik is read-only.
 cp -r ~/Documents/MyVault ~/Documents/MyVault.backup
 
 # 1. Initialize with confirmation prompts
-uv run geistfabrik init ~/Documents/MyVault --examples
+uv run geistfabrik init ~/Documents/MyVault
 # You'll see warnings about what GeistFabrik will/won't do
 
 # 2. Preview suggestions (read-only, no files created)
@@ -131,7 +131,7 @@ rm -rf ~/Documents/MyVault/"geist journal"
 
 ## What Gets Created
 
-After `geistfabrik init ~/MyVault --examples`:
+After `geistfabrik init ~/MyVault`:
 
 ```
 MyVault/
@@ -349,8 +349,8 @@ cd ~/Documents/MyVault-FullTest
 # Step 2: Backup (extra safety)
 tar -czf ../MyVault-FullTest-backup.tar.gz .
 
-# Step 3: Initialize with all examples
-uv run geistfabrik init ~/Documents/MyVault-FullTest --examples
+# Step 3: Initialize (14 default geists enabled)
+uv run geistfabrik init ~/Documents/MyVault-FullTest
 
 # Step 4a: Try --full first (filtered but not sampled)
 uv run geistfabrik invoke --vault ~/Documents/MyVault-FullTest --full --write

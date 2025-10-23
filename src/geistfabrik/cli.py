@@ -1,7 +1,6 @@
 """GeistFabrik command-line interface."""
 
 import argparse
-import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -110,46 +109,6 @@ def init_command(args: argparse.Namespace) -> int:
             f.write(config_content)
         print(f"✓ Created {config_path.relative_to(vault_path)}")
 
-    # Copy examples if requested
-    if args.examples:
-        # Find the examples directory (relative to this file)
-        package_dir = Path(__file__).parent.parent.parent
-        examples_dir = package_dir / "examples"
-
-        if not examples_dir.exists():
-            print(f"\nWarning: Examples directory not found at {examples_dir}")
-            print("Skipping example installation.")
-        else:
-            print("\n📦 Installing examples...")
-
-            # Copy geists
-            for geist_type in ["code", "tracery"]:
-                src = examples_dir / "geists" / geist_type
-                dst = geistfabrik_dir / "geists" / geist_type
-                if src.exists():
-                    for file in src.iterdir():
-                        if file.is_file():
-                            shutil.copy2(file, dst / file.name)
-                            print(f"  ✓ {geist_type}/{file.name}")
-
-            # Copy metadata inference modules
-            src = examples_dir / "metadata_inference"
-            dst = geistfabrik_dir / "metadata_inference"
-            if src.exists():
-                for file in src.iterdir():
-                    if file.is_file() and file.suffix == ".py":
-                        shutil.copy2(file, dst / file.name)
-                        print(f"  ✓ metadata_inference/{file.name}")
-
-            # Copy vault functions
-            src = examples_dir / "vault_functions"
-            dst = geistfabrik_dir / "vault_functions"
-            if src.exists():
-                for file in src.iterdir():
-                    if file.is_file() and file.suffix == ".py":
-                        shutil.copy2(file, dst / file.name)
-                        print(f"  ✓ vault_functions/{file.name}")
-
     # Initialize database
     print("\n🗄️  Initializing database...")
     db_path = geistfabrik_dir / "vault.db"
@@ -161,18 +120,10 @@ def init_command(args: argparse.Namespace) -> int:
 
         # Display summary stats
         db_size_mb = db_path.stat().st_size / (1024 * 1024)
-        geist_count = 0
-        if args.examples:
-            code_geists = geistfabrik_dir / "geists" / "code"
-            tracery_geists = geistfabrik_dir / "geists" / "tracery"
-            geist_count = sum(1 for f in code_geists.iterdir() if f.suffix == ".py")
-            geist_count += sum(1 for f in tracery_geists.iterdir() if f.suffix in [".yaml", ".yml"])
 
         print("\n📊 Vault Summary:")
         print(f"   Notes found: {note_count}")
         print(f"   Database size: {db_size_mb:.2f} MB")
-        if args.examples:
-            print(f"   Example geists installed: {geist_count}")
 
     except Exception as e:
         print(f"Error initializing database: {e}", file=sys.stderr)
@@ -190,13 +141,6 @@ def init_command(args: argparse.Namespace) -> int:
     print("   • 5 code geists (blind_spot_detector, dialectic_triad, etc.)")
     print("   • 9 Tracery geists (contradictor, hub_explorer, etc.)")
     print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
-
-    if args.examples:
-        print("\n📚 Example extension code has been installed.")
-        print("   These are learning materials showing extension patterns.")
-    else:
-        print("\n💡 Optional: Use --examples to copy extension examples:")
-        print("   (for learning how to write custom geists, functions, etc.)")
 
     print("\n🚀 Next steps:")
     print(f"   geistfabrik invoke {vault_path}")
@@ -343,8 +287,7 @@ def invoke_command(args: argparse.Namespace) -> int:
             if not args.quiet:
                 print("\nNo geists are enabled.")
                 print("Default geists ship with GeistFabrik but may be disabled in config.")
-                print(f"Check {config_path.relative_to(vault_path)} to enable default geists,")
-                print("or run 'geistfabrik init --examples' to install custom example geists.")
+                print(f"Check {config_path.relative_to(vault_path)} to enable default geists.")
             vault.close()
             return 0
 
@@ -916,7 +859,7 @@ def main() -> int:
         epilog="""
 Examples:
   # Lifecycle: Setup → Preview → Write
-  geistfabrik init ~/my-vault --examples        # [1] Initialize vault
+  geistfabrik init ~/my-vault                   # [1] Initialize vault (14 geists bundled)
   geistfabrik invoke ~/my-vault                 # [2] Preview suggestions
   geistfabrik invoke ~/my-vault --write         # [3] Write to journal
 
@@ -939,14 +882,6 @@ Examples:
         "vault",
         type=str,
         help="Path to Obsidian vault",
-    )
-    init_parser.add_argument(
-        "--examples",
-        action="store_true",
-        help=(
-            "Install 17 example geists (10 code + 7 Tracery) for learning. "
-            "You can modify or remove them later."
-        ),
     )
     init_parser.add_argument(
         "--force",

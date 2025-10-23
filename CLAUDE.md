@@ -35,7 +35,7 @@ The system is fully functional and operational. All phases of the specification 
 - **Examples** (examples/): Learning materials showing extension patterns
   - NOT meant to be installed into vaults
   - Demonstrate how to write custom geists, functions, metadata modules
-  - The `--examples` flag copies these for learning reference
+  - For reference and learning only
 
 ## Development Workflow (CRITICAL)
 

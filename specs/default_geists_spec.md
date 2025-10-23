@@ -359,11 +359,3 @@ This allows the system to gracefully handle new defaults added in future version
 ### Deviations from Spec
 
 None - implementation matches specification exactly.
-
-### Future Enhancements
-
-Potential additions beyond this spec:
-- Per-geist configuration (not just enable/disable)
-- Geist priority/ordering
-- User-defined default geist sets
-- Marketplace/sharing of geists
