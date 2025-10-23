@@ -9,7 +9,7 @@ This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide va
 **Current Status:**
 - ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
-- ✅ 14 default geists bundled (5 code + 9 Tracery)
+- ✅ 45 default geists bundled (35 code + 10 Tracery)
 - ✅ Read-only vault access (your notes are safe)
 
 **Expect:**
@@ -349,7 +349,7 @@ cd ~/Documents/MyVault-FullTest
 # Step 2: Backup (extra safety)
 tar -czf ../MyVault-FullTest-backup.tar.gz .
 
-# Step 3: Initialize (14 default geists enabled)
+# Step 3: Initialize (45 default geists enabled)
 uv run geistfabrik init ~/Documents/MyVault-FullTest
 
 # Step 4a: Try --full first (filtered but not sampled)

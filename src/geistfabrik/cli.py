@@ -137,9 +137,9 @@ def init_command(args: argparse.Namespace) -> int:
     print(f"Configuration: {geistfabrik_dir.relative_to(vault_path)}")
 
     # Inform about bundled defaults
-    print("\n🎁 14 default geists are bundled and ready to use:")
-    print("   • 5 code geists (blind_spot_detector, dialectic_triad, etc.)")
-    print("   • 9 Tracery geists (contradictor, hub_explorer, etc.)")
+    print("\n🎁 45 default geists are bundled and ready to use:")
+    print("   • 35 code geists (blind_spot_detector, temporal_drift, columbo, etc.)")
+    print("   • 10 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)")
     print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
 
     print("\n🚀 Next steps:")
@@ -859,7 +859,7 @@ def main() -> int:
         epilog="""
 Examples:
   # Lifecycle: Setup → Preview → Write
-  geistfabrik init ~/my-vault                   # [1] Initialize vault (14 geists bundled)
+  geistfabrik init ~/my-vault                   # [1] Initialize vault (45 geists bundled)
   geistfabrik invoke ~/my-vault                 # [2] Preview suggestions
   geistfabrik invoke ~/my-vault --write         # [3] Write to journal
 

@@ -1,5 +1,6 @@
 type: geist-tracery
 id: contradictor
+description: Challenges existing notes by suggesting opposite perspectives
 count: 1
 
 tracery:

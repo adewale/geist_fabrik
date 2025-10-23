@@ -11,11 +11,41 @@ import yaml
 
 # List of all default geists (for reference and validation)
 DEFAULT_CODE_GEISTS = [
+    "anachronism_detector",
+    "antithesis_generator",
+    "assumption_challenger",
     "blind_spot_detector",
+    "bridge_builder",
+    "bridge_hunter",
+    "columbo",
+    "complexity_mismatch",
+    "concept_cluster",
+    "concept_drift",
+    "convergent_evolution",
+    "creative_collision",
+    "density_inversion",
     "dialectic_triad",
-    "structure_diversity_checker",
+    "divergent_evolution",
+    "hermeneutic_instability",
+    "hidden_hub",
+    "island_hopper",
+    "link_density_analyser",
     "metadata_driven_discovery",
+    "method_scrambler",
     "on_this_day",
+    "pattern_finder",
+    "question_generator",
+    "recent_focus",
+    "scale_shifter",
+    "seasonal_patterns",
+    "seasonal_revisit",
+    "session_drift",
+    "structure_diversity_checker",
+    "stub_expander",
+    "task_archaeology",
+    "temporal_clustering",
+    "temporal_drift",
+    "vocabulary_expansion",
 ]
 
 DEFAULT_TRACERY_GEISTS = [
@@ -27,6 +57,7 @@ DEFAULT_TRACERY_GEISTS = [
     "random_prompts",
     "semantic_neighbours",
     "temporal_mirror",
+    "transformation_suggester",
     "what_if",
 ]
 
