@@ -107,7 +107,7 @@ All unlisted geists remain enabled.
 | **dialectic_triad** | Creates thesis-antithesis pairs for synthesis | enabled | ✅ Implemented |
 | **structure_diversity_checker** | Detects repetitive writing patterns | enabled | ✅ Implemented |
 | **metadata_driven_discovery** | Finds unexpected metadata patterns | enabled | ✅ Implemented |
-| **on_this_day** | Surfaces notes from same date in previous years | enabled | 🔨 Pending |
+| **on_this_day** | Surfaces notes from same date in previous years | enabled | ✅ Implemented |
 
 ### Tracery Geists (9)
 
@@ -278,3 +278,92 @@ This allows the system to gracefully handle new defaults added in future version
 - Custom geists continue working without any code changes
 - Default geists provide clear patterns for users to learn from
 - Examples/ documentation teaches extension patterns effectively
+
+---
+
+## Implementation Status
+
+**Status**: ✅ Fully Implemented
+**PR**: #30
+**Date**: 2025-10-23
+
+### What Was Implemented
+
+1. **Default Geists Package Structure** (✅ Complete)
+   - Created `src/geistfabrik/default_geists/` package
+   - Added 5 code geists in `default_geists/code/`
+   - Added 9 Tracery geists in `default_geists/tracery/`
+   - All geists bundled with package (no installation needed)
+
+2. **Configuration System** (✅ Complete)
+   - Created `config_loader.py` module
+   - `GeistFabrikConfig` dataclass with `default_geists` Dict
+   - `load_config()`, `save_config()`, `generate_default_config()` functions
+   - Missing entries default to enabled (graceful degradation)
+
+3. **Geist Loading** (✅ Complete)
+   - Updated `GeistExecutor` to load default + custom code geists
+   - Updated `TraceryGeistLoader` to load default + custom Tracery geists
+   - Config controls which defaults are enabled
+   - Custom geists work alongside defaults (no breaking changes)
+
+4. **CLI Integration** (✅ Complete)
+   - `init` command generates config.yaml with all defaults listed
+   - `invoke` command loads config and filters geists accordingly
+   - Updated help messages to emphasize bundled defaults
+
+5. **New "On This Day" Geist** (✅ Complete)
+   - Implemented in `default_geists/code/on_this_day.py`
+   - Surfaces notes from same calendar date in previous years
+   - Universal pattern (not hemisphere-specific)
+
+6. **Testing** (✅ Complete)
+   - Unit tests for config loading/saving
+   - Tests verify all default geist files exist
+   - Tests confirm enabled/disabled logic works
+   - All 9 new tests passing
+
+7. **Documentation** (✅ Complete)
+   - Updated README.md to emphasize bundled defaults
+   - Updated CLAUDE.md with "Default Geists vs Examples" section
+   - Updated CLI messages to highlight 14 bundled geists
+   - Created CI_VALIDATION_GUIDE.md for development workflow
+
+### Key Commits
+
+- `5fb15ad` - feat: Implement default geists system with 14 bundled geists
+- `e5bf9be` - fix: Apply linting and formatting fixes
+- `1270539` - fix: Add missing type parameters for mypy --strict compliance
+- `2e981d8` - docs: Update documentation to emphasize bundled defaults
+
+### Files Created/Modified
+
+**New Files:**
+- `src/geistfabrik/config_loader.py` - Configuration system
+- `src/geistfabrik/default_geists/__init__.py` - Package init
+- `src/geistfabrik/default_geists/code/*.py` - 5 code geists
+- `src/geistfabrik/default_geists/tracery/*.yaml` - 9 Tracery geists
+- `tests/unit/test_default_geists.py` - Configuration tests
+- `docs/CI_VALIDATION_GUIDE.md` - Development workflow
+- `docs/POST_MORTEM_PR30.md` - Lessons learned
+- `scripts/README.md` - Scripts documentation
+
+**Modified Files:**
+- `src/geistfabrik/__init__.py` - Export config functions
+- `src/geistfabrik/cli.py` - Init and invoke commands
+- `src/geistfabrik/geist_executor.py` - Load defaults + customs
+- `src/geistfabrik/tracery.py` - Load defaults + customs
+- `README.md` - Updated first run instructions
+- `CLAUDE.md` - Added defaults vs examples section
+
+### Deviations from Spec
+
+None - implementation matches specification exactly.
+
+### Future Enhancements
+
+Potential additions beyond this spec:
+- Per-geist configuration (not just enable/disable)
+- Geist priority/ordering
+- User-defined default geist sets
+- Marketplace/sharing of geists
