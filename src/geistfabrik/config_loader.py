@@ -5,7 +5,7 @@ This module handles loading and saving vault configuration from config.yaml.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import yaml
 
@@ -50,7 +50,7 @@ class GeistFabrikConfig:
         return self.default_geists.get(geist_id, True)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "GeistFabrikConfig":
+    def from_dict(cls, data: Dict[str, Any]) -> "GeistFabrikConfig":
         """Create config from dictionary.
 
         Args:
@@ -64,7 +64,7 @@ class GeistFabrikConfig:
             default_geists=data.get("default_geists", {}),
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary.
 
         Returns:
