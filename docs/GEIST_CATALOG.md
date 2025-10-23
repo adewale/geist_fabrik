@@ -4,7 +4,7 @@
 
 This document catalogs ALL geists mentioned in any GeistFabrik documentation, categorizes them by implementation status, and identifies which ones are practical to build with our current infrastructure.
 
-**Date**: 2025-10-21 (Updated)
+**Date**: 2025-10-22 (Updated)
 **Audit scope**: All markdown files, code examples, and specs
 **Status**: All buildable geists implemented ✅
 
@@ -14,57 +14,73 @@ This document catalogs ALL geists mentioned in any GeistFabrik documentation, ca
 
 | Category | Count |
 |----------|-------|
-| **Implemented & Tested** | 17 (10 code + 7 Tracery) |
-| **Documented - Buildable Now** | 0 |
-| **Documented - Missing Infrastructure** | 7 |
-| **Total Documented Geists** | 24 |
+| **Default Geists** | 14 (5 code + 9 Tracery) |
+| **Example Geists** | 10 (10 code) |
+| **Documented - Missing Infrastructure** | 4 |
+| **Total Geists** | 28 |
 
 ---
 
-## 1. Implemented Geists (17)
+## 1. Default Geists (14)
+
+These geists ship bundled with GeistFabrik in the package. They provide immediate value on first run.
+
+### Code Geists (5)
+
+Located in `src/geistfabrik/default_geists/code/`
+
+| Geist ID | Description | Status |
+|----------|-------------|--------|
+| **blind_spot_detector** | Identifies semantic gaps in recent thinking | ✅ Implemented |
+| **dialectic_triad** | Creates thesis-antithesis pairs for synthesis | ✅ Implemented |
+| **structure_diversity_checker** | Detects repetitive writing patterns | ✅ Implemented |
+| **metadata_driven_discovery** | Finds unexpected metadata patterns | ✅ Implemented |
+| **on_this_day** | Surfaces notes from same date in previous years | 🔨 Pending |
+
+### Tracery Geists (9)
+
+Located in `src/geistfabrik/default_geists/tracery/`
+
+| Geist ID | Description | Status |
+|----------|-------------|--------|
+| **contradictor** | Challenge assumptions with opposing perspectives | ✅ Implemented |
+| **hub_explorer** | Highlight hub notes with many connections | ✅ Implemented |
+| **note_combinations** | Combine random notes creatively | ✅ Implemented |
+| **orphan_connector** | Suggest connections for orphaned notes | ✅ Implemented |
+| **perspective_shifter** | Reframe notes from different angles | ✅ Implemented |
+| **random_prompts** | General creative prompts | ✅ Implemented |
+| **semantic_neighbours** | Show semantic neighbourhoods | ✅ Implemented |
+| **temporal_mirror** | Compare old and new notes temporally | ✅ Implemented |
+| **what_if** | "What if" prompts for divergent thinking | ✅ Implemented |
+
+---
+
+## 2. Example Geists (10)
+
+These geists demonstrate various patterns and capabilities. They serve as learning examples for building custom geists.
 
 ### Code Geists (10)
 
-Located in `examples/geists/code/`
+Located in `examples/geists/code/` (example implementations)
 
-| Geist | File | Description | Has Tests? |
-|-------|------|-------------|------------|
+| Geist ID | File | Description | Has Tests? |
+|----------|------|-------------|------------|
 | **temporal_drift** | `temporal_drift.py` | Find stale but important notes | ✅ Yes |
 | **creative_collision** | `creative_collision.py` | Suggest unexpected note pairs | ✅ Yes |
 | **bridge_builder** | `bridge_builder.py` | Connect disconnected clusters | ✅ Yes |
 | **complexity_mismatch** | `complexity_mismatch.py` | Find complexity/importance gaps | ✅ Yes |
 | **question_generator** | `question_generator.py` | Reframe statements as questions | ✅ Yes |
-| **link_density_analyzer** | `link_density_analyzer.py` | Analyse link patterns | ✅ Yes |
+| **link_density_analyser** | `link_density_analyzer.py` | Analyse link patterns | ✅ Yes |
 | **task_archaeology** | `task_archaeology.py` | Find old incomplete tasks | ✅ Yes |
 | **concept_cluster** | `concept_cluster.py` | Identify emergent themes | ✅ Yes |
 | **stub_expander** | `stub_expander.py` | Develop short connected notes | ✅ Yes |
 | **recent_focus** | `recent_focus.py` | Connect recent to old work | ✅ Yes |
 
-### Tracery Geists (7)
-
-Located in `examples/geists/tracery/`
-
-| Geist | File | Description | Has Tests? |
-|-------|------|-------------|------------|
-| **random_prompts** | `random_prompts.yaml` | General creative prompts | ✅ Yes |
-| **note_combinations** | `note_combinations.yaml` | Combine random notes creatively | ✅ Yes |
-| **what_if** | `what_if.yaml` | "What if" prompts for divergent thinking | ✅ Yes |
-| **temporal_mirror** | `temporal_mirror.yaml` | Compare old and new notes temporally | ✅ Yes |
-| **orphan_connector** | `orphan_connector.yaml` | Suggest connections for orphaned notes | ✅ Yes |
-| **hub_explorer** | `hub_explorer.yaml` | Highlight hub notes with many connections | ✅ Yes |
-| **semantic_neighbours** | `semantic_neighbours.yaml` | Show semantic neighbourhoods | ✅ Yes |
-
 ---
 
-## 2. Documented Geists - Buildable Now (0)
+## 3. Documented Geists - Missing Infrastructure (4)
 
-These geists are documented in specs but not yet implemented. **They CAN be built with existing VaultContext methods.**
-
-**Note**: All previously "buildable" geists have now been implemented.
-
----
-
-## 3. Documented Geists - Missing Infrastructure (7)
+These geists are documented in specs but cannot be built with current infrastructure.
 
 ### island_hopper
 
@@ -124,36 +140,6 @@ These geists are documented in specs but not yet implemented. **They CAN be buil
 
 ---
 
-### columbo
-
-**Source**: `CLAUDE.md:128` (mentioned in examples)
-**Description**: Not specified (name only)
-**Status**: ⬜ UNDEFINED
-
-**Analysis**: No implementation details found. Possibly a placeholder or planned geist.
-
----
-
-### drift
-
-**Source**: `CLAUDE.md:131` (mentioned in examples)
-**Description**: Not specified (name only)
-**Status**: ⚠️ Possibly duplicate of `temporal_drift`
-
-**Analysis**: Likely referring to existing `temporal_drift.py` geist.
-
----
-
-### skeptic
-
-**Source**: `CLAUDE.md:131` (mentioned in examples)
-**Description**: Not specified (name only)
-**Status**: ⬜ UNDEFINED
-
-**Analysis**: No implementation details found. Conceptually could challenge note claims or assumptions.
-
----
-
 ## 4. Infrastructure Gap Analysis
 
 ### Missing VaultContext Methods
@@ -196,12 +182,6 @@ Previously needed (now ✅ implemented):
 2. **bridge_hunter** - Needs semantic pathfinding
 3. **density_inversion** - Needs graph traversal methods
 4. **vocabulary_expansion** - Needs session history tracking
-
-### ⬜ Undefined (3)
-
-1. **columbo** - No specification
-2. **drift** - Likely duplicate of temporal_drift
-3. **skeptic** - No specification
 
 ---
 
@@ -276,7 +256,7 @@ All geist tests execute quickly and remain well under CI time limits.
 - density_inversion - Requires graph traversal methods
 - vocabulary_expansion - Requires session history tracking
 
-### Undefined Geists ⬜
-- columbo - No specification found
-- drift - Likely duplicate of temporal_drift
-- skeptic - No specification found
+### Default Geists ✨
+- Added 5 new code geists (blind_spot_detector, dialectic_triad, structure_diversity_checker, metadata_driven_discovery, on_this_day)
+- Designated 9 Tracery geists as defaults
+- Moved contrarian_to() to built-in vault function

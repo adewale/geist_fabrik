@@ -645,9 +645,9 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all example code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 29 code geists in examples/geists/code/
-    # 10 original + 19 new ambitious geists
-    assert len(geist_executor.geists) == 29
+    # We have 34 code geists in examples/geists/code/
+    # 10 original + 19 ambitious + 5 default candidates
+    assert len(geist_executor.geists) == 34
 
 
 def test_all_geists_execute_without_crashing(

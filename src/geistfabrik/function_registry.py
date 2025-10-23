@@ -221,6 +221,38 @@ class FunctionRegistry:
             # Convert Note → string for Tracery
             return [n.title for n in neighbor_notes]
 
+        @vault_function("contrarian_to")
+        def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> List[str]:
+            """Find notes that are semantically dissimilar to given note.
+
+            Args:
+                note_title: Note title (string from Tracery)
+                k: Number of contrarian notes to return
+
+            Returns:
+                List of note titles (strings for Tracery)
+            """
+            # Resolve string → Note (adapter layer responsibility)
+            note = vault.resolve_link_target(note_title)
+            if note is None:
+                return []
+
+            all_notes = vault.notes()
+
+            # Get similarity scores for all notes
+            similarities = []
+            for n in all_notes:
+                if n.path == note.path:
+                    continue  # Skip self
+                sim = vault.similarity(note, n)
+                similarities.append((n, sim))
+
+            # Sort by similarity ascending (least similar first)
+            similarities.sort(key=lambda x: x[1])
+
+            # Return k least similar as strings
+            return [n.title for n, _ in similarities[:k]]
+
         # Transfer built-in functions from global registry to instance
         self.functions.update(_GLOBAL_REGISTRY)
 
