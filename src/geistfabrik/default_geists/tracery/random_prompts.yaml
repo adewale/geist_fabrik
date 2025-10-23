@@ -1,0 +1,44 @@
+type: geist-tracery
+id: random_prompts
+description: Generates random creative prompts using Tracery grammar
+
+tracery:
+  origin:
+    - "What if you wrote about #topic# from the perspective of #perspective#?"
+    - "What if you explored the connection between #concept# and #concept#?"
+    - "What if #action# could reveal something about #topic#?"
+    - "What if you reconsidered #topic# through the lens of #lens#?"
+
+  topic:
+    - "one of your recent notes"
+    - "an old note you haven't visited"
+    - "a hub in your knowledge graph"
+    - "an orphaned note"
+
+  perspective:
+    - "a future version of yourself"
+    - "someone who disagrees with you"
+    - "a complete beginner"
+    - "an expert in the field"
+
+  concept:
+    - "emergence"
+    - "creativity"
+    - "learning"
+    - "change"
+    - "connection"
+    - "complexity"
+
+  action:
+    - "linking two unrelated notes"
+    - "revisiting a stale note"
+    - "expanding a stub"
+    - "questioning an assumption"
+
+  lens:
+    - "systems thinking"
+    - "first principles"
+    - "historical context"
+    - "future implications"
+
+count: 2

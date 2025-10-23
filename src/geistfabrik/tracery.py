@@ -506,27 +506,64 @@ class TraceryGeist:
 class TraceryGeistLoader:
     """Loads Tracery geists from a directory."""
 
-    def __init__(self, geists_dir: Path, seed: int | None = None):
+    def __init__(
+        self,
+        geists_dir: Path,
+        seed: int | None = None,
+        default_geists_dir: Path | None = None,
+        enabled_defaults: Dict[str, bool] | None = None,
+    ):
         """Initialize loader.
 
         Args:
-            geists_dir: Directory containing .yaml geist files
+            geists_dir: Directory containing custom .yaml geist files
             seed: Random seed for deterministic expansion
+            default_geists_dir: Directory containing default geists (optional)
+            enabled_defaults: Dictionary of default geist enabled states (optional)
         """
         self.geists_dir = geists_dir
         self.seed = seed
+        self.default_geists_dir = default_geists_dir
+        self.enabled_defaults = enabled_defaults or {}
 
     def load_all(self) -> List[TraceryGeist]:
-        """Load all Tracery geists from directory.
+        """Load all Tracery geists from directories.
+
+        Loads default geists first (if configured), then custom geists.
 
         Returns:
             List of loaded TraceryGeist instances
         """
-        if not self.geists_dir.exists():
-            return []
-
         geists = []
-        for yaml_file in self.geists_dir.glob("*.yaml"):
+
+        # Load default geists first
+        if self.default_geists_dir and self.default_geists_dir.exists():
+            geists.extend(self._load_from_directory(self.default_geists_dir, is_default=True))
+
+        # Load custom geists
+        if self.geists_dir.exists():
+            geists.extend(self._load_from_directory(self.geists_dir, is_default=False))
+
+        return geists
+
+    def _load_from_directory(self, directory: Path, is_default: bool = False) -> List[TraceryGeist]:
+        """Load Tracery geists from a specific directory.
+
+        Args:
+            directory: Directory containing .yaml geist files
+            is_default: Whether these are default geists
+
+        Returns:
+            List of loaded TraceryGeist instances
+        """
+        geists = []
+        for yaml_file in directory.glob("*.yaml"):
+            geist_id = yaml_file.stem
+
+            # For default geists, check if they're enabled in config
+            if is_default and not self.enabled_defaults.get(geist_id, True):
+                continue  # Skip disabled default geists
+
             try:
                 geist = TraceryGeist.from_yaml(yaml_file, self.seed)
                 geists.append(geist)
