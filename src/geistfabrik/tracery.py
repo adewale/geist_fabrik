@@ -33,6 +33,8 @@ class TraceryEngine:
         self.vault_context: VaultContext | None = None
         self.max_depth = 50
         self.modifiers: Dict[str, Callable[[str], str]] = self._default_modifiers()
+        self._preprocessed = False  # Track if pre-population done
+        self._prepopulation_failed = False  # Track if pre-population failed
 
     def _default_modifiers(self) -> Dict[str, Callable[[str], str]]:
         """Get default English language modifiers.
@@ -248,12 +250,66 @@ class TraceryEngine:
         self.modifiers[name] = func
 
     def set_vault_context(self, ctx: VaultContext) -> None:
-        """Set vault context for function calls.
+        """Set vault context and pre-populate vault functions.
 
         Args:
             ctx: Vault context to use for $vault.* function calls
         """
         self.vault_context = ctx
+        self._preprocess_vault_functions()
+
+    def _preprocess_vault_functions(self) -> None:
+        """Execute all $vault.* calls and expand symbol arrays.
+
+        This pre-populates symbol arrays with vault function results before
+        Tracery expansion begins, ensuring idiomatic Tracery behavior where
+        each expansion independently samples from pre-populated arrays.
+        """
+        if self._preprocessed or not self.vault_context:
+            return
+
+        try:
+            # Pattern to match $vault.function_name(args)
+            pattern = r"\$vault\.([a-z_]+)\(([^)]*)\)"
+
+            for symbol, rules in list(self.grammar.items()):
+                expanded_rules: List[str] = []
+
+                for rule in rules:
+                    # Check if this rule is a vault function call
+                    match = re.fullmatch(pattern, rule.strip())
+
+                    if match:
+                        # Execute vault function
+                        func_name = match.group(1)
+                        args_str = match.group(2).strip()
+
+                        # Parse arguments
+                        args = []
+                        if args_str:
+                            raw_args = [arg.strip().strip("\"'") for arg in args_str.split(",")]
+                            args = [self._convert_arg(arg) for arg in raw_args]
+
+                        # Call function and get results
+                        result = self.vault_context.call_function(func_name, *args)
+
+                        # If result is a list, expand into multiple rules
+                        if isinstance(result, list):
+                            expanded_rules.extend([str(item) for item in result])
+                        else:
+                            expanded_rules.append(str(result))
+                    else:
+                        # Static rule, keep as-is
+                        expanded_rules.append(rule)
+
+                # Replace symbol's rules with expanded version
+                self.grammar[symbol] = expanded_rules
+
+            self._preprocessed = True
+
+        except Exception as e:
+            logger.error(f"Vault function pre-population failed: {e}")
+            self._prepopulation_failed = True
 
     def expand(self, text: str, depth: int = 0) -> str:
         """Expand a text template using grammar rules.
@@ -280,9 +336,6 @@ class TraceryEngine:
             return expanded
 
         expanded = re.sub(pattern, replace_symbol, text)
-
-        # Expand vault function calls
-        expanded = self._expand_vault_functions(expanded)
 
         return expanded
 
@@ -479,6 +532,13 @@ class TraceryGeist:
             List of generated suggestions
         """
         self.engine.set_vault_context(vault)
+
+        # If preprocessing failed, return empty suggestions
+        if self.engine._prepopulation_failed:
+            logger.error(
+                f"Geist {self.geist_id}: returning empty suggestions due to preprocessing failure"
+            )
+            return []
 
         suggestions = []
         for _ in range(self.count):

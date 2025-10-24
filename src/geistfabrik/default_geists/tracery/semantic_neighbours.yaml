@@ -9,7 +9,7 @@ tracery:
     - "[[#seed#]] shares conceptual space with #neighbours#. #question#"
 
   seed:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(2)"
 
   neighbours:
     - "$vault.neighbours(#seed#, 3)"

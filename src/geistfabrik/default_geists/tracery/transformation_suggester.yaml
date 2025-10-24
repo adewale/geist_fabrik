@@ -42,7 +42,7 @@ tracery:
     - "explore"
 
   note:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(3)"
 
   # Nouns for .a modifier (mix of vowel/consonant starts)
   metaphor:
