@@ -20,8 +20,8 @@ This document specifies all validation mechanisms for GeistFabrik geists, both c
 **For 1.0 Release**:
 - ✅ Current validation is **robust and sufficient** for stable release
 - ✅ Meets 18/20 AC-4.* criteria (90%)
-- 🔧 **2 enhancements needed** for 1.0: Better error messages and error documentation
-- ⏱️ Estimated effort: 1 day
+- 🔧 **3 enhancements needed** for 1.0: Better error messages, CLI validate command, error documentation
+- ⏱️ Estimated effort: 1-2 days
 
 **For Post-1.0**:
 - 📋 Enhanced validation features (better quality checks, test coverage enforcement)
@@ -234,7 +234,52 @@ All filters can be:
   - Include vault path and date for deterministic replay
   - Already partially implemented
 
-### 2. Documentation for Common Errors
+### 2. CLI Validation Command
+
+**Priority**: High
+**Complexity**: Low
+**Implementation**: New command in `src/geistfabrik/cli.py`
+
+```bash
+# Validate all geists in a vault
+uv run geistfabrik validate
+
+# Validate specific geist
+uv run geistfabrik validate --geist temporal_drift
+
+# Validate with strict mode (warnings = errors)
+uv run geistfabrik validate --strict
+
+# Output formats
+uv run geistfabrik validate --format json
+uv run geistfabrik validate --format summary
+```
+
+**Output format**:
+```
+Validating geists in /vault/_geistfabrik/geists/...
+
+✅ code/temporal_drift.py
+   - All checks passed
+
+⚠️  code/experimental_idea.py
+   - Warning: Missing type hints on suggest()
+   - Warning: No module docstring
+
+❌ code/broken_geist.py
+   - Error: Missing suggest() function
+   - Error: Syntax error on line 15
+
+✅ tracery/what_if.yaml
+   - All checks passed
+
+⚠️  tracery/random_ideas.yaml
+   - Warning: Undefined symbol 'ideasss' (typo for 'ideas'?)
+
+Summary: 3 passed, 2 warnings, 1 error
+```
+
+### 3. Documentation for Common Errors
 
 **Priority**: High
 **Complexity**: Low
@@ -252,7 +297,18 @@ All filters can be:
   - Performance guidelines
   - Testing recommendations
 
-### 3. Test Coverage Enforcement
+### 4. Pre-commit Hook Integration
+
+**Priority**: Medium
+**Complexity**: Low
+**Implementation**: Template in `docs/hooks/pre-commit.sample`
+
+- 📋 Validate only staged geist files
+- 📋 Block commit if errors found
+- 📋 Allow commit with warnings (logged)
+- 📋 Configurable strict mode
+
+### 5. Test Coverage Enforcement
 
 **Priority**: High
 **Complexity**: Low
@@ -269,7 +325,27 @@ All filters can be:
   - Test must assert on output
   - Test must use real vault (no mocks)
 
-### 4. Enhanced Suggestion Quality Validation
+### 6. Performance Benchmarking
+
+**Priority**: Medium
+**Complexity**: Low
+**Implementation**: Enhance `GeistExecutor.execute_geist()`
+
+- 📋 **Execution time tracking**
+  - Log execution time for all geists
+  - Warn if > 2 seconds (below 5s timeout)
+  - Include in `geistfabrik invoke --verbose` output
+
+- 📋 **Performance regression tests**
+  - Benchmark suite for all geists
+  - Alert if geist becomes 2x slower
+  - Track performance over time
+
+- 📋 **Resource usage monitoring**
+  - Track memory allocation (if feasible)
+  - Warn on excessive memory use
+
+### 7. Enhanced Suggestion Quality Validation
 
 **Priority**: Medium
 **Complexity**: Medium
@@ -296,7 +372,7 @@ Pre-filtering quality checks (before suggestions reach filtering pipeline):
   - Must match executing geist's ID
   - Prevents copy-paste errors
 
-### 5. Documentation Generation
+### 8. Documentation Generation
 
 **Priority**: Low
 **Complexity**: Low
@@ -385,8 +461,9 @@ Each validation type must have unit tests:
 
 ### Integration Tests Required
 
-- ✅ Default geists - `tests/integration/test_default_geists.py`
-- ✅ Pre-commit hooks - `.pre-commit-config.yaml` (implemented and working)
+- ✅ Example geists - `tests/integration/test_example_geists.py`
+- 📋 End-to-end validation workflow
+- 📋 Pre-commit hook behavior
 
 ---
 
@@ -401,18 +478,25 @@ Each validation type must have unit tests:
    - Suggest fixes for common problems
    - Generate test commands for reproduction (partially implemented)
 
-2. **Documentation for common errors** - Help early adopters debug issues
+2. **CLI validation command** - `geistfabrik validate`
+   - Validate geist files before runtime
+   - Catch common errors early
+   - Developer-friendly output
+
+3. **Documentation for common errors** - Help early adopters debug issues
    - Common error patterns and solutions
    - Validation troubleshooting guide
 
-**Estimated effort**: 1 day for items 1-2 above
+**Estimated effort**: 1-2 days for items 1-3 above
 
 ### Post-1.0: Enhanced Validation
 
 **Nice to have, but not blocking 1.0**:
-3. Test coverage enforcement - Ensure all default geists have tests
-4. Enhanced suggestion quality validation - Placeholder detection, better heuristics
-5. Documentation generation - Auto-generate geist catalog
+4. Pre-commit hooks - Validate before commits
+5. Test coverage enforcement - Ensure all default geists have tests
+6. Performance benchmarking - Track slow geists
+7. Enhanced suggestion quality validation - Placeholder detection, better heuristics
+8. Documentation generation - Auto-generate geist catalog
 
 **Note**: Current validation (AC-4.* criteria) is **sufficient for 1.0**. These enhancements improve developer experience but aren't required for stable release.
 
