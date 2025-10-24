@@ -10,7 +10,7 @@ tracery:
     - "#label.capitalize# thought: [[#orphan#]]. #question.capitalize#?"
 
   orphan:
-    - "$vault.orphans(1)"
+    - "$vault.orphans(2)"
 
   connection:
     - "connection"

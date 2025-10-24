@@ -59,7 +59,7 @@ tracery:
     - "premise"
 
   note:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(3)"
 
   direction:
     - "#perspective.a#"

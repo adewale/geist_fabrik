@@ -10,7 +10,7 @@ tracery:
     - "Many #path.s# lead through [[#hub#]]. #prompt.capitalize#?"
 
   hub:
-    - "$vault.hubs(1)"
+    - "$vault.hubs(2)"
 
   verb:
     - "connect"

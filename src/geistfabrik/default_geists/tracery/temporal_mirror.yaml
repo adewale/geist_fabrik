@@ -16,10 +16,10 @@ tracery:
     - "5 years ago"
 
   old_note:
-    - "$vault.sample_old_notes(1, 10)"
+    - "$vault.sample_old_notes(2, 10)"
 
   new_note:
-    - "$vault.sample_recent_notes(1, 10)"
+    - "$vault.sample_recent_notes(2, 10)"
 
   relationship:
     - "might be the answer you were looking for"

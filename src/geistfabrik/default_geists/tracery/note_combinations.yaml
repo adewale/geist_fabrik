@@ -9,10 +9,10 @@ tracery:
     - "[[#note1#]] and [[#note2#]] might #relationship# in interesting ways."
 
   note1:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(2)"
 
   note2:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(2)"
 
   reason:
     - "They might reveal unexpected patterns."

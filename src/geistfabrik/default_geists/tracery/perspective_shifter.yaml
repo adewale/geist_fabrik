@@ -16,7 +16,7 @@ tracery:
     - "understand"
 
   note:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(2)"
 
   metaphor:
     - "experiment"
