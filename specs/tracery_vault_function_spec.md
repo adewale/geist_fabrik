@@ -616,8 +616,75 @@ class TraceryGeist:
 5. **Predictability:** Authors understand what `count: N` means
 6. **Determinism:** Same seed guarantees identical output for reproducibility
 
-## Open Questions
+## Design Decisions
 
-1. Should we warn if `count > len(symbol_array)` for vault-populated symbols?
-2. Should we provide a `$vault.sample_notes(*)` syntax meaning "all notes"?
-3. How do we handle vault function errors during pre-population? (Current: fail silently and log)
+### 1. Warning for Insufficient Symbol Options
+
+**Decision:** Log warning and allow repeats
+
+When `count > len(symbol_array)` after pre-population:
+
+```python
+# After pre-population
+if self.count > len(self.grammar.get('hub', [])):
+    logger.warning(
+        f"{self.geist_id}: count={self.count} but symbol 'hub' "
+        f"only has {len(self.grammar['hub'])} options. "
+        f"Suggestions may repeat."
+    )
+```
+
+**Rationale:**
+- Geists should adapt to vault contents (small vaults naturally have fewer options)
+- Repeats are acceptable when vault is small
+- Warning helps geist authors debug unexpected behavior
+- Does not fail or reduce functionality
+
+### 2. "All Items" Syntax
+
+**Decision:** No special `*` syntax
+
+To get all items, use a large number:
+```yaml
+# Get up to 1000 notes (effectively "all" for most vaults)
+note: ["$vault.sample_notes(1000)"]
+```
+
+**Rationale:**
+- Adds syntax complexity for minimal benefit
+- Large number achieves same result
+- Vault functions can cap at actual count anyway
+- Keeps implementation simpler
+
+### 3. Vault Function Error Handling
+
+**Decision:** Fail the geist (return empty suggestions)
+
+During pre-population, if a vault function:
+- Doesn't exist
+- Raises an exception
+- Returns invalid type
+
+Then:
+1. Log error with geist ID and function name
+2. Return empty suggestion list from `geist.suggest()`
+3. System continues with other geists
+
+```python
+def _preprocess_vault_functions(self) -> None:
+    """Execute all $vault.* calls and expand symbol arrays."""
+    try:
+        # ... pre-population logic ...
+    except Exception as e:
+        logger.error(
+            f"Geist {self.geist_id}: vault function pre-population failed: {e}"
+        )
+        # Mark as failed so suggest() returns []
+        self._prepopulation_failed = True
+```
+
+**Rationale:**
+- Clear failure mode (no suggestions) rather than partial/corrupt suggestions
+- Consistent with geist execution error handling (3 failures → disable)
+- Error logged with context for debugging
+- System remains resilient (other geists continue)
