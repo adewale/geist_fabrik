@@ -462,6 +462,151 @@ For each, ensure vault functions request enough options:
 - Add examples to `tracery_research.md`
 - Create user-facing guide for geist authoring
 
+## Determinism Requirements
+
+**Critical Design Principle:** GeistFabrik requires deterministic randomness. Given the same seed, the system must produce identical output.
+
+### Seed Propagation
+
+All randomness in an invocation uses the **same session seed**:
+
+```python
+# Session-level seed (derived from date)
+session_seed = int(date.strftime('%Y%m%d'))  # e.g., 20250124
+
+# Vault context uses this seed
+vault = VaultContext(db, seed=session_seed)
+
+# Tracery geist uses the SAME seed
+geist = TraceryGeist.from_yaml('geist.yaml', seed=session_seed)
+
+# Both use seeded RNG, ensuring determinism
+```
+
+### Deterministic Components
+
+1. **Vault functions are deterministic**
+   - `vault.sample_notes(5)` with seed 42 always returns same 5 notes in same order
+   - `vault.hubs(3)` with seed 42 always returns same 3 hubs in same order
+   - All vault functions use `vault.rng` (seeded Random instance)
+
+2. **Pre-population is deterministic**
+   - Vault functions execute in stable order (dictionary iteration is stable in Python 3.7+)
+   - Results appended to symbol arrays in consistent order
+   - No randomness in the pre-population phase itself
+
+3. **Tracery expansion is deterministic**
+   - `TraceryEngine` uses `self.rng = random.Random(seed)`
+   - Symbol selection uses `self.rng.choice(rules)`
+   - Same seed + same grammar → same expansions
+
+### Determinism Testing Strategy
+
+**Test 1: Same seed produces identical suggestions**
+```python
+def test_deterministic_suggestions():
+    """Same seed must produce identical suggestions."""
+    seed = 42
+
+    # First run
+    geist1 = TraceryGeist.from_yaml('hub_explorer.yaml', seed=seed)
+    vault1 = create_test_vault(seed=seed)
+    suggestions1 = geist1.suggest(vault1)
+
+    # Second run with same seed
+    geist2 = TraceryGeist.from_yaml('hub_explorer.yaml', seed=seed)
+    vault2 = create_test_vault(seed=seed)
+    suggestions2 = geist2.suggest(vault2)
+
+    # Must be identical
+    assert suggestions1 == suggestions2
+    assert [s.text for s in suggestions1] == [s.text for s in suggestions2]
+    assert [s.notes for s in suggestions1] == [s.notes for s in suggestions2]
+```
+
+**Test 2: Different seeds produce different suggestions**
+```python
+def test_different_seeds_vary():
+    """Different seeds should produce different suggestions."""
+    vault = create_test_vault(seed=42)
+
+    # Generate with different seeds
+    results = []
+    for seed in [1, 2, 3, 4, 5]:
+        geist = TraceryGeist.from_yaml('hub_explorer.yaml', seed=seed)
+        suggestions = geist.suggest(vault)
+        results.append([s.text for s in suggestions])
+
+    # Should have variety (not all identical)
+    unique_results = [tuple(r) for r in results]
+    assert len(set(unique_results)) > 1
+```
+
+**Test 3: Pre-population order is stable**
+```python
+def test_prepopulation_order_stable():
+    """Pre-populated symbol arrays should have stable order."""
+    grammar = {
+        'note': ['$vault.sample_notes(3)', '$vault.recent_notes(2)']
+    }
+
+    # Run twice with same seed
+    engines = []
+    for _ in range(2):
+        engine = TraceryEngine(grammar, seed=42)
+        vault = create_test_vault(seed=42)
+        engine.set_vault_context(vault)
+        engines.append(engine)
+
+    # Pre-populated arrays should be identical
+    assert engines[0].grammar['note'] == engines[1].grammar['note']
+```
+
+**Test 4: Multi-expansion determinism**
+```python
+def test_multiple_expansions_deterministic():
+    """Multiple expansions with same seed should be deterministic."""
+    grammar = {
+        'origin': '#note#',
+        'note': ['$vault.sample_notes(10)']
+    }
+
+    # First run: 5 expansions
+    engine1 = TraceryEngine(grammar, seed=42)
+    vault1 = create_test_vault(seed=42)
+    engine1.set_vault_context(vault1)
+    results1 = [engine1.expand('#origin#') for _ in range(5)]
+
+    # Second run: 5 expansions with same seed
+    engine2 = TraceryEngine(grammar, seed=42)
+    vault2 = create_test_vault(seed=42)
+    engine2.set_vault_context(vault2)
+    results2 = [engine2.expand('#origin#') for _ in range(5)]
+
+    # Must be identical
+    assert results1 == results2
+```
+
+### Implementation Notes
+
+**TraceryEngine RNG must reset for each geist:**
+```python
+class TraceryGeist:
+    def suggest(self, vault: VaultContext) -> List[Suggestion]:
+        self.engine.set_vault_context(vault)
+
+        suggestions = []
+        for _ in range(self.count):
+            # Each expansion uses the engine's seeded RNG
+            text = self.engine.expand("#origin#")
+            # ...
+```
+
+**Important:** Do NOT re-seed between expansions. The RNG state progresses deterministically:
+- First expansion consumes RNG state → result A
+- Second expansion consumes next RNG state → result B
+- Same seed always produces [A, B] in that order
+
 ## Benefits
 
 1. **Idiomatic Tracery:** Matches how standard Tracery works
@@ -469,6 +614,7 @@ For each, ensure vault functions request enough options:
 3. **Performance:** Vault functions execute once per symbol, not once per expansion
 4. **Composability:** Symbols can mix vault and static options freely
 5. **Predictability:** Authors understand what `count: N` means
+6. **Determinism:** Same seed guarantees identical output for reproducibility
 
 ## Open Questions
 
