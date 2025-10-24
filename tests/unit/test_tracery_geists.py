@@ -728,3 +728,63 @@ class TestAllTraceryGeists:
                 assert len(unique_texts) > 1 or geist.count == 1, (
                     f"No variety in {geist_file.name} with count={geist.count}"
                 )
+
+    def test_all_geists_vault_functions_request_sufficient_items(self):
+        """Quality test: vault functions should request at least count items.
+
+        For geists with count > 1, vault functions in symbols should request
+        at least count items to avoid guaranteed duplicates.
+
+        This validates the pattern:
+        - count: 2 → $vault.function(2) or more
+        - count: 3 → $vault.function(3) or more
+        """
+        import re
+        import yaml
+
+        geist_files = list(GEISTS_DIR.glob("*.yaml"))
+
+        for geist_file in geist_files:
+            with open(geist_file) as f:
+                data = yaml.safe_load(f)
+
+            count = data.get("count", 1)
+
+            # Only check geists with count > 1
+            if count <= 1:
+                continue
+
+            tracery_grammar = data.get("tracery", {})
+
+            # Check each symbol in the grammar
+            for symbol_name, rules in tracery_grammar.items():
+                if symbol_name == "origin":
+                    continue  # Skip origin (templates, not data sources)
+
+                if not isinstance(rules, list):
+                    continue
+
+                # Check each rule in this symbol
+                for rule in rules:
+                    if not isinstance(rule, str):
+                        continue
+
+                    # Check if this rule is a single vault function call
+                    vault_func_pattern = r"^\$vault\.([a-z_]+)\(([^)]*)\)$"
+                    match = re.match(vault_func_pattern, rule.strip())
+
+                    if match:
+                        func_name = match.group(1)
+                        args_str = match.group(2).strip()
+
+                        # Parse the first argument (requested count)
+                        if args_str:
+                            args = [arg.strip().strip("\"'") for arg in args_str.split(",")]
+                            if args[0].isdigit():
+                                requested = int(args[0])
+
+                                assert requested >= count, (
+                                    f"{geist_file.name}: Symbol '{symbol_name}' requests "
+                                    f"{requested} items via ${func_name}(), but count={count}. "
+                                    f"Should request at least {count} items to avoid guaranteed duplicates."
+                                )
