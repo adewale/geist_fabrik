@@ -17,8 +17,10 @@ from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
 
-# Path to example geists
-GEISTS_DIR = Path(__file__).parent.parent.parent / "examples" / "geists" / "tracery"
+# Path to default bundled geists
+GEISTS_DIR = (
+    Path(__file__).parent.parent.parent / "src" / "geistfabrik" / "default_geists" / "tracery"
+)
 
 
 @pytest.fixture(autouse=True)
