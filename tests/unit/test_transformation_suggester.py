@@ -48,7 +48,7 @@ def create_vault_context(vault: Vault) -> VaultContext:
 def test_transformation_suggester_loads(tmp_path: Path) -> None:
     """Test that transformation_suggester geist loads correctly."""
     # Get the actual geist file
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
 
     # Load the geist
     geist = TraceryGeist.from_yaml(geist_path, seed=42)
@@ -72,7 +72,7 @@ def test_transformation_suggester_generates_suggestions(tmp_path: Path) -> None:
     context = create_vault_context(vault)
 
     # Load and execute geist
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
     geist = TraceryGeist.from_yaml(geist_path, seed=42)
 
     suggestions = geist.suggest(context)
@@ -101,7 +101,7 @@ def test_transformation_suggester_capitalize_modifier(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
     geist = TraceryGeist.from_yaml(geist_path, seed=42)
 
     suggestions = geist.suggest(context)
@@ -125,7 +125,7 @@ def test_transformation_suggester_plural_modifier(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
     geist = TraceryGeist.from_yaml(geist_path, seed=123)  # Different seed for variety
 
     # Generate many suggestions to increase chance of hitting plural templates
@@ -171,7 +171,7 @@ def test_transformation_suggester_past_tense_modifier(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
     geist = TraceryGeist.from_yaml(geist_path, seed=456)
 
     # Generate multiple suggestions
@@ -218,7 +218,7 @@ def test_transformation_suggester_article_modifier(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
     geist = TraceryGeist.from_yaml(geist_path, seed=789)
 
     # Generate many suggestions
@@ -253,7 +253,7 @@ def test_transformation_suggester_capitalize_all_modifier(tmp_path: Path) -> Non
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
 
     # Use specific seed that will select the .capitalizeAll template
     # (third origin option uses #concept.capitalizeAll#)
@@ -292,7 +292,7 @@ def test_transformation_suggester_modifier_chaining(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
 
     # Try multiple seeds to find chained modifier usage
     for seed in range(50, 150):
@@ -434,7 +434,7 @@ def test_transformation_suggester_deterministic_output(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
 
     # Generate suggestions with same seed twice
     geist1 = TraceryGeist.from_yaml(geist_path, seed=999)
@@ -464,7 +464,7 @@ def test_transformation_suggester_all_modifiers_in_output(tmp_path: Path) -> Non
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
 
     # Generate many suggestions with different seeds
     all_suggestions = []
@@ -531,7 +531,7 @@ def test_transformation_suggester_no_errors(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    geist_path = Path("examples/geists/tracery/transformation_suggester.yaml")
+    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
 
     # Run many times with different seeds to test robustness
     error_count = 0
