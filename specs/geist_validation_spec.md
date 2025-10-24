@@ -234,7 +234,35 @@ All filters can be:
   - Include vault path and date for deterministic replay
   - Already partially implemented
 
-### 2. CLI Validation Command
+### 2. Tracery Geist Static Validation
+
+**Priority**: Medium
+**Complexity**: Low
+**Implementation**: New validation module for Tracery geists
+
+- 📋 **Grammar structure validation**
+  - `origin` symbol must exist
+  - Warn if `origin` is empty
+
+- 📋 **Symbol reference checking**
+  - Find all `#symbol#` references in rules
+  - Warn if symbol not defined in grammar
+  - Detect potential typos
+
+- 📋 **Vault function validation**
+  - Validate `$vault.function()` calls
+  - Check function exists in registry
+  - Validate parameter count/types
+
+- 📋 **Suggestions count limits**
+  - Warn if `suggestions_per_invocation` > 10
+  - Suggest using sampling instead of generation
+
+- 📋 **Description field requirement**
+  - Require `description` field for documentation
+  - Used in `geistfabrik list` command
+
+### 3. CLI Validation Command
 
 **Priority**: High
 **Complexity**: Low
@@ -279,7 +307,7 @@ Validating geists in /vault/_geistfabrik/geists/...
 Summary: 3 passed, 2 warnings, 1 error
 ```
 
-### 3. Documentation for Common Errors
+### 4. Documentation for Common Errors
 
 **Priority**: High
 **Complexity**: Low
@@ -297,7 +325,7 @@ Summary: 3 passed, 2 warnings, 1 error
   - Performance guidelines
   - Testing recommendations
 
-### 4. Pre-commit Hook Integration
+### 5. Pre-commit Hook Integration
 
 **Priority**: Medium
 **Complexity**: Low
@@ -308,7 +336,7 @@ Summary: 3 passed, 2 warnings, 1 error
 - 📋 Allow commit with warnings (logged)
 - 📋 Configurable strict mode
 
-### 5. Test Coverage Enforcement
+### 6. Test Coverage Enforcement
 
 **Priority**: High
 **Complexity**: Low
@@ -325,7 +353,7 @@ Summary: 3 passed, 2 warnings, 1 error
   - Test must assert on output
   - Test must use real vault (no mocks)
 
-### 6. Performance Benchmarking
+### 7. Performance Benchmarking
 
 **Priority**: Medium
 **Complexity**: Low
@@ -345,7 +373,7 @@ Summary: 3 passed, 2 warnings, 1 error
   - Track memory allocation (if feasible)
   - Warn on excessive memory use
 
-### 7. Enhanced Suggestion Quality Validation
+### 8. Enhanced Suggestion Quality Validation
 
 **Priority**: Medium
 **Complexity**: Medium
@@ -372,7 +400,7 @@ Pre-filtering quality checks (before suggestions reach filtering pipeline):
   - Must match executing geist's ID
   - Prevents copy-paste errors
 
-### 8. Documentation Generation
+### 9. Documentation Generation
 
 **Priority**: Low
 **Complexity**: Low
@@ -492,11 +520,12 @@ Each validation type must have unit tests:
 ### Post-1.0: Enhanced Validation
 
 **Nice to have, but not blocking 1.0**:
-4. Pre-commit hooks - Validate before commits
-5. Test coverage enforcement - Ensure all default geists have tests
-6. Performance benchmarking - Track slow geists
-7. Enhanced suggestion quality validation - Placeholder detection, better heuristics
-8. Documentation generation - Auto-generate geist catalog
+4. Tracery geist static validation - Grammar/symbol checking before runtime
+5. Pre-commit hooks - Validate before commits
+6. Test coverage enforcement - Ensure all default geists have tests
+7. Performance benchmarking - Track slow geists
+8. Enhanced suggestion quality validation - Placeholder detection, better heuristics
+9. Documentation generation - Auto-generate geist catalog
 
 **Note**: Current validation (AC-4.* criteria) is **sufficient for 1.0**. These enhancements improve developer experience but aren't required for stable release.
 
