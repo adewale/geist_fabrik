@@ -750,10 +750,7 @@ def test_vault_function_preprocessing(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    grammar = {
-        "origin": "#note#",
-        "note": ["$vault.sample_notes(3)"]
-    }
+    grammar = {"origin": "#note#", "note": ["$vault.sample_notes(3)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -770,16 +767,77 @@ def test_vault_function_preprocessing(tmp_path: Path) -> None:
     vault.close()
 
 
+def test_geist_with_count_2_produces_different_hubs(tmp_path: Path) -> None:
+    """Behavior test: requesting 2 hubs with count=2 should produce different hubs.
+
+    This test articulates the problem we're fixing: without preprocessing,
+    both suggestions would reference the same hub. With preprocessing,
+    each suggestion can sample a different hub from the pre-populated array.
+    """
+    # Create vault with 5 hubs (notes with many backlinks)
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    # Create 5 hub notes
+    for i in range(5):
+        (vault_path / f"hub_{i}.md").write_text(f"# Hub {i}\nThis is hub {i}")
+
+    # Create many notes that link to the hubs
+    for i in range(20):
+        links = f"[[hub_{i % 5}]]"  # Each regular note links to one hub
+        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\nLinks to {links}")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    context = create_vault_context(vault)
+
+    # Create a geist that requests 5 hubs with count: 2
+    # Requesting more items than count makes variety much more likely
+    yaml_content = """type: geist-tracery
+id: test_hub_variety
+count: 2
+tracery:
+  origin:
+    - "Consider hub [[#hub#]]"
+  hub:
+    - "$vault.hubs(5)"
+"""
+
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(yaml_content)
+
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    suggestions = geist.suggest(context)
+
+    assert len(suggestions) == 2, "Should generate 2 suggestions"
+
+    # Extract the hub references from each suggestion
+    hub1 = suggestions[0].notes[0] if suggestions[0].notes else None
+    hub2 = suggestions[1].notes[0] if suggestions[1].notes else None
+
+    # The two suggestions should reference DIFFERENT hubs
+    # Without preprocessing: both would call $vault.hubs(2) and get the same result
+    # With preprocessing: $vault.hubs(2) is called once, populating hub array with 2 items,
+    # then each expansion samples independently from that array
+    assert hub1 is not None, "First suggestion should reference a hub"
+    assert hub2 is not None, "Second suggestion should reference a hub"
+    assert hub1 != hub2, (
+        f"The two suggestions should reference DIFFERENT hubs, "
+        f"but both referenced: {hub1}. "
+        f"This indicates preprocessing is not working correctly."
+    )
+
+    vault.close()
+
+
 def test_multiple_expansions_vary() -> None:
     """Multiple expansions should sample independently from pre-populated arrays."""
     # Create a mock vault context that returns 5 notes
     mock_vault = Mock(spec=VaultContext)
     mock_vault.call_function = Mock(return_value=["A", "B", "C", "D", "E"])
 
-    grammar = {
-        "origin": "#note#",
-        "note": ["$vault.sample_notes(5)"]
-    }
+    grammar = {"origin": "#note#", "note": ["$vault.sample_notes(5)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(mock_vault)
@@ -803,10 +861,7 @@ def test_mixed_static_and_vault(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    grammar = {
-        "origin": "#item#",
-        "item": ["$vault.sample_notes(2)", "static option"]
-    }
+    grammar = {"origin": "#item#", "item": ["$vault.sample_notes(2)", "static option"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -834,10 +889,7 @@ def test_empty_vault_result(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    grammar = {
-        "origin": "#orphan#",
-        "orphan": ["$vault.orphans(5)"]
-    }
+    grammar = {"origin": "#orphan#", "orphan": ["$vault.orphans(5)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -968,10 +1020,7 @@ def test_preprocessing_only_runs_once() -> None:
     mock_vault = Mock(spec=VaultContext)
     mock_vault.call_function = Mock(return_value=["A", "B", "C"])
 
-    grammar = {
-        "origin": "#note#",
-        "note": ["$vault.sample_notes(3)"]
-    }
+    grammar = {"origin": "#note#", "note": ["$vault.sample_notes(3)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(mock_vault)
