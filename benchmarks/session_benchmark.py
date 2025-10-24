@@ -140,7 +140,7 @@ def main():
     # Find test vault
     repo_root = Path(__file__).parent.parent
     vault_path = repo_root / "testdata" / "kepano-obsidian-main"
-    geists_dir = repo_root / "examples" / "geists" / "code"
+    geists_dir = repo_root / "src" / "geistfabrik" / "default_geists" / "code"
 
     if not vault_path.exists():
         print(f"Error: Test vault not found at {vault_path}")

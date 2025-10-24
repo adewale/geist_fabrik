@@ -214,31 +214,30 @@ Works globally (not hemisphere-specific), simple date matching, focuses on perso
    - Load custom geists (always enabled)
 4. **Config generation**: When initializing vault, write full default config showing all geists
 5. **Built-in functions**: `contrarian_to()` is now a built-in vault function
-6. **Documentation**: Move examples/ to documentation format explaining how to build extensions
+6. **Documentation**: Update examples/ to focus on metadata_inference and vault_functions only
 7. **File migrations**:
-   - Move 4 implemented code geists from examples/ to src/geistfabrik/default_geists/code/
+   - Move ALL 34 code geists from examples/ to src/geistfabrik/default_geists/code/
    - Create new on_this_day.py geist
-   - Remove seasonal_revisit.py (replaced by on_this_day)
-   - Move 9 Tracery geists from examples/ to src/geistfabrik/default_geists/tracery/
-   - Keep 10 example code geists in examples/ as learning material (with documentation)
+   - Move ALL 10 Tracery geists from examples/ to src/geistfabrik/default_geists/tracery/
+   - Remove examples/geists/ entirely (all geists now bundled as defaults)
 
 ## Documentation Structure
 
-The `examples/` directory becomes documentation-focused:
+The `examples/` directory provides learning materials for extending GeistFabrik:
 
 ```
 examples/
   README.md                          # Overview of extensibility
-  BUILDING_GEISTS.md                 # How to write code & Tracery geists
-  BUILDING_VAULT_FUNCTIONS.md       # How to create vault functions
-  BUILDING_METADATA_INFERENCE.md    # How to add metadata modules
-  geists/
-    code/                            # Keep 10 example geists as learning material
-      temporal_drift.py
-      creative_collision.py
-      ... (8 more)
-    README.md                        # Explains example patterns
+  metadata_inference/                # Example metadata modules
+    reading_time.py                  # Calculate reading time
+    complexity_score.py              # Measure note complexity
+  vault_functions/                   # Example vault functions
+    contrarian_to.py                 # Generate contrarian perspectives
+    sample_by_tag.py                 # Sample notes by tag
 ```
+
+**Note**: All geists are now bundled as defaults in `src/geistfabrik/default_geists/`.
+Users learn by viewing the bundled source code and creating custom geists in their vaults.
 
 ## Config Schema Details
 
