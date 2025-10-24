@@ -740,6 +740,7 @@ class TestAllTraceryGeists:
         - count: 3 → $vault.function(3) or more
         """
         import re
+
         import yaml
 
         geist_files = list(GEISTS_DIR.glob("*.yaml"))
@@ -786,5 +787,6 @@ class TestAllTraceryGeists:
                                 assert requested >= count, (
                                     f"{geist_file.name}: Symbol '{symbol_name}' requests "
                                     f"{requested} items via ${func_name}(), but count={count}. "
-                                    f"Should request at least {count} items to avoid guaranteed duplicates."
+                                    f"Should request at least {count} items to avoid "
+                                    f"guaranteed duplicates."
                                 )

@@ -90,8 +90,8 @@ def test_tracery_engine_vault_function_no_args(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    # Create grammar with function call
-    grammar = {"origin": ["Notes: $vault.sample_notes()"]}
+    # Create grammar with function call in symbol (not inline)
+    grammar = {"origin": ["Notes: #note#"], "note": ["$vault.sample_notes()"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -120,8 +120,8 @@ def test_tracery_engine_vault_function_with_int_arg(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    # Create grammar with function call using integer argument
-    grammar = {"origin": ["Sample: $vault.sample_notes(2)"]}
+    # Create grammar with function call in symbol using integer argument
+    grammar = {"origin": ["Sample: #note#"], "note": ["$vault.sample_notes(2)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -298,7 +298,7 @@ tracery:
 
 
 def test_tracery_engine_handles_function_errors_gracefully(tmp_path: Path) -> None:
-    """Test that function call errors are caught and displayed in output."""
+    """Test that function call errors are caught during preprocessing."""
     # Create minimal vault
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -308,15 +308,17 @@ def test_tracery_engine_handles_function_errors_gracefully(tmp_path: Path) -> No
     vault.sync()
     context = create_vault_context(vault)
 
-    # Create grammar calling non-existent function
-    grammar = {"origin": ["Result: $vault.nonexistent_function()"]}
+    # Create grammar calling non-existent function (in symbol, not inline)
+    grammar = {"origin": ["Result: #result#"], "result": ["$vault.nonexistent_function()"]}
 
     engine = TraceryEngine(grammar, seed=42)
+
+    # With preprocessing, error happens during set_vault_context, not expand
+    # But preprocessing catches the exception and sets _prepopulation_failed flag
     engine.set_vault_context(context)
 
-    # Should raise exception for non-existent function
-    with pytest.raises(KeyError, match="Function 'nonexistent_function' not registered"):
-        engine.expand("#origin#")
+    # Preprocessing should have failed
+    assert engine._prepopulation_failed is True
 
     vault.close()
 
@@ -446,7 +448,7 @@ def test_tracery_sample_notes_produces_variety_across_expansions(tmp_path: Path)
     context = create_vault_context(vault)
 
     # Create geist using sample_notes with count: 5
-    # Note: Must wrap vault function results in [[...]] for note extraction
+    # Request 5+ notes per symbol to enable variety across expansions
     yaml_content = """type: geist-tracery
 id: sample_test
 count: 5
@@ -454,9 +456,9 @@ tracery:
   origin:
     - "Consider [[#note1#]] and [[#note2#]]"
   note1:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(5)"
   note2:
-    - "$vault.sample_notes(1)"
+    - "$vault.sample_notes(5)"
 """
 
     yaml_file = tmp_path / "test.yaml"
@@ -889,7 +891,7 @@ def test_empty_vault_result(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    grammar = {"origin": "#orphan#", "orphan": ["$vault.orphans(5)"]}
+    grammar = {"origin": ["#orphan#"], "orphan": ["$vault.orphans(5)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -897,9 +899,9 @@ def test_empty_vault_result(tmp_path: Path) -> None:
     # Symbol should be empty (no orphans in vault)
     assert engine.grammar["orphan"] == []
 
-    # Expansion should fail gracefully (return unexpanded symbol)
+    # When symbol is empty, Tracery returns empty string
     result = engine.expand("#origin#")
-    assert result == "#orphan#"  # Unexpanded
+    assert result == ""  # Empty symbol expands to empty string
 
     vault.close()
 
@@ -915,9 +917,18 @@ def test_deterministic_preprocessing(tmp_path: Path) -> None:
     vault = Vault(vault_path)
     vault.sync()
 
-    # Create two contexts with same seed
-    context1 = create_vault_context(vault)
-    context2 = create_vault_context(vault)
+    # Create two contexts with same seed, sharing function registry
+    session_date = datetime(2025, 1, 15)
+    num_notes = len(vault.all_notes())
+    mock_computer = create_mock_embedding_computer(num_notes)
+    session = Session(session_date, vault.db, computer=mock_computer)
+    session.compute_embeddings(vault.all_notes())
+
+    # Share the same function registry between contexts
+    function_registry = FunctionRegistry()
+
+    context1 = VaultContext(vault, session, seed=42, function_registry=function_registry)
+    context2 = VaultContext(vault, session, seed=42, function_registry=function_registry)
 
     grammar1 = {"origin": "#note#", "note": ["$vault.sample_notes(5)"]}
     grammar2 = {"origin": "#note#", "note": ["$vault.sample_notes(5)"]}
@@ -958,13 +969,22 @@ tracery:
     yaml_file = tmp_path / "test.yaml"
     yaml_file.write_text(yaml_content)
 
+    # Create contexts with same seed, sharing function registry
+    session_date = datetime(2025, 1, 15)
+    num_notes = len(vault.all_notes())
+    mock_computer = create_mock_embedding_computer(num_notes)
+    session = Session(session_date, vault.db, computer=mock_computer)
+    session.compute_embeddings(vault.all_notes())
+
+    function_registry = FunctionRegistry()
+
     # First run
-    context1 = create_vault_context(vault)
+    context1 = VaultContext(vault, session, seed=42, function_registry=function_registry)
     geist1 = TraceryGeist.from_yaml(yaml_file, seed=42)
     suggestions1 = geist1.suggest(context1)
 
-    # Second run with same seed
-    context2 = create_vault_context(vault)
+    # Second run with same seed (reuse same context since it's deterministic)
+    context2 = VaultContext(vault, session, seed=42, function_registry=function_registry)
     geist2 = TraceryGeist.from_yaml(yaml_file, seed=42)
     suggestions2 = geist2.suggest(context2)
 

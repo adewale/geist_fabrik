@@ -535,7 +535,9 @@ class TraceryGeist:
 
         # If preprocessing failed, return empty suggestions
         if self.engine._prepopulation_failed:
-            logger.error(f"Geist {self.geist_id}: returning empty suggestions due to preprocessing failure")
+            logger.error(
+                f"Geist {self.geist_id}: returning empty suggestions due to preprocessing failure"
+            )
             return []
 
         suggestions = []
