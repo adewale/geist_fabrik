@@ -293,6 +293,17 @@ class TraceryEngine:
                         # Call function and get results
                         result = self.vault_context.call_function(func_name, *args)
 
+                        # Check if we got fewer items than requested
+                        if isinstance(result, list) and args and isinstance(args[0], int):
+                            requested_count = args[0]
+                            actual_count = len(result)
+                            if actual_count < requested_count:
+                                logger.warning(
+                                    f"Symbol '{symbol}' requested {requested_count} items "
+                                    f"via $vault.{func_name}() but only {actual_count} "
+                                    f"available. This may cause repetition in suggestions."
+                                )
+
                         # If result is a list, expand into multiple rules
                         if isinstance(result, list):
                             expanded_rules.extend([str(item) for item in result])

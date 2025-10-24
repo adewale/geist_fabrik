@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock
 
 import numpy as np
@@ -1086,5 +1087,35 @@ tracery:
     # Should return empty suggestions due to preprocessing failure
     suggestions = geist.suggest(context)
     assert suggestions == []
+
+    vault.close()
+
+
+def test_preprocessing_warns_when_fewer_items_returned(tmp_path: Path, caplog: Any) -> None:
+    """Preprocessing should warn when vault returns fewer items than requested."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+    # Create only 1 orphan
+    (vault_path / "orphan.md").write_text("# Orphan\nNo links")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    context = create_vault_context(vault)
+
+    # Request 5 orphans but vault only has 1
+    grammar = {"origin": ["[[#orphan#]]"], "orphan": ["$vault.orphans(5)"]}
+
+    engine = TraceryEngine(grammar, seed=42)
+
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        engine.set_vault_context(context)
+
+    # Should have warning about mismatch
+    assert any("requested 5 items" in record.message for record in caplog.records)
+    assert any("only 1 available" in record.message for record in caplog.records)
+    assert any("may cause repetition" in record.message for record in caplog.records)
 
     vault.close()
