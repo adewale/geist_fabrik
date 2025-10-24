@@ -312,33 +312,297 @@ This section tracks features as they're added to GeistFabrik.
 
 **Conversion Difficulty**: Easy for simple grammars, impossible for vault-aware ones.
 
-## When to Use Each Implementation
+## Deep Dive: Push-Pop Stacks and Grammar Complexity
 
-### Use **Tracery.js** When:
+The presence or absence of push-pop stacks fundamentally changes what kinds of grammars are expressible and how complex narratives can be constructed.
 
-- ✅ Building web-based generators (Twitter bots, websites)
-- ✅ Need maximum ecosystem compatibility
-- ✅ Want to use tracery.io visual editor
-- ✅ Integrating with JavaScript projects
-- ✅ Need established, battle-tested library
+### What Push-Pop Stacks Enable
 
-### Use **PyTracery** When:
+Push-pop stacks in Tracery.js and PyTracery allow **storing generated values for reuse within a single expansion**. This creates a form of temporary memory during text generation.
 
-- ✅ Building Python-based text generators
-- ✅ Need general-purpose generative text
-- ✅ Want standard Tracery compatibility in Python
-- ✅ Prefer Python ecosystem integration
-- ✅ Don't need external data integration
+**Basic Syntax**:
+- `[key:value]` - Push `value` onto the stack for `key`
+- `[key:POP]` - Pop the top value off the stack for `key`
+- `#key#` - Reference the current top value on the stack
 
-### Use **GeistFabrik Tracery** When:
+### Grammar Complexity: With vs Without Stacks
 
-- ✅ Building suggestions for Obsidian vaults
-- ✅ Need dynamic queries of vault content
-- ✅ Want deterministic session-based output
-- ✅ Prefer YAML over JSON
-- ✅ Need structured outputs with metadata
-- ✅ Building creative "muses" not general generators
-- ✅ Don't need variable state management
+#### Level 1: Simple Grammars (No State Needed)
+
+**Both implementations can handle:**
+
+```json
+{
+  "origin": "What if #concept# led to #outcome#?",
+  "concept": ["curiosity", "fear", "ambition"],
+  "outcome": ["clarity", "confusion", "transformation"]
+}
+```
+
+Output examples:
+- "What if curiosity led to clarity?"
+- "What if fear led to transformation?"
+
+**No difference** - each symbol expands independently, no memory required.
+
+---
+
+#### Level 2: Character Consistency (Requires State)
+
+**Standard Tracery with push-pop:**
+
+```json
+{
+  "origin": "#[character:#name#][trait:#personality#]story#",
+  "story": "#character.capitalize# was known for being #trait#. Everyone loved #character# because #trait# people are trustworthy. When danger came, #character# stayed true to being #trait#.",
+  "name": ["alice", "bob", "charlie"],
+  "personality": ["brave", "clever", "kind"]
+}
+```
+
+Output: "Alice was known for being brave. Everyone loved Alice because brave people are trustworthy. When danger came, Alice stayed true to being brave."
+
+**Key feature**: Same character name and trait throughout the narrative.
+
+**GeistFabrik without push-pop:**
+
+```yaml
+tracery:
+  origin: "#character# was known for being #trait#. Everyone loved #character# because #trait# people are trustworthy."
+  character: ["Alice", "Bob", "Charlie"]
+  trait: ["brave", "clever", "kind"]
+```
+
+Output: "Alice was known for being brave. Everyone loved Bob because kind people are trustworthy."
+
+**Breaks coherence** - different characters and traits in same sentence.
+
+**GeistFabrik workaround (verbose):**
+
+```yaml
+tracery:
+  origin: "#char1_brave#"
+  char1_brave: ["Alice was known for being brave. Everyone loved Alice because brave people are trustworthy."]
+  # Must pre-generate ALL combinations - explosion of symbols
+```
+
+This doesn't scale. For 3 names × 3 traits = 9 pre-written combinations. Add more variables and it becomes unmaintainable.
+
+---
+
+#### Level 3: Nested Contexts (Requires Stack Depth)
+
+**Standard Tracery with push-pop:**
+
+```json
+{
+  "origin": "[hero:Alice]In the outer story, #hero# met [hero:Bob]#hero#. The inner #hero# greeted the outer [hero:POP]#hero#.",
+  "hero": ["someone"]
+}
+```
+
+Output: "In the outer story, Alice met Bob. The inner Bob greeted the outer Alice."
+
+**Stack operations**:
+1. Push "Alice" onto hero stack → `hero = ["Alice"]`
+2. Reference `#hero#` → "Alice"
+3. Push "Bob" onto hero stack → `hero = ["Alice", "Bob"]`
+4. Reference `#hero#` → "Bob" (top of stack)
+5. Reference `#hero#` → "Bob"
+6. Pop hero stack → `hero = ["Alice"]`
+7. Reference `#hero#` → "Alice"
+
+**This enables**:
+- Stories within stories
+- Temporary context switches
+- Recursive narrative structures
+- Frame stories
+
+**GeistFabrik**: Cannot express this pattern. No way to maintain multiple context levels.
+
+---
+
+#### Level 4: Procedural Character Generation
+
+**Standard Tracery with push-pop:**
+
+```json
+{
+  "origin": "#[name:#names#][job:#jobs#][weapon:#weapons#]character# set off on a quest.",
+  "character": "#name# the #job#, wielding #weapon#,",
+  "names": ["Aria", "Finn", "Luna"],
+  "jobs": ["blacksmith", "scholar", "ranger"],
+  "weapons": ["a hammer", "a staff", "a bow"]
+}
+```
+
+Output: "Aria the blacksmith, wielding a hammer, set off on a quest."
+
+**Generate once, reference many times**. The character attributes are chosen randomly but remain consistent throughout.
+
+**Extended example with relationships:**
+
+```json
+{
+  "origin": "#[hero:#name#][companion:#name#]story#",
+  "story": "#hero# and #companion# were unlikely allies. #hero# was bold while #companion# was cautious. Together, #hero# and #companion# faced the dragon.",
+  "name": ["Aria", "Finn", "Luna", "Kael"]
+}
+```
+
+Output: "Aria and Finn were unlikely allies. Aria was bold while Finn was cautious. Together, Aria and Finn faced the dragon."
+
+**Without push-pop**: Cannot guarantee hero ≠ companion, or maintain consistency across multiple references.
+
+---
+
+#### Level 5: Complex Narrative with Multiple Characters
+
+**Standard Tracery with push-pop:**
+
+```json
+{
+  "origin": "#[hero:#name#][villain:#name#][mentor:#name#]act1# #act2# #act3#",
+  "act1": "In a small village, #hero# dreamed of adventure. #hero#'s mentor, #mentor#, warned of the dark wizard #villain#.",
+  "act2": "#hero# set out to confront #villain#, remembering #mentor#'s teachings.",
+  "act3": "In the final battle, #hero# defeated #villain# and returned to thank #mentor#.",
+  "name": ["Aria", "Finn", "Luna", "Kael", "Zara"]
+}
+```
+
+Output: "In a small village, Aria dreamed of adventure. Aria's mentor, Kael, warned of the dark wizard Finn. Aria set out to confront Finn, remembering Kael's teachings. In the final battle, Aria defeated Finn and returned to thank Kael."
+
+**This enables**:
+- Multi-character narratives
+- Relationship tracking (hero knows mentor, fights villain)
+- Character continuity across acts
+- Complex story structure
+
+**GeistFabrik limitation**: Cannot maintain character identity across multiple references. Would need either:
+1. Pre-written templates with baked-in names (no randomness)
+2. One sentence maximum (no multi-act structure)
+3. Accept incoherence (different name each time)
+
+---
+
+#### Level 6: Pronoun Agreement and Grammar Consistency
+
+**Standard Tracery with push-pop:**
+
+```json
+{
+  "origin": "#[hero:#character#]story#",
+  "story": "#hero.name# picked up #hero.possessive# sword. #hero.pronoun.capitalize# was ready.",
+  "character": [
+    {"name": "Alice", "pronoun": "she", "possessive": "her"},
+    {"name": "Bob", "pronoun": "he", "possessive": "his"}
+  ]
+}
+```
+
+With a modified Tracery that supports object properties, this could output:
+- "Alice picked up her sword. She was ready."
+- "Bob picked up his sword. He was ready."
+
+**Even without object support**, can use parallel stacks:
+
+```json
+{
+  "origin": "#[name:#names#][pronoun:#pronouns#][possessive:#possessives#]story#",
+  "story": "#name# picked up #possessive# sword. #pronoun.capitalize# was ready.",
+  "names": ["Alice", "Bob"],
+  "pronouns": ["she", "he"],
+  "possessives": ["her", "his"]
+}
+```
+
+**Problem**: No guarantee of alignment (might get "Alice...his...he"). Need coordinated selection.
+
+**Better pattern with Tracery's inline actions:**
+
+```json
+{
+  "origin": "#[#setAlice#]story#",
+  "setAlice": "[name:Alice][pronoun:she][possessive:her]",
+  "story": "#name# picked up #possessive# sword. #pronoun.capitalize# was ready."
+}
+```
+
+Now all pronouns align with the name.
+
+**GeistFabrik**: Cannot implement this pattern. Would need vault functions to return coordinated bundles.
+
+---
+
+### Grammar Patterns Enabled by Push-Pop
+
+| Pattern | Description | Possible without push-pop? |
+|---------|-------------|---------------------------|
+| **Identity continuity** | Same entity referenced multiple times | ❌ No |
+| **Relationship networks** | Multiple distinct entities with relationships | ❌ No |
+| **Recursive narratives** | Stories within stories | ❌ No |
+| **Grammatical agreement** | Pronouns matching gender/number | ❌ Very difficult |
+| **Attribute bundles** | Multiple correlated properties | ⚠️ Pre-generated only |
+| **Scene setting** | Establish context, then build on it | ⚠️ Limited |
+| **Dialogue** | Multiple speakers maintaining identity | ❌ No |
+| **Character arcs** | Same character changing over time | ❌ No |
+
+### Why GeistFabrik Omits Push-Pop
+
+**Design trade-off**: GeistFabrik optimizes for **short, provocative questions** rather than **coherent narratives**.
+
+**Typical GeistFabrik output**:
+```
+"What if you combined [[Note A]] with [[Note B]]?"
+"Consider revisiting [[Old Note]] in light of [[Recent Note]]."
+"Your most connected notes are [[Hub 1]], [[Hub 2]], and [[Hub 3]]."
+```
+
+These patterns **don't require** character consistency or narrative coherence:
+- Single sentence or question
+- Notes are distinct entities (not "characters" that reappear)
+- Vault functions provide the coherence (semantic relationships, not grammatical)
+
+**GeistFabrik's coherence comes from the vault, not the grammar**:
+- Push-pop provides internal grammatical coherence
+- `$vault.*` functions provide external semantic coherence
+
+**Example**:
+```yaml
+origin: "What if [[#note1#]] and [[#note2#]] are both really about #theme#?"
+note1: ["$vault.sample_notes(1)"]
+note2: ["$vault.sample_notes(1)"]
+theme: ["power", "transformation", "connection"]
+```
+
+The two notes are **meaningfully different** (selected separately by vault), but the theme **doesn't need** to be consistent with anything - it's just a provocative lens.
+
+### Implications for Grammar Authors
+
+**With push-pop (Standard Tracery)**:
+- Can write grammars for stories, dialogue, characters
+- Grammar itself maintains coherence
+- More complex grammar structure
+- Better for narrative generation
+
+**Without push-pop (GeistFabrik)**:
+- Keep templates short (one sentence)
+- Let vault functions provide coherence
+- Simpler grammar structure
+- Better for provocative questions about real content
+
+### Could GeistFabrik Add Push-Pop?
+
+**Technically**: Yes, the implementation is well-understood.
+
+**Philosophically**: Probably not. It would enable:
+- ✅ More complex multi-sentence suggestions
+- ✅ Character-like entity tracking
+- ❌ But risk of "mini-stories" instead of provocations
+- ❌ Drift toward narrative generation (not the goal)
+- ❌ More complex grammars (higher barrier to authoring)
+
+**Alternative**: If narrative coherence is needed, use **code geists** which have full Python state management, not limited to Tracery's stack model.
 
 ## Design Philosophy Differences
 
@@ -387,7 +651,15 @@ This section tracks features as they're added to GeistFabrik.
 
 ## Change Log
 
-### 2025-01-24 - Initial Version
+### 2025-01-24 - Version 1.1
+- Removed "When to Use Each" decision guide section
+- Added comprehensive "Deep Dive: Push-Pop Stacks and Grammar Complexity" section
+- Documented 6 levels of grammar complexity with concrete examples
+- Analyzed implications of push-pop absence for GeistFabrik
+- Created pattern matrix showing what's possible with/without stacks
+- Explained design trade-off: vault coherence vs grammatical coherence
+
+### 2025-01-24 - Version 1.0 (Initial)
 - Compiled comprehensive comparison of all three implementations
 - Documented all core features, modifiers, and advanced capabilities
 - Created side-by-side comparison tables
@@ -398,4 +670,4 @@ This section tracks features as they're added to GeistFabrik.
 
 **Maintained by**: GeistFabrik Project
 **Last updated**: 2025-01-24
-**Version**: 1.0
+**Version**: 1.1
