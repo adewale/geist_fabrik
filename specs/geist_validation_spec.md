@@ -484,6 +484,8 @@ Each validation type must have unit tests:
 - ✅ Code geist timeout - `tests/unit/test_geist_executor.py:92-115`
 - ✅ Tracery YAML parsing - `tests/unit/test_tracery.py`
 - ✅ Filtering pipeline - `tests/unit/test_filtering.py`
+- 📋 CLI validate command - `tests/unit/test_cli_validate.py`
+- 📋 Tracery static validation - `tests/unit/test_tracery_validation.py`
 - 📋 Enhanced error messages
 - 📋 Suggestion quality validation
 
