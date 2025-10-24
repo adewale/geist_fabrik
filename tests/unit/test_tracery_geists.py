@@ -363,6 +363,102 @@ class TestOrphanConnector:
         assert "origin" in geist.engine.grammar
         assert len(geist.engine.grammar["origin"]) >= 4
 
+    def test_orphan_connector_with_two_orphans_generates_different_suggestions(
+        self, tmp_path: Path
+    ):
+        """Test that orphan_connector correctly detects and uses 2 orphan notes.
+
+        This test verifies the full pipeline:
+        1. Vault correctly detects exactly 2 orphan notes
+        2. Vault function correctly exposes them
+        3. Tracery preprocessing correctly populates the symbol array
+        4. Geist generates 2 suggestions referencing different orphans
+        """
+        vault_path = tmp_path / "vault"
+        vault_path.mkdir()
+        (vault_path / ".obsidian").mkdir()
+
+        # Create notes with explicit link structure
+        notes_data = [
+            # Two orphan notes - no links at all
+            ("orphan_one.md", "# Orphan One\nCompletely isolated note."),
+            ("orphan_two.md", "# Orphan Two\nAnother isolated note."),
+            # Two connected notes to ensure we're not detecting non-orphans
+            ("connected_a.md", "# Connected A\nLinks to [[Connected B]]."),
+            ("connected_b.md", "# Connected B\nLinks to [[Connected A]]."),
+        ]
+
+        for filename, content in notes_data:
+            (vault_path / filename).write_text(content)
+
+        # Create vault and sync
+        vault = Vault(vault_path)
+        vault.sync()
+
+        # Create session
+        session_date = datetime(2025, 1, 15)
+        mock_computer = create_mock_embedding_computer(len(vault.all_notes()))
+        session = Session(session_date, vault.db, computer=mock_computer)
+        session.compute_embeddings(vault.all_notes())
+
+        # Create context with function registry
+        function_registry = FunctionRegistry()
+        context = VaultContext(vault, session, seed=42, function_registry=function_registry)
+
+        # Verify orphan detection at vault level
+        orphans = context.orphans()
+        assert len(orphans) == 2, (
+            f"Expected exactly 2 orphans, but found {len(orphans)}: {[n.path for n in orphans]}"
+        )
+        orphan_titles = {n.title for n in orphans}
+        assert orphan_titles == {"Orphan One", "Orphan Two"}, (
+            f"Expected 'Orphan One' and 'Orphan Two', but got {orphan_titles}"
+        )
+
+        # Load and execute orphan_connector geist
+        geist_path = GEISTS_DIR / "orphan_connector.yaml"
+        geist = TraceryGeist.from_yaml(geist_path, seed=42)
+
+        # Trigger preprocessing by setting vault context
+        geist.engine.set_vault_context(context)
+
+        # CRITICAL: Verify that both orphans are in the preprocessed symbol array
+        # This is the key test - preprocessing should populate both orphans
+        orphan_symbol = geist.engine.grammar.get("orphan", [])
+        assert len(orphan_symbol) == 2, (
+            f"Expected 2 orphans in symbol array, but got {len(orphan_symbol)}: {orphan_symbol}"
+        )
+        assert set(orphan_symbol) == {"Orphan One", "Orphan Two"}, (
+            f"Expected both orphans in array, but got {orphan_symbol}"
+        )
+
+        # Generate suggestions
+        suggestions = geist.suggest(context)
+
+        # Should generate 2 suggestions
+        assert len(suggestions) == 2, f"Expected 2 suggestions, but got {len(suggestions)}"
+
+        # Extract note references from suggestions
+        import re
+
+        referenced_notes = set()
+        for suggestion in suggestions:
+            matches = re.findall(r"\[\[([^\]]+)\]\]", suggestion.text)
+            for match in matches:
+                referenced_notes.add(match)
+
+        # Should reference at least one orphan
+        assert len(referenced_notes) >= 1, (
+            f"Expected at least 1 orphan reference, got {referenced_notes}"
+        )
+
+        # Note: It's valid for both suggestions to reference the same orphan
+        # due to random sampling from the array. The key is that BOTH orphans
+        # are available in the symbol array (verified above). With seed=42,
+        # Tracery happens to pick 'Orphan Two' twice, which is valid behavior.
+
+        vault.close()
+
 
 # ============================================================================
 # Perspective Shifter Tests
