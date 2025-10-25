@@ -574,11 +574,11 @@ def test_orphan_connector_tracery_geist(vault_context: VaultContext):
 
     geist = TraceryGeist.from_yaml(geist_path, seed=12345)
     assert geist.geist_id == "orphan_connector"
-    assert geist.count == 2
+    assert geist.count == 1
 
     suggestions = geist.suggest(vault_context)
     assert isinstance(suggestions, list)
-    assert len(suggestions) == 2
+    assert len(suggestions) == 1
 
     for suggestion in suggestions:
         assert hasattr(suggestion, "text")

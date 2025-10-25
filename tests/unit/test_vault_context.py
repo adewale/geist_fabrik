@@ -170,6 +170,72 @@ def test_orphans(test_vault_with_notes):
     assert any(n.path == "orphan.md" for n in orphans)
 
 
+def test_orphans_detects_exactly_two_orphans():
+    """Test that orphan detection correctly identifies exactly 2 orphan notes.
+
+    This test verifies the orphan detection logic by creating a vault with:
+    - 2 orphan notes (no incoming or outgoing links)
+    - 2 connected notes (with links between them)
+    - 1 note with outgoing link only
+    - 1 note with incoming link only (hub)
+
+    Only the 2 orphan notes should be detected as orphans.
+    """
+    with TemporaryDirectory() as tmpdir:
+        vault_path = Path(tmpdir)
+
+        # Create test notes
+        notes_data = [
+            # Two orphan notes - no links at all
+            ("orphan_one.md", "# Orphan One\nCompletely isolated note."),
+            ("orphan_two.md", "# Orphan Two\nAnother isolated note."),
+            # Two connected notes - link to each other
+            ("connected_a.md", "# Connected A\nLinks to [[Connected B]]."),
+            ("connected_b.md", "# Connected B\nLinks to [[Connected A]]."),
+            # Note with outgoing link only - links to hub
+            ("linker.md", "# Linker\nLinks to [[Hub]]."),
+            # Note with incoming link only - hub
+            ("hub.md", "# Hub\nReceives links but doesn't link out."),
+        ]
+
+        for filename, content in notes_data:
+            (vault_path / filename).write_text(content)
+
+        # Create vault and sync
+        vault = Vault(vault_path)
+        vault.sync()
+
+        # Create session and compute embeddings
+        session_date = datetime(2023, 6, 15)
+        session = Session(session_date, vault.db)
+        session.compute_embeddings(vault.all_notes())
+
+        # Create context
+        ctx = VaultContext(vault, session)
+
+        # Get orphans
+        orphans = ctx.orphans()
+
+        # Should detect exactly 2 orphans
+        assert len(orphans) == 2, (
+            f"Expected exactly 2 orphans, but found {len(orphans)}: {[n.path for n in orphans]}"
+        )
+
+        # Should be the correct orphans
+        orphan_paths = {n.path for n in orphans}
+        assert orphan_paths == {"orphan_one.md", "orphan_two.md"}, (
+            f"Expected orphan_one.md and orphan_two.md, but got {orphan_paths}"
+        )
+
+        # Verify the non-orphans are not included
+        assert not any(n.path == "connected_a.md" for n in orphans)
+        assert not any(n.path == "connected_b.md" for n in orphans)
+        assert not any(n.path == "linker.md" for n in orphans)
+        assert not any(n.path == "hub.md" for n in orphans)
+
+        vault.close()
+
+
 def test_hubs(test_vault_with_notes):
     """Test finding hub notes."""
     vault, session = test_vault_with_notes

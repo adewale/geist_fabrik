@@ -319,7 +319,7 @@ class TestOrphanConnector:
         geist = TraceryGeist.from_yaml(geist_path, seed=42)
 
         assert geist.geist_id == "orphan_connector"
-        assert geist.count == 2
+        assert geist.count == 1
 
     def test_orphan_connector_generates_suggestions(self, tmp_path: Path):
         """Test that orphan_connector generates valid suggestions."""
@@ -329,7 +329,7 @@ class TestOrphanConnector:
 
         suggestions = geist.suggest(context)
 
-        assert len(suggestions) == 2
+        assert len(suggestions) == 1
 
     def test_orphan_connector_uses_vault_orphans(self, tmp_path: Path):
         """Test that orphan_connector uses vault.orphans() function."""
@@ -362,6 +362,97 @@ class TestOrphanConnector:
         # Verify grammar has multiple origin templates
         assert "origin" in geist.engine.grammar
         assert len(geist.engine.grammar["origin"]) >= 4
+
+    def test_orphan_connector_with_two_orphans_uses_one(self, tmp_path: Path):
+        """Test that orphan_connector requests only 1 orphan even when 2 exist.
+
+        This test verifies the full pipeline:
+        1. Vault correctly detects exactly 2 orphan notes
+        2. Vault function correctly exposes them
+        3. Tracery preprocessing requests and populates only 1 orphan
+        4. Geist generates 1 suggestion
+        """
+        vault_path = tmp_path / "vault"
+        vault_path.mkdir()
+        (vault_path / ".obsidian").mkdir()
+
+        # Create notes with explicit link structure
+        notes_data = [
+            # Two orphan notes - no links at all
+            ("orphan_one.md", "# Orphan One\nCompletely isolated note."),
+            ("orphan_two.md", "# Orphan Two\nAnother isolated note."),
+            # Two connected notes to ensure we're not detecting non-orphans
+            ("connected_a.md", "# Connected A\nLinks to [[Connected B]]."),
+            ("connected_b.md", "# Connected B\nLinks to [[Connected A]]."),
+        ]
+
+        for filename, content in notes_data:
+            (vault_path / filename).write_text(content)
+
+        # Create vault and sync
+        vault = Vault(vault_path)
+        vault.sync()
+
+        # Create session
+        session_date = datetime(2025, 1, 15)
+        mock_computer = create_mock_embedding_computer(len(vault.all_notes()))
+        session = Session(session_date, vault.db, computer=mock_computer)
+        session.compute_embeddings(vault.all_notes())
+
+        # Create context with function registry
+        function_registry = FunctionRegistry()
+        context = VaultContext(vault, session, seed=42, function_registry=function_registry)
+
+        # Verify orphan detection at vault level
+        orphans = context.orphans()
+        assert len(orphans) == 2, (
+            f"Expected exactly 2 orphans, but found {len(orphans)}: {[n.path for n in orphans]}"
+        )
+        orphan_titles = {n.title for n in orphans}
+        assert orphan_titles == {"Orphan One", "Orphan Two"}, (
+            f"Expected 'Orphan One' and 'Orphan Two', but got {orphan_titles}"
+        )
+
+        # Load and execute orphan_connector geist
+        geist_path = GEISTS_DIR / "orphan_connector.yaml"
+        geist = TraceryGeist.from_yaml(geist_path, seed=42)
+
+        # Trigger preprocessing by setting vault context
+        geist.engine.set_vault_context(context)
+
+        # CRITICAL: Verify that only 1 orphan is in the preprocessed symbol array
+        # This is the key test - preprocessing should request orphans(1)
+        orphan_symbol = geist.engine.grammar.get("orphan", [])
+        assert len(orphan_symbol) == 1, (
+            f"Expected 1 orphan in symbol array (since count=1), "
+            f"but got {len(orphan_symbol)}: {orphan_symbol}"
+        )
+        # Should be one of the two orphans
+        assert orphan_symbol[0] in {"Orphan One", "Orphan Two"}, (
+            f"Expected one of the orphans, but got {orphan_symbol}"
+        )
+
+        # Generate suggestions
+        suggestions = geist.suggest(context)
+
+        # Should generate 1 suggestion (count=1)
+        assert len(suggestions) == 1, f"Expected 1 suggestion, but got {len(suggestions)}"
+
+        # Extract note references from suggestions
+        import re
+
+        referenced_notes = set()
+        for suggestion in suggestions:
+            matches = re.findall(r"\[\[([^\]]+)\]\]", suggestion.text)
+            for match in matches:
+                referenced_notes.add(match)
+
+        # Should reference exactly one orphan
+        assert len(referenced_notes) == 1, (
+            f"Expected exactly 1 orphan reference, got {referenced_notes}"
+        )
+
+        vault.close()
 
 
 # ============================================================================
