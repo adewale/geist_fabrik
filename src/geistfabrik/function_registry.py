@@ -134,36 +134,6 @@ class FunctionRegistry:
             notes = vault.recent_notes(k)
             return [note.title for note in notes]
 
-        @vault_function("sample_old_notes")
-        def sample_old_notes(vault: "VaultContext", k: int = 1, pool_size: int = 10) -> List[str]:
-            """Sample k notes from the pool_size oldest notes.
-
-            Follows 'Sample, don't rank' principle by randomly selecting from old notes
-            rather than deterministically returning THE oldest.
-
-            Returns:
-                List of note titles (strings for Tracery)
-            """
-            old_pool = vault.old_notes(pool_size)
-            sampled_notes = vault.sample(old_pool, k)
-            return [note.title for note in sampled_notes]
-
-        @vault_function("sample_recent_notes")
-        def sample_recent_notes(
-            vault: "VaultContext", k: int = 1, pool_size: int = 10
-        ) -> List[str]:
-            """Sample k notes from the pool_size most recently modified notes.
-
-            Follows 'Sample, don't rank' principle by randomly selecting from recent notes
-            rather than deterministically returning THE newest.
-
-            Returns:
-                List of note titles (strings for Tracery)
-            """
-            recent_pool = vault.recent_notes(pool_size)
-            sampled_notes = vault.sample(recent_pool, k)
-            return [note.title for note in sampled_notes]
-
         @vault_function("random_note_title")
         def random_note_title(vault: "VaultContext") -> str:
             """Get a random note title from the vault.

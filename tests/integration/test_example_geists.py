@@ -532,35 +532,6 @@ def test_what_if_tracery_geist(vault_context: VaultContext):
         assert suggestion.text.startswith("What if")
 
 
-def test_temporal_mirror_tracery_geist(vault_context: VaultContext):
-    """Test temporal_mirror Tracery geist (new)."""
-    geist_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "geistfabrik"
-        / "default_geists"
-        / "tracery"
-        / "temporal_mirror.yaml"
-    )
-
-    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
-    assert geist.geist_id == "temporal_mirror"
-    assert geist.count == 2  # count: 2 in YAML (samples from old/recent pools for variety)
-
-    suggestions = geist.suggest(vault_context)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 2  # count: 2
-
-    for suggestion in suggestions:
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "geist_id")
-        assert suggestion.geist_id == "temporal_mirror"
-        # Should reference both old and recent notes
-        assert "[[" in suggestion.text
-        # Should mention timeframe
-        assert "month" in suggestion.text.lower() or "year" in suggestion.text.lower()
-
-
 def test_orphan_connector_tracery_geist(vault_context: VaultContext):
     """Test orphan_connector Tracery geist."""
     geist_path = (

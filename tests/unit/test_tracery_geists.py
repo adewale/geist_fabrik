@@ -607,72 +607,6 @@ class TestSemanticNeighbours:
 
 
 # ============================================================================
-# Temporal Mirror Tests
-# ============================================================================
-
-
-class TestTemporalMirror:
-    """Tests for temporal_mirror.yaml geist."""
-
-    def test_temporal_mirror_loads(self):
-        """Test that temporal_mirror geist loads correctly."""
-        geist_path = GEISTS_DIR / "temporal_mirror.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        assert geist.geist_id == "temporal_mirror"
-        assert geist.count == 2
-
-    def test_temporal_mirror_generates_suggestions(self, tmp_path: Path):
-        """Test that temporal_mirror generates valid suggestions."""
-        context = create_test_vault_context(tmp_path)
-        geist_path = GEISTS_DIR / "temporal_mirror.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        suggestions = geist.suggest(context)
-
-        assert len(suggestions) == 2
-
-    def test_temporal_mirror_references_two_notes(self, tmp_path: Path):
-        """Test that each suggestion references old and new notes."""
-        context = create_test_vault_context(tmp_path, num_notes=20)
-        geist_path = GEISTS_DIR / "temporal_mirror.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        suggestions = geist.suggest(context)
-
-        for suggestion in suggestions:
-            # Should reference 2 notes (old_note and new_note)
-            assert len(suggestion.notes) == 2
-
-    def test_temporal_mirror_uses_sample_functions(self, tmp_path: Path):
-        """Test that temporal_mirror uses sample_old_notes and sample_recent_notes."""
-        geist_path = GEISTS_DIR / "temporal_mirror.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        # Verify grammar uses these vault functions
-        assert "old_note" in geist.engine.grammar
-        assert "new_note" in geist.engine.grammar
-        assert "$vault.sample_old_notes" in geist.engine.grammar["old_note"][0]
-        assert "$vault.sample_recent_notes" in geist.engine.grammar["new_note"][0]
-
-    def test_temporal_mirror_uses_different_timeframes(self, tmp_path: Path):
-        """Test that timeframe variable has multiple options."""
-        geist_path = GEISTS_DIR / "temporal_mirror.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        assert "timeframe" in geist.engine.grammar
-        assert len(geist.engine.grammar["timeframe"]) >= 7
-
-    def test_temporal_mirror_uses_different_relationships(self, tmp_path: Path):
-        """Test that relationship variable has multiple options."""
-        geist_path = GEISTS_DIR / "temporal_mirror.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        assert "relationship" in geist.engine.grammar
-        assert len(geist.engine.grammar["relationship"]) >= 4
-
-
-# ============================================================================
 # What If Tests
 # ============================================================================
 
@@ -751,8 +685,8 @@ class TestAllTraceryGeists:
         """Test that all Tracery geists can be loaded."""
         geist_files = list(GEISTS_DIR.glob("*.yaml"))
 
-        # Should have 10 Tracery geists
-        assert len(geist_files) == 10
+        # Should have 9 Tracery geists
+        assert len(geist_files) == 9
 
         for geist_file in geist_files:
             geist = TraceryGeist.from_yaml(geist_file, seed=42)

@@ -56,7 +56,6 @@ DEFAULT_TRACERY_GEISTS = [
     "perspective_shifter",
     "random_prompts",
     "semantic_neighbours",
-    "temporal_mirror",
     "transformation_suggester",
     "what_if",
 ]

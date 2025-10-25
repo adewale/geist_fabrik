@@ -120,8 +120,8 @@ def test_default_geist_lists():
     assert "columbo" in DEFAULT_CODE_GEISTS
     assert "on_this_day" in DEFAULT_CODE_GEISTS
 
-    # Should have 10 Tracery geists
-    assert len(DEFAULT_TRACERY_GEISTS) == 10
+    # Should have 9 Tracery geists
+    assert len(DEFAULT_TRACERY_GEISTS) == 9
     assert "contradictor" in DEFAULT_TRACERY_GEISTS
     assert "hub_explorer" in DEFAULT_TRACERY_GEISTS
     assert "transformation_suggester" in DEFAULT_TRACERY_GEISTS
