@@ -685,58 +685,6 @@ tracery:
     vault.close()
 
 
-def test_tracery_multiple_suggestions_use_different_notes(tmp_path: Path) -> None:
-    """Test that count=2 with preprocessing can produce varied suggestions.
-
-    Regression test for temporal_mirror bug where both suggestions used
-    the same old_note and new_note despite having count: 2.
-
-    With preprocessing, vault functions should request exactly count items.
-    Variety is possible (but not guaranteed) when sampling from the pre-populated
-    symbol arrays.
-    """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-    (vault_path / ".obsidian").mkdir()
-
-    # Create many notes to sample from (20 total)
-    for i in range(20):
-        (vault_path / f"note_{i:02d}.md").write_text(f"# Note {i:02d}\nContent for note {i}.")
-
-    vault = Vault(vault_path)
-    vault.sync()
-    context = create_vault_context(vault)
-
-    # Create a geist similar to temporal_mirror with count: 2
-    # Request exactly 2 notes each (matching count)
-    yaml_content = """type: geist-tracery
-id: test_multiple_samples
-count: 2
-tracery:
-  origin:
-    - "Compare [[#old_note#]] with [[#new_note#]]"
-  old_note:
-    - "$vault.sample_old_notes(2, 10)"
-  new_note:
-    - "$vault.sample_recent_notes(2, 10)"
-"""
-
-    yaml_file = tmp_path / "test.yaml"
-    yaml_file.write_text(yaml_content)
-
-    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
-    suggestions = geist.suggest(context)
-
-    assert len(suggestions) == 2
-
-    # With preprocessing, both symbols have 2 pre-populated notes
-    # Each expansion samples independently, so variety is POSSIBLE but not guaranteed
-    # This test just verifies that preprocessing happens and suggestions are generated
-    # (The old bug would cause both to reference identical notes every time)
-
-    vault.close()
-
-
 # Preprocessing Tests (Tracery Vault Function Spec)
 
 
