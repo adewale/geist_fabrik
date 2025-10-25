@@ -319,7 +319,7 @@ class TestOrphanConnector:
         geist = TraceryGeist.from_yaml(geist_path, seed=42)
 
         assert geist.geist_id == "orphan_connector"
-        assert geist.count == 2
+        assert geist.count == 1
 
     def test_orphan_connector_generates_suggestions(self, tmp_path: Path):
         """Test that orphan_connector generates valid suggestions."""
@@ -329,7 +329,7 @@ class TestOrphanConnector:
 
         suggestions = geist.suggest(context)
 
-        assert len(suggestions) == 2
+        assert len(suggestions) == 1
 
     def test_orphan_connector_uses_vault_orphans(self, tmp_path: Path):
         """Test that orphan_connector uses vault.orphans() function."""
@@ -363,16 +363,14 @@ class TestOrphanConnector:
         assert "origin" in geist.engine.grammar
         assert len(geist.engine.grammar["origin"]) >= 4
 
-    def test_orphan_connector_with_two_orphans_generates_different_suggestions(
-        self, tmp_path: Path
-    ):
-        """Test that orphan_connector correctly detects and uses 2 orphan notes.
+    def test_orphan_connector_with_two_orphans_uses_one(self, tmp_path: Path):
+        """Test that orphan_connector requests only 1 orphan even when 2 exist.
 
         This test verifies the full pipeline:
         1. Vault correctly detects exactly 2 orphan notes
         2. Vault function correctly exposes them
-        3. Tracery preprocessing correctly populates the symbol array
-        4. Geist generates 2 suggestions referencing different orphans
+        3. Tracery preprocessing requests and populates only 1 orphan
+        4. Geist generates 1 suggestion
         """
         vault_path = tmp_path / "vault"
         vault_path.mkdir()
@@ -422,21 +420,23 @@ class TestOrphanConnector:
         # Trigger preprocessing by setting vault context
         geist.engine.set_vault_context(context)
 
-        # CRITICAL: Verify that both orphans are in the preprocessed symbol array
-        # This is the key test - preprocessing should populate both orphans
+        # CRITICAL: Verify that only 1 orphan is in the preprocessed symbol array
+        # This is the key test - preprocessing should request orphans(1)
         orphan_symbol = geist.engine.grammar.get("orphan", [])
-        assert len(orphan_symbol) == 2, (
-            f"Expected 2 orphans in symbol array, but got {len(orphan_symbol)}: {orphan_symbol}"
+        assert len(orphan_symbol) == 1, (
+            f"Expected 1 orphan in symbol array (since count=1), "
+            f"but got {len(orphan_symbol)}: {orphan_symbol}"
         )
-        assert set(orphan_symbol) == {"Orphan One", "Orphan Two"}, (
-            f"Expected both orphans in array, but got {orphan_symbol}"
+        # Should be one of the two orphans
+        assert orphan_symbol[0] in {"Orphan One", "Orphan Two"}, (
+            f"Expected one of the orphans, but got {orphan_symbol}"
         )
 
         # Generate suggestions
         suggestions = geist.suggest(context)
 
-        # Should generate 2 suggestions
-        assert len(suggestions) == 2, f"Expected 2 suggestions, but got {len(suggestions)}"
+        # Should generate 1 suggestion (count=1)
+        assert len(suggestions) == 1, f"Expected 1 suggestion, but got {len(suggestions)}"
 
         # Extract note references from suggestions
         import re
@@ -447,15 +447,10 @@ class TestOrphanConnector:
             for match in matches:
                 referenced_notes.add(match)
 
-        # Should reference at least one orphan
-        assert len(referenced_notes) >= 1, (
-            f"Expected at least 1 orphan reference, got {referenced_notes}"
+        # Should reference exactly one orphan
+        assert len(referenced_notes) == 1, (
+            f"Expected exactly 1 orphan reference, got {referenced_notes}"
         )
-
-        # Note: It's valid for both suggestions to reference the same orphan
-        # due to random sampling from the array. The key is that BOTH orphans
-        # are available in the symbol array (verified above). With seed=42,
-        # Tracery happens to pick 'Orphan Two' twice, which is valid behavior.
 
         vault.close()
 
