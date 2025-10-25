@@ -45,6 +45,7 @@ DEFAULT_CODE_GEISTS = [
     "task_archaeology",
     "temporal_clustering",
     "temporal_drift",
+    "temporal_mirror",
     "vocabulary_expansion",
 ]
 

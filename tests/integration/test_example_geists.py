@@ -90,6 +90,25 @@ def test_temporal_drift_geist(vault_context: VaultContext, geist_executor: Geist
         assert suggestion.geist_id == "temporal_drift"
 
 
+def test_temporal_mirror_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test temporal_mirror geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("temporal_mirror", vault_context)
+
+    assert isinstance(suggestions, list)
+    # Should return 1 suggestion or empty if insufficient notes
+    assert len(suggestions) <= 1
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "temporal_mirror"
+        # Should reference exactly 2 notes (one from each period)
+        assert len(suggestion.notes) == 2
+        # Should mention period numbers
+        assert "period" in suggestion.text.lower()
+
+
 def test_creative_collision_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
     """Test creative_collision geist returns valid suggestions."""
     geist_executor.load_geists()
@@ -622,8 +641,8 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 35 code geists in src/geistfabrik/default_geists/code/
-    assert len(geist_executor.geists) == 35
+    # We have 36 code geists in src/geistfabrik/default_geists/code/
+    assert len(geist_executor.geists) == 36
 
 
 def test_all_geists_execute_without_crashing(
