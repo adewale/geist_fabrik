@@ -58,7 +58,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         similar = vault.neighbours(note, k=5)
 
-        candidates = list(set(linked_notes + similar))
+        # Deduplicate by path (Note objects aren't hashable due to list fields)
+        seen_paths = set()
+        candidates = []
+        for n in linked_notes + similar:
+            if n.path not in seen_paths:
+                seen_paths.add(n.path)
+                candidates.append(n)
 
         if len(candidates) < 2:
             continue
