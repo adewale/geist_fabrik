@@ -222,6 +222,32 @@ Session notes:
 - Include metadata about geists, vault state, and execution time
 - Support deterministic replay (same date = same output)
 
+## Configuration
+
+GeistFabrik's configuration file controls which geists run and in what order:
+
+```
+<vault>/_geistfabrik/config.yaml
+```
+
+### Key Configuration Features
+
+**Execution Order**: Geists execute in the order they appear in `config.yaml`. This matters because:
+- All geists share a random number generator seeded by the session date
+- Execution order determines which geist gets which random numbers
+- Same order + same date = same suggestions (reproducible sessions)
+
+**Enable/Disable Geists**: Set any geist to `false` to disable it:
+```yaml
+default_geists:
+  temporal_drift: true   # enabled
+  creative_collision: false  # disabled
+```
+
+**Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
+
+**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 45 default geists with descriptions and configuration tips.
+
 ## Extending GeistFabrik
 
 GeistFabrik provides three ways to extend functionality. See [examples/README.md](examples/README.md) for detailed guides.
@@ -400,6 +426,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
+- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 45 default geists
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
 
 ### Deep Dives
