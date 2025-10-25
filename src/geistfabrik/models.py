@@ -27,6 +27,25 @@ class Note:
     created: datetime  # File creation time
     modified: datetime  # Last modification time
 
+    def __hash__(self) -> int:
+        """Hash based on path (the unique identifier).
+
+        Path is the primary key in the database, so it uniquely identifies
+        a note. This allows Note objects to be used in sets and as dict keys.
+        """
+        return hash(self.path)
+
+    def __eq__(self, other: object) -> bool:
+        """Two notes are equal if they have the same path.
+
+        This enables proper deduplication in sets - two Note objects
+        referring to the same file are considered equal even if their
+        content, links, or other fields differ.
+        """
+        if not isinstance(other, Note):
+            return NotImplemented
+        return self.path == other.path
+
 
 @dataclass(frozen=True)
 class Suggestion:
