@@ -32,7 +32,7 @@ src/geistfabrik/
       perspective_shifter.yaml
       random_prompts.yaml
       semantic_neighbours.yaml
-      temporal_mirror.yaml
+      transformation_suggester.yaml
       what_if.yaml
 ```
 
@@ -64,7 +64,7 @@ default_geists:
   perspective_shifter: true
   random_prompts: true
   semantic_neighbours: true
-  temporal_mirror: true
+  transformation_suggester: true
   what_if: true
 ```
 
@@ -120,7 +120,7 @@ All unlisted geists remain enabled.
 | **perspective_shifter** | Reframe notes from different angles | enabled | ✅ Implemented |
 | **random_prompts** | General creative prompts | enabled | ✅ Implemented |
 | **semantic_neighbours** | Show semantic neighbourhoods | enabled | ✅ Implemented |
-| **temporal_mirror** | Compare old and new notes temporally | enabled | ✅ Implemented |
+| **transformation_suggester** | Showcases all Tracery modifiers | enabled | ✅ Implemented |
 | **what_if** | "What if" prompts for divergent thinking | enabled | ✅ Implemented |
 
 ## Default Config Generation
@@ -147,7 +147,7 @@ default_geists:
   perspective_shifter: true
   random_prompts: true
   semantic_neighbours: true
-  temporal_mirror: true
+  transformation_suggester: true
   what_if: true
 ```
 

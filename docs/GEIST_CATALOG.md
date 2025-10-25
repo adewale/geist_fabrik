@@ -14,7 +14,7 @@ This document catalogs ALL geists mentioned in any GeistFabrik documentation, ca
 
 | Category | Count |
 |----------|-------|
-| **Default Geists** | 45 (35 code + 10 Tracery) |
+| **Default Geists** | 45 (36 code + 9 Tracery) |
 | **Example Geists** | 0 (all examples are now defaults) |
 | **Total Geists** | 45 |
 
@@ -24,11 +24,11 @@ This document catalogs ALL geists mentioned in any GeistFabrik documentation, ca
 
 These geists ship bundled with GeistFabrik in the package. They provide immediate value on first run and are fully production-ready, having passed comprehensive quality audits per `specs/geist_validation_spec.md`.
 
-### Code Geists (35)
+### Code Geists (36)
 
 Located in `src/geistfabrik/default_geists/code/`
 
-All 35 code geists pass all quality checks with 100% compliance:
+All 36 code geists pass all quality checks with 100% compliance:
 - ✅ Required: suggest() function, proper signature, valid Python, correct return type
 - ✅ Recommended: Module docstrings, type hints, function docstrings, no dangerous imports
 
@@ -68,13 +68,14 @@ All 35 code geists pass all quality checks with 100% compliance:
 | **task_archaeology** | Finds old incomplete tasks | ✅ Implemented |
 | **temporal_clustering** | Groups notes by temporal patterns | ✅ Implemented |
 | **temporal_drift** | Finds stale but important notes | ✅ Implemented |
+| **temporal_mirror** | Compares notes from different time periods | ✅ Implemented |
 | **vocabulary_expansion** | Tracks semantic space coverage over time | ✅ Implemented |
 
-### Tracery Geists (10)
+### Tracery Geists (9)
 
 Located in `src/geistfabrik/default_geists/tracery/`
 
-All 10 Tracery geists pass quality checks with 99% compliance:
+All 9 Tracery geists pass quality checks with 99% compliance:
 - ✅ Required: Valid YAML, type field, id field, tracery grammar with origin
 - ✅ Recommended: Description field, valid vault function calls, defined symbols
 
@@ -87,7 +88,6 @@ All 10 Tracery geists pass quality checks with 99% compliance:
 | **perspective_shifter** | Suggests viewing notes through different lenses | ✅ Implemented |
 | **random_prompts** | Generates random creative prompts | ✅ Implemented |
 | **semantic_neighbours** | Shows semantic neighbourhoods | ✅ Implemented |
-| **temporal_mirror** | Compares old and new notes temporally | ✅ Implemented |
 | **transformation_suggester** | Showcases all Tracery modifiers | ✅ Implemented |
 | **what_if** | Generates "What if" prompts for divergent thinking | ✅ Implemented |
 
@@ -97,7 +97,7 @@ All 10 Tracery geists pass quality checks with 99% compliance:
 
 All 45 default geists were audited against quality standards defined in `specs/geist_validation_spec.md` on 2025-10-23.
 
-### Code Geists Audit (35 geists)
+### Code Geists Audit (36 geists)
 - **ERRORS**: 0
 - **WARNINGS**: 0 (1 minor issue fixed: dead code in hidden_hub.py)
 - **PASS RATE**: 100%
@@ -108,7 +108,7 @@ All code geists comply with:
 - Geist IDs match filenames
 - No dangerous imports (os.system, subprocess, eval, exec, socket, http)
 
-### Tracery Geists Audit (10 geists)
+### Tracery Geists Audit (9 geists)
 - **ERRORS**: 0
 - **WARNINGS**: 0 (1 minor issue fixed: missing description in contradictor.yaml)
 - **PASS RATE**: 100%
@@ -127,8 +127,6 @@ All Tracery geists comply with:
 
 All required vault functions for Tracery geists have been implemented:
 
-- ✅ `$vault.old_notes(k)` - Used by temporal_mirror
-- ✅ `$vault.recent_notes(k)` - Used by temporal_mirror
 - ✅ `$vault.orphans(k)` - Used by orphan_connector
 - ✅ `$vault.hubs(k)` - Used by hub_explorer
 - ✅ `$vault.neighbours(note, k)` - Used by semantic_neighbours
@@ -172,7 +170,7 @@ All geist tests execute quickly and remain well under CI time limits, maintainin
 
 **Expansion from 14 to 45 default geists:**
 - Previously: 5 code geists + 9 Tracery geists = 14 defaults
-- Now: 35 code geists + 10 Tracery geists = 45 defaults
+- Now: 36 code geists + 9 Tracery geists = 45 defaults
 - All example geists promoted to defaults (examples/ directory repurposed for documentation)
 
 **Quality improvements:**
@@ -184,8 +182,8 @@ All geist tests execute quickly and remain well under CI time limits, maintainin
 ### Implementation History
 
 1. ✅ Created vault functions for Tracery geists
-2. ✅ Implemented all Tracery geists (10 total)
-3. ✅ Implemented all code geists (35 total)
+2. ✅ Implemented all Tracery geists (9 total)
+3. ✅ Implemented all code geists (36 total)
 4. ✅ Wrote comprehensive unit tests for all geists
 5. ✅ Conducted quality audit per validation spec
 6. ✅ Fixed identified quality issues

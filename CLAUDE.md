@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 45 bundled geists (35 code, 10 Tracery) - automatically available
+  - **default_geists/**: 45 bundled geists (36 code, 9 Tracery) - automatically available
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
 - **specs/**: Original technical specifications (all implemented)
