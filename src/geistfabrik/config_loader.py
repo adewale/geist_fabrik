@@ -69,8 +69,8 @@ class GeistFabrikConfig:
     enabled_modules: List[str] = field(default_factory=list)
     default_geists: Dict[str, bool] = field(default_factory=dict)
 
-    def is_default_geist_enabled(self, geist_id: str) -> bool:
-        """Check if a default geist is enabled.
+    def is_geist_enabled(self, geist_id: str) -> bool:
+        """Check if a geist is enabled.
 
         Args:
             geist_id: ID of the geist to check
@@ -79,6 +79,19 @@ class GeistFabrikConfig:
             True if enabled (defaults to True if not specified)
         """
         return self.default_geists.get(geist_id, True)
+
+    def is_default_geist_enabled(self, geist_id: str) -> bool:
+        """Check if a default geist is enabled.
+
+        Deprecated: Use is_geist_enabled() instead. Kept for backward compatibility.
+
+        Args:
+            geist_id: ID of the geist to check
+
+        Returns:
+            True if enabled (defaults to True if not specified)
+        """
+        return self.is_geist_enabled(geist_id)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "GeistFabrikConfig":

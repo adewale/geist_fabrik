@@ -205,11 +205,11 @@ def invoke_command(args: argparse.Namespace) -> int:
             session_date = datetime.now()
 
         # Load configuration
+        from geistfabrik import load_config, save_config
+
         config_path = geistfabrik_dir / "config.yaml"
         config = None
         if config_path.exists():
-            from geistfabrik import load_config
-
             config = load_config(config_path)
             if not args.quiet:
                 print(f"Loaded configuration from {config_path.relative_to(vault_path)}")
@@ -266,7 +266,7 @@ def invoke_command(args: argparse.Namespace) -> int:
             default_geists_dir=default_code_geists_dir,
             enabled_defaults=config.default_geists if config else {},
         )
-        code_executor.load_geists()
+        newly_discovered_code = code_executor.load_geists()
         code_geists_count = len(code_executor.geists)
 
         # Load Tracery geists (default + custom)
@@ -280,7 +280,18 @@ def invoke_command(args: argparse.Namespace) -> int:
             default_geists_dir=default_tracery_geists_dir,
             enabled_defaults=config.default_geists if config else {},
         )
-        tracery_geists = tracery_loader.load_all()
+        tracery_geists, newly_discovered_tracery = tracery_loader.load_all()
+
+        # Add newly discovered geists to config (both code and Tracery)
+        newly_discovered_all = newly_discovered_code + newly_discovered_tracery
+        if newly_discovered_all and config:
+            for geist_id in newly_discovered_all:
+                config.default_geists[geist_id] = True  # Enable by default
+            # Save updated config
+            save_config(config, config_path)
+            if not args.quiet:
+                geist_list = ", ".join(newly_discovered_all)
+                print(f"Added {len(newly_discovered_all)} new geist(s) to config: {geist_list}")
 
         total_geists = code_geists_count + len(tracery_geists)
         if total_geists == 0:

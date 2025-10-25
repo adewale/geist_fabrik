@@ -254,11 +254,14 @@ tracery:
     )
 
     loader = TraceryGeistLoader(geists_dir, seed=42)
-    geists = loader.load_all()
+    geists, newly_discovered = loader.load_all()
 
     assert len(geists) == 2
     assert any(g.geist_id == "geist1" for g in geists)
     assert any(g.geist_id == "geist2" for g in geists)
+    assert len(newly_discovered) == 2
+    assert "geist1" in newly_discovered
+    assert "geist2" in newly_discovered
 
 
 def test_tracery_geist_with_vault_function_call(tmp_path: Path) -> None:

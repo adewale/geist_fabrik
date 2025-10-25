@@ -190,9 +190,11 @@ tracery:
 
     # Load Tracery geists
     loader = TraceryGeistLoader(tracery_geists_dir, seed=12345)
-    geists = loader.load_all()
+    geists, newly_discovered = loader.load_all()
 
     assert len(geists) == 1, "Should load 1 Tracery geist"
     assert geists[0].geist_id == "test_tracery"
+    assert len(newly_discovered) == 1, "Should discover 1 new geist"
+    assert "test_tracery" in newly_discovered
 
     vault.close()

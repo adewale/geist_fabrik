@@ -598,16 +598,19 @@ class TraceryGeistLoader:
         self.seed = seed
         self.default_geists_dir = default_geists_dir
         self.enabled_defaults = enabled_defaults or {}
+        self.newly_discovered: List[str] = []
 
-    def load_all(self) -> List[TraceryGeist]:
+    def load_all(self) -> tuple[List[TraceryGeist], List[str]]:
         """Load all Tracery geists from directories.
 
         Loads default geists first (if configured), then custom geists.
+        Tracks any geists found on disk but not in config.
 
         Returns:
-            List of loaded TraceryGeist instances
+            Tuple of (loaded TraceryGeist instances, newly discovered geist IDs)
         """
         geists = []
+        self.newly_discovered = []
 
         # Load default geists first
         if self.default_geists_dir and self.default_geists_dir.exists():
@@ -617,14 +620,13 @@ class TraceryGeistLoader:
         if self.geists_dir.exists():
             geists.extend(self._load_from_directory(self.geists_dir, is_default=False))
 
-        return geists
+        return geists, self.newly_discovered
 
     def _load_from_directory(self, directory: Path, is_default: bool = False) -> List[TraceryGeist]:
         """Load Tracery geists from a specific directory.
 
-        For default geists, loads in the order specified in config file (maintaining
-        user's ordering preference). Geists not in config are loaded alphabetically
-        at the end. Custom geists are always loaded alphabetically.
+        Loads geists in config order if they're in config, alphabetically if not.
+        Tracks newly discovered geists (not in config) for addition to config.
 
         Args:
             directory: Directory containing .yaml geist files
@@ -638,8 +640,8 @@ class TraceryGeistLoader:
         # Find all .yaml files
         all_geist_files = {f.stem: f for f in directory.glob("*.yaml")}
 
-        if is_default and self.enabled_defaults:
-            # Load default geists in config order (preserves user's ordering)
+        if self.enabled_defaults:
+            # Load geists in config order (preserves user's ordering)
             # Python 3.7+ dicts maintain insertion order
             for geist_id in self.enabled_defaults.keys():
                 if not self.enabled_defaults.get(geist_id, True):
@@ -656,27 +658,18 @@ class TraceryGeistLoader:
                     logger.warning(f"Failed to load Tracery geist {yaml_file}: {e}")
                     continue
 
-            # Load any geists found on disk but not in config (alphabetically)
-            remaining_geists = sorted(
-                geist_id
-                for geist_id in all_geist_files.keys()
-                if geist_id not in self.enabled_defaults
-            )
-            for geist_id in remaining_geists:
-                try:
-                    geist = TraceryGeist.from_yaml(all_geist_files[geist_id], self.seed)
-                    geists.append(geist)
-                except Exception as e:
-                    logger.warning(f"Failed to load Tracery geist {all_geist_files[geist_id]}: {e}")
-                    continue
-        else:
-            # Custom geists: load alphabetically
-            for geist_id in sorted(all_geist_files.keys()):
-                try:
-                    geist = TraceryGeist.from_yaml(all_geist_files[geist_id], self.seed)
-                    geists.append(geist)
-                except Exception as e:
-                    logger.warning(f"Failed to load Tracery geist {all_geist_files[geist_id]}: {e}")
-                    continue
+        # Load any geists found on disk but not in config (alphabetically)
+        # These are "newly discovered" geists that should be added to config
+        remaining_geists = sorted(
+            geist_id for geist_id in all_geist_files.keys() if geist_id not in self.enabled_defaults
+        )
+        for geist_id in remaining_geists:
+            self.newly_discovered.append(geist_id)
+            try:
+                geist = TraceryGeist.from_yaml(all_geist_files[geist_id], self.seed)
+                geists.append(geist)
+            except Exception as e:
+                logger.warning(f"Failed to load Tracery geist {all_geist_files[geist_id]}: {e}")
+                continue
 
         return geists

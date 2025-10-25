@@ -41,27 +41,39 @@ src/geistfabrik/
 1. Load default geists from package (`geistfabrik.default_geists`)
 2. Check config for enabled/disabled status
 3. Load custom geists from vault (`<vault>/_geistfabrik/geists`)
-4. Execute all enabled geists in **config file order**
+4. **Auto-add newly discovered geists to config** (enabled by default)
+5. Execute all enabled geists in **config file order**
 
-**Config-based ordering**: Default geists execute in the order they appear in `config.yaml` (which defaults to alphabetical when generated). This provides:
+**Config-based ordering**: All geists (default and custom) execute in the order they appear in `config.yaml`. This provides:
 - **Deterministic execution**: Same config = same order = same RNG consumption = reproducible sessions
-- **User control**: Reorder geists in config to change execution order
+- **User control**: Reorder any geist in config to change execution order
 - **Backward compatibility**: Old configs maintain their existing order
+- **Automatic discovery**: Custom geists are automatically added to config when first discovered
 
-Custom geists execute alphabetically after default geists. Geists found on disk but not in config execute alphabetically at the end.
+When a custom geist is created or discovered:
+1. System detects it's not in config
+2. Adds it to config with `geist_id: true` (enabled by default)
+3. Appends alphabetically at the end of existing geists
+4. Saves updated config to disk
+5. User can reorder it in config as desired
 
-Example default config ordering (alphabetical):
+Example config ordering:
 ```yaml
 default_geists:
+  # Default geists (alphabetical by default)
   anachronism_detector: true
   antithesis_generator: true
   assumption_challenger: true
-  # ... (all 45 geists listed alphabetically)
+  # ... (all 45 default geists)
   contradictor: true
   # ...
   temporal_mirror: true
   # ...
   what_if: true
+
+  # Custom geists (added automatically when discovered)
+  my_custom_geist: true
+  another_custom_geist: true
 ```
 
 Users can reorder entries in `config.yaml` to control execution order and therefore RNG consumption.
