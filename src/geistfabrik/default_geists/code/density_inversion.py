@@ -30,6 +30,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         outgoing = [vault.resolve_link_target(link.target) for link in note.links]
         incoming = vault.backlinks(note)
 
+        # Deduplicate by combining into a set
         graph_neighbors = list(set([n for n in outgoing + incoming if n is not None]))
 
         if len(graph_neighbors) < 3:

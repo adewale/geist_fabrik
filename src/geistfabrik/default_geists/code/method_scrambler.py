@@ -58,6 +58,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         similar = vault.neighbours(note, k=5)
 
+        # Deduplicate by combining into a set
         candidates = list(set(linked_notes + similar))
 
         if len(candidates) < 2:
