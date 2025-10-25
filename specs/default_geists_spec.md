@@ -41,7 +41,9 @@ src/geistfabrik/
 1. Load default geists from package (`geistfabrik.default_geists`)
 2. Check config for enabled/disabled status
 3. Load custom geists from vault (`<vault>/_geistfabrik/geists`)
-4. Execute all enabled geists (both default and custom)
+4. Execute all enabled geists (both default and custom) **in alphabetical order by geist ID**
+
+All geists (code and Tracery) are executed in a single alphabetical sequence, regardless of type or source (default vs custom). For example: `anachronism_detector`, `antithesis_generator`, ..., `contradictor`, ..., `temporal_mirror`, ..., `what_if`.
 
 ### Configuration
 

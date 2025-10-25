@@ -620,17 +620,17 @@ class TraceryGeistLoader:
         return geists
 
     def _load_from_directory(self, directory: Path, is_default: bool = False) -> List[TraceryGeist]:
-        """Load Tracery geists from a specific directory.
+        """Load Tracery geists from a specific directory in alphabetical order.
 
         Args:
             directory: Directory containing .yaml geist files
             is_default: Whether these are default geists
 
         Returns:
-            List of loaded TraceryGeist instances
+            List of loaded TraceryGeist instances (sorted alphabetically by filename)
         """
         geists = []
-        for yaml_file in directory.glob("*.yaml"):
+        for yaml_file in sorted(directory.glob("*.yaml")):
             geist_id = yaml_file.stem
 
             # For default geists, check if they're enabled in config

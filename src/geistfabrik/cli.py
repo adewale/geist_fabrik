@@ -379,11 +379,10 @@ def invoke_command(args: argparse.Namespace) -> int:
                     )
                     tracery_results[tracery_geist.geist_id] = []
 
-        # Collect all suggestions from both code and Tracery geists
-        for suggestions in code_results.values():
-            all_suggestions.extend(suggestions)
-        for suggestions in tracery_results.values():
-            all_suggestions.extend(suggestions)
+        # Collect all suggestions from both code and Tracery geists in alphabetical order
+        all_geist_results = {**code_results, **tracery_results}
+        for geist_id in sorted(all_geist_results.keys()):
+            all_suggestions.extend(all_geist_results[geist_id])
 
         # Show execution summary
         code_success = sum(1 for s in code_results.values() if s)

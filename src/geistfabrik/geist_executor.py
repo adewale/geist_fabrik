@@ -82,8 +82,8 @@ class GeistExecutor:
             directory: Directory containing geist files
             is_default: Whether these are default geists
         """
-        # Find all .py files (except __init__.py)
-        geist_files = [f for f in directory.glob("*.py") if f.name != "__init__.py"]
+        # Find all .py files (except __init__.py) and sort alphabetically
+        geist_files = sorted([f for f in directory.glob("*.py") if f.name != "__init__.py"])
 
         for geist_file in geist_files:
             geist_id = geist_file.stem
@@ -208,7 +208,7 @@ class GeistExecutor:
             return []
 
     def execute_all(self, context: VaultContext) -> Dict[str, List[Suggestion]]:
-        """Execute all enabled geists.
+        """Execute all enabled geists in alphabetical order.
 
         Args:
             context: Vault context to pass to geists
@@ -218,7 +218,7 @@ class GeistExecutor:
         """
         results = {}
 
-        for geist_id in self.geists:
+        for geist_id in sorted(self.geists.keys()):
             suggestions = self.execute_geist(geist_id, context)
             results[geist_id] = suggestions
 
