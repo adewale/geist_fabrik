@@ -379,10 +379,26 @@ def invoke_command(args: argparse.Namespace) -> int:
                     )
                     tracery_results[tracery_geist.geist_id] = []
 
-        # Collect all suggestions from both code and Tracery geists in alphabetical order
+        # Collect all suggestions from both code and Tracery geists in config order
+        # This respects the user's ordering in config file (defaults to alphabetical)
         all_geist_results = {**code_results, **tracery_results}
-        for geist_id in sorted(all_geist_results.keys()):
-            all_suggestions.extend(all_geist_results[geist_id])
+
+        # If we have a config, use its ordering to interleave code and Tracery results
+        if config and config.default_geists:
+            # First: geists in config order
+            for geist_id in config.default_geists.keys():
+                if geist_id in all_geist_results:
+                    all_suggestions.extend(all_geist_results[geist_id])
+            # Then: any geists not in config (alphabetically)
+            for geist_id in sorted(all_geist_results.keys()):
+                if geist_id not in config.default_geists:
+                    all_suggestions.extend(all_geist_results[geist_id])
+        else:
+            # No config: just use execution order (code first, then Tracery)
+            for suggestions in code_results.values():
+                all_suggestions.extend(suggestions)
+            for suggestions in tracery_results.values():
+                all_suggestions.extend(suggestions)
 
         # Show execution summary
         code_success = sum(1 for s in code_results.values() if s)

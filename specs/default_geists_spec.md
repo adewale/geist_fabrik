@@ -41,9 +41,30 @@ src/geistfabrik/
 1. Load default geists from package (`geistfabrik.default_geists`)
 2. Check config for enabled/disabled status
 3. Load custom geists from vault (`<vault>/_geistfabrik/geists`)
-4. Execute all enabled geists (both default and custom) **in alphabetical order by geist ID**
+4. Execute all enabled geists in **config file order**
 
-All geists (code and Tracery) are executed in a single alphabetical sequence, regardless of type or source (default vs custom). For example: `anachronism_detector`, `antithesis_generator`, ..., `contradictor`, ..., `temporal_mirror`, ..., `what_if`.
+**Config-based ordering**: Default geists execute in the order they appear in `config.yaml` (which defaults to alphabetical when generated). This provides:
+- **Deterministic execution**: Same config = same order = same RNG consumption = reproducible sessions
+- **User control**: Reorder geists in config to change execution order
+- **Backward compatibility**: Old configs maintain their existing order
+
+Custom geists execute alphabetically after default geists. Geists found on disk but not in config execute alphabetically at the end.
+
+Example default config ordering (alphabetical):
+```yaml
+default_geists:
+  anachronism_detector: true
+  antithesis_generator: true
+  assumption_challenger: true
+  # ... (all 45 geists listed alphabetically)
+  contradictor: true
+  # ...
+  temporal_mirror: true
+  # ...
+  what_if: true
+```
+
+Users can reorder entries in `config.yaml` to control execution order and therefore RNG consumption.
 
 ### Configuration
 

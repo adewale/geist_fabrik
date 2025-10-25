@@ -78,32 +78,72 @@ class GeistExecutor:
     def _load_geists_from_directory(self, directory: Path, is_default: bool = False) -> None:
         """Load geists from a specific directory.
 
+        For default geists, loads in the order specified in config file (maintaining
+        user's ordering preference). Geists not in config are loaded alphabetically
+        at the end. Custom geists are always loaded alphabetically.
+
         Args:
             directory: Directory containing geist files
             is_default: Whether these are default geists
         """
-        # Find all .py files (except __init__.py) and sort alphabetically
-        geist_files = sorted([f for f in directory.glob("*.py") if f.name != "__init__.py"])
+        # Find all .py files (except __init__.py)
+        all_geist_files = {f.stem: f for f in directory.glob("*.py") if f.name != "__init__.py"}
 
-        for geist_file in geist_files:
-            geist_id = geist_file.stem
+        if is_default and self.enabled_defaults:
+            # Load default geists in config order (preserves user's ordering)
+            # Python 3.7+ dicts maintain insertion order
+            for geist_id in self.enabled_defaults.keys():
+                if not self.enabled_defaults.get(geist_id, True):
+                    continue  # Skip disabled geists
 
-            # For default geists, check if they're enabled in config
-            if is_default and not self.enabled_defaults.get(geist_id, True):
-                continue  # Skip disabled default geists
+                geist_file = all_geist_files.get(geist_id)
+                if geist_file is None:
+                    continue  # Geist in config but not on disk
 
-            try:
-                self._load_geist(geist_file)
-            except Exception as e:
-                # Log error but continue loading other geists
-                self.execution_log.append(
-                    {
-                        "geist_id": geist_id,
-                        "status": "load_error",
-                        "error": str(e),
-                        "traceback": traceback.format_exc(),
-                    }
-                )
+                try:
+                    self._load_geist(geist_file)
+                except Exception as e:
+                    self.execution_log.append(
+                        {
+                            "geist_id": geist_id,
+                            "status": "load_error",
+                            "error": str(e),
+                            "traceback": traceback.format_exc(),
+                        }
+                    )
+
+            # Load any geists found on disk but not in config (alphabetically)
+            remaining_geists = sorted(
+                geist_id
+                for geist_id in all_geist_files.keys()
+                if geist_id not in self.enabled_defaults
+            )
+            for geist_id in remaining_geists:
+                try:
+                    self._load_geist(all_geist_files[geist_id])
+                except Exception as e:
+                    self.execution_log.append(
+                        {
+                            "geist_id": geist_id,
+                            "status": "load_error",
+                            "error": str(e),
+                            "traceback": traceback.format_exc(),
+                        }
+                    )
+        else:
+            # Custom geists: load alphabetically
+            for geist_id in sorted(all_geist_files.keys()):
+                try:
+                    self._load_geist(all_geist_files[geist_id])
+                except Exception as e:
+                    self.execution_log.append(
+                        {
+                            "geist_id": geist_id,
+                            "status": "load_error",
+                            "error": str(e),
+                            "traceback": traceback.format_exc(),
+                        }
+                    )
 
     def _load_geist(self, geist_file: Path) -> None:
         """Load a single geist module.
@@ -208,7 +248,12 @@ class GeistExecutor:
             return []
 
     def execute_all(self, context: VaultContext) -> Dict[str, List[Suggestion]]:
-        """Execute all enabled geists in alphabetical order.
+        """Execute all enabled geists in load order.
+
+        Geists execute in the order they were loaded:
+        - Default geists: config file order (user-controllable)
+        - Custom geists: alphabetical order
+        - New defaults not in config: alphabetical order (appended)
 
         Args:
             context: Vault context to pass to geists
@@ -218,7 +263,7 @@ class GeistExecutor:
         """
         results = {}
 
-        for geist_id in sorted(self.geists.keys()):
+        for geist_id in self.geists.keys():
             suggestions = self.execute_geist(geist_id, context)
             results[geist_id] = suggestions
 
