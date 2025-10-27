@@ -4,7 +4,7 @@ This directory contains example implementations for extending GeistFabrik throug
 
 ## Important: Geists are Bundled, Not in Examples
 
-**All 45 geists are now bundled with GeistFabrik** in `src/geistfabrik/default_geists/`. They work immediately on first run—no installation needed.
+**All default geists are now bundled with GeistFabrik** in `src/geistfabrik/default_geists/`. They work immediately on first run—no installation needed.
 
 This `examples/` directory focuses on:
 - **Metadata inference modules** - Adding custom properties to notes
@@ -188,7 +188,7 @@ count: 2
 
 ## Bundled Default Geists
 
-GeistFabrik includes **45 bundled default geists** (35 code + 10 Tracery) that work immediately:
+GeistFabrik includes bundled default geists that work immediately:
 
 **Code geists include:**
 - temporal_drift, creative_collision, bridge_builder, complexity_mismatch
