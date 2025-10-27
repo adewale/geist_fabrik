@@ -37,6 +37,18 @@ More content
     assert is_date_collection_note(content)
 
 
+def test_detect_year_month_day_headings():
+    """Test detection of YYYY Month DD format dates."""
+    content = """
+## 2022 August 8
+Content here
+
+## 2022 August 9
+More content
+"""
+    assert is_date_collection_note(content)
+
+
 def test_detect_mixed_headings_above_threshold():
     """Test 3 dates + 1 topic = detected (75% dates)."""
     content = """
@@ -146,6 +158,13 @@ def test_parse_long_date():
 def test_parse_date_with_weekday():
     """Test parsing 'Weekday, Month DD, YYYY'."""
     assert parse_date_heading("## Monday, January 15, 2025") == date(2025, 1, 15)
+
+
+def test_parse_year_month_day():
+    """Test parsing 'YYYY Month DD' format."""
+    assert parse_date_heading("## 2022 August 8") == date(2022, 8, 8)
+    assert parse_date_heading("## 2025 January 15") == date(2025, 1, 15)
+    assert parse_date_heading("## 2023 December 31") == date(2023, 12, 31)
 
 
 def test_parse_iso_datetime():

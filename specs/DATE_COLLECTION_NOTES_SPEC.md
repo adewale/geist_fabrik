@@ -169,6 +169,7 @@ Support common Obsidian date formats:
 | US Format | `01/15/2025` | `\d{2}/\d{2}/\d{4}` |
 | EU Format | `15.01.2025` | `\d{2}\.\d{2}\.\d{4}` |
 | Long Format | `January 15, 2025` | Month name patterns |
+| Year Month Day | `2022 August 8` | Year + month name + day |
 | With Day | `Monday, January 15, 2025` | Weekday prefix |
 | ISO DateTime | `2025-01-15T09:00:00` | ISO 8601 |
 

@@ -37,6 +37,13 @@ DATE_PATTERNS: List[Tuple[str, Callable[[Tuple[str, ...]], date]]] = [
         r"(\d{1,2}),?\s+(\d{4})\s*$",
         lambda m: _parse_long_date(m[0], m[1], m[2]),
     ),
+    # Year Month Day format: 2022 August 8
+    (
+        r"^##\s+(\d{4})\s+"
+        r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+"
+        r"(\d{1,2})\s*$",
+        lambda m: _parse_long_date(m[1], m[2], m[0]),
+    ),
     # ISO datetime: 2025-01-15T09:00:00
     (
         r"^##\s+(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}\s*$",
