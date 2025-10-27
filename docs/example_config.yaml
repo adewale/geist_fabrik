@@ -1,0 +1,146 @@
+# GeistFabrik Configuration Example
+# ==================================
+# This file shows all available configuration options for GeistFabrik.
+#
+# Location: <vault>/_geistfabrik/config.yaml
+#
+# Generate a default config in your vault with:
+#   uv run geistfabrik init /path/to/vault
+
+# Geist Execution Order
+# ---------------------
+# IMPORTANT: Geists execute in the order they appear in this file!
+#
+# Why order matters:
+# - Geists share a random number generator (RNG) seeded by the session date
+# - Each geist consumes random numbers when sampling notes
+# - Execution order determines which geist gets which random numbers
+# - Same order + same date = same suggestions (reproducible sessions)
+#
+# To control execution order:
+# - Reorder entries in this file (move them up or down)
+# - Custom geists are auto-added when discovered
+# - Both default and custom geists use the same ordering system
+
+default_geists:
+  # ============================================================================
+  # Default Code Geists (36 total)
+  # ============================================================================
+  # These are bundled with GeistFabrik and execute in the order shown below.
+  # Set to 'false' to disable a geist. Set to 'true' to enable it.
+
+  anachronism_detector: true      # Flags concepts that seem historically misplaced
+  antithesis_generator: true      # Suggests opposite perspectives on note content
+  assumption_challenger: true     # Questions assumptions in notes
+  blind_spot_detector: true       # Identifies potentially overlooked connections
+  bridge_builder: true            # Connects distant but related notes
+  bridge_hunter: true             # Finds notes that bridge different clusters
+  columbo: true                   # Asks probing "just one more thing" questions
+  complexity_mismatch: true       # Pairs simple and complex treatments of same topic
+  concept_cluster: true           # Groups notes by conceptual similarity
+  concept_drift: true             # Tracks how note meanings shift over time
+  convergent_evolution: true      # Finds notes that independently reached similar ideas
+  creative_collision: true        # Juxtaposes unrelated notes for creative sparks
+  density_inversion: true         # Pairs hub notes with isolated notes
+  dialectic_triad: true           # Creates thesis-antithesis-synthesis triads
+  divergent_evolution: true       # Tracks how related notes diverged over time
+  hermeneutic_instability: true   # Highlights notes whose interpretation has shifted
+  hidden_hub: true                # Discovers implicit hubs (semantically central)
+  island_hopper: true             # Connects isolated note clusters
+  link_density_analyser: true     # Analyzes linking patterns across vault
+  metadata_driven_discovery: true # Uses metadata to suggest connections
+  method_scrambler: true          # Suggests applying methods from one domain to another
+  on_this_day: true               # Resurfaces notes from the same date in past years
+  pattern_finder: true            # Identifies recurring patterns across notes
+  question_generator: true        # Generates questions based on note content
+  recent_focus: true              # Highlights recently modified notes
+  scale_shifter: true             # Suggests zooming in/out on topics
+  seasonal_patterns: true         # Finds seasonal rhythms in note-taking
+  seasonal_revisit: true          # Resurfaces notes from similar times of year
+  session_drift: true             # Tracks how thinking evolved across sessions
+  structure_diversity_checker: true # Analyzes diversity of note structures
+  stub_expander: true             # Identifies stubs that could be expanded
+  task_archaeology: true          # Unearths old incomplete tasks
+  temporal_clustering: true       # Groups notes by temporal proximity
+  temporal_drift: true            # Finds stale but important notes
+  temporal_mirror: true           # Compares notes from different time periods
+  vocabulary_expansion: true      # Tracks semantic space coverage over time
+
+  # ============================================================================
+  # Default Tracery Geists (9 total)
+  # ============================================================================
+  # These use Tracery grammars for declarative suggestion generation.
+
+  contradictor: true              # Generates contradictory perspectives
+  hub_explorer: true              # Explores hub notes and their connections
+  note_combinations: true         # Combines random notes with creative prompts
+  orphan_connector: true          # Suggests connections for orphan notes
+  perspective_shifter: true       # Reframes notes from different viewpoints
+  random_prompts: true            # Generates random creative prompts
+  semantic_neighbours: true       # Shows semantic neighborhoods around notes
+  transformation_suggester: true  # Demonstrates Tracery text modifiers
+  what_if: true                   # Generates "What if...?" prompts
+
+  # ============================================================================
+  # Custom Geists (Auto-discovered)
+  # ============================================================================
+  # When you create custom geists in _geistfabrik/geists/code/ or
+  # _geistfabrik/geists/tracery/, they're automatically added here.
+  #
+  # Example custom geists (uncomment if you create them):
+  # my_custom_geist: true         # Your custom code geist
+  # another_geist: false          # Disabled custom geist
+  #
+  # You can reorder custom geists by moving them within this section.
+  # They'll execute in the order shown, just like default geists.
+
+# Enabled Modules
+# ---------------
+# List of metadata inference and vault function modules to enable.
+# If empty or not specified, all modules are enabled.
+#
+# Metadata modules add properties to notes (e.g., complexity, sentiment).
+# Located in: _geistfabrik/metadata_inference/
+#
+# Vault functions add custom operations for Tracery geists.
+# Located in: _geistfabrik/vault_functions/
+
+enabled_modules: []
+
+# Examples of specific modules to enable:
+# enabled_modules:
+#   - complexity_analyzer
+#   - sentiment_detector
+#   - reading_time
+
+# ============================================================================
+# Configuration Tips
+# ============================================================================
+#
+# 1. **Disabling Geists**
+#    Set any geist to 'false' to disable it:
+#      temporal_drift: false
+#
+# 2. **Changing Execution Order**
+#    Cut and paste geist entries to reorder them.
+#    Geists at the top execute first and get first pick of random numbers.
+#
+# 3. **Testing Order Changes**
+#    Use --date to replay a session and see how order affects output:
+#      uv run geistfabrik invoke ~/vault --date 2025-01-15
+#
+# 4. **Finding Your Config**
+#    Your vault's config is at: <vault>/_geistfabrik/config.yaml
+#    This example is for reference only.
+#
+# 5. **Custom Geists**
+#    Create custom geists in:
+#      - Code: _geistfabrik/geists/code/my_geist.py
+#      - Tracery: _geistfabrik/geists/tracery/my_geist.yaml
+#    They'll be auto-added to this file on next run.
+#
+# 6. **Session Reproducibility**
+#    Same config order + same date = identical suggestions
+#    This enables reliable session replay and debugging.
+#
+# ============================================================================

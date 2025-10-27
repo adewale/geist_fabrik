@@ -6,7 +6,8 @@ from typing import Optional
 
 # Schema version for migrations
 # Version 3: Removed unused `suggestions` and `suggestion_notes` tables
-SCHEMA_VERSION = 3
+# Version 4: Added support for date-collection notes (virtual entries)
+SCHEMA_VERSION = 4
 
 SCHEMA_SQL = """
 -- Notes table
@@ -16,11 +17,16 @@ CREATE TABLE IF NOT EXISTS notes (
     content TEXT NOT NULL,
     created TEXT NOT NULL,
     modified TEXT NOT NULL,
-    file_mtime REAL NOT NULL  -- For incremental sync
+    file_mtime REAL NOT NULL,  -- For incremental sync
+    is_virtual INTEGER DEFAULT 0,  -- True for virtual entries from date-collection notes
+    source_file TEXT,  -- Original file path for virtual entries
+    entry_date TEXT  -- Date extracted from heading for virtual entries
 );
 
 CREATE INDEX IF NOT EXISTS idx_notes_modified ON notes(modified);
 CREATE INDEX IF NOT EXISTS idx_notes_title ON notes(title);
+CREATE INDEX IF NOT EXISTS idx_notes_source_file ON notes(source_file);
+CREATE INDEX IF NOT EXISTS idx_notes_entry_date ON notes(entry_date);
 
 -- Links table
 CREATE TABLE IF NOT EXISTS links (
@@ -129,3 +135,38 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
     if result is None:
         return 0
     return int(result[0])
+
+
+def migrate_schema(conn: sqlite3.Connection) -> None:
+    """Migrate database schema to current version.
+
+    Args:
+        conn: SQLite connection
+    """
+    current_version = get_schema_version(conn)
+
+    if current_version == SCHEMA_VERSION:
+        return  # Already at current version
+
+    # Migration from version 3 to 4: Add virtual entry columns
+    if current_version < 4:
+        # Check if columns already exist (defensive programming)
+        cursor = conn.execute("PRAGMA table_info(notes)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        if "is_virtual" not in columns:
+            conn.execute("ALTER TABLE notes ADD COLUMN is_virtual INTEGER DEFAULT 0")
+
+        if "source_file" not in columns:
+            conn.execute("ALTER TABLE notes ADD COLUMN source_file TEXT")
+
+        if "entry_date" not in columns:
+            conn.execute("ALTER TABLE notes ADD COLUMN entry_date TEXT")
+
+        # Create indexes
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_source_file ON notes(source_file)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_entry_date ON notes(entry_date)")
+
+        # Update version
+        conn.execute("PRAGMA user_version = 4")
+        conn.commit()

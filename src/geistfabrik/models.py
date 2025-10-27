@@ -1,7 +1,7 @@
 """Core data structures for GeistFabrik."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 
@@ -17,15 +17,24 @@ class Link:
 
 @dataclass(frozen=True)
 class Note:
-    """Immutable representation of a vault note."""
+    """Immutable representation of a vault note.
 
-    path: str  # Relative path in vault
+    For date-collection notes (journal files with date headings), virtual entries
+    are created with is_virtual=True and paths like "filename.md/YYYY-MM-DD".
+    """
+
+    path: str  # Relative path in vault (or virtual path for entries)
     title: str  # Note title
     content: str  # Full markdown content
     links: List[Link]  # Outgoing [[links]]
     tags: List[str]  # #tags found in note
-    created: datetime  # File creation time
+    created: datetime  # File creation time (or entry date for virtuals)
     modified: datetime  # Last modification time
+
+    # Virtual entry fields (for date-collection notes)
+    is_virtual: bool = False  # True for entries split from journal files
+    source_file: Optional[str] = None  # Original file path (e.g., "Daily Journal.md")
+    entry_date: Optional[date] = None  # Date extracted from heading
 
     def __hash__(self) -> int:
         """Hash based on path (the unique identifier).

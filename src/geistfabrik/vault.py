@@ -6,9 +6,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from .date_collection import is_date_collection_note, split_date_collection_note
 from .markdown_parser import parse_markdown
 from .models import Link, Note
-from .schema import init_db
+from .schema import init_db, migrate_schema
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,9 @@ class Vault:
             self.db = init_db(None)
         else:
             self.db = init_db(Path(db_path))
+
+        # Migrate schema if needed
+        migrate_schema(self.db)
 
     def sync(self) -> int:
         """Incrementally update database with changed files.
@@ -76,27 +80,42 @@ class Vault:
                 logger.warning(f"Skipping file {rel_path} due to permission denied: {e}")
                 continue
 
-            # Parse markdown
-            title, clean_content, links, tags = parse_markdown(rel_path, content)
-
             # Get file timestamps
             stat = md_file.stat()
             created = datetime.fromtimestamp(stat.st_ctime)
             modified = datetime.fromtimestamp(stat.st_mtime)
 
-            # Update database
-            self._update_note(
-                rel_path,
-                title,
-                content,
-                created,
-                modified,
-                file_mtime,
-                links,
-                tags,
-            )
+            # Check if this is a date-collection note
+            if is_date_collection_note(content):
+                # Delete any existing virtual entries for this file
+                self.db.execute("DELETE FROM notes WHERE source_file = ?", (rel_path,))
 
-            processed_count += 1
+                # Split into virtual entries
+                virtual_notes = split_date_collection_note(rel_path, content, created, modified)
+
+                # Insert each virtual entry
+                for virtual_note in virtual_notes:
+                    self._update_note_from_object(virtual_note, file_mtime)
+
+                processed_count += len(virtual_notes)
+                logger.debug(f"Split {rel_path} into {len(virtual_notes)} virtual entries")
+            else:
+                # Regular note - parse markdown
+                title, clean_content, links, tags = parse_markdown(rel_path, content)
+
+                # Update database
+                self._update_note(
+                    rel_path,
+                    title,
+                    content,
+                    created,
+                    modified,
+                    file_mtime,
+                    links,
+                    tags,
+                )
+
+                processed_count += 1
 
         # Remove notes that no longer exist in filesystem
         # Build set of existing paths for efficient lookup
@@ -171,15 +190,72 @@ class Vault:
         for tag in tags:
             self.db.execute("INSERT INTO tags (note_path, tag) VALUES (?, ?)", (path, tag))
 
+    def _update_note_from_object(self, note: Note, file_mtime: float) -> None:
+        """Update a note from a Note object (including virtual entries).
+
+        Args:
+            note: Note object to insert/update
+            file_mtime: File modification time
+        """
+        # Insert or replace note with virtual entry fields
+        self.db.execute(
+            """
+            INSERT OR REPLACE INTO notes (
+                path, title, content, created, modified, file_mtime,
+                is_virtual, source_file, entry_date
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                note.path,
+                note.title,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+                file_mtime,
+                1 if note.is_virtual else 0,
+                note.source_file,
+                note.entry_date.isoformat() if note.entry_date else None,
+            ),
+        )
+
+        # Delete old links and tags
+        self.db.execute("DELETE FROM links WHERE source_path = ?", (note.path,))
+        self.db.execute("DELETE FROM tags WHERE note_path = ?", (note.path,))
+
+        # Insert new links
+        for link in note.links:
+            self.db.execute(
+                """
+                INSERT INTO links (source_path, target, display_text, is_embed, block_ref)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    note.path,
+                    link.target,
+                    link.display_text,
+                    1 if link.is_embed else 0,
+                    link.block_ref,
+                ),
+            )
+
+        # Insert new tags
+        for tag in note.tags:
+            self.db.execute("INSERT INTO tags (note_path, tag) VALUES (?, ?)", (note.path, tag))
+
     def all_notes(self) -> List[Note]:
         """Load all notes from database.
 
         Returns:
-            List of all Note objects
+            List of all Note objects (including virtual entries)
         """
         # Batch load all notes
         cursor = self.db.execute(
-            "SELECT path, title, content, created, modified FROM notes ORDER BY path"
+            """
+            SELECT path, title, content, created, modified,
+                   is_virtual, source_file, entry_date
+            FROM notes ORDER BY path
+            """
         )
         note_rows = cursor.fetchall()
 
@@ -213,7 +289,21 @@ class Vault:
         # Assemble Note objects
         notes = []
         for row in note_rows:
-            path, title, content, created_str, modified_str = row
+            (
+                path,
+                title,
+                content,
+                created_str,
+                modified_str,
+                is_virtual,
+                source_file,
+                entry_date_str,
+            ) = row
+
+            # Parse entry_date if present
+            from datetime import date
+
+            entry_date = date.fromisoformat(entry_date_str) if entry_date_str else None
 
             notes.append(
                 Note(
@@ -224,22 +314,29 @@ class Vault:
                     tags=tags_by_path.get(path, []),
                     created=datetime.fromisoformat(created_str),
                     modified=datetime.fromisoformat(modified_str),
+                    is_virtual=bool(is_virtual),
+                    source_file=source_file,
+                    entry_date=entry_date,
                 )
             )
 
         return notes
 
     def get_note(self, path: str) -> Optional[Note]:
-        """Retrieve specific note by path.
+        """Retrieve specific note by path (including virtual entries).
 
         Args:
-            path: Relative path of note in vault
+            path: Relative path of note in vault (or virtual path)
 
         Returns:
             Note object or None if not found
         """
         cursor = self.db.execute(
-            "SELECT path, title, content, created, modified FROM notes WHERE path = ?",
+            """
+            SELECT path, title, content, created, modified,
+                   is_virtual, source_file, entry_date
+            FROM notes WHERE path = ?
+            """,
             (path,),
         )
         row = cursor.fetchone()
@@ -247,7 +344,21 @@ class Vault:
         if row is None:
             return None
 
-        path, title, content, created_str, modified_str = row
+        (
+            path,
+            title,
+            content,
+            created_str,
+            modified_str,
+            is_virtual,
+            source_file,
+            entry_date_str,
+        ) = row
+
+        # Parse entry_date if present
+        from datetime import date
+
+        entry_date = date.fromisoformat(entry_date_str) if entry_date_str else None
 
         # Load links for this note
         link_cursor = self.db.execute(
@@ -282,6 +393,9 @@ class Vault:
             tags=tags,
             created=datetime.fromisoformat(created_str),
             modified=datetime.fromisoformat(modified_str),
+            is_virtual=bool(is_virtual),
+            source_file=source_file,
+            entry_date=entry_date,
         )
 
     def resolve_link_target(self, target: str) -> Optional[Note]:
