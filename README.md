@@ -304,7 +304,9 @@ vector_search:
 
 **Both backends provide identical functionality** - they're tested for parity and return the same results. Choose based on your vault size and performance needs.
 
-**See**: [specs/VECTOR_SEARCH_BACKENDS_SPEC.md](specs/VECTOR_SEARCH_BACKENDS_SPEC.md) for technical details and benchmarks.
+**See**:
+- [specs/VECTOR_SEARCH_BACKENDS_SPEC.md](specs/VECTOR_SEARCH_BACKENDS_SPEC.md) - Technical specification
+- [scripts/BENCHMARKS.md](scripts/BENCHMARKS.md) - Performance benchmarks and recommendations
 
 ## Extending GeistFabrik
 

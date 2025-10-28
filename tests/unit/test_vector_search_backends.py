@@ -15,6 +15,17 @@ def db():
     """Create an in-memory database for testing."""
     # init_db() creates and returns a connection when db_path is None
     conn = init_db(db_path=None)
+
+    # Load sqlite-vec extension if available (needed for SqliteVecBackend tests)
+    try:
+        import sqlite_vec
+
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+    except (ImportError, Exception):
+        # sqlite-vec not available, SqliteVecBackend tests will be skipped
+        pass
+
     return conn
 
 
@@ -219,7 +230,7 @@ class TestSqliteVecBackend:
         # Skip if sqlite-vec not available
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         assert backend.db == db
         assert backend.session_id == 0
         assert backend._path_to_id == {}
@@ -238,13 +249,13 @@ class TestSqliteVecBackend:
         except ImportError:
             # sqlite-vec not installed, should raise RuntimeError
             with pytest.raises(RuntimeError, match="sqlite-vec extension not available"):
-                SqliteVecBackend(db)
+                SqliteVecBackend(db, dim=3)
 
     def test_load_embeddings(self, db, sample_embeddings):
         """Test loading embeddings into vec_search table."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         # Check that path mappings were created
@@ -261,7 +272,7 @@ class TestSqliteVecBackend:
         """Test loading embeddings for a session that doesn't exist."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings("2099-12-31")
 
         assert backend.session_id == 0
@@ -272,7 +283,7 @@ class TestSqliteVecBackend:
         """Test that find_similar returns the requested number of results."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
@@ -284,7 +295,7 @@ class TestSqliteVecBackend:
         """Test that results are sorted by distance (ascending)."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
@@ -298,7 +309,7 @@ class TestSqliteVecBackend:
         """Test that find_similar returns the most similar notes."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         # Query with [1, 0, 0] should be most similar to note1, then note2
@@ -313,7 +324,7 @@ class TestSqliteVecBackend:
         """Test that similarity(A, B) == similarity(B, A)."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         sim_ab = backend.get_similarity("note1.md", "note2.md")
@@ -325,7 +336,7 @@ class TestSqliteVecBackend:
         """Test that similarity(A, A) == 1.0."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         sim = backend.get_similarity("note1.md", "note1.md")
@@ -336,7 +347,7 @@ class TestSqliteVecBackend:
         """Test that orthogonal vectors have similarity ~0."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         sim = backend.get_similarity("note1.md", "note3.md")
@@ -347,7 +358,7 @@ class TestSqliteVecBackend:
         """Test that get_similarity raises KeyError for missing notes."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         with pytest.raises(KeyError, match="Note not found"):
@@ -357,7 +368,7 @@ class TestSqliteVecBackend:
         """Test getting an embedding for a note."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         embedding = backend.get_embedding("note1.md")
@@ -370,7 +381,7 @@ class TestSqliteVecBackend:
         """Test that get_embedding raises KeyError for missing notes."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         with pytest.raises(KeyError, match="Note not found"):
@@ -380,7 +391,7 @@ class TestSqliteVecBackend:
         """Test that path mappings are cached properly."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
         backend.load_embeddings(sample_embeddings["session_date"])
 
         # First access should populate cache
@@ -396,7 +407,7 @@ class TestSqliteVecBackend:
         """Test backend behavior with empty vault."""
         pytest.importorskip("sqlite_vec")
 
-        backend = SqliteVecBackend(db)
+        backend = SqliteVecBackend(db, dim=3)
 
         # Create empty session
         session_date = "2025-01-15"
@@ -428,7 +439,7 @@ class TestBackendParity:
         pytest.importorskip("sqlite_vec")
 
         in_memory = InMemoryVectorBackend(db)
-        sqlite_vec = SqliteVecBackend(db)
+        sqlite_vec = SqliteVecBackend(db, dim=3)
 
         in_memory.load_embeddings(sample_embeddings["session_date"])
         sqlite_vec.load_embeddings(sample_embeddings["session_date"])
@@ -452,7 +463,7 @@ class TestBackendParity:
         pytest.importorskip("sqlite_vec")
 
         in_memory = InMemoryVectorBackend(db)
-        sqlite_vec = SqliteVecBackend(db)
+        sqlite_vec = SqliteVecBackend(db, dim=3)
 
         in_memory.load_embeddings(sample_embeddings["session_date"])
         sqlite_vec.load_embeddings(sample_embeddings["session_date"])
@@ -467,7 +478,7 @@ class TestBackendParity:
         pytest.importorskip("sqlite_vec")
 
         in_memory = InMemoryVectorBackend(db)
-        sqlite_vec = SqliteVecBackend(db)
+        sqlite_vec = SqliteVecBackend(db, dim=3)
 
         in_memory.load_embeddings(sample_embeddings["session_date"])
         sqlite_vec.load_embeddings(sample_embeddings["session_date"])

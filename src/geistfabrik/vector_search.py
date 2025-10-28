@@ -196,16 +196,18 @@ class SqliteVecBackend(VectorSearchBackend):
     - Uses vec0 virtual table with path mapping
     """
 
-    def __init__(self, db: sqlite3.Connection):
+    def __init__(self, db: sqlite3.Connection, dim: int = 387):
         """Initialize sqlite-vec backend.
 
         Args:
             db: SQLite database connection
+            dim: Embedding dimension (default: 387 for temporal embeddings)
 
         Raises:
             RuntimeError: If sqlite-vec extension not available
         """
         self.db = db
+        self.dim = dim
         self.session_date: str = ""
         self.session_id: int = 0
         self._path_to_id: Dict[str, int] = {}  # Cache for path -> vec_id mapping
@@ -234,11 +236,11 @@ class SqliteVecBackend(VectorSearchBackend):
             )
         """)
 
-        # Create virtual table for vector search
+        # Create virtual table for vector search with cosine distance
         # rowid corresponds to vec_id from vec_path_mapping
-        self.db.execute("""
+        self.db.execute(f"""
             CREATE VIRTUAL TABLE IF NOT EXISTS vec_search USING vec0(
-                embedding float[387]
+                embedding float[{self.dim}] distance_metric=cosine
             )
         """)
 
