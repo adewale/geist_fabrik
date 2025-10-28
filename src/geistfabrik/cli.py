@@ -249,7 +249,8 @@ def invoke_command(args: argparse.Namespace) -> int:
                 print(f"Using {len(function_registry.functions)} built-in vault functions")
 
         # Create session and context
-        session = Session(session_date, vault.db)
+        backend_type = config.vector_search.backend if config else "in-memory"
+        session = Session(session_date, vault.db, backend=backend_type)
         if not args.quiet:
             print(f"Computing embeddings for {len(vault.all_notes())} notes...")
         session.compute_embeddings(vault.all_notes())
@@ -612,6 +613,16 @@ def test_command(args: argparse.Namespace) -> int:
         if args.verbose:
             print(f"Session date: {session_date.strftime('%Y-%m-%d')}")
 
+        # Load configuration
+        from geistfabrik import load_config
+
+        config_path = geistfabrik_dir / "config.yaml"
+        config = None
+        if config_path.exists():
+            config = load_config(config_path)
+            if args.verbose:
+                print(f"Loaded configuration from {config_path.relative_to(vault_path)}")
+
         # Load metadata inference modules
         metadata_dir = geistfabrik_dir / "metadata_inference"
         metadata_loader = None
@@ -641,7 +652,8 @@ def test_command(args: argparse.Namespace) -> int:
                 print(f"Using {len(function_registry.functions)} built-in vault functions")
 
         # Create session and context
-        session = Session(session_date, vault.db)
+        backend_type = config.vector_search.backend if config else "in-memory"
+        session = Session(session_date, vault.db, backend=backend_type)
         if args.verbose:
             print("Computing embeddings...")
         session.compute_embeddings(vault.all_notes())
@@ -764,6 +776,16 @@ def test_all_command(args: argparse.Namespace) -> int:
         if args.verbose:
             print(f"Session date: {session_date.strftime('%Y-%m-%d')}")
 
+        # Load configuration
+        from geistfabrik import load_config
+
+        config_path = geistfabrik_dir / "config.yaml"
+        config = None
+        if config_path.exists():
+            config = load_config(config_path)
+            if args.verbose:
+                print(f"Loaded configuration from {config_path.relative_to(vault_path)}")
+
         # Load metadata inference modules
         metadata_dir = geistfabrik_dir / "metadata_inference"
         metadata_loader = None
@@ -793,7 +815,8 @@ def test_all_command(args: argparse.Namespace) -> int:
                 print(f"Using {len(function_registry.functions)} built-in vault functions")
 
         # Create session and context
-        session = Session(session_date, vault.db)
+        backend_type = config.vector_search.backend if config else "in-memory"
+        session = Session(session_date, vault.db, backend=backend_type)
         if args.verbose:
             print("Computing embeddings...")
         session.compute_embeddings(vault.all_notes())

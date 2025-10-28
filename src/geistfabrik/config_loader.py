@@ -92,12 +92,38 @@ class DateCollectionConfig:
 
 
 @dataclass
+class VectorSearchConfig:
+    """Configuration for vector search backend."""
+
+    backend: str = "in-memory"
+    backend_settings: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "VectorSearchConfig":
+        """Create config from dictionary."""
+        return cls(
+            backend=data.get("backend", "in-memory"),
+            backend_settings=data.get("backends", {}),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary."""
+        result: Dict[str, Any] = {
+            "backend": self.backend,
+        }
+        if self.backend_settings:
+            result["backends"] = self.backend_settings
+        return result
+
+
+@dataclass
 class GeistFabrikConfig:
     """GeistFabrik configuration."""
 
     enabled_modules: List[str] = field(default_factory=list)
     default_geists: Dict[str, bool] = field(default_factory=dict)
     date_collection: DateCollectionConfig = field(default_factory=DateCollectionConfig)
+    vector_search: VectorSearchConfig = field(default_factory=VectorSearchConfig)
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.
@@ -134,10 +160,12 @@ class GeistFabrikConfig:
             GeistFabrikConfig instance
         """
         date_collection_data = data.get("date_collection", {})
+        vector_search_data = data.get("vector_search", {})
         return cls(
             enabled_modules=data.get("enabled_modules", []),
             default_geists=data.get("default_geists", {}),
             date_collection=DateCollectionConfig.from_dict(date_collection_data),
+            vector_search=VectorSearchConfig.from_dict(vector_search_data),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -150,6 +178,7 @@ class GeistFabrikConfig:
             "enabled_modules": self.enabled_modules,
             "default_geists": self.default_geists,
             "date_collection": self.date_collection.to_dict(),
+            "vector_search": self.vector_search.to_dict(),
         }
 
 
@@ -231,6 +260,15 @@ def generate_default_config() -> str:
     lines.append("  min_sections: 2         # Minimum H2 headings required for detection")
     lines.append("  date_threshold: 0.5     # Minimum fraction of H2s that must be dates")
     lines.append("  exclude_files: []       # Glob patterns to exclude (e.g., 'Templates/*.md')")
+    lines.append("")
+    lines.append("# Vector Search Backend")
+    lines.append("# ---------------------")
+    lines.append("# Configuration for vector similarity search")
+    lines.append("vector_search:")
+    lines.append("  backend: in-memory      # Options: 'in-memory' | 'sqlite-vec'")
+    lines.append("  # backends:             # Backend-specific settings (optional)")
+    lines.append("  #   sqlite_vec:")
+    lines.append("  #     cache_size_mb: 100")
     lines.append("")
 
     return "\n".join(lines)
