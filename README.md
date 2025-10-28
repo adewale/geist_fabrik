@@ -282,6 +282,30 @@ date_collection:
 
 **See**: [docs/JOURNAL_FILES.md](docs/JOURNAL_FILES.md) for complete documentation, usage guide, and examples.
 
+### Vector Search Backends
+
+GeistFabrik supports pluggable vector search backends for semantic similarity:
+
+**In-Memory Backend** (default):
+- Fast for small-medium vaults (100-1000 notes)
+- Pure Python, no external dependencies
+- Loads all embeddings into RAM
+
+**SQLite-Vec Backend** (optional):
+- Better for large vaults (5000+ notes)
+- Native SQL vector operations
+- Requires: `uv pip install geistfabrik[vector-search]`
+
+**Configuration**:
+```yaml
+vector_search:
+  backend: in-memory  # or "sqlite-vec"
+```
+
+**Both backends provide identical functionality** - they're tested for parity and return the same results. Choose based on your vault size and performance needs.
+
+**See**: [specs/VECTOR_SEARCH_BACKENDS_SPEC.md](specs/VECTOR_SEARCH_BACKENDS_SPEC.md) for technical details and benchmarks.
+
 ## Extending GeistFabrik
 
 GeistFabrik provides three ways to extend functionality. See [examples/README.md](examples/README.md) for detailed guides.
