@@ -294,7 +294,7 @@ GeistFabrik supports pluggable vector search backends for semantic similarity:
 **SQLite-Vec Backend** (optional):
 - Better for large vaults (5000+ notes)
 - Native SQL vector operations
-- Requires: `uv pip install geistfabrik[vector-search]`
+- Requires: `uv pip install -e ".[vector-search]"`
 
 **Configuration**:
 ```yaml
