@@ -1,5 +1,7 @@
 """Unit tests for vector search backends."""
 
+import os
+import sqlite3
 from datetime import datetime
 
 import numpy as np
@@ -8,6 +10,21 @@ import pytest
 from geistfabrik.embeddings import Session
 from geistfabrik.schema import init_db
 from geistfabrik.vector_search import InMemoryVectorBackend, SqliteVecBackend
+
+# Check if sqlite-vec is available
+try:
+    import sqlite_vec
+
+    SQLITE_VEC_AVAILABLE = True
+except ImportError:
+    SQLITE_VEC_AVAILABLE = False
+
+# In CI, we require sqlite-vec to be installed
+# This ensures we don't silently skip critical tests
+if os.environ.get("CI") and not SQLITE_VEC_AVAILABLE:
+    pytest.fail(
+        "sqlite-vec is required in CI but not installed. Run: uv pip install -e '.[vector-search]'"
+    )
 
 
 @pytest.fixture
@@ -80,6 +97,255 @@ def sample_embeddings(db):
         "session_id": session_id,
         "embeddings": embeddings_data,
     }
+
+
+class TestExtensionLoading:
+    """Test that sqlite-vec extension can be loaded correctly."""
+
+    def test_sqlite_vec_extension_available(self):
+        """Test that sqlite-vec extension is available and can be loaded."""
+        if not SQLITE_VEC_AVAILABLE:
+            pytest.skip("sqlite-vec not installed")
+
+        # Create fresh database and test extension loading
+        conn = sqlite3.connect(":memory:")
+        conn.enable_load_extension(True)
+
+        # Load extension
+        sqlite_vec.load(conn)
+
+        # Verify extension is loaded by calling vec_version()
+        result = conn.execute("SELECT vec_version()").fetchone()
+        assert result is not None
+        assert len(result[0]) > 0  # Version string should be non-empty
+
+        conn.close()
+
+    def test_sqlite_vec_extension_in_test_fixture(self, db):
+        """Test that our db fixture correctly loads sqlite-vec."""
+        if not SQLITE_VEC_AVAILABLE:
+            pytest.skip("sqlite-vec not installed")
+
+        # Should be able to call vec_version() on fixture db
+        result = db.execute("SELECT vec_version()").fetchone()
+        assert result is not None
+
+
+class TestKnownAnswerCosineDistance:
+    """Test backends produce correct cosine similarity values for known cases.
+
+    These tests verify that both backends correctly implement cosine distance,
+    catching bugs like using L2 distance instead of cosine distance.
+    """
+
+    def test_inmemory_orthogonal_vectors_zero_similarity(self, db):
+        """Test that orthogonal vectors have zero cosine similarity (InMemory)."""
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create notes
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("a.md", "a", "test", now, now, 0.0),
+        )
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("b.md", "b", "test", now, now, 0.0),
+        )
+
+        # Create session
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()[0]
+
+        # Create orthogonal vectors [1,0,0] and [0,1,0]
+        vec_a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        vec_b = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "a.md", vec_a.tobytes()),
+        )
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "b.md", vec_b.tobytes()),
+        )
+        db.commit()
+
+        # Load and test
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings(session_date)
+
+        similarity = backend.get_similarity("a.md", "b.md")
+        assert abs(similarity - 0.0) < 1e-6, f"Expected 0.0, got {similarity}"
+
+    def test_inmemory_identical_vectors_one_similarity(self, db):
+        """Test that identical vectors have cosine similarity of 1.0 (InMemory)."""
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create notes
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("a.md", "a", "test", now, now, 0.0),
+        )
+
+        # Create session
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()[0]
+
+        # Create identical vector
+        vec_a = np.array([0.6, 0.8, 0.0], dtype=np.float32)
+
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "a.md", vec_a.tobytes()),
+        )
+        db.commit()
+
+        # Load and test
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings(session_date)
+
+        similarity = backend.get_similarity("a.md", "a.md")
+        assert abs(similarity - 1.0) < 1e-6, f"Expected 1.0, got {similarity}"
+
+    def test_sqlitevec_orthogonal_vectors_zero_similarity(self, db):
+        """Test that orthogonal vectors have zero cosine similarity (SqliteVec)."""
+        if not SQLITE_VEC_AVAILABLE:
+            pytest.skip("sqlite-vec not installed")
+
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create notes
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("a.md", "a", "test", now, now, 0.0),
+        )
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("b.md", "b", "test", now, now, 0.0),
+        )
+
+        # Create session
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()[0]
+
+        # Create orthogonal vectors [1,0,0] and [0,1,0]
+        vec_a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        vec_b = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "a.md", vec_a.tobytes()),
+        )
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "b.md", vec_b.tobytes()),
+        )
+        db.commit()
+
+        # Load and test
+        backend = SqliteVecBackend(db, dim=3)
+        backend.load_embeddings(session_date)
+
+        similarity = backend.get_similarity("a.md", "b.md")
+        assert abs(similarity - 0.0) < 1e-6, f"Expected 0.0, got {similarity}"
+
+    def test_sqlitevec_identical_vectors_one_similarity(self, db):
+        """Test that identical vectors have cosine similarity of 1.0 (SqliteVec)."""
+        if not SQLITE_VEC_AVAILABLE:
+            pytest.skip("sqlite-vec not installed")
+
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create notes
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("a.md", "a", "test", now, now, 0.0),
+        )
+
+        # Create session
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()[0]
+
+        # Create identical vector
+        vec_a = np.array([0.6, 0.8, 0.0], dtype=np.float32)
+
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "a.md", vec_a.tobytes()),
+        )
+        db.commit()
+
+        # Load and test
+        backend = SqliteVecBackend(db, dim=3)
+        backend.load_embeddings(session_date)
+
+        similarity = backend.get_similarity("a.md", "a.md")
+        assert abs(similarity - 1.0) < 1e-6, f"Expected 1.0, got {similarity}"
+
+    def test_sqlitevec_opposite_vectors_negative_one_similarity(self, db):
+        """Test that opposite vectors have cosine similarity of -1.0 (SqliteVec)."""
+        if not SQLITE_VEC_AVAILABLE:
+            pytest.skip("sqlite-vec not installed")
+
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create notes
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("a.md", "a", "test", now, now, 0.0),
+        )
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("b.md", "b", "test", now, now, 0.0),
+        )
+
+        # Create session
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()[0]
+
+        # Create opposite vectors [1,0,0] and [-1,0,0]
+        vec_a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        vec_b = np.array([-1.0, 0.0, 0.0], dtype=np.float32)
+
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "a.md", vec_a.tobytes()),
+        )
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "b.md", vec_b.tobytes()),
+        )
+        db.commit()
+
+        # Load and test
+        backend = SqliteVecBackend(db, dim=3)
+        backend.load_embeddings(session_date)
+
+        similarity = backend.get_similarity("a.md", "b.md")
+        assert abs(similarity - (-1.0)) < 1e-6, f"Expected -1.0, got {similarity}"
 
 
 class TestInMemoryVectorBackend:
@@ -534,3 +800,195 @@ class TestSessionBackendIntegration:
         assert isinstance(embeddings, dict)
         assert len(embeddings) == 4
         assert "note1.md" in embeddings
+
+
+class TestBackendIntegration:
+    """Integration tests that use both backends in realistic scenarios.
+
+    These tests always run (never skip) and verify that both backends work
+    correctly in the context of typical vault operations.
+    """
+
+    def test_both_backends_can_load_and_query_basic_vault(self, db):
+        """Test that both backends work with a basic vault setup."""
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create a small realistic vault
+        notes = [
+            ("Projects/AI Research.md", "AI Research", "Research on embeddings and vector search"),
+            (
+                "Notes/Machine Learning.md",
+                "Machine Learning",
+                "ML is about training models on data",
+            ),
+            ("Ideas/New Project.md", "New Project", "Ideas for combining AI with writing"),
+            ("Daily/2025-01-15.md", "2025-01-15", "Today I learned about vector databases"),
+        ]
+
+        for path, title, content in notes:
+            db.execute(
+                "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (path, title, content, now, now, 0.0),
+            )
+
+        # Create session
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()[0]
+
+        # Create embeddings (synthetic but realistic dimensions)
+        embeddings = {
+            "Projects/AI Research.md": np.random.randn(387).astype(np.float32),
+            "Notes/Machine Learning.md": np.random.randn(387).astype(np.float32),
+            "Ideas/New Project.md": np.random.randn(387).astype(np.float32),
+            "Daily/2025-01-15.md": np.random.randn(387).astype(np.float32),
+        }
+
+        # Normalize embeddings
+        for path in embeddings:
+            embeddings[path] = embeddings[path] / np.linalg.norm(embeddings[path])
+
+        for path, embedding in embeddings.items():
+            db.execute(
+                "INSERT INTO session_embeddings (session_id, note_path, embedding) "
+                "VALUES (?, ?, ?)",
+                (session_id, path, embedding.tobytes()),
+            )
+        db.commit()
+
+        # Test InMemoryVectorBackend
+        backend_mem = InMemoryVectorBackend(db)
+        backend_mem.load_embeddings(session_date)
+
+        # Should have loaded all 4 embeddings
+        assert len(backend_mem.embeddings) == 4
+
+        # Should be able to find similar notes
+        query = embeddings["Projects/AI Research.md"]
+        results = backend_mem.find_similar(query, k=3)
+        assert len(results) == 3
+        # First result should be the query itself
+        assert results[0][0] == "Projects/AI Research.md"
+        assert results[0][1] > 0.99  # Very high similarity to itself
+
+        # Test SqliteVecBackend (if available)
+        if SQLITE_VEC_AVAILABLE:
+            backend_vec = SqliteVecBackend(db, dim=387)
+            backend_vec.load_embeddings(session_date)
+
+            # Should have loaded all 4 embeddings into vec_search
+            count = db.execute("SELECT COUNT(*) FROM vec_search").fetchone()[0]
+            assert count == 4
+
+            # Should get same results as InMemory
+            results_vec = backend_vec.find_similar(query, k=3)
+            assert len(results_vec) == 3
+            # First result should be the query itself
+            assert results_vec[0][0] == "Projects/AI Research.md"
+            # Similarity should be very close to InMemory result
+            assert abs(results_vec[0][1] - results[0][1]) < 0.01
+
+    def test_backend_similarity_on_real_semantic_relationships(self, db):
+        """Test that backends correctly compute similarities for semantically related notes."""
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create notes with clear semantic relationships
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("python.md", "Python", "test", now, now, 0.0),
+        )
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("javascript.md", "JavaScript", "test", now, now, 0.0),
+        )
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("cooking.md", "Cooking", "test", now, now, 0.0),
+        )
+
+        # Create session
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()[0]
+
+        # Create embeddings where Python/JS are similar, Cooking is different
+        # (simulating real semantic embeddings)
+        vec_python = np.array([1.0, 0.5, 0.0], dtype=np.float32)
+        vec_js = np.array([0.9, 0.4, 0.1], dtype=np.float32)  # Similar to Python
+        vec_cooking = np.array([0.0, 0.1, 1.0], dtype=np.float32)  # Different
+
+        # Normalize
+        vec_python = vec_python / np.linalg.norm(vec_python)
+        vec_js = vec_js / np.linalg.norm(vec_js)
+        vec_cooking = vec_cooking / np.linalg.norm(vec_cooking)
+
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "python.md", vec_python.tobytes()),
+        )
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "javascript.md", vec_js.tobytes()),
+        )
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+            (session_id, "cooking.md", vec_cooking.tobytes()),
+        )
+        db.commit()
+
+        # Test with InMemoryVectorBackend
+        backend_mem = InMemoryVectorBackend(db)
+        backend_mem.load_embeddings(session_date)
+
+        # Python should be more similar to JS than to Cooking
+        sim_python_js = backend_mem.get_similarity("python.md", "javascript.md")
+        sim_python_cooking = backend_mem.get_similarity("python.md", "cooking.md")
+        assert sim_python_js > sim_python_cooking
+        assert sim_python_js > 0.8  # High similarity
+
+        # Test with SqliteVecBackend (if available)
+        if SQLITE_VEC_AVAILABLE:
+            backend_vec = SqliteVecBackend(db, dim=3)
+            backend_vec.load_embeddings(session_date)
+
+            # Should get same relative ordering
+            sim_python_js_vec = backend_vec.get_similarity("python.md", "javascript.md")
+            sim_python_cooking_vec = backend_vec.get_similarity("python.md", "cooking.md")
+
+            assert sim_python_js_vec > sim_python_cooking_vec
+            # Should match InMemory results closely
+            assert abs(sim_python_js_vec - sim_python_js) < 0.01
+            assert abs(sim_python_cooking_vec - sim_python_cooking) < 0.01
+
+    def test_backends_handle_empty_results_identically(self, db):
+        """Test that both backends handle queries with no results the same way."""
+        session_date = "2025-01-15"
+        now = datetime.now().isoformat()
+
+        # Create empty session (no embeddings)
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (session_date, now))
+        db.commit()
+
+        # Test InMemoryVectorBackend
+        backend_mem = InMemoryVectorBackend(db)
+        backend_mem.load_embeddings(session_date)
+
+        query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        results_mem = backend_mem.find_similar(query, k=10)
+        assert results_mem == []
+
+        # Test SqliteVecBackend (if available)
+        if SQLITE_VEC_AVAILABLE:
+            backend_vec = SqliteVecBackend(db, dim=3)
+            backend_vec.load_embeddings(session_date)
+
+            results_vec = backend_vec.find_similar(query, k=10)
+            assert results_vec == []
