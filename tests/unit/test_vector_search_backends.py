@@ -11,20 +11,42 @@ from geistfabrik.embeddings import Session
 from geistfabrik.schema import init_db
 from geistfabrik.vector_search import InMemoryVectorBackend, SqliteVecBackend
 
-# Check if sqlite-vec is available
+# Check if sqlite-vec is available AND loadable
+SQLITE_VEC_AVAILABLE = False
+SQLITE_VEC_LOADABLE = False
+
 try:
     import sqlite_vec
 
     SQLITE_VEC_AVAILABLE = True
-except ImportError:
-    SQLITE_VEC_AVAILABLE = False
 
-# In CI, we require sqlite-vec to be installed
-# This ensures we don't silently skip critical tests
-if os.environ.get("CI") and not SQLITE_VEC_AVAILABLE:
-    pytest.fail(
-        "sqlite-vec is required in CI but not installed. Run: uv pip install -e '.[vector-search]'"
-    )
+    # Check if SQLite supports extension loading
+    test_conn = sqlite3.connect(":memory:")
+    if hasattr(test_conn, "enable_load_extension"):
+        try:
+            test_conn.enable_load_extension(True)
+            sqlite_vec.load(test_conn)
+            test_conn.execute("SELECT vec_version()")
+            SQLITE_VEC_LOADABLE = True
+        except (sqlite3.OperationalError, AttributeError):
+            pass
+        finally:
+            test_conn.close()
+    else:
+        test_conn.close()
+except ImportError:
+    pass
+
+# In CI on Linux, we require sqlite-vec to be fully functional
+# macOS runners may not support extension loading, so we allow it to be skipped there
+if os.environ.get("CI") and not SQLITE_VEC_LOADABLE:
+    import platform
+
+    if platform.system() == "Linux":
+        pytest.fail(
+            "sqlite-vec is required in CI (Linux) but not loadable. "
+            "Run: uv pip install -e '.[vector-search]'"
+        )
 
 
 @pytest.fixture
@@ -33,15 +55,12 @@ def db():
     # init_db() creates and returns a connection when db_path is None
     conn = init_db(db_path=None)
 
-    # Load sqlite-vec extension if available (needed for SqliteVecBackend tests)
-    try:
+    # Load sqlite-vec extension if loadable (needed for SqliteVecBackend tests)
+    if SQLITE_VEC_LOADABLE:
         import sqlite_vec
 
         conn.enable_load_extension(True)
         sqlite_vec.load(conn)
-    except (ImportError, Exception):
-        # sqlite-vec not available, SqliteVecBackend tests will be skipped
-        pass
 
     return conn
 
@@ -104,7 +123,7 @@ class TestExtensionLoading:
 
     def test_sqlite_vec_extension_available(self):
         """Test that sqlite-vec extension is available and can be loaded."""
-        if not SQLITE_VEC_AVAILABLE:
+        if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not installed")
 
         # Create fresh database and test extension loading
@@ -123,7 +142,7 @@ class TestExtensionLoading:
 
     def test_sqlite_vec_extension_in_test_fixture(self, db):
         """Test that our db fixture correctly loads sqlite-vec."""
-        if not SQLITE_VEC_AVAILABLE:
+        if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not installed")
 
         # Should be able to call vec_version() on fixture db
@@ -218,7 +237,7 @@ class TestKnownAnswerCosineDistance:
 
     def test_sqlitevec_orthogonal_vectors_zero_similarity(self, db):
         """Test that orthogonal vectors have zero cosine similarity (SqliteVec)."""
-        if not SQLITE_VEC_AVAILABLE:
+        if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not installed")
 
         session_date = "2025-01-15"
@@ -265,7 +284,7 @@ class TestKnownAnswerCosineDistance:
 
     def test_sqlitevec_identical_vectors_one_similarity(self, db):
         """Test that identical vectors have cosine similarity of 1.0 (SqliteVec)."""
-        if not SQLITE_VEC_AVAILABLE:
+        if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not installed")
 
         session_date = "2025-01-15"
@@ -302,7 +321,7 @@ class TestKnownAnswerCosineDistance:
 
     def test_sqlitevec_opposite_vectors_negative_one_similarity(self, db):
         """Test that opposite vectors have cosine similarity of -1.0 (SqliteVec)."""
-        if not SQLITE_VEC_AVAILABLE:
+        if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not installed")
 
         session_date = "2025-01-15"
@@ -875,7 +894,7 @@ class TestBackendIntegration:
         assert results[0][1] > 0.99  # Very high similarity to itself
 
         # Test SqliteVecBackend (if available)
-        if SQLITE_VEC_AVAILABLE:
+        if SQLITE_VEC_LOADABLE:
             backend_vec = SqliteVecBackend(db, dim=387)
             backend_vec.load_embeddings(session_date)
 
@@ -955,7 +974,7 @@ class TestBackendIntegration:
         assert sim_python_js > 0.8  # High similarity
 
         # Test with SqliteVecBackend (if available)
-        if SQLITE_VEC_AVAILABLE:
+        if SQLITE_VEC_LOADABLE:
             backend_vec = SqliteVecBackend(db, dim=3)
             backend_vec.load_embeddings(session_date)
 
@@ -986,7 +1005,7 @@ class TestBackendIntegration:
         assert results_mem == []
 
         # Test SqliteVecBackend (if available)
-        if SQLITE_VEC_AVAILABLE:
+        if SQLITE_VEC_LOADABLE:
             backend_vec = SqliteVecBackend(db, dim=3)
             backend_vec.load_embeddings(session_date)
 
