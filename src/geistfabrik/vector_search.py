@@ -193,7 +193,7 @@ class SqliteVecBackend(VectorSearchBackend):
     - Scales better for large vaults (5000+ notes)
     - Native SQL vector operations
     - Disk-based with intelligent caching
-    - Uses vec0 virtual table
+    - Uses vec0 virtual table with path mapping
     """
 
     def __init__(self, db: sqlite3.Connection):
@@ -208,10 +208,12 @@ class SqliteVecBackend(VectorSearchBackend):
         self.db = db
         self.session_date: str = ""
         self.session_id: int = 0
-        self._setup_vec_table()
+        self._path_to_id: Dict[str, int] = {}  # Cache for path -> vec_id mapping
+        self._id_to_path: Dict[int, str] = {}  # Cache for vec_id -> path mapping
+        self._setup_vec_tables()
 
-    def _setup_vec_table(self) -> None:
-        """Create vec0 virtual table if needed.
+    def _setup_vec_tables(self) -> None:
+        """Create vec0 virtual table and path mapping table.
 
         Raises:
             RuntimeError: If sqlite-vec extension not available
@@ -224,13 +226,87 @@ class SqliteVecBackend(VectorSearchBackend):
                 "sqlite-vec extension not available. Install with: pip install sqlite-vec"
             )
 
+        # Create path mapping table (maps note paths to integer IDs)
+        self.db.execute("""
+            CREATE TABLE IF NOT EXISTS vec_path_mapping (
+                vec_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                note_path TEXT NOT NULL UNIQUE
+            )
+        """)
+
         # Create virtual table for vector search
-        # Note: This table is temporary and repopulated each session
+        # rowid corresponds to vec_id from vec_path_mapping
         self.db.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS vec_search USING vec0(
                 embedding float[387]
             )
         """)
+
+        self.db.commit()
+
+    def _get_or_create_vec_id(self, path: str) -> int:
+        """Get or create a vec_id for a note path.
+
+        Args:
+            path: Note path
+
+        Returns:
+            Integer ID for use as vec_search rowid
+        """
+        # Check cache first
+        if path in self._path_to_id:
+            return self._path_to_id[path]
+
+        # Check database
+        cursor = self.db.execute("SELECT vec_id FROM vec_path_mapping WHERE note_path = ?", (path,))
+        row = cursor.fetchone()
+
+        if row is not None:
+            vec_id = int(row[0])
+            self._path_to_id[path] = vec_id
+            self._id_to_path[vec_id] = path
+            return vec_id
+
+        # Create new mapping
+        cursor = self.db.execute("INSERT INTO vec_path_mapping (note_path) VALUES (?)", (path,))
+        lastrowid = cursor.lastrowid
+        if lastrowid is None:
+            raise RuntimeError(f"Failed to create vec_id for path: {path}")
+
+        vec_id = lastrowid
+        self._path_to_id[path] = vec_id
+        self._id_to_path[vec_id] = path
+        return vec_id
+
+    def _get_path_from_vec_id(self, vec_id: int) -> str:
+        """Get note path from vec_id.
+
+        Args:
+            vec_id: Vector ID
+
+        Returns:
+            Note path
+
+        Raises:
+            KeyError: If vec_id not found
+        """
+        # Check cache first
+        if vec_id in self._id_to_path:
+            return self._id_to_path[vec_id]
+
+        # Check database
+        cursor = self.db.execute(
+            "SELECT note_path FROM vec_path_mapping WHERE vec_id = ?", (vec_id,)
+        )
+        row = cursor.fetchone()
+
+        if row is None:
+            raise KeyError(f"vec_id not found: {vec_id}")
+
+        path = str(row[0])
+        self._path_to_id[path] = vec_id
+        self._id_to_path[vec_id] = path
+        return path
 
     def load_embeddings(self, session_date: str) -> None:
         """Load embeddings into vec0 virtual table.
@@ -244,14 +320,18 @@ class SqliteVecBackend(VectorSearchBackend):
         cursor = self.db.execute("SELECT session_id FROM sessions WHERE date = ?", (session_date,))
         row = cursor.fetchone()
         if row is None:
-            # No session found
+            # No session found, clear caches
             self.session_id = 0
+            self._path_to_id = {}
+            self._id_to_path = {}
             return
 
         self.session_id = int(row[0])
 
-        # Clear existing vec_search data
+        # Clear existing vec_search data and caches
         self.db.execute("DELETE FROM vec_search")
+        self._path_to_id = {}
+        self._id_to_path = {}
 
         # Load from session_embeddings into vec_search
         cursor = self.db.execute(
@@ -265,13 +345,12 @@ class SqliteVecBackend(VectorSearchBackend):
 
         for path, blob in cursor:
             embedding = np.frombuffer(blob, dtype=np.float32)
-            # Insert into vec_search with path as rowid
-            # Note: We use path as string for rowid mapping
-            # This is a limitation - we'll need a mapping table for proper implementation
-            # For now, we'll use a separate path_mapping table
+            vec_id = self._get_or_create_vec_id(path)
+
+            # Insert into vec_search using vec_id as rowid
             self.db.execute(
                 "INSERT INTO vec_search(rowid, embedding) VALUES (?, ?)",
-                (hash(path) % (2**63), embedding.tobytes()),
+                (vec_id, embedding.tobytes()),
             )
 
         self.db.commit()
@@ -286,12 +365,36 @@ class SqliteVecBackend(VectorSearchBackend):
         Returns:
             List of (note_path, similarity_score) tuples, sorted descending
         """
-        # Note: This is a placeholder implementation
-        # Full implementation requires proper path mapping
-        # For now, fall back to in-memory approach
-        raise NotImplementedError(
-            "SqliteVecBackend is not yet fully implemented. Please use 'in-memory' backend for now."
+        # Query vec_search for similar vectors
+        cursor = self.db.execute(
+            """
+            SELECT rowid, distance
+            FROM vec_search
+            WHERE embedding MATCH ?
+            ORDER BY distance
+            LIMIT ?
+            """,
+            (query_embedding.astype(np.float32).tobytes(), k),
         )
+
+        results = []
+        for row in cursor:
+            vec_id = int(row[0])
+            distance = float(row[1])
+
+            # Convert distance to similarity (cosine distance -> cosine similarity)
+            # sqlite-vec returns cosine distance (1 - cosine_similarity)
+            similarity = 1.0 - distance
+
+            # Get path from vec_id
+            try:
+                path = self._get_path_from_vec_id(vec_id)
+                results.append((path, similarity))
+            except KeyError:
+                # vec_id not found in mapping (shouldn't happen, but be defensive)
+                continue
+
+        return results
 
     def get_similarity(self, path_a: str, path_b: str) -> float:
         """Get similarity between two notes.
@@ -304,11 +407,16 @@ class SqliteVecBackend(VectorSearchBackend):
             Cosine similarity score
 
         Raises:
-            NotImplementedError: Not yet implemented
+            KeyError: If either note path not found
         """
-        raise NotImplementedError(
-            "SqliteVecBackend is not yet fully implemented. Please use 'in-memory' backend for now."
-        )
+        # Get embeddings for both notes
+        emb_a = self.get_embedding(path_a)
+        emb_b = self.get_embedding(path_b)
+
+        # Compute cosine similarity
+        from .embeddings import cosine_similarity
+
+        return cosine_similarity(emb_a, emb_b)
 
     def get_embedding(self, path: str) -> np.ndarray:
         """Get embedding for a note.
@@ -320,8 +428,28 @@ class SqliteVecBackend(VectorSearchBackend):
             Embedding vector
 
         Raises:
-            NotImplementedError: Not yet implemented
+            KeyError: If note path not found
         """
-        raise NotImplementedError(
-            "SqliteVecBackend is not yet fully implemented. Please use 'in-memory' backend for now."
-        )
+        # Get vec_id for path
+        if path not in self._path_to_id:
+            # Try to load from database
+            cursor = self.db.execute(
+                "SELECT vec_id FROM vec_path_mapping WHERE note_path = ?", (path,)
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise KeyError(f"Note not found: {path}")
+            vec_id = int(row[0])
+            self._path_to_id[path] = vec_id
+            self._id_to_path[vec_id] = path
+        else:
+            vec_id = self._path_to_id[path]
+
+        # Get embedding from vec_search
+        cursor = self.db.execute("SELECT embedding FROM vec_search WHERE rowid = ?", (vec_id,))
+        row = cursor.fetchone()
+
+        if row is None:
+            raise KeyError(f"Note not found in vec_search: {path}")
+
+        return np.frombuffer(row[0], dtype=np.float32)

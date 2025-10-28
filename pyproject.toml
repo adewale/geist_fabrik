@@ -20,6 +20,11 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+vector-search = [
+    "sqlite-vec>=0.1.0",
+]
+
 [project.scripts]
 geistfabrik = "geistfabrik.cli:main"
 gf = "geistfabrik.cli:main"
