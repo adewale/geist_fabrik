@@ -51,6 +51,11 @@ DATE_PATTERNS: List[Tuple[str, Callable[[Tuple[str, ...]], date]]] = [
     ),
 ]
 
+# Pre-compiled patterns for performance (avoid recompiling on every heading)
+_COMPILED_DATE_PATTERNS: List[Tuple[re.Pattern[str], Callable[[Tuple[str, ...]], date]]] = [
+    (re.compile(pattern, re.IGNORECASE), parser) for pattern, parser in DATE_PATTERNS
+]
+
 MONTHS = {
     "January": 1,
     "February": 2,
@@ -95,8 +100,7 @@ def parse_date_heading(heading: str) -> Optional[date]:
     """
     heading = heading.strip()
 
-    for pattern_str, parser_func in DATE_PATTERNS:
-        pattern = re.compile(pattern_str, re.IGNORECASE)
+    for pattern, parser_func in _COMPILED_DATE_PATTERNS:
         match = pattern.match(heading)
         if match:
             try:
@@ -168,25 +172,29 @@ def split_by_date_headings(content: str) -> List[DateSection]:
     headings = extract_h2_headings(content)
 
     # Track which headings are date headings
-    date_headings: List[Tuple[str, int, date]] = []
+    # Store both line_num (1-indexed) and array index (0-indexed)
+    date_headings: List[Tuple[str, int, int, date]] = []
     for heading_text, line_num in headings:
         parsed_date = parse_date_heading(heading_text)
         if parsed_date is not None:
-            date_headings.append((heading_text, line_num, parsed_date))
+            # line_num is 1-indexed, array index is line_num - 1
+            date_headings.append((heading_text, line_num, line_num - 1, parsed_date))
 
     if not date_headings:
         return []
 
     # Extract content for each date section
-    for i, (heading, start_line, entry_date) in enumerate(date_headings):
+    for i, (heading, line_num, heading_idx, entry_date) in enumerate(date_headings):
         # Find end of section (next date heading or EOF)
         if i + 1 < len(date_headings):
-            end_line = date_headings[i + 1][1] - 1
+            # End at the line before the next heading
+            end_idx = date_headings[i + 1][2]
         else:
-            end_line = len(lines)
+            end_idx = len(lines)
 
         # Extract section content (excluding the heading itself)
-        section_lines = lines[start_line:end_line]
+        # Content starts after the heading line
+        section_lines = lines[heading_idx + 1 : end_idx]
         section_content = "\n".join(section_lines).strip()
 
         # Skip empty sections
@@ -199,8 +207,8 @@ def split_by_date_headings(content: str) -> List[DateSection]:
                 heading=heading,
                 entry_date=entry_date,
                 content=section_content,
-                start_line=start_line,
-                end_line=end_line,
+                start_line=line_num,
+                end_line=end_idx,
             )
         )
 

@@ -1,11 +1,13 @@
 """Vault class for Obsidian vault management."""
 
+import fnmatch
 import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
 from .markdown_parser import parse_markdown
 from .models import Link, Note
@@ -20,18 +22,31 @@ FLOAT_COMPARISON_TOLERANCE = 0.01  # Tolerance for file modification time compar
 class Vault:
     """Raw vault data access and SQLite sync."""
 
-    def __init__(self, vault_path: Path | str, db_path: Optional[Path | str] = None):
+    def __init__(
+        self,
+        vault_path: Path | str,
+        db_path: Optional[Path | str] = None,
+        config: Optional[GeistFabrikConfig] = None,
+    ):
         """Initialize vault.
 
         Args:
             vault_path: Path to Obsidian vault directory
             db_path: Path to SQLite database. If None, uses in-memory database.
+            config: Optional configuration. If None, attempts to load from vault.
         """
         self.vault_path = Path(vault_path)
         if not self.vault_path.exists():
             raise FileNotFoundError(f"Vault path does not exist: {vault_path}")
         if not self.vault_path.is_dir():
             raise NotADirectoryError(f"Vault path is not a directory: {vault_path}")
+
+        # Load or use provided config
+        if config is None:
+            config_path = self.vault_path / ".geistfabrik" / "config.yaml"
+            self.config = load_config(config_path)
+        else:
+            self.config = config
 
         # Initialize database
         if db_path is None:
@@ -41,6 +56,20 @@ class Vault:
 
         # Migrate schema if needed
         migrate_schema(self.db)
+
+    def _is_excluded_from_date_collection(self, rel_path: str) -> bool:
+        """Check if file should be excluded from date-collection detection.
+
+        Args:
+            rel_path: Relative path from vault root
+
+        Returns:
+            True if file matches any exclude pattern
+        """
+        for pattern in self.config.date_collection.exclude_files:
+            if fnmatch.fnmatch(rel_path, pattern):
+                return True
+        return False
 
     def sync(self) -> int:
         """Incrementally update database with changed files.
@@ -61,7 +90,11 @@ class Vault:
             file_mtime = md_file.stat().st_mtime
 
             # Check if file needs to be processed
-            cursor = self.db.execute("SELECT file_mtime FROM notes WHERE path = ?", (rel_path,))
+            # For regular notes, check by path; for journals (virtual entries), check by source_file
+            cursor = self.db.execute(
+                "SELECT file_mtime FROM notes WHERE path = ? OR source_file = ? LIMIT 1",
+                (rel_path, rel_path),
+            )
             row = cursor.fetchone()
 
             if row is not None:
@@ -85,10 +118,22 @@ class Vault:
             created = datetime.fromtimestamp(stat.st_ctime)
             modified = datetime.fromtimestamp(stat.st_mtime)
 
-            # Check if this is a date-collection note
-            if is_date_collection_note(content):
-                # Delete any existing virtual entries for this file
-                self.db.execute("DELETE FROM notes WHERE source_file = ?", (rel_path,))
+            # Check if this is a date-collection note (if enabled and not excluded)
+            dc_config = self.config.date_collection
+            if (
+                dc_config.enabled
+                and not self._is_excluded_from_date_collection(rel_path)
+                and is_date_collection_note(
+                    content,
+                    min_sections=dc_config.min_sections,
+                    date_threshold=dc_config.date_threshold,
+                )
+            ):
+                # Delete any existing entries for this file (both regular note and virtual entries)
+                # This handles the case where a regular note becomes a journal
+                self.db.execute(
+                    "DELETE FROM notes WHERE path = ? OR source_file = ?", (rel_path, rel_path)
+                )
 
                 # Split into virtual entries
                 virtual_notes = split_date_collection_note(rel_path, content, created, modified)
@@ -102,6 +147,10 @@ class Vault:
             else:
                 # Regular note - parse markdown
                 title, clean_content, links, tags = parse_markdown(rel_path, content)
+
+                # Delete any virtual entries from when this might have been a journal
+                # This handles the case where a journal becomes a regular note
+                self.db.execute("DELETE FROM notes WHERE source_file = ?", (rel_path,))
 
                 # Update database
                 self._update_note(
@@ -121,11 +170,22 @@ class Vault:
         # Build set of existing paths for efficient lookup
         existing_paths = {str(f.relative_to(self.vault_path)) for f in md_files}
 
-        # Use parameterized query with tuple of existing paths for efficiency
+        # Delete regular notes (not virtual entries) that no longer exist
+        # Virtual entries are managed by their source_file, not their path
         if existing_paths:
             # Build placeholders string safely (no f-string for SQL)
             placeholders = ",".join(["?"] * len(existing_paths))
-            query = "DELETE FROM notes WHERE path NOT IN ({})".format(placeholders)
+            # Only delete non-virtual notes whose paths don't exist
+            # Virtual entries will be cleaned up if their source_file doesn't exist
+            query = "DELETE FROM notes WHERE is_virtual = 0 AND path NOT IN ({})".format(
+                placeholders
+            )
+            self.db.execute(query, tuple(existing_paths))
+
+            # Also delete virtual entries whose source files no longer exist
+            query = "DELETE FROM notes WHERE is_virtual = 1 AND source_file NOT IN ({})".format(
+                placeholders
+            )
             self.db.execute(query, tuple(existing_paths))
         else:
             # No files exist, delete all notes
@@ -150,45 +210,21 @@ class Vault:
         tags: List[str],
     ) -> None:
         """Update a note and its relationships in the database."""
-        # Insert or replace note
-        self.db.execute(
-            """
-            INSERT OR REPLACE INTO notes (path, title, content, created, modified, file_mtime)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                path,
-                title,
-                content,
-                created.isoformat(),
-                modified.isoformat(),
-                file_mtime,
-            ),
+        # Construct a Note object for regular (non-virtual) entries
+        note = Note(
+            path=path,
+            title=title,
+            content=content,
+            links=links,
+            tags=tags,
+            created=created,
+            modified=modified,
+            is_virtual=False,
+            source_file=None,
+            entry_date=None,
         )
-
-        # Delete old links and tags
-        self.db.execute("DELETE FROM links WHERE source_path = ?", (path,))
-        self.db.execute("DELETE FROM tags WHERE note_path = ?", (path,))
-
-        # Insert new links
-        for link in links:
-            self.db.execute(
-                """
-                INSERT INTO links (source_path, target, display_text, is_embed, block_ref)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    path,
-                    link.target,
-                    link.display_text,
-                    1 if link.is_embed else 0,
-                    link.block_ref,
-                ),
-            )
-
-        # Insert new tags
-        for tag in tags:
-            self.db.execute("INSERT INTO tags (note_path, tag) VALUES (?, ?)", (path, tag))
+        # Delegate to the full update method
+        self._update_note_from_object(note, file_mtime)
 
     def _update_note_from_object(self, note: Note, file_mtime: float) -> None:
         """Update a note from a Note object (including virtual entries).
@@ -243,6 +279,52 @@ class Vault:
         for tag in note.tags:
             self.db.execute("INSERT INTO tags (note_path, tag) VALUES (?, ?)", (note.path, tag))
 
+    def _build_note_from_row(
+        self,
+        row: tuple[str, str, str, str, str, int, Optional[str], Optional[str]],
+        links: List[Link],
+        tags: List[str],
+    ) -> Note:
+        """Build a Note object from a database row.
+
+        Args:
+            row: Tuple of (path, title, content, created, modified,
+                          is_virtual, source_file, entry_date)
+            links: List of Link objects for this note
+            tags: List of tag strings for this note
+
+        Returns:
+            Note object constructed from the row data
+        """
+        from datetime import date
+
+        (
+            path,
+            title,
+            content,
+            created_str,
+            modified_str,
+            is_virtual,
+            source_file,
+            entry_date_str,
+        ) = row
+
+        # Parse entry_date if present
+        entry_date = date.fromisoformat(entry_date_str) if entry_date_str else None
+
+        return Note(
+            path=path,
+            title=title,
+            content=content,
+            links=links,
+            tags=tags,
+            created=datetime.fromisoformat(created_str),
+            modified=datetime.fromisoformat(modified_str),
+            is_virtual=bool(is_virtual),
+            source_file=source_file,
+            entry_date=entry_date,
+        )
+
     def all_notes(self) -> List[Note]:
         """Load all notes from database.
 
@@ -289,36 +371,11 @@ class Vault:
         # Assemble Note objects
         notes = []
         for row in note_rows:
-            (
-                path,
-                title,
-                content,
-                created_str,
-                modified_str,
-                is_virtual,
-                source_file,
-                entry_date_str,
-            ) = row
-
-            # Parse entry_date if present
-            from datetime import date
-
-            entry_date = date.fromisoformat(entry_date_str) if entry_date_str else None
-
-            notes.append(
-                Note(
-                    path=path,
-                    title=title,
-                    content=content,
-                    links=links_by_path.get(path, []),
-                    tags=tags_by_path.get(path, []),
-                    created=datetime.fromisoformat(created_str),
-                    modified=datetime.fromisoformat(modified_str),
-                    is_virtual=bool(is_virtual),
-                    source_file=source_file,
-                    entry_date=entry_date,
-                )
+            path = row[0]  # Extract path for dict lookups
+            note = self._build_note_from_row(
+                row, links_by_path.get(path, []), tags_by_path.get(path, [])
             )
+            notes.append(note)
 
         return notes
 
@@ -344,30 +401,15 @@ class Vault:
         if row is None:
             return None
 
-        (
-            path,
-            title,
-            content,
-            created_str,
-            modified_str,
-            is_virtual,
-            source_file,
-            entry_date_str,
-        ) = row
-
-        # Parse entry_date if present
-        from datetime import date
-
-        entry_date = date.fromisoformat(entry_date_str) if entry_date_str else None
-
         # Load links for this note
+        note_path = row[0]  # Extract path from row
         link_cursor = self.db.execute(
             """
             SELECT target, display_text, is_embed, block_ref
             FROM links
             WHERE source_path = ?
             """,
-            (path,),
+            (note_path,),
         )
         links = [
             Link(
@@ -381,24 +423,13 @@ class Vault:
 
         # Load tags for this note
         tag_cursor = self.db.execute(
-            "SELECT tag FROM tags WHERE note_path = ? ORDER BY tag", (path,)
+            "SELECT tag FROM tags WHERE note_path = ? ORDER BY tag", (note_path,)
         )
         tags = [tag_row[0] for tag_row in tag_cursor.fetchall()]
 
-        return Note(
-            path=path,
-            title=title,
-            content=content,
-            links=links,
-            tags=tags,
-            created=datetime.fromisoformat(created_str),
-            modified=datetime.fromisoformat(modified_str),
-            is_virtual=bool(is_virtual),
-            source_file=source_file,
-            entry_date=entry_date,
-        )
+        return self._build_note_from_row(row, links, tags)
 
-    def resolve_link_target(self, target: str) -> Optional[Note]:
+    def resolve_link_target(self, target: str, source_path: Optional[str] = None) -> Optional[Note]:
         """Resolve a wiki-link target to a Note.
 
         Wiki-links in Obsidian can reference notes by:
@@ -406,37 +437,61 @@ class Vault:
         - Path without extension: "path/to/note"
         - Note title: "Note Title"
         - Basename: "note"
+        - Date (from journal): "2025-01-15" (resolves to entry in same journal)
+        - Virtual path: "Journal.md/2025-01-15"
 
         This method tries to resolve the target in order:
-        1. As exact path match
+        1. As exact path match (handles virtual paths)
         2. As path with .md extension added
-        3. As note title match
+        3. As title match (handles virtual entry titles)
+        4. As date reference (if source is a journal entry)
 
         Args:
             target: Link target string from wiki-link
+            source_path: Optional path of the note containing the link
+                         (needed for context-aware date resolution)
 
         Returns:
             Note object if found, None otherwise
         """
-        # Try as exact path first
-        note = self.get_note(target)
+        # Strip heading/block references for resolution
+        # e.g., [[Note#heading]] -> "Note", [[Note^block]] -> "Note"
+        clean_target = target.split("#")[0].split("^")[0]
+
+        # Try as exact path first (handles virtual paths like "Journal.md/2025-01-15")
+        note = self.get_note(clean_target)
         if note is not None:
             return note
 
         # Try adding .md extension
-        if not target.endswith(".md"):
-            note = self.get_note(f"{target}.md")
+        if not clean_target.endswith(".md"):
+            note = self.get_note(f"{clean_target}.md")
             if note is not None:
                 return note
 
-        # Try looking up by title
+        # Try looking up by title (handles virtual entry titles)
         cursor = self.db.execute(
             "SELECT path FROM notes WHERE title = ?",
-            (target,),
+            (clean_target,),
         )
         row = cursor.fetchone()
         if row is not None:
             return self.get_note(row[0])
+
+        # Try date-based resolution if source is a virtual entry
+        if source_path and "/" in source_path:
+            from .date_collection import parse_date_heading
+
+            # Source is a virtual entry, target might be a date reference
+            date_obj = parse_date_heading(f"## {clean_target}")
+            if date_obj is not None:
+                # Extract source file from virtual path
+                source_file = source_path.split("/")[0]
+                # Try to find entry with this date in the same journal
+                virtual_path = f"{source_file}/{date_obj.isoformat()}"
+                note = self.get_note(virtual_path)
+                if note is not None:
+                    return note
 
         return None
 
