@@ -160,17 +160,21 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  ├─────────────────────────────────────────────────────────────────┤   ┃
 ┃  │  @dataclass(frozen=True)                                        │   ┃
 ┃  │  class Note:                                                    │   ┃
-┃  │    path: str          # "path/to/note.md"                       │   ┃
+┃  │    path: str          # "path/to/note.md" or virtual path      │   ┃
 ┃  │    title: str         # "Note Title"                            │   ┃
 ┃  │    content: str       # Full markdown text                      │   ┃
 ┃  │    links: List[Link]  # [[wikilinks]] found                     │   ┃
 ┃  │    tags: List[str]    # #tags found                             │   ┃
-┃  │    created: datetime  # File creation                           │   ┃
+┃  │    created: datetime  # File creation (or entry date)           │   ┃
 ┃  │    modified: datetime # Last edit                               │   ┃
+┃  │    is_virtual: bool   # True for date-collection entries        │   ┃
+┃  │    source_file: str   # Source file for virtual entries         │   ┃
+┃  │    entry_date: date   # Date from heading (virtual entries)     │   ┃
 ┃  │                                                                  │   ┃
 ┃  │  ✓ Immutable (frozen dataclass)                                 │   ┃
 ┃  │  ✓ Lightweight (no computed properties)                         │   ┃
 ┃  │  ✓ All intelligence lives in VaultContext, not Note            │   ┃
+┃  │  ✓ Supports date-collection notes (journal file splitting)      │   ┃
 ┃  └─────────────────────────────────────────────────────────────────┘   ┃
 ┃                                                                          ┃
 ┃  ┌─────────────────────────────────────────────────────────────────┐   ┃
@@ -192,7 +196,8 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  │  • Temporal features (3 dims): note age, creation season,       │   ┃
 ┃  │    session season                                               │   ┃
 ┃  │  • Fresh computation each session (temporal drift tracking)     │   ┃
-┃  │  • Stored in SQLite via sqlite-vec extension                    │   ┃
+┃  │  • Stored in SQLite as BLOBs, loaded into memory for search     │   ┃
+┃  │  • Python-based cosine similarity (efficient for 100-1000 notes)│   ┃
 ┃  └─────────────────────────────────────────────────────────────────┘   ┃
 ┃                                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -286,7 +291,7 @@ PERSISTENCE:
   • Single SQLite file: <vault>/_geistfabrik/vault.db
   • Incremental sync (only changed files reprocessed)
   • Temporal embeddings (fresh each session for drift tracking)
-  • sqlite-vec extension for vector similarity search
+  • In-memory vector similarity search (Python cosine similarity)
 ```
 
 ## Summary
