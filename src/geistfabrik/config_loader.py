@@ -63,11 +63,41 @@ DEFAULT_TRACERY_GEISTS = [
 
 
 @dataclass
+class DateCollectionConfig:
+    """Configuration for date-collection notes."""
+
+    enabled: bool = True
+    exclude_files: List[str] = field(default_factory=list)
+    min_sections: int = 2
+    date_threshold: float = 0.5
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DateCollectionConfig":
+        """Create config from dictionary."""
+        return cls(
+            enabled=data.get("enabled", True),
+            exclude_files=data.get("exclude_files", []),
+            min_sections=data.get("min_sections", 2),
+            date_threshold=data.get("date_threshold", 0.5),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary."""
+        return {
+            "enabled": self.enabled,
+            "exclude_files": self.exclude_files,
+            "min_sections": self.min_sections,
+            "date_threshold": self.date_threshold,
+        }
+
+
+@dataclass
 class GeistFabrikConfig:
     """GeistFabrik configuration."""
 
     enabled_modules: List[str] = field(default_factory=list)
     default_geists: Dict[str, bool] = field(default_factory=dict)
+    date_collection: DateCollectionConfig = field(default_factory=DateCollectionConfig)
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.
@@ -103,9 +133,11 @@ class GeistFabrikConfig:
         Returns:
             GeistFabrikConfig instance
         """
+        date_collection_data = data.get("date_collection", {})
         return cls(
             enabled_modules=data.get("enabled_modules", []),
             default_geists=data.get("default_geists", {}),
+            date_collection=DateCollectionConfig.from_dict(date_collection_data),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -117,6 +149,7 @@ class GeistFabrikConfig:
         return {
             "enabled_modules": self.enabled_modules,
             "default_geists": self.default_geists,
+            "date_collection": self.date_collection.to_dict(),
         }
 
 
@@ -189,6 +222,15 @@ def generate_default_config() -> str:
     lines.append("# List of metadata inference and vault function modules to enable")
     lines.append("# If empty or not specified, all modules are enabled")
     lines.append("enabled_modules: []")
+    lines.append("")
+    lines.append("# Date-Collection Notes")
+    lines.append("# ---------------------")
+    lines.append("# Configuration for journal files with multiple date-based entries")
+    lines.append("date_collection:")
+    lines.append("  enabled: true           # Enable date-collection detection and splitting")
+    lines.append("  min_sections: 2         # Minimum H2 headings required for detection")
+    lines.append("  date_threshold: 0.5     # Minimum fraction of H2s that must be dates")
+    lines.append("  exclude_files: []       # Glob patterns to exclude (e.g., 'Templates/*.md')")
     lines.append("")
 
     return "\n".join(lines)

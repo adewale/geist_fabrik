@@ -20,6 +20,7 @@ See [STATUS.md](STATUS.md) for detailed implementation status and test results, 
 
 ### Core Functionality
 ✅ **Vault Management**: Parse Obsidian vaults with incremental sync
+✅ **Date-Collection Notes**: Automatically split journal files into virtual entries
 ✅ **Semantic Search**: 384-dim embeddings via sentence-transformers
 ✅ **Temporal Embeddings**: Track how understanding evolves over time
 ✅ **Graph Operations**: Orphans, hubs, backlinks, unlinked pairs
@@ -247,6 +248,39 @@ default_geists:
 **Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
 
 **See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 45 default geists with descriptions and configuration tips.
+
+### Date-Collection Notes (Journal Files)
+
+GeistFabrik automatically detects and splits journal files with multiple date-based entries into individual virtual notes:
+
+```markdown
+## 2025-01-15
+Had an insight about [[PKM Systems]] today...
+
+## 2025-01-16
+Followed up on yesterday's thoughts. Created [[New Project Idea]].
+
+## 2025-01-17
+Implemented the first prototype...
+```
+
+This single file becomes three virtual entries that can be individually linked, searched, and referenced:
+- `Daily Journal.md/2025-01-15`
+- `Daily Journal.md/2025-01-16`
+- `Daily Journal.md/2025-01-17`
+
+**Supported Date Formats**: ISO (2025-01-15), US (01/15/2025), EU (15.01.2025), Long (January 15, 2025), Year-Month-Day (2025 January 15), and more.
+
+**Configuration**:
+```yaml
+date_collection:
+  enabled: true
+  min_sections: 2        # Minimum H2 headings required
+  date_threshold: 0.5    # Minimum fraction that must be dates
+  exclude_files: []      # Patterns to exclude (e.g., 'Templates/*')
+```
+
+**See**: [docs/JOURNAL_FILES.md](docs/JOURNAL_FILES.md) for complete documentation, usage guide, and examples.
 
 ## Extending GeistFabrik
 

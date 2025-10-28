@@ -185,14 +185,20 @@ Embeddings combine semantic (384 dims from sentence-transformers) with temporal 
 ```python
 @dataclass
 class Note:
-    path: str           # Relative path in vault
-    title: str          # Note title
-    content: str        # Full markdown content
-    links: List[Link]   # Outgoing [[links]]
-    tags: List[str]     # #tags found in note
-    created: datetime   # File creation time
-    modified: datetime  # Last modification time
+    path: str                    # Relative path or virtual path
+    title: str                   # Note title
+    content: str                 # Full markdown content
+    links: List[Link]            # Outgoing [[links]]
+    tags: List[str]              # #tags found in note
+    created: datetime            # File creation or entry date
+    modified: datetime           # File modification time
+    # Virtual entry fields (for date-collection notes)
+    is_virtual: bool = False     # True for journal entries
+    source_file: str | None = None  # Source file for virtual entries
+    entry_date: date | None = None  # Date from heading for virtual entries
 ```
+
+**Virtual Entries**: Notes with `is_virtual=True` are split from journal files with date headings. They have synthetic paths like `Journal.md/2025-01-15` and can be linked, queried, and referenced like regular notes. See `docs/JOURNAL_FILES.md` for details.
 
 ### Suggestion
 ```python
