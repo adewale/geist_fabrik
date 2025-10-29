@@ -236,6 +236,39 @@ A: No. GeistFabrik only runs when you invoke it from terminal. Obsidian never se
 **Q: What about large vaults?**
 A: Tested on 100+ notes. Initial sync for 1000 notes takes 2-5 minutes. After that, incremental syncs are fast.
 
+**Q: Which backend should I use for my vault size?**
+A: GeistFabrik offers two vector search backends with different performance characteristics:
+
+**Use InMemory (default)** for:
+- Vaults with < 500 notes
+- Faster startup (0.1-2ms load time)
+- Simpler deployment (no extra dependencies)
+
+**Use SqliteVec** for:
+- Vaults with > 1000 notes
+- 6x faster queries at 2000 notes
+- Better scaling for large vaults
+
+**Benchmark Results:**
+
+| Vault Size | InMemory Query | SqliteVec Query | Speedup |
+|------------|----------------|-----------------|---------|
+| 100 notes  | 0.20ms        | 0.16ms         | 1.25x   |
+| 500 notes  | 1.02ms        | 0.24ms         | 4.16x   |
+| 1000 notes | 2.00ms        | 0.37ms         | 5.41x   |
+| 2000 notes | 4.02ms        | 0.67ms         | 5.97x   |
+
+To enable SqliteVec:
+```bash
+# Install the optional dependency
+uv pip install -e ".[vector-search]"
+
+# Configure in _geistfabrik/config.yaml
+vector_backend: sqlite-vec
+```
+
+Run your own benchmarks: `uv run python scripts/benchmark_backends.py`
+
 **Q: Can I create custom geists?**
 A: Yes! Create `_geistfabrik/geists/code/my_geist.py`:
 
