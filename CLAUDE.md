@@ -268,6 +268,68 @@ The `testdata/kepano-obsidian-main/` directory contains real Obsidian notes for 
 - Project notes (2023 Japan Trip.md)
 - Provides realistic vault structure for development
 
+### Critical Testing Lessons Learned
+
+During the vector search backend implementation, we discovered a **critical bug** (L2 distance instead of cosine distance) that was missed by tests. This led to significant improvements in our testing approach:
+
+#### The Four Pillars of Robust Testing
+
+1. **Fail Loudly in CI**
+   - Tests must not skip silently in CI environments
+   - Use `os.environ.get("CI")` to enforce critical test requirements
+   - Example: `if os.environ.get("CI") and not DEPENDENCY_AVAILABLE: pytest.fail()`
+
+2. **Test Extension/Dependency Loading**
+   - Don't assume dependencies load correctly
+   - Explicitly test that extensions are callable
+   - Verify version numbers and functionality
+
+3. **Use Known-Answer Tests**
+   - Test mathematical ground truths (e.g., orthogonal vectors → 0.0 similarity)
+   - These catch fundamental algorithm bugs (like wrong distance metrics)
+   - More valuable than fuzzy integration tests for catching logic errors
+
+4. **Always-Run Integration Tests**
+   - Some tests should NEVER skip, even without optional dependencies
+   - Test the default path unconditionally
+   - Optionally test enhanced paths when dependencies available
+   - Use `if DEPENDENCY_AVAILABLE:` pattern, not `pytest.skip()`
+
+#### Example: Robust Test Structure
+
+```python
+# Module-level check
+try:
+    import optional_dependency
+    DEPENDENCY_AVAILABLE = True
+except ImportError:
+    DEPENDENCY_AVAILABLE = False
+
+# Fail loudly in CI
+if os.environ.get("CI") and not DEPENDENCY_AVAILABLE:
+    pytest.fail("optional_dependency required in CI")
+
+# Always-run integration test
+def test_core_functionality(db):
+    """Test core path (NEVER SKIPS)."""
+    backend = DefaultBackend(db)
+    # ... test default behavior ...
+
+    # Test enhanced path if available
+    if DEPENDENCY_AVAILABLE:
+        enhanced = EnhancedBackend(db)
+        # ... test and compare ...
+
+# Known-answer test
+def test_mathematical_ground_truth():
+    """Test known mathematical property."""
+    # e.g., orthogonal vectors should have 0.0 cosine similarity
+    result = compute_similarity([1, 0, 0], [0, 1, 0])
+    assert abs(result - 0.0) < 1e-6  # Catches wrong distance metric
+```
+
+**Key Insight**: Test coverage ≠ Test execution. High coverage is meaningless if tests skip silently.
+
 ## Key Files to Reference
 
 - `specs/geistfabrik_spec.md` - Complete technical specification (~1500 lines)

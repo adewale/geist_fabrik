@@ -18,10 +18,13 @@ import math
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
+
+if TYPE_CHECKING:
+    from .vector_search import VectorSearchBackend
 
 from .config import (
     DEFAULT_BATCH_SIZE,
@@ -174,6 +177,7 @@ class Session:
         date: datetime,
         db: sqlite3.Connection,
         computer: Optional[EmbeddingComputer] = None,
+        backend: str = "in-memory",
     ):
         """Initialize session.
 
@@ -181,11 +185,14 @@ class Session:
             date: Session date
             db: Database connection
             computer: EmbeddingComputer instance (for testing/injection), if None will create new
+            backend: Vector search backend to use ('in-memory' or 'sqlite-vec')
         """
         self.date = date
         self.db = db
         self.session_id = self._get_or_create_session()
         self.computer = computer if computer is not None else EmbeddingComputer()
+        self._backend_type = backend
+        self._backend: Optional["VectorSearchBackend"] = None
 
     def _get_or_create_session(self) -> int:
         """Get existing session ID or create new session.
@@ -424,6 +431,8 @@ class Session:
     def get_all_embeddings(self) -> dict[str, np.ndarray]:
         """Get all embeddings for this session.
 
+        Deprecated: Use get_backend() instead for better abstraction.
+
         Returns:
             Dictionary mapping note paths to embeddings
         """
@@ -442,6 +451,40 @@ class Session:
             embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
 
         return embeddings
+
+    def _create_backend(self) -> "VectorSearchBackend":
+        """Create vector search backend based on configuration.
+
+        Returns:
+            Initialized VectorSearchBackend
+
+        Raises:
+            ValueError: If unknown backend type specified
+        """
+        from .vector_search import InMemoryVectorBackend, SqliteVecBackend
+
+        if self._backend_type == "in-memory":
+            return InMemoryVectorBackend(self.db)
+        elif self._backend_type == "sqlite-vec":
+            return SqliteVecBackend(self.db)
+        else:
+            raise ValueError(f"Unknown backend type: {self._backend_type}")
+
+    def get_backend(self) -> "VectorSearchBackend":
+        """Get vector search backend for this session.
+
+        Lazily creates and loads the backend on first access.
+
+        Returns:
+            VectorSearchBackend with embeddings loaded
+        """
+        if self._backend is None:
+            self._backend = self._create_backend()
+            # Load embeddings for this session
+            session_date = self.date.strftime("%Y-%m-%d")
+            self._backend.load_embeddings(session_date)
+
+        return self._backend
 
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:

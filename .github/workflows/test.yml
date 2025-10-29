@@ -42,7 +42,9 @@ jobs:
             ${{ runner.os }}-sentence-transformers-
 
       - name: Install dependencies
-        run: uv sync
+        run: |
+          uv sync
+          uv pip install -e ".[vector-search]"
         env:
           # Force uv to cache aggressively
           UV_CACHE_DIR: ${{ runner.temp }}/uv-cache

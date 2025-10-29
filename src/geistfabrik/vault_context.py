@@ -5,7 +5,7 @@ import random
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-from .embeddings import Session, cosine_similarity, find_similar_notes
+from .embeddings import Session, cosine_similarity
 from .models import Link, Note
 from .vault import Vault
 
@@ -64,7 +64,11 @@ class VaultContext:
         # Track metadata inference errors
         self.metadata_errors: Dict[str, List[str]] = {}  # note_path -> list of failed module names
 
-        # Cache for embeddings (loaded from session)
+        # Vector search backend (delegated from session)
+        self._backend = session.get_backend()
+
+        # Keep backward-compatible embeddings dict for compatibility
+        # (Some code may still access self._embeddings directly)
         self._embeddings = session.get_all_embeddings()
 
     # Direct vault access (delegated)
@@ -128,21 +132,24 @@ class VaultContext:
             List of similar notes, sorted by similarity descending
         """
         # Get embedding for query note
-        query_embedding = self._embeddings.get(note.path)
-        if query_embedding is None:
+        try:
+            query_embedding = self._backend.get_embedding(note.path)
+        except KeyError:
             return []
 
-        # Find similar notes
-        similar = find_similar_notes(
-            query_embedding, self._embeddings, k=k + 1, exclude_paths={note.path}
-        )
+        # Find similar notes (request k+1 to exclude self)
+        similar = self._backend.find_similar(query_embedding, k=k + 1)
 
-        # Convert paths to notes
+        # Convert paths to notes, excluding the query note
         result = []
-        for path, _ in similar[:k]:
+        for path, _ in similar:
+            if path == note.path:
+                continue  # Skip self
             similar_note = self.get_note(path)
             if similar_note is not None:
                 result.append(similar_note)
+                if len(result) >= k:
+                    break
 
         return result
 
@@ -156,13 +163,10 @@ class VaultContext:
         Returns:
             Cosine similarity (0-1)
         """
-        embedding_a = self._embeddings.get(a.path)
-        embedding_b = self._embeddings.get(b.path)
-
-        if embedding_a is None or embedding_b is None:
+        try:
+            return self._backend.get_similarity(a.path, b.path)
+        except KeyError:
             return 0.0
-
-        return cosine_similarity(embedding_a, embedding_b)
 
     # Graph operations
 
