@@ -224,7 +224,7 @@ class StatsCollector:
         # Hubs: notes with >= 10 connections (outgoing)
         cursor = self.db.execute(
             """
-            SELECT COUNT(DISTINCT source_path)
+            SELECT source_path
             FROM links
             GROUP BY source_path
             HAVING COUNT(*) >= 10
@@ -697,6 +697,11 @@ class EmbeddingMetricsComputer:
         if not force_recompute:
             cached = self._load_cached_metrics(session_date)
             if cached:
+                # Always include dimension and n_notes from current embeddings
+                # (these are not cached because they can change)
+                cached["n_notes"] = len(embeddings)
+                cached["dimension"] = embeddings.shape[1]
+                cached["session_date"] = session_date
                 return cached
 
         # Compute metrics
@@ -742,9 +747,17 @@ class EmbeddingMetricsComputer:
         for key in ["n_clusters", "n_gaps"]:
             if key in cached and cached[key] is not None:
                 try:
-                    cached[key] = int(cached[key])
-                except (TypeError, ValueError):
-                    pass
+                    # Handle both regular ints and blobs (numpy int serialization)
+                    if isinstance(cached[key], bytes):
+                        # Blob from numpy int - use struct to unpack
+                        import struct
+
+                        cached[key] = struct.unpack("<q", cached[key])[0]  # little-endian int64
+                    else:
+                        cached[key] = int(cached[key])
+                except (TypeError, ValueError, struct.error):
+                    # If conversion fails, set to None rather than keeping invalid data
+                    cached[key] = None
 
         return cached
 
@@ -752,6 +765,16 @@ class EmbeddingMetricsComputer:
         """Cache computed metrics to database."""
         # Serialize cluster_labels to JSON
         cluster_labels_json = json.dumps(metrics.get("cluster_labels", {}))
+
+        # Convert numpy types to Python types for SQLite
+        def to_python_type(val: Any) -> Any:
+            if val is None:
+                return None
+            if isinstance(val, (np.integer, np.int64, np.int32)):
+                return int(val)
+            if isinstance(val, (np.floating, np.float64, np.float32)):
+                return float(val)
+            return val
 
         self.db.execute(
             """
@@ -762,12 +785,12 @@ class EmbeddingMetricsComputer:
             """,
             (
                 session_date,
-                metrics.get("intrinsic_dim"),
-                metrics.get("vendi_score"),
-                metrics.get("shannon_entropy"),
-                metrics.get("silhouette_score"),
-                metrics.get("n_clusters"),
-                metrics.get("n_gaps"),
+                to_python_type(metrics.get("intrinsic_dim")),
+                to_python_type(metrics.get("vendi_score")),
+                to_python_type(metrics.get("shannon_entropy")),
+                to_python_type(metrics.get("silhouette_score")),
+                to_python_type(metrics.get("n_clusters")),
+                to_python_type(metrics.get("n_gaps")),
                 cluster_labels_json,
                 datetime.now().isoformat(),
             ),
