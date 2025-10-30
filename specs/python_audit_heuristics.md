@@ -3,17 +3,19 @@
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Python Best Practices & Style Guidelines](#python-best-practices--style-guidelines)
-3. [LLM & AI Code Generation Error Patterns](#llm--ai-code-generation-error-patterns)
-4. [Code Review Techniques](#code-review-techniques)
-5. [Static Analysis Tools](#static-analysis-tools)
-6. [Python Anti-Patterns](#python-anti-patterns)
-7. [Security Vulnerabilities](#security-vulnerabilities)
-8. [Testing Best Practices](#testing-best-practices)
-9. [Performance Optimization](#performance-optimization)
-10. [Concurrency & Async Patterns](#concurrency--async-patterns)
-11. [Documentation Standards](#documentation-standards)
-12. [Complete Audit Checklist](#complete-audit-checklist)
+2. [Systematic Audit Methodology](#systematic-audit-methodology)
+3. [Python Best Practices & Style Guidelines](#python-best-practices--style-guidelines)
+4. [LLM & AI Code Generation Error Patterns](#llm--ai-code-generation-error-patterns)
+5. [Code Review Techniques](#code-review-techniques)
+6. [Static Analysis Tools](#static-analysis-tools)
+7. [Python Anti-Patterns](#python-anti-patterns)
+8. [Security Vulnerabilities](#security-vulnerabilities)
+9. [Testing Best Practices](#testing-best-practices)
+10. [Performance Optimization](#performance-optimization)
+11. [Concurrency & Async Patterns](#concurrency--async-patterns)
+12. [Documentation Standards](#documentation-standards)
+13. [Database & Type System Pitfalls](#database--type-system-pitfalls)
+14. [Complete Audit Checklist](#complete-audit-checklist)
 
 ---
 
@@ -28,6 +30,399 @@ This document provides comprehensive heuristics for auditing Python codebases, w
 - **Fail fast**: Errors should be caught early through static analysis and testing
 - **Security by default**: Assume untrusted input and validate rigorously
 - **Profile before optimizing**: Avoid premature optimization without data
+
+---
+
+## Systematic Audit Methodology
+
+**Based on real-world audit experience from GeistFabrik stats command implementation (January 2025)**
+
+This section captures lessons learned from auditing a complete feature implementation, revealing systematic oversights and effective detection strategies.
+
+### The Five Root Causes of Overlooked Issues
+
+Analysis of a real stats command implementation revealed five core reasons why issues were initially missed:
+
+#### 1. Speed Over Thoroughness
+**Problem**: Prioritizing task completion speed over comprehensive implementation
+**Manifestation**: Marking todos complete without verification, skipping difficult parts
+**Solution**: Build verification into the definition of "done"
+
+```python
+# BAD: Claiming complete without running
+def compute_metrics(embeddings):
+    # Implementation here...
+    pass
+# Mark as done ✓ (Never ran the code!)
+
+# GOOD: Verification is part of completion
+def compute_metrics(embeddings):
+    # Implementation here...
+    pass
+
+# Before marking complete:
+# 1. Run the function with real data
+# 2. Check output format matches spec
+# 3. Verify edge cases (empty input, single item, etc.)
+```
+
+#### 2. Implementation Without Validation
+**Problem**: Writing code but never executing it to verify behavior
+**Critical insight**: **Assume your code doesn't work until you've proven it does**
+
+**The Validation Checklist**:
+- [ ] Run the code with typical inputs
+- [ ] Run the code with edge case inputs (empty, single, max)
+- [ ] Check output manually (not just "no error")
+- [ ] Verify against specification requirements
+- [ ] Test error conditions
+
+```python
+# BAD: Implementation without verification
+def get_temporal_drift(self, current_date: str) -> Dict[str, Any]:
+    # 50 lines of implementation
+    return drift_analysis
+# Ship it! ❌
+
+# GOOD: Implementation with systematic validation
+def get_temporal_drift(self, current_date: str) -> Dict[str, Any]:
+    # 50 lines of implementation
+    return drift_analysis
+
+# Validation (before claiming complete):
+vault = load_test_vault()
+result = vault.get_temporal_drift("2025-01-15")
+print(f"Keys: {result.keys()}")  # Check structure
+print(f"Drift: {result['average_drift']}")  # Check values make sense
+assert "high_drift_notes" in result  # Verify required fields
+```
+
+#### 3. Satisficing (Good Enough Syndrome)
+**Problem**: Implementing "good enough" instead of spec-complete
+**Manifestation**: Skipping optional features, simplified implementations, incomplete error handling
+
+**Detection**:
+```bash
+# Compare implementation against spec systematically
+diff <(grep "^- \[x\]" FEATURE_SPEC.md | wc -l) \
+     <(grep "def.*:" implementation.py | wc -l)
+```
+
+**Example**: Stats command initially had:
+- Basic metrics ✓
+- Advanced metrics ✗ (skipped TwoNN, Vendi Score, IsoScore)
+- Temporal drift ✗ (claimed too complex)
+- Verbose mode ✗ (partial implementation)
+
+**Solution**: Treat specs as contracts, not suggestions.
+
+#### 4. Avoiding Complexity
+**Problem**: Skipping the hardest parts, implementing easy features first
+**Psychological pattern**: Dopamine from completing easy tasks, dread from complex ones
+
+**The Complexity-First Rule**:
+> Implement the hardest 20% first. If you can't do the hard parts, the easy parts don't matter.
+
+```python
+# BAD: Implementing easy parts first
+# ✓ Basic stats collection (easy)
+# ✓ Simple formatters (easy)
+# ✗ Temporal drift analysis (hard - "too complex")
+# ✗ Advanced embedding metrics (hard - "requires dependencies")
+
+# GOOD: Tackle complex parts first
+# ✓ Temporal drift with Procrustes alignment
+# ✓ TwoNN intrinsic dimensionality
+# ✓ Vendi Score implementation
+# ✓ Then simple stats collection
+# ✓ Then formatters
+```
+
+#### 5. No Testing Discipline
+**Problem**: Treating tests as optional post-hoc verification instead of part of implementation
+
+**The Test-First Mindset**:
+- Tests aren't "done after implementation"
+- Tests are HOW you verify implementation
+- No tests = No confidence = Not done
+
+```python
+# BAD: Implementation without tests
+def parse_date(date_str: str) -> datetime:
+    # Complex parsing logic
+    return parsed_date
+# "I'll write tests later" ❌
+
+# GOOD: Test-driven verification
+def test_parse_date_iso_format():
+    assert parse_date("2025-01-15") == datetime(2025, 1, 15)
+
+def test_parse_date_invalid():
+    with pytest.raises(ValueError):
+        parse_date("not-a-date")
+
+def test_parse_date_edge_cases():
+    assert parse_date("2025-12-31") == datetime(2025, 12, 31)
+    assert parse_date("2000-01-01") == datetime(2000, 1, 1)
+```
+
+### Systematic Audit Process
+
+A three-phase approach proven effective for catching implementation gaps:
+
+#### Phase 1: Completeness Check
+**Goal**: Verify every spec requirement is implemented
+
+```markdown
+# Create audit document
+## Section 1: Vault Overview
+**Spec Requirements:**
+- Vault path ✓
+- Database size ✓
+- Last sync ✓
+- Configuration path ✓
+- Vector backend ✗ (MISSING)
+
+## Section 2: Embedding Metrics
+**Spec Requirements:**
+- Intrinsic dimensionality ✗ (MISSING)
+- Vendi Score ✗ (MISSING)
+...
+```
+
+**Process**:
+1. List every requirement from spec
+2. Check implementation for each requirement
+3. Mark ✓ (implemented) or ✗ (missing/incomplete)
+4. Don't accept partial credit
+
+#### Phase 2: Correctness Check
+**Goal**: Verify implementation behavior matches spec
+
+**SQL Query Audit**:
+```sql
+-- Check every SQL query for:
+-- 1. Correct JOINs
+SELECT s.date, COUNT(*) FROM sessions s
+JOIN session_embeddings se ON s.date = se.session_id  -- ❌ WRONG
+-- Should be: s.session_id = se.session_id
+
+-- 2. Efficient queries
+SELECT COUNT(DISTINCT source_path) FROM links  -- ❌ INEFFICIENT
+-- Should be: SELECT source_path FROM links GROUP BY source_path
+
+-- 3. Correct aggregations
+SELECT COUNT(*) as n_gaps FROM embeddings WHERE cluster = -1  -- ❌ WRONG TABLE
+-- Should be: Use clustering results, not embeddings table
+```
+
+**Data Flow Audit**:
+```python
+# Trace data from input to output
+embedding_metrics = compute_metrics()  # Returns Dict[str, Any]
+cached = _cache_metrics(metrics)       # Stores to SQLite
+loaded = _load_cached_metrics()        # Reads from SQLite
+formatted = format_metrics(loaded)     # Formats for display
+
+# Check at each step:
+# - Types preserved? (int stays int, not becomes blob)
+# - All fields present? (dimension, n_notes added when loading cache)
+# - Values make sense? (negative percentages, impossible counts)
+```
+
+#### Phase 3: Edge Case Testing
+**Goal**: Find bugs through actual execution
+
+**The Edge Case Matrix**:
+```python
+# Test with:
+# - Empty inputs (0 notes, 0 embeddings)
+# - Single item (1 note, 1 embedding)
+# - Large inputs (1000+ notes)
+# - Missing data (no sessions, no cache)
+# - Invalid data (corrupted SQLite, malformed embeddings)
+# - Type boundaries (numpy types, None values, blobs)
+
+def test_edge_cases():
+    # Empty vault
+    stats = collect_stats(empty_vault)
+    assert stats["notes"]["total"] == 0
+    assert stats["embeddings"] is None  # Not crash
+
+    # Single note
+    stats = collect_stats(single_note_vault)
+    assert stats["graph"]["density"] is not None  # Handle division by zero
+
+    # No cache
+    metrics = compute_metrics(embeddings, force_recompute=True)
+    assert "dimension" in metrics  # Don't rely on cache
+```
+
+### Common Bugs Found Through Systematic Audits
+
+Based on real findings from stats command audit:
+
+#### 1. SQLite Type Serialization Issues
+**Problem**: NumPy integers stored as blobs instead of INTEGER
+
+```python
+# BAD: Direct insertion of numpy types
+metrics = {"n_clusters": np.int64(5), "n_gaps": np.int64(8)}
+cursor.execute("INSERT INTO metrics VALUES (?, ?)",
+               (metrics["n_clusters"], metrics["n_gaps"]))
+# Stored as blobs: b'\x05\x00\x00\x00\x00\x00\x00\x00'
+
+# GOOD: Explicit type conversion
+def to_python_type(val: Any) -> Any:
+    if isinstance(val, (np.integer, np.int64, np.int32)):
+        return int(val)
+    if isinstance(val, (np.floating, np.float64, np.float32)):
+        return float(val)
+    return val
+
+metrics = {"n_clusters": to_python_type(5), "n_gaps": to_python_type(8)}
+cursor.execute("INSERT INTO metrics VALUES (?, ?)",
+               (metrics["n_clusters"], metrics["n_gaps"]))
+```
+
+**Detection**: Manual inspection of SQLite data
+```bash
+sqlite3 vault.db "SELECT typeof(n_gaps), n_gaps FROM metrics LIMIT 1"
+# Bad: blob|
+# Good: integer|8
+```
+
+#### 2. Missing Fields in Cached Data
+**Problem**: Cache stores subset of fields, missing others on retrieval
+
+```python
+# BAD: Returning cached data as-is
+def compute_metrics(embeddings, force_recompute=False):
+    if not force_recompute:
+        cached = load_cache()
+        if cached:
+            return cached  # ❌ Missing dimension, n_notes!
+
+    # Compute fresh metrics
+    return full_metrics
+
+# GOOD: Always populate dynamic fields
+def compute_metrics(embeddings, force_recompute=False):
+    if not force_recompute:
+        cached = load_cache()
+        if cached:
+            # Always include fields that can change
+            cached["dimension"] = embeddings.shape[1]
+            cached["n_notes"] = len(embeddings)
+            return cached
+
+    return full_metrics
+```
+
+#### 3. SQL Query Correctness
+**Problems found**:
+- Wrong JOIN columns (string vs integer)
+- Inefficient queries (unnecessary COUNT DISTINCT)
+- Wrong table references
+
+```python
+# BAD: Joining on wrong columns
+"""
+SELECT s.date, COUNT(*) FROM sessions s
+JOIN session_embeddings se ON s.date = se.session_id
+"""
+# ❌ Comparing TEXT (date) with INTEGER (session_id)
+
+# GOOD: Join on correct foreign key
+"""
+SELECT s.date, COUNT(*) FROM sessions s
+JOIN session_embeddings se ON s.session_id = se.session_id
+"""
+```
+
+#### 4. Test Data Mismatches
+**Problem**: Tests expect different field names than implementation
+
+```python
+# Implementation uses:
+stats = {"notes": {"total": 10, "orphans": 2}}
+
+# Tests expect:
+assert stats["notes"]["total_notes"] == 10  # ❌ KeyError!
+
+# Solution: Run tests to find mismatches (don't assume tests match)
+```
+
+### The Validation Workflow
+
+**Critical lesson**: Use project-specific validation scripts, not ad-hoc commands.
+
+```bash
+# ❌ BAD: Custom variations of CI checks
+mypy src/ --ignore-missing-imports  # Different from CI!
+pytest tests/unit -k "stats"         # Missing integration tests!
+
+# ✅ GOOD: Use exact CI validation
+./scripts/validate.sh  # Runs EXACT same checks as CI
+```
+
+**Why this matters**:
+- PR #30 failed CI despite local "testing" because commands differed
+- Validation script guarantees: local pass = CI pass
+- Saves hours of CI failure debugging
+
+**The validate.sh pattern**:
+```bash
+#!/bin/bash
+set -e  # Exit on first failure
+
+echo "Running EXACT CI checks..."
+
+# 1. Linting (exact CI command)
+ruff check src/ tests/
+
+# 2. Type checking (exact CI command)
+mypy src/ --strict
+
+# 3. Database validation (project-specific)
+python scripts/detect_unused_tables.py
+
+# 4. Unit tests (exact CI command)
+pytest tests/unit -v
+
+# 5. Integration tests (exact CI command)
+pytest tests/integration -v -m "not slow"
+
+echo "✅ All checks passed. Safe to push."
+```
+
+### Self-Audit Questions
+
+Before claiming a feature is complete, ask:
+
+1. **Completeness**: Did I implement every requirement from the spec?
+2. **Validation**: Have I actually run this code with real data?
+3. **Testing**: Do tests cover the critical paths and edge cases?
+4. **Correctness**: Have I verified the output is correct, not just error-free?
+5. **Complexity**: Did I implement the hard parts, or just the easy ones?
+6. **Edge cases**: What happens with empty input? Single item? Maximum size?
+7. **Type safety**: Are numpy types converted for SQLite? Are None values handled?
+8. **SQL correctness**: Are JOINs correct? Are queries efficient?
+9. **Cache consistency**: Does cached data match fresh data structure?
+10. **Documentation**: Are specs updated to reflect implementation status?
+
+### Key Takeaways
+
+1. **Never trust code you haven't run** - Implementation without validation is incomplete
+2. **Specs are contracts, not suggestions** - Partial implementation is failure
+3. **Do the hard parts first** - If you can't do them, the easy parts don't matter
+4. **Tests are verification, not documentation** - Write tests to prove correctness
+5. **Manual testing catches what unit tests miss** - Actually use the feature
+6. **Systematic audits find oversights** - Completeness, correctness, edge cases
+7. **Use project validation scripts** - Don't improvise CI commands
+8. **Type conversions matter** - NumPy → Python, especially for SQLite
+9. **Cache consistency requires discipline** - Cached data must match fresh data
+10. **Document as you implement** - Update specs when features are done
 
 ---
 
@@ -1927,6 +2322,263 @@ def function(arg1, arg2):
 
 ---
 
+## Database & Type System Pitfalls
+
+**Real-world lessons from GeistFabrik implementation**
+
+This section covers common issues when working with databases and type systems in Python, particularly when using SQLite with NumPy/pandas.
+
+### SQLite Type System Quirks
+
+SQLite has a dynamic type system that can cause unexpected behavior with Python type annotations and NumPy types.
+
+#### NumPy Type Serialization
+
+**Problem**: NumPy integer and float types are not recognized as native Python types by SQLite's parameter binding.
+
+```python
+import numpy as np
+import sqlite3
+
+# BAD: NumPy types serialized as blobs
+conn = sqlite3.connect("data.db")
+conn.execute("CREATE TABLE metrics (id INTEGER, count INTEGER)")
+
+n_items = np.int64(42)  # From NumPy computation
+conn.execute("INSERT INTO metrics VALUES (1, ?)", (n_items,))
+conn.commit()
+
+# Check what was stored
+cursor = conn.execute("SELECT typeof(count), count FROM metrics")
+print(cursor.fetchone())
+# Output: ('blob', b'*\x00\x00\x00\x00\x00\x00\x00')
+# ❌ Stored as binary blob, not INTEGER!
+
+# GOOD: Convert NumPy types to Python types
+def to_python_type(val: Any) -> Any:
+    """Convert NumPy types to native Python types for SQLite."""
+    if val is None:
+        return None
+    if isinstance(val, (np.integer, np.int8, np.int16, np.int32, np.int64)):
+        return int(val)
+    if isinstance(val, (np.floating, np.float16, np.float32, np.float64)):
+        return float(val)
+    if isinstance(val, np.ndarray):
+        return val.tolist()
+    return val
+
+n_items = to_python_type(np.int64(42))
+conn.execute("INSERT INTO metrics VALUES (2, ?)", (n_items,))
+conn.commit()
+
+# Verify correct storage
+cursor = conn.execute("SELECT typeof(count), count FROM metrics WHERE id = 2")
+print(cursor.fetchone())
+# Output: ('integer', 42)
+# ✅ Correctly stored as INTEGER!
+```
+
+#### Reading Blob Data
+
+**Problem**: Existing databases may have blob data that needs to be converted back.
+
+```python
+import struct
+
+def load_from_database(cursor_row):
+    """Load data from database, handling both blobs and native types."""
+    value = cursor_row[0]
+
+    # Handle blob deserialization
+    if isinstance(value, bytes):
+        try:
+            # Assume little-endian int64 (8 bytes)
+            if len(value) == 8:
+                return struct.unpack('<q', value)[0]
+            # Assume little-endian float64 (8 bytes)
+            return struct.unpack('<d', value)[0]
+        except struct.error:
+            return None
+
+    # Handle native types
+    return value
+```
+
+#### Detection Strategy
+
+```bash
+# Check SQLite types in your database
+sqlite3 your_database.db <<EOF
+SELECT
+    name,
+    typeof(column_name) as type,
+    column_name
+FROM your_table
+LIMIT 5;
+EOF
+
+# Look for unexpected 'blob' types where you expect 'integer' or 'real'
+```
+
+### Pandas DataFrame to SQLite
+
+**Problem**: Pandas DataFrames can also cause type issues when writing to SQLite.
+
+```python
+import pandas as pd
+import sqlite3
+
+# BAD: Direct write without type conversion
+df = pd.DataFrame({
+    'id': np.array([1, 2, 3], dtype=np.int64),
+    'value': np.array([1.5, 2.5, 3.5], dtype=np.float64)
+})
+
+conn = sqlite3.connect("data.db")
+df.to_sql('data', conn, if_exists='replace', index=False)
+
+# Check types
+cursor = conn.execute("SELECT typeof(id), typeof(value) FROM data LIMIT 1")
+print(cursor.fetchone())
+# May show: ('blob', 'blob') ❌
+
+# GOOD: Convert dtypes before writing
+df_converted = df.copy()
+for col in df_converted.select_dtypes(include=[np.integer]).columns:
+    df_converted[col] = df_converted[col].astype(int)
+for col in df_converted.select_dtypes(include=[np.floating]).columns:
+    df_converted[col] = df_converted[col].astype(float)
+
+df_converted.to_sql('data', conn, if_exists='replace', index=False, dtype={
+    'id': 'INTEGER',
+    'value': 'REAL'
+})
+```
+
+### Type Hints vs Runtime Types
+
+**Problem**: Type hints don't enforce runtime type checking.
+
+```python
+# BAD: Type hint doesn't prevent wrong types
+def compute_average(numbers: List[int]) -> float:
+    return sum(numbers) / len(numbers)
+
+# This passes type checking but fails at runtime
+import numpy as np
+data = np.array([1, 2, 3], dtype=np.int64)
+result = compute_average(data)  # TypeError: 'numpy.ndarray' object is not iterable
+# ❌ Type hint didn't help
+
+# GOOD: Validate and convert at runtime
+from typing import Union, List
+import numpy as np
+
+def compute_average(numbers: Union[List[int], np.ndarray]) -> float:
+    """Compute average, accepting both lists and numpy arrays."""
+    if isinstance(numbers, np.ndarray):
+        numbers = numbers.tolist()
+    if not numbers:
+        raise ValueError("Cannot compute average of empty sequence")
+    return sum(numbers) / len(numbers)
+```
+
+### Cache Consistency Patterns
+
+**Problem**: Cached data structures may not match fresh computation results.
+
+```python
+# BAD: Returning cached data without validation
+def get_metrics(session_id: str, use_cache: bool = True) -> Dict[str, Any]:
+    if use_cache:
+        cached = load_cache(session_id)
+        if cached:
+            return cached  # ❌ May be missing fields!
+
+    # Compute fresh metrics
+    metrics = {
+        "dimension": 387,
+        "n_notes": 100,
+        "intrinsic_dim": 15.2,
+        "vendi_score": 42.5,
+        # ... more fields
+    }
+    save_cache(session_id, metrics)
+    return metrics
+
+# GOOD: Always ensure consistent structure
+def get_metrics(session_id: str, embeddings: np.ndarray, use_cache: bool = True) -> Dict[str, Any]:
+    if use_cache:
+        cached = load_cache(session_id)
+        if cached:
+            # Always populate fields that can change
+            cached["dimension"] = embeddings.shape[1]
+            cached["n_notes"] = len(embeddings)
+            cached["timestamp"] = datetime.now().isoformat()
+            return cached
+
+    # Compute fresh metrics
+    metrics = compute_all_metrics(embeddings)
+    # Cache only expensive computations, not trivial fields
+    cacheable = {k: v for k, v in metrics.items()
+                 if k not in ["dimension", "n_notes", "timestamp"]}
+    save_cache(session_id, cacheable)
+    return metrics
+```
+
+### Schema Validation
+
+**Problem**: Database schema doesn't match code expectations.
+
+```python
+# GOOD: Validate schema on startup
+def validate_database_schema(conn: sqlite3.Connection) -> None:
+    """Validate that database schema matches expectations."""
+    cursor = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='metrics'")
+    schema = cursor.fetchone()
+
+    if not schema:
+        raise ValueError("Table 'metrics' does not exist")
+
+    schema_sql = schema[0]
+
+    # Check for required columns with correct types
+    required_columns = {
+        "session_date": "TEXT",
+        "intrinsic_dim": "REAL",
+        "n_clusters": "INTEGER",
+        "n_gaps": "INTEGER",
+    }
+
+    for column, expected_type in required_columns.items():
+        if column not in schema_sql:
+            raise ValueError(f"Missing column: {column}")
+        # Note: This is a simple check; consider using PRAGMA table_info for robust validation
+
+    print("✅ Database schema validated")
+
+# Use at application startup
+try:
+    conn = sqlite3.connect("vault.db")
+    validate_database_schema(conn)
+except ValueError as e:
+    print(f"❌ Schema validation failed: {e}")
+    # Run migration or alert user
+```
+
+### Common Pitfalls Checklist
+
+- [ ] **NumPy type conversion**: Convert np.int64/np.float64 to int/float before SQLite insertion
+- [ ] **Pandas DataFrame types**: Specify dtypes explicitly when using to_sql()
+- [ ] **Blob detection**: Check sqlite3 typeof() to find unexpected blobs
+- [ ] **Cache consistency**: Always populate dynamic fields even when using cache
+- [ ] **Schema validation**: Validate database schema matches code expectations
+- [ ] **Type hint reality**: Don't rely on type hints for runtime type safety
+- [ ] **NULL handling**: Explicitly handle None values in database operations
+- [ ] **Foreign key types**: Ensure JOIN columns have matching types (INTEGER vs TEXT)
+
+---
+
 ## Complete Audit Checklist
 
 This comprehensive checklist consolidates all heuristics for auditing Python codebases.
@@ -2304,6 +2956,9 @@ Regular application of these heuristics, combined with automated tooling, ensure
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-01-20
-**Maintained By**: Research compiled from official Python documentation, academic research, and industry best practices
+**Document Version**: 1.1
+**Last Updated**: 2025-01-30
+**Maintained By**: Research compiled from official Python documentation, academic research, industry best practices, and real-world GeistFabrik implementation lessons
+
+**Changelog**:
+- **v1.1 (2025-01-30)**: Added "Systematic Audit Methodology" section based on GeistFabrik stats command implementation audit. Added "Database & Type System Pitfalls" section covering NumPy/SQLite type conversion issues, cache consistency patterns, and schema validation.
