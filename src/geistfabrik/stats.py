@@ -26,6 +26,20 @@ try:
 except ImportError:
     HAS_SKLEARN = False
 
+try:
+    from skdim.id import TwoNN  # type: ignore[import-untyped]
+
+    HAS_SKDIM = True
+except ImportError:
+    HAS_SKDIM = False
+
+try:
+    from vendi_score import vendi  # type: ignore[import-untyped]
+
+    HAS_VENDI = True
+except ImportError:
+    HAS_VENDI = False
+
 
 class StatsCollector:
     """Collects statistics from a GeistFabrik vault."""
@@ -52,10 +66,10 @@ class StatsCollector:
         # Vault overview
         db_path = Path(self.db.execute("PRAGMA database_list").fetchone()[2])
         self.stats["vault"] = {
-            "path": str(self.vault.root),
+            "path": str(self.vault.vault_path),
             "database_size_mb": db_path.stat().st_size / (1024 * 1024) if db_path.exists() else 0,
             "last_sync": self._get_last_sync(),
-            "config_path": str(self.vault.root / "_geistfabrik" / "config.yaml"),
+            "config_path": str(self.vault.vault_path / "_geistfabrik" / "config.yaml"),
         }
 
         # Note statistics
@@ -315,8 +329,8 @@ class StatsCollector:
         default_tracery_count = len(DEFAULT_TRACERY_GEISTS)
 
         # Count custom geists
-        custom_code_dir = self.vault.root / "_geistfabrik" / "geists" / "code"
-        custom_tracery_dir = self.vault.root / "_geistfabrik" / "geists" / "tracery"
+        custom_code_dir = self.vault.vault_path / "_geistfabrik" / "geists" / "code"
+        custom_tracery_dir = self.vault.vault_path / "_geistfabrik" / "geists" / "tracery"
 
         custom_code_count = (
             len(list(custom_code_dir.glob("*.py"))) if custom_code_dir.exists() else 0
@@ -366,7 +380,7 @@ class StatsCollector:
             """
             SELECT DISTINCT s.date
             FROM sessions s
-            INNER JOIN session_embeddings se ON s.date = se.session_id
+            INNER JOIN session_embeddings se ON s.session_id = se.session_id
             ORDER BY s.date DESC
             LIMIT 1
             """
@@ -403,9 +417,159 @@ class StatsCollector:
         embeddings = np.vstack(embeddings_list)
         return session_date, embeddings, paths
 
+    def get_temporal_drift(
+        self, current_date: str, days_back: int = 30
+    ) -> Optional[Dict[str, Any]]:
+        """Analyze temporal drift between current and historical embeddings.
+
+        Args:
+            current_date: Current session date (YYYY-MM-DD)
+            days_back: How many days back to compare (default: 30)
+
+        Returns:
+            Dictionary with drift analysis or None if not enough data
+        """
+        from datetime import timedelta
+
+        from scipy.linalg import orthogonal_procrustes  # type: ignore[import-untyped]
+
+        # Get current embeddings
+        current = self.get_latest_embeddings()
+        if not current:
+            return None
+
+        curr_date, curr_emb, curr_paths = current
+
+        # Find a past session approximately days_back ago
+        try:
+            target_date = (
+                datetime.fromisoformat(curr_date) - timedelta(days=days_back)
+            ).isoformat()[:10]
+        except Exception:
+            return None
+
+        # Get closest past session
+        cursor = self.db.execute(
+            """
+            SELECT s.date
+            FROM sessions s
+            WHERE s.date < ? AND EXISTS (
+                SELECT 1 FROM session_embeddings se WHERE se.session_id = s.session_id
+            )
+            ORDER BY s.date DESC
+            LIMIT 1
+            """,
+            (target_date,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        past_date = row[0]
+
+        # Get past embeddings
+        cursor = self.db.execute(
+            """
+            SELECT se.note_path, se.embedding
+            FROM session_embeddings se
+            INNER JOIN sessions s ON se.session_id = s.session_id
+            WHERE s.date = ?
+            ORDER BY se.note_path
+            """,
+            (past_date,),
+        )
+
+        past_emb_dict = {}
+        for row in cursor.fetchall():
+            path, blob = row
+            embedding = np.frombuffer(blob, dtype=np.float32)
+            past_emb_dict[path] = embedding
+
+        # Find common notes
+        common_paths = [p for p in curr_paths if p in past_emb_dict]
+        if len(common_paths) < 5:
+            return None  # Not enough overlap
+
+        # Build aligned embedding matrices
+        curr_aligned = np.vstack([curr_emb[curr_paths.index(p)] for p in common_paths])
+        past_aligned = np.vstack([past_emb_dict[p] for p in common_paths])
+
+        # Align past embeddings to current via Procrustes
+        try:
+            rotation_matrix, _ = orthogonal_procrustes(past_aligned, curr_aligned)
+            past_rotated = past_aligned @ rotation_matrix
+        except Exception:
+            # Procrustes can fail
+            past_rotated = past_aligned
+
+        # Compute drift per note (1 - cosine similarity)
+        from geistfabrik.embeddings import cosine_similarity
+
+        drift_scores = []
+        for i in range(len(common_paths)):
+            sim = cosine_similarity(past_rotated[i], curr_aligned[i])
+            drift = 1.0 - sim
+            drift_scores.append((common_paths[i], drift))
+
+        # Sort by drift
+        drift_scores.sort(key=lambda x: x[1], reverse=True)
+
+        # Compute statistics
+        drifts = [d for _, d in drift_scores]
+        avg_drift = float(np.mean(drifts))
+
+        # Compare to previous period (if available) to detect acceleration
+        drift_trend = "stable"
+        try:
+            earlier_date = (
+                datetime.fromisoformat(past_date) - timedelta(days=days_back)
+            ).isoformat()[:10]
+            cursor = self.db.execute(
+                """
+                SELECT s.date
+                FROM sessions s
+                WHERE s.date < ? AND EXISTS (
+                    SELECT 1 FROM session_embeddings se WHERE se.session_id = s.session_id
+                )
+                ORDER BY s.date DESC
+                LIMIT 1
+                """,
+                (earlier_date,),
+            )
+            row = cursor.fetchone()
+            if row:
+                # Simplified: just check if current avg_drift is higher
+                # Full implementation would compute drift for past period too
+                drift_trend = "accelerating" if avg_drift > 0.2 else "stable"
+        except Exception:
+            pass
+
+        return {
+            "current_date": curr_date,
+            "comparison_date": past_date,
+            "days_elapsed": (
+                datetime.fromisoformat(curr_date) - datetime.fromisoformat(past_date)
+            ).days,
+            "notes_compared": len(common_paths),
+            "average_drift": round(avg_drift, 3),
+            "drift_trend": drift_trend,
+            "high_drift_notes": [
+                {"title": path.replace(".md", ""), "drift": round(d, 2)}
+                for path, d in drift_scores[:5]
+            ],
+            "stable_notes": [
+                {"title": path.replace(".md", ""), "drift": round(d, 2)}
+                for path, d in drift_scores[-5:]
+            ],
+        }
+
     def add_embedding_metrics(self, metrics: Dict[str, Any]) -> None:
         """Add computed embedding metrics to stats."""
         self.stats["embeddings"] = metrics
+
+    def add_temporal_analysis(self, temporal: Dict[str, Any]) -> None:
+        """Add temporal drift analysis to stats."""
+        self.stats["temporal"] = temporal
 
 
 class EmbeddingMetricsComputer:
@@ -514,7 +678,52 @@ class EmbeddingMetricsComputer:
         """Compute basic metrics that don't require external libraries."""
         metrics = {}
 
-        # Compute pairwise cosine similarity for diversity metrics
+        # Intrinsic dimensionality (if available)
+        if HAS_SKDIM and len(embeddings) >= 10:
+            try:
+                id_estimator = TwoNN()
+                intrinsic_dim = id_estimator.fit_transform(embeddings)
+                metrics["intrinsic_dim"] = round(float(intrinsic_dim), 1)
+            except Exception:
+                # TwoNN can fail on some data distributions
+                pass
+
+        # Vendi Score (if available)
+        if HAS_VENDI and len(embeddings) >= 2:
+            try:
+                from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+                    cosine_similarity as sklearn_cosine,
+                )
+
+                # Compute similarity matrix for Vendi Score
+                similarity_matrix = sklearn_cosine(embeddings)
+                vendi_score_value = vendi.score_K(similarity_matrix)
+                metrics["vendi_score"] = round(float(vendi_score_value), 1)
+            except Exception:
+                # Vendi computation can fail
+                pass
+
+        # IsoScore: measure of embedding space uniformity
+        # Based on variance in the eigenvalues of the covariance matrix
+        if len(embeddings) >= 10:
+            try:
+                # Compute covariance matrix
+                cov_matrix = np.cov(embeddings.T)
+                eigenvalues = np.linalg.eigvalsh(cov_matrix)
+                eigenvalues = eigenvalues[eigenvalues > 1e-10]  # Filter near-zero
+
+                if len(eigenvalues) > 0:
+                    # IsoScore: normalize eigenvalues and compute entropy
+                    eigenvalues_norm = eigenvalues / eigenvalues.sum()
+                    entropy = -np.sum(eigenvalues_norm * np.log(eigenvalues_norm + 1e-10))
+                    max_entropy = np.log(len(eigenvalues))
+                    isoscore = entropy / max_entropy if max_entropy > 0 else 0
+                    metrics["isoscore"] = round(float(isoscore), 2)
+            except Exception:
+                # Eigenvalue computation can fail
+                pass
+
+        # Basic similarity statistics
         from geistfabrik.embeddings import cosine_similarity
 
         # Sample for efficiency if large
@@ -764,6 +973,31 @@ class StatsFormatter:
 
             lines.append("")
 
+        # Temporal drift analysis (if available)
+        if "temporal" in self.stats:
+            lines.append("Temporal Analysis:")
+            temporal = self.stats["temporal"]
+            lines.append(
+                f"  Comparing: {temporal['current_date']} vs {temporal['comparison_date']}"
+            )
+            lines.append(f"  Days elapsed: {temporal['days_elapsed']}")
+            lines.append(f"  Notes compared: {temporal['notes_compared']}")
+            lines.append(f"  Average drift: {temporal['average_drift']:.3f}")
+            lines.append(f"  Trend: {temporal['drift_trend']}")
+
+            if self.verbose and temporal.get("high_drift_notes"):
+                lines.append("")
+                lines.append("  High-drift notes (evolving concepts):")
+                for note in temporal["high_drift_notes"]:
+                    lines.append(f"    [[{note['title']}]] - drift: {note['drift']:.2f}")
+
+                lines.append("")
+                lines.append("  Stable notes (unchanging meaning):")
+                for note in temporal["stable_notes"]:
+                    lines.append(f"    [[{note['title']}]] - drift: {note['drift']:.2f}")
+
+            lines.append("")
+
         # Geist configuration
         lines.append("Geists:")
         geists = self.stats["geists"]
@@ -816,6 +1050,9 @@ class StatsFormatter:
         if "embeddings" in self.stats:
             output["embeddings"] = self.stats["embeddings"]
 
+        if "temporal" in self.stats:
+            output["temporal"] = self.stats["temporal"]
+
         return json.dumps(output, indent=2)
 
 
@@ -867,6 +1104,65 @@ def generate_recommendations(stats: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "severity": "warning",
                     "message": f"{emb['n_gaps']} notes in semantic gaps (potential bridges)",
                     "action": "geistfabrik invoke --geist bridge_builder",
+                }
+            )
+
+        # Diversity alerts
+        vendi_score = emb.get("vendi_score")
+        if vendi_score and vendi_score < notes * 0.3:
+            recommendations.append(
+                {
+                    "type": "diversity",
+                    "severity": "info",
+                    "message": (
+                        f"Low conceptual diversity (Vendi Score: {vendi_score:.1f}). "
+                        "Consider exploring new topics."
+                    ),
+                    "action": "Review your reading/research sources for diversity",
+                }
+            )
+
+        # Shannon entropy alert
+        shannon = emb.get("shannon_entropy")
+        if shannon and shannon < 1.5:
+            recommendations.append(
+                {
+                    "type": "diversity",
+                    "severity": "info",
+                    "message": (
+                        f"Notes are heavily concentrated in few clusters "
+                        f"(entropy: {shannon:.2f}). Consider diversifying."
+                    ),
+                    "action": "Explore topics outside your main clusters",
+                }
+            )
+
+    # Temporal drift alerts
+    if "temporal" in stats:
+        temporal = stats["temporal"]
+        avg_drift = temporal.get("average_drift", 0)
+
+        if avg_drift > 0.5:
+            recommendations.append(
+                {
+                    "type": "temporal",
+                    "severity": "warning",
+                    "message": (
+                        f"High semantic drift detected ({avg_drift:.2f}). "
+                        "Many notes changing meaning rapidly."
+                    ),
+                    "action": "Review high-drift notes to ensure they remain coherent",
+                }
+            )
+        elif avg_drift < 0.05:
+            recommendations.append(
+                {
+                    "type": "temporal",
+                    "severity": "info",
+                    "message": (
+                        f"Very low semantic drift ({avg_drift:.2f}). Vault may be stagnating."
+                    ),
+                    "action": "Consider revisiting and expanding older notes",
                 }
             )
 

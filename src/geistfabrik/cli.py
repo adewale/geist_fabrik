@@ -959,6 +959,11 @@ def stats_command(args: argparse.Namespace) -> int:
                 )
                 collector.add_embedding_metrics(metrics)
 
+                # Compute temporal drift analysis if multiple sessions exist
+                temporal = collector.get_temporal_drift(session_date, days_back=args.history)
+                if temporal:
+                    collector.add_temporal_analysis(temporal)
+
         # Generate recommendations
         recommendations = generate_recommendations(collector.stats)
 
