@@ -70,6 +70,7 @@ class StatsCollector:
             "database_size_mb": db_path.stat().st_size / (1024 * 1024) if db_path.exists() else 0,
             "last_sync": self._get_last_sync(),
             "config_path": str(self.vault.vault_path / "_geistfabrik" / "config.yaml"),
+            "vector_backend": self.config.vector_search.backend,
         }
 
         # Note statistics
@@ -360,6 +361,86 @@ class StatsCollector:
             "disabled_geists": disabled_geists,
         }
 
+    def get_top_linked_notes(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get top linked notes with incoming and outgoing counts.
+
+        Args:
+            limit: Maximum number of notes to return
+
+        Returns:
+            List of dicts with path, title, outgoing, incoming, total
+        """
+        # Get outgoing link counts
+        cursor = self.db.execute(
+            """
+            SELECT n.path, n.title, COUNT(l.target) as outgoing
+            FROM notes n
+            LEFT JOIN links l ON n.path = l.source_path
+            GROUP BY n.path
+            """
+        )
+        outgoing_counts = {row[0]: {"title": row[1], "outgoing": row[2]} for row in cursor}
+
+        # Get incoming link counts
+        cursor = self.db.execute(
+            """
+            SELECT target, COUNT(*) as incoming
+            FROM links
+            GROUP BY target
+            """
+        )
+        incoming_counts = {row[0]: row[1] for row in cursor}
+
+        # Combine and calculate total
+        all_notes = []
+        for path, data in outgoing_counts.items():
+            incoming = incoming_counts.get(path, 0)
+            outgoing = data["outgoing"]
+            total = incoming + outgoing
+
+            all_notes.append(
+                {
+                    "path": path,
+                    "title": data["title"],
+                    "outgoing": outgoing,
+                    "incoming": incoming,
+                    "total": total,
+                }
+            )
+
+        # Sort by total and return top N
+        all_notes.sort(key=lambda x: x["total"], reverse=True)
+        return all_notes[:limit]
+
+    def get_orphan_notes(self) -> List[Dict[str, str]]:
+        """Get list of orphan notes (no links in or out).
+
+        Returns:
+            List of dicts with path and title
+        """
+        cursor = self.db.execute(
+            """
+            SELECT path, title
+            FROM notes
+            WHERE path NOT IN (SELECT DISTINCT source_path FROM links)
+              AND path NOT IN (SELECT DISTINCT target FROM links)
+            ORDER BY title
+            """
+        )
+        return [{"path": row[0], "title": row[1]} for row in cursor.fetchall()]
+
+    def get_hub_notes(self, min_connections: int = 10) -> List[Dict[str, Any]]:
+        """Get hub notes with high connection counts.
+
+        Args:
+            min_connections: Minimum total connections to qualify as hub
+
+        Returns:
+            List of dicts with path, title, total connections
+        """
+        top_notes = self.get_top_linked_notes(limit=100)
+        return [note for note in top_notes if note["total"] >= min_connections]
+
     def has_embeddings(self) -> bool:
         """Check if embeddings exist for any session."""
         cursor = self.db.execute("SELECT COUNT(*) FROM session_embeddings LIMIT 1")
@@ -571,6 +652,17 @@ class StatsCollector:
         """Add temporal drift analysis to stats."""
         self.stats["temporal"] = temporal
 
+    def add_verbose_details(self) -> None:
+        """Add verbose details to stats for detailed output."""
+        # Top linked notes
+        self.stats["top_linked_notes"] = self.get_top_linked_notes(limit=10)
+
+        # Orphan notes list
+        self.stats["orphan_notes"] = self.get_orphan_notes()
+
+        # Hub notes list
+        self.stats["hub_notes"] = self.get_hub_notes(min_connections=10)
+
 
 class EmbeddingMetricsComputer:
     """Computes advanced embedding-based metrics."""
@@ -645,6 +737,14 @@ class EmbeddingMetricsComputer:
         # Parse cluster_labels JSON
         if cached.get("cluster_labels"):
             cached["cluster_labels"] = json.loads(cached["cluster_labels"])
+
+        # Ensure integer fields are actually integers (SQLite sometimes returns blobs)
+        for key in ["n_clusters", "n_gaps"]:
+            if key in cached and cached[key] is not None:
+                try:
+                    cached[key] = int(cached[key])
+                except (TypeError, ValueError):
+                    pass
 
         return cached
 
@@ -889,6 +989,14 @@ class StatsFormatter:
         lines.append(f"  Average age: {notes['average_age_days']:.0f} days")
         lines.append(f"  Most recent: {notes['most_recent']}")
         lines.append(f"  Oldest: {notes['oldest']}")
+
+        # Verbose: Virtual notes by source
+        if self.verbose and notes.get("virtual_sources"):
+            lines.append("")
+            lines.append("  Virtual Notes by Source:")
+            for source, count in notes["virtual_sources"].items():
+                lines.append(f"    {source} → {count} virtual entries")
+
         lines.append("")
 
         # Tag statistics
@@ -901,6 +1009,19 @@ class StatsFormatter:
             top_3 = tags["top_tags"][:3]
             tag_str = ", ".join([f"{t['tag']} ({t['count']})" for t in top_3])
             lines.append(f"  Most used: {tag_str}")
+
+        # Verbose: Full tag distribution
+        if self.verbose and tags.get("top_tags"):
+            lines.append("")
+            lines.append("  Tag Distribution:")
+            for tag_info in tags["top_tags"]:
+                pct = (
+                    tag_info["count"] / self.stats["notes"]["total"] * 100
+                    if self.stats["notes"]["total"] > 0
+                    else 0
+                )
+                lines.append(f"    {tag_info['tag']}: {tag_info['count']} notes ({pct:.1f}%)")
+
         lines.append("")
 
         # Link statistics
@@ -923,6 +1044,38 @@ class StatsFormatter:
             f"  Largest component: {graph['largest_component_size']} "
             f"({graph['largest_component_pct']:.1f}%)"
         )
+
+        # Verbose: Top linked notes
+        if self.verbose and "top_linked_notes" in self.stats:
+            lines.append("")
+            lines.append("  Top 10 Most Linked Notes:")
+            for note in self.stats["top_linked_notes"]:
+                lines.append(
+                    f"    [[{note['title']}]] - "
+                    f"{note['outgoing']} out, {note['incoming']} in ({note['total']} total)"
+                )
+
+        # Verbose: Orphan notes
+        if self.verbose and "orphan_notes" in self.stats:
+            orphans = self.stats["orphan_notes"]
+            if orphans:
+                lines.append("")
+                lines.append(f"  Orphan Notes ({len(orphans)} total):")
+                # Show first 10
+                for note in orphans[:10]:
+                    lines.append(f"    [[{note['title']}]]")
+                if len(orphans) > 10:
+                    lines.append(f"    ... and {len(orphans) - 10} more")
+
+        # Verbose: Hub notes
+        if self.verbose and "hub_notes" in self.stats:
+            hubs = self.stats["hub_notes"]
+            if hubs:
+                lines.append("")
+                lines.append("  Hub Notes (≥10 connections):")
+                for note in hubs:
+                    lines.append(f"    [[{note['title']}]] ({note['total']} connections)")
+
         lines.append("")
 
         # Embedding metrics (if available)
@@ -1036,22 +1189,38 @@ class StatsFormatter:
 
     def format_json(self) -> str:
         """Format stats as JSON."""
+
+        def convert_numpy(obj: Any) -> Any:
+            """Convert numpy types to Python types for JSON serialization."""
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {k: convert_numpy(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy(item) for item in obj]
+            else:
+                return obj
+
         output = {
-            "vault": self.stats["vault"],
-            "notes": self.stats["notes"],
-            "tags": self.stats["tags"],
-            "links": self.stats["links"],
-            "graph": self.stats["graph"],
-            "sessions": self.stats["sessions"],
-            "geists": self.stats["geists"],
-            "recommendations": self.recommendations,
+            "vault": convert_numpy(self.stats["vault"]),
+            "notes": convert_numpy(self.stats["notes"]),
+            "tags": convert_numpy(self.stats["tags"]),
+            "links": convert_numpy(self.stats["links"]),
+            "graph": convert_numpy(self.stats["graph"]),
+            "sessions": convert_numpy(self.stats["sessions"]),
+            "geists": convert_numpy(self.stats["geists"]),
+            "recommendations": convert_numpy(self.recommendations),
         }
 
         if "embeddings" in self.stats:
-            output["embeddings"] = self.stats["embeddings"]
+            output["embeddings"] = convert_numpy(self.stats["embeddings"])
 
         if "temporal" in self.stats:
-            output["temporal"] = self.stats["temporal"]
+            output["temporal"] = convert_numpy(self.stats["temporal"])
 
         return json.dumps(output, indent=2)
 
@@ -1069,8 +1238,9 @@ def generate_recommendations(stats: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     # Backend recommendation
     notes = stats["notes"]["total"]
-    if notes > 1000:
-        # TODO: Check if backend is in-memory (requires config access)
+    backend = stats.get("vault", {}).get("vector_backend", "in-memory")
+
+    if notes > 1000 and backend == "in-memory":
         recommendations.append(
             {
                 "type": "performance",

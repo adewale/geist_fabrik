@@ -964,6 +964,10 @@ def stats_command(args: argparse.Namespace) -> int:
                 if temporal:
                     collector.add_temporal_analysis(temporal)
 
+        # Add verbose details if requested
+        if args.verbose:
+            collector.add_verbose_details()
+
         # Generate recommendations
         recommendations = generate_recommendations(collector.stats)
 
