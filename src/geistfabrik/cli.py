@@ -10,6 +10,12 @@ from .embeddings import EmbeddingComputer, Session
 from .filtering import SuggestionFilter, select_suggestions
 from .geist_executor import GeistExecutor
 from .journal_writer import JournalWriter
+from .stats import (
+    EmbeddingMetricsComputer,
+    StatsCollector,
+    StatsFormatter,
+    generate_recommendations,
+)
 from .vault import Vault
 from .vault_context import VaultContext
 
@@ -899,6 +905,85 @@ def test_all_command(args: argparse.Namespace) -> int:
         return 1
 
 
+def stats_command(args: argparse.Namespace) -> int:
+    """Execute the stats command to show vault statistics.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    try:
+        # Find vault path
+        if hasattr(args, "vault") and args.vault:
+            vault_path: Path = Path(args.vault).resolve()
+        else:
+            # Auto-detect vault
+            vault_path_maybe = find_vault_root()
+            if vault_path_maybe is None:
+                print(
+                    "Error: No vault specified and could not auto-detect vault.",
+                    file=sys.stderr,
+                )
+                print("Either run from within a vault or specify vault path.", file=sys.stderr)
+                return 1
+            vault_path = vault_path_maybe
+
+        # Check if vault is initialized
+        db_path = vault_path / "_geistfabrik" / "vault.db"
+        if not db_path.exists():
+            print("Error: GeistFabrik not initialized in this vault.", file=sys.stderr)
+            print(f"Run: geistfabrik init {vault_path}", file=sys.stderr)
+            return 1
+
+        # Load vault (no sync needed - just read existing DB)
+        from .config_loader import GeistFabrikConfig, load_config
+
+        vault = Vault(vault_path, db_path)
+        config_path = vault_path / "_geistfabrik" / "config.yaml"
+        config = load_config(config_path) if config_path.exists() else GeistFabrikConfig()
+
+        # Collect statistics
+        collector = StatsCollector(vault, config, history_days=args.history)
+
+        # Compute embedding metrics if embeddings exist
+        if collector.has_embeddings():
+            latest = collector.get_latest_embeddings()
+            if latest:
+                session_date, embeddings, paths = latest
+                metrics_computer = EmbeddingMetricsComputer(vault.db)
+                force_recompute = getattr(args, "force_recompute", False)
+                metrics = metrics_computer.compute_metrics(
+                    session_date, embeddings, paths, force_recompute=force_recompute
+                )
+                collector.add_embedding_metrics(metrics)
+
+        # Generate recommendations
+        recommendations = generate_recommendations(collector.stats)
+
+        # Format output
+        formatter = StatsFormatter(collector.stats, recommendations, verbose=args.verbose)
+
+        if args.json:
+            output = formatter.format_json()
+        else:
+            output = formatter.format_text()
+
+        print(output)
+
+        vault.close()
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc()
+        return 1
+
+
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -1077,6 +1162,35 @@ Examples:
         help="Show detailed execution information",
     )
 
+    # Stats command
+    stats_parser = subparsers.add_parser(
+        "stats",
+        help="Show vault statistics and health metrics",
+    )
+    stats_parser.add_argument(
+        "vault",
+        type=str,
+        nargs="?",
+        help="Path to Obsidian vault (optional, auto-detects from current directory)",
+    )
+    stats_parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show detailed statistics and breakdowns",
+    )
+    stats_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as JSON for scripting",
+    )
+    stats_parser.add_argument(
+        "--history",
+        type=int,
+        default=30,
+        help="Days of session history to analyze (default: 30)",
+    )
+
     args = parser.parse_args()
 
     # Show help if no command specified
@@ -1093,6 +1207,8 @@ Examples:
         return test_command(args)
     elif args.command == "test-all":
         return test_all_command(args)
+    elif args.command == "stats":
+        return stats_command(args)
 
     return 1
 
