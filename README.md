@@ -12,7 +12,8 @@ Inspired by Gordon Brander's work on tools for thought.
 
 **Version**: 0.9.0 (Beta)
 **Default Geists**: 45 (36 code + 9 Tracery)
-**Progress**: ~98% (Feature-complete, approaching 1.0)
+**Tests**: 485 passing (100%)
+**Progress**: ~99% (Feature-complete, approaching 1.0)
 
 See [STATUS.md](STATUS.md) for detailed implementation status and test results, and [examples/README.md](examples/README.md) for comprehensive examples.
 
@@ -27,6 +28,7 @@ See [STATUS.md](STATUS.md) for detailed implementation status and test results, 
 ✅ **Geist Execution**: Safe Python and Tracery grammar execution
 ✅ **Filtering Pipeline**: Boundary, novelty, diversity, and quality checks
 ✅ **Session Notes**: Generates linkable journal entries with suggestions
+✅ **Stats Command**: Comprehensive vault health diagnostics and metrics
 ✅ **CLI**: Full command-line interface with multiple invocation modes
 
 ### Three-Dimensional Extensibility
@@ -78,6 +80,15 @@ uv run geistfabrik invoke /path/to/your/vault --write
 
 # View your session note at:
 # /path/to/your/vault/geist journal/YYYY-MM-DD.md
+
+# Check vault health and statistics
+uv run geistfabrik stats /path/to/your/vault
+
+# Get detailed stats with verbose mode
+uv run geistfabrik stats /path/to/your/vault --verbose
+
+# Export stats as JSON for scripting
+uv run geistfabrik stats /path/to/your/vault --json
 ```
 
 ### Try on Sample Vault (Risk-Free)
