@@ -189,3 +189,89 @@ def test_has_link_equivalent_to_links_between(vault_context):
     assert vault_context.has_link(note_a, note_d) == (
         len(vault_context.links_between(note_a, note_d)) > 0
     )
+
+
+def test_outgoing_links_returns_targets(vault_context):
+    """Test outgoing_links returns notes that this note links to."""
+    note_a = vault_context.get_note("note_a.md")
+    note_b = vault_context.get_note("note_b.md")
+
+    assert note_a is not None
+    assert note_b is not None
+
+    outgoing = vault_context.outgoing_links(note_a)
+
+    # A links to B
+    assert note_b in outgoing
+
+
+def test_outgoing_links_excludes_backlinks(vault_context):
+    """Test outgoing_links does NOT include backlinks."""
+    note_a = vault_context.get_note("note_a.md")
+    note_c = vault_context.get_note("note_c.md")
+
+    assert note_a is not None
+    assert note_c is not None
+
+    outgoing = vault_context.outgoing_links(note_a)
+
+    # C links to A, but A doesn't link to C
+    assert note_c not in outgoing
+
+
+def test_outgoing_links_symmetric_with_backlinks(vault_context):
+    """Test outgoing_links and backlinks are symmetric operations."""
+    note_a = vault_context.get_note("note_a.md")
+    note_b = vault_context.get_note("note_b.md")
+
+    assert note_a is not None
+    assert note_b is not None
+
+    # A's outgoing should include B
+    outgoing_a = vault_context.outgoing_links(note_a)
+    assert note_b in outgoing_a
+
+    # B's backlinks should include A
+    backlinks_b = vault_context.backlinks(note_b)
+    assert note_a in backlinks_b
+
+
+def test_outgoing_links_empty_for_orphan(vault_context):
+    """Test outgoing_links returns empty list for note with no outgoing links."""
+    note_d = vault_context.get_note("note_d.md")
+
+    assert note_d is not None
+
+    outgoing = vault_context.outgoing_links(note_d)
+
+    # D has no outgoing links
+    assert outgoing == []
+
+
+def test_outgoing_links_returns_note_objects(vault_context):
+    """Test outgoing_links returns Note objects."""
+    note_a = vault_context.get_note("note_a.md")
+
+    assert note_a is not None
+
+    outgoing = vault_context.outgoing_links(note_a)
+
+    # Should return Note objects
+    assert all(isinstance(n, Note) for n in outgoing)
+
+
+def test_graph_neighbors_equals_outgoing_plus_backlinks(vault_context):
+    """Test graph_neighbors is union of outgoing_links and backlinks."""
+    note_a = vault_context.get_note("note_a.md")
+
+    assert note_a is not None
+
+    outgoing = vault_context.outgoing_links(note_a)
+    backlinks = vault_context.backlinks(note_a)
+    neighbors = vault_context.graph_neighbors(note_a)
+
+    # Convert to sets for comparison (graph_neighbors deduplicates)
+    expected = set(outgoing + backlinks)
+    actual = set(neighbors)
+
+    assert expected == actual

@@ -208,6 +208,25 @@ class VaultContext:
 
         return result
 
+    def outgoing_links(self, note: Note) -> List[Note]:
+        """Find notes that this note links to (outgoing links).
+
+        Symmetric counterpart to backlinks(). Returns resolved Note objects
+        for all outgoing links from this note.
+
+        Args:
+            note: Source note
+
+        Returns:
+            List of notes that this note links to
+        """
+        result = []
+        for link in note.links:
+            target = self.resolve_link_target(link.target)
+            if target is not None:
+                result.append(target)
+        return result
+
     def orphans(self, k: Optional[int] = None) -> List[Note]:
         """Find notes with no outgoing or incoming links.
 

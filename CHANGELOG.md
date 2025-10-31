@@ -9,12 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Vault helper functions for cleaner code patterns:
-  - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:495-506)
-  - `vault.graph_neighbors(note)` - Get notes connected by links (src/geistfabrik/vault_context.py:508-532)
+  - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:504-516)
+  - `vault.graph_neighbors(note)` - Get notes connected by links (src/geistfabrik/vault_context.py:518-543)
+  - `vault.outgoing_links(note)` - Get notes this note links to (src/geistfabrik/vault_context.py:211-228)
 - Database migration tests for schema version changes (tests/unit/test_sqlite_persistence.py)
-  - Test v5→v6 migration correctness
+  - Test v5→v6 migration correctness (6 tests)
   - Verify migration idempotency
   - Validate composite index creation
+- Performance regression tests (tests/unit/test_performance_regression.py)
+  - 8 tests covering caching, indexing, vectorization
+  - Prevents future performance regressions
+  - Documents optimization patterns
 
 ### Changed
 - **PERFORMANCE**: Session-level caching for `vault.notes()` calls
@@ -41,11 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redundant `links_between()` calls in congruence_mirror
   - Now uses `has_link()` helper (eliminates duplicate bidirectional check)
 
+### Documentation
+- **PERFORMANCE_COMPARISON_2025_10_31.md** - Before/after analysis with measurements
+  - Session execution 16% faster overall
+  - Geist phase 56% faster
+  - Similarity computations 5.4x speedup
+  - Comprehensive scalability analysis
+
 ### Database Schema
 
 #### v6 (2025-10-31)
 - Added composite index `idx_links_target_source ON links(target, source_path)`
-  - Optimizes orphan detection queries
+  - Optimizes orphan detection queries (85.6% faster)
   - Improves LEFT JOIN performance for backlink operations
   - Migration from v5 handled automatically
 
