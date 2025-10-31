@@ -237,7 +237,7 @@ candidate_notes = vault.sample(
 )
 ```
 
-**The `vault.notes()` method** (from `vault_context.py:78-84`):
+**The `vault.notes()` method** (from `vault_context.py:81-92`):
 ```python
 def notes(self) -> List[Note]:
     """Get all notes in vault."""
@@ -320,7 +320,7 @@ candidate_notes = vault.sample(all_notes, min(5, len(all_notes)))
 
 ### Issue #4: O(n²) Algorithm with N+1 Queries in `unlinked_pairs()`
 
-**Location**: `src/geistfabrik/vault_context.py:416-468`
+**Location**: `src/geistfabrik/vault_context.py:445-497`
 **Severity**: 🟠 High
 **Impact**: High (19,900 pair comparisons + database query for each)
 
@@ -447,7 +447,7 @@ def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> List[Tuple[
 
 ### Issue #5: Missing Database Index for Orphans Query
 
-**Location**: `src/geistfabrik/vault_context.py:212-226`
+**Location**: `src/geistfabrik/vault_context.py:230-265`
 **Severity**: 🟠 High
 **Impact**: Medium (full table scans on complex subqueries)
 
@@ -911,7 +911,7 @@ diversity_std = np.std(similarities)
 
 ### Issue #9: Metadata Cache Not Used Efficiently
 
-**Location**: `src/geistfabrik/vault_context.py:536-574`
+**Location**: `src/geistfabrik/vault_context.py:606-644`
 **Severity**: 🟢 Low
 **Impact**: Low (multiple cache misses, but infrequent)
 
@@ -1158,12 +1158,12 @@ def compute_temporal_drift(
 | 1 | O(n²) 3-hop path search | bridge_hunter.py:94-116 | 🔴 Critical | Very High | ⭐⭐⭐ Medium | 3-4h |
 | 2 | O(n²) cluster similarity | concept_cluster.py:43-48 | 🔴 Critical | High | ⭐ Easy | 0.5h |
 | 3 | Redundant vault.notes() calls | Multiple files (37+) | 🟠 High | Very High | ⭐ Easy | 1-2h |
-| 4 | O(n²) unlinked_pairs | vault_context.py:416-468 | 🟠 High | High | ⭐⭐ Medium | 2-3h |
-| 5 | Missing DB index (orphans) | vault_context.py:212-226 | 🟠 High | Medium | ⭐ Easy | 1h |
+| 4 | O(n²) unlinked_pairs | vault_context.py:445-497 | 🟠 High | High | ⭐⭐ Medium | 2-3h |
+| 5 | Missing DB index (orphans) | vault_context.py:230-265 | 🟠 High | Medium | ⭐ Easy | 1h |
 | 6 | Inefficient novelty filtering | filtering.py:142-167 | 🟡 Medium | Medium | ⭐⭐ Medium | 2-3h |
 | 7 | O(n²) diversity filtering | filtering.py:189-210 | 🟡 Medium | Medium | ⭐⭐⭐ Hard | 3-4h |
 | 8 | Non-vectorized stats | stats.py:854-866 | 🟡 Medium | High | ⭐ Easy | 0.5h |
-| 9 | Metadata cache inefficiency | vault_context.py:536-574 | 🟢 Low | Low | ⭐⭐ Medium | 2h |
+| 9 | Metadata cache inefficiency | vault_context.py:606-644 | 🟢 Low | Low | ⭐⭐ Medium | 2h |
 | 10 | Procrustes overhead | stats.py:574-584 | 🟢 Low | Low | ⭐ Easy | 0.5h |
 
 **Total Estimated Time**: 16-22 hours

@@ -135,7 +135,7 @@ CREATE TABLE metadata (
 CREATE INDEX idx_metadata_key ON metadata(key);
 ```
 
-**Actual Implementation**: `vault_context.py:384-418`
+**Actual Implementation**: `vault_context.py:606-642`
 - ❌ No `metadata` table in database
 - ✅ Metadata computed on-demand and cached in memory
 - ✅ `MetadataLoader` system loads inference modules

@@ -232,7 +232,7 @@ Either:
 
 #### 7. **Silent Metadata Inference Failures**
 **Severity:** MEDIUM
-**Files:** `vault_context.py:396-406`, `metadata_system.py:174-178`
+**Files:** `vault_context.py:627-644`, `metadata_system.py:174-178`
 
 **Issue:** When a metadata module fails, the error is logged but:
 - VaultContext continues with partial metadata
@@ -240,7 +240,7 @@ Either:
 - No indication to user which modules failed
 
 ```python
-# vault_context.py:400-406
+# vault_context.py:627-644
 try:
     inferred = self._metadata_loader.infer_all(note, self)
     metadata.update(inferred)
@@ -264,15 +264,15 @@ except Exception as e:
 
 #### 8. **Unbounded Metadata Cache**
 **Severity:** LOW-MEDIUM
-**Files:** `vault_context.py:59`, `vault_context.py:408`
+**Files:** `vault_context.py:64`, `vault_context.py:643`
 
 **Issue:** Metadata cache grows unbounded during session:
 
 ```python
-# vault_context.py:59
+# vault_context.py:64
 self._metadata_cache: Dict[str, Dict[str, Any]] = {}
 
-# vault_context.py:408
+# vault_context.py:643
 self._metadata_cache[note.path] = metadata  # Never evicted!
 ```
 
@@ -402,12 +402,12 @@ Either:
 
 #### 13. **Orphans Query Doesn't Handle Titles Correctly**
 **Severity:** LOW-MEDIUM
-**Files:** `vault_context.py:203-211`
+**Files:** `vault_context.py:230-265`
 
 **Issue:** Orphan detection only checks for `.md` extension in links, missing title-based links:
 
 ```python
-# Line 207-208
+# Line 246-249
 AND path NOT IN (SELECT DISTINCT target FROM links
                  WHERE target LIKE '%.md')  # Misses [[Title]] links!
 ```

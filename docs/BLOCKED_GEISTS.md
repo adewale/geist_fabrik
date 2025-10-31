@@ -33,7 +33,7 @@
 - ✅ `vault.has_link(a, b)` - Check if direct link exists between notes (bidirectional)
 - ✅ `vault.graph_neighbors(note)` - Get notes connected by links (not semantic similarity)
 
-**Implementation**: See `src/geistfabrik/vault_context.py:495-532`
+**Implementation**: See `src/geistfabrik/vault_context.py:523-562`
 - `has_link()` provides bidirectional link checking
 - `graph_neighbors()` traverses link graph (forward + backlinks)
 - Both helpers added as part of Performance Quick Wins (2025-10-31)
