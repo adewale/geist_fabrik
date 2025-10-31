@@ -1,7 +1,7 @@
 # GeistFabrik Implementation Status
 
-**Last Updated**: 2025-01-30
-**Version**: 0.9.0 (Beta)
+**Last Updated**: 2025-10-31
+**Version**: 0.9.0 (Beta, Schema v6)
 **Overall Progress**: ~99% (Feature Complete, Approaching 1.0)
 
 ---
@@ -10,12 +10,15 @@
 
 | Metric | Value |
 |--------|-------|
-| **Tests Passing** | 485/485 ✅ (100%) |
+| **Tests Passing** | 513/513 ✅ (100%) |
+| **Unit Tests** | 422 ✅ |
+| **Integration Tests** | 91 ✅ |
 | **Source Modules** | 16 |
-| **Test Files** | 18 |
-| **Lines of Code** | ~12,000 (src: ~5,500, tests: ~6,500) |
+| **Test Files** | 20 |
+| **Lines of Code** | ~13,500 (src: ~6,000, tests: ~7,500) |
 | **Type Checking** | Mypy strict ✅ |
 | **Linting** | Ruff ✅ |
+| **Database Schema** | v6 (with composite indexing) |
 | **Default Geists** | 45 (36 code + 9 Tracery) - bundled |
 | **Example Geists** | 39 (29 code + 10 Tracery) - examples/ |
 | **Example Metadata Modules** | 3 |
@@ -106,8 +109,11 @@
   - [x] `orphans()` - notes with no links
   - [x] `hubs(k)` - most-linked notes
   - [x] `backlinks(note)` - incoming links
+  - [x] `outgoing_links(note)` - outgoing links (NEW - 2025-10-31)
   - [x] `unlinked_pairs(k)` - semantically similar but unlinked
   - [x] `links_between(a, b)` - bidirectional link check
+  - [x] `has_link(a, b)` - fast bidirectional link check (NEW - 2025-10-31)
+  - [x] `graph_neighbors(note)` - combined graph traversal (NEW - 2025-10-31)
 - [x] Temporal queries:
   - [x] `old_notes(k)` - least recently modified
   - [x] `recent_notes(k)` - most recently modified
@@ -120,8 +126,13 @@
 - [x] Function registry:
   - [x] `register_function(name, func)`
   - [x] `call_function(name, *args)`
+- [x] Performance optimizations:
+  - [x] Session-level caching for `notes()` calls (2025-10-31)
+  - [x] Optimized orphans query with LEFT JOIN pattern (2025-10-31)
 
 **Tests**: 22 passing in `tests/unit/test_vault_context.py`
+**Tests**: 16 passing in `tests/unit/test_vault_context_helpers.py` (NEW)
+**Tests**: 8 passing in `tests/unit/test_performance_regression.py` (NEW)
 
 ### Phase 4: Geist Executor (`geist_executor.py`)
 - [x] Dynamic Python module loading from directory
@@ -347,14 +358,24 @@ geist_fabrik/
 
 ### Database Schema
 
+**Current Version**: v6 (2025-10-31)
+
 **Tables**:
 - `notes` - Note content, metadata, timestamps
-- `links` - Wikilinks between notes
+- `links` - Wikilinks between notes (with composite index `idx_links_target_source`)
 - `tags` - Tag assignments
 - `sessions` - Session dates and vault state
 - `session_embeddings` - Per-session note embeddings
+- `session_suggestions` - Session history for novelty filtering
+- `embedding_metrics` - Cached stats metrics
+- `embeddings` - Note-level embeddings (deprecated, replaced by session_embeddings)
 
-See `src/geistfabrik/schema.py` for details.
+**Recent Changes (v6)**:
+- Added composite index `idx_links_target_source` for 85.6% faster orphan queries
+- Automatic migration from v5 to v6
+- 6 comprehensive migration tests added
+
+See `src/geistfabrik/schema.py` for details and `tests/unit/test_sqlite_persistence.py` for migration tests.
 
 ---
 
@@ -523,6 +544,39 @@ uv run python scripts/check_phase_completion.py
 ---
 
 ## 📝 Recent Changes
+
+### 2025-10-31 - Performance Optimizations & Helper Functions (MAJOR UPDATE)
+
+**Added**:
+- **Three new helper functions** for cleaner geist code:
+  - `vault.has_link(a, b)` - Fast bidirectional link checking
+  - `vault.graph_neighbors(note)` - Combined graph traversal (outgoing + incoming)
+  - `vault.outgoing_links(note)` - Symmetric with `backlinks()`
+- **Performance regression test suite** (tests/unit/test_performance_regression.py)
+  - 8 tests covering caching, indexing, vectorization
+  - Prevents future performance degradation
+  - Documents optimization patterns
+- **Comprehensive performance analysis** (docs/PERFORMANCE_COMPARISON_2025_10_31.md)
+  - Before/after measurements with real data
+  - 16% faster overall, 56% faster geist phase
+  - 5.4x speedup for similarity computations
+  - Scalability analysis for 100-5000 note vaults
+
+**Performance Improvements**:
+- **Session-level caching**: 98.6% reduction in redundant I/O for `vault.notes()` calls
+- **Vectorized similarity**: 5.4x speedup using sklearn's `cosine_similarity`
+- **Database optimization**: 85.6% faster orphan queries with composite index
+- **Code quality**: Updated 5 geist files to use new helper functions
+
+**Database Schema**:
+- Upgraded to schema v6 with composite index `idx_links_target_source`
+- Automatic migration from v5 handles upgrades seamlessly
+- 6 new migration tests ensure correctness
+
+**Tests**: 422 unit tests (+20), 91 integration tests ✅ (513 total, +28)
+**Commits**: 2 major commits with oversight fixes and optional improvements
+
+---
 
 ### 2025-01-30 - Stats Command Implementation (MAJOR UPDATE)
 

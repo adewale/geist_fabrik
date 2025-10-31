@@ -8,7 +8,8 @@ from typing import Optional
 # Version 3: Removed unused `suggestions` and `suggestion_notes` tables
 # Version 4: Added support for date-collection notes (virtual entries)
 # Version 5: Added embedding_metrics table for stats command caching
-SCHEMA_VERSION = 5
+# Version 6: Added composite index for orphans query performance
+SCHEMA_VERSION = 6
 
 SCHEMA_SQL = """
 -- Notes table
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS links (
 
 CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_path);
 CREATE INDEX IF NOT EXISTS idx_links_target ON links(target);
+CREATE INDEX IF NOT EXISTS idx_links_target_source ON links(target, source_path);
 
 -- Tags table
 CREATE TABLE IF NOT EXISTS tags (
@@ -210,4 +212,15 @@ def migrate_schema(conn: sqlite3.Connection) -> None:
 
         # Update version
         conn.execute("PRAGMA user_version = 5")
+        conn.commit()
+
+    # Migration from version 5 to 6: Add composite index for orphans query
+    if current_version < 6:
+        # Add composite index for better orphan query performance
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_links_target_source ON links(target, source_path)"
+        )
+
+        # Update version
+        conn.execute("PRAGMA user_version = 6")
         conn.commit()

@@ -40,10 +40,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         linked_pairs = []
 
         for note in vault.sample(notes, min(30, len(notes))):
-            for link in note.links[:5]:  # Check first 5 links
-                target_note = vault.resolve_link_target(link.target)
-                if target_note is not None:
-                    linked_pairs.append((note, target_note))
+            for target_note in vault.outgoing_links(note)[:5]:  # Check first 5 links
+                linked_pairs.append((note, target_note))
 
         if len(linked_pairs) < 2:
             return []

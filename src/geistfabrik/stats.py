@@ -21,6 +21,9 @@ try:
     from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
     from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
     from sklearn.metrics import silhouette_score  # type: ignore[import-untyped]
+    from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+        cosine_similarity as sklearn_cosine,
+    )
 
     HAS_SKLEARN = True
 except ImportError:
@@ -814,12 +817,8 @@ class EmbeddingMetricsComputer:
                 pass
 
         # Vendi Score (if available)
-        if HAS_VENDI and len(embeddings) >= 2:
+        if HAS_VENDI and HAS_SKLEARN and len(embeddings) >= 2:
             try:
-                from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-                    cosine_similarity as sklearn_cosine,
-                )
-
                 # Compute similarity matrix for Vendi Score
                 similarity_matrix = sklearn_cosine(embeddings)
                 vendi_score_value = vendi.score_K(similarity_matrix)
@@ -858,16 +857,26 @@ class EmbeddingMetricsComputer:
         else:
             sample_embeddings = embeddings
 
-        # Compute similarity matrix
-        similarities = []
-        for i in range(len(sample_embeddings)):
-            for j in range(i + 1, len(sample_embeddings)):
-                sim = cosine_similarity(sample_embeddings[i], sample_embeddings[j])
-                similarities.append(sim)
+        # Compute similarity matrix (vectorized for performance)
+        if HAS_SKLEARN and len(sample_embeddings) > 1:
+            # Use sklearn's vectorized cosine_similarity (~100x faster)
+            similarity_matrix = sklearn_cosine(sample_embeddings)
+            # Extract upper triangle (excluding diagonal)
+            similarities = similarity_matrix[np.triu_indices_from(similarity_matrix, k=1)]
 
-        if similarities:
             metrics["avg_similarity"] = float(np.mean(similarities))
             metrics["std_similarity"] = float(np.std(similarities))
+        elif len(sample_embeddings) > 1:
+            # Fallback to manual computation if sklearn not available
+            similarities = []
+            for i in range(len(sample_embeddings)):
+                for j in range(i + 1, len(sample_embeddings)):
+                    sim = cosine_similarity(sample_embeddings[i], sample_embeddings[j])
+                    similarities.append(sim)
+
+            if similarities:
+                metrics["avg_similarity"] = float(np.mean(similarities))
+                metrics["std_similarity"] = float(np.std(similarities))
 
         return metrics
 

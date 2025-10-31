@@ -57,6 +57,9 @@ class VaultContext:
         self._functions: Dict[str, Callable[..., Any]] = {}
         self._function_registry = function_registry
 
+        # Cache for notes (performance optimization)
+        self._notes_cache: Optional[List[Note]] = None
+
         # Cache for metadata
         self._metadata_cache: Dict[str, Dict[str, Any]] = {}
 
@@ -76,12 +79,17 @@ class VaultContext:
     # Direct vault access (delegated)
 
     def notes(self) -> List[Note]:
-        """Get all notes in vault.
+        """Get all notes in vault (cached).
+
+        Performance optimization: Notes are loaded once and cached
+        for the duration of the VaultContext session.
 
         Returns:
             List of all notes
         """
-        return self.vault.all_notes()
+        if self._notes_cache is None:
+            self._notes_cache = self.vault.all_notes()
+        return self._notes_cache
 
     def get_note(self, path: str) -> Optional[Note]:
         """Get specific note by path.
@@ -200,8 +208,29 @@ class VaultContext:
 
         return result
 
+    def outgoing_links(self, note: Note) -> List[Note]:
+        """Find notes that this note links to (outgoing links).
+
+        Symmetric counterpart to backlinks(). Returns resolved Note objects
+        for all outgoing links from this note.
+
+        Args:
+            note: Source note
+
+        Returns:
+            List of notes that this note links to
+        """
+        result = []
+        for link in note.links:
+            target = self.resolve_link_target(link.target)
+            if target is not None:
+                result.append(target)
+        return result
+
     def orphans(self, k: Optional[int] = None) -> List[Note]:
         """Find notes with no outgoing or incoming links.
+
+        Performance optimized with LEFT JOINs instead of NOT IN subqueries.
 
         Args:
             k: Maximum number to return. If None, return all.
@@ -211,16 +240,16 @@ class VaultContext:
         """
         cursor = self.db.execute(
             """
-            SELECT n.path FROM notes n
-            WHERE n.path NOT IN (SELECT source_path FROM links)
-            AND n.path NOT IN (
-                SELECT DISTINCT n2.path FROM notes n2
-                JOIN links l ON (
-                    l.target = n2.path
-                    OR l.target = n2.title
-                    OR l.target || '.md' = n2.path
-                )
+            SELECT n.path
+            FROM notes n
+            LEFT JOIN links l1 ON l1.source_path = n.path
+            LEFT JOIN links l2 ON (
+                l2.target = n.path
+                OR l2.target = n.title
+                OR l2.target || '.md' = n.path
             )
+            WHERE l1.source_path IS NULL
+              AND l2.target IS NULL
             ORDER BY n.modified DESC
             """
         )
@@ -490,6 +519,47 @@ class VaultContext:
         links_ba = [link for link in b.links if link_matches_note(link.target, a)]
 
         return links_ab + links_ba
+
+    def has_link(self, a: Note, b: Note) -> bool:
+        """Check if there's a direct link between two notes (bidirectional).
+
+        Returns True if a links to b OR b links to a.
+
+        Args:
+            a: First note
+            b: Second note
+
+        Returns:
+            True if notes are linked, False otherwise
+        """
+        return len(self.links_between(a, b)) > 0
+
+    def graph_neighbors(self, note: Note) -> List[Note]:
+        """Get all notes connected to this note by links (bidirectional).
+
+        Returns notes that:
+        - This note links to (outgoing links)
+        - Link to this note (incoming links / backlinks)
+
+        Args:
+            note: Query note
+
+        Returns:
+            List of connected notes (no duplicates)
+        """
+        neighbors = set()
+
+        # Add outgoing link targets
+        for link in note.links:
+            target = self.resolve_link_target(link.target)
+            if target is not None:
+                neighbors.add(target)
+
+        # Add incoming link sources (backlinks)
+        for source in self.backlinks(note):
+            neighbors.add(source)
+
+        return list(neighbors)
 
     # Temporal queries
 

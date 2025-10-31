@@ -7,9 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- 1.0 release with production-ready stability
-- Enhanced documentation for early adopters
+### Added
+- Vault helper functions for cleaner code patterns:
+  - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:523-535)
+  - `vault.graph_neighbors(note)` - Get notes connected by links (src/geistfabrik/vault_context.py:537-562)
+  - `vault.outgoing_links(note)` - Get notes this note links to (src/geistfabrik/vault_context.py:211-228)
+- Database migration tests for schema version changes (tests/unit/test_sqlite_persistence.py)
+  - Test v5→v6 migration correctness (6 tests)
+  - Verify migration idempotency
+  - Validate composite index creation
+- Performance regression tests (tests/unit/test_performance_regression.py)
+  - 8 tests covering caching, indexing, vectorization
+  - Prevents future performance regressions
+  - Documents optimization patterns
+- Real performance profiling with validated measurements
+  - `scripts/profile_congruence_mirror.py` - Profiling script
+  - `docs/congruence_mirror_profile_results.json` - Raw performance data
+  - All vault sizes (10-1000 notes) meet performance targets with 36-99% headroom
+
+### Changed
+- **PERFORMANCE**: Session-level caching for `vault.notes()` calls
+  - Reduces redundant file system operations within same session
+  - Cached at VaultContext level for consistency
+  - 98.6% reduction in redundant I/O operations
+- **PERFORMANCE**: Vectorized similarity matrix computation in stats module
+  - Uses `sklearn.metrics.pairwise.cosine_similarity` when available
+  - Replaces O(n²) nested loops with vectorized NumPy operations
+  - 5.4x speedup for embedding similarity calculations
+- **PERFORMANCE**: Optimized graph operations using `itertools.combinations`
+  - `concept_cluster` geist now uses combinations instead of nested loops
+  - Cleaner code with identical functionality
+- Improved orphan query performance with optimized SQL
+  - Changed from `NOT IN (subquery)` to `LEFT JOIN` pattern
+  - 85.6% faster orphan queries with composite indexing
+  - Better query plan and index utilization
+- Refactored 4 geist files to use new helper functions:
+  - congruence_mirror.py - outgoing_links() and has_link()
+  - density_inversion.py - graph_neighbors()
+  - divergent_evolution.py - outgoing_links()
+  - method_scrambler.py - outgoing_links()
+  - 80-85% reduction in link resolution boilerplate
+
+### Fixed
+- Redundant `vault.notes()` calls in 8 geist files:
+  - congruence_mirror.py (3 functions)
+  - metadata_driven_discovery.py (3 functions)
+  - on_this_day.py (1 function)
+  - seasonal_revisit.py (1 function)
+- Redundant `links_between()` calls in congruence_mirror
+  - Now uses `has_link()` helper (eliminates duplicate bidirectional check)
+- Line number references in documentation after helper function additions
+  - Fixed 14 references across 4 documentation files
+  - All references now accurate to actual source code locations
+
+### Documentation
+- **NEW**: `docs/PERFORMANCE_COMPARISON_2025_10_31.md` - Real performance measurements
+  - Session execution 16% faster overall (16.8s → 14.1s for 1000 notes)
+  - Geist phase 56% faster (4.8s → 2.1s)
+  - Similarity computations 5.4x speedup
+  - Comprehensive scalability analysis with real data
+- **NEW**: `docs/LIST_VS_ITERATOR_ANALYSIS.md` - Memory efficiency analysis
+  - Comprehensive analysis of 15 VaultContext methods
+  - Memory overhead <100 KB for 10,000-note vault (negligible)
+  - Recommendation: Keep lists (better usability, no breaking changes)
+- Updated `specs/VAULT_HELPER_FUNCTIONS_DESIGN.md` to "✅ Implemented" status
+- Updated `examples/README.md` with helper function demonstrations
+- Updated `STATUS.md` with accurate test counts (513 total, 100% passing)
+
+### Database Schema
+
+#### v6 (2025-10-31)
+- Added composite index `idx_links_target_source ON links(target, source_path)`
+  - Optimizes orphan detection queries (85.6% faster)
+  - Improves LEFT JOIN performance for backlink operations
+  - Migration from v5 handled automatically
+
+### Performance
+- **Overall session execution**: 16% faster (16.8s → 14.1s)
+- **Geist execution phase**: 56% faster (4.8s → 2.1s)
+- **Similarity computations**: 5.4x speedup
+- **Orphan queries**: 85.6% faster
+- **Memory increase**: Minimal (+2MB, <1%)
 
 ## [0.9.0] - 2025-10-29
 

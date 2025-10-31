@@ -93,12 +93,9 @@ def find_explicit_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
     candidates = []
     processed = set()
 
-    for note in vault.notes():
-        for link in note.links:
-            target = vault.resolve_link_target(link.target)
-            if not target:
-                continue
-
+    all_notes = vault.notes()
+    for note in all_notes:
+        for target in vault.outgoing_links(note):
             pair_key = tuple(sorted([note.path, target.path]))
             if pair_key in processed:
                 continue
@@ -130,7 +127,8 @@ def find_implicit_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
     candidates = []
     processed = set()
 
-    for note in vault.notes():
+    all_notes = vault.notes()
+    for note in all_notes:
         neighbors = vault.neighbours(note, k=20)
 
         for neighbor in neighbors:
@@ -141,10 +139,8 @@ def find_implicit_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
 
             similarity = vault.similarity(note, neighbor)
 
-            # Check if linked
-            links_ab = vault.links_between(note, neighbor)
-            links_ba = vault.links_between(neighbor, note)
-            is_linked = len(links_ab) > 0 or len(links_ba) > 0
+            # Check if linked (using helper - links_between is already bidirectional)
+            is_linked = vault.has_link(note, neighbor)
 
             # High similarity + not linked = implicit
             if similarity > 0.70 and not is_linked:
@@ -172,12 +168,9 @@ def find_connected_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
     candidates = []
     processed = set()
 
-    for note in vault.notes():
-        for link in note.links:
-            target = vault.resolve_link_target(link.target)
-            if not target:
-                continue
-
+    all_notes = vault.notes()
+    for note in all_notes:
+        for target in vault.outgoing_links(note):
             pair_key = tuple(sorted([note.path, target.path]))
             if pair_key in processed:
                 continue
@@ -218,12 +211,8 @@ def find_detached_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
         pair = vault.sample(all_notes, k=2)
         note_a, note_b = pair[0], pair[1]
 
-        # Check if linked
-        links_ab = vault.links_between(note_a, note_b)
-        links_ba = vault.links_between(note_b, note_a)
-        is_linked = len(links_ab) > 0 or len(links_ba) > 0
-
-        if is_linked:
+        # Check if linked (using helper - links_between is already bidirectional)
+        if vault.has_link(note_a, note_b):
             continue
 
         similarity = vault.similarity(note_a, note_b)
