@@ -27,11 +27,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     for note in vault.sample(notes, min(30, len(notes))):
         # Get graph neighbors (notes linked to/from this note)
-        outgoing = [vault.resolve_link_target(link.target) for link in note.links]
-        incoming = vault.backlinks(note)
-
-        # Deduplicate by combining into a set
-        graph_neighbors = list(set([n for n in outgoing + incoming if n is not None]))
+        graph_neighbors = vault.graph_neighbors(note)
 
         if len(graph_neighbors) < 3:
             continue

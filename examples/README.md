@@ -144,20 +144,66 @@ if TYPE_CHECKING:
     from geistfabrik import VaultContext
 
 def suggest(vault: "VaultContext") -> list[Suggestion]:
-    """Generate suggestions based on vault analysis."""
+    """Generate suggestions based on vault analysis.
+
+    This example demonstrates VaultContext helper functions:
+    - outgoing_links(note) - Get notes this note links to
+    - has_link(a, b) - Check if two notes are linked
+    - graph_neighbors(note) - Get all connected notes (incoming + outgoing)
+    """
     suggestions = []
 
     for note in vault.notes():
+        # Get metadata
         metadata = vault.metadata(note)
 
-        if interesting_condition(note, metadata):
+        # Example: Find notes with few outgoing links but many backlinks
+        outgoing = vault.outgoing_links(note)  # Notes this note links to
+        incoming = vault.backlinks(note)        # Notes linking to this note
+
+        if len(incoming) > 5 and len(outgoing) < 2:
             suggestions.append(
                 Suggestion(
-                    text="What if you ...",
+                    text=f"[[{note.title}]] is a hub (5+ incoming) but links out rarely. "
+                         "What connections could it make?",
                     notes=[note.title],
                     geist_id="my_geist"
                 )
             )
+
+        # Example: Find semantically similar notes that aren't linked
+        similar = vault.neighbours(note, k=5)
+        for candidate in similar:
+            if not vault.has_link(note, candidate):  # Check if linked (bidirectional)
+                suggestions.append(
+                    Suggestion(
+                        text=f"[[{note.title}]] and [[{candidate.title}]] are semantically "
+                             "similar but not linked. Missing connection?",
+                        notes=[note.title, candidate.title],
+                        geist_id="my_geist"
+                    )
+                )
+
+        # Example: Analyze graph neighborhood density
+        neighbors = vault.graph_neighbors(note)  # All connected notes (both directions)
+        if len(neighbors) > 10:
+            # Check how interconnected the neighbors are
+            interconnections = sum(
+                1 for i, n1 in enumerate(neighbors)
+                for n2 in neighbors[i+1:]
+                if vault.has_link(n1, n2)
+            )
+
+            if interconnections < len(neighbors):
+                suggestions.append(
+                    Suggestion(
+                        text=f"[[{note.title}]] has {len(neighbors)} neighbors, "
+                             "but they're not well connected to each other. "
+                             "Is there a central theme?",
+                        notes=[note.title],
+                        geist_id="my_geist"
+                    )
+                )
 
     return vault.sample(suggestions, k=5)
 ```

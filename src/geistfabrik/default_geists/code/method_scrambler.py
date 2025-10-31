@@ -4,10 +4,10 @@ Uses SCAMPER (Substitute, Combine, Adapt, Modify, Put to another use, Eliminate,
 to generate creative provocations about existing notes and concepts.
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from geistfabrik import Note, Suggestion, VaultContext
+    from geistfabrik import Suggestion, VaultContext
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -50,12 +50,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     for note in sample_notes:
         # Find related notes (both linked and semantically similar)
-        linked_notes: List["Note"] = [
-            resolved
-            for link in note.links[:3]
-            if (resolved := vault.resolve_link_target(link.target)) is not None
-        ]
-
+        linked_notes = vault.outgoing_links(note)[:3]
         similar = vault.neighbours(note, k=5)
 
         # Deduplicate by combining into a set
