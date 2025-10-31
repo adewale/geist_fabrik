@@ -319,7 +319,11 @@ class TraceryEngine:
             self._preprocessed = True
 
         except Exception as e:
-            logger.error(f"Vault function pre-population failed: {e}")
+            logger.error(
+                f"Vault function pre-population failed: {e}\n"
+                f"  → Check that all $vault.* functions exist and work correctly\n"
+                f"  → Validate your geist with: geistfabrik validate"
+            )
             self._prepopulation_failed = True
 
     def expand(self, text: str, depth: int = 0) -> str:
@@ -525,7 +529,12 @@ class TraceryGeist:
             data = yaml.safe_load(f)
 
         if data.get("type") != "geist-tracery":
-            raise ValueError(f"Invalid geist type: {data.get('type')}")
+            raise ValueError(
+                f"Invalid geist type in {yaml_path}: '{data.get('type')}'\n"
+                f"  → Expected: type: geist-tracery\n"
+                f"  → Got: type: {data.get('type')}\n"
+                f"  → Fix the YAML file to use the correct type"
+            )
 
         geist_id = data["id"]
         grammar = data["tracery"]
@@ -570,7 +579,11 @@ class TraceryGeist:
 
             except Exception as e:
                 # Skip failed expansions
-                logger.warning(f"Tracery expansion failed for {self.geist_id}: {e}")
+                logger.warning(
+                    f"Tracery expansion failed for geist '{self.geist_id}': {e}\n"
+                    f"  → Check grammar for undefined symbols\n"
+                    f"  → Validate: geistfabrik validate --geist {self.geist_id}"
+                )
                 continue
 
         return suggestions
@@ -655,7 +668,12 @@ class TraceryGeistLoader:
                     geist = TraceryGeist.from_yaml(yaml_file, self.seed)
                     geists.append(geist)
                 except Exception as e:
-                    logger.warning(f"Failed to load Tracery geist {yaml_file}: {e}")
+                    logger.warning(
+                        f"Failed to load Tracery geist from {yaml_file}\n"
+                        f"  Error: {e}\n"
+                        f"  → Check YAML syntax at {yaml_file}\n"
+                        f"  → Validate: geistfabrik validate --geist {geist_id}"
+                    )
                     continue
 
         # Load any geists found on disk but not in config (alphabetically)
@@ -669,7 +687,13 @@ class TraceryGeistLoader:
                 geist = TraceryGeist.from_yaml(all_geist_files[geist_id], self.seed)
                 geists.append(geist)
             except Exception as e:
-                logger.warning(f"Failed to load Tracery geist {all_geist_files[geist_id]}: {e}")
+                yaml_file = all_geist_files[geist_id]
+                logger.warning(
+                    f"Failed to load Tracery geist from {yaml_file}\n"
+                    f"  Error: {e}\n"
+                    f"  → Check YAML syntax at {yaml_file}\n"
+                    f"  → Validate: geistfabrik validate --geist {geist_id}"
+                )
                 continue
 
         return geists

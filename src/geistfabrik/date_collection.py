@@ -89,11 +89,12 @@ class DateSection:
     end_line: int  # Line number where section ends
 
 
-def parse_date_heading(heading: str) -> Optional[date]:
+def parse_date_heading(heading: str, file_path: str | None = None) -> Optional[date]:
     """Parse date from H2 heading.
 
     Args:
         heading: H2 heading line (including ##)
+        file_path: Optional file path for error context
 
     Returns:
         Parsed date if heading matches a date pattern, None otherwise
@@ -106,7 +107,8 @@ def parse_date_heading(heading: str) -> Optional[date]:
             try:
                 return parser_func(match.groups())
             except (ValueError, KeyError) as e:
-                logger.warning(f"Invalid date in heading '{heading}': {e}")
+                context = f" in {file_path}" if file_path else ""
+                logger.warning(f"Invalid date in heading '{heading}'{context}: {e}")
                 return None
 
     return None
@@ -158,11 +160,12 @@ def is_date_collection_note(
     return date_count >= len(headings) * date_threshold
 
 
-def split_by_date_headings(content: str) -> List[DateSection]:
+def split_by_date_headings(content: str, file_path: str | None = None) -> List[DateSection]:
     """Split content into date-based sections.
 
     Args:
         content: Full file content
+        file_path: Optional file path for error context
 
     Returns:
         List of DateSection objects, one per valid date heading
@@ -175,7 +178,7 @@ def split_by_date_headings(content: str) -> List[DateSection]:
     # Store both line_num (1-indexed) and array index (0-indexed)
     date_headings: List[Tuple[str, int, int, date]] = []
     for heading_text, line_num in headings:
-        parsed_date = parse_date_heading(heading_text)
+        parsed_date = parse_date_heading(heading_text, file_path)
         if parsed_date is not None:
             # line_num is 1-indexed, array index is line_num - 1
             date_headings.append((heading_text, line_num, line_num - 1, parsed_date))
@@ -243,7 +246,7 @@ def split_date_collection_note(
             frontmatter_tags = [tags_value]
 
     # Split by date headings
-    sections = split_by_date_headings(clean_content)
+    sections = split_by_date_headings(clean_content, file_path)
 
     if not sections:
         logger.debug(f"No valid date sections found in {file_path}")

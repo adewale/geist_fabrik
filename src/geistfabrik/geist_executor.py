@@ -153,12 +153,22 @@ class GeistExecutor:
 
         # Check for duplicate IDs
         if geist_id in self.geists:
-            raise ValueError(f"Duplicate geist ID: {geist_id}")
+            existing_path = self.geists[geist_id].path
+            raise ValueError(
+                f"Duplicate geist ID '{geist_id}'\n"
+                f"  Existing: {existing_path}\n"
+                f"  New: {geist_file}\n"
+                f"  → Rename one of the files to use a unique ID"
+            )
 
         # Load module dynamically
         spec = importlib.util.spec_from_file_location(geist_id, geist_file)
         if spec is None or spec.loader is None:
-            raise ImportError(f"Could not load module spec for {geist_file}")
+            raise ImportError(
+                f"Could not load module spec for {geist_file}\n"
+                f"  → Check for syntax errors: python -m py_compile {geist_file}\n"
+                f"  → Validate the geist: geistfabrik validate --geist {geist_id}"
+            )
 
         module = importlib.util.module_from_spec(spec)
         sys.modules[geist_id] = module
@@ -166,7 +176,13 @@ class GeistExecutor:
 
         # Get suggest function
         if not hasattr(module, "suggest"):
-            raise AttributeError(f"Geist {geist_id} missing suggest() function")
+            raise AttributeError(
+                f"Geist '{geist_id}' in {geist_file} missing suggest() function\n"
+                f"  → Add this function to your geist:\n\n"
+                f"  def suggest(vault: VaultContext) -> List[Suggestion]:\n"
+                f'      """Generate suggestions."""\n'
+                f"      return []"
+            )
 
         suggest_func = getattr(module, "suggest")
 
@@ -234,11 +250,22 @@ class GeistExecutor:
                     signal.alarm(0)
 
         except GeistTimeoutError:
-            self._handle_failure(geist_id, "timeout", "Execution timed out")
+            timeout_msg = (
+                f"Execution timed out (>{self.timeout}s)\n"
+                f"  → Test with longer timeout: geistfabrik test {geist_id} <vault>\n"
+                f"  → Check for infinite loops or expensive operations in {geist.path}"
+            )
+            self._handle_failure(geist_id, "timeout", timeout_msg)
             return []
 
         except Exception as e:
-            self._handle_failure(geist_id, "exception", str(e), traceback.format_exc())
+            error_msg = (
+                f"{type(e).__name__}: {str(e)}\n"
+                f"  File: {geist.path}\n"
+                f"  → Test this geist: geistfabrik test {geist_id} <vault>\n"
+                f"  → Validate syntax: geistfabrik validate --geist {geist_id}"
+            )
+            self._handle_failure(geist_id, "exception", error_msg, traceback.format_exc())
             return []
 
     def execute_all(self, context: VaultContext) -> Dict[str, List[Suggestion]]:
