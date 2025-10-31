@@ -641,8 +641,8 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 37 code geists in src/geistfabrik/default_geists/code/
-    assert len(geist_executor.geists) == 37
+    # We have 38 code geists in src/geistfabrik/default_geists/code/
+    assert len(geist_executor.geists) == 38
 
 
 def test_all_geists_execute_without_crashing(
@@ -682,3 +682,40 @@ def test_geist_determinism(vault_context: VaultContext):
     assert len(suggestions1) == len(suggestions2)
     for s1, s2 in zip(suggestions1, suggestions2):
         assert s1.text == s2.text
+
+
+def test_congruence_mirror_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test congruence_mirror geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("congruence_mirror", vault_context)
+
+    assert isinstance(suggestions, list)
+    # May return 0-4 suggestions depending on vault structure
+    assert len(suggestions) <= 4
+
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "congruence_mirror"
+
+        # Should reference exactly 2 notes
+        assert len(suggestion.notes) == 2
+
+        # Check format based on quadrant
+        if "explicitly linked" in suggestion.text:
+            # Explicit quadrant - should have question
+            assert "?" in suggestion.text
+            assert "triangle" in suggestion.text.lower()
+        elif "relate implicitly" in suggestion.text:
+            # Implicit quadrant - should be statement
+            assert "?" not in suggestion.text
+            assert suggestion.text.endswith(".")
+        elif "connected despite distance" in suggestion.text:
+            # Connected quadrant - should have question
+            assert "?" in suggestion.text
+            assert "What connects them?" in suggestion.text
+        elif "are detached" in suggestion.text:
+            # Detached quadrant - should be statement
+            assert "?" not in suggestion.text
+            assert suggestion.text.endswith(".")
