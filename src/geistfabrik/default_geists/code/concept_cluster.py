@@ -4,6 +4,7 @@ Finds groups of semantically related notes that might represent an emerging
 theme or area of interest worth naming and organising.
 """
 
+from itertools import combinations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -40,14 +41,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         cluster_notes = [seed] + neighbours[:3]
 
         # Calculate average pairwise similarity within cluster
-        total_sim = 0.0
-        pairs = 0
-        for i, note_a in enumerate(cluster_notes):
-            for note_b in cluster_notes[i + 1 :]:
-                total_sim += vault.similarity(note_a, note_b)
-                pairs += 1
+        # Using combinations for cleaner, more Pythonic code
+        pairs = list(combinations(cluster_notes, 2))
+        similarities = [vault.similarity(a, b) for a, b in pairs]
 
-        avg_similarity = total_sim / pairs if pairs > 0 else 0
+        avg_similarity = sum(similarities) / len(similarities) if similarities else 0
 
         # If average similarity is high, this is a real cluster
         if avg_similarity > 0.6:

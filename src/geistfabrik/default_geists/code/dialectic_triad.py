@@ -25,7 +25,8 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
     suggestions = []
 
     # Sample some notes to use as thesis
-    candidate_notes = vault.sample(vault.notes(), min(5, len(vault.notes())))
+    all_notes = vault.notes()
+    candidate_notes = vault.sample(all_notes, min(5, len(all_notes)))
 
     for note in candidate_notes[:2]:  # Create up to 2 triads
         # Find the most contrarian note (antithesis) - returns List[str]
