@@ -739,9 +739,11 @@ class EmbeddingMetricsComputer:
         columns = [desc[0] for desc in cursor.description]
         cached = dict(zip(columns, row))
 
-        # Parse cluster_labels JSON
+        # Parse cluster_labels JSON and convert string keys back to int
         if cached.get("cluster_labels"):
-            cached["cluster_labels"] = json.loads(cached["cluster_labels"])
+            cluster_labels_raw = json.loads(cached["cluster_labels"])
+            # JSON converts int keys to strings, convert them back
+            cached["cluster_labels"] = {int(k): v for k, v in cluster_labels_raw.items()}
 
         # Ensure integer fields are actually integers (SQLite sometimes returns blobs)
         for key in ["n_clusters", "n_gaps"]:
@@ -763,7 +765,7 @@ class EmbeddingMetricsComputer:
 
     def _cache_metrics(self, session_date: str, metrics: Dict[str, Any]) -> None:
         """Cache computed metrics to database."""
-        # Serialize cluster_labels to JSON
+        # Serialize cluster_labels to JSON (keys already converted to Python int)
         cluster_labels_json = json.dumps(metrics.get("cluster_labels", {}))
 
         # Convert numpy types to Python types for SQLite
@@ -904,7 +906,8 @@ class EmbeddingMetricsComputer:
         # Label clusters using c-TF-IDF
         if n_clusters > 0:
             cluster_labels = self._label_clusters_tfidf(paths, labels)
-            metrics["cluster_labels"] = cluster_labels
+            # Convert numpy.int64 keys to Python int for JSON serialization
+            metrics["cluster_labels"] = {int(k): v for k, v in cluster_labels.items()}
 
         return metrics
 
@@ -1222,7 +1225,11 @@ class StatsFormatter:
             elif isinstance(obj, np.ndarray):
                 return obj.tolist()
             elif isinstance(obj, dict):
-                return {k: convert_numpy(v) for k, v in obj.items()}
+                # Convert both keys and values to handle numpy types in dictionary keys
+                return {
+                    (int(k) if isinstance(k, np.integer) else k): convert_numpy(v)
+                    for k, v in obj.items()
+                }
             elif isinstance(obj, list):
                 return [convert_numpy(item) for item in obj]
             else:

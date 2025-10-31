@@ -44,12 +44,42 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --strict-markers"
+addopts = "-v --strict-markers --cov=geistfabrik --cov-branch --cov-report=term-missing --cov-report=html"
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "slow: Slow tests that require network access (model downloads)",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["geistfabrik"]
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+# Note: fail_under is commented out to avoid breaking CI
+# Run `pytest --cov-fail-under=80` to enforce thresholds
+# fail_under = 80
+precision = 2
+show_missing = true
+skip_covered = false
+sort = "Cover"
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
 
 [tool.ruff]
 line-length = 100

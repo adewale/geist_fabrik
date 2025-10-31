@@ -224,6 +224,118 @@ def test_metrics_caching(vault_with_embeddings):
         assert "vendi_score" in metrics2
 
 
+def test_metrics_caching_with_clustering(vault_with_embeddings):
+    """Test metrics caching with actual clustering (requires 15+ notes).
+
+    This test ensures that cluster_labels with numpy.int64 keys are properly
+    converted to Python int keys for JSON serialization. Regression test for
+    the bug where json.dumps() failed with "keys must be str, int, float, bool
+    or None, not numpy.int64".
+    """
+    import json
+
+    computer = EmbeddingMetricsComputer(vault_with_embeddings.db)
+
+    # Create 15 notes in the database with realistic content
+    # (enough for HDBSCAN min_cluster_size=5 to create clusters)
+    db = vault_with_embeddings.db
+
+    # Insert 15 test notes with varied content to encourage clustering
+    test_notes = []
+    for i in range(15):
+        path = f"cluster_test_{i}.md"
+        # Create 3 clusters of 5 notes each with similar content
+        if i < 5:
+            content = f"Machine learning and neural networks article {i}"
+            title = f"ML Article {i}"
+        elif i < 10:
+            content = f"Philosophy and ethics discussion {i}"
+            title = f"Philosophy Note {i}"
+        else:
+            content = f"History and military strategy {i}"
+            title = f"History Note {i}"
+
+        db.execute(
+            """
+            INSERT INTO notes (path, title, content, created, modified, file_mtime)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (path, title, content, "2025-01-01", "2025-01-01", 1704067200.0),
+        )
+        test_notes.append(path)
+
+    db.commit()
+
+    # Create embeddings that will cluster (varied but with structure)
+    np.random.seed(42)
+    embeddings = []
+    for i in range(15):
+        if i < 5:
+            # Cluster 0: centered around [1, 0, 0, ...]
+            base = np.array([1.0, 0.0, 0.0] + [0.0] * 384)
+            noise = np.random.randn(387) * 0.1
+        elif i < 10:
+            # Cluster 1: centered around [0, 1, 0, ...]
+            base = np.array([0.0, 1.0, 0.0] + [0.0] * 384)
+            noise = np.random.randn(387) * 0.1
+        else:
+            # Cluster 2: centered around [0, 0, 1, ...]
+            base = np.array([0.0, 0.0, 1.0] + [0.0] * 384)
+            noise = np.random.randn(387) * 0.1
+
+        embeddings.append((base + noise).astype(np.float32))
+
+    embeddings_array = np.vstack(embeddings)
+
+    # Create a session record (required for foreign key constraint)
+    db.execute(
+        "INSERT INTO sessions (date, vault_state_hash, created_at) VALUES (?, ?, ?)",
+        ("2025-01-20", "test_hash", datetime.now().isoformat()),
+    )
+    db.commit()
+
+    # Compute metrics with clustering enabled
+    with patch("geistfabrik.stats.HAS_SKLEARN", True):
+        metrics1 = computer.compute_metrics(
+            "2025-01-20", embeddings_array, test_notes, force_recompute=True
+        )
+
+        # Verify clustering was performed
+        assert "n_clusters" in metrics1
+
+        # If clusters were detected, verify cluster_labels handling
+        if metrics1.get("n_clusters", 0) > 0:
+            assert "cluster_labels" in metrics1
+            cluster_labels = metrics1["cluster_labels"]
+
+            # Verify cluster_labels is a dict
+            assert isinstance(cluster_labels, dict)
+
+            # Critical: Verify JSON serialization works (would fail with numpy.int64 keys)
+            try:
+                json_str = json.dumps(cluster_labels)
+                # Verify we can round-trip
+                parsed = json.loads(json_str)
+                assert len(parsed) == len(cluster_labels)
+            except TypeError as e:
+                pytest.fail(f"cluster_labels not JSON-serializable: {e}")
+
+            # Verify labels are strings (TF-IDF terms)
+            for cluster_id, label in cluster_labels.items():
+                assert isinstance(label, str)
+                assert len(label) > 0
+
+        # Test cache retrieval
+        metrics2 = computer.compute_metrics(
+            "2025-01-20", embeddings_array, test_notes, force_recompute=False
+        )
+
+        # Verify cached cluster_labels are properly deserialized
+        if metrics1.get("cluster_labels"):
+            assert "cluster_labels" in metrics2
+            assert metrics2["cluster_labels"] == metrics1["cluster_labels"]
+
+
 def test_temporal_drift_no_past_session(vault_with_embeddings):
     """Test temporal drift when no past session exists."""
     collector = StatsCollector(vault_with_embeddings, GeistFabrikConfig())
@@ -439,6 +551,125 @@ def test_stats_formatter_with_temporal(vault_with_embeddings):
     text = formatter.format_text()
 
     assert "Temporal" in text or "2025-01-15" in text
+
+
+# ========== NumPy Type Conversion Tests ==========
+
+
+def test_format_json_with_numpy_dict_keys():
+    """Test that format_json() correctly handles dicts with numpy.int64 keys.
+
+    Regression test for bug where cluster_labels with numpy.int64 keys
+    would fail JSON serialization.
+    """
+    import json
+
+    # Create minimal stats with a dict that has numpy.int64 keys
+    stats = {
+        "vault": {"path": "/test", "database_size_mb": 1.0},
+        "notes": {"total": 10},
+        "tags": {"unique": 5},
+        "links": {"total": 20},
+        "graph": {"orphans": 0},
+        "sessions": {"total": 1},
+        "geists": {"code_total": 5},
+        "embeddings": {
+            "n_clusters": 2,
+            # This dict has numpy.int64 keys - the bug we're testing for
+            "cluster_labels": {
+                np.int64(0): "machine learning, neural networks",
+                np.int64(1): "philosophy, ethics",
+            },
+        },
+    }
+
+    recommendations = []
+    formatter = StatsFormatter(stats, recommendations, verbose=False)
+
+    # This should not raise TypeError about numpy.int64 keys
+    json_output = formatter.format_json()
+
+    # Verify it's valid JSON
+    parsed = json.loads(json_output)
+
+    # Verify cluster_labels were converted (JSON converts int keys to strings)
+    assert "embeddings" in parsed
+    assert "cluster_labels" in parsed["embeddings"]
+    assert "0" in parsed["embeddings"]["cluster_labels"]
+    assert "1" in parsed["embeddings"]["cluster_labels"]
+
+
+def test_format_json_with_nested_numpy_keys():
+    """Test format_json() with nested dicts containing numpy keys."""
+    import json
+
+    stats = {
+        "vault": {"path": "/test", "database_size_mb": 1.0},
+        "notes": {"total": 10},
+        "tags": {"unique": 5},
+        "links": {"total": 20},
+        "graph": {"orphans": 0},
+        "sessions": {"total": 1},
+        "geists": {"code_total": 5},
+        "embeddings": {
+            "dimension": np.int32(387),  # numpy scalar
+            "n_notes": np.int64(100),  # numpy scalar
+            "cluster_labels": {
+                np.int64(0): "test cluster 0",
+                np.int64(1): "test cluster 1",
+                np.int64(2): "test cluster 2",
+            },
+            "metrics": {
+                "silhouette": np.float64(0.75),
+                "vendi_score": np.float32(42.5),
+            },
+        },
+    }
+
+    recommendations = []
+    formatter = StatsFormatter(stats, recommendations, verbose=False)
+
+    # Should successfully serialize
+    json_output = formatter.format_json()
+    parsed = json.loads(json_output)
+
+    # Verify all numpy types were converted
+    assert isinstance(parsed["embeddings"]["dimension"], int)
+    assert isinstance(parsed["embeddings"]["n_notes"], int)
+    assert isinstance(parsed["embeddings"]["metrics"]["silhouette"], float)
+    assert isinstance(parsed["embeddings"]["metrics"]["vendi_score"], float)
+
+
+def test_format_json_with_numpy_arrays():
+    """Test format_json() with numpy arrays in stats."""
+    import json
+
+    stats = {
+        "vault": {"path": "/test", "database_size_mb": 1.0},
+        "notes": {"total": 10},
+        "tags": {"unique": 5},
+        "links": {"total": 20},
+        "graph": {"orphans": 0},
+        "sessions": {"total": 1},
+        "geists": {"code_total": 5},
+        "embeddings": {
+            # Numpy array should be converted to list
+            "sample_embedding": np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32),
+            "cluster_sizes": np.array([10, 15, 20], dtype=np.int64),
+        },
+    }
+
+    recommendations = []
+    formatter = StatsFormatter(stats, recommendations, verbose=False)
+
+    json_output = formatter.format_json()
+    parsed = json.loads(json_output)
+
+    # Arrays should be converted to lists
+    assert isinstance(parsed["embeddings"]["sample_embedding"], list)
+    assert isinstance(parsed["embeddings"]["cluster_sizes"], list)
+    assert len(parsed["embeddings"]["sample_embedding"]) == 4
+    assert len(parsed["embeddings"]["cluster_sizes"]) == 3
 
 
 # ========== Integration Test for Full Pipeline ==========
