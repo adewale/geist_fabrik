@@ -7,7 +7,8 @@ from typing import Optional
 # Schema version for migrations
 # Version 3: Removed unused `suggestions` and `suggestion_notes` tables
 # Version 4: Added support for date-collection notes (virtual entries)
-SCHEMA_VERSION = 4
+# Version 5: Added embedding_metrics table for stats command caching
+SCHEMA_VERSION = 5
 
 SCHEMA_SQL = """
 -- Notes table
@@ -97,6 +98,20 @@ CREATE TABLE IF NOT EXISTS session_suggestions (
 
 CREATE INDEX IF NOT EXISTS idx_session_suggestions_date ON session_suggestions(session_date);
 CREATE INDEX IF NOT EXISTS idx_session_suggestions_geist ON session_suggestions(geist_id);
+
+-- Embedding metrics cache (for stats command)
+CREATE TABLE IF NOT EXISTS embedding_metrics (
+    session_date TEXT PRIMARY KEY,
+    intrinsic_dim REAL,
+    vendi_score REAL,
+    shannon_entropy REAL,
+    silhouette_score REAL,
+    n_clusters INTEGER,
+    n_gaps INTEGER,
+    cluster_labels TEXT,  -- JSON: {0: "ml, neural, networks", 1: "philosophy, ethics"}
+    computed_at TEXT NOT NULL,
+    FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
+);
 """
 
 
@@ -169,4 +184,30 @@ def migrate_schema(conn: sqlite3.Connection) -> None:
 
         # Update version
         conn.execute("PRAGMA user_version = 4")
+        conn.commit()
+
+    # Migration from version 4 to 5: Add embedding_metrics table
+    if current_version < 5:
+        # Check if table already exists
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='embedding_metrics'"
+        )
+        if cursor.fetchone() is None:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS embedding_metrics (
+                    session_date TEXT PRIMARY KEY,
+                    intrinsic_dim REAL,
+                    vendi_score REAL,
+                    shannon_entropy REAL,
+                    silhouette_score REAL,
+                    n_clusters INTEGER,
+                    n_gaps INTEGER,
+                    cluster_labels TEXT,
+                    computed_at TEXT NOT NULL,
+                    FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
+                )
+            """)
+
+        # Update version
+        conn.execute("PRAGMA user_version = 5")
         conn.commit()
