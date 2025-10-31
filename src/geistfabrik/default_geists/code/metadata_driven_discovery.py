@@ -94,7 +94,8 @@ def _find_complex_but_isolated(vault: "VaultContext") -> list["Note"]:
     """Find notes with high complexity but low connectivity."""
     complex_isolated = []
 
-    for note in vault.notes():
+    all_notes = vault.notes()
+    for note in all_notes:
         metadata = vault.metadata(note)
 
         # High complexity (high lexical diversity or long reading time)
@@ -115,7 +116,8 @@ def _find_buried_gems(vault: "VaultContext") -> list["Note"]:
     """Find old notes with high lexical diversity."""
     gems = []
 
-    for note in vault.notes():
+    all_notes = vault.notes()
+    for note in all_notes:
         metadata = vault.metadata(note)
 
         lexical_diversity = metadata.get("lexical_diversity", 0)
@@ -132,7 +134,8 @@ def _find_abandoned_task_notes(vault: "VaultContext") -> list["Note"]:
     """Find notes with incomplete tasks that are stale."""
     abandoned = []
 
-    for note in vault.notes():
+    all_notes = vault.notes()
+    for note in all_notes:
         metadata = vault.metadata(note)
 
         has_tasks = metadata.get("has_tasks", False)

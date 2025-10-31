@@ -93,7 +93,8 @@ def find_explicit_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
     candidates = []
     processed = set()
 
-    for note in vault.notes():
+    all_notes = vault.notes()
+    for note in all_notes:
         for link in note.links:
             target = vault.resolve_link_target(link.target)
             if not target:
@@ -130,7 +131,8 @@ def find_implicit_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
     candidates = []
     processed = set()
 
-    for note in vault.notes():
+    all_notes = vault.notes()
+    for note in all_notes:
         neighbors = vault.neighbours(note, k=20)
 
         for neighbor in neighbors:
@@ -170,7 +172,8 @@ def find_connected_pair(vault: "VaultContext") -> tuple["Note", "Note"] | None:
     candidates = []
     processed = set()
 
-    for note in vault.notes():
+    all_notes = vault.notes()
+    for note in all_notes:
         for link in note.links:
             target = vault.resolve_link_target(link.target)
             if not target:

@@ -538,6 +538,21 @@ Optimized for vaults with 100+ notes and 100+ geists:
 - **Query optimization**: Batch loading eliminates N+1 queries
 - **Memory efficient**: Streaming where possible
 
+### Recent Performance Improvements (2025-10-31)
+
+**Session-level caching**: `vault.notes()` now caches results per session, eliminating redundant filesystem operations when geists query the note list multiple times.
+
+**Vectorized similarity computations**: Embedding similarity calculations now use `sklearn.metrics.pairwise.cosine_similarity` with vectorized NumPy operations, replacing O(n²) nested loops. **Estimated 50-70% speedup** for stats commands and similarity-heavy geists.
+
+**Optimized database queries**:
+- Orphan queries now use `LEFT JOIN` instead of `NOT IN` subqueries
+- New composite index `idx_links_target_source` for backlink operations
+- Schema v5→v6 migration applies automatically
+
+**Code quality improvements**: Updated 8 geist files to cache `vault.notes()` calls before loops, reducing API call overhead and improving maintainability.
+
+See [CHANGELOG.md](CHANGELOG.md) for complete details.
+
 ## Development
 
 ### Running Tests

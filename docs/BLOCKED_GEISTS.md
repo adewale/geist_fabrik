@@ -1,6 +1,6 @@
 # Blocked Geists - Infrastructure Gap Analysis
 
-**Date**: 2025-10-21
+**Date**: 2025-10-21 (Updated: 2025-10-31)
 **Purpose**: Document geists mentioned in specs that cannot be built with current infrastructure
 
 **Per user directive**: "Keep track of which geists proved to be impractical with our current infrastructure but do NOT change the infrastructure to support these geists. Just capture them."
@@ -12,13 +12,37 @@
 | Status | Count | Geists |
 |--------|-------|--------|
 | ✅ **Buildable & Built** | 14 | All code and Tracery geists in examples/ + temporal_mirror |
-| ⚠️ **Blocked by Missing Infrastructure** | 4 | island_hopper, bridge_hunter, density_inversion, vocabulary_expansion |
+| ⚠️ **Blocked by Missing Infrastructure** | 3 | island_hopper, bridge_hunter, vocabulary_expansion |
+| 🎉 **Recently Unblocked** | 1 | density_inversion (unblocked 2025-10-31) |
 | ⚠️ **Approximated** | 1 | hidden_hub (built approximation, not full spec) |
 | ⬜ **Undefined** | 3 | columbo, drift, skeptic |
 
 ---
 
-## Blocked Geists (4)
+## Recently Unblocked (1)
+
+### density_inversion
+
+**Source**: `specs/geistfabrik_spec.md:1415-1456`
+
+**Description**: Detect mismatches between link structure and semantic structure
+
+**Unblocked**: 2025-10-31
+
+**What Was Added**:
+- ✅ `vault.has_link(a, b)` - Check if direct link exists between notes (bidirectional)
+- ✅ `vault.graph_neighbors(note)` - Get notes connected by links (not semantic similarity)
+
+**Implementation**: See `src/geistfabrik/vault_context.py:495-532`
+- `has_link()` provides bidirectional link checking
+- `graph_neighbors()` traverses link graph (forward + backlinks)
+- Both helpers added as part of Performance Quick Wins (2025-10-31)
+
+**Status**: ✅ **Can now be built** - all required infrastructure exists
+
+---
+
+## Blocked Geists (3)
 
 These geists are documented in `specs/geistfabrik_spec.md` but **cannot be built** with current VaultContext API.
 
@@ -81,42 +105,7 @@ def semantic_path(self, a: Note, b: Note, max_hops: int = 5) -> List[Note]:
 
 ---
 
-### 3. density_inversion
-
-**Source**: `specs/geistfabrik_spec.md:1415-1456`
-
-**Description**: Detect mismatches between link structure and semantic structure
-
-**Why Blocked**:
-- ❌ Requires `vault.get_graph_neighbors(note)` - NOT IMPLEMENTED
-- ❌ Requires `vault.has_link(a, b)` - NOT IMPLEMENTED
-- Needs explicit graph traversal (different from semantic neighbours)
-
-**What It Needs**:
-```python
-def get_graph_neighbors(self, note: Note) -> List[Note]:
-    """Get notes connected by links (not semantic similarity).
-
-    Returns: List of notes linked to/from given note.
-    """
-    # Forward links + backlinks (graph structure only)
-    pass
-
-def has_link(self, a: Note, b: Note) -> bool:
-    """Check if there's a direct link between two notes.
-
-    Returns: True if a links to b OR b links to a
-    """
-    pass
-```
-
-**Estimated Effort**: 1-2 hours (simple graph queries + tests)
-
-**Priority**: Low (interesting insight, but not essential)
-
----
-
-### 4. vocabulary_expansion
+### 3. vocabulary_expansion
 
 **Source**: `specs/geistfabrik_spec.md:1458-1499`
 
@@ -257,15 +246,15 @@ These are mentioned in documentation but have no specifications.
 
 ### Missing VaultContext Methods
 
-| Method | Required By | Complexity | Estimated Effort |
-|--------|-------------|------------|------------------|
-| `find_clusters(min_size, max_size)` | island_hopper | High | 2-3 hours |
-| `semantic_path(a, b, max_hops)` | bridge_hunter | High | 3-4 hours |
-| `get_graph_neighbors(note)` | density_inversion | Low | 1 hour |
-| `has_link(a, b)` | density_inversion | Low | 30 mins |
-| `get_recent_sessions(n)` | vocabulary_expansion | High | 4-6 hours |
+| Method | Required By | Complexity | Estimated Effort | Status |
+|--------|-------------|------------|------------------|--------|
+| `find_clusters(min_size, max_size)` | island_hopper | High | 2-3 hours | ⏳ Not implemented |
+| `semantic_path(a, b, max_hops)` | bridge_hunter | High | 3-4 hours | ⏳ Not implemented |
+| ~~`graph_neighbors(note)`~~ | ~~density_inversion~~ | Low | ~~1 hour~~ | ✅ **Implemented 2025-10-31** |
+| ~~`has_link(a, b)`~~ | ~~density_inversion~~ | Low | ~~30 mins~~ | ✅ **Implemented 2025-10-31** |
+| `get_recent_sessions(n)` | vocabulary_expansion | High | 4-6 hours | ⏳ Not implemented |
 
-**Total Estimated Effort**: 11-14.5 hours to unblock all geists
+**Total Estimated Effort**: ~~11-14.5~~ → **9.5-13 hours** to unblock remaining geists (1.5 hours saved by density_inversion helpers)
 
 ### Missing Database Schema
 
@@ -291,8 +280,7 @@ Therefore:
 ### If Requirements Change Later
 
 **Low-hanging fruit** (if user changes directive):
-1. `get_graph_neighbors()` + `has_link()` - Simple, 1.5 hours total
-2. Could unblock density_inversion immediately
+1. ~~`graph_neighbors()` + `has_link()` - Simple, 1.5 hours total~~ ✅ **DONE** (unblocked density_inversion on 2025-10-31)
 
 **High-value additions**:
 1. `get_recent_sessions()` - Enables temporal analysis (vocabulary_expansion)
@@ -316,9 +304,10 @@ Therefore:
 
 ## Conclusion
 
-- **4 geists blocked** by missing infrastructure
-- **11-14.5 hours** to unblock all of them
-- **NOT implementing** per user directive
+- **3 geists blocked** by missing infrastructure (down from 4)
+- **1 geist unblocked** on 2025-10-31 (density_inversion via `has_link()` + `graph_neighbors()`)
+- **9.5-13 hours** to unblock remaining geists
+- **NOT implementing** remaining geists per user directive
 - **Documentation complete** - this file + `docs/GEIST_CATALOG.md`
 
 All buildable geists are built, tested, and passing. Blocked geists are documented with clear explanations of what's missing.
