@@ -16,6 +16,7 @@ from .stats import (
     StatsFormatter,
     generate_recommendations,
 )
+from .validator import GeistValidator
 from .vault import Vault
 from .vault_context import VaultContext
 
@@ -905,6 +906,155 @@ def test_all_command(args: argparse.Namespace) -> int:
         return 1
 
 
+def validate_command(args: argparse.Namespace) -> int:
+    """Execute the validate command to check geist files for errors.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    # Find vault path
+    if hasattr(args, "vault") and args.vault:
+        vault_path: Path = Path(args.vault).resolve()
+    else:
+        # Auto-detect vault
+        vault_path_maybe = find_vault_root()
+        if vault_path_maybe is None:
+            print(
+                "Error: No vault specified and could not auto-detect vault.",
+                file=sys.stderr,
+            )
+            print("Either run from within a vault or specify vault path.", file=sys.stderr)
+            return 1
+        vault_path = vault_path_maybe
+
+    # Check if vault is initialized
+    geistfabrik_dir = vault_path / "_geistfabrik"
+    if not geistfabrik_dir.exists():
+        print(f"Error: GeistFabrik not initialized in {vault_path}", file=sys.stderr)
+        print(f"Run: geistfabrik init {vault_path}", file=sys.stderr)
+        return 1
+
+    # Set up directories
+    code_dir = geistfabrik_dir / "geists" / "code"
+    tracery_dir = geistfabrik_dir / "geists" / "tracery"
+
+    # Get default geists directories
+    package_dir = Path(__file__).parent
+    default_code_dir = package_dir / "default_geists" / "code"
+    default_tracery_dir = package_dir / "default_geists" / "tracery"
+
+    # Initialize validator
+    validator = GeistValidator(strict=args.strict if hasattr(args, "strict") else False)
+
+    # Determine what to validate
+    if hasattr(args, "geist") and args.geist:
+        # Validate specific geist
+        geist_id = args.geist
+
+        # Check code geist
+        code_file = code_dir / f"{geist_id}.py"
+        default_code_file = default_code_dir / f"{geist_id}.py"
+        tracery_file = tracery_dir / f"{geist_id}.yaml"
+        default_tracery_file = default_tracery_dir / f"{geist_id}.yaml"
+
+        results = []
+        if code_file.exists():
+            results.append(validator.validate_code_geist(code_file))
+        elif default_code_file.exists():
+            results.append(validator.validate_code_geist(default_code_file))
+        elif tracery_file.exists():
+            results.append(validator.validate_tracery_geist(tracery_file))
+        elif default_tracery_file.exists():
+            results.append(validator.validate_tracery_geist(default_tracery_file))
+        else:
+            print(f"Error: Geist '{geist_id}' not found", file=sys.stderr)
+            return 1
+    else:
+        # Validate all geists
+        results = []
+        # Custom geists
+        results.extend(validator.validate_all(code_dir, tracery_dir))
+        # Default geists
+        results.extend(validator.validate_all(default_code_dir, default_tracery_dir))
+
+    # Format output
+    if hasattr(args, "format") and args.format == "json":
+        # JSON output
+        import json
+
+        output = {
+            "total": len(results),
+            "passed": sum(1 for r in results if r.passed),
+            "failed": sum(1 for r in results if not r.passed),
+            "geists": [
+                {
+                    "id": r.geist_id,
+                    "type": r.geist_type,
+                    "path": str(r.file_path),
+                    "passed": r.passed,
+                    "issues": [
+                        {
+                            "severity": i.severity,
+                            "message": i.message,
+                            "line": i.line_number,
+                            "suggestion": i.suggestion,
+                        }
+                        for i in r.issues
+                    ],
+                }
+                for r in results
+            ],
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        # Human-readable output
+        print(f"Validating geists in {vault_path}/_geistfabrik/geists/...\n")
+
+        for result in results:
+            if result.passed:
+                print(f"✅ {result.geist_type}/{result.geist_id}")
+                if result.has_warnings or (hasattr(args, "verbose") and args.verbose):
+                    for issue in result.issues:
+                        if issue.severity == "info":
+                            print(f"   ℹ️  {issue.message}")
+                        elif issue.severity == "warning":
+                            print(f"   ⚠️  {issue.message}")
+            else:
+                print(f"❌ {result.geist_type}/{result.geist_id}")
+                for issue in result.issues:
+                    if issue.severity == "error":
+                        if issue.line_number:
+                            print(f"   Line {issue.line_number}: {issue.message}")
+                        else:
+                            print(f"   {issue.message}")
+                        if issue.suggestion and (
+                            hasattr(args, "verbose") and args.verbose or len(result.issues) <= 3
+                        ):
+                            # Show suggestions for verbose mode or if few issues
+                            print(f"      → {issue.suggestion}")
+                    elif issue.severity == "warning":
+                        print(f"   ⚠️  {issue.message}")
+
+            print()
+
+        # Summary
+        passed = sum(1 for r in results if r.passed)
+        errors = sum(1 for r in results if r.has_errors)
+        warnings = sum(1 for r in results if r.has_warnings and not r.has_errors)
+
+        print("─" * 60)
+        print(f"Summary: {passed} passed, {errors} errors, {warnings} warnings")
+        print("─" * 60)
+
+    # Exit code
+    if any(not r.passed for r in results):
+        return 1
+    return 0
+
+
 def stats_command(args: argparse.Namespace) -> int:
     """Execute the stats command to show vault statistics.
 
@@ -1200,6 +1350,41 @@ Examples:
         help="Days of session history to analyze (default: 30)",
     )
 
+    # Validate command
+    validate_parser = subparsers.add_parser(
+        "validate",
+        help="Validate geist files for errors without executing them",
+    )
+    validate_parser.add_argument(
+        "vault",
+        type=str,
+        nargs="?",
+        help="Path to Obsidian vault (optional, auto-detects from current directory)",
+    )
+    validate_parser.add_argument(
+        "--geist",
+        type=str,
+        help="Validate specific geist by ID",
+    )
+    validate_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat warnings as errors",
+    )
+    validate_parser.add_argument(
+        "--format",
+        type=str,
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)",
+    )
+    validate_parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show detailed validation information",
+    )
+
     args = parser.parse_args()
 
     # Show help if no command specified
@@ -1218,6 +1403,8 @@ Examples:
         return test_all_command(args)
     elif args.command == "stats":
         return stats_command(args)
+    elif args.command == "validate":
+        return validate_command(args)
 
     return 1
 

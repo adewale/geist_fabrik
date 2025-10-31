@@ -177,6 +177,26 @@ def test_parse_invalid_date():
     assert parse_date_heading("## 2025-13-45") is None
 
 
+def test_parse_invalid_date_with_file_context(caplog):
+    """Test invalid date logs warning with file path context."""
+    import logging
+
+    # Non-leap year February 29 - should fail
+    result = parse_date_heading("## 2023 February 29", file_path="Daily Journal.md")
+
+    # Should return None
+    assert result is None
+
+    # Should log warning with file path
+    assert any(
+        "Invalid date in heading" in record.message
+        and "2023 February 29" in record.message
+        and "Daily Journal.md" in record.message
+        and record.levelno == logging.WARNING
+        for record in caplog.records
+    ), f"Expected warning not found in logs: {[r.message for r in caplog.records]}"
+
+
 def test_parse_ambiguous_text():
     """Test ambiguous text returns None."""
     assert parse_date_heading("## Future Plans") is None

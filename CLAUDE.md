@@ -115,7 +115,7 @@ GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 - Handles both atomic notes and date-collection notes
 - Syncs filesystem changes to SQLite database incrementally
 - Computes embeddings using sentence-transformers (all-MiniLM-L6-v2)
-- Uses sqlite-vec extension for vector storage
+- Stores embeddings as SQLite BLOBs, loads into memory for similarity search
 
 ### Layer 2: VaultContext (Rich Execution Context)
 - Wraps the Vault with intelligence and utilities
@@ -124,11 +124,12 @@ GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 - Includes deterministic randomness (same seed = same results)
 - Manages function registry for extensibility
 
-### Persistence: SQLite + sqlite-vec
+### Persistence: SQLite
 - Single database at `<vault>/_geistfabrik/vault.db`
-- Stores notes, links, embeddings, metadata, execution history
+- Stores notes, links, embeddings (as BLOBs), execution history
 - Incremental updates (only reprocess changed files)
 - Fast indexed queries for graph operations
+- Vector similarity computed in-memory using NumPy cosine distance
 
 ### Geist Types
 1. **Code geists**: Python functions in `<vault>/_geistfabrik/geists/code/` that receive VaultContext and return Suggestions
@@ -242,7 +243,7 @@ uv run geistfabrik test-all ~/test-vault
 The following approach was used to implement GeistFabrik:
 
 1. **Start with Vault layer**: File parsing, SQLite schema, incremental sync
-2. **Add embeddings**: Integrate sentence-transformers and sqlite-vec
+2. **Add embeddings**: Integrate sentence-transformers with in-memory vector search
 3. **Build VaultContext**: Semantic search, graph queries, sampling utilities
 4. **Create core functions**: Built-in vault functions for common queries
 5. **Implement geist execution**: Loading, timeout handling, error logging
@@ -256,9 +257,9 @@ The following approach was used to implement GeistFabrik:
 
 Core dependencies include:
 - `sentence-transformers` - Local embedding computation (all-MiniLM-L6-v2 model)
-- `sqlite-vec` - Vector similarity search in SQLite
-- `tracery` (pytracery) - Tracery grammar support
-- Python standard library for Markdown parsing, file watching
+- `pyyaml` - YAML parsing for Tracery geists and configuration
+- Custom Tracery implementation (included, no external dependency)
+- Python standard library for Markdown parsing, SQLite, NumPy for vector operations
 
 ## Testing Strategy
 
