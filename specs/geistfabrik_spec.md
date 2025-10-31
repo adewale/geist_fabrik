@@ -159,15 +159,15 @@ class VaultContext:
 
 **Design Philosophy**: Geists shouldn't worry about the mechanics of vault parsing, embedding computation, or metadata inference. VaultContext provides a **ready-to-use intelligence layer** so geists can focus purely on creative pattern recognition and suggestion generation. The context does the heavy lifting; geists do the thinking.
 
-### Persistence Layer (SQLite + sqlite-vec)
+### Persistence Layer (SQLite)
 
-GeistFabrik uses a **single SQLite database** at `<vault>/_geistfabrik/vault.db` for all persistence needs: notes, links, embeddings, metadata, and execution history.
+GeistFabrik uses a **single SQLite database** at `<vault>/_geistfabrik/vault.db` for all persistence needs: notes, links, embeddings, sessions, and execution history.
 
 #### Why SQLite?
 
 - **Single file** - entire vault state in one portable database
-- **Fast queries** - indexed graph operations, metadata filtering
-- **Vector search** - sqlite-vec extension for semantic similarity
+- **Fast queries** - indexed graph operations, tag filtering, temporal tracking
+- **Vector search** - In-memory cosine similarity (default) or sqlite-vec extension (optional)
 - **Incremental updates** - only reprocess changed files
 - **Offline** - no network dependencies
 - **Portable** - works identically across platforms
@@ -175,70 +175,98 @@ GeistFabrik uses a **single SQLite database** at `<vault>/_geistfabrik/vault.db`
 #### Database Schema
 
 ```sql
--- Core note data
+-- Core note data (supports both regular and virtual entries)
 CREATE TABLE notes (
     path TEXT PRIMARY KEY,
-    title TEXT,
-    content TEXT,
-    created TIMESTAMP,
-    modified TIMESTAMP,
-    word_count INTEGER,
-    hash TEXT  -- For change detection
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created TEXT NOT NULL,
+    modified TEXT NOT NULL,
+    file_mtime REAL NOT NULL,  -- For incremental sync
+    is_virtual INTEGER DEFAULT 0,  -- True for virtual entries from date-collection notes
+    source_file TEXT,  -- Original file path for virtual entries
+    entry_date TEXT  -- Date extracted from heading for virtual entries
 );
+CREATE INDEX idx_notes_modified ON notes(modified);
+CREATE INDEX idx_notes_title ON notes(title);
+CREATE INDEX idx_notes_source_file ON notes(source_file);
+CREATE INDEX idx_notes_entry_date ON notes(entry_date);
 
 -- Graph structure
 CREATE TABLE links (
-    source_path TEXT,
-    target_path TEXT,
-    link_type TEXT,  -- 'link', 'embed', 'block-ref'
-    FOREIGN KEY (source_path) REFERENCES notes(path),
-    FOREIGN KEY (target_path) REFERENCES notes(path)
+    source_path TEXT NOT NULL,
+    target TEXT NOT NULL,
+    display_text TEXT,
+    is_embed INTEGER NOT NULL DEFAULT 0,
+    block_ref TEXT,
+    FOREIGN KEY (source_path) REFERENCES notes(path) ON DELETE CASCADE
 );
 CREATE INDEX idx_links_source ON links(source_path);
-CREATE INDEX idx_links_target ON links(target_path);
+CREATE INDEX idx_links_target ON links(target);
 
--- Vector embeddings (sqlite-vec extension)
-CREATE VIRTUAL TABLE note_embeddings USING vec0(
-    path TEXT PRIMARY KEY,
-    title_embedding FLOAT[384],
-    content_embedding FLOAT[384]
-);
-
--- Computed metadata (flexible JSON storage)
-CREATE TABLE metadata (
-    note_path TEXT,
-    key TEXT,
-    value TEXT,  -- JSON encoded
-    computed_at TIMESTAMP,
-    FOREIGN KEY (note_path) REFERENCES notes(path),
-    PRIMARY KEY (note_path, key)
-);
-CREATE INDEX idx_metadata_key ON metadata(key);
-
--- Geist execution history
-CREATE TABLE geist_runs (
-    date DATE,
-    geist_id TEXT,
-    suggestions TEXT,  -- JSON array of suggestions
-    PRIMARY KEY (date, geist_id)
-);
-
--- Block reference tracking
-CREATE TABLE block_refs (
-    block_id TEXT PRIMARY KEY,
-    note_path TEXT,
-    created_date DATE,
-    FOREIGN KEY (note_path) REFERENCES notes(path)
+-- Vector embeddings (stored as BLOBs, in-memory similarity search)
+CREATE TABLE embeddings (
+    note_path TEXT PRIMARY KEY,
+    embedding BLOB NOT NULL,
+    model_version TEXT NOT NULL,
+    computed_at TEXT NOT NULL,
+    FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
 );
 
 -- Tags (denormalized for query performance)
 CREATE TABLE tags (
-    note_path TEXT,
-    tag TEXT,
-    FOREIGN KEY (note_path) REFERENCES notes(path),
-    PRIMARY KEY (note_path, tag)
+    note_path TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
 );
+CREATE INDEX idx_tags_note ON tags(note_path);
 CREATE INDEX idx_tags_tag ON tags(tag);
+
+-- Sessions (for temporal tracking)
+CREATE TABLE sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL UNIQUE,
+    vault_state_hash TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX idx_sessions_date ON sessions(date);
+
+-- Session embeddings (temporal embeddings per session)
+CREATE TABLE session_embeddings (
+    session_id INTEGER NOT NULL,
+    note_path TEXT NOT NULL,
+    embedding BLOB NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+    FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE,
+    PRIMARY KEY (session_id, note_path)
+);
+CREATE INDEX idx_session_embeddings_path ON session_embeddings(note_path);
+
+-- Session suggestions (for novelty filtering and history tracking)
+CREATE TABLE session_suggestions (
+    session_date TEXT NOT NULL,
+    geist_id TEXT NOT NULL,
+    suggestion_text TEXT NOT NULL,
+    block_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (session_date, block_id)
+);
+CREATE INDEX idx_session_suggestions_date ON session_suggestions(session_date);
+CREATE INDEX idx_session_suggestions_geist ON session_suggestions(geist_id);
+
+-- Embedding metrics cache (for stats command)
+CREATE TABLE embedding_metrics (
+    session_date TEXT PRIMARY KEY,
+    intrinsic_dim REAL,
+    vendi_score REAL,
+    shannon_entropy REAL,
+    silhouette_score REAL,
+    n_clusters INTEGER,
+    n_gaps INTEGER,
+    cluster_labels TEXT,  -- JSON
+    computed_at TEXT NOT NULL,
+    FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
+);
 ```
 
 #### Sync Process

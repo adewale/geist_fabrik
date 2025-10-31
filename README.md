@@ -299,7 +299,7 @@ GeistFabrik supports pluggable vector search backends for semantic similarity:
 
 **In-Memory Backend** (default):
 - Fast for small-medium vaults (100-1000 notes)
-- Pure Python, no external dependencies
+- No additional dependencies beyond core requirements
 - Loads all embeddings into RAM
 
 **SQLite-Vec Backend** (optional):
@@ -466,6 +466,22 @@ Vault Files → Vault.sync() → SQLite Database
 6. **Deterministic randomness** - Same date + vault = same output
 7. **Never destructive** - Read-only vault access
 8. **Extensible at every layer** - Metadata, functions, geists
+
+### Technologies
+
+**Core Dependencies**:
+- `sentence-transformers` (≥2.2.0) - Local embedding computation with all-MiniLM-L6-v2 model
+- `pyyaml` (≥6.0) - YAML parsing for configuration and Tracery geists
+- Python 3.11+ standard library (SQLite, pathlib, etc.)
+
+**Tracery Grammar**:
+- Custom implementation included (no external dependency)
+- Compatible with standard Tracery syntax
+- Extended with `$vault.*` function calls for dynamic content
+
+**Optional Dependencies**:
+- `sqlite-vec` - For large vaults (5000+ notes) using SQLite-Vec backend
+- `numpy`, `scipy`, `scikit-learn` - For advanced stats metrics (auto-detected)
 
 ## Example Geists
 
