@@ -641,8 +641,8 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 36 code geists in src/geistfabrik/default_geists/code/
-    assert len(geist_executor.geists) == 36
+    # We have 37 code geists in src/geistfabrik/default_geists/code/
+    assert len(geist_executor.geists) == 37
 
 
 def test_all_geists_execute_without_crashing(

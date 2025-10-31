@@ -5,6 +5,8 @@ import random
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
+
 from .embeddings import Session, cosine_similarity
 from .models import Link, Note
 from .vault import Vault
@@ -264,6 +266,152 @@ class VaultContext:
                     break
 
         return result
+
+    def get_clusters(self, min_size: int = 5) -> Dict[int, Dict[str, Any]]:
+        """Get cluster assignments and labels for current session.
+
+        Uses HDBSCAN clustering on embeddings, then generates labels via
+        c-TF-IDF with MMR diversity filtering. Returns cluster information
+        including formatted labels and member notes.
+
+        Args:
+            min_size: Minimum notes required to form a cluster
+
+        Returns:
+            Dictionary mapping cluster_id to cluster info:
+            {
+                cluster_id: {
+                    "label": "keyword, list, here",
+                    "formatted_label": "Notes about keyword, list, and here",
+                    "notes": [Note, ...],
+                    "size": int,
+                    "centroid": np.ndarray,
+                }
+            }
+        """
+        # Import optional dependency
+        try:
+            from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
+        except ImportError:
+            logger.warning("sklearn not available, clustering disabled")
+            return {}
+
+        # Get all embeddings and paths for current session
+        embeddings_dict = self.session.get_all_embeddings()
+        if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
+            return {}
+
+        paths = list(embeddings_dict.keys())
+        embeddings_array = np.array([embeddings_dict[p] for p in paths])
+
+        # Run HDBSCAN clustering
+        clusterer = HDBSCAN(min_cluster_size=min_size, min_samples=3)
+        labels = clusterer.fit_predict(embeddings_array)
+
+        # Group notes by cluster
+        clusters: Dict[int, List[Note]] = {}
+        cluster_paths: Dict[int, List[str]] = {}
+
+        for i, label in enumerate(labels):
+            if label == -1:  # Noise points
+                continue
+            if label not in clusters:
+                clusters[label] = []
+                cluster_paths[label] = []
+
+            note = self.get_note(paths[i])
+            if note:
+                clusters[label].append(note)
+                cluster_paths[label].append(paths[i])
+
+        if not clusters:
+            return {}
+
+        # Generate labels using stats module
+        from .stats import EmbeddingMetricsComputer
+
+        metrics_computer = EmbeddingMetricsComputer(self.db)
+        cluster_labels_raw = metrics_computer._label_clusters_tfidf(paths, labels, n_terms=4)
+
+        # Build result with formatted labels and centroids
+        result: Dict[int, Dict[str, Any]] = {}
+
+        for cluster_id, notes in clusters.items():
+            # Get embeddings for this cluster
+            cluster_embeddings = np.array(
+                [embeddings_dict[path] for path in cluster_paths[cluster_id]]
+            )
+
+            # Calculate centroid (mean of embeddings)
+            centroid = np.mean(cluster_embeddings, axis=0)
+
+            # Format label as phrase
+            keyword_label = cluster_labels_raw.get(cluster_id, f"Cluster {cluster_id}")
+            formatted_label = self._format_cluster_label(keyword_label)
+
+            result[cluster_id] = {
+                "label": keyword_label,
+                "formatted_label": formatted_label,
+                "notes": notes,
+                "size": len(notes),
+                "centroid": centroid,
+            }
+
+        return result
+
+    def _format_cluster_label(self, keyword_label: str) -> str:
+        """Format keyword list as readable phrase.
+
+        Args:
+            keyword_label: Comma-separated keywords
+
+        Returns:
+            Formatted phrase template
+        """
+        terms = [t.strip() for t in keyword_label.split(",")]
+
+        if len(terms) == 1:
+            return f"Notes about {terms[0]}"
+        elif len(terms) == 2:
+            return f"Notes about {terms[0]} and {terms[1]}"
+        else:
+            # Oxford comma for 3+ terms
+            return f"Notes about {', '.join(terms[:-1])}, and {terms[-1]}"
+
+    def get_cluster_representatives(self, cluster_id: int, k: int = 3) -> List[Note]:
+        """Get most representative notes for a cluster.
+
+        Finds notes closest to the cluster centroid, which are the most
+        "typical" or "central" notes in the cluster.
+
+        Args:
+            cluster_id: Cluster ID from get_clusters()
+            k: Number of representative notes to return
+
+        Returns:
+            List of k notes closest to cluster centroid
+        """
+        clusters = self.get_clusters()
+        if cluster_id not in clusters:
+            return []
+
+        cluster = clusters[cluster_id]
+        centroid = cluster["centroid"]
+        notes = cluster["notes"]
+
+        # Calculate similarity to centroid for each note
+        embeddings_dict = self.session.get_all_embeddings()
+        similarities = []
+
+        for note in notes:
+            note_embedding = embeddings_dict.get(note.path)
+            if note_embedding is not None:
+                sim = cosine_similarity(centroid, note_embedding)
+                similarities.append((note, sim))
+
+        # Sort by similarity descending, return top k
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return [note for note, _ in similarities[:k]]
 
     def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> List[Tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
