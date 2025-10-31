@@ -27,14 +27,14 @@ except ImportError:
     HAS_SKLEARN = False
 
 try:
-    from skdim.id import TwoNN  # type: ignore[import-untyped]
+    from skdim.id import TwoNN  # type: ignore
 
     HAS_SKDIM = True
 except ImportError:
     HAS_SKDIM = False
 
 try:
-    from vendi_score import vendi  # type: ignore[import-untyped]
+    from vendi_score import vendi  # type: ignore
 
     HAS_VENDI = True
 except ImportError:
