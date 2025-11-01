@@ -253,8 +253,13 @@ class GeistExecutor:
 
         # Enable profiling in debug mode
         if self.debug:
-            profiler = cProfile.Profile()
-            profiler.enable()
+            try:
+                profiler = cProfile.Profile()
+                profiler.enable()
+            except Exception as e:
+                # Profiling failed - log warning but continue execution
+                print(f"Warning: Failed to enable profiling for {geist_id}: {e}")
+                profiler = None
 
         try:
             # Set up timeout (Unix-only)
@@ -280,7 +285,11 @@ class GeistExecutor:
 
                 # Stop profiling
                 if profiler:
-                    profiler.disable()
+                    try:
+                        profiler.disable()
+                    except Exception:
+                        # Profiler disable failed - ignore and continue
+                        pass
 
                 # Calculate execution time
                 end_time = time.perf_counter()
@@ -296,12 +305,20 @@ class GeistExecutor:
                 )
 
                 # Create execution profile
+                profile_stats = None
+                if profiler:
+                    try:
+                        profile_stats = self._extract_profile_stats(profiler)
+                    except Exception as e:
+                        # Profile extraction failed - log warning
+                        print(f"Warning: Failed to extract profile stats for {geist_id}: {e}")
+
                 profile = GeistExecutionProfile(
                     geist_id=geist_id,
                     status="success",
                     total_time=execution_time,
                     suggestion_count=len(suggestions),
-                    function_stats=self._extract_profile_stats(profiler) if profiler else None,
+                    function_stats=profile_stats,
                 )
                 self.execution_profiles.append(profile)
 
@@ -319,14 +336,26 @@ class GeistExecutor:
         except GeistTimeoutError:
             # Stop profiling
             if profiler:
-                profiler.disable()
+                try:
+                    profiler.disable()
+                except Exception:
+                    # Profiler disable failed - ignore and continue
+                    pass
 
             # Create timeout profile
+            profile_stats = None
+            if profiler:
+                try:
+                    profile_stats = self._extract_profile_stats(profiler)
+                except Exception as e:
+                    # Profile extraction failed - log warning
+                    print(f"Warning: Failed to extract profile stats for {geist_id}: {e}")
+
             profile = GeistExecutionProfile(
                 geist_id=geist_id,
                 status="timeout",
                 total_time=self.timeout,
-                function_stats=self._extract_profile_stats(profiler) if profiler else None,
+                function_stats=profile_stats,
                 stack_trace=traceback.format_exc(),
             )
             self.execution_profiles.append(profile)
@@ -347,7 +376,11 @@ class GeistExecutor:
         except Exception as e:
             # Stop profiling
             if profiler:
-                profiler.disable()
+                try:
+                    profiler.disable()
+                except Exception:
+                    # Profiler disable failed - ignore and continue
+                    pass
 
             # Calculate execution time
             end_time = time.perf_counter()
@@ -451,6 +484,16 @@ class GeistExecutor:
         """
         return self.execution_log.copy()
 
+    def get_execution_profiles(self) -> List[GeistExecutionProfile]:
+        """Get execution profiles with timing data.
+
+        Only populated when debug mode is enabled.
+
+        Returns:
+            List of execution profiles (empty if debug=False)
+        """
+        return self.execution_profiles.copy()
+
     def _extract_profile_stats(self, profiler: Optional[cProfile.Profile]) -> List[ProfileStats]:
         """Extract function-level statistics from profiler.
 
@@ -541,8 +584,7 @@ class GeistExecutor:
                         name = module_func
 
                 print(
-                    f"    {i}. {name:50s} {stats.total_time:6.3f}s ({pct:5.1f}%)  "
-                    f"{stats.calls:4d} calls"
+                    f"    {i}. {name} - {stats.total_time:.3f}s ({pct:.1f}%) - {stats.calls} calls"
                 )
 
             # Show percentage accounted for

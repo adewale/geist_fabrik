@@ -33,7 +33,7 @@ class GeistExecutionProfile:
     status: str  # "success", "timeout", "error"
     total_time: float  # seconds
 
-    # Optional profiling data (only collected in verbose mode)
+    # Optional profiling data (only collected in debug mode)
     function_calls: Optional[Dict[str, ProfileStats]] = None
     stack_trace: Optional[str] = None  # Stack at timeout
 
@@ -47,9 +47,9 @@ class ProfileStats:
     cumulative_time: float  # Including subcalls
 ```
 
-### 2. Verbose Mode Enhancements
+### 2. Debug Mode Enhancements
 
-When `--verbose` is enabled:
+When `--debug` is enabled:
 
 **For all geists:**
 ```
@@ -78,14 +78,14 @@ Executing geist: cluster_mirror
   Suggestions:
     → HDBSCAN clustering is expensive - consider caching results
     → Clustering 847 notes took 2.9s, expected ~1.5s for this size
-    → Test with: geistfabrik test cluster_mirror <vault> --timeout 10 --verbose
+    → Test with: geistfabrik test cluster_mirror <vault> --timeout 10 --debug
 ```
 
 **For slow geists (>2s but <5s):**
 ```
   ⚠ cluster_mirror completed in 4.123s (5 suggestions)
     Warning: Approaching timeout threshold (82% of 5s limit)
-    → Run with --verbose for detailed performance breakdown
+    → Run with --debug for detailed performance breakdown
 ```
 
 ### 3. Implementation Strategy
@@ -94,8 +94,8 @@ Executing geist: cluster_mirror
 
 ```python
 class GeistExecutor:
-    def __init__(self, ..., verbose: bool = False):
-        self.verbose = verbose
+    def __init__(self, ..., debug: bool = False):
+        self.debug = debug
         self.execution_profiles: List[GeistExecutionProfile] = []
 
     def execute_geist(self, geist_id: str, context: VaultContext) -> List[Suggestion]:
@@ -103,7 +103,7 @@ class GeistExecutor:
 
         start_time = time.perf_counter()
 
-        if self.verbose:
+        if self.debug:
             # Run with cProfile for detailed breakdown
             import cProfile
             import pstats
@@ -116,7 +116,7 @@ class GeistExecutor:
             # Execute geist (existing code)
             suggestions = geist.func(context)
 
-            if self.verbose:
+            if self.debug:
                 profiler.disable()
 
             end_time = time.perf_counter()
@@ -127,7 +127,7 @@ class GeistExecutor:
                 geist_id=geist_id,
                 status="success",
                 total_time=execution_time,
-                function_calls=self._extract_profile_stats(profiler) if self.verbose else None
+                function_calls=self._extract_profile_stats(profiler) if self.debug else None
             )
             self.execution_profiles.append(profile)
 
@@ -138,7 +138,7 @@ class GeistExecutor:
             return suggestions
 
         except GeistTimeoutError:
-            if self.verbose:
+            if self.debug:
                 profiler.disable()
 
             # Capture profile at timeout
@@ -146,13 +146,13 @@ class GeistExecutor:
                 geist_id=geist_id,
                 status="timeout",
                 total_time=self.timeout,
-                function_calls=self._extract_profile_stats(profiler) if self.verbose else None,
+                function_calls=self._extract_profile_stats(profiler) if self.debug else None,
                 stack_trace=self._get_current_stack()
             )
             self.execution_profiles.append(profile)
 
             # Show detailed timeout diagnostic
-            if self.verbose:
+            if self.debug:
                 self._show_timeout_diagnostic(geist_id, profile)
             else:
                 # Standard timeout message
@@ -165,7 +165,7 @@ class GeistExecutor:
 
 ```python
 def _show_timeout_diagnostic(self, geist_id: str, profile: GeistExecutionProfile) -> None:
-    """Show detailed timeout diagnostic in verbose mode."""
+    """Show detailed timeout diagnostic in debug mode."""
 
     print(f"\n  ✗ {geist_id} timed out after {self.timeout:.3f}s\n")
 
@@ -208,7 +208,7 @@ def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -
     suggestions = []
 
     if not profile.function_calls:
-        suggestions.append(f"Run with --verbose for detailed performance breakdown")
+        suggestions.append(f"Run with --debug for detailed performance breakdown")
         suggestions.append(f"Test with: geistfabrik test {geist_id} <vault> --timeout 10")
         return suggestions
 
@@ -230,14 +230,14 @@ def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -
         suggestions.append("Processing all notes - consider using queries or sampling")
 
     # Generic suggestions
-    suggestions.append(f"Test with longer timeout: geistfabrik test {geist_id} <vault> --timeout 10 --verbose")
+    suggestions.append(f"Test with longer timeout: geistfabrik test {geist_id} <vault> --timeout 10 --debug")
 
     return suggestions
 ```
 
 ### 4. CLI Integration
 
-No new flags needed - use existing `--verbose`:
+No new flags needed - use existing `--debug`:
 
 ```bash
 # Current behavior (minimal output)
@@ -245,8 +245,8 @@ uv run geistfabrik invoke ~/vault --geist cluster_mirror
 # Output:
 #   ✗ cluster_mirror: Execution timed out (>5s)
 
-# With verbose (detailed diagnostics)
-uv run geistfabrik invoke ~/vault --geist cluster_mirror --verbose
+# With debug (detailed diagnostics)
+uv run geistfabrik invoke ~/vault --geist cluster_mirror --debug
 # Output:
 #   Executing geist: cluster_mirror
 #   ✗ cluster_mirror timed out after 5.000s
@@ -264,7 +264,7 @@ Geist: cluster_mirror
 Vault size: 847 notes
 Timeout: 5s
 
-Performance profile (from --verbose):
+Performance profile (from --debug):
   3.542s  vault.get_clusters (1 call)
     2.891s  HDBSCAN.fit
     0.401s  c-TF-IDF computation
@@ -284,7 +284,7 @@ This is actionable! We can immediately see that HDBSCAN is the bottleneck.
 3. Add profiling support to `execute_geist` method
 4. Add diagnostic formatting methods
 5. Add smart suggestion generation
-6. Update CLI to pass `verbose` flag to GeistExecutor
+6. Update CLI to pass `debug` flag to GeistExecutor
 7. Test with cluster_mirror and other slow geists
 8. Update documentation
 

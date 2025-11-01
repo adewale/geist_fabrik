@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `scripts/profile_congruence_mirror.py` - Profiling script
   - `docs/congruence_mirror_profile_results.json` - Raw performance data
   - All vault sizes (10-1000 notes) meet performance targets with 36-99% headroom
+- **DEBUGGING**: Performance instrumentation system with `--debug` flag
+  - Function-level profiling using Python's cProfile
+  - Detailed performance breakdown for timeouts and slow geists (>80% of timeout)
+  - Smart pattern-based suggestions (HDBSCAN clustering, semantic searches, all_notes processing)
+  - ProfileStats and GeistExecutionProfile dataclasses for execution tracking
+  - Error handling to prevent profiling failures from crashing geist execution
+  - See `docs/GEIST_INSTRUMENTATION_DESIGN.md` for complete design
 
 ### Changed
 - **PERFORMANCE**: Session-level caching for `vault.notes()` calls

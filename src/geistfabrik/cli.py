@@ -535,6 +535,39 @@ def invoke_command(args: argparse.Namespace) -> int:
             print(f"Total: {len(final)} suggestions")
             print(f"{'=' * 80}\n")
 
+        # Display performance profiles in debug mode
+        if code_executor and args.debug:
+            profiles = code_executor.get_execution_profiles()
+            if profiles:
+                print(f"\n{'=' * 60}")
+                print("Performance Profiling (--debug mode)")
+                print(f"{'=' * 60}\n")
+
+                for profile in profiles:
+                    status_icon = "✓" if profile.status == "success" else "✗"
+                    print(f"{status_icon} {profile.geist_id}: {profile.total_time:.3f}s", end="")
+
+                    if profile.status == "success":
+                        print(f" ({profile.suggestion_count} suggestions)")
+                    else:
+                        print(f" ({profile.status})")
+
+                    # Show top expensive operations if available
+                    if profile.function_stats and len(profile.function_stats) > 0:
+                        print("  Top 5 operations:")
+                        for i, stats in enumerate(profile.function_stats[:5], 1):
+                            pct = (
+                                (stats.total_time / profile.total_time) * 100
+                                if profile.total_time > 0
+                                else 0
+                            )
+                            # Simplify name for readability
+                            name = stats.name.split(":")[-1] if ":" in stats.name else stats.name
+                            print(f"    {i}. {name} - {stats.total_time:.3f}s ({pct:.1f}%)")
+                        print()
+
+                print(f"{'=' * 60}\n")
+
         # Display execution log summary (for code geists only - they have detailed logs)
         if code_executor:
             log = code_executor.get_execution_log()
@@ -708,16 +741,32 @@ def test_command(args: argparse.Namespace) -> int:
                     print(f"   Suggested title: {suggestion.title}")
                 print()
 
-        # Display execution log
-        log = executor.get_execution_log()
-        for entry in log:
-            if entry["geist_id"] == geist_id:
-                if entry["status"] == "success":
+        # Display execution summary
+        profiles = executor.get_execution_profiles()
+        for profile in profiles:
+            if profile.geist_id == geist_id:
+                if profile.status == "success":
                     print("✓ Status: Success")
-                    print(f"  Execution time: {entry['execution_time']:.3f}s")
-                elif entry["status"] == "error":
-                    print("✗ Status: Error")
-                    print(f"  Error: {entry['error']}")
+                    print(f"  Execution time: {profile.total_time:.3f}s")
+
+                    # Show profiling details in debug mode
+                    if args.debug and profile.function_stats:
+                        print("\n  Top 5 operations:")
+                        for i, stats in enumerate(profile.function_stats[:5], 1):
+                            pct = (
+                                (stats.total_time / profile.total_time) * 100
+                                if profile.total_time > 0
+                                else 0
+                            )
+                            name = stats.name.split(":")[-1] if ":" in stats.name else stats.name
+                            print(f"    {i}. {name} - {stats.total_time:.3f}s ({pct:.1f}%)")
+                else:
+                    print(f"✗ Status: {profile.status}")
+                    log = executor.get_execution_log()
+                    for entry in log:
+                        if entry["geist_id"] == geist_id and "error" in entry:
+                            print(f"  Error: {entry['error']}")
+                            break
 
         print(f"\n{'=' * 60}\n")
 
@@ -857,19 +906,26 @@ def test_all_command(args: argparse.Namespace) -> int:
             print(f"Testing {geist_id}...", end=" ")
             suggestions = executor.execute_geist(geist_id, context)
 
-            log_entry = None
-            for entry in executor.get_execution_log():
-                if entry["geist_id"] == geist_id:
-                    log_entry = entry
+            # Get profile for timing info
+            profile = None
+            for p in executor.get_execution_profiles():
+                if p.geist_id == geist_id:
+                    profile = p
                     break
 
-            if log_entry:
-                if log_entry["status"] == "success":
-                    print(f"✓ ({len(suggestions)} suggestions, {log_entry['execution_time']:.3f}s)")
+            if profile:
+                if profile.status == "success":
+                    print(f"✓ ({len(suggestions)} suggestions, {profile.total_time:.3f}s)")
                     results[geist_id] = {"status": "success", "count": len(suggestions)}
                 else:
-                    print(f"✗ {log_entry['error']}")
-                    results[geist_id] = {"status": "error", "error": log_entry["error"]}
+                    # Get error details from execution log
+                    error_msg = profile.status
+                    for entry in executor.get_execution_log():
+                        if entry["geist_id"] == geist_id and "error" in entry:
+                            error_msg = entry["error"]
+                            break
+                    print(f"✗ {error_msg}")
+                    results[geist_id] = {"status": "error", "error": error_msg}
             else:
                 print("? Unknown status")
                 results[geist_id] = {"status": "unknown"}
