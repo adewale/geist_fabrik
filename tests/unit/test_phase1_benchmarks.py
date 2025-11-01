@@ -3,6 +3,12 @@
 These tests measure actual performance improvements from:
 - Session-scoped caching (backlinks, outgoing_links, graph_neighbors)
 - Vectorized operations (contrarian_to, unlinked_pairs)
+
+Run benchmarks with:
+    pytest tests/unit/test_phase1_benchmarks.py -m benchmark -v -s
+
+Or run specific benchmark:
+    pytest tests/unit/test_phase1_benchmarks.py::test_backlinks_caching_benchmark -v -s
 """
 
 import tempfile
@@ -39,10 +45,7 @@ def benchmark_vault():
         yield vault_path
 
 
-@pytest.mark.skipif(
-    True,
-    reason="Benchmark test - run manually with: pytest -k test_backlinks_caching_benchmark -v -s",
-)
+@pytest.mark.benchmark
 def test_backlinks_caching_benchmark(benchmark_vault):
     """Benchmark: Verify backlinks() caching improves performance.
 
@@ -90,10 +93,7 @@ def test_backlinks_caching_benchmark(benchmark_vault):
     assert speedup >= 5.0, f"Expected >=5x speedup, got {speedup:.1f}x"
 
 
-@pytest.mark.skipif(
-    True,
-    reason="Benchmark test - run manually with: pytest -k test_graph_operations_benchmark -v -s",
-)
+@pytest.mark.benchmark
 def test_graph_operations_benchmark(benchmark_vault):
     """Benchmark: Verify combined caching improves graph operations.
 
@@ -128,13 +128,7 @@ def test_graph_operations_benchmark(benchmark_vault):
     assert elapsed / 20 < 0.1, f"Expected <100ms per note, got {elapsed / 20 * 1000:.1f}ms"
 
 
-@pytest.mark.skipif(
-    True,
-    reason=(
-        "Benchmark test - run manually with: "
-        "pytest -k test_contrarian_to_vectorization_benchmark -v -s"
-    ),
-)
+@pytest.mark.benchmark
 def test_contrarian_to_vectorization_benchmark(benchmark_vault):
     """Benchmark: Verify contrarian_to() vectorization speedup.
 
@@ -173,13 +167,7 @@ def test_contrarian_to_vectorization_benchmark(benchmark_vault):
     assert time_vectorized < 1.0, f"Expected <1s for 10 calls, got {time_vectorized:.3f}s"
 
 
-@pytest.mark.skipif(
-    True,
-    reason=(
-        "Benchmark test - run manually with: "
-        "pytest -k test_unlinked_pairs_vectorization_benchmark -v -s"
-    ),
-)
+@pytest.mark.benchmark
 def test_unlinked_pairs_vectorization_benchmark(benchmark_vault):
     """Benchmark: Verify unlinked_pairs() vectorization speedup.
 
@@ -210,10 +198,7 @@ def test_unlinked_pairs_vectorization_benchmark(benchmark_vault):
     assert len(result) > 0, "Should find at least some unlinked pairs"
 
 
-@pytest.mark.skipif(
-    True,
-    reason="Benchmark test - run manually with: pytest -k test_phase1_integrated_benchmark -v -s",
-)
+@pytest.mark.benchmark
 def test_phase1_integrated_benchmark(benchmark_vault):
     """Integrated benchmark: Measure cumulative Phase 1 improvements.
 
