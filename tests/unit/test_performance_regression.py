@@ -338,3 +338,90 @@ def test_stats_vectorized_performance():
 
         except ImportError:
             pytest.skip("sklearn not available")
+
+
+def test_backlinks_caching(temp_vault):
+    """Test that backlinks() uses cache on repeated calls."""
+    # Create notes with backlinks
+    (temp_vault / "note_a.md").write_text("# Note A\n\n[[note_b]]")
+    (temp_vault / "note_b.md").write_text("# Note B")
+
+    vault = Vault(temp_vault)
+    vault.sync()
+
+    session = Session(date=datetime(2025, 1, 15), db=vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(vault, session)
+
+    note_b = context.get_note("note_b.md")
+    assert note_b is not None
+
+    # First call - populates cache
+    result1 = context.backlinks(note_b)
+
+    # Second call - should use cache
+    result2 = context.backlinks(note_b)
+
+    # Verify results are identical (same object from cache)
+    assert result1 is result2
+    assert len(result1) == 1  # note_a links to note_b
+
+
+def test_outgoing_links_caching(temp_vault):
+    """Test that outgoing_links() uses cache on repeated calls."""
+    # Create linked notes
+    (temp_vault / "note_a.md").write_text("# Note A\n\n[[note_b]]")
+    (temp_vault / "note_b.md").write_text("# Note B")
+
+    vault = Vault(temp_vault)
+    vault.sync()
+
+    session = Session(date=datetime(2025, 1, 15), db=vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(vault, session)
+
+    note_a = context.get_note("note_a.md")
+    assert note_a is not None
+
+    # Mock resolve_link_target to track resolution calls
+    original_resolve = context.resolve_link_target
+    context.resolve_link_target = MagicMock(wraps=original_resolve)
+
+    # First call - should resolve links
+    result1 = context.outgoing_links(note_a)
+    assert context.resolve_link_target.call_count == 1
+
+    # Second call - should use cache (no new resolutions)
+    result2 = context.outgoing_links(note_a)
+    assert context.resolve_link_target.call_count == 1  # Still 1
+
+    # Verify results are identical
+    assert result1 is result2
+    assert len(result1) == 1
+
+
+def test_graph_neighbors_caching(temp_vault):
+    """Test that graph_neighbors() uses cache on repeated calls."""
+    # Create bidirectional links
+    (temp_vault / "note_a.md").write_text("# Note A\n\n[[note_b]]")
+    (temp_vault / "note_b.md").write_text("# Note B\n\n[[note_a]]")
+
+    vault = Vault(temp_vault)
+    vault.sync()
+
+    session = Session(date=datetime(2025, 1, 15), db=vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(vault, session)
+
+    note_a = context.get_note("note_a.md")
+    assert note_a is not None
+
+    # First call
+    result1 = context.graph_neighbors(note_a)
+
+    # Second call - should use cache
+    result2 = context.graph_neighbors(note_a)
+
+    # Verify results are identical (same object from cache)
+    assert result1 is result2
+    assert len(result1) > 0
