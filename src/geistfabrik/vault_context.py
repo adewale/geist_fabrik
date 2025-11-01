@@ -66,6 +66,12 @@ class VaultContext:
         # Cache for clusters (performance optimization - keyed by min_size)
         self._clusters_cache: Dict[int, Dict[int, Dict[str, Any]]] = {}
 
+        # Cache for similarity scores (performance optimization - keyed by note path pair)
+        self._similarity_cache: Dict[Tuple[str, str], float] = {}
+
+        # Cache for neighbours (performance optimization - keyed by (note_path, k))
+        self._neighbours_cache: Dict[Tuple[str, int], List[Note]] = {}
+
         # Metadata loader for extensible metadata inference
         self._metadata_loader = metadata_loader
 
@@ -137,6 +143,10 @@ class VaultContext:
     def neighbours(self, note: Note, k: int = 10) -> List[Note]:
         """Find k semantically similar notes.
 
+        Uses session-scoped caching for performance. Many geists query neighbours
+        for the same notes (e.g., hub notes, recently modified notes), so caching
+        eliminates redundant vector searches across all geists in a session.
+
         Args:
             note: Query note
             k: Number of neighbours to return
@@ -144,6 +154,13 @@ class VaultContext:
         Returns:
             List of similar notes, sorted by similarity descending
         """
+        # Create cache key (note path + k parameter)
+        cache_key = (note.path, k)
+
+        # Check cache first
+        if cache_key in self._neighbours_cache:
+            return self._neighbours_cache[cache_key]
+
         # Get embedding for query note
         try:
             query_embedding = self._backend.get_embedding(note.path)
@@ -164,10 +181,16 @@ class VaultContext:
                 if len(result) >= k:
                     break
 
+        # Cache the result
+        self._neighbours_cache[cache_key] = result
         return result
 
     def similarity(self, a: Note, b: Note) -> float:
         """Calculate semantic similarity between two notes.
+
+        Uses session-scoped caching for performance. Multiple geists often
+        compute similarity for the same pairs (e.g., linked notes), so caching
+        eliminates redundant computation across all geists in a session.
 
         Args:
             a: First note
@@ -176,10 +199,22 @@ class VaultContext:
         Returns:
             Cosine similarity (0-1)
         """
+        # Create order-independent cache key (similarity is symmetric)
+        sorted_paths = sorted([a.path, b.path])
+        cache_key: Tuple[str, str] = (sorted_paths[0], sorted_paths[1])
+
+        # Check cache first
+        if cache_key in self._similarity_cache:
+            return self._similarity_cache[cache_key]
+
+        # Compute and cache
         try:
-            return self._backend.get_similarity(a.path, b.path)
+            similarity_score = self._backend.get_similarity(a.path, b.path)
         except KeyError:
-            return 0.0
+            similarity_score = 0.0
+
+        self._similarity_cache[cache_key] = similarity_score
+        return similarity_score
 
     # Graph operations
 
