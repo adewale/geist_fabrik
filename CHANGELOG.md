@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ProfileStats and GeistExecutionProfile dataclasses for execution tracking
   - Error handling to prevent profiling failures from crashing geist execution
   - See `docs/GEIST_INSTRUMENTATION_DESIGN.md` for complete design
+- **PERFORMANCE**: Session-scoped cluster caching (75% speedup for cluster_mirror)
+  - Eliminates redundant HDBSCAN clustering within session
+  - get_clusters() results cached by min_size parameter
+  - get_cluster_representatives() accepts optional clusters parameter
+  - cluster_mirror geist optimized: 4 clusterings → 1 clustering
+  - Comprehensive performance tests validate optimization
 
 ### Changed
 - **PERFORMANCE**: Session-level caching for `vault.notes()` calls

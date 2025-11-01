@@ -47,7 +47,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         label = cluster["formatted_label"]
 
         # Get 3 representative notes (closest to centroid)
-        representatives = vault.get_cluster_representatives(cluster_id, k=3)
+        # Pass clusters to avoid redundant clustering
+        representatives = vault.get_cluster_representatives(cluster_id, k=3, clusters=clusters)
         note_titles = [f"[[{n.title}]]" for n in representatives]
 
         cluster_descriptions.append(f"{label}\n→ {', '.join(note_titles)}")

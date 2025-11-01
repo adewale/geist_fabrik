@@ -63,6 +63,9 @@ class VaultContext:
         # Cache for metadata
         self._metadata_cache: Dict[str, Dict[str, Any]] = {}
 
+        # Cache for clusters (performance optimization - keyed by min_size)
+        self._clusters_cache: Dict[int, Dict[int, Dict[str, Any]]] = {}
+
         # Metadata loader for extensible metadata inference
         self._metadata_loader = metadata_loader
 
@@ -303,6 +306,8 @@ class VaultContext:
         c-TF-IDF with MMR diversity filtering. Returns cluster information
         including formatted labels and member notes.
 
+        Results are cached per session by min_size parameter for performance.
+
         Args:
             min_size: Minimum notes required to form a cluster
 
@@ -318,17 +323,25 @@ class VaultContext:
                 }
             }
         """
+        # Check cache first (session-scoped caching)
+        if min_size in self._clusters_cache:
+            return self._clusters_cache[min_size]
+
         # Import optional dependency
         try:
             from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
         except ImportError:
             logger.warning("sklearn not available, clustering disabled")
-            return {}
+            empty_result: Dict[int, Dict[str, Any]] = {}
+            self._clusters_cache[min_size] = empty_result
+            return empty_result
 
         # Get all embeddings and paths for current session
         embeddings_dict = self.session.get_all_embeddings()
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
-            return {}
+            empty_result_2: Dict[int, Dict[str, Any]] = {}
+            self._clusters_cache[min_size] = empty_result_2
+            return empty_result_2
 
         paths = list(embeddings_dict.keys())
         embeddings_array = np.array([embeddings_dict[p] for p in paths])
@@ -354,7 +367,9 @@ class VaultContext:
                 cluster_paths[label].append(paths[i])
 
         if not clusters:
-            return {}
+            empty_result_3: Dict[int, Dict[str, Any]] = {}
+            self._clusters_cache[min_size] = empty_result_3
+            return empty_result_3
 
         # Generate labels using stats module
         from .stats import EmbeddingMetricsComputer
@@ -386,6 +401,9 @@ class VaultContext:
                 "centroid": centroid,
             }
 
+        # Cache result for this session
+        self._clusters_cache[min_size] = result
+
         return result
 
     def _format_cluster_label(self, keyword_label: str) -> str:
@@ -407,7 +425,12 @@ class VaultContext:
             # Oxford comma for 3+ terms
             return f"Notes about {', '.join(terms[:-1])}, and {terms[-1]}"
 
-    def get_cluster_representatives(self, cluster_id: int, k: int = 3) -> List[Note]:
+    def get_cluster_representatives(
+        self,
+        cluster_id: int,
+        k: int = 3,
+        clusters: Optional[Dict[int, Dict[str, Any]]] = None,
+    ) -> List[Note]:
         """Get most representative notes for a cluster.
 
         Finds notes closest to the cluster centroid, which are the most
@@ -416,11 +439,16 @@ class VaultContext:
         Args:
             cluster_id: Cluster ID from get_clusters()
             k: Number of representative notes to return
+            clusters: Optional pre-computed clusters dict from get_clusters().
+                     If not provided, will call get_clusters() internally.
+                     Passing this avoids redundant clustering.
 
         Returns:
             List of k notes closest to cluster centroid
         """
-        clusters = self.get_clusters()
+        if clusters is None:
+            clusters = self.get_clusters()
+
         if cluster_id not in clusters:
             return []
 
