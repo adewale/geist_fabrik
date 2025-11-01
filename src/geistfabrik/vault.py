@@ -5,7 +5,7 @@ import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
@@ -428,6 +428,80 @@ class Vault:
         tags = [tag_row[0] for tag_row in tag_cursor.fetchall()]
 
         return self._build_note_from_row(row, links, tags)
+
+    def get_notes_batch(self, paths: List[str]) -> Dict[str, Optional[Note]]:
+        """Load multiple notes efficiently in batched queries.
+
+        Performance optimized (OP-6): Batches database queries to load N notes
+        in 3 queries instead of 3×N queries. This is significantly faster when
+        loading many notes (e.g., backlinks, neighbors).
+
+        Args:
+            paths: List of note paths to load
+
+        Returns:
+            Dictionary mapping paths to Note objects (or None if not found)
+        """
+        if not paths:
+            return {}
+
+        # Query 1: Load all notes at once
+        placeholders = ",".join(["?"] * len(paths))
+        cursor = self.db.execute(
+            f"""SELECT path, title, content, created, modified,
+                       is_virtual, source_file, entry_date
+                FROM notes WHERE path IN ({placeholders})""",
+            tuple(paths),
+        )
+
+        notes_data: Dict[str, Dict[str, Any]] = {}
+        for row in cursor.fetchall():
+            path = row[0]
+            notes_data[path] = {
+                "row": row,
+                "links": [],
+                "tags": [],
+            }
+
+        # Query 2: Load all links for these notes
+        cursor = self.db.execute(
+            f"""SELECT source_path, target, display_text, is_embed, block_ref
+                FROM links WHERE source_path IN ({placeholders})""",
+            tuple(paths),
+        )
+
+        for row in cursor.fetchall():
+            source_path, target, display_text, is_embed, block_ref = row
+            if source_path in notes_data:
+                link = Link(
+                    target=target,
+                    display_text=display_text,
+                    is_embed=bool(is_embed),
+                    block_ref=block_ref,
+                )
+                notes_data[source_path]["links"].append(link)
+
+        # Query 3: Load all tags for these notes
+        cursor = self.db.execute(
+            f"""SELECT note_path, tag FROM tags WHERE note_path IN ({placeholders})""",
+            tuple(paths),
+        )
+
+        for row in cursor.fetchall():
+            note_path, tag = row
+            if note_path in notes_data:
+                notes_data[note_path]["tags"].append(tag)
+
+        # Build Note objects
+        result: Dict[str, Optional[Note]] = {}
+        for path in paths:
+            if path in notes_data:
+                data = notes_data[path]
+                result[path] = self._build_note_from_row(data["row"], data["links"], data["tags"])
+            else:
+                result[path] = None
+
+        return result
 
     def resolve_link_target(self, target: str, source_path: Optional[str] = None) -> Optional[Note]:
         """Resolve a wiki-link target to a Note.
