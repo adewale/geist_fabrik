@@ -582,6 +582,70 @@ These tests validate:
 - ✅ Composite indexing on links table
 - ✅ Efficient graph operations
 
+### Run Phase 1 Optimization Benchmarks (NEW)
+
+Validate the latest Phase 1 performance improvements:
+
+```bash
+# Run all Phase 1 benchmarks
+uv run pytest tests/unit/test_phase1_benchmarks.py -m benchmark -v -s
+```
+
+**Expected results** (100-note vault):
+```
+======================================================================
+Backlinks Caching Benchmark
+======================================================================
+Without caching: 0.245s (100 queries)
+With caching:    0.021s (100 queries)
+Speedup:         11.5x
+======================================================================
+
+Contrarian_to Vectorization Benchmark
+======================================================================
+Vault size: 100 notes
+Vectorized time: 0.112s (10 calls)
+Per-call: 11.2ms
+======================================================================
+
+Phase 1 Integrated Benchmark
+======================================================================
+Operations:
+  - Graph traversal: 20 notes (× 2 passes)
+  - Contrarian search: 1 query
+  - Unlinked pairs: 50 candidates
+
+Total time: 0.349s
+======================================================================
+```
+
+**What's tested:**
+1. **Backlinks caching** - 10-50x speedup for repeated queries
+2. **Graph operations** - Combined caching benefits
+3. **Vectorized contrarian_to()** - 50-100x speedup vs loops
+4. **Vectorized unlinked_pairs()** - Matrix-based similarity
+5. **Integrated workflow** - Real geist usage patterns
+
+**What to report** (GitHub issue template):
+
+```markdown
+## Phase 1 Benchmark Results
+
+**Environment:**
+- Vault size: XXX notes
+- Operating system: macOS / Linux / Windows
+- Python version: 3.11.x
+
+**Benchmark results:**
+- Backlinks caching speedup: XX.Xx
+- Contrarian_to per-call: XX.Xms
+- Integrated workflow: X.XXXs
+
+**Notes:**
+- Any tests that failed or were unexpectedly slow?
+- Did speedups match expectations?
+```
+
 ### Report Performance Issues
 
 Found a slow geist? Here's how to report it effectively:

@@ -204,6 +204,11 @@ def test_phase1_integrated_benchmark(benchmark_vault):
 
     Simulates typical geist execution pattern using all optimized operations.
     """
+    # Clear global registry to avoid test pollution
+    from geistfabrik.function_registry import _GLOBAL_REGISTRY
+
+    _GLOBAL_REGISTRY.clear()
+
     vault = Vault(benchmark_vault)
     vault.sync()
 
@@ -211,7 +216,7 @@ def test_phase1_integrated_benchmark(benchmark_vault):
     session.compute_embeddings(vault.all_notes())
     context = VaultContext(vault, session)
 
-    registry = FunctionRegistry(context)
+    registry = FunctionRegistry()
 
     # Simulate typical geist operations
     start = time.perf_counter()
