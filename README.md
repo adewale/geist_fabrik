@@ -187,8 +187,14 @@ uv run geistfabrik invoke ~/my-vault --quiet
 # Verbose mode (detailed output)
 uv run geistfabrik invoke ~/my-vault --verbose
 
+# Debug mode (performance profiling and diagnostics)
+uv run geistfabrik invoke ~/my-vault --debug
+
 # Test a geist during development
 uv run geistfabrik test my_geist ~/my-vault --date 2025-01-15
+
+# Debug geist timeouts with performance profiling
+uv run geistfabrik test my_geist ~/my-vault --timeout 10 --debug
 
 # Test all geists
 uv run geistfabrik test-all ~/my-vault
@@ -553,6 +559,43 @@ Optimized for vaults with 100+ notes and 100+ geists:
 
 See [CHANGELOG.md](CHANGELOG.md) for complete details.
 
+### Debugging Performance Issues
+
+When geists timeout or run slowly, use the `--debug` flag to enable detailed performance profiling:
+
+```bash
+# Debug a timeout during normal invocation
+uv run geistfabrik invoke ~/my-vault --debug
+
+# Debug a specific geist with extended timeout
+uv run geistfabrik test cluster_mirror ~/my-vault --timeout 10 --debug
+```
+
+**Debug output includes**:
+- Top 10 most expensive operations with timing breakdown
+- Function call counts and per-call averages
+- Percentage of total execution time
+- Pattern-based suggestions for optimization
+
+**Example diagnostic output**:
+```
+✗ cluster_mirror timed out after 5.000s
+
+Top expensive operations:
+  1. sklearn.cluster.HDBSCAN.fit     2.891s (57.8%)  1 calls
+  2. stats.get_cluster_labels        0.401s ( 8.0%)  1 calls
+  3. cosine_similarity               0.305s ( 6.1%)  3 calls
+
+Total accounted: 4.123s (82.5%)
+
+Suggestions:
+  → HDBSCAN clustering took 2.9s - consider caching results or reducing min_size
+  → get_clusters took 3.5s - clustering is expensive, consider caching
+  → Test with longer timeout: geistfabrik test cluster_mirror <vault> --timeout 10 --debug
+```
+
+For more details, see [docs/GEIST_INSTRUMENTATION_DESIGN.md](docs/GEIST_INSTRUMENTATION_DESIGN.md).
+
 ## Development
 
 ### Running Tests
@@ -603,8 +646,8 @@ geist_fabrik/
 ## Roadmap to 1.0
 
 Remaining work (5%):
-- [ ] Enhanced error messages and debugging
-- [ ] Performance profiling for 1000+ note vaults
+- [x] Enhanced error messages and debugging
+- [x] Performance profiling for 1000+ note vaults
 - [ ] Migration system for schema changes
 - [ ] Comprehensive user tutorials
 - [ ] API documentation
