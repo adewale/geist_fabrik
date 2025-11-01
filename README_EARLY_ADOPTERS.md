@@ -468,6 +468,268 @@ rm -rf ~/MyVault/"geist journal"
 
 ---
 
+## Performance Benchmarking for Early Adopters
+
+As an early adopter, you can help us validate performance optimizations by running benchmarks on your vault and reporting results. Your data helps us improve GeistFabrik for everyone!
+
+### Why Your Performance Data Matters
+
+GeistFabrik's performance varies based on:
+- **Vault size** (100 vs 3000 notes)
+- **Content diversity** (technical vs creative writing)
+- **Note structure** (atomic vs long-form)
+- **System specs** (CPU, RAM, disk speed)
+
+Your real-world data helps us:
+1. Validate optimizations work across different vaults
+2. Identify bottlenecks in production use
+3. Set realistic performance expectations
+4. Prioritize future improvements
+
+### Quick Performance Check
+
+See how fast each geist runs on your vault:
+
+```bash
+# Profile all geists with detailed performance breakdown
+uv run geistfabrik invoke ~/my-vault --debug --no-filter
+```
+
+**Expected output:**
+```
+============================================================
+Performance Profiling (--debug mode)
+============================================================
+
+✓ cluster_mirror: 5.259s (1 suggestions)
+  Top 5 operations:
+    1. __call__ - 3.608s (68.6%)        ← HDBSCAN clustering
+    2. _hdbscan_prims - 1.556s (29.6%)  ← Prim's algorithm
+    3. <method 'execute'> - 0.016s (0.3%)
+
+✓ creative_collision: 0.142s (3 suggestions)
+✓ bridge_builder: 0.089s (2 suggestions)
+⚠ slow_geist: 4.213s (1 suggestions)   ← Approaching timeout
+✗ timeout_geist: Execution timed out (>5s)
+```
+
+**What to report:**
+- Geists that take >2s (slow but acceptable)
+- Geists approaching timeout (>4s, need optimization)
+- Geists that timeout (>5s, blocking issue)
+
+### Run Cluster Caching Benchmark
+
+Validate the 75% speedup from recent cluster caching optimization:
+
+```bash
+# From GeistFabrik directory
+uv run pytest tests/unit/test_cluster_performance.py::test_cluster_caching_benchmark -v -s
+```
+
+**Expected results (100 notes):**
+```
+============================================================
+Cluster Caching Benchmark Results
+============================================================
+Vault size: 100 notes
+Clusters found: 5
+
+Without caching: 0.176s (4× HDBSCAN clustering)
+With caching:    0.006s (1× clustering + 3× cache hit)
+Speedup:         31.0x
+
+Memory usage:
+  Peak: 0.0MB
+  Current: 0.0MB
+============================================================
+
+PASSED
+```
+
+**What to report** (GitHub issue template):
+
+```markdown
+## Cluster Caching Benchmark Results
+
+- **Vault size**: XXX notes
+- **Clusters found**: X
+- **Without caching**: X.XXXs
+- **With caching**: X.XXXs
+- **Speedup**: XX.Xx
+- **Memory (peak)**: XX.XMB
+- **Operating system**: macOS / Linux / Windows
+- **Python version**: 3.11.x
+```
+
+### Run Full Performance Test Suite
+
+Validate all performance optimizations:
+
+```bash
+# All regression tests (fast, mocked)
+uv run pytest tests/unit/test_performance_regression.py -v
+
+# Real-world benchmarks (slower, manual)
+uv run pytest tests/unit/test_cluster_performance.py::test_cluster_caching_benchmark -v -s
+uv run pytest tests/unit/test_performance_regression.py::test_stats_vectorized_performance -v -s
+```
+
+These tests validate:
+- ✅ Session-scoped caching (notes, clusters)
+- ✅ Vectorized similarity computations (5.4x speedup)
+- ✅ Optimized orphan queries (85.6% faster)
+- ✅ Composite indexing on links table
+- ✅ Efficient graph operations
+
+### Report Performance Issues
+
+Found a slow geist? Here's how to report it effectively:
+
+**1. Profile the specific geist:**
+```bash
+uv run geistfabrik test slow_geist ~/my-vault --timeout 10 --debug
+```
+
+**2. Create GitHub issue** with title:
+```
+[Performance] <geist_name> slow on <vault_size> note vault
+```
+
+**3. Use this template:**
+```markdown
+## Vault Characteristics
+
+- **Total notes**: XXX
+- **Average note length**: ~XXX words
+- **Vault structure**: daily notes / atomic notes / mixed
+- **Operating system**: macOS / Linux / Windows
+- **Python version**: 3.11.x
+
+## Performance Profile
+
+From: `uv run geistfabrik test <geist_name> ~/my-vault --debug`
+
+```
+✓ geist_name: 5.259s (1 suggestions)
+  Top 5 operations:
+    1. operation_name - 3.608s (68.6%)
+    2. other_operation - 1.556s (29.6%)
+```
+
+## Session Times
+
+- **First run** (cold cache): ~XX seconds
+- **Daily use** (warm cache): ~XX seconds
+
+## Observations
+
+- Does it timeout (>5s)?
+- Is it consistently slow?
+- Which operation takes most time?
+```
+
+### Expected Performance by Vault Size
+
+| Vault Size | First Run | Daily Use | Status |
+|------------|-----------|-----------|--------|
+| 100 notes | 1-2s | <1s | ✅ Excellent |
+| 500 notes | 5-8s | 2-3s | ✅ Good |
+| 1000 notes | 14s | 3-5s | ✅ Acceptable |
+| 3000 notes | 45s | 8-12s | ✅ Tolerable |
+| 5000 notes | 2-3min | 15-20s | 🟡 Marginal |
+| 10000+ notes | 5-10min | 30-60s | 🔴 Consider GPU |
+
+**Note**: "First run" = initial embedding computation. "Daily use" = cached embeddings.
+
+### Understanding the Profiling Output
+
+**Fast operations** (<100ms):
+- ✅ Individual note lookups
+- ✅ Graph operations (backlinks, hubs)
+- ✅ Semantic similarity (k<10)
+- ✅ Tracery geist execution
+
+**Medium operations** (100ms-1s):
+- 🟡 Vault sync (incremental only)
+- 🟡 Metadata inference
+- 🟡 Simple code geists
+
+**Expensive operations** (>1s):
+- 🔴 Embedding computation (first time: 100-200ms/note, cached: <10ms)
+- 🔴 HDBSCAN clustering (now cached per session)
+- 🔴 Large k-NN searches (k>100)
+
+### Troubleshooting Slow Performance
+
+**If geists timeout:**
+```bash
+# Increase timeout for large vaults
+uv run geistfabrik invoke ~/my-vault --timeout 10
+```
+
+**If first run is slow:**
+- Expected: 100-200ms per note (CPU-only embeddings)
+- For 1000 notes: ~2-3 minutes one-time
+- For 5000+ notes: Consider GPU acceleration (future)
+
+**If daily runs are slow:**
+- Should be fast (98.6% cache hit rate)
+- Report as performance issue with `--debug` output
+
+### Contributing Performance Data
+
+Want to help improve performance? Submit benchmark data:
+
+**Option 1: Cluster caching results**
+- Run the benchmark (see above)
+- Post results in GitHub issue
+- Include vault size and system specs
+
+**Option 2: Full profiling session**
+```bash
+# Capture complete profiling data
+uv run geistfabrik invoke ~/my-vault --debug --no-filter --timeout 30 > perf_profile.txt 2>&1
+
+# Compress and attach to GitHub issue
+gzip perf_profile.txt
+```
+
+**Option 3: Memory profiling**
+```python
+# Add to your test script
+import tracemalloc
+tracemalloc.start()
+
+# Run geistfabrik operation
+clusters = vault.get_clusters()
+
+# Report memory usage
+current, peak = tracemalloc.get_traced_memory()
+print(f"Peak memory: {peak / 1024 / 1024:.1f}MB")
+tracemalloc.stop()
+```
+
+### Performance Optimization Checklist
+
+Before reporting slow performance, verify:
+
+- [ ] Using cached embeddings? (daily runs should be fast)
+- [ ] Incremental sync working? (only changed files)
+- [ ] Timeout appropriate? (5s default, increase for large vaults)
+- [ ] sklearn installed? (required for vectorization and clustering)
+- [ ] System has >2GB RAM available?
+
+### Questions About Performance?
+
+- 📝 **GitHub Issues**: https://github.com/anthropics/geist_fabrik/issues
+- 📚 **Performance Design Doc**: `docs/GEIST_INSTRUMENTATION_DESIGN.md`
+- 🔍 **Use --debug**: Best tool for diagnosing slowness
+
+**Thank you for helping make GeistFabrik faster!** 🚀
+
+---
+
 ## Next Steps After Testing
 
 1. **Share feedback** - Open issues for bugs or suggestions
