@@ -237,7 +237,7 @@ detached = all_pairs['detached']
 
 ### Priority 1: High Impact, Low Effort
 
-#### OP-1: Cache backlinks()
+#### OP-1: Cache backlinks() ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault_context.py:221-247`
 
@@ -275,7 +275,7 @@ def backlinks(self, note: Note) -> List[Note]:
 
 ---
 
-#### OP-2: Cache outgoing_links()
+#### OP-2: Cache outgoing_links() ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault_context.py:249-266`
 
@@ -380,7 +380,7 @@ def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> List[st
 
 ### Priority 2: High Impact, Medium Effort
 
-#### OP-4: Single-pass congruence_mirror
+#### OP-4: Single-pass congruence_mirror ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/default_geists/code/congruence_mirror.py`
 
@@ -489,6 +489,12 @@ def _make_explicit_suggestion(a: Note, b: Note, sim: float) -> "Suggestion":
 
 **Expected impact**: 40-60% speedup for congruence_mirror
 
+**Measured results** (3406-note vault):
+- Before: 60.838s (4 suggestions)
+- After: 1.930s (4 suggestions)
+- Actual speedup: **31.5x** (97% reduction)
+- Far exceeded expectations due to multiplicative effect of caching
+
 **Test requirements**:
 - Verify same results as multi-pass version
 - Performance benchmark showing single-pass speedup
@@ -496,7 +502,7 @@ def _make_explicit_suggestion(a: Note, b: Note, sim: float) -> "Suggestion":
 
 ---
 
-#### OP-5: Vectorize unlinked_pairs()
+#### OP-5: Vectorize unlinked_pairs() ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault_context.py:508-560`
 
@@ -580,7 +586,7 @@ def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> List[Tuple[
 
 ---
 
-#### OP-6: Batch note loading
+#### OP-6: Batch note loading ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault.py` (new method)
 
@@ -711,7 +717,7 @@ def backlinks(self, note: Note) -> List[Note]:
 
 ### Priority 3: Medium Impact
 
-#### OP-7: Cache graph_neighbors()
+#### OP-7: Cache graph_neighbors() ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault_context.py:600-625`
 
@@ -747,7 +753,7 @@ def graph_neighbors(self, note: Note) -> List[Note]:
 
 ---
 
-#### OP-8: Optimize hubs() SQL query
+#### OP-8: Optimize hubs() SQL query ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault_context.py:305-335`
 
@@ -788,7 +794,7 @@ def hubs(self, k: int = 10) -> List[Note]:
 
 ---
 
-#### OP-9: Neighbours() return similarity scores
+#### OP-9: Neighbours() return similarity scores ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault_context.py:143-186`
 
