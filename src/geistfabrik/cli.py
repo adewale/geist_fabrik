@@ -348,20 +348,24 @@ def invoke_command(args: argparse.Namespace) -> int:
             print(f"Mode: {mode}")
             print(f"{'=' * 60}\n")
 
-        if not args.quiet:
-            print(f"Executing {enabled_geists_count} geists...")
-
-        # Execute specific geist(s) or all geists
-        all_suggestions = []
-        code_results = {}
-        tracery_results = {}
-
         # Determine which geists to run
         geists_to_run = None
         if args.geist:
             geists_to_run = [args.geist]
         elif args.geists:
             geists_to_run = [g.strip() for g in args.geists.split(",")]
+
+        # Calculate actual count of geists being executed
+        actual_geists_count = len(geists_to_run) if geists_to_run else enabled_geists_count
+
+        if not args.quiet:
+            geist_word = "geist" if actual_geists_count == 1 else "geists"
+            print(f"Executing {actual_geists_count} {geist_word}...")
+
+        # Execute specific geist(s) or all geists
+        all_suggestions = []
+        code_results = {}
+        tracery_results = {}
 
         if geists_to_run:
             # Run specific geist(s)
