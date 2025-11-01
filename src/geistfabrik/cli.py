@@ -273,6 +273,7 @@ def invoke_command(args: argparse.Namespace) -> int:
             max_failures=3,
             default_geists_dir=default_code_geists_dir,
             enabled_defaults=config.default_geists if config else {},
+            debug=args.debug,
         )
         newly_discovered_code = code_executor.load_geists()
         code_geists_count = len(code_executor.geists)
@@ -675,7 +676,7 @@ def test_command(args: argparse.Namespace) -> int:
             vault.close()
             return 1
 
-        executor = GeistExecutor(geists_dir, timeout=args.timeout, max_failures=3)
+        executor = GeistExecutor(geists_dir, timeout=args.timeout, max_failures=3, debug=args.debug)
         executor.load_geists()
 
         if geist_id not in executor.geists:
@@ -838,7 +839,7 @@ def test_all_command(args: argparse.Namespace) -> int:
             vault.close()
             return 1
 
-        executor = GeistExecutor(geists_dir, timeout=args.timeout, max_failures=3)
+        executor = GeistExecutor(geists_dir, timeout=args.timeout, max_failures=3, debug=args.debug)
         executor.load_geists()
 
         if not executor.geists:
@@ -1257,6 +1258,11 @@ Examples:
         help="Show detailed execution information",
     )
     invoke_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable performance profiling and diagnostic output for geist execution",
+    )
+    invoke_parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress non-essential output (only show suggestions)",
@@ -1293,6 +1299,11 @@ Examples:
         action="store_true",
         help="Show detailed execution information",
     )
+    test_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable performance profiling and diagnostic output",
+    )
 
     # Test-all command
     test_all_parser = subparsers.add_parser(
@@ -1319,6 +1330,11 @@ Examples:
         "--verbose",
         action="store_true",
         help="Show detailed execution information",
+    )
+    test_all_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable performance profiling and diagnostic output",
     )
 
     # Stats command
