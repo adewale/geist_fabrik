@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+    cosine_similarity as sklearn_cosine,
+)
 
 if TYPE_CHECKING:
     from .vector_search import VectorSearchBackend
@@ -52,6 +55,28 @@ class EmbeddingComputer:
         """
         self.model_name = model_name
         self._model: Optional[SentenceTransformer] = model
+        self.device: Optional[str] = None  # Will be set on first model access
+
+    def _detect_device(self) -> str:
+        """Detect best available device for model inference.
+
+        Priority: cuda (NVIDIA GPU) > mps (Apple Silicon) > cpu
+
+        Returns:
+            Device string: "cuda", "mps", or "cpu"
+        """
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                return "cuda"
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                return "mps"
+        except ImportError:
+            # torch not available, fall back to CPU
+            pass
+
+        return "cpu"
 
     @property
     def model(self) -> SentenceTransformer:
@@ -59,8 +84,15 @@ class EmbeddingComputer:
 
         Checks for bundled local model first (models/all-MiniLM-L6-v2/),
         then falls back to HuggingFace cache/download.
+
+        Auto-detects best available device (CUDA > MPS > CPU).
         """
         if self._model is None:
+            # Detect device if not already set
+            if self.device is None:
+                self.device = self._detect_device()
+                logger.info(f"Using device: {self.device}")
+
             # Check for local bundled model first
             # Project root is: src/geistfabrik -> src -> project_root
             project_root = Path(__file__).parent.parent.parent
@@ -75,7 +107,7 @@ class EmbeddingComputer:
 
             self._model = SentenceTransformer(
                 model_source,
-                device="cpu",  # Explicit CPU to avoid GPU worker spawning
+                device=self.device,  # Use detected device (cuda/mps/cpu)
             )
         return self._model
 
@@ -497,10 +529,6 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     Returns:
         Cosine similarity (0-1)
     """
-    from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-        cosine_similarity as sklearn_cosine,
-    )
-
     # Handle zero vectors
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
@@ -529,8 +557,6 @@ def find_similar_notes(
     Returns:
         List of (note_path, similarity) tuples, sorted by similarity descending
     """
-    from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine
-
     if exclude_paths is None:
         exclude_paths = set()
 
