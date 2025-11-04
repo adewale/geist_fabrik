@@ -20,6 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added comprehensive unit tests (tests/unit/test_algorithmic_fixes.py)
   - Expected impact: Fixes timeouts on 10k vault, minor ~2-5% overall improvement
 
+- **BIG OPTIMIZATION #2**: sklearn vectorization + cache redundant norms (13 locations)
+  - **Vectorized operations**: Replaced manual cosine similarity loops with sklearn
+    - embeddings.py: cosine_similarity() function and find_similar_notes() batch computation
+    - concept_drift.py: sklearn cosine similarity (2 places) + cached drift_vector norm
+    - convergent_evolution.py: sklearn for similarity trajectory
+    - divergent_evolution.py: sklearn for similarity trajectory
+    - session_drift.py: sklearn in _calculate_drift()
+  - **Euclidean distance**: Replaced np.linalg.norm with scipy.spatial.distance.euclidean
+    - hermeneutic_instability.py: scipy for embedding distance from mean
+    - vocabulary_expansion.py: scipy for centroid distance calculations
+  - **Cached redundant norm**: Eliminated 5× redundant drift_vector norm in concept_drift.py loop
+  - Added comprehensive unit tests (tests/unit/test_sklearn_migration.py)
+  - Expected impact: 10-15% speedup on geist execution phase
+
 ### Added
 - Vault helper functions for cleaner code patterns:
   - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:523-535)

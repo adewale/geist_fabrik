@@ -497,14 +497,19 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     Returns:
         Cosine similarity (0-1)
     """
-    dot_product = np.dot(a, b)
+    from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+        cosine_similarity as sklearn_cosine,
+    )
+
+    # Handle zero vectors
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
 
     if norm_a == 0 or norm_b == 0:
         return 0.0
 
-    return float(dot_product / (norm_a * norm_b))
+    # Use sklearn for vectorized computation
+    return float(sklearn_cosine(a.reshape(1, -1), b.reshape(1, -1))[0, 0])
 
 
 def find_similar_notes(
@@ -524,16 +529,25 @@ def find_similar_notes(
     Returns:
         List of (note_path, similarity) tuples, sorted by similarity descending
     """
+    from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine
+
     if exclude_paths is None:
         exclude_paths = set()
 
-    similarities = []
-    for note_path, embedding in embeddings.items():
-        if note_path in exclude_paths:
-            continue
+    # Filter excluded paths
+    filtered_paths = [p for p in embeddings.keys() if p not in exclude_paths]
 
-        similarity = cosine_similarity(query_embedding, embedding)
-        similarities.append((note_path, similarity))
+    if not filtered_paths:
+        return []
+
+    # Vectorized computation: compute all similarities at once
+    embedding_matrix = np.vstack([embeddings[p] for p in filtered_paths])
+    similarity_scores = sklearn_cosine(query_embedding.reshape(1, -1), embedding_matrix)[0]
+
+    # Create (path, similarity) tuples
+    similarities = [
+        (filtered_paths[i], float(similarity_scores[i])) for i in range(len(filtered_paths))
+    ]
 
     # Sort by similarity descending
     similarities.sort(key=lambda x: x[1], reverse=True)

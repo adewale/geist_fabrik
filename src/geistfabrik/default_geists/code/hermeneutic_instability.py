@@ -63,8 +63,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             embeddings_array = np.array(embeddings)
             mean_embedding = np.mean(embeddings_array, axis=0)
 
-            # Measure instability as average distance from mean
-            distances = [np.linalg.norm(emb - mean_embedding) for emb in embeddings_array]
+            # Measure instability as average distance from mean using scipy
+            from scipy.spatial.distance import euclidean  # type: ignore[import-untyped]
+
+            distances = [euclidean(emb, mean_embedding) for emb in embeddings_array]
             instability = np.mean(distances)
 
             # High instability = interpretive instability

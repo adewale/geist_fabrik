@@ -80,10 +80,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if len(embeddings_a) < 3:
                 continue
 
-            # Calculate similarity trajectory
+            # Calculate similarity trajectory using sklearn
+            from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+                cosine_similarity as sklearn_cosine,
+            )
+
             similarities = []
             for emb_a, emb_b in zip(embeddings_a, embeddings_b):
-                sim = np.dot(emb_a, emb_b) / (np.linalg.norm(emb_a) * np.linalg.norm(emb_b))
+                sim = float(sklearn_cosine(emb_a.reshape(1, -1), emb_b.reshape(1, -1))[0, 0])
                 similarities.append(sim)
 
             # Check if similarity is decreasing (divergence)

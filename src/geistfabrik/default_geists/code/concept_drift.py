@@ -62,10 +62,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             first_emb = trajectory[0][1]
             last_emb = trajectory[-1][1]
 
-            # Calculate drift from first to last
-            drift = 1.0 - (
-                np.dot(first_emb, last_emb) / (np.linalg.norm(first_emb) * np.linalg.norm(last_emb))
+            # Calculate drift from first to last using sklearn
+            from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+                cosine_similarity as sklearn_cosine,
             )
+
+            similarity = sklearn_cosine(first_emb.reshape(1, -1), last_emb.reshape(1, -1))
+            drift = 1.0 - float(similarity[0, 0])
 
             if drift > 0.2:  # Significant migration
                 # Try to characterize the drift by finding what it's moving toward
@@ -73,6 +76,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 # Find which neighbors are most aligned with the drift direction
                 drift_vector = last_emb - first_emb
+                # Cache drift_vector norm to avoid redundant computation (5 times in loop)
+                drift_vector_norm = np.linalg.norm(drift_vector)
 
                 neighbor_alignments = []
                 for neighbor in current_neighbors:
@@ -94,8 +99,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     neighbor_emb = np.frombuffer(row[0], dtype=np.float32)
 
                     # How aligned is neighbor with drift direction?
+                    # Use cached drift_vector_norm instead of recomputing
                     alignment = np.dot(drift_vector, neighbor_emb) / (
-                        np.linalg.norm(drift_vector) * np.linalg.norm(neighbor_emb)
+                        drift_vector_norm * np.linalg.norm(neighbor_emb)
                     )
                     neighbor_alignments.append((neighbor, alignment))
 

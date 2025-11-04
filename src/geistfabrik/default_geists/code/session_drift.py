@@ -126,7 +126,11 @@ def _get_note_embedding_for_session(
 
 def _calculate_drift(emb1: npt.NDArray[np.float32], emb2: npt.NDArray[np.float32]) -> float:
     """Calculate drift between two embeddings."""
+    from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+        cosine_similarity as sklearn_cosine,
+    )
+
     # Use cosine distance as drift measure
-    similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
-    drift = 1.0 - float(similarity)
+    similarity = float(sklearn_cosine(emb1.reshape(1, -1), emb2.reshape(1, -1))[0, 0])
+    drift = 1.0 - similarity
     return drift

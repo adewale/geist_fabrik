@@ -58,7 +58,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             embeddings_array = np.array(embeddings)
             centroid = np.mean(embeddings_array, axis=0)
 
-            distances = [np.linalg.norm(emb - centroid) for emb in embeddings_array]
+            # Use scipy for Euclidean distance calculation
+            from scipy.spatial.distance import euclidean  # type: ignore[import-untyped]
+
+            distances = [euclidean(emb, centroid) for emb in embeddings_array]
             coverage = np.std(distances)
 
             coverage_by_session.append((session_date, coverage))
