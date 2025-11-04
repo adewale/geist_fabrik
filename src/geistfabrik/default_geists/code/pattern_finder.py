@@ -80,22 +80,28 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Also look for semantic clusters of unlinked notes
     # Group notes by semantic similarity
     clusters = []
-    unclustered = list(notes)
+    # Use set for O(1) remove operations instead of O(N) list remove
+    unclustered_set = set(notes)
 
-    while len(unclustered) > 5:
+    while len(unclustered_set) > 5:
         # Pick a seed note
-        seed = vault.sample(unclustered, k=1)[0]
-        unclustered.remove(seed)
+        seed = vault.sample(list(unclustered_set), k=1)[0]
+        unclustered_set.remove(seed)  # O(1) set remove
 
         # Find similar notes
         cluster = [seed]
-        for note in unclustered[:]:
+        to_remove = []
+        for note in list(unclustered_set):
             if vault.similarity(seed, note) > 0.7:  # Very similar
                 cluster.append(note)
-                unclustered.remove(note)
+                to_remove.append(note)
 
             if len(cluster) >= 5:  # Limit cluster size
                 break
+
+        # Remove clustered notes from unclustered set
+        for note in to_remove:
+            unclustered_set.remove(note)  # O(1) set remove
 
         if len(cluster) >= 3:
             clusters.append(cluster)

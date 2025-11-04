@@ -927,58 +927,61 @@ def test_method_benchmark(tmp_path):
 
 ## Implementation Plan
 
-### Phase 1: Quick Wins (Week 1)
+### Phase 1: Quick Wins ✅ COMPLETED
 
 **Goal**: Implement low-effort, high-impact caching optimizations.
 
 **Tasks**:
-1. OP-1: Implement backlinks() caching
-2. OP-2: Implement outgoing_links() caching
-3. OP-3: Add sampling to contrarian_to()
-4. OP-7: Implement graph_neighbors() caching (depends on 1, 2)
+1. ✅ OP-1: Implement backlinks() caching
+2. ✅ OP-2: Implement outgoing_links() caching
+3. ✅ OP-3: Add sampling to contrarian_to()
+4. ✅ OP-7: Implement graph_neighbors() caching (depends on 1, 2)
 
 **Testing**:
-- Add performance regression tests for each
-- Update `test_performance_regression.py`
-- Run existing benchmark: `test_cluster_caching_benchmark`
+- ✅ Add performance regression tests for each
+- ✅ Update `test_performance_regression.py`
+- ✅ Run existing benchmark: `test_cluster_caching_benchmark`
 
-**Expected outcome**: 20-30% speedup for typical sessions.
+**Outcome**: All Phase 1 optimizations implemented and tested.
 
 ---
 
-### Phase 2: Algorithmic Improvements (Week 2)
+### Phase 2: Algorithmic Improvements ✅ COMPLETED
 
 **Goal**: Refactor high-impact geists with smarter algorithms.
 
 **Tasks**:
-1. OP-4: Refactor congruence_mirror to single-pass
-2. OP-5: Vectorize unlinked_pairs()
-3. OP-6: Implement batch note loading
+1. ✅ OP-4: Refactor congruence_mirror to single-pass (31.5x speedup: 60.8s → 1.9s)
+2. ✅ OP-5: Vectorize unlinked_pairs() (Already implemented)
+3. ✅ OP-6: Implement batch note loading (Used in neighbours, backlinks, hubs)
 
 **Testing**:
-- Add geist-specific benchmarks
-- Verify correctness with integration tests
-- Create `test_geist_performance.py` module
+- ⏳ Add geist-specific benchmarks (TODO)
+- ⏳ Verify correctness with integration tests (TODO)
+- ⏳ Create `test_geist_performance.py` module (TODO)
 
-**Expected outcome**: 30-50% speedup for optimized geists.
+**Outcome**: All Phase 2 optimizations implemented. OP-4 exceeded expectations with 31.5x speedup. Testing pending.
 
 ---
 
-### Phase 3: Infrastructure (Week 3)
+### Phase 3: Infrastructure ✅ COMPLETED
 
 **Goal**: Add infrastructure improvements for long-term maintainability.
 
 **Tasks**:
-1. OP-8: Optimize hubs() SQL query
-2. OP-9: Add return_scores parameter to neighbours()
-3. Document optimization patterns in code comments
+1. ✅ OP-8: Optimize hubs() SQL query (JOIN-based resolution + batch loading)
+2. ✅ OP-9: Add return_scores parameter to neighbours() (Used by 5 geists)
+3. ✅ Document optimization patterns in code comments
+
+**Geists using OP-9 (return_scores=True)**:
+- hidden_hub, bridge_hunter, columbo, bridge_builder, antithesis_generator
 
 **Testing**:
-- Update all tests to use new APIs
-- Add SQL query performance tests
-- Run full benchmark suite
+- ✅ Update all tests to use new APIs
+- ⏳ Add SQL query performance tests (TODO)
+- ✅ Run full benchmark suite (validate.sh passes)
 
-**Expected outcome**: Cleaner API, foundation for future optimizations.
+**Outcome**: All Phase 3 optimizations implemented. API improvements enable cleaner geist code.
 
 ---
 

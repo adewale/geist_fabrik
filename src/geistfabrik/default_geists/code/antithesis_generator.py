@@ -115,12 +115,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Also look for dialectical triads (thesis + antithesis without synthesis)
     for note in vault.sample(notes, min(20, len(notes))):
-        # Find potential antithesis
-        similar = vault.neighbours(note, k=10)
+        # Find potential antithesis (OP-9: get scores to avoid recomputation)
+        similar_with_scores = vault.neighbours(note, k=10, return_scores=True)
 
-        for other in similar:
-            # Check if they seem opposed
-            if vault.similarity(note, other) > 0.5:  # Related but not too similar
+        for other, similarity in similar_with_scores:
+            # Check if they seem opposed (already have similarity from neighbours)
+            if similarity > 0.5:  # Related but not too similar
                 note_content = vault.read(note).lower()
                 other_content = vault.read(other).lower()
 

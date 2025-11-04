@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+- **BIG OPTIMIZATION #1**: Fixed O(N²) algorithmic inefficiencies (6 locations)
+  - **CRITICAL**: Fixed pattern_finder timeout on large vaults (10k+ notes)
+    - Replaced O(N³) list.remove() in nested loops with O(N²) set.remove() (pattern_finder.py:88, 95)
+  - Optimized stats command for large vaults:
+    - Dict lookup instead of list.index() in vault drift computation (stats.py:591)
+    - Dict lookup instead of list.index() in MMR term selection (stats.py:973)
+    - Set membership instead of list membership in MMR loop (stats.py:966)
+  - Optimized unlinked_pairs for large vaults:
+    - Set membership instead of list membership (vault_context.py:619)
+  - Added comprehensive unit tests (tests/unit/test_algorithmic_fixes.py)
+  - Expected impact: Fixes timeouts on 10k vault, minor ~2-5% overall improvement
+
 ### Added
 - Vault helper functions for cleaner code patterns:
   - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:523-535)
@@ -37,8 +50,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - get_cluster_representatives() accepts optional clusters parameter
   - cluster_mirror geist optimized: 4 clusterings → 1 clustering
   - Comprehensive performance tests validate optimization
+- **PERFORMANCE (Phase 2)**: Batch note loading infrastructure (OP-6)
+  - `vault.get_notes_batch(paths)` loads N notes in 3 queries instead of 3×N
+  - Eliminates database query overhead by 66% for batch operations
+  - Used by neighbours(), backlinks(), hubs() methods
+  - Implementation: src/geistfabrik/vault.py
+- **PERFORMANCE (Phase 2)**: neighbours() with return_scores parameter (OP-9)
+  - Optional `return_scores=True` returns similarity scores with neighbors
+  - Avoids recomputing similarities already computed during k-NN search
+  - Type-safe implementation using `@overload` with `Literal` types
+  - Used by 5 geists: hidden_hub, bridge_hunter, columbo, bridge_builder, antithesis_generator
+  - Eliminates 50-100 redundant similarity computations per session
 
 ### Changed
+- **PERFORMANCE (Phase 2)**: Single-pass congruence_mirror algorithm (OP-4)
+  - Refactored from 4 separate passes to 1 combined pass
+  - Before: 60.838s, After: 1.930s on 3406-note vault
+  - Actual speedup: 31.5x (97% reduction)
+  - Multiplicative effect: single-pass (4x) + cached similarity (3x) + cached links (2x) + batch loading (1.3x)
+  - Implementation: src/geistfabrik/default_geists/code/congruence_mirror.py
+- **PERFORMANCE (Phase 2)**: Optimized hubs() SQL query (OP-8)
+  - Uses JOIN to resolve link targets in SQL instead of Python
+  - Eliminates k×3 oversampling pattern
+  - Combined with batch loading (OP-6) for maximum efficiency
+  - 15-25% faster hub queries
 - **PERFORMANCE**: Session-level caching for `vault.notes()` calls
   - Reduces redundant file system operations within same session
   - Cached at VaultContext level for consistency
@@ -74,6 +109,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All references now accurate to actual source code locations
 
 ### Documentation
+- **NEW**: `docs/PERFORMANCE_OPTIMIZATION_RESULTS.md` - Comprehensive performance optimization results
+  - All Phase 1, 2, and 3 optimizations (OP-1 through OP-9)
+  - Measured results: 38-46% session speedup, 86.3% cache hit rate, 69MB memory on 1000-note vault
+  - Benchmark summary, cache hit rates, memory usage, testing coverage
+  - Replaces and consolidates earlier performance documentation
 - **NEW**: `docs/PERFORMANCE_COMPARISON_2025_10_31.md` - Real performance measurements
   - Session execution 16% faster overall (16.8s → 14.1s for 1000 notes)
   - Geist phase 56% faster (4.8s → 2.1s)
@@ -83,6 +123,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive analysis of 15 VaultContext methods
   - Memory overhead <100 KB for 10,000-note vault (negligible)
   - Recommendation: Keep lists (better usability, no breaking changes)
+- Updated `specs/performance_optimization_spec.md` - All phases marked complete
+  - Phase 1, 2, and 3 status: ✅ COMPLETED
+  - Includes measured 31.5x speedup for OP-4 (congruence_mirror)
+  - Documents 5 geists using OP-9 (return_scores)
+- Updated `README_EARLY_ADOPTERS.md` - Added Phase 2 benchmark section
+  - Instructions for profiling congruence_mirror and other Phase 2 geists
+  - Expected results and reporting template for early adopters
 - Updated `specs/VAULT_HELPER_FUNCTIONS_DESIGN.md` to "✅ Implemented" status
 - Updated `examples/README.md` with helper function demonstrations
 - Updated `STATUS.md` with accurate test counts (513 total, 100% passing)

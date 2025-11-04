@@ -209,16 +209,26 @@ class VaultContext:
         # Find similar notes (request k+1 to exclude self)
         similar = self._backend.find_similar(query_embedding, k=k + 1)
 
-        # Convert paths to notes, excluding the query note
+        # Convert paths to notes using batch loading (OP-6)
+        # Collect paths first (excluding self)
+        paths_to_load = []
+        path_score_map = {}
+        for path, score in similar:
+            if path != note.path:
+                paths_to_load.append(path)
+                path_score_map[path] = score
+
+        # Batch load all notes at once
+        notes_map = self.vault.get_notes_batch(paths_to_load)
+
+        # Build results in order, preserving similarity ranking
         result = []
         result_with_scores = []
-        for path, score in similar:
-            if path == note.path:
-                continue  # Skip self
-            similar_note = self.get_note(path)
+        for path in paths_to_load:
+            similar_note = notes_map.get(path)
             if similar_note is not None:
                 result.append(similar_note)
-                result_with_scores.append((similar_note, score))
+                result_with_scores.append((similar_note, path_score_map[path]))
                 if len(result) >= k:
                     break
 
@@ -291,9 +301,14 @@ class VaultContext:
             (note.path, path_without_ext, note.title),
         )
 
+        # Collect all source paths, then batch load (OP-6)
+        source_paths = [row[0] for row in cursor.fetchall()]
+        notes_map = self.vault.get_notes_batch(source_paths)
+
+        # Build result list, preserving order
         result = []
-        for row in cursor.fetchall():
-            source = self.get_note(row[0])
+        for path in source_paths:
+            source = notes_map.get(path)
             if source is not None:
                 result.append(source)
 
@@ -397,10 +412,14 @@ class VaultContext:
             (k,),
         )
 
+        # Collect all paths, then batch load (OP-6)
+        hub_paths = [row[0] for row in cursor.fetchall()]
+        notes_map = self.vault.get_notes_batch(hub_paths)
+
+        # Build result list, preserving order
         result = []
-        for row in cursor.fetchall():
-            note_path = row[0]
-            note = self.get_note(note_path)
+        for path in hub_paths:
+            note = notes_map.get(path)
             if note is not None:
                 result.append(note)
 
@@ -597,7 +616,9 @@ class VaultContext:
         if len(all_notes) > candidate_limit:
             # Sample a diverse set: recent notes + random notes
             recent = self.recent_notes(k=candidate_limit // 2)
-            remaining = [n for n in all_notes if n not in recent]
+            # Use set for O(1) membership check instead of O(N) list membership
+            recent_set = set(recent)
+            remaining = [n for n in all_notes if n not in recent_set]
             random_notes = self.sample(remaining, min(candidate_limit // 2, len(remaining)))
             notes = recent + random_notes
         else:

@@ -588,7 +588,9 @@ class StatsCollector:
             return None  # Not enough overlap
 
         # Build aligned embedding matrices
-        curr_aligned = np.vstack([curr_emb[curr_paths.index(p)] for p in common_paths])
+        # Use dict lookup instead of list.index() for O(N) instead of O(N²)
+        path_to_idx = {p: i for i, p in enumerate(curr_paths)}
+        curr_aligned = np.vstack([curr_emb[path_to_idx[p]] for p in common_paths])
         past_aligned = np.vstack([past_emb_dict[p] for p in common_paths])
 
         # Align past embeddings to current via Procrustes
@@ -960,17 +962,22 @@ class EmbeddingMetricsComputer:
         # Simplified MMR using string overlap as diversity metric
         # This avoids needing to recompute embeddings for terms
         try:
+            # Use dict for O(1) term index lookup instead of O(N) list.index()
+            term_to_idx = {t: i for i, t in enumerate(terms)}
+
+            # Use set for O(1) membership checks instead of O(N) list membership
+            selected_set: set[str] = set()
             selected: List[str] = []
 
             while len(selected) < k and len(selected) < len(terms):
-                remaining = [t for t in terms if t not in selected]
+                remaining = [t for t in terms if t not in selected_set]
                 if not remaining:
                     break
 
                 mmr_scores = []
                 for term in remaining:
-                    # Relevance: TF-IDF score
-                    term_idx = terms.index(term)
+                    # Relevance: TF-IDF score (O(1) dict lookup)
+                    term_idx = term_to_idx[term]
                     relevance = tfidf_scores[term_idx]
 
                     # Diversity: string overlap with selected terms
@@ -993,7 +1000,9 @@ class EmbeddingMetricsComputer:
 
                 # Select term with highest MMR
                 best_idx = np.argmax(mmr_scores)
-                selected.append(remaining[best_idx])
+                best_term = remaining[best_idx]
+                selected.append(best_term)
+                selected_set.add(best_term)
 
             return selected
 

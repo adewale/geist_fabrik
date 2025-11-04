@@ -39,10 +39,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ):
             continue
 
-        # Find semantically similar notes
-        similar = vault.neighbours(note, k=5)
+        # Find semantically similar notes (OP-9: get scores to avoid recomputation)
+        similar_with_scores = vault.neighbours(note, k=5, return_scores=True)
 
-        for other in similar:
+        for other, similarity in similar_with_scores:
             if other.path == note.path:
                 continue
 
@@ -69,7 +69,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
 
             # High semantic similarity but opposite linguistic patterns suggests contradiction
-            similarity = vault.similarity(note, other)
+            # (already have similarity from neighbours)
 
             if similarity > 0.6 and (
                 (note_positive_words > 2 and other_negative_words > 2)
@@ -88,7 +88,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
 
                     if connections:
-                        connection_list = ', '.join([f'[[{c}]]' for c in connections[:2]])
+                        connection_list = ", ".join([f"[[{c}]]" for c in connections[:2]])
                         text += (
                             f". Both connect to {connection_list}, "
                             f"so maybe there's a missing piece?"

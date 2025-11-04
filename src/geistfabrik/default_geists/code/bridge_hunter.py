@@ -69,18 +69,17 @@ def _find_semantic_path(
 
     # For 2-hop path: start -> intermediate -> end
     if max_hops == 2:
-        # Find notes similar to start
-        candidates = vault.neighbours(start, k=10)
+        # Find notes similar to start (OP-9: get scores to avoid recomputation)
+        candidates_with_scores = vault.neighbours(start, k=10, return_scores=True)
 
         best_path = None
         best_score = 0.0
 
-        for candidate in candidates:
+        for candidate, sim_start_mid in candidates_with_scores:
             if candidate.path == end.path:
                 continue
 
-            # Score is average similarity
-            sim_start_mid = vault.similarity(start, candidate)
+            # Score is average similarity (already have sim_start_mid from neighbours)
             sim_mid_end = vault.similarity(candidate, end)
             avg_sim = (sim_start_mid + sim_mid_end) / 2
 
@@ -92,21 +91,20 @@ def _find_semantic_path(
 
     # For 3-hop path: start -> mid1 -> mid2 -> end
     if max_hops == 3:
-        candidates1 = vault.neighbours(start, k=10)
-        candidates2 = vault.neighbours(end, k=10)
+        # OP-9: Get scores to avoid recomputing start->mid1 and end->mid2
+        candidates1_with_scores = vault.neighbours(start, k=10, return_scores=True)
+        candidates2_with_scores = vault.neighbours(end, k=10, return_scores=True)
 
         best_path = None
         best_score = 0.0
 
-        for mid1 in candidates1:
-            for mid2 in candidates2:
+        for mid1, sim1 in candidates1_with_scores:
+            for mid2, sim3 in candidates2_with_scores:
                 if mid1.path == mid2.path or mid1.path == end.path or mid2.path == start.path:
                     continue
 
-                # Calculate path quality
-                sim1 = vault.similarity(start, mid1)
+                # Calculate path quality (already have sim1 and sim3 from neighbours)
                 sim2 = vault.similarity(mid1, mid2)
-                sim3 = vault.similarity(mid2, end)
                 avg_sim = (sim1 + sim2 + sim3) / 3
 
                 if avg_sim > best_score and avg_sim > 0.4:

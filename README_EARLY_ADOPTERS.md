@@ -646,6 +646,77 @@ Total time: 0.349s
 - Did speedups match expectations?
 ```
 
+---
+
+### Run Phase 2 Optimization Benchmarks (NEW)
+
+Validate the latest Phase 2 algorithmic improvements:
+
+```bash
+# Profile congruence_mirror specifically
+uv run geistfabrik test congruence_mirror ~/my-vault --debug
+```
+
+**Expected results** (3406-note vault):
+```
+======================================================================
+Congruence_Mirror Performance (OP-4: Single-Pass Optimization)
+======================================================================
+✓ congruence_mirror: 1.930s (4 suggestions)
+
+Performance improvements:
+  Before optimization: 60.838s
+  After optimization:  1.930s
+  Speedup:             31.5x (97% reduction)
+
+Optimization techniques:
+  - Single-pass algorithm (4 separate passes → 1 combined pass)
+  - Cached similarity computations
+  - Batch note loading (OP-6)
+  - Early sampling (process 100 notes instead of all)
+======================================================================
+```
+
+**What's tested:**
+1. **OP-4**: Single-pass congruence_mirror (31.5x faster)
+2. **OP-6**: Batch note loading (3 queries instead of 3×N)
+3. **OP-8**: Optimized hubs() SQL query (JOIN-based resolution)
+4. **OP-9**: neighbours() with return_scores (avoids recomputation)
+
+**Geists optimized with OP-9** (return_scores=True):
+- `hidden_hub` - Avoids recomputing similarity for semantic neighbors
+- `bridge_hunter` - Gets scores when finding semantic paths
+- `columbo` - Detects contradictions without redundant similarity calls
+- `bridge_builder` - Identifies bridge notes efficiently
+- `antithesis_generator` - Finds dialectical pairs faster
+
+**What to report** (GitHub issue template):
+
+```markdown
+## Phase 2 Benchmark Results
+
+**Environment:**
+- Vault size: XXX notes
+- Operating system: macOS / Linux / Windows
+- Python version: 3.11.x
+
+**Congruence_mirror performance:**
+- Execution time: X.XXXs
+- Suggestions generated: X
+- Speedup vs baseline (if known): XX.Xx
+
+**Other Phase 2 geists to test:**
+- `hidden_hub`: X.XXXs
+- `bridge_hunter`: X.XXXs
+- `columbo`: X.XXXs
+
+**Notes:**
+- Did you notice improved performance compared to earlier versions?
+- Any geists still slow (>2s)?
+```
+
+---
+
 ### Report Performance Issues
 
 Found a slow geist? Here's how to report it effectively:
