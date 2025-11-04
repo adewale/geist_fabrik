@@ -8,6 +8,14 @@ import yaml
 
 from .models import Link
 
+# Pre-compiled regex patterns for performance
+# Pattern for wiki links: !?[[target|display?]]
+# Handles: [[link]], [[link|text]], ![[embed]], [[note#heading]], [[note^block]]
+WIKILINK_PATTERN = re.compile(r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+
+# Pattern for inline tags: #tag, including nested tags like #parent/child
+TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
+
 
 def parse_frontmatter(content: str) -> Tuple[Optional[Dict[str, Any]], str]:
     """Extract YAML frontmatter and remaining content.
@@ -89,11 +97,8 @@ def extract_links(content: str) -> List[Link]:
     """
     links = []
 
-    # Pattern for wiki links: !?[[target|display?]]
-    # Handles: [[link]], [[link|text]], ![[embed]], [[note#heading]], [[note^block]]
-    pattern = r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]"
-
-    for match in re.finditer(pattern, content):
+    # Use pre-compiled pattern for better performance
+    for match in WIKILINK_PATTERN.finditer(content):
         is_embed = match.group(1) == "!"
         target_raw = match.group(2).strip()
         display_text = match.group(3).strip() if match.group(3) else None
@@ -154,12 +159,10 @@ def extract_tags(content: str, frontmatter: Optional[Dict[str, Any]] = None) -> 
             # List of tags
             tags.update(str(tag).strip() for tag in fm_tags)
 
-    # Extract inline tags from content
+    # Extract inline tags from content using pre-compiled pattern
     # Match #tag but not inside code blocks
     # Simple approach: match #word boundaries (not perfect but good enough)
-    pattern = r"#([a-zA-Z0-9_/-]+)"
-
-    for match in re.finditer(pattern, content):
+    for match in TAG_PATTERN.finditer(content):
         tag = match.group(1)
         tags.add(tag)
 

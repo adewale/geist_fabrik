@@ -259,25 +259,33 @@ class Vault:
         self.db.execute("DELETE FROM links WHERE source_path = ?", (note.path,))
         self.db.execute("DELETE FROM tags WHERE note_path = ?", (note.path,))
 
-        # Insert new links
-        for link in note.links:
-            self.db.execute(
-                """
-                INSERT INTO links (source_path, target, display_text, is_embed, block_ref)
-                VALUES (?, ?, ?, ?, ?)
-                """,
+        # Insert new links using batch executemany
+        if note.links:
+            link_rows = [
                 (
                     note.path,
                     link.target,
                     link.display_text,
                     1 if link.is_embed else 0,
                     link.block_ref,
-                ),
+                )
+                for link in note.links
+            ]
+            self.db.executemany(
+                """
+                INSERT INTO links (source_path, target, display_text, is_embed, block_ref)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                link_rows,
             )
 
-        # Insert new tags
-        for tag in note.tags:
-            self.db.execute("INSERT INTO tags (note_path, tag) VALUES (?, ?)", (note.path, tag))
+        # Insert new tags using batch executemany
+        if note.tags:
+            tag_rows = [(note.path, tag) for tag in note.tags]
+            self.db.executemany(
+                "INSERT INTO tags (note_path, tag) VALUES (?, ?)",
+                tag_rows,
+            )
 
     def _build_note_from_row(
         self,
