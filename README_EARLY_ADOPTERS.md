@@ -777,6 +777,44 @@ From: `uv run geistfabrik test <geist_name> ~/my-vault --debug`
 
 **Note**: "First run" = initial embedding computation. "Daily use" = cached embeddings.
 
+### Understanding Cold vs Warm Start Performance
+
+The 7-10x performance difference between "First Run" and "Daily Use" reflects GeistFabrik's **cold start** vs **warm start** behavior:
+
+**Cold Start** (First Run):
+- Happens when embeddings need to be computed from scratch
+- Triggers on:
+  - First time you invoke GeistFabrik on your vault
+  - After deleting `_geistfabrik/vault.db`
+  - When vault content has significantly changed
+- Time breakdown for 1000 notes:
+  - Embedding computation: ~2-3 minutes (100-200ms per note)
+  - Geist execution: ~10-20 seconds
+  - **Total: 3-4 minutes**
+
+**Warm Start** (Daily Use):
+- Happens when embeddings are already cached in database
+- Triggers on:
+  - Second and subsequent invocations
+  - Daily usage after initial setup
+  - Any time vault hasn't substantially changed
+- Time breakdown for 1000 notes:
+  - Loading cached embeddings: <1 second
+  - Incremental sync (changed files only): 1-2 seconds
+  - Geist execution: ~10-20 seconds
+  - **Total: 30-40 seconds**
+
+**Why the difference?**
+The sentence-transformer model (all-MiniLM-L6-v2) computes semantic embeddings for every note. This happens once per note and results are cached in SQLite. Subsequent runs load embeddings from database (10x faster) rather than recomputing them.
+
+**What to expect:**
+- ✅ **Cold start once**: First invocation takes 3-5 minutes on 1000-note vault
+- ✅ **Warm starts after**: Daily usage takes 30-60 seconds
+- ✅ **This is normal**: The one-time investment enables fast semantic search
+- ⚠️ **If every run is slow**: Check that `_geistfabrik/vault.db` isn't being deleted
+
+---
+
 ### Understanding the Profiling Output
 
 **Fast operations** (<100ms):
