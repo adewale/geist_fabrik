@@ -123,6 +123,30 @@ class EmbeddingComputer:
         embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding
 
+    def compute_batch_semantic(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
+        """Compute semantic embeddings for multiple texts in batch.
+
+        This is significantly faster than calling compute_semantic() in a loop,
+        as it leverages batched matrix operations.
+
+        Args:
+            texts: List of texts to embed
+            batch_size: Batch size for encoding (default: 32)
+
+        Returns:
+            NxM numpy array where N is number of texts and M is embedding dimension (384)
+        """
+        if not texts:
+            return np.array([])
+
+        embeddings = self.model.encode(
+            texts,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+            batch_size=batch_size,
+        )
+        return embeddings
+
     def compute_temporal_features(self, note: Note, session_date: datetime) -> np.ndarray:
         """Compute temporal features for a note.
 

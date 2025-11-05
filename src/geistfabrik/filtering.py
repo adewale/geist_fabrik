@@ -39,10 +39,56 @@ class SuggestionFilter:
         self.db = db
         self.embedding_computer = embedding_computer
         self.config = config or self._default_config()
+        # Lazy caching for novelty filter
+        self._recent_embeddings_cache: Any = None  # numpy array when populated
+        self._cache_metadata: Any = None  # (session_date, window_days) tuple when populated
 
     def _default_config(self) -> Dict[str, Any]:
         """Return default filtering configuration."""
         return get_default_filter_config()
+
+    def _get_recent_embeddings(self, session_date: datetime, window_days: int) -> Any:
+        """Get embeddings for recent suggestions with lazy caching.
+
+        Args:
+            session_date: Current session date
+            window_days: Number of days to look back
+
+        Returns:
+            Numpy array of embeddings for recent suggestions
+        """
+        import numpy as np
+
+        cache_key = (session_date, window_days)
+
+        # Check if cache is valid
+        if self._recent_embeddings_cache is not None and self._cache_metadata == cache_key:
+            # Cache hit - return cached embeddings
+            return self._recent_embeddings_cache
+
+        # Cache miss - compute embeddings
+        cutoff_date = session_date - timedelta(days=window_days)
+        cursor = self.db.execute(
+            """
+            SELECT suggestion_text
+            FROM session_suggestions
+            WHERE session_date >= ?
+            """,
+            (cutoff_date.isoformat(),),
+        )
+        recent_texts = [row[0] for row in cursor.fetchall()]
+
+        if recent_texts:
+            # Batch compute all embeddings at once
+            recent_embeddings = self.embedding_computer.compute_batch_semantic(recent_texts)
+        else:
+            recent_embeddings = np.array([])
+
+        # Update cache
+        self._recent_embeddings_cache = recent_embeddings
+        self._cache_metadata = cache_key
+
+        return recent_embeddings
 
     def filter_all(self, suggestions: List[Suggestion], session_date: datetime) -> List[Suggestion]:
         """Apply all enabled filters in sequence.
@@ -108,6 +154,8 @@ class SuggestionFilter:
     ) -> List[Suggestion]:
         """Remove suggestions similar to recent history.
 
+        Uses lazy caching and batch embedding computation for optimal performance.
+
         Args:
             suggestions: Suggestions to filter
             session_date: Current session date
@@ -123,37 +171,40 @@ class SuggestionFilter:
         threshold = novelty_config.get("threshold", 0.85)
         method = novelty_config.get("method", "embedding_similarity")
 
-        # Get recent suggestions from history
-        cutoff_date = session_date - timedelta(days=window_days)
-        cursor = self.db.execute(
-            """
-            SELECT suggestion_text
-            FROM session_suggestions
-            WHERE session_date >= ?
-            """,
-            (cutoff_date.isoformat(),),
-        )
-        recent_texts = {row[0] for row in cursor.fetchall()}
-
         if method == "text_match":
             # Simple exact text matching
+            cutoff_date = session_date - timedelta(days=window_days)
+            cursor = self.db.execute(
+                """
+                SELECT suggestion_text
+                FROM session_suggestions
+                WHERE session_date >= ?
+                """,
+                (cutoff_date.isoformat(),),
+            )
+            recent_texts = {row[0] for row in cursor.fetchall()}
             return [s for s in suggestions if s.text not in recent_texts]
         else:
-            # Embedding similarity matching
-            if not recent_texts:
+            # Embedding similarity matching with lazy cache + batching
+            if not suggestions:
+                return suggestions
+
+            # Get recent embeddings (uses lazy cache)
+            recent_embeddings = self._get_recent_embeddings(session_date, window_days)
+
+            if len(recent_embeddings) == 0:
                 return suggestions  # No history to compare against
 
-            # Compute embeddings for recent suggestions
-            recent_embeddings = [
-                self.embedding_computer.compute_semantic(text) for text in recent_texts
-            ]
+            # Batch compute embeddings for all suggestions at once
+            suggestion_texts = [s.text for s in suggestions]
+            suggestion_embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
-            # Filter suggestions
+            # Filter suggestions with early stopping
             filtered = []
-            for suggestion in suggestions:
-                suggestion_embedding = self.embedding_computer.compute_semantic(suggestion.text)
+            for i, suggestion in enumerate(suggestions):
+                suggestion_embedding = suggestion_embeddings[i]
 
-                # Check if too similar to any recent suggestion
+                # Check if too similar to any recent suggestion (early stop on first match)
                 is_novel = True
                 for recent_embedding in recent_embeddings:
                     similarity = cosine_similarity(suggestion_embedding, recent_embedding)
