@@ -226,7 +226,8 @@ class VaultContext:
         for path, score in similar:
             if path != note.path:
                 paths_to_load.append(path)
-                path_score_map[path] = score
+                # Clip score to [0, 1] range (handle floating-point precision errors)
+                path_score_map[path] = max(0.0, min(1.0, score))
 
         # Batch load all notes at once
         notes_map = self.vault.get_notes_batch(paths_to_load)
@@ -275,6 +276,8 @@ class VaultContext:
         # Compute and cache
         try:
             similarity_score = self._backend.get_similarity(a.path, b.path)
+            # Clip to [0, 1] range (handle floating-point precision errors)
+            similarity_score = max(0.0, min(1.0, similarity_score))
         except KeyError:
             similarity_score = 0.0
 
