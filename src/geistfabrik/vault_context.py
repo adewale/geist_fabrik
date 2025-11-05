@@ -29,6 +29,21 @@ if TYPE_CHECKING:
     from .metadata_system import MetadataLoader
 
 
+def _clip_similarity(score: float) -> float:
+    """Clip similarity score to valid [0, 1] range.
+
+    Handles floating-point precision errors that can cause scores slightly
+    outside the valid range due to numpy/sklearn version differences.
+
+    Args:
+        score: Raw similarity score
+
+    Returns:
+        Clipped score in [0.0, 1.0] range
+    """
+    return max(0.0, min(1.0, score))
+
+
 class VaultContext:
     """Rich execution context for geists.
 
@@ -227,7 +242,7 @@ class VaultContext:
             if path != note.path:
                 paths_to_load.append(path)
                 # Clip score to [0, 1] range (handle floating-point precision errors)
-                path_score_map[path] = max(0.0, min(1.0, score))
+                path_score_map[path] = _clip_similarity(score)
 
         # Batch load all notes at once
         notes_map = self.vault.get_notes_batch(paths_to_load)
@@ -277,7 +292,7 @@ class VaultContext:
         try:
             similarity_score = self._backend.get_similarity(a.path, b.path)
             # Clip to [0, 1] range (handle floating-point precision errors)
-            similarity_score = max(0.0, min(1.0, similarity_score))
+            similarity_score = _clip_similarity(similarity_score)
         except KeyError:
             similarity_score = 0.0
 
