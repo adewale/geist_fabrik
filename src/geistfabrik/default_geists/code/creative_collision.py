@@ -26,7 +26,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 2:
         return []
 
-    # Sample multiple pairs
+    # OPTIMIZATION #5: Collect pairs first, then batch compute similarities
+    pairs_to_check = []
     for _ in range(10):
         pair = vault.sample(notes, k=2)
         if len(pair) != 2:
@@ -38,21 +39,31 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if vault.links_between(note_a, note_b):
             continue
 
-        similarity = vault.similarity(note_a, note_b)
+        pairs_to_check.append((note_a, note_b))
 
-        # Look for moderately dissimilar notes (not too similar, not completely unrelated)
-        if 0.2 < similarity < 0.5:
-            text = (
-                f"What if you combined ideas from [[{note_a.title}]] and [[{note_b.title}]]? "
-                f"They're from different domains but might spark something unexpected."
-            )
+    # Batch compute all similarities at once
+    if pairs_to_check:
+        notes_a = [pair[0] for pair in pairs_to_check]
+        notes_b = [pair[1] for pair in pairs_to_check]
+        sim_matrix = vault.batch_similarity(notes_a, notes_b)
 
-            suggestions.append(
-                Suggestion(
-                    text=text,
-                    notes=[note_a.title, note_b.title],
-                    geist_id="creative_collision",
+        for i, (note_a, note_b) in enumerate(pairs_to_check):
+            # Extract pairwise similarity from matrix diagonal
+            similarity = sim_matrix[i, i]
+
+            # Look for moderately dissimilar notes (not too similar, not completely unrelated)
+            if 0.2 < similarity < 0.5:
+                text = (
+                    f"What if you combined ideas from [[{note_a.title}]] and [[{note_b.title}]]? "
+                    f"They're from different domains but might spark something unexpected."
                 )
-            )
+
+                suggestions.append(
+                    Suggestion(
+                        text=text,
+                        notes=[note_a.title, note_b.title],
+                        geist_id="creative_collision",
+                    )
+                )
 
     return vault.sample(suggestions, k=3)

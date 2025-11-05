@@ -75,17 +75,28 @@ def _find_semantic_path(
         best_path = None
         best_score = 0.0
 
-        for candidate, sim_start_mid in candidates_with_scores:
-            if candidate.path == end.path:
-                continue
+        # OPTIMIZATION #5: Batch compute similarities to end note
+        candidates_list = [
+            candidate for candidate, _ in candidates_with_scores if candidate.path != end.path
+        ]
+        if candidates_list:
+            # Single batch call instead of N individual calls
+            sim_matrix = vault.batch_similarity(candidates_list, [end])
+            similarities_to_end = sim_matrix[:, 0]  # Extract column for end note
 
-            # Score is average similarity (already have sim_start_mid from neighbours)
-            sim_mid_end = vault.similarity(candidate, end)
-            avg_sim = (sim_start_mid + sim_mid_end) / 2
+            candidate_idx = 0
+            for candidate, sim_start_mid in candidates_with_scores:
+                if candidate.path == end.path:
+                    continue
 
-            if avg_sim > best_score and avg_sim > 0.4:
-                best_score = avg_sim
-                best_path = [start, candidate, end]
+                # Score is average similarity (already have sim_start_mid from neighbours)
+                sim_mid_end = similarities_to_end[candidate_idx]
+                candidate_idx += 1
+                avg_sim = (sim_start_mid + sim_mid_end) / 2
+
+                if avg_sim > best_score and avg_sim > 0.4:
+                    best_score = avg_sim
+                    best_path = [start, candidate, end]
 
         return best_path
 
@@ -98,18 +109,26 @@ def _find_semantic_path(
         best_path = None
         best_score = 0.0
 
-        for mid1, sim1 in candidates1_with_scores:
-            for mid2, sim3 in candidates2_with_scores:
-                if mid1.path == mid2.path or mid1.path == end.path or mid2.path == start.path:
-                    continue
+        # OPTIMIZATION #5: Batch compute all pairwise similarities between mid1 and mid2
+        candidates1 = [mid for mid, _ in candidates1_with_scores]
+        candidates2 = [mid for mid, _ in candidates2_with_scores]
 
-                # Calculate path quality (already have sim1 and sim3 from neighbours)
-                sim2 = vault.similarity(mid1, mid2)
-                avg_sim = (sim1 + sim2 + sim3) / 3
+        if candidates1 and candidates2:
+            # Single batch call: 10×10 matrix instead of 100 individual calls
+            sim_matrix = vault.batch_similarity(candidates1, candidates2)
 
-                if avg_sim > best_score and avg_sim > 0.4:
-                    best_score = avg_sim
-                    best_path = [start, mid1, mid2, end]
+            for i, (mid1, sim1) in enumerate(candidates1_with_scores):
+                for j, (mid2, sim3) in enumerate(candidates2_with_scores):
+                    if mid1.path == mid2.path or mid1.path == end.path or mid2.path == start.path:
+                        continue
+
+                    # Calculate path quality (already have sim1 and sim3 from neighbours)
+                    sim2 = sim_matrix[i, j]  # Extract from pre-computed matrix
+                    avg_sim = (sim1 + sim2 + sim3) / 3
+
+                    if avg_sim > best_score and avg_sim > 0.4:
+                        best_score = avg_sim
+                        best_path = [start, mid1, mid2, end]
 
         return best_path
 

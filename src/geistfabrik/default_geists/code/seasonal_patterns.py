@@ -57,14 +57,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Calculate average intra-month similarity
         sample = vault.sample(month_notes, min(10, len(month_notes)))
-        similarities = []
 
-        for i, note_a in enumerate(sample):
-            for note_b in sample[i + 1 :]:
-                sim = vault.similarity(note_a, note_b)
-                similarities.append(sim)
+        # OPTIMIZATION #5: Use batch_similarity for pairwise comparisons
+        if len(sample) > 1:
+            sim_matrix = vault.batch_similarity(sample, sample)
+            # Extract upper triangle (avoid diagonal and duplicates)
+            similarities = []
+            for i in range(len(sample)):
+                for j in range(i + 1, len(sample)):
+                    similarities.append(sim_matrix[i, j])
 
-        if similarities:
             avg_similarity = sum(similarities) / len(similarities)
             month_profiles.append((month_num, month_notes, avg_similarity))
 
@@ -91,12 +93,22 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if len(year_samples) >= 3:
                 # Check if notes from different years but same month are similar
-                cross_year_sims = []
+                # OPTIMIZATION #5: Collect cross-year pairs, then batch compute similarities
+                cross_year_pairs = []
                 for i, (year1, note1) in enumerate(year_samples):
                     for year2, note2 in year_samples[i + 1 :]:
                         if year1 != year2:  # Different years
-                            sim = vault.similarity(note1, note2)
-                            cross_year_sims.append((note1, note2, sim))
+                            cross_year_pairs.append((note1, note2))
+
+                cross_year_sims = []
+                if cross_year_pairs:
+                    notes1 = [pair[0] for pair in cross_year_pairs]
+                    notes2 = [pair[1] for pair in cross_year_pairs]
+                    sim_matrix = vault.batch_similarity(notes1, notes2)
+
+                    for i, (note1, note2) in enumerate(cross_year_pairs):
+                        sim = sim_matrix[i, i]  # Diagonal for pairwise similarities
+                        cross_year_sims.append((note1, note2, sim))
 
                 if cross_year_sims:
                     cross_year_sims.sort(key=lambda x: x[2], reverse=True)

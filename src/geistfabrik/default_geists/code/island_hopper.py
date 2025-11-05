@@ -40,17 +40,21 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Find notes semantically near cluster but not in it
         boundary_notes = []
 
-        for note in all_notes:
-            if note in cluster:
-                continue
+        # OPTIMIZATION #5: Batch compute similarities between all notes and cluster
+        cluster_set = set(n.path for n in cluster)
+        candidate_notes = [note for note in all_notes if note.path not in cluster_set]
 
-            # Calculate average similarity to cluster members
-            similarities = [vault.similarity(note, c) for c in cluster]
-            avg_sim = sum(similarities) / len(similarities)
+        if candidate_notes and cluster:
+            # Single batch call: N×M matrix instead of N×M individual calls
+            sim_matrix = vault.batch_similarity(candidate_notes, cluster)
 
-            # Close enough to bridge, not so close it should be in cluster
-            if 0.4 < avg_sim < 0.7:
-                boundary_notes.append((note, avg_sim))
+            for i, note in enumerate(candidate_notes):
+                # Calculate average similarity to cluster members from matrix
+                avg_sim = sim_matrix[i, :].mean()
+
+                # Close enough to bridge, not so close it should be in cluster
+                if 0.4 < avg_sim < 0.7:
+                    boundary_notes.append((note, avg_sim))
 
         if boundary_notes:
             # Take the best bridge candidate

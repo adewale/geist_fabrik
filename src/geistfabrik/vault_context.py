@@ -94,6 +94,9 @@ class VaultContext:
         # Cache for graph_neighbors (performance optimization - keyed by note_path)
         self._graph_neighbors_cache: Dict[str, List[Note]] = {}
 
+        # Cache for read() content (OPTIMIZATION #2 - session-scoped)
+        self._read_cache: Dict[str, str] = {}
+
         # Metadata loader for extensible metadata inference
         self._metadata_loader = metadata_loader
 
@@ -158,7 +161,14 @@ class VaultContext:
         Returns:
             Note content
         """
-        return note.content
+        # Check cache first (OPTIMIZATION #2 - session-scoped)
+        if note.path in self._read_cache:
+            return self._read_cache[note.path]
+
+        # Get content and cache it
+        content = note.content
+        self._read_cache[note.path] = content
+        return content
 
     # Semantic search
 
@@ -270,6 +280,79 @@ class VaultContext:
 
         self._similarity_cache[cache_key] = similarity_score
         return similarity_score
+
+    def batch_similarity(self, notes_a: List[Note], notes_b: List[Note]) -> np.ndarray:
+        """Calculate semantic similarity between two sets of notes (vectorized).
+
+        Computes all pairwise similarities between notes_a and notes_b using
+        vectorized matrix operations for 10-100× speedup compared to nested loops.
+
+        OPTIMIZATION #3: Use this instead of nested similarity() calls:
+
+        Before (O(N×M) individual calls):
+            for a in notes_a:
+                for b in notes_b:
+                    sim = vault.similarity(a, b)
+
+        After (O(1) batch operation):
+            similarities = vault.batch_similarity(notes_a, notes_b)
+            # similarities[i, j] = similarity between notes_a[i] and notes_b[j]
+
+        Args:
+            notes_a: First set of notes
+            notes_b: Second set of notes
+
+        Returns:
+            Matrix of shape (len(notes_a), len(notes_b)) where element [i, j]
+            is the cosine similarity between notes_a[i] and notes_b[j]
+        """
+        if not notes_a or not notes_b:
+            return np.array([]).reshape(0, 0)
+
+        # Get embeddings for all notes
+        embeddings_a = []
+        embeddings_b = []
+
+        for note in notes_a:
+            try:
+                emb = self._backend.get_embedding(note.path)
+                embeddings_a.append(emb)
+            except KeyError:
+                # Note not found, use zero vector
+                embeddings_a.append(np.zeros(387))  # 384 + 3 temporal features
+
+        for note in notes_b:
+            try:
+                emb = self._backend.get_embedding(note.path)
+                embeddings_b.append(emb)
+            except KeyError:
+                # Note not found, use zero vector
+                embeddings_b.append(np.zeros(387))
+
+        # Stack into matrices: (n, d) and (m, d)
+        matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), 387)
+        matrix_b = np.stack(embeddings_b)  # shape: (len(notes_b), 387)
+
+        # Normalize rows to unit vectors for cosine similarity
+        # ||a|| = sqrt(sum(a^2)) for each row
+        norms_a = np.linalg.norm(matrix_a, axis=1, keepdims=True)
+        norms_b = np.linalg.norm(matrix_b, axis=1, keepdims=True)
+
+        # Avoid division by zero
+        norms_a = np.where(norms_a == 0, 1, norms_a)
+        norms_b = np.where(norms_b == 0, 1, norms_b)
+
+        matrix_a_normalized = matrix_a / norms_a
+        matrix_b_normalized = matrix_b / norms_b
+
+        # Compute cosine similarity matrix: A @ B.T
+        # Result shape: (len(notes_a), len(notes_b))
+        similarity_matrix = matrix_a_normalized @ matrix_b_normalized.T
+
+        # Clip to [0, 1] range (numerical errors can cause slight overshoot)
+        clipped: np.ndarray = np.clip(similarity_matrix, 0.0, 1.0)
+
+        return clipped
 
     # Graph operations
 

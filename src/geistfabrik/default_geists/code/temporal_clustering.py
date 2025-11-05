@@ -57,13 +57,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 continue
 
             # Calculate intra-cluster similarity (how similar are notes within this quarter)
-            similarities = []
             sample = vault.sample(quarter_notes, min(10, len(quarter_notes)))
 
-            for i, note_a in enumerate(sample):
-                for note_b in sample[i + 1 :]:
-                    sim = vault.similarity(note_a, note_b)
-                    similarities.append(sim)
+            # OPTIMIZATION #5: Use batch_similarity for pairwise comparisons
+            if len(sample) > 1:
+                sim_matrix = vault.batch_similarity(sample, sample)
+                # Extract upper triangle (avoid diagonal and duplicates)
+                similarities = []
+                for i in range(len(sample)):
+                    for j in range(i + 1, len(sample)):
+                        similarities.append(sim_matrix[i, j])
+            else:
+                similarities = []
 
             if similarities:
                 avg_similarity = sum(similarities) / len(similarities)
