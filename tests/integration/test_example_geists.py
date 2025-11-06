@@ -788,7 +788,9 @@ def test_todo_harvester_geist(vault_context: VaultContext, geist_executor: Geist
         assert len(suggestion.notes) == 1
 
 
-def test_todo_harvester_deterministic(vault_context: VaultContext, geist_executor: GeistExecutor):
+def test_todo_harvester_deterministic(
+    vault_context: VaultContext, geist_executor: GeistExecutor
+):
     """Test todo_harvester is deterministic (same seed = same results)."""
     geist_func = geist_executor.load_geist("todo_harvester")
     assert geist_func is not None
@@ -826,7 +828,9 @@ def test_quote_harvester_geist(vault_context: VaultContext, geist_executor: Geis
         assert len(suggestion.notes) == 1
 
 
-def test_quote_harvester_deterministic(vault_context: VaultContext, geist_executor: GeistExecutor):
+def test_quote_harvester_deterministic(
+    vault_context: VaultContext, geist_executor: GeistExecutor
+):
     """Test quote_harvester is deterministic (same seed = same results)."""
     geist_func = geist_executor.load_geist("quote_harvester")
     assert geist_func is not None
