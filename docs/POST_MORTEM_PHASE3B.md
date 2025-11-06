@@ -323,6 +323,166 @@ All regression tests pass with current (post-rollback) code.
 
 ---
 
+## Salvage Analysis: Discarded Optimizations
+
+This section analyzes the two discarded optimizations to determine if they have salvageable potential for future optimization work.
+
+### Optimization #1: pattern_finder Sampling
+
+**Status**: DISCARDED
+**Salvage Potential**: Medium
+**Location**: `src/geistfabrik/default_geists/code/pattern_finder.py:41`
+
+**What It Was**:
+```python
+sampled_notes = vault.sample(notes, k=min(500, len(notes)))
+for note in sampled_notes:
+    # ...phrase extraction...
+```
+
+**Why Discarded**:
+- Fixed sample size (500 notes) caused 95% coverage loss on 10k vaults
+- Only 5% of notes examined on large vaults
+- Missed majority of recurring patterns
+- Suggestions failed quality filters due to insufficient pattern detection
+
+**Salvage Approaches**:
+
+1. **Adaptive Sampling** (Recommended):
+   ```python
+   sample_size = max(1000, len(notes) // 10)  # Minimum 10% coverage
+   sampled_notes = vault.sample(notes, k=min(sample_size, len(notes)))
+   ```
+   - Pros: Scales with vault size, maintains minimum coverage
+   - Cons: Still loses patterns in unsampled 90%
+   - Risk: Medium - needs testing on 10k vaults
+
+2. **Progressive Sampling**:
+   ```python
+   sample_size = 500
+   while len(patterns) < minimum_threshold and sample_size < len(notes):
+       sample_size = min(sample_size * 2, len(notes))
+       # Re-sample and continue
+   ```
+   - Pros: Adaptive based on actual pattern detection
+   - Cons: Complex control flow, unpredictable execution time
+   - Risk: High - could timeout on vaults with few patterns
+
+3. **Algorithm Optimization** (Best long-term):
+   - Optimize phrase extraction using Trie or suffix tree
+   - Current bottleneck: O(N×M) word processing (51.961s, 67.7% of execution)
+   - Potential: Process all notes without sampling
+   - Risk: Low - algorithmic improvement without quality trade-offs
+
+**Recommendation**: Pursue Algorithm Optimization (Option 3). Profile analysis shows phrase extraction is the real bottleneck, not the full corpus iteration. Optimizing the algorithm eliminates the need for sampling entirely.
+
+---
+
+### Optimization #2: scale_shifter batch_similarity
+
+**Status**: DISCARDED
+**Salvage Potential**: High
+**Location**: `src/geistfabrik/default_geists/code/scale_shifter.py:141-158`
+
+**What It Was**:
+```python
+sim_matrix = vault.batch_similarity(abstract_sample, concrete_sample)
+for i, abstract in enumerate(abstract_sample):
+    for j, concrete in enumerate(concrete_sample):
+        sim = sim_matrix[i, j]
+```
+
+**Why Discarded**:
+- `batch_similarity()` has NO caching (always fetches from database)
+- Individual `similarity()` calls use session-scoped `_similarity_cache`
+- In 47-geist sessions, cache warms up across geists
+- Batch operations bypassed warm cache, causing unnecessary recomputation
+
+**Salvage Approaches**:
+
+1. **Add Caching to batch_similarity()** (Recommended):
+   ```python
+   def batch_similarity(self, notes_a, notes_b):
+       # Check cache for all pairs first
+       cached_pairs = {}
+       uncached_a, uncached_b = [], []
+
+       for a in notes_a:
+           for b in notes_b:
+               cache_key = (a.path, b.path)
+               if cache_key in self._similarity_cache:
+                   cached_pairs[(a, b)] = self._similarity_cache[cache_key]
+               else:
+                   if a not in uncached_a: uncached_a.append(a)
+                   if b not in uncached_b: uncached_b.append(b)
+
+       # Batch compute only uncached pairs
+       if uncached_a and uncached_b:
+           embeddings_a = self._get_embeddings_batch(uncached_a)
+           embeddings_b = self._get_embeddings_batch(uncached_b)
+           sim_matrix = cosine_similarity(embeddings_a, embeddings_b)
+
+           # Cache results
+           for i, a in enumerate(uncached_a):
+               for j, b in enumerate(uncached_b):
+                   cache_key = (a.path, b.path)
+                   self._similarity_cache[cache_key] = sim_matrix[i, j]
+
+       # Return full matrix (mix of cached + fresh)
+       return self._build_matrix(notes_a, notes_b, cached_pairs)
+   ```
+   - Pros: Maintains batch efficiency + cache benefits
+   - Cons: Increased complexity in batch_similarity() implementation
+   - Risk: Low - can be tested incrementally
+
+2. **Prefetch + Warm Cache**:
+   ```python
+   # Prefetch embeddings for all samples
+   all_notes = abstract_sample + concrete_sample
+   embeddings = vault._get_embeddings_batch(all_notes)
+
+   # Warm cache with individual calls
+   for abstract in abstract_sample:
+       for concrete in concrete_sample:
+           sim = vault.similarity(abstract, concrete)  # Now cached
+   ```
+   - Pros: Simple, uses existing cache infrastructure
+   - Cons: Loses batch efficiency (falls back to O(N²) individual calls)
+   - Risk: Low - no cache behavior changes
+
+3. **Hybrid Approach**:
+   - Check cache hit rate at runtime
+   - If >70% cache hits: use individual `similarity()` calls
+   - If <30% cache hits: use `batch_similarity()`
+   - Pros: Adaptive based on actual cache state
+   - Cons: Runtime decision overhead
+   - Risk: Medium - complex control flow
+
+**Recommendation**: Implement Option 1 (Add Caching to batch_similarity). This provides best of both worlds: batch efficiency + cache benefits. Six other geists already use `batch_similarity()` successfully in isolated contexts - adding caching would benefit all of them.
+
+---
+
+### Summary: Salvage Recommendations
+
+| Optimization | Potential | Recommended Approach | Estimated Effort |
+|-------------|-----------|---------------------|------------------|
+| pattern_finder sampling | Medium | Algorithm optimization (Trie/suffix tree) | 4-6 hours |
+| scale_shifter batch_similarity | High | Add caching to batch_similarity() | 3-4 hours |
+
+**Total Estimated Effort**: 7-10 hours
+**Expected Impact**:
+- pattern_finder: 30-50% speedup on 10k vaults with no quality loss
+- scale_shifter + 6 other geists: 15-25% speedup in sessions with warm cache
+
+**Next Steps for Implementation**:
+1. Create feature branch for salvage work
+2. Implement batch_similarity caching first (higher impact, lower risk)
+3. Profile pattern_finder phrase extraction to identify optimization targets
+4. Add regression tests for both optimizations
+5. Test on 10k vaults with full 47-geist sessions
+
+---
+
 ## Conclusion
 
 The Phase 3B surgical rollback successfully:
