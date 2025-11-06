@@ -45,10 +45,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         quote_clean = " ".join(quote.split())
 
-        text = (
-            f"From [[{note.title}]]: \"{quote_clean}\" "
-            f"What if you reflected on this again?"
-        )
+        text = f'From [[{note.title}]]: "{quote_clean}" What if you reflected on this again?'
 
         suggestions.append(
             Suggestion(
@@ -78,14 +75,14 @@ def extract_quotes(content: str) -> list[str]:
 
     # Match blockquote blocks (may span multiple lines)
     # Blockquote: lines starting with ">", grouped together
-    lines = content.split('\n')
+    lines = content.split("\n")
     current_quote = []
 
     for line in lines:
         stripped = line.strip()
 
         # If line starts with ">", it's part of a quote
-        if stripped.startswith('>'):
+        if stripped.startswith(">"):
             # Remove the ">" prefix and leading whitespace
             quote_text = stripped[1:].strip()
             if quote_text:  # Skip empty quote lines
@@ -94,13 +91,13 @@ def extract_quotes(content: str) -> list[str]:
             # End of quote block
             if current_quote:
                 # Join multi-line quotes
-                full_quote = ' '.join(current_quote)
+                full_quote = " ".join(current_quote)
                 quotes.append(full_quote)
                 current_quote = []
 
     # Handle quote at end of file
     if current_quote:
-        full_quote = ' '.join(current_quote)
+        full_quote = " ".join(current_quote)
         quotes.append(full_quote)
 
     # Filter and deduplicate
@@ -137,7 +134,7 @@ def is_valid_quote(quote: str) -> bool:
         True if valid quote, False otherwise
     """
     # Too short to be meaningful
-    if len(quote) < 20:
+    if len(quote) < 10:
         return False
 
     # Must contain at least some letters (not just punctuation)
