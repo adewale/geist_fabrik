@@ -139,22 +139,32 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             concrete_notes.append(note)
 
     # Find abstract-concrete pairs with high similarity
-    for abstract in vault.sample(abstract_notes, min(10, len(abstract_notes))):
-        for concrete in vault.sample(concrete_notes, min(10, len(concrete_notes))):
-            if vault.similarity(abstract, concrete) > 0.6:
-                if not vault.links_between(abstract, concrete):
-                    text = (
-                        f"[[{abstract.title}]] (abstract/theoretical) and "
-                        f"[[{concrete.title}]] (concrete/specific) are semantically similar "
-                        f"but operate at different scales. Could one illuminate the other?"
-                    )
+    # OPTIMIZATION: Use batch_similarity instead of nested individual similarity() calls
+    abstract_sample = vault.sample(abstract_notes, min(10, len(abstract_notes)))
+    concrete_sample = vault.sample(concrete_notes, min(10, len(concrete_notes)))
 
-                    suggestions.append(
-                        Suggestion(
-                            text=text,
-                            notes=[abstract.title, concrete.title],
-                            geist_id="scale_shifter",
+    if abstract_sample and concrete_sample:
+        # Single batch call: compute 10×10 similarity matrix in one vectorized operation
+        sim_matrix = vault.batch_similarity(abstract_sample, concrete_sample)
+
+        # Iterate through results using matrix indices
+        for i, abstract in enumerate(abstract_sample):
+            for j, concrete in enumerate(concrete_sample):
+                sim = sim_matrix[i, j]  # O(1) array access
+                if sim > 0.6:
+                    if not vault.links_between(abstract, concrete):
+                        text = (
+                            f"[[{abstract.title}]] (abstract/theoretical) and "
+                            f"[[{concrete.title}]] (concrete/specific) are semantically similar "
+                            f"but operate at different scales. Could one illuminate the other?"
                         )
-                    )
+
+                        suggestions.append(
+                            Suggestion(
+                                text=text,
+                                notes=[abstract.title, concrete.title],
+                                geist_id="scale_shifter",
+                            )
+                        )
 
     return vault.sample(suggestions, k=2)
