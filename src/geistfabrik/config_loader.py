@@ -17,10 +17,12 @@ DEFAULT_CODE_GEISTS = [
     "blind_spot_detector",
     "bridge_builder",
     "bridge_hunter",
+    "cluster_mirror",
     "columbo",
     "complexity_mismatch",
     "concept_cluster",
     "concept_drift",
+    "congruence_mirror",
     "convergent_evolution",
     "creative_collision",
     "density_inversion",
@@ -135,19 +137,6 @@ class GeistFabrikConfig:
             True if enabled (defaults to True if not specified)
         """
         return self.default_geists.get(geist_id, True)
-
-    def is_default_geist_enabled(self, geist_id: str) -> bool:
-        """Check if a default geist is enabled.
-
-        Deprecated: Use is_geist_enabled() instead. Kept for backward compatibility.
-
-        Args:
-            geist_id: ID of the geist to check
-
-        Returns:
-            True if enabled (defaults to True if not specified)
-        """
-        return self.is_geist_enabled(geist_id)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "GeistFabrikConfig":

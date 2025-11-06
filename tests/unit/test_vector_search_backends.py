@@ -827,17 +827,6 @@ class TestSessionBackendIntegration:
         backend2 = session.get_backend()
         assert backend is backend2
 
-    def test_session_get_all_embeddings_still_works(self, db, sample_embeddings):
-        """Test that deprecated get_all_embeddings() still works for backward compatibility."""
-        session = Session(datetime.strptime(sample_embeddings["session_date"], "%Y-%m-%d"), db)
-        # Embeddings already exist in the database from fixture
-
-        embeddings = session.get_all_embeddings()
-
-        assert isinstance(embeddings, dict)
-        assert len(embeddings) == 4
-        assert "note1.md" in embeddings
-
 
 class TestBackendIntegration:
     """Integration tests that use both backends in realistic scenarios.

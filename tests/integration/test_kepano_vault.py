@@ -3,6 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from geistfabrik import Vault
@@ -122,7 +123,17 @@ def test_kepano_embeddings(kepano_vault: Vault) -> None:
     session.compute_embeddings(notes)
 
     # Verify embeddings were computed
-    embeddings = session.get_all_embeddings()
+    cursor = kepano_vault.db.execute(
+        """
+        SELECT note_path, embedding FROM session_embeddings
+        WHERE session_id = ?
+        """,
+        (session.session_id,),
+    )
+    embeddings = {}
+    for row in cursor.fetchall():
+        note_path, embedding_bytes = row
+        embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
 
     # Should have 8 embeddings (one per note)
     assert len(embeddings) == 8

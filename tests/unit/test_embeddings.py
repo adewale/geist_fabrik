@@ -173,19 +173,6 @@ def test_compute_embeddings_mock(mocked_session, sample_notes):
         assert embedding.shape == (387,)
 
 
-def test_get_all_embeddings_mock(mocked_session, sample_notes):
-    """Test retrieving all embeddings for a session."""
-    # Compute embeddings first
-    mocked_session.compute_embeddings(sample_notes)
-
-    embeddings = mocked_session.get_all_embeddings()
-
-    assert len(embeddings) == len(sample_notes)
-    for note in sample_notes:
-        assert note.path in embeddings
-        assert embeddings[note.path].shape == (387,)
-
-
 def test_cosine_similarity():
     """Test cosine similarity computation."""
     a = np.array([1.0, 0.0, 0.0])
@@ -220,22 +207,6 @@ def test_find_similar_notes(fixed_embeddings):
     assert len(results) == 2
     assert results[0][0] == "note2.md"
     assert "note1.md" not in [r[0] for r in results]
-
-
-def test_semantic_similarity_mock(mocked_session, sample_notes):
-    """Test that semantically similar notes have similar embeddings (mocked)."""
-    # Compute embeddings
-    mocked_session.compute_embeddings(sample_notes)
-    embeddings = mocked_session.get_all_embeddings()
-
-    # With mocked embeddings, similarity is deterministic based on content hash
-    # Just verify the similarity function works
-    sim_12 = cosine_similarity(embeddings["note1.md"], embeddings["note2.md"])
-    sim_13 = cosine_similarity(embeddings["note1.md"], embeddings["note3.md"])
-
-    # Both should be valid similarity values
-    assert -1 <= sim_12 <= 1
-    assert -1 <= sim_13 <= 1
 
 
 def test_embed_very_long_note_mock(db_with_notes, mock_embedding_computer):

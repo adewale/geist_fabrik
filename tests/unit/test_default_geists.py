@@ -12,9 +12,9 @@ def test_config_default_values():
     config = GeistFabrikConfig()
 
     # All geists should default to enabled
-    assert config.is_default_geist_enabled("blind_spot_detector") is True
-    assert config.is_default_geist_enabled("contradictor") is True
-    assert config.is_default_geist_enabled("unknown_geist") is True  # Unknown defaults to True
+    assert config.is_geist_enabled("blind_spot_detector") is True
+    assert config.is_geist_enabled("contradictor") is True
+    assert config.is_geist_enabled("unknown_geist") is True  # Unknown defaults to True
 
 
 def test_config_with_disabled_geists():
@@ -26,9 +26,9 @@ def test_config_with_disabled_geists():
         }
     )
 
-    assert config.is_default_geist_enabled("blind_spot_detector") is False
-    assert config.is_default_geist_enabled("contradictor") is True
-    assert config.is_default_geist_enabled("on_this_day") is True  # Not specified, defaults to True
+    assert config.is_geist_enabled("blind_spot_detector") is False
+    assert config.is_geist_enabled("contradictor") is True
+    assert config.is_geist_enabled("on_this_day") is True  # Not specified, defaults to True
 
 
 def test_config_from_dict():
@@ -43,8 +43,8 @@ def test_config_from_dict():
     config = GeistFabrikConfig.from_dict(data)
 
     assert config.enabled_modules == ["test_module"]
-    assert config.is_default_geist_enabled("blind_spot_detector") is False
-    assert config.is_default_geist_enabled("contradictor") is True
+    assert config.is_geist_enabled("blind_spot_detector") is False
+    assert config.is_geist_enabled("contradictor") is True
 
 
 def test_config_to_dict():
@@ -90,8 +90,8 @@ def test_save_and_load_config():
         loaded_config = load_config(config_path)
 
         assert loaded_config.enabled_modules == ["module1", "module2"]
-        assert loaded_config.is_default_geist_enabled("blind_spot_detector") is False
-        assert loaded_config.is_default_geist_enabled("contradictor") is True
+        assert loaded_config.is_geist_enabled("blind_spot_detector") is False
+        assert loaded_config.is_geist_enabled("contradictor") is True
 
 
 def test_generate_default_config():
@@ -112,8 +112,8 @@ def test_generate_default_config():
 
 def test_default_geist_lists():
     """Test that default geist lists are complete."""
-    # Should have 36 code geists
-    assert len(DEFAULT_CODE_GEISTS) == 36
+    # Should have 38 code geists
+    assert len(DEFAULT_CODE_GEISTS) == 38
     # Spot check a few key geists
     assert "blind_spot_detector" in DEFAULT_CODE_GEISTS
     assert "temporal_drift" in DEFAULT_CODE_GEISTS

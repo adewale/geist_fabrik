@@ -484,30 +484,6 @@ class Session:
         embedding: np.ndarray = np.frombuffer(row[0], dtype=np.float32)
         return embedding
 
-    def get_all_embeddings(self) -> dict[str, np.ndarray]:
-        """Get all embeddings for this session.
-
-        Deprecated: Use get_backend() instead for better abstraction.
-
-        Returns:
-            Dictionary mapping note paths to embeddings
-        """
-        cursor = self.db.execute(
-            """
-            SELECT note_path, embedding FROM session_embeddings
-            WHERE session_id = ?
-            """,
-            (self.session_id,),
-        )
-
-        embeddings = {}
-        for row in cursor.fetchall():
-            note_path, embedding_bytes = row
-            # Deserialize from numpy bytes (safe, no code execution risk)
-            embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
-
-        return embeddings
-
     def _create_backend(self) -> "VectorSearchBackend":
         """Create vector search backend based on configuration.
 

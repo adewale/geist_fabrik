@@ -123,7 +123,17 @@ class VaultContext:
 
         # Keep backward-compatible embeddings dict for compatibility
         # (Some code may still access self._embeddings directly)
-        self._embeddings = session.get_all_embeddings()
+        cursor = vault.db.execute(
+            """
+            SELECT note_path, embedding FROM session_embeddings
+            WHERE session_id = ?
+            """,
+            (session.session_id,),
+        )
+        self._embeddings = {}
+        for row in cursor.fetchall():
+            note_path, embedding_bytes = row
+            self._embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
 
     # Direct vault access (delegated)
 
@@ -564,7 +574,18 @@ class VaultContext:
             return empty_result
 
         # Get all embeddings and paths for current session
-        embeddings_dict = self.session.get_all_embeddings()
+        cursor = self.vault.db.execute(
+            """
+            SELECT note_path, embedding FROM session_embeddings
+            WHERE session_id = ?
+            """,
+            (self.session.session_id,),
+        )
+        embeddings_dict = {}
+        for row in cursor.fetchall():
+            note_path, embedding_bytes = row
+            embeddings_dict[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
             empty_result_2: Dict[int, Dict[str, Any]] = {}
             self._clusters_cache[min_size] = empty_result_2
@@ -684,7 +705,18 @@ class VaultContext:
         notes = cluster["notes"]
 
         # Calculate similarity to centroid for each note
-        embeddings_dict = self.session.get_all_embeddings()
+        cursor = self.vault.db.execute(
+            """
+            SELECT note_path, embedding FROM session_embeddings
+            WHERE session_id = ?
+            """,
+            (self.session.session_id,),
+        )
+        embeddings_dict = {}
+        for row in cursor.fetchall():
+            note_path, embedding_bytes = row
+            embeddings_dict[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+
         similarities = []
 
         for note in notes:
