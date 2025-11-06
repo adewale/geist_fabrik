@@ -26,10 +26,22 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 15:
         return []
 
+    # OPTIMIZATION: Build link pair set once for O(1) lookups
+    # This replaces thousands of O(N) links_between() calls
+    all_link_pairs = set()
+    for note in notes:
+        for target in vault.outgoing_links(note):
+            # Store bidirectional pairs in canonical order for symmetric lookup
+            pair = tuple(sorted([note.path, target.path]))
+            all_link_pairs.add(pair)
+
     # Look for repeated significant phrases (2-3 word combinations)
+    # OPTIMIZATION: Sample notes for phrase extraction to avoid O(N × M) blow-up on large vaults
+    # (where N = notes, M = avg note length). 10k notes × 1k words = 10M words to process.
+    sampled_notes = vault.sample(notes, k=min(500, len(notes)))
     phrase_to_notes = defaultdict(list)
 
-    for note in notes:
+    for note in sampled_notes:
         content = vault.read(note).lower()
         words = content.split()
 
@@ -53,9 +65,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             for i, note_a in enumerate(phrase_notes):
                 is_isolated = True
                 for note_b in phrase_notes:
-                    if note_a.path != note_b.path and vault.links_between(note_a, note_b):
-                        is_isolated = False
-                        break
+                    if note_a.path != note_b.path:
+                        # O(1) set lookup instead of O(N) links_between() call
+                        pair = tuple(sorted([note_a.path, note_b.path]))
+                        if pair in all_link_pairs:
+                            is_isolated = False
+                            break
 
                 if is_isolated:
                     unlinked_group.append(note_a)
@@ -111,12 +126,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Report on clusters of unlinked but similar notes
     for cluster in clusters:
-        # Check if cluster notes are linked
+        # Check if cluster notes are linked using O(1) set lookup
         link_count = sum(
             1
             for i, n1 in enumerate(cluster)
             for n2 in cluster[i + 1 :]
-            if vault.links_between(n1, n2)
+            if tuple(sorted([n1.path, n2.path])) in all_link_pairs
         )
 
         if link_count == 0:  # No internal links
