@@ -291,6 +291,38 @@ If 10k vault performance becomes a bottleneck again:
 
 ---
 
+## Regression Tests Added
+
+To prevent similar issues in future optimization work, comprehensive regression tests were added in `tests/integration/test_phase3b_regression.py`:
+
+### Test Coverage
+
+**Pattern Finder Coverage Tests** (2 tests):
+- `test_pattern_finder_processes_all_notes_not_sample`: Creates 1000-note vault with pattern in notes 500-504 to ensure full corpus examination
+- `test_pattern_finder_no_sampling_behavior`: Verifies pattern_finder completes successfully on vaults with detectable patterns
+
+**Pattern Finder Performance Tests** (1 test):
+- `test_pattern_finder_completes_on_large_vault`: Ensures pattern_finder completes within timeout on 1000-note vault (scales to 10k)
+
+**Scale Shifter Cache Tests** (2 tests):
+- `test_scale_shifter_uses_individual_similarity_calls`: Verifies scale_shifter benefits from warm similarity cache
+- `test_scale_shifter_code_structure_validation`: Static code check to ensure no `batch_similarity()` calls present
+
+**Documentation Tests** (2 tests):
+- `test_post_mortem_document_exists`: Verifies POST_MORTEM_PHASE3B.md exists and documents key issues
+- `test_rollback_commit_message_exists`: Confirms git history contains Phase 3B rollback commits
+
+### Test Results
+
+```bash
+$ pytest tests/integration/test_phase3b_regression.py -v
+============================ 7 passed in 2.91s =============================
+```
+
+All regression tests pass with current (post-rollback) code.
+
+---
+
 ## Conclusion
 
 The Phase 3B surgical rollback successfully:
@@ -298,11 +330,13 @@ The Phase 3B surgical rollback successfully:
 - ✅ Kept beneficial optimizations (early termination, link sets)
 - ✅ Restored 10k vault success rates from 74% to 79%
 - ✅ Maintained all test suite passing (508 unit + 90 integration tests)
+- ✅ **Added 7 regression tests to prevent similar issues**
 
 The rollback demonstrates the importance of:
 - Testing at target scale before merging optimizations
 - Understanding cache behavior when refactoring
 - Surgical fixes over complete reverts
 - Documenting lessons learned for future optimizations
+- **Adding regression tests to codify learned lessons**
 
-**Status**: Ready for Phase 7 final validation and merge.
+**Status**: Complete with regression tests added.
