@@ -327,7 +327,7 @@ def test_quote_length_filtering() -> None:
     """Test that too-short quotes are filtered."""
     content = "> x\n> This is a valid quote with enough content to be meaningful."
     quotes = extract_quotes(content)
-    # "x" is too short (< 20 chars)
+    # "x" is too short (< 10 chars)
     assert not any(q == "x" for q in quotes)
     # Normal quote should be included
     assert any("valid quote" in q for q in quotes)
@@ -358,14 +358,14 @@ def test_quote_no_quotes() -> None:
 
 def test_is_valid_quote_filtering() -> None:
     """Test quote validation rules."""
-    # Too short
+    # Too short (< 10 chars)
     assert not is_valid_quote("Short")
-    assert not is_valid_quote("Too short quote")
+    assert not is_valid_quote("Too short")
 
-    # Valid length
+    # Valid length (>= 10 chars with >= 10 letters)
     assert is_valid_quote("This is a valid quote with enough content.")
 
-    # Too few letters
+    # Too few letters (< 10 letters)
     assert not is_valid_quote("!!! ??? @@@ ### $$$ %%% ^^^")
 
     # Valid with letters

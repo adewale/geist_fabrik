@@ -337,7 +337,7 @@ def extract_quotes(content: str) -> list[str]:
         quote_clean = quote.strip()
 
         # Quality filtering
-        if len(quote_clean) < 20:  # Too short to be meaningful
+        if len(quote_clean) < 10:  # Too short to be meaningful
             continue
         if len(quote_clean) > 500:  # Too long to surface
             quote_clean = quote_clean[:497] + "..."
