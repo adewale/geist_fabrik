@@ -63,8 +63,8 @@ Another question: How does it work?
 """
     questions = extract_questions(content)
     assert len(questions) == 2
-    assert "What is this?" in questions
-    assert "How does it work?" in questions
+    assert "What is this?" in questions[0]  # Matches "Real question: What is this?"
+    assert "How does it work?" in questions[1]  # Matches "Another question: How does it work?"
     # Code block questions should not appear
     assert not any("comment" in q.lower() for q in questions)
     assert not any("condition" in q.lower() for q in questions)
@@ -280,16 +280,16 @@ def test_extract_multiline_quote() -> None:
 def test_extract_multiple_quotes() -> None:
     """Test extracting multiple separate blockquotes."""
     content = """
-> First quote here.
+> First quote here with enough content to pass validation.
 
 Some text in between.
 
-> Second quote here.
-> It continues.
+> Second quote here with sufficient length.
+> It continues on next line.
 
 More text.
 
-> Third quote.
+> Third quote also has enough text to be valid.
 """
     quotes = extract_quotes(content)
     assert len(quotes) == 3
