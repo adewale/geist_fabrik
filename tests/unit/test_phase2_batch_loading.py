@@ -94,6 +94,7 @@ class TestBatchLoading:
 
         assert list(notes_map.keys()) == paths
 
+    @pytest.mark.benchmark
     def test_get_notes_batch_performance_vs_individual(self, vault_with_notes: Vault):
         """Test that batch loading is more efficient than individual loading."""
         import time
