@@ -105,6 +105,47 @@ def from_dict(cls, data: Dict[str, Any]) -> Config:
 
 **See**: `docs/CI_VALIDATION_GUIDE.md` and `docs/POST_MORTEM_PR30.md` for detailed explanation.
 
+### Optimization Lessons (Phase 3B Rollback)
+
+**Context**: In November 2025, several "optimizations" were introduced to improve geist performance on large vaults (10k+ notes). After benchmarking and analysis, these optimizations were rolled back because they **reduced suggestion quality** while providing minimal performance gains.
+
+**Key Lessons**:
+
+1. **Profile First, Optimize Second**
+   - **What happened**: pattern_finder added sampling (500 notes from 10k vault) without profiling
+   - **Reality**: Phrase extraction was the bottleneck (67.7% of time), not corpus iteration
+   - **Impact**: Saved ~20s but lost 95% pattern coverage
+   - **Lesson**: Measure before optimizing—intuition often misleads about bottlenecks
+
+2. **Respect Session-Scoped Caches**
+   - **What happened**: scale_shifter switched from `similarity()` to `batch_similarity()`
+   - **Reality**: `batch_similarity()` bypasses session cache that other geists populate
+   - **Impact**: Recomputed similarities already cached, losing 15-25% speedup potential
+   - **Lesson**: Individual `similarity()` calls > batch calls when cache is warm
+
+3. **Quality Wins Over Speed**
+   - **What happened**: Both optimizations prioritized speed over accuracy
+   - **Reality**: Users prefer slightly slower geists that generate good suggestions
+   - **Impact**: Reduced suggestion quality led to worse user experience
+   - **Lesson**: A 5-second geist that works > 2-second geist that doesn't
+
+**Current Performance Status** (post-rollback):
+- ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
+- ✅ scale_shifter: Cache-aware, benefits from warm cache
+- ✅ All 47 geists: Pass timeout thresholds on production vaults
+
+**Implementation Guidance**:
+- Use `similarity()` not `batch_similarity()` for cache benefits
+- Build lookup structures (sets, dicts) instead of O(N) repeated searches
+- Profile with `cProfile` before optimizing—don't guess bottlenecks
+- Adaptive sampling: `min(N, max(50, len(notes)//10))` not fixed sizes
+- See `docs/POST_MORTEM_PHASE3B.md` for detailed salvage analysis
+
+**Regression Prevention**:
+- Regression tests: `tests/integration/test_phase3b_regression.py`
+- Performance guidance: `docs/WRITING_GOOD_GEISTS.md` (Performance Guidance section)
+- Static checks: Tests verify no `batch_similarity` in cache-sensitive geists
+
 ## Core Architecture
 
 GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:

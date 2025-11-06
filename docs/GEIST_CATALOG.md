@@ -4,7 +4,7 @@
 
 This document catalogs ALL geists mentioned in any GeistFabrik documentation, categorizes them by implementation status, and identifies which ones are practical to build with our current infrastructure.
 
-**Date**: 2025-10-22 (Updated)
+**Date**: 2025-11-06 (Updated)
 **Audit scope**: All markdown files, code examples, and specs
 **Status**: All buildable geists implemented ✅
 
@@ -14,21 +14,21 @@ This document catalogs ALL geists mentioned in any GeistFabrik documentation, ca
 
 | Category | Count |
 |----------|-------|
-| **Default Geists** | 45 (36 code + 9 Tracery) |
+| **Default Geists** | 47 (38 code + 9 Tracery) |
 | **Example Geists** | 0 (all examples are now defaults) |
-| **Total Geists** | 45 |
+| **Total Geists** | 47 |
 
 ---
 
-## 1. Default Geists (45)
+## 1. Default Geists (47)
 
 These geists ship bundled with GeistFabrik in the package. They provide immediate value on first run and are fully production-ready, having passed comprehensive quality audits per `specs/geist_validation_spec.md`.
 
-### Code Geists (36)
+### Code Geists (38)
 
 Located in `src/geistfabrik/default_geists/code/`
 
-All 36 code geists pass all quality checks with 100% compliance:
+All 38 code geists pass all quality checks with 100% compliance:
 - ✅ Required: suggest() function, proper signature, valid Python, correct return type
 - ✅ Recommended: Module docstrings, type hints, function docstrings, no dangerous imports
 
@@ -40,7 +40,9 @@ All 36 code geists pass all quality checks with 100% compliance:
 | **blind_spot_detector** | Identifies semantic gaps in recent thinking | ✅ Implemented |
 | **bridge_builder** | Connects disconnected clusters | ✅ Implemented |
 | **bridge_hunter** | Finds semantic paths without graph paths | ✅ Implemented |
+| **cluster_mirror** | Reflects semantic clusters back to show hidden groupings | ✅ Implemented |
 | **columbo** | Asks "just one more thing" style questions | ✅ Implemented |
+| **congruence_mirror** | Finds notes saying similar things in different ways | ✅ Implemented |
 | **complexity_mismatch** | Finds complexity/importance gaps | ✅ Implemented |
 | **concept_cluster** | Identifies emergent themes | ✅ Implemented |
 | **concept_drift** | Tracks semantic drift over time | ✅ Implemented |
@@ -95,9 +97,9 @@ All 9 Tracery geists pass quality checks with 99% compliance:
 
 ## 2. Quality Audit Results
 
-All 45 default geists were audited against quality standards defined in `specs/geist_validation_spec.md` on 2025-10-23.
+All 47 default geists were audited against quality standards defined in `specs/geist_validation_spec.md` on 2025-10-23.
 
-### Code Geists Audit (36 geists)
+### Code Geists Audit (38 geists)
 - **ERRORS**: 0
 - **WARNINGS**: 0 (1 minor issue fixed: dead code in hidden_hub.py)
 - **PASS RATE**: 100%
@@ -164,13 +166,13 @@ All geist tests execute quickly and remain well under CI time limits, maintainin
 
 ## 5. Status Summary
 
-**Status**: All 45 default geists fully implemented, tested, and quality-audited ✅
+**Status**: All 47 default geists fully implemented, tested, and quality-audited ✅
 
-### What Changed (2025-10-23 Update)
+### What Changed (2025-11-06 Update)
 
-**Expansion from 14 to 45 default geists:**
+**Expansion from 14 to 47 default geists:**
 - Previously: 5 code geists + 9 Tracery geists = 14 defaults
-- Now: 36 code geists + 9 Tracery geists = 45 defaults
+- Now: 38 code geists + 9 Tracery geists = 47 defaults
 - All example geists promoted to defaults (examples/ directory repurposed for documentation)
 
 **Quality improvements:**
@@ -183,9 +185,9 @@ All geist tests execute quickly and remain well under CI time limits, maintainin
 
 1. ✅ Created vault functions for Tracery geists
 2. ✅ Implemented all Tracery geists (9 total)
-3. ✅ Implemented all code geists (36 total)
+3. ✅ Implemented all code geists (38 total)
 4. ✅ Wrote comprehensive unit tests for all geists
 5. ✅ Conducted quality audit per validation spec
 6. ✅ Fixed identified quality issues
 7. ✅ Moved contrarian_to() to built-in vault function
-8. ✅ Updated all documentation to reflect 45 defaults
+8. ✅ Updated all documentation to reflect 47 defaults

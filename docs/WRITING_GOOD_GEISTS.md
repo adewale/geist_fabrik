@@ -429,6 +429,247 @@ Use thesis/antithesis/synthesis:
 
 ---
 
+## Performance Guidance
+
+Writing good geists isn't just about philosophy—it's also about performance. Geists run within a 5-second timeout (default) and compete with 46 other geists for user attention. This section covers performance best practices learned from production use.
+
+### Understanding the Timeout
+
+**Default timeout**: 5 seconds per geist
+- Configurable via `--timeout` flag during testing/development
+- After 3 consecutive timeouts, geist is automatically disabled
+- Timeout logged with test command for reproduction
+
+**What happens on timeout**:
+```
+⚠ scale_shifter timed out (5.0s)
+→ Test: geistfabrik test scale_shifter /path/to/vault --date YYYY-MM-DD
+```
+
+**Timeout budget breakdown** (typical 500-note vault):
+- Embeddings & setup: ~0.5s (handled by session, not your geist)
+- Your geist execution: 5.0s
+- Filtering pipeline: ~0.2s per geist
+
+### Common Performance Issues
+
+#### Issue 1: O(N²) or O(N³) Operations
+
+**❌ Problem**:
+```python
+# O(N²): Checking every pair
+for note_a in notes:
+    for note_b in notes:
+        if vault.links_between(note_a, note_b):  # O(N) per call!
+            # ...process pair...
+```
+
+**✅ Solution**: Build lookup structures once
+```python
+# O(N): Build link set once for O(1) lookups
+link_pairs = set()
+for note in notes:
+    for target in vault.outgoing_links(note):
+        pair = tuple(sorted([note.path, target.path]))
+        link_pairs.add(pair)
+
+# Now O(1) per lookup
+for note_a in notes:
+    for note_b in notes:
+        pair = tuple(sorted([note_a.path, note_b.path]))
+        if pair in link_pairs:
+            # ...process pair...
+```
+
+**Real-world impact**: pattern_finder improved from O(N³) to O(N) using this technique, gaining 30-50% speedup on 10k vaults.
+
+#### Issue 2: Redundant Similarity Computations
+
+**❌ Problem**:
+```python
+# Calls batch_similarity() which bypasses session cache
+similarities = vault.batch_similarity(note, candidates)
+```
+
+**✅ Solution**: Use individual similarity() calls
+```python
+# Each call hits session-scoped cache if already computed
+for candidate in candidates:
+    sim = vault.similarity(note, candidate)
+    if sim > threshold:
+        # ...process pair...
+```
+
+**Why this matters**: Other geists may have already computed these similarities in the same session. Individual `similarity()` calls leverage the cache; `batch_similarity()` does not.
+
+**Real-world impact**: Phase 3B rollback showed scale_shifter using batch operations caused cache misses, losing 15-25% speedup potential.
+
+#### Issue 3: Excessive Clustering Operations
+
+**❌ Problem**:
+```python
+# Running full clustering on every invocation
+from sklearn.cluster import AgglomerativeClustering
+clusters = AgglomerativeClustering(n_clusters=10).fit(embeddings)
+```
+
+**✅ Solution**: Use sampling and similarity checks
+```python
+# Lightweight clustering via sampling
+seed = vault.sample(notes, k=1)[0]
+cluster = [seed]
+for note in vault.sample(notes, min(100, len(notes))):
+    if vault.similarity(seed, note) > 0.7:
+        cluster.append(note)
+        if len(cluster) >= 5:
+            break
+```
+
+**Why this matters**: Full sklearn clustering takes 2-10 seconds on 1000+ note vaults. Sampling with similarity checks takes <1 second.
+
+#### Issue 4: Sampling at Fixed Size
+
+**❌ Problem**:
+```python
+# Fixed 500-note sample loses 95% coverage on 10k vaults
+sampled = vault.sample(notes, k=500)
+for note in sampled:
+    # ...analyze note...
+```
+
+**❌ Also problematic**:
+```python
+# Processes ALL notes, timeouts on large vaults
+for note in notes:
+    # ...expensive operation per note...
+```
+
+**✅ Solution**: Adaptive sampling
+```python
+# Scale sample size with vault size
+sample_size = min(1000, max(50, len(notes) // 10))
+sampled = vault.sample(notes, k=sample_size)
+for note in sampled:
+    # ...analyze note...
+```
+
+**Or**: Process all notes efficiently
+```python
+# If operation is O(1) or O(log N) per note, process all
+for note in notes:
+    # ...cheap operation like word counting...
+```
+
+**Real-world impact**: Phase 3B pattern_finder used fixed 500-note sampling, missing 95% of patterns on large vaults. Reverting to full processing with O(N) optimization was faster AND more accurate.
+
+### Phase 3B Lessons Learned
+
+**Three key lessons from the Phase 3B rollback** (see `docs/POST_MORTEM_PHASE3B.md` for full analysis):
+
+1. **Profile first, optimize second**
+   - Sampling introduced to "improve performance" without profiling
+   - Reality: Phrase extraction was the bottleneck (67.7% of time), not corpus iteration
+   - Lesson: Measure before optimizing; intuition misleads
+
+2. **Respect the session cache**
+   - `batch_similarity()` bypassed session-scoped similarity cache
+   - Other geists had already computed those similarities
+   - Lesson: Individual `similarity()` calls > batch calls when cache is warm
+
+3. **Quality > Speed**
+   - pattern_finder sampling saved ~20s but lost 95% pattern coverage
+   - Suggestions quality dropped, users got worse experience
+   - Lesson: A slightly slower geist that works > fast geist that doesn't
+
+**Rollback stats**:
+- pattern_finder: Removed sampling, restored 95% coverage, acceptable performance
+- scale_shifter: Reverted batch_similarity to individual calls, gained cache benefits
+- Both geists: Quality improved, performance acceptable
+
+### Development Workflow for Performance
+
+1. **Start with correctness**
+   ```bash
+   # Test on small vault first
+   uv run geistfabrik test my_geist testdata/kepano-obsidian-main/
+   ```
+
+2. **Test on large vaults**
+   ```bash
+   # Use higher timeout during development
+   uv run geistfabrik test my_geist /path/to/1000-note-vault --timeout 30
+   ```
+
+3. **Profile if needed**
+   ```python
+   import cProfile
+   import pstats
+
+   profiler = cProfile.Profile()
+   profiler.enable()
+
+   # Your geist logic here
+
+   profiler.disable()
+   stats = pstats.Stats(profiler)
+   stats.sort_stats('cumulative')
+   stats.print_stats(20)
+   ```
+
+4. **Optimize bottlenecks only**
+   - Don't optimize until you've identified the actual bottleneck
+   - Focus on algorithmic improvements (O(N³) → O(N)) before micro-optimizations
+
+5. **Verify improvements**
+   ```bash
+   # Compare before/after with timing
+   time uv run geistfabrik test my_geist /large-vault --timeout 30
+   ```
+
+### When NOT to Optimize
+
+**Don't optimize if**:
+- Your geist completes in <2 seconds on 1000-note vaults
+- You haven't profiled to find the bottleneck
+- Optimization would reduce suggestion quality
+- The geist only runs on small sample sizes anyway
+
+**Example**: A geist that samples 10 notes and analyzes them doesn't need optimization, even if analysis is O(N²)—because N=10.
+
+**Remember**: GeistFabrik's filtering pipeline runs AFTER your geist. If your geist returns 100 suggestions but filtering reduces it to 2, the user only sees 2. Quality of those 2 matters more than speed of generating 100.
+
+### Performance Checklist
+
+Before committing your geist, verify:
+
+- [ ] Completes in <5s on 500-note vault (test on `testdata/kepano-obsidian-main/`)
+- [ ] Completes in <30s on 1000-note vault (if you have one available)
+- [ ] Uses `similarity()` not `batch_similarity()` when cache might be warm
+- [ ] Builds lookup structures (sets, dicts) instead of O(N) repeated searches
+- [ ] Avoids sklearn clustering unless absolutely necessary
+- [ ] Uses adaptive sampling if sampling at all: `min(N, max(50, len(notes)//10))`
+- [ ] Early terminates when enough suggestions found (5-10 is plenty)
+- [ ] Hasn't been optimized prematurely (profile first!)
+
+### Performance Resources
+
+- **Study these performant geists**:
+  - `pattern_finder.py` - O(N³) → O(N) optimization via link set
+  - `scale_shifter.py` - Individual similarity calls for cache benefits
+  - `bridge_hunter.py` - Early termination after 2 suggestions
+
+- **Read these documents**:
+  - `docs/POST_MORTEM_PHASE3B.md` - Detailed rollback analysis with lessons
+  - `tests/integration/test_phase3b_regression.py` - Regression tests preventing future issues
+
+- **Profile your geist**:
+  ```bash
+  # Run with debug timing
+  uv run geistfabrik invoke /path/to/vault --geist my_geist --timeout 30 --debug
+  ```
+
+---
+
 ## Common Questions
 
 ### Q: Can I ever use directive language?
