@@ -65,7 +65,7 @@ jobs:
           echo "TOKENIZERS_PARALLELISM=false" >> $GITHUB_ENV
 
       - name: Run tests
-        run: uv run pytest -v -m "not slow"
+        run: uv run pytest -v -m "not slow and not benchmark"
 
       - name: Run linting
         run: uv run ruff check src/ tests/
