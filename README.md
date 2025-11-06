@@ -12,7 +12,7 @@ Inspired by Gordon Brander's work on tools for thought.
 
 **Version**: 0.9.0 (Beta)
 **Default Geists**: 47 (38 code + 9 Tracery)
-**Tests**: 515 passing (100%)
+**Tests**: 611 passing (100%)
 **Progress**: ~99% (Feature-complete, approaching 1.0)
 
 See [STATUS.md](STATUS.md) for detailed implementation status and test results, and [examples/README.md](examples/README.md) for comprehensive examples.
@@ -491,7 +491,7 @@ Vault Files → Vault.sync() → SQLite Database
 
 ## Example Geists
 
-GeistFabrik includes 39 example geists demonstrating various patterns:
+The examples/ directory includes 38 example geists demonstrating various patterns (for learning, not installation):
 
 ### Code Geists (29)
 Including patterns for:
@@ -501,7 +501,7 @@ Including patterns for:
 - **Pattern discovery** - pattern_finder, concept_cluster, question_generator, method_scrambler, scale_shifter
 - **Vault health** - link_density_analyser, task_archaeology, stub_expander, recent_focus, vocabulary_expansion
 
-### Tracery Geists (10)
+### Tracery Geists (9)
 - **random_prompts.yaml** - Creative writing prompts
 - **note_combinations.yaml** - Random note pairings
 - **what_if.yaml** - "What if" question generator

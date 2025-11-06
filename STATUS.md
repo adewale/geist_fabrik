@@ -10,9 +10,9 @@
 
 | Metric | Value |
 |--------|-------|
-| **Tests Passing** | 513/513 ✅ (100%) |
-| **Unit Tests** | 422 ✅ |
-| **Integration Tests** | 91 ✅ |
+| **Tests Passing** | 611/611 ✅ (100%) |
+| **Unit Tests** | 505 ✅ |
+| **Integration Tests** | 106 ✅ |
 | **Source Modules** | 16 |
 | **Test Files** | 20 |
 | **Lines of Code** | ~13,500 (src: ~6,000, tests: ~7,500) |
@@ -651,7 +651,7 @@ uv run python scripts/check_phase_completion.py
   - Full Tracery integration via $vault.function_name(args)
   - 2 example function modules (contrarian, questions)
 - **Extensive example collection** (Phase 11)
-  - 39 example geists (29 code + 10 Tracery)
+  - 38 example geists in examples/ directory (29 code + 9 Tracery, for learning)
   - Comprehensive examples/ directory with README
   - Geists demonstrate metadata, functions, and Tracery
   - Covers diverse use cases: temporal drift, creative collisions, bridge building, task archaeology, concept clusters, etc.
