@@ -45,7 +45,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         "proves",
     ]
 
+    # OPTIMIZATION: Early termination after finding enough suggestions
+    # Final sampling only returns 2, so generating 5 is sufficient
+    max_suggestions = 5
+    suggestion_count = 0
+
     for note in vault.sample(notes, min(30, len(notes))):
+        # Early exit if we have enough suggestions
+        if suggestion_count >= max_suggestions:
+            break
         content = vault.read(note).lower()
 
         # Count claim indicators
@@ -90,6 +98,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     geist_id="antithesis_generator",
                 )
             )
+            suggestion_count += 1
         else:
             # Suggest creating an antithesis
             text = (
@@ -112,9 +121,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     title=antithesis_title,
                 )
             )
+            suggestion_count += 1
 
     # Also look for dialectical triads (thesis + antithesis without synthesis)
     for note in vault.sample(notes, min(20, len(notes))):
+        # Early exit if we have enough suggestions
+        if suggestion_count >= max_suggestions:
+            break
         # Find potential antithesis (OP-9: get scores to avoid recomputation)
         similar_with_scores = vault.neighbours(note, k=10, return_scores=True)
 
@@ -148,5 +161,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                             title=synthesis_title,
                         )
                     )
+                    suggestion_count += 1
 
     return vault.sample(suggestions, k=2)
