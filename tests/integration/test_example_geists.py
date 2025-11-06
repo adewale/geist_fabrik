@@ -65,7 +65,9 @@ def geist_executor(test_vault_path: Path) -> GeistExecutor:
     """Create GeistExecutor for loading code geists."""
     repo_root = Path(__file__).parent.parent.parent
     code_geists_dir = repo_root / "src" / "geistfabrik" / "default_geists" / "code"
-    return GeistExecutor(code_geists_dir, timeout=5)
+    executor = GeistExecutor(code_geists_dir, timeout=5)
+    executor.load_geists()
+    return executor
 
 
 # ============================================================================
