@@ -36,12 +36,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             all_link_pairs.add(pair)
 
     # Look for repeated significant phrases (2-3 word combinations)
-    # OPTIMIZATION: Sample notes for phrase extraction to avoid O(N × M) blow-up on large vaults
-    # (where N = notes, M = avg note length). 10k notes × 1k words = 10M words to process.
-    sampled_notes = vault.sample(notes, k=min(500, len(notes)))
     phrase_to_notes = defaultdict(list)
 
-    for note in sampled_notes:
+    for note in notes:
         content = vault.read(note).lower()
         words = content.split()
 
