@@ -1,9 +1,10 @@
 # Harvester Family - Specification
 
-**Status**: Proposed (Implementation in Progress)
+**Status**: ✅ Implemented
 **Geist IDs**: `question_harvester`, `todo_harvester`, `quote_harvester`
 **Type**: Code geists
 **Tier**: A (Provocative discovery)
+**Pattern Category**: Extraction-Based Geists (see [GEIST_TYPOLOGY.md](../docs/GEIST_TYPOLOGY.md))
 
 ---
 
@@ -732,8 +733,13 @@ This pattern can be extended to many other content types, making the Harvester F
    - Industry-standard markers: TODO, FIXME, HACK, NOTE, XXX
    - Used across programming languages and note-taking systems
 
+6. **GeistFabrik Typology**
+   - [docs/GEIST_TYPOLOGY.md](../docs/GEIST_TYPOLOGY.md) - Complete classification of all geist patterns
+   - Shows how Harvester Family fits into the broader ecosystem
+   - Identifies opportunities for future extraction-based geists
+
 ---
 
 **Version**: 2.0 (Expanded to Family)
 **Date**: 2025-11-06
-**Status**: Specification Complete, Implementation in Progress
+**Status**: ✅ Fully Implemented
