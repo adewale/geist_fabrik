@@ -1,4 +1,4 @@
-# Geist Catalog & Typology
+# Geist Catalog
 
 **A comprehensive classification of GeistFabrik's default geists by pattern and implementation status**
 
