@@ -43,7 +43,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         "always",
     ]
 
+    # OPTIMIZATION: Early termination after finding enough suggestions
+    # Final sampling only returns 3, so generating 5 is sufficient
+    max_suggestions_contrast = 5
+    suggestion_count = 0
+
     for note in vault.sample(notes, min(40, len(notes))):
+        # Early exit if we have enough suggestions
+        if suggestion_count >= max_suggestions_contrast:
+            break
         content = vault.read(note).lower()
 
         # Look for assumption indicators
@@ -88,6 +96,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                             geist_id="assumption_challenger",
                         )
                     )
+                    suggestion_count += 1
                     break
 
         # Also look for causal claims without evidence
@@ -118,5 +127,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     geist_id="assumption_challenger",
                 )
             )
+            suggestion_count += 1
 
     return vault.sample(suggestions, k=3)
