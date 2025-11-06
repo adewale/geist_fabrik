@@ -55,6 +55,9 @@ cd geist_fabrik
 # Install dependencies (requires Python 3.11+)
 uv sync
 
+# Install pre-commit hooks (for contributors)
+uv run pre-commit install
+
 # Run tests
 uv run pytest
 
@@ -598,6 +601,33 @@ For more details, see [docs/GEIST_INSTRUMENTATION_DESIGN.md](docs/GEIST_INSTRUME
 
 ## Development
 
+### Setup for Development
+
+```bash
+# Install pre-commit hooks (prevents committing code that fails CI)
+uv run pre-commit install
+
+# This installs hooks that run before each commit:
+# - Ruff linting (catches style issues like line length)
+# - Ruff formatting (auto-formats code)
+# - Trailing whitespace removal
+# - YAML validation
+# - Large file detection
+# - Unused database table detection
+```
+
+**Important**: Pre-commit hooks will **block commits** that fail linting. For example:
+```bash
+$ git commit -m "Add feature"
+ruff (legacy alias)......................................................Failed
+- hook id: ruff
+- exit code: 1
+
+E501 Line too long (112 > 100)
+```
+
+This prevents CI failures by catching issues locally before you push.
+
 ### Running Tests
 
 ```bash
@@ -615,6 +645,9 @@ uv run pytest --cov=src/geistfabrik
 
 # Type checking
 uv run mypy src/ --strict
+
+# Run full validation (same checks as CI)
+./scripts/validate.sh
 ```
 
 ### Project Structure
@@ -656,9 +689,11 @@ Remaining work (5%):
 
 Contributions welcome! Please:
 1. Read [CLAUDE.md](CLAUDE.md) for development guidelines
-2. Run tests: `uv run pytest`
-3. Check types: `uv run mypy src/ --strict`
-4. Follow existing code style
+2. Install pre-commit hooks: `uv run pre-commit install` (blocks bad commits)
+3. Run tests: `uv run pytest`
+4. Check types: `uv run mypy src/ --strict`
+5. Validate before pushing: `./scripts/validate.sh`
+6. Follow existing code style
 
 ## License
 

@@ -641,8 +641,8 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 38 code geists in src/geistfabrik/default_geists/code/
-    assert len(geist_executor.geists) == 38
+    # We have 41 code geists in src/geistfabrik/default_geists/code/ (38 core + 3 harvesters)
+    assert len(geist_executor.geists) == 41
 
 
 def test_all_geists_execute_without_crashing(
@@ -719,3 +719,109 @@ def test_congruence_mirror_geist(vault_context: VaultContext, geist_executor: Ge
             # Detached quadrant - should be statement
             assert "?" not in suggestion.text
             assert suggestion.text.endswith(".")
+
+
+# ============================================================================
+# Harvester Family Tests (3 geists)
+# ============================================================================
+
+
+def test_question_harvester_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test question_harvester geist extracts questions from random notes."""
+    suggestions = geist_executor.execute_geist("question_harvester", vault_context)
+
+    assert isinstance(suggestions, list)
+    # May return 0-3 suggestions depending on whether random note has questions
+    assert 0 <= len(suggestions) <= 3
+
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "question_harvester"
+        # Should have "From [[...]]:" prefix
+        assert "From [[" in suggestion.text
+        # Should have temporal framing
+        assert "What if you revisited this question now?" in suggestion.text
+        # Should reference exactly 1 note
+        assert len(suggestion.notes) == 1
+
+
+def test_question_harvester_deterministic(
+    vault_context: VaultContext, geist_executor: GeistExecutor
+):
+    """Test question_harvester is deterministic (same seed = same results)."""
+    # Run twice with same vault context (same seed)
+    suggestions_1 = geist_executor.execute_geist("question_harvester", vault_context)
+    suggestions_2 = geist_executor.execute_geist("question_harvester", vault_context)
+
+    # Should return identical results
+    assert len(suggestions_1) == len(suggestions_2)
+    for s1, s2 in zip(suggestions_1, suggestions_2):
+        assert s1.text == s2.text
+        assert s1.notes == s2.notes
+
+
+def test_todo_harvester_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test todo_harvester geist extracts TODO markers from random notes."""
+    suggestions = geist_executor.execute_geist("todo_harvester", vault_context)
+
+    assert isinstance(suggestions, list)
+    # May return 0-3 suggestions depending on whether random note has TODOs
+    assert 0 <= len(suggestions) <= 3
+
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "todo_harvester"
+        # Should have "From [[...]]:" prefix
+        assert "From [[" in suggestion.text
+        # Should have temporal framing
+        assert "What if you tackled this now?" in suggestion.text
+        # Should reference exactly 1 note
+        assert len(suggestion.notes) == 1
+
+
+def test_todo_harvester_deterministic(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test todo_harvester is deterministic (same seed = same results)."""
+    # Run twice with same vault context (same seed)
+    suggestions_1 = geist_executor.execute_geist("todo_harvester", vault_context)
+    suggestions_2 = geist_executor.execute_geist("todo_harvester", vault_context)
+
+    # Should return identical results
+    assert len(suggestions_1) == len(suggestions_2)
+    for s1, s2 in zip(suggestions_1, suggestions_2):
+        assert s1.text == s2.text
+        assert s1.notes == s2.notes
+
+
+def test_quote_harvester_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test quote_harvester geist extracts blockquotes from random notes."""
+    suggestions = geist_executor.execute_geist("quote_harvester", vault_context)
+
+    assert isinstance(suggestions, list)
+    # May return 0-3 suggestions depending on whether random note has quotes
+    assert 0 <= len(suggestions) <= 3
+
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "quote_harvester"
+        # Should have "From [[...]]:" prefix
+        assert "From [[" in suggestion.text
+        # Should have temporal framing
+        assert "What if you reflected on this again?" in suggestion.text
+        # Should reference exactly 1 note
+        assert len(suggestion.notes) == 1
+
+
+def test_quote_harvester_deterministic(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test quote_harvester is deterministic (same seed = same results)."""
+    # Run twice with same vault context (same seed)
+    suggestions_1 = geist_executor.execute_geist("quote_harvester", vault_context)
+    suggestions_2 = geist_executor.execute_geist("quote_harvester", vault_context)
+
+    # Should return identical results
+    assert len(suggestions_1) == len(suggestions_2)
+    for s1, s2 in zip(suggestions_1, suggestions_2):
+        assert s1.text == s2.text
+        assert s1.notes == s2.notes
