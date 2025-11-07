@@ -122,15 +122,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                         text = (
                             f"You consistently write about similar themes in {month_name}—"
-                            f"[[{note1.title}]] ({year1}) and [[{note2.title}]] ({year2}) "
-                            f"are semantically similar despite being {abs(year2 - year1)} "
-                            f"years apart. Seasonal thinking rhythm?"
+                            f"[[{note1.obsidian_link}]] ({year1}) and "
+                            f"[[{note2.obsidian_link}]] ({year2}) are semantically similar "
+                            f"despite being {abs(year2 - year1)} years apart. Seasonal "
+                            f"thinking rhythm?"
                         )
 
                         suggestions.append(
                             Suggestion(
                                 text=text,
-                                notes=[note1.title, note2.title],
+                                notes=[note1.obsidian_link, note2.obsidian_link],
                                 geist_id="seasonal_patterns",
                             )
                         )
@@ -162,7 +163,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 if season_ratio > 0.6:  # 60% of this tag appears in one season
                     sample_notes = vault.sample([n for n in season_notes if tag in n.tags], k=3)
-                    note_names = ", ".join([f"[[{n.title}]]" for n in sample_notes])
+                    note_names = ", ".join([f"[[{n.obsidian_link}]]" for n in sample_notes])
 
                     text = (
                         f"You write about #{tag} predominantly in {season.lower()} "
@@ -173,7 +174,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[n.title for n in sample_notes],
+                            notes=[n.obsidian_link for n in sample_notes],
                             geist_id="seasonal_patterns",
                         )
                     )

@@ -32,7 +32,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if path and len(path) > 2:
             # Found a multi-hop semantic path
-            path_str = " → ".join([f"[[{n.title}]]" for n in path])
+            path_str = " → ".join([f"[[{n.obsidian_link}]]" for n in path])
 
             # Calculate path strength (average similarity between consecutive notes)
             path_strength = sum(
@@ -41,15 +41,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if path_strength > 0.5:  # Strong enough path
                 text = (
-                    f"Semantic bridge from [[{note_a.title}]] to [[{note_b.title}]]: "
-                    f"{path_str}. No direct links exist, but the ideas connect through "
-                    f"these stepping stones."
+                    f"Semantic bridge from [[{note_a.obsidian_link}]] to "
+                    f"[[{note_b.obsidian_link}]]: {path_str}. No direct links exist, "
+                    f"but the ideas connect through these stepping stones."
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[n.title for n in path],
+                        notes=[n.obsidian_link for n in path],
                         geist_id="bridge_hunter",
                     )
                 )

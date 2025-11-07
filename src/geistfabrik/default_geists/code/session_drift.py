@@ -61,21 +61,21 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 if days_since_modified > 30:  # Content hasn't changed recently
                     text = (
-                        f"Your understanding of [[{note.title}]] shifted significantly "
+                        f"Your understanding of [[{note.obsidian_link}]] shifted significantly "
                         f"between last session and this one, even though you haven't "
                         f"edited it in {days_since_modified} days. "
                         f"What changed in how you're reading it?"
                     )
                 else:
                     text = (
-                        f"[[{note.title}]] is being interpreted quite differently in this session—"
-                        f"meaning evolving as you edit it?"
+                        f"[[{note.obsidian_link}]] is being interpreted quite differently "
+                        f"in this session—meaning evolving as you edit it?"
                     )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[note.title],
+                        notes=[note.obsidian_link],
                         geist_id="session_drift",
                     )
                 )

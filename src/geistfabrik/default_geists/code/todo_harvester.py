@@ -46,14 +46,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         todo_clean = " ".join(todo.split())
 
         text = (
-            f"From [[{note.title}]]: \"{todo_clean}\" "
+            f"From [[{note.obsidian_link}]]: \"{todo_clean}\" "
             f"What if you tackled this now?"
         )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.title],
+                notes=[note.obsidian_link],
                 geist_id="todo_harvester",
             )
         )

@@ -8,7 +8,6 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
-from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from .markdown_parser import extract_links, extract_tags, parse_frontmatter
@@ -264,7 +263,6 @@ def split_date_collection_note(
 
     # Create virtual notes
     virtual_notes = []
-    file_stem = Path(file_path).stem
 
     for entry_date in sorted(merged_sections.keys()):
         contents = merged_sections[entry_date]

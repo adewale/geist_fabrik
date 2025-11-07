@@ -57,13 +57,13 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
 
         text = (
             f"**{current_season} again**. {time_phrase.capitalize()} in {current_season.lower()}, "
-            f"you wrote [[{note.title}]]. What patterns repeat with the seasons?"
+            f"you wrote [[{note.obsidian_link}]]. What patterns repeat with the seasons?"
         )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.title],
+                notes=[note.obsidian_link],
                 geist_id="seasonal_revisit",
             )
         )

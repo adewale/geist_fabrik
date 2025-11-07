@@ -84,15 +84,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 if contrast_count >= 2:
                     # High assumptions in one note, high uncertainty in similar note
                     text = (
-                        f"[[{note.title}]] makes claims that seem certain, "
-                        f"but [[{other.title}]] (semantically similar) expresses uncertainty "
-                        f"about related topics. What assumptions underlie the certainty?"
+                        f"[[{note.obsidian_link}]] makes claims that seem certain, but "
+                        f"[[{other.obsidian_link}]] (semantically similar) expresses "
+                        f"uncertainty about related topics. What assumptions underlie the "
+                        f"certainty?"
                     )
 
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[note.title, other.title],
+                            notes=[note.obsidian_link, other.obsidian_link],
                             geist_id="assumption_challenger",
                         )
                     )
@@ -116,14 +117,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if causal_count >= 3 and len(note.links) < 2:
             # Makes causal claims but doesn't link to supporting evidence
             text = (
-                f"[[{note.title}]] makes causal claims but has few links to supporting notes. "
-                f"What evidence or reasoning supports these cause-effect relationships?"
+                f"[[{note.obsidian_link}]] makes causal claims but has few links to "
+                f"supporting notes. What evidence or reasoning supports these "
+                f"cause-effect relationships?"
             )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.title],
+                    notes=[note.obsidian_link],
                     geist_id="assumption_challenger",
                 )
             )
