@@ -37,14 +37,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Case 1: Too many links (> 5 per 100 words)
         if link_density > 5:
             text = (
-                f"What if [[{note.title}]] has too many links? "
+                f"What if [[{note.obsidian_link}]] has too many links? "
                 f"With {link_count} links in {word_count} words, "
                 f"it might be overwhelming. Consider focusing on key connections."
             )
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.title],
+                    notes=[note.obsidian_link],
                     geist_id="link_density_analyser",
                 )
             )
@@ -52,14 +52,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Case 2: Too few links (< 0.5 per 100 words)
         elif link_density < 0.5 and word_count > 200:
             text = (
-                f"What if [[{note.title}]] needs more connections? "
+                f"What if [[{note.obsidian_link}]] needs more connections? "
                 f"With only {link_count} links in {word_count} words, "
                 f"it might be isolated from your knowledge graph."
             )
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.title],
+                    notes=[note.obsidian_link],
                     geist_id="link_density_analyser",
                 )
             )

@@ -63,12 +63,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         other = vault.sample(candidates, k=1)[0]
         operation, template = vault.sample(scamper_operations, k=1)[0]
 
-        text = template.format(note=note.title, other=other.title)
+        text = template.format(note=note.obsidian_link, other=other.obsidian_link)
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.title, other.title],
+                notes=[note.obsidian_link, other.obsidian_link],
                 geist_id="method_scrambler",
             )
         )
@@ -81,12 +81,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Adjust template for unlinked pairs
         if operation in ["substitute", "combine", "adapt"]:
-            text = template.format(note=note_a.title, other=note_b.title)
+            text = template.format(note=note_a.obsidian_link, other=note_b.obsidian_link)
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note_a.title, note_b.title],
+                    notes=[note_a.obsidian_link, note_b.obsidian_link],
                     geist_id="method_scrambler",
                 )
             )

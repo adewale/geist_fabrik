@@ -42,18 +42,19 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # Sample some neighbors to mention (extract notes from tuples)
             neighbor_notes = [n for n, sim in neighbors_with_scores[:10]]
             neighbor_sample = vault.sample(neighbor_notes, k=3)
-            neighbor_names = ", ".join([f"[[{n.title}]]" for n in neighbor_sample])
+            neighbor_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbor_sample])
 
             text = (
-                f"[[{note.title}]] is semantically related to {high_similarity_count} notes "
-                f"(including {neighbor_names}) but only has {total_links} links. "
-                f"Hidden hub? Maybe it's a concept that connects things implicitly."
+                f"[[{note.obsidian_link}]] is semantically related to "
+                f"{high_similarity_count} notes (including {neighbor_names}) but only "
+                f"has {total_links} links. Hidden hub? Maybe it's a concept that "
+                f"connects things implicitly."
             )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.title] + [n.title for n in neighbor_sample],
+                    notes=[note.obsidian_link] + [n.obsidian_link for n in neighbor_sample],
                     geist_id="hidden_hub",
                 )
             )

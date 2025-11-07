@@ -113,15 +113,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     last_date = trajectory[-1][0].strftime("%Y-%m")
 
                     text = (
-                        f"[[{note.title}]] has semantically migrated since {first_date}. "
-                        f"It's now drifting toward [[{top_neighbor.title}]]—"
+                        f"[[{note.obsidian_link}]] has semantically migrated since {first_date}. "
+                        f"It's now drifting toward [[{top_neighbor.obsidian_link}]]—"
                         f"concept evolving from {first_date} to {last_date}?"
                     )
 
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[note.title, top_neighbor.title],
+                            notes=[note.obsidian_link, top_neighbor.obsidian_link],
                             geist_id="concept_drift",
                         )
                     )

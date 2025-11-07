@@ -270,8 +270,8 @@ Second entry.
     assert note is not None
     assert note.is_virtual
 
-    # Resolve by title
-    note2 = vault.resolve_link_target("Journal - 2025-01-15")
+    # Resolve by title (which is now in deeplink format)
+    note2 = vault.resolve_link_target("Journal#2025-01-15")
     assert note2 is not None
     assert note2.path == "Journal.md/2025-01-15"
 
@@ -344,14 +344,14 @@ Second entry.
 
     (vault_path / "Note.md").write_text("""
 # My Note
-See [[Journal - 2025-01-15]] for details.
+See [[Journal#2025-01-15]] for details.
 """)
 
     vault = Vault(vault_path)
     vault.sync()
 
-    # Resolve link by title
-    target = vault.resolve_link_target("Journal - 2025-01-15")
+    # Resolve link by title (which is now in deeplink format)
+    target = vault.resolve_link_target("Journal#2025-01-15")
 
     assert target is not None
     assert target.is_virtual
@@ -796,6 +796,280 @@ ISO datetime.
     assert date(2025, 1, 19) in dates
     assert date(2025, 1, 20) in dates
     assert date(2025, 1, 21) in dates
+
+    vault.close()
+
+
+def test_obsidian_deeplink_for_virtual_notes(tmp_path: Path) -> None:
+    """Test that virtual notes have obsidian_link property for deeplink format.
+
+    Virtual notes represent sections in journal files. They have:
+    - title: Just the heading text (e.g., "2025-01-15" or "January 15, 2025")
+    - obsidian_link: The deeplink format (e.g., "Journal#2025-01-15")
+
+    This allows geists to use [[{note.obsidian_link}]] for both regular and
+    virtual notes without special handling.
+
+    This ensures:
+    - Geists don't need to know about virtual vs regular notes
+    - Links in suggestions work correctly in Obsidian
+    - Clicking a link navigates to the correct heading in the source file
+
+    Per Obsidian documentation:
+    - Deeplink format: [[PAGE-NAME#Heading]]
+    - Spaces in headings are preserved
+    - Can omit .md extension
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create a journal with multiple date entries
+    (vault_path / "Work Log.md").write_text("""
+## 2025-01-15
+Completed initial project setup.
+
+### Morning
+- Created repository
+- Set up CI/CD
+
+### Afternoon
+- First deployment
+
+## 2025-01-16
+Code review day.
+
+## 2025-01-20
+Sprint planning session.
+""")
+
+    # Create a second journal with different format
+    (vault_path / "Daily Journal.md").write_text("""
+## January 15, 2025
+Reflections on the day.
+
+## January 16, 2025
+More thoughts.
+""")
+
+    vault = Vault(vault_path)
+    vault.sync()
+
+    # Test 1: Virtual notes are created correctly
+    notes = vault.all_notes()
+    assert len(notes) == 5  # 3 from Work Log + 2 from Daily Journal
+
+    # Test 2: Get specific virtual notes
+    work_jan15 = vault.get_note("Work Log.md/2025-01-15")
+    work_jan16 = vault.get_note("Work Log.md/2025-01-16")
+    journal_jan15 = vault.get_note("Daily Journal.md/2025-01-15")
+
+    assert work_jan15 is not None
+    assert work_jan16 is not None
+    assert journal_jan15 is not None
+
+    # Test 3: Virtual notes have titles as just the heading text
+    # and obsidian_link as the deeplink format
+    assert work_jan15.is_virtual is True
+    assert work_jan15.source_file == "Work Log.md"
+    assert work_jan15.title == "2025-01-15", (
+        "Virtual note titles should be just the heading text"
+    )
+    assert work_jan15.obsidian_link == "Work Log#2025-01-15", (
+        "Virtual note obsidian_link should use deeplink format (filename#heading) "
+        "so geists can use [[{note.obsidian_link}]] and it works in Obsidian"
+    )
+
+    # Test 4: Virtual note obsidian_link works for geists
+    # Geists can now simply use [[{note.obsidian_link}]] for both regular and virtual notes
+    # For virtual notes, this creates a clickable link to the heading in the source file
+    assert work_jan16.title == "2025-01-16"
+    assert work_jan16.obsidian_link == "Work Log#2025-01-16"
+
+    # Test 5: Different date formats preserve original heading text
+    # The heading "## January 15, 2025" is preserved in the title
+    # This ensures the link works in Obsidian (which requires exact heading match)
+    assert journal_jan15.title == "January 15, 2025", (
+        "Virtual note titles should use original heading text from the file, "
+        "not normalized ISO format"
+    )
+    assert journal_jan15.obsidian_link == "Daily Journal#January 15, 2025", (
+        "Virtual note obsidian_link should use original heading text "
+        "so links work when clicked in Obsidian"
+    )
+
+    # Test 6: Regular notes have title and obsidian_link be the same
+    (vault_path / "Regular Note.md").write_text("# Regular Note\nContent here.")
+    vault.sync()
+
+    regular = vault.get_note("Regular Note.md")
+    assert regular is not None
+    assert not regular.is_virtual
+    assert regular.title == "Regular Note", (
+        "Regular notes should have normal titles"
+    )
+    assert regular.obsidian_link == "Regular Note", (
+        "For regular notes, obsidian_link should be the same as title"
+    )
+
+    # Test 7: Verify deeplinks resolve correctly for ISO date headings
+    # The heading in the file is "## 2025-01-15"
+    resolved = vault.resolve_link_target("Work Log#2025-01-15")
+    assert resolved is not None, "Deeplink should resolve to the virtual note"
+    assert resolved.path == "Work Log.md/2025-01-15", "Should resolve to correct virtual note"
+
+    # Test 8: Deeplink with .md extension should also work
+    resolved_with_ext = vault.resolve_link_target("Work Log.md#2025-01-15")
+    assert resolved_with_ext is not None, "Deeplink with .md extension should resolve"
+    assert resolved_with_ext.path == "Work Log.md/2025-01-15"
+
+    # Test 9: Verify deeplinks work with non-ISO date formats
+    # The heading in the file is "## January 15, 2025"
+    # Both the exact heading text AND ISO format should resolve
+    resolved_by_original = vault.resolve_link_target("Daily Journal#January 15, 2025")
+    assert resolved_by_original is not None, "Deeplink with original heading text should resolve"
+    assert resolved_by_original.path == "Daily Journal.md/2025-01-15"
+
+    resolved_by_iso = vault.resolve_link_target("Daily Journal#2025-01-15")
+    assert resolved_by_iso is not None, "Deeplink with ISO format should also resolve"
+    assert resolved_by_iso.path == "Daily Journal.md/2025-01-15"
+
+    vault.close()
+
+
+def test_roundtrip_journal_to_virtual_notes_and_back(tmp_path: Path) -> None:
+    """Test that we can split a journal into virtual notes and reconstruct it.
+
+    This verifies data integrity through the split-and-reconstruct process:
+    1. Start with a journal file containing multiple date entries
+    2. Split it into virtual notes via sync
+    3. Reconstruct the journal content from virtual notes
+    4. Verify all information is preserved
+
+    This ensures that:
+    - No content is lost during splitting
+    - Headings are preserved correctly
+    - Entry order can be maintained
+    - The structure can be reconstructed
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create a journal with mixed date formats and content
+    original_content = """---
+tags: [journal, work]
+---
+
+## 2025-01-15
+Morning standup went well. Discussed the new feature.
+
+### Tasks
+- Review PR #123
+- Update documentation
+
+## January 16, 2025
+Code review day. Found some interesting edge cases.
+
+Link to [[Important Note]].
+
+## 2025-01-17
+Sprint planning session.
+
+#planning #team
+"""
+
+    journal_path = vault_path / "Work Log.md"
+    journal_path.write_text(original_content)
+
+    # Split into virtual notes
+    vault = Vault(vault_path)
+    vault.sync()
+
+    # Get all virtual notes for this journal
+    all_notes = vault.all_notes()
+    virtual_notes = [n for n in all_notes if n.is_virtual and n.source_file == "Work Log.md"]
+
+    # Verify we got 3 virtual notes
+    assert len(virtual_notes) == 3, f"Expected 3 virtual notes, got {len(virtual_notes)}"
+
+    # Sort by entry date (same order as original file)
+    virtual_notes.sort(key=lambda n: n.entry_date)
+
+    # Reconstruct the journal from virtual notes
+    # Each virtual note has:
+    # - title: just the heading text (e.g., "2025-01-15" or "January 16, 2025")
+    # - content (the section content without the heading)
+    # - tags (including frontmatter tags)
+    reconstructed_sections = []
+
+    for note in virtual_notes:
+        # Title is just the heading text
+        heading_text = note.title
+
+        # Reconstruct section: heading + content
+        section = f"## {heading_text}\n{note.content}"
+        reconstructed_sections.append(section)
+
+    # Join sections
+    reconstructed_body = "\n\n".join(reconstructed_sections)
+
+    # Verify content preservation for each entry
+    # Entry 1: 2025-01-15
+    assert virtual_notes[0].title == "2025-01-15"
+    assert virtual_notes[0].obsidian_link == "Work Log#2025-01-15"
+    assert "Morning standup went well" in virtual_notes[0].content
+    assert "### Tasks" in virtual_notes[0].content
+    assert "Review PR #123" in virtual_notes[0].content
+    assert "Update documentation" in virtual_notes[0].content
+
+    # Entry 2: January 16, 2025 (original heading preserved)
+    assert virtual_notes[1].title == "January 16, 2025"
+    assert virtual_notes[1].obsidian_link == "Work Log#January 16, 2025"
+    assert "Code review day" in virtual_notes[1].content
+    assert "interesting edge cases" in virtual_notes[1].content
+    assert "Important Note" in virtual_notes[1].content
+
+    # Entry 3: 2025-01-17
+    assert virtual_notes[2].title == "2025-01-17"
+    assert virtual_notes[2].obsidian_link == "Work Log#2025-01-17"
+    assert "Sprint planning session" in virtual_notes[2].content
+
+    # Verify tags are preserved
+    # Frontmatter tags should be on all entries
+    assert "journal" in virtual_notes[0].tags
+    assert "work" in virtual_notes[0].tags
+    assert "journal" in virtual_notes[1].tags
+    assert "work" in virtual_notes[1].tags
+    assert "journal" in virtual_notes[2].tags
+    assert "work" in virtual_notes[2].tags
+
+    # Inline tags should be on specific entries
+    assert "planning" in virtual_notes[2].tags
+    assert "team" in virtual_notes[2].tags
+    assert "planning" not in virtual_notes[0].tags
+    assert "planning" not in virtual_notes[1].tags
+
+    # Verify links are preserved and extracted correctly
+    entry2_links = {link.target for link in virtual_notes[1].links}
+    assert "Important Note" in entry2_links
+
+    # Verify we can reconstruct the heading structure
+    assert "## 2025-01-15" in reconstructed_body
+    assert "## January 16, 2025" in reconstructed_body
+    assert "## 2025-01-17" in reconstructed_body
+
+    # Verify content is in reconstructed body
+    assert "Morning standup went well" in reconstructed_body
+    assert "Code review day" in reconstructed_body
+    assert "Sprint planning session" in reconstructed_body
+
+    # Verify subheadings are preserved
+    assert "### Tasks" in reconstructed_body
+
+    # Verify the order is maintained (chronological by entry_date)
+    jan15_pos = reconstructed_body.index("## 2025-01-15")
+    jan16_pos = reconstructed_body.index("## January 16, 2025")
+    jan17_pos = reconstructed_body.index("## 2025-01-17")
+    assert jan15_pos < jan16_pos < jan17_pos, "Entries should be in chronological order"
 
     vault.close()
 

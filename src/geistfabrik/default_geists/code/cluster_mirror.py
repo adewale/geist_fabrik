@@ -49,10 +49,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Get 3 representative notes (closest to centroid)
         # Pass clusters to avoid redundant clustering
         representatives = vault.get_cluster_representatives(cluster_id, k=3, clusters=clusters)
-        note_titles = [f"[[{n.title}]]" for n in representatives]
+        note_titles = [f"[[{n.obsidian_link}]]" for n in representatives]
 
         cluster_descriptions.append(f"{label}\n→ {', '.join(note_titles)}")
-        all_sampled_notes.extend([n.title for n in representatives])
+        all_sampled_notes.extend([n.obsidian_link for n in representatives])
 
     # Pure muse question: no interpretation, just pattern presentation
     text = "\n\n".join(cluster_descriptions) + "\n\nWhat do these clusters remind you of?"
