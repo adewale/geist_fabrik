@@ -55,6 +55,49 @@ class Note:
             return NotImplemented
         return self.path == other.path
 
+    def obsidian_link(self) -> str:
+        """Generate proper Obsidian link format for this note.
+
+        For regular notes: Returns the title for use in [[title]] links.
+        For virtual notes: Returns a deeplink to the heading in the source file.
+
+        Virtual notes are sections in journal files with date headings.
+        The proper Obsidian link format for these is [[filename#heading]],
+        which creates a clickable link directly to that heading.
+
+        Examples:
+            Regular note "My Note.md" with title "My Note"
+            -> "My Note"
+            -> Used as: [[My Note]]
+
+            Virtual note "Journal.md/2025-01-15"
+            -> "Journal#2025-01-15"
+            -> Used as: [[Journal#2025-01-15]]
+
+        Returns:
+            Link text for use within [[...]] wiki-link syntax
+        """
+        if not self.is_virtual:
+            # Regular notes: use title
+            return self.title
+
+        # Virtual notes: create deeplink to source file heading
+        # Path format: "filename.md/YYYY-MM-DD"
+        # Deeplink format: "filename#YYYY-MM-DD"
+        if self.source_file is None or self.entry_date is None:
+            # Fallback to title if virtual note data is incomplete
+            return self.title
+
+        # Extract filename without extension
+        source_name = self.source_file
+        if source_name.endswith(".md"):
+            source_name = source_name[:-3]
+
+        # Use ISO date format from entry_date for the heading reference
+        date_str = self.entry_date.isoformat()
+
+        return f"{source_name}#{date_str}"
+
 
 @dataclass(frozen=True)
 class Suggestion:

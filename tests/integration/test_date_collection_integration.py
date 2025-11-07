@@ -800,6 +800,127 @@ ISO datetime.
     vault.close()
 
 
+def test_obsidian_deeplink_for_virtual_notes(tmp_path: Path) -> None:
+    """Test that virtual notes can generate valid Obsidian deeplinks to source headings.
+
+    Virtual notes represent sections in journal files. When referencing them in
+    suggestions, we want to create proper Obsidian deeplinks using the format
+    [[filename#heading]] rather than using the virtual path or title.
+
+    This ensures clicking the link navigates to the correct heading in the source file.
+
+    Per Obsidian documentation:
+    - Format: [[PAGE-NAME#Heading]]
+    - Spaces in headings are preserved
+    - Can omit .md extension
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create a journal with multiple date entries
+    (vault_path / "Work Log.md").write_text("""
+## 2025-01-15
+Completed initial project setup.
+
+### Morning
+- Created repository
+- Set up CI/CD
+
+### Afternoon
+- First deployment
+
+## 2025-01-16
+Code review day.
+
+## 2025-01-20
+Sprint planning session.
+""")
+
+    # Create a second journal with different format
+    (vault_path / "Daily Journal.md").write_text("""
+## January 15, 2025
+Reflections on the day.
+
+## January 16, 2025
+More thoughts.
+""")
+
+    vault = Vault(vault_path)
+    vault.sync()
+
+    # Test 1: Virtual notes are created correctly
+    notes = vault.all_notes()
+    assert len(notes) == 5  # 3 from Work Log + 2 from Daily Journal
+
+    # Test 2: Get specific virtual notes
+    work_jan15 = vault.get_note("Work Log.md/2025-01-15")
+    work_jan16 = vault.get_note("Work Log.md/2025-01-16")
+    journal_jan15 = vault.get_note("Daily Journal.md/2025-01-15")
+
+    assert work_jan15 is not None
+    assert work_jan16 is not None
+    assert journal_jan15 is not None
+
+    # Test 3: Virtual notes have correct properties
+    assert work_jan15.is_virtual is True
+    assert work_jan15.source_file == "Work Log.md"
+    assert work_jan15.title == "Work Log - 2025-01-15"
+
+    # Test 4: Generate Obsidian deeplinks for virtual notes
+    # For a virtual note "Work Log.md/2025-01-15", the proper Obsidian link is:
+    # [[Work Log#2025-01-15]] or [[Work Log.md#2025-01-15]]
+    #
+    # This links to the "## 2025-01-15" heading in Work Log.md
+
+    # Expected deeplink formats (both should work in Obsidian):
+    # Without extension: [[Work Log#2025-01-15]]
+    # With extension: [[Work Log.md#2025-01-15]]
+
+    # The Note object should provide a method to get the proper deeplink
+    deeplink = work_jan15.obsidian_link()
+    assert deeplink == "Work Log#2025-01-15", (
+        f"Expected 'Work Log#2025-01-15', got '{deeplink}'. "
+        "Virtual notes should generate deeplinks to their source file heading, "
+        "not use the virtual title."
+    )
+
+    # Test 5: Different date formats still use ISO format in heading link
+    # Even though the heading in Daily Journal.md is "## January 15, 2025",
+    # the virtual path uses ISO format "2025-01-15", so the deeplink should too
+    journal_deeplink = journal_jan15.obsidian_link()
+    assert journal_deeplink == "Daily Journal#2025-01-15", (
+        f"Expected 'Daily Journal#2025-01-15', got '{journal_deeplink}'. "
+        "Deeplinks should use the ISO date format for consistency."
+    )
+
+    # Test 6: Regular notes should return their title as link
+    (vault_path / "Regular Note.md").write_text("# Regular Note\nContent here.")
+    vault.sync()
+
+    regular = vault.get_note("Regular Note.md")
+    assert regular is not None
+    assert not regular.is_virtual
+
+    regular_link = regular.obsidian_link()
+    assert regular_link == "Regular Note", (
+        f"Expected 'Regular Note', got '{regular_link}'. "
+        "Regular notes should return their title for wiki-links."
+    )
+
+    # Test 7: Verify the deeplink format would resolve correctly
+    # Using the existing resolve_link_target method
+    resolved = vault.resolve_link_target("Work Log#2025-01-15")
+    assert resolved is not None, "Deeplink should resolve to the virtual note"
+    assert resolved.path == "Work Log.md/2025-01-15", "Should resolve to correct virtual note"
+
+    # Test 8: Deeplink with .md extension should also work
+    resolved_with_ext = vault.resolve_link_target("Work Log.md#2025-01-15")
+    assert resolved_with_ext is not None, "Deeplink with .md extension should resolve"
+    assert resolved_with_ext.path == "Work Log.md/2025-01-15"
+
+    vault.close()
+
+
 def test_date_collection_disabled_in_config(tmp_path: Path) -> None:
     """Test date-collection can be disabled via config."""
     from geistfabrik.config_loader import DateCollectionConfig, GeistFabrikConfig

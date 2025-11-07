@@ -521,12 +521,14 @@ class Vault:
         - Basename: "note"
         - Date (from journal): "2025-01-15" (resolves to entry in same journal)
         - Virtual path: "Journal.md/2025-01-15"
+        - Heading link: "Journal#2025-01-15" (deeplink to virtual note)
 
         This method tries to resolve the target in order:
-        1. As exact path match (handles virtual paths)
-        2. As path with .md extension added
-        3. As title match (handles virtual entry titles)
-        4. As date reference (if source is a journal entry)
+        1. As heading link to virtual note (e.g., "Journal#2025-01-15")
+        2. As exact path match (handles virtual paths)
+        3. As path with .md extension added
+        4. As title match (handles virtual entry titles)
+        5. As date reference (if source is a journal entry)
 
         Args:
             target: Link target string from wiki-link
@@ -536,7 +538,30 @@ class Vault:
         Returns:
             Note object if found, None otherwise
         """
-        # Strip heading/block references for resolution
+        # Check for heading links that might reference virtual notes
+        # Format: [[filename#heading]] where heading is a date
+        if "#" in target:
+            from .date_collection import parse_date_heading
+
+            parts = target.split("#", 1)
+            filename = parts[0]
+            heading = parts[1] if len(parts) > 1 else ""
+
+            # Check if heading looks like a date
+            date_obj = parse_date_heading(f"## {heading}")
+            if date_obj is not None:
+                # Try to construct virtual path
+                # Handle both "filename" and "filename.md"
+                if not filename.endswith(".md"):
+                    virtual_path = f"{filename}.md/{date_obj.isoformat()}"
+                else:
+                    virtual_path = f"{filename}/{date_obj.isoformat()}"
+
+                note = self.get_note(virtual_path)
+                if note is not None:
+                    return note
+
+        # Strip heading/block references for remaining resolution strategies
         # e.g., [[Note#heading]] -> "Note", [[Note^block]] -> "Note"
         clean_target = target.split("#")[0].split("^")[0]
 
