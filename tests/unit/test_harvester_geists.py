@@ -372,6 +372,39 @@ def test_is_valid_quote_filtering() -> None:
     assert is_valid_quote("This quote has numbers 123 and symbols!")
 
 
+def test_ignore_code_block_quotes() -> None:
+    """Test that quotes in code blocks are ignored."""
+    content = """
+Real quote outside code:
+
+> This is a legitimate quote that should be extracted from the document.
+
+```python
+# Code example with a fake blockquote
+> This is just a code example, not a real quote to extract.
+```
+
+Another real quote:
+
+> Another legitimate quote that should be found and extracted here.
+"""
+    quotes = extract_quotes(content)
+    assert len(quotes) == 2
+    assert any("legitimate quote that should be extracted" in q for q in quotes)
+    assert any("Another legitimate quote" in q for q in quotes)
+    # Code block quote should not appear
+    assert not any("code example" in q.lower() for q in quotes)
+
+
+def test_ignore_inline_code_quotes() -> None:
+    """Test that quotes in inline code are ignored."""
+    content = "> Real quote here with valid content.\n\nCode: `> fake quote` is inline."
+    quotes = extract_quotes(content)
+    assert len(quotes) == 1
+    assert "Real quote here" in quotes[0]
+    assert not any("fake quote" in q for q in quotes)
+
+
 # ============================================================================
 # Cross-Harvester Pattern Tests
 # ============================================================================
