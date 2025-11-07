@@ -252,11 +252,14 @@ def split_date_collection_note(
         logger.debug(f"No valid date sections found in {file_path}")
         return []
 
-    # Merge duplicate dates
+    # Merge duplicate dates, keeping track of first heading text
     merged_sections: Dict[date, List[str]] = {}
+    original_headings: Dict[date, str] = {}
     for section in sections:
         if section.entry_date not in merged_sections:
             merged_sections[section.entry_date] = []
+            # Store original heading text (strip ## prefix and whitespace)
+            original_headings[section.entry_date] = section.heading.lstrip('#').strip()
         merged_sections[section.entry_date].append(section.content)
 
     # Create virtual notes
@@ -275,9 +278,11 @@ def split_date_collection_note(
         all_tags = frontmatter_tags + [tag for tag in inline_tags if tag not in frontmatter_tags]
 
         # Generate virtual path and title
-        # Title uses Obsidian deeplink format for clickable links
+        # Path uses ISO date for consistency and uniqueness
+        # Title uses original heading text for Obsidian deeplink compatibility
         virtual_path = f"{file_path}/{entry_date.isoformat()}"
-        title = f"{file_stem}#{entry_date.isoformat()}"
+        original_heading_text = original_headings[entry_date]
+        title = f"{file_stem}#{original_heading_text}"
 
         # Create note with entry_date as created time
         entry_datetime = datetime.combine(entry_date, datetime.min.time())

@@ -864,13 +864,13 @@ More thoughts.
     assert work_jan16 is not None
     assert journal_jan15 is not None
 
-    # Test 3: Virtual notes have titles in Obsidian deeplink format
-    # This allows geists to use [[{note.title}]] and it just works
+    # Test 3: Virtual notes have titles using original heading text
+    # This allows geists to use [[{note.title}]] and it just works in Obsidian
     assert work_jan15.is_virtual is True
     assert work_jan15.source_file == "Work Log.md"
     assert work_jan15.title == "Work Log#2025-01-15", (
-        "Virtual note titles should use Obsidian deeplink format (filename#date) "
-        "so they can be used directly in [[]] links without conversion"
+        "Virtual note titles should use Obsidian deeplink format (filename#original_heading) "
+        "so they can be used directly in [[]] links and work in Obsidian"
     )
 
     # Test 4: Virtual note titles work as Obsidian deeplinks
@@ -878,12 +878,12 @@ More thoughts.
     # For virtual notes, this creates a clickable link to the heading in the source file
     assert work_jan16.title == "Work Log#2025-01-16"
 
-    # Test 5: Different date formats still use ISO format in title
-    # Even though the heading in Daily Journal.md is "## January 15, 2025",
-    # the title uses ISO format for consistency
-    assert journal_jan15.title == "Daily Journal#2025-01-15", (
-        "Virtual note titles should use ISO date format for consistency, "
-        "regardless of the original heading format"
+    # Test 5: Different date formats preserve original heading text
+    # The heading "## January 15, 2025" is preserved in the title
+    # This ensures the link works in Obsidian (which requires exact heading match)
+    assert journal_jan15.title == "Daily Journal#January 15, 2025", (
+        "Virtual note titles should use original heading text from the file, "
+        "not normalized ISO format, so links work when clicked in Obsidian"
     )
 
     # Test 6: Regular notes have normal titles (no deeplink format)
@@ -897,8 +897,8 @@ More thoughts.
         "Regular notes should have normal titles without deeplink format"
     )
 
-    # Test 7: Verify the deeplink format would resolve correctly
-    # Using the existing resolve_link_target method
+    # Test 7: Verify deeplinks resolve correctly for ISO date headings
+    # The heading in the file is "## 2025-01-15"
     resolved = vault.resolve_link_target("Work Log#2025-01-15")
     assert resolved is not None, "Deeplink should resolve to the virtual note"
     assert resolved.path == "Work Log.md/2025-01-15", "Should resolve to correct virtual note"
@@ -907,6 +907,17 @@ More thoughts.
     resolved_with_ext = vault.resolve_link_target("Work Log.md#2025-01-15")
     assert resolved_with_ext is not None, "Deeplink with .md extension should resolve"
     assert resolved_with_ext.path == "Work Log.md/2025-01-15"
+
+    # Test 9: Verify deeplinks work with non-ISO date formats
+    # The heading in the file is "## January 15, 2025"
+    # Both the exact heading text AND ISO format should resolve
+    resolved_by_original = vault.resolve_link_target("Daily Journal#January 15, 2025")
+    assert resolved_by_original is not None, "Deeplink with original heading text should resolve"
+    assert resolved_by_original.path == "Daily Journal.md/2025-01-15"
+
+    resolved_by_iso = vault.resolve_link_target("Daily Journal#2025-01-15")
+    assert resolved_by_iso is not None, "Deeplink with ISO format should also resolve"
+    assert resolved_by_iso.path == "Daily Journal.md/2025-01-15"
 
     vault.close()
 
