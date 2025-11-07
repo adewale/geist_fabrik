@@ -71,11 +71,17 @@ def extract_quotes(content: str) -> list[str]:
     Returns:
         List of quote strings (multi-line quotes joined)
     """
+    import re
+
+    # Remove code blocks (those quotes are code examples, not actual quotes)
+    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
+    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
+
     quotes = []
 
     # Match blockquote blocks (may span multiple lines)
     # Blockquote: lines starting with ">", grouped together
-    lines = content.split("\n")
+    lines = content_no_code.split("\n")
     current_quote = []
 
     for line in lines:
