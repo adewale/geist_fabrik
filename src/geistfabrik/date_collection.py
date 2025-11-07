@@ -279,10 +279,11 @@ def split_date_collection_note(
 
         # Generate virtual path and title
         # Path uses ISO date for consistency and uniqueness
-        # Title uses original heading text for Obsidian deeplink compatibility
+        # Title is just the original heading text (e.g., "2025-01-15" or "January 15, 2025")
+        # The obsidian_link property on Note will construct the deeplink format when needed
         virtual_path = f"{file_path}/{entry_date.isoformat()}"
         original_heading_text = original_headings[entry_date]
-        title = f"{file_stem}#{original_heading_text}"
+        title = original_heading_text
 
         # Create note with entry_date as created time
         entry_datetime = datetime.combine(entry_date, datetime.min.time())

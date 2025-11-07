@@ -549,24 +549,17 @@ class Vault:
             if note is not None:
                 return note
 
-        # Try exact title match FIRST (handles virtual note titles like "Journal#January 15, 2025")
-        # This must come before stripping # to properly match virtual note titles
-        # Also try without .md extension if present before # (e.g., "Journal.md#heading" -> "Journal#heading")
-        title_candidates = [target]
-        if ".md#" in target:
-            title_candidates.append(target.replace(".md#", "#"))
+        # Try exact title match (handles regular notes and virtual note titles)
+        cursor = self.db.execute(
+            "SELECT path FROM notes WHERE title = ?",
+            (target,),
+        )
+        row = cursor.fetchone()
+        if row is not None:
+            return self.get_note(row[0])
 
-        for candidate in title_candidates:
-            cursor = self.db.execute(
-                "SELECT path FROM notes WHERE title = ?",
-                (candidate,),
-            )
-            row = cursor.fetchone()
-            if row is not None:
-                return self.get_note(row[0])
-
-        # Try as heading link to virtual note (e.g., "Journal#2025-01-15")
-        # If the heading looks like a date, construct the virtual path
+        # Try as heading link (e.g., "Journal#2025-01-15" or "Regular Note#Some Heading")
+        # For virtual notes, if the heading looks like a date, construct the virtual path
         if "#" in target:
             from .date_collection import parse_date_heading
 
@@ -574,7 +567,7 @@ class Vault:
             filename = parts[0]
             heading = parts[1] if len(parts) > 1 else ""
 
-            # Check if heading looks like a date
+            # Check if heading looks like a date (for virtual note deeplinks)
             date_obj = parse_date_heading(f"## {heading}")
             if date_obj is not None:
                 # Try to construct virtual path

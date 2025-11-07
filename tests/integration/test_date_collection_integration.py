@@ -801,11 +801,14 @@ ISO datetime.
 
 
 def test_obsidian_deeplink_for_virtual_notes(tmp_path: Path) -> None:
-    """Test that virtual note titles use Obsidian deeplink format.
+    """Test that virtual notes have obsidian_link property for deeplink format.
 
-    Virtual notes represent sections in journal files. Their titles are formatted
-    as Obsidian deeplinks (e.g., "Journal#2025-01-15") so that geists can use
-    [[{note.title}]] for both regular and virtual notes without special handling.
+    Virtual notes represent sections in journal files. They have:
+    - title: Just the heading text (e.g., "2025-01-15" or "January 15, 2025")
+    - obsidian_link: The deeplink format (e.g., "Journal#2025-01-15")
+
+    This allows geists to use [[{note.obsidian_link}]] for both regular and
+    virtual notes without special handling.
 
     This ensures:
     - Geists don't need to know about virtual vs regular notes
@@ -864,29 +867,37 @@ More thoughts.
     assert work_jan16 is not None
     assert journal_jan15 is not None
 
-    # Test 3: Virtual notes have titles using original heading text
-    # This allows geists to use [[{note.title}]] and it just works in Obsidian
+    # Test 3: Virtual notes have titles as just the heading text
+    # and obsidian_link as the deeplink format
     assert work_jan15.is_virtual is True
     assert work_jan15.source_file == "Work Log.md"
-    assert work_jan15.title == "Work Log#2025-01-15", (
-        "Virtual note titles should use Obsidian deeplink format (filename#original_heading) "
-        "so they can be used directly in [[]] links and work in Obsidian"
+    assert work_jan15.title == "2025-01-15", (
+        "Virtual note titles should be just the heading text"
+    )
+    assert work_jan15.obsidian_link == "Work Log#2025-01-15", (
+        "Virtual note obsidian_link should use deeplink format (filename#heading) "
+        "so geists can use [[{note.obsidian_link}]] and it works in Obsidian"
     )
 
-    # Test 4: Virtual note titles work as Obsidian deeplinks
-    # Geists can now simply use [[{note.title}]] for both regular and virtual notes
+    # Test 4: Virtual note obsidian_link works for geists
+    # Geists can now simply use [[{note.obsidian_link}]] for both regular and virtual notes
     # For virtual notes, this creates a clickable link to the heading in the source file
-    assert work_jan16.title == "Work Log#2025-01-16"
+    assert work_jan16.title == "2025-01-16"
+    assert work_jan16.obsidian_link == "Work Log#2025-01-16"
 
     # Test 5: Different date formats preserve original heading text
     # The heading "## January 15, 2025" is preserved in the title
     # This ensures the link works in Obsidian (which requires exact heading match)
-    assert journal_jan15.title == "Daily Journal#January 15, 2025", (
+    assert journal_jan15.title == "January 15, 2025", (
         "Virtual note titles should use original heading text from the file, "
-        "not normalized ISO format, so links work when clicked in Obsidian"
+        "not normalized ISO format"
+    )
+    assert journal_jan15.obsidian_link == "Daily Journal#January 15, 2025", (
+        "Virtual note obsidian_link should use original heading text "
+        "so links work when clicked in Obsidian"
     )
 
-    # Test 6: Regular notes have normal titles (no deeplink format)
+    # Test 6: Regular notes have title and obsidian_link be the same
     (vault_path / "Regular Note.md").write_text("# Regular Note\nContent here.")
     vault.sync()
 
@@ -894,7 +905,10 @@ More thoughts.
     assert regular is not None
     assert not regular.is_virtual
     assert regular.title == "Regular Note", (
-        "Regular notes should have normal titles without deeplink format"
+        "Regular notes should have normal titles"
+    )
+    assert regular.obsidian_link == "Regular Note", (
+        "For regular notes, obsidian_link should be the same as title"
     )
 
     # Test 7: Verify deeplinks resolve correctly for ISO date headings
@@ -982,15 +996,14 @@ Sprint planning session.
 
     # Reconstruct the journal from virtual notes
     # Each virtual note has:
-    # - title in format "Work Log#<original_heading>"
+    # - title: just the heading text (e.g., "2025-01-15" or "January 16, 2025")
     # - content (the section content without the heading)
     # - tags (including frontmatter tags)
     reconstructed_sections = []
 
     for note in virtual_notes:
-        # Extract original heading from title
-        # Title format: "Work Log#2025-01-15" or "Work Log#January 16, 2025"
-        heading_text = note.title.split("#", 1)[1]
+        # Title is just the heading text
+        heading_text = note.title
 
         # Reconstruct section: heading + content
         section = f"## {heading_text}\n{note.content}"
@@ -1001,20 +1014,23 @@ Sprint planning session.
 
     # Verify content preservation for each entry
     # Entry 1: 2025-01-15
-    assert virtual_notes[0].title == "Work Log#2025-01-15"
+    assert virtual_notes[0].title == "2025-01-15"
+    assert virtual_notes[0].obsidian_link == "Work Log#2025-01-15"
     assert "Morning standup went well" in virtual_notes[0].content
     assert "### Tasks" in virtual_notes[0].content
     assert "Review PR #123" in virtual_notes[0].content
     assert "Update documentation" in virtual_notes[0].content
 
     # Entry 2: January 16, 2025 (original heading preserved)
-    assert virtual_notes[1].title == "Work Log#January 16, 2025"
+    assert virtual_notes[1].title == "January 16, 2025"
+    assert virtual_notes[1].obsidian_link == "Work Log#January 16, 2025"
     assert "Code review day" in virtual_notes[1].content
     assert "interesting edge cases" in virtual_notes[1].content
     assert "Important Note" in virtual_notes[1].content
 
     # Entry 3: 2025-01-17
-    assert virtual_notes[2].title == "Work Log#2025-01-17"
+    assert virtual_notes[2].title == "2025-01-17"
+    assert virtual_notes[2].obsidian_link == "Work Log#2025-01-17"
     assert "Sprint planning session" in virtual_notes[2].content
 
     # Verify tags are preserved

@@ -55,6 +55,29 @@ class Note:
             return NotImplemented
         return self.path == other.path
 
+    @property
+    def obsidian_link(self) -> str:
+        """Return the Obsidian wiki-link string for this note.
+
+        For regular notes, this is just the title.
+        For virtual notes (journal entries), this is a deeplink: "filename#heading"
+
+        This allows geists to use note.obsidian_link without needing to know
+        whether the note is virtual or not.
+
+        Examples:
+            Regular note: "Project Ideas"
+            Virtual note: "Journal#2025-01-15"
+        """
+        if self.is_virtual and self.source_file:
+            # For virtual notes, create deeplink: "filename#heading"
+            # Remove .md extension from source file
+            filename = self.source_file.replace(".md", "")
+            return f"{filename}#{self.title}"
+        else:
+            # For regular notes, just use the title
+            return self.title
+
 
 @dataclass(frozen=True)
 class Suggestion:
