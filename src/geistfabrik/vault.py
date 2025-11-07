@@ -519,27 +519,54 @@ class Vault:
         - Path without extension: "path/to/note"
         - Note title: "Note Title"
         - Basename: "note"
-        - Date (from journal): "2025-01-15" (resolves to entry in same journal)
         - Virtual path: "Journal.md/2025-01-15"
-        - Heading link: "Journal#2025-01-15" (deeplink to virtual note)
+        - Heading link: "Journal#2025-01-15" (matches virtual note title)
+        - Date reference from virtual entry: "2025-01-15" (when source is virtual)
 
         This method tries to resolve the target in order:
-        1. As heading link to virtual note (e.g., "Journal#2025-01-15")
-        2. As exact path match (handles virtual paths)
-        3. As path with .md extension added
-        4. As title match (handles virtual entry titles)
-        5. As date reference (if source is a journal entry)
+        1. As exact path match (handles virtual paths)
+        2. As path with .md extension added
+        3. As exact title match (handles both regular notes and virtual note titles with #)
+        4. As title match after stripping heading/block refs (for regular heading links)
+        5. As date reference (if source is a virtual entry)
 
         Args:
             target: Link target string from wiki-link
             source_path: Optional path of the note containing the link
-                         (needed for context-aware date resolution)
+                         (used for context-aware date resolution in journals)
 
         Returns:
             Note object if found, None otherwise
         """
-        # Check for heading links that might reference virtual notes
-        # Format: [[filename#heading]] where heading is a date
+        # Try as exact path first (handles virtual paths like "Journal.md/2025-01-15")
+        note = self.get_note(target)
+        if note is not None:
+            return note
+
+        # Try adding .md extension
+        if not target.endswith(".md"):
+            note = self.get_note(f"{target}.md")
+            if note is not None:
+                return note
+
+        # Try exact title match FIRST (handles virtual note titles like "Journal#January 15, 2025")
+        # This must come before stripping # to properly match virtual note titles
+        # Also try without .md extension if present before # (e.g., "Journal.md#heading" -> "Journal#heading")
+        title_candidates = [target]
+        if ".md#" in target:
+            title_candidates.append(target.replace(".md#", "#"))
+
+        for candidate in title_candidates:
+            cursor = self.db.execute(
+                "SELECT path FROM notes WHERE title = ?",
+                (candidate,),
+            )
+            row = cursor.fetchone()
+            if row is not None:
+                return self.get_note(row[0])
+
+        # Try as heading link to virtual note (e.g., "Journal#2025-01-15")
+        # If the heading looks like a date, construct the virtual path
         if "#" in target:
             from .date_collection import parse_date_heading
 
@@ -561,31 +588,37 @@ class Vault:
                 if note is not None:
                     return note
 
-        # Strip heading/block references for remaining resolution strategies
+        # Strip heading/block references and try again
         # e.g., [[Note#heading]] -> "Note", [[Note^block]] -> "Note"
-        clean_target = target.split("#")[0].split("^")[0]
+        # This handles regular heading links to non-virtual notes
+        if "#" in target or "^" in target:
+            clean_target = target.split("#")[0].split("^")[0]
 
-        # Try as exact path first (handles virtual paths like "Journal.md/2025-01-15")
-        note = self.get_note(clean_target)
-        if note is not None:
-            return note
-
-        # Try adding .md extension
-        if not clean_target.endswith(".md"):
-            note = self.get_note(f"{clean_target}.md")
+            # Try clean target as path
+            note = self.get_note(clean_target)
             if note is not None:
                 return note
 
-        # Try looking up by title (handles virtual entry titles)
-        cursor = self.db.execute(
-            "SELECT path FROM notes WHERE title = ?",
-            (clean_target,),
-        )
-        row = cursor.fetchone()
-        if row is not None:
-            return self.get_note(row[0])
+            # Try clean target with .md extension
+            if not clean_target.endswith(".md"):
+                note = self.get_note(f"{clean_target}.md")
+                if note is not None:
+                    return note
+
+            # Try clean target as title
+            cursor = self.db.execute(
+                "SELECT path FROM notes WHERE title = ?",
+                (clean_target,),
+            )
+            row = cursor.fetchone()
+            if row is not None:
+                return self.get_note(row[0])
+        else:
+            # Use clean_target for date resolution below
+            clean_target = target
 
         # Try date-based resolution if source is a virtual entry
+        # This handles bare date links like [[2025-01-15]] from within journal entries
         if source_path and "/" in source_path:
             from .date_collection import parse_date_heading
 
