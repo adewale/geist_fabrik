@@ -5,7 +5,9 @@
 
 ## Executive Summary
 
-This document presents research-grounded proposals for new geists that leverage GeistFabrik's temporal embeddings infrastructure. Based on academic literature in diachronic embeddings, semantic change detection, and temporal knowledge graphs, we propose 7 new geists that detect patterns invisible to current implementations.
+This document presents research-grounded proposals for new geists that leverage GeistFabrik's temporal embeddings infrastructure. Based on academic literature in diachronic embeddings, semantic change detection, and temporal knowledge graphs, we propose 7 new geists that use temporal data to **ask provocative questions**, not report analytics.
+
+**Key Principle**: Temporal embeddings are a DETECTION MECHANISM, not the SUGGESTION ITSELF. These geists detect patterns in how understanding evolves, then ask what those patterns MEAN.
 
 ## Research Foundation
 
@@ -43,11 +45,11 @@ This document presents research-grounded proposals for new geists that leverage 
 
 ---
 
-### 1. **stability_anomaly** - Conformity Law Violations
+### 1. **foundation_tremor** - When Anchors Shift
 
-**Academic Grounding**: Hamilton et al. (2016) - Law of Conformity
+**Academic Grounding**: Hamilton et al. (2016) - Law of Conformity (core concepts should drift slowly)
 
-**Concept**: Frequently-referenced notes (high link density) should drift slowly due to semantic anchoring. When core concepts drift rapidly, it signals fundamental reconceptualization.
+**What It Detects**: Central notes (high link density) whose meaning has shifted unexpectedly across recent sessions.
 
 **Detection Method**:
 ```python
@@ -55,244 +57,220 @@ This document presents research-grounded proposals for new geists that leverage 
 expected_drift = ALPHA / (link_count + EPSILON)  # Inverse frequency
 actual_drift = mean([cosine_distance(emb[t], emb[t+1])
                      for t in last_5_sessions])
-anomaly_score = actual_drift - expected_drift
 
-# Flag if anomaly_score > 0.05
+# Flag if actual_drift > expected_drift + threshold
 ```
 
-**Example Output**:
-> Your understanding of "Emergence" has shifted significantly (drift: 0.18) despite being a central concept in your vault (32 backlinks). What fundamental insight challenged this anchor?
+**Example Suggestions**:
+> "[[Emergence]] is a foundation in your vault (32 backlinks), but your understanding is shifting underneath it. What if the ground itself is moving?"
 
-**Implementation File**: `src/geistfabrik/default_geists/stability_anomaly.py`
+> "[[Systems Thinking]] anchors many notes, yet you're reading it differently now. Are you revising a core assumption?"
 
-**Why It's Valuable**: Detects when foundational concepts are being reconsidered, suggesting intellectual paradigm shifts.
+> "[[Feedback Loops]] connects everywhere, but its meaning is drifting. What if this destabilizes more than you realize?"
+
+**Why It Works**: Uses temporal data to detect the pattern, then asks what the instability MEANS rather than reporting the numbers. Provocative, not analytical.
+
+**Implementation File**: `src/geistfabrik/default_geists/foundation_tremor.py`
 
 ---
 
-### 2. **polysemy_evolution** - Innovation Law Application
+### 2. **bridge_migration** - When Connectors Change Allegiance
 
-**Academic Grounding**: Hamilton et al. (2016) - Law of Innovation
+**Academic Grounding**: Hamilton et al. (2016) - Law of Innovation (polysemous concepts evolve faster)
 
-**Concept**: Notes serving multiple semantic roles (high context diversity) should evolve faster. Track which context-cluster is currently dominant.
+**What It Detects**: Notes that bridge multiple contexts, tracking which context-cluster is currently dominant and whether that's changed.
 
 **Detection Method**:
 ```python
-# Measure context diversity
+# Measure context diversity from backlinks
 backlink_contexts = [vault.embedding(link_note) for link_note in backlinks]
-polysemy_score = average_pairwise_distance(backlink_contexts)
+context_clusters = cluster_contexts(backlink_contexts)
 
-# Cluster contexts into semantic groups
-from sklearn.cluster import DBSCAN
-context_clusters = DBSCAN(eps=0.3).fit(backlink_contexts)
-
-# Track dominant cluster over sessions
+# Track which cluster dominates now vs. 5 sessions ago
 current_dominant = most_common_cluster(context_clusters, current_session)
 historical_dominant = most_common_cluster(context_clusters, 5_sessions_ago)
 
-# Flag if dominant cluster changed
+# Flag if dominant cluster shifted
 ```
 
-**Example Output**:
-> "Feedback loops" has shifted from primarily appearing in systems-thinking contexts to design patterns. This note's polysemous nature (5 distinct context clusters) makes it a conceptual bridge. Which domain is pulling harder now?
+**Example Suggestions**:
+> "[[Feedback Loops]] used to appear mostly in your systems-thinking notes, but now it's showing up in design patterns. What if it's migrating between domains?"
 
-**Implementation File**: `src/geistfabrik/default_geists/polysemy_evolution.py`
+> "[[Emergence]] links to both science and philosophy, but lately science is winning. Which perspective is fading—and should it?"
 
-**Why It's Valuable**: Reveals how bridge concepts between domains evolve, showing intellectual integration patterns.
+> "[[Recursion]] bridges programming and metaphor. It's shifting toward metaphor. What if you're thinking less like a programmer?"
+
+**Why It Works**: Detects the context shift, then asks what the migration MEANS. Not "you have 5 context clusters" but "which domain is winning?"
+
+**Implementation File**: `src/geistfabrik/default_geists/bridge_migration.py`
 
 ---
 
-### 3. **temporal_wave_classifier** - Bump/Shift/Cycle Detection
+### 3. **seasonal_echo** - Detecting Thinking Rhythms
 
-**Academic Grounding**: CatViz temporal pattern classification
+**Academic Grounding**: CatViz temporal pattern classification (bumps/shifts/cycles)
 
-**Concept**: Classify note relevance trajectories as:
-- **Bumps**: Temporary spikes (project work, events)
-- **Shifts**: Permanent changes (learning, reconceptualization)
-- **Cycles**: Periodic patterns (seasonal interests, annual reviews)
+**What It Detects**: Notes whose relevance follows periodic patterns (seasonal interests, annual rhythms).
 
 **Detection Method**:
 ```python
-# For each note, compute similarity trajectory to current embedding
+# Compute similarity trajectory over last 20 sessions
 trajectory = [cosine_similarity(emb_history[t], emb_current)
               for t in range(-20, 0)]
 
 # FFT to detect periodicity
 fft_result = np.fft.fft(detrend(trajectory))
-dominant_freq = argmax(power_spectrum[1:])
-
-if dominant_power / total_power > 0.3:
-    pattern = "cycle"
-    period = 1 / dominant_freq
-elif permanent_mean_shift_detected(trajectory):
-    pattern = "shift"
-elif temporary_spike_detected(trajectory):
-    pattern = "bump"
+# Classify as cycle if strong periodic component
 ```
 
-**Example Output (Cycle)**:
-> "Garden planning" shows a 12-session cycle (approx. yearly). Notes cluster around it each spring, then disperse. Your thinking has seasons.
+**Example Suggestions**:
+> "Every spring you orbit back to [[Garden Planning]]. What if your thinking has seasons you haven't acknowledged?"
 
-**Example Output (Shift)**:
-> "Machine learning" underwent a permanent semantic shift 8 sessions ago. Your understanding fundamentally changed—what was the catalyst?
+> "[[Productivity Systems]] comes back every 3 months like clockwork. What if the cycle IS the system?"
 
-**Example Output (Bump)**:
-> "Conference notes" spiked in relevance 3 sessions ago, then returned to baseline. What temporary convergence occurred?
+> "[[Annual Review]] appears once a year, but the notes around it change. Same ritual, different insights each time?"
 
-**Implementation File**: `src/geistfabrik/default_geists/temporal_wave_classifier.py`
+**Why It Works**: Uses FFT to detect cycles, but asks about the MEANING of periodicity rather than reporting "12-session cycle detected."
 
-**Why It's Valuable**: Surfaces temporal patterns invisible to single-session analysis, revealing intellectual rhythms.
+**Implementation File**: `src/geistfabrik/default_geists/seasonal_echo.py`
 
 ---
 
-### 4. **semantic_displacement** - Cross-Temporal Distance Tracking
+### 4. **time_traveler** - Long-Distance Conceptual Journeys
 
-**Academic Grounding**: Hamilton et al. (2016) global displacement metric with Procrustes alignment
+**Academic Grounding**: Hamilton et al. (2016) global displacement with Procrustes alignment
 
-**Concept**: Compare embeddings across large time gaps (6-12 months) using Procrustes alignment to normalize coordinate systems. Identify notes with maximum conceptual displacement.
+**What It Detects**: Notes whose meaning has traveled the furthest distance over 6-12 months (using aligned embeddings to normalize coordinate systems).
 
 **Detection Method**:
 ```python
-# Get embeddings from current session and 6 months ago
+# Get embeddings from current and 6 months ago
 current_embeds = vault.session.embeddings
 historical_embeds = vault.get_session(6_months_ago).embeddings
 
-# Find anchor notes (unchanged content)
-anchors = find_unchanged_notes(current, historical)
-
-# Compute Procrustes transformation W
-W = procrustes_align(historical_embeds[anchors], current_embeds[anchors])
-
-# Apply alignment
+# Procrustes alignment using anchor notes
+W = procrustes_align(historical_embeds, current_embeds, anchors)
 aligned_historical = {path: W @ emb for path, emb in historical_embeds.items()}
 
-# Compute displacement for all notes
-displacements = {
-    path: cosine_distance(aligned_historical[path], current_embeds[path])
-    for path in common_notes
-}
-
-# Surface top 5 movers
+# Find maximum displacement
+displacements = {path: cosine_distance(aligned_historical[path], current_embeds[path])
+                 for path in common_notes}
 ```
 
-**Example Output**:
-> Compared to 6 months ago, "Personal knowledge management" has moved furthest in semantic space (displacement: 0.47). You're thinking about this fundamentally differently now.
+**Example Suggestions**:
+> "Six months ago you thought about [[Personal Knowledge Management]] completely differently. What if the old version still has something to teach you?"
 
-**Implementation File**: `src/geistfabrik/default_geists/semantic_displacement.py`
+> "[[Creativity]] has traveled the furthest in semantic space since winter. Are you discovering it or inventing it?"
 
-**Why It's Valuable**: Reveals long-term conceptual evolution invisible to session-to-session comparisons.
+> "[[Systems Thinking]] moved more than any other note this year. What if you're not refining the concept—you're replacing it?"
+
+**Why It Works**: Uses Procrustes alignment to find long-term drift, then asks what the journey reveals rather than reporting displacement scores.
+
+**Implementation File**: `src/geistfabrik/default_geists/time_traveler.py`
 
 ---
 
-### 5. **concept_coherence_monitor** - ADWIN-Inspired Cluster Drift
+### 5. **crystallization** - When Concepts Sharpen or Blur
 
 **Academic Grounding**: ADWIN (Adaptive Windowing) for concept drift detection
 
-**Concept**: Monitor whether note clusters (by tag or MOC) are becoming more/less semantically coherent over time. Detect when concept boundaries blur or crystallize.
+**What It Detects**: Tag clusters or MOCs becoming more/less semantically coherent over time—concepts either crystallizing into clarity or fragmenting into ambiguity.
 
 **Detection Method**:
 ```python
-# For each tag, compute cluster coherence history
-def cluster_coherence(notes, session):
-    embeddings = [session.embedding(note) for note in notes]
-    return average_pairwise_similarity(embeddings)
-
+# For each tag, compute cluster coherence over last 10 sessions
 coherence_history = [
-    cluster_coherence(notes_with_tag, vault.get_session(offset=-i))
-    for i in range(10)
+    average_pairwise_similarity(notes_with_tag, session)
+    for session in recent_sessions
 ]
 
-# Apply ADWIN to detect change points
-older_window = coherence_history[:5]
-recent_window = coherence_history[5:]
-
-if mean(recent_window) - mean(older_window) > 0.2:
-    alert("coherence increasing - concepts crystallizing")
-elif mean(older_window) - mean(recent_window) > 0.2:
-    alert("coherence decreasing - boundaries blurring")
+# ADWIN: detect change points
+if coherence_increasing(coherence_history):
+    pattern = "crystallizing"
+elif coherence_decreasing(coherence_history):
+    pattern = "fragmenting"
 ```
 
-**Example Output (Decreasing)**:
-> Notes tagged #systems-thinking are becoming less coherent (coherence dropped 0.28 over 10 sessions). Concept boundaries may be blurring. Time to reorganize or split the tag?
+**Example Suggestions**:
+> "Notes tagged #systems-thinking are scattering. Are the boundaries blurring naturally, or are you losing the thread?"
 
-**Example Output (Increasing)**:
-> Notes tagged #creativity are converging (coherence increased 0.31). Your understanding is consolidating around a more unified framework.
+> "#creativity notes are converging into a tighter cluster. What if your understanding is narrowing—is that good or bad?"
 
-**Implementation File**: `src/geistfabrik/default_geists/concept_coherence_monitor.py`
+> "#productivity used to be coherent, now it's fragmenting. What if the concept is breaking apart as you learn more?"
 
-**Why It's Valuable**: Detects when mental models need reorganization or when understanding is maturing.
+**Why It Works**: Detects coherence changes, then asks whether fragmentation/convergence is good or bad rather than just reporting the shift.
+
+**Implementation File**: `src/geistfabrik/default_geists/crystallization.py`
 
 ---
 
-### 6. **link_semantics_drift** - Relationship Evolution Tracker
+### 6. **link_evolution** - When Connections Change Meaning
 
 **Academic Grounding**: Temporal Knowledge Graph Embeddings (context-aware relations)
 
-**Concept**: In TKGE, relations have temporal semantics: (subject, relation, object, time). In Obsidian, links are relationships. Track how the *meaning* of links evolves by comparing embedding of surrounding context over time.
+**What It Detects**: Links whose surrounding context has shifted over time—the connection itself remains but its MEANING has evolved.
 
 **Detection Method**:
 ```python
 # For each [[link]] from note A to note B:
-def get_link_context_embedding(source_note, target, session):
-    # Find paragraph containing [[target]] in source_note
-    link_pattern = f"[[{target.title}]]"
-    link_position = source_note.content.index(link_pattern)
-    context = extract_paragraph(source_note.content, link_position)
-    return vault.embed_text(context)
+# Extract paragraph surrounding the link at creation vs. now
+earliest_context = extract_link_context(A, B, first_session_with_link)
+current_context = extract_link_context(A, B, current_session)
 
-# Compare context embeddings across sessions
-earliest_context = get_link_context_embedding(A, B, first_session_with_link)
-current_context = get_link_context_embedding(A, B, current_session)
-
-context_drift = cosine_distance(earliest_context, current_context)
+# Compare context embeddings
+context_drift = cosine_distance(
+    vault.embed_text(earliest_context),
+    vault.embed_text(current_context)
+)
 
 # Flag if drift > 0.3
 ```
 
-**Example Output**:
-> The link from "Second brain" to "Zettelkasten" has evolved. Originally embedded in discussions of tools, now appears in contexts about thinking processes. The relationship's meaning shifted from technical to conceptual.
+**Example Suggestions**:
+> "When you linked [[Second Brain]] to [[Zettelkasten]], it was about tools. Now the context is about thinking. What if the link stayed but the relationship evolved?"
 
-**Implementation File**: `src/geistfabrik/default_geists/link_semantics_drift.py`
+> "[[Emergence]] → [[Complexity]]: You created this link 6 months ago in a scientific context. Now you're using it metaphorically. Same connection, different meaning?"
 
-**Why It's Valuable**: Reveals how understanding of connections evolves, suggesting when links need annotation or splitting.
+> "The link from [[Design]] to [[Systems]] used to be about process. Now it's about philosophy. What if you need two different links?"
 
-**Implementation Note**: Requires tracking link creation times (could use git history or file modification dates as proxy).
+**Why It Works**: Uses context drift detection, but asks about the EVOLUTION of understanding rather than just reporting "context changed."
+
+**Implementation File**: `src/geistfabrik/default_geists/link_evolution.py`
+
+**Implementation Note**: Requires link creation timestamps (use git history or first appearance in session_embeddings).
 
 ---
 
-### 7. **seasonal_resonance** - Enhanced Periodicity Detection
+### 7. **forgotten_return** - The Boomerang Pattern
 
-**Academic Grounding**: Fourier-based periodicity detection + CatViz cycles
+**Academic Grounding**: Temporal trajectory analysis (departure and return)
 
-**Concept**: Extend existing `seasonal_patterns` geist with:
-1. Multi-scale periodicity (monthly, quarterly, yearly)
-2. Phase-shift detection (patterns arriving earlier/later each cycle)
-3. Harmonic analysis (nested cycles)
+**What It Detects**: Notes that were semantically central, became peripheral, and are now returning to relevance—the intellectual boomerang.
 
 **Detection Method**:
 ```python
-# For each note, compute embedding trajectory
-trajectory = vault.get_embeddings_history(note, sessions=50)
+# Track note's similarity to vault center over time
+trajectory = []
+for session in last_20_sessions:
+    similarity_to_center = compute_centrality(note, session)
+    trajectory.append(similarity_to_center)
 
-# Multi-resolution FFT
-periods = detect_multiple_periods(trajectory)  # Returns [(period, strength)]
-
-# Detect phase shifts
-if len(periods) > 0:
-    dominant_period = periods[0][0]
-    phase_current = compute_phase(trajectory[-dominant_period:])
-    phase_previous = compute_phase(trajectory[-2*dominant_period:-dominant_period])
-    phase_shift = phase_current - phase_previous
-
-# Detect harmonics (e.g., 3-month + 12-month cycles)
-harmonics = find_harmonic_relationships(periods)
+# Detect U-shaped pattern (high → low → high)
+if is_u_shaped(trajectory):
+    departure_point = argmin(trajectory)
+    # Note departed, now returning
 ```
 
-**Example Output**:
-> "Productivity systems" shows nested cycles: 3-month minor (quarterly reviews) and 12-month major (yearly planning). This year, the 3-month cycle is arriving 2 weeks earlier—you're front-loading reflection.
+**Example Suggestions**:
+> "You orbited away from [[Metacognition]] for months, now you're circling back. Same place, different altitude?"
 
-**Implementation File**: `src/geistfabrik/default_geists/seasonal_resonance.py`
+> "[[First Principles]] was central last spring, faded all summer, now it's returning. What if you needed the detour to really see it?"
 
-**Why It's Valuable**: Reveals complex temporal rhythms in thinking, suggesting optimal review schedules.
+> "[[Emergence]] dropped out of your thinking, now it's re-emerging. Are you returning to old ground or discovering it fresh?"
+
+**Why It Works**: Detects the departure-and-return pattern, then asks about the JOURNEY rather than reporting "centrality decreased 30% then increased 25%."
+
+**Implementation File**: `src/geistfabrik/default_geists/forgotten_return.py`
 
 ---
 
@@ -302,18 +280,21 @@ harmonics = find_harmonic_relationships(periods)
 
 **Target**: Next release (0.10.0)
 
-1. **stability_anomaly** - Minimal complexity, high value
+1. **foundation_tremor** - Minimal complexity, high value
    - Uses existing link counts and embedding history
    - Single SQL query for backlinks
    - ~100 lines of code
+   - **Question**: "What if the ground itself is moving?"
 
-2. **polysemy_evolution** - Moderate complexity
-   - Requires sklearn for clustering (already a dependency)
-   - ~150 lines of code
-
-3. **concept_coherence_monitor** - Simple ADWIN implementation
-   - Works with existing tag structure
+2. **seasonal_echo** - Moderate complexity
+   - Simple FFT-based periodicity detection
    - ~120 lines of code
+   - **Question**: "What if your thinking has seasons?"
+
+3. **forgotten_return** - Simple trajectory analysis
+   - Track centrality over time
+   - ~100 lines of code
+   - **Question**: "Same place, different altitude?"
 
 **Estimated Effort**: 2-3 days for all three
 
@@ -323,14 +304,15 @@ harmonics = find_harmonic_relationships(periods)
 
 **Target**: Release 0.11.0
 
-4. **temporal_wave_classifier** - Requires FFT/signal processing
-   - Add scipy as dependency (lightweight)
-   - Implement detrending and pattern classification
-   - ~200 lines of code
+4. **bridge_migration** - Context clustering analysis
+   - Cluster backlink contexts to detect domain shifts
+   - ~150 lines of code
+   - **Question**: "Which domain is winning?"
 
-5. **semantic_displacement** - Requires Procrustes implementation
+5. **time_traveler** - Requires Procrustes implementation
    - Implement alignment caching for performance
    - ~250 lines of code
+   - **Question**: "Are you discovering it or inventing it?"
 
 **Estimated Effort**: 3-4 days
 
@@ -340,15 +322,16 @@ harmonics = find_harmonic_relationships(periods)
 
 **Target**: Release 0.12.0+
 
-6. **link_semantics_drift** - Requires link tracking infrastructure
+6. **crystallization** - ADWIN-based coherence tracking
+   - Track tag cluster coherence over time
+   - ~150 lines of code
+   - **Question**: "Are the boundaries blurring naturally, or are you losing the thread?"
+
+7. **link_evolution** - Requires link tracking infrastructure
    - Add link creation timestamps to database schema
    - Implement context extraction
    - ~300 lines of code + schema migration
-
-7. **seasonal_resonance** - Enhancement of existing geist
-   - Multi-resolution FFT
-   - Phase shift detection
-   - ~200 lines of code
+   - **Question**: "Same connection, different meaning?"
 
 **Estimated Effort**: 4-5 days
 
@@ -806,21 +789,21 @@ GeistFabrik is uniquely positioned to contribute to academic research:
 
 ## Conclusion
 
-These 7 proposed geists leverage GeistFabrik's temporal embeddings architecture in ways grounded by rigorous academic research. They detect patterns invisible to single-session analysis:
+These 7 proposed geists leverage GeistFabrik's temporal embeddings architecture in ways grounded by rigorous academic research. They use temporal data as a DETECTION mechanism, then ask PROVOCATIVE QUESTIONS about what patterns mean:
 
-1. **stability_anomaly**: When core concepts drift (conformity law)
-2. **polysemy_evolution**: How bridge concepts evolve (innovation law)
-3. **temporal_wave_classifier**: Bump/shift/cycle patterns
-4. **semantic_displacement**: Long-term conceptual evolution
-5. **concept_coherence_monitor**: Cluster drift detection
-6. **link_semantics_drift**: Relationship meaning evolution
-7. **seasonal_resonance**: Multi-scale periodicity
+1. **foundation_tremor**: "What if the ground itself is moving?" (conformity law violations)
+2. **bridge_migration**: "Which domain is winning?" (polysemous concept evolution)
+3. **seasonal_echo**: "What if your thinking has seasons?" (periodicity detection)
+4. **time_traveler**: "Are you discovering it or inventing it?" (long-term displacement)
+5. **crystallization**: "Are you losing the thread?" (cluster coherence drift)
+6. **link_evolution**: "Same connection, different meaning?" (relationship semantics)
+7. **forgotten_return**: "Same place, different altitude?" (departure and return)
 
-Each geist embodies GeistFabrik's "muses, not oracles" philosophy—surfacing provocative questions about intellectual evolution rather than prescriptive answers.
+Each geist embodies GeistFabrik's "muses, not oracles" philosophy—using temporal analysis to ask questions you wouldn't ask yourself, not to report measurements you could calculate.
 
 **Next Steps**:
 1. Review and approve proposals
-2. Implement Phase 1 geists (stability_anomaly, polysemy_evolution, concept_coherence_monitor)
+2. Implement Phase 1 geists (foundation_tremor, seasonal_echo, forgotten_return)
 3. Add to test suite with known-answer tests
 4. Document in GEIST_CATALOG.md
 5. Release in version 0.10.0
