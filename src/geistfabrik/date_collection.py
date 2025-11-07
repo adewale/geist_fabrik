@@ -275,8 +275,9 @@ def split_date_collection_note(
         all_tags = frontmatter_tags + [tag for tag in inline_tags if tag not in frontmatter_tags]
 
         # Generate virtual path and title
+        # Title uses Obsidian deeplink format for clickable links
         virtual_path = f"{file_path}/{entry_date.isoformat()}"
-        title = f"{file_stem} - {entry_date.isoformat()}"
+        title = f"{file_stem}#{entry_date.isoformat()}"
 
         # Create note with entry_date as created time
         entry_datetime = datetime.combine(entry_date, datetime.min.time())
