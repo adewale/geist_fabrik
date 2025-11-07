@@ -922,6 +922,142 @@ More thoughts.
     vault.close()
 
 
+def test_roundtrip_journal_to_virtual_notes_and_back(tmp_path: Path) -> None:
+    """Test that we can split a journal into virtual notes and reconstruct it.
+
+    This verifies data integrity through the split-and-reconstruct process:
+    1. Start with a journal file containing multiple date entries
+    2. Split it into virtual notes via sync
+    3. Reconstruct the journal content from virtual notes
+    4. Verify all information is preserved
+
+    This ensures that:
+    - No content is lost during splitting
+    - Headings are preserved correctly
+    - Entry order can be maintained
+    - The structure can be reconstructed
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create a journal with mixed date formats and content
+    original_content = """---
+tags: [journal, work]
+---
+
+## 2025-01-15
+Morning standup went well. Discussed the new feature.
+
+### Tasks
+- Review PR #123
+- Update documentation
+
+## January 16, 2025
+Code review day. Found some interesting edge cases.
+
+Link to [[Important Note]].
+
+## 2025-01-17
+Sprint planning session.
+
+#planning #team
+"""
+
+    journal_path = vault_path / "Work Log.md"
+    journal_path.write_text(original_content)
+
+    # Split into virtual notes
+    vault = Vault(vault_path)
+    vault.sync()
+
+    # Get all virtual notes for this journal
+    all_notes = vault.all_notes()
+    virtual_notes = [n for n in all_notes if n.is_virtual and n.source_file == "Work Log.md"]
+
+    # Verify we got 3 virtual notes
+    assert len(virtual_notes) == 3, f"Expected 3 virtual notes, got {len(virtual_notes)}"
+
+    # Sort by entry date (same order as original file)
+    virtual_notes.sort(key=lambda n: n.entry_date)
+
+    # Reconstruct the journal from virtual notes
+    # Each virtual note has:
+    # - title in format "Work Log#<original_heading>"
+    # - content (the section content without the heading)
+    # - tags (including frontmatter tags)
+    reconstructed_sections = []
+
+    for note in virtual_notes:
+        # Extract original heading from title
+        # Title format: "Work Log#2025-01-15" or "Work Log#January 16, 2025"
+        heading_text = note.title.split("#", 1)[1]
+
+        # Reconstruct section: heading + content
+        section = f"## {heading_text}\n{note.content}"
+        reconstructed_sections.append(section)
+
+    # Join sections
+    reconstructed_body = "\n\n".join(reconstructed_sections)
+
+    # Verify content preservation for each entry
+    # Entry 1: 2025-01-15
+    assert virtual_notes[0].title == "Work Log#2025-01-15"
+    assert "Morning standup went well" in virtual_notes[0].content
+    assert "### Tasks" in virtual_notes[0].content
+    assert "Review PR #123" in virtual_notes[0].content
+    assert "Update documentation" in virtual_notes[0].content
+
+    # Entry 2: January 16, 2025 (original heading preserved)
+    assert virtual_notes[1].title == "Work Log#January 16, 2025"
+    assert "Code review day" in virtual_notes[1].content
+    assert "interesting edge cases" in virtual_notes[1].content
+    assert "Important Note" in virtual_notes[1].content
+
+    # Entry 3: 2025-01-17
+    assert virtual_notes[2].title == "Work Log#2025-01-17"
+    assert "Sprint planning session" in virtual_notes[2].content
+
+    # Verify tags are preserved
+    # Frontmatter tags should be on all entries
+    assert "journal" in virtual_notes[0].tags
+    assert "work" in virtual_notes[0].tags
+    assert "journal" in virtual_notes[1].tags
+    assert "work" in virtual_notes[1].tags
+    assert "journal" in virtual_notes[2].tags
+    assert "work" in virtual_notes[2].tags
+
+    # Inline tags should be on specific entries
+    assert "planning" in virtual_notes[2].tags
+    assert "team" in virtual_notes[2].tags
+    assert "planning" not in virtual_notes[0].tags
+    assert "planning" not in virtual_notes[1].tags
+
+    # Verify links are preserved and extracted correctly
+    entry2_links = {link.target for link in virtual_notes[1].links}
+    assert "Important Note" in entry2_links
+
+    # Verify we can reconstruct the heading structure
+    assert "## 2025-01-15" in reconstructed_body
+    assert "## January 16, 2025" in reconstructed_body
+    assert "## 2025-01-17" in reconstructed_body
+
+    # Verify content is in reconstructed body
+    assert "Morning standup went well" in reconstructed_body
+    assert "Code review day" in reconstructed_body
+    assert "Sprint planning session" in reconstructed_body
+
+    # Verify subheadings are preserved
+    assert "### Tasks" in reconstructed_body
+
+    # Verify the order is maintained (chronological by entry_date)
+    jan15_pos = reconstructed_body.index("## 2025-01-15")
+    jan16_pos = reconstructed_body.index("## January 16, 2025")
+    jan17_pos = reconstructed_body.index("## 2025-01-17")
+    assert jan15_pos < jan16_pos < jan17_pos, "Entries should be in chronological order"
+
+    vault.close()
+
+
 def test_date_collection_disabled_in_config(tmp_path: Path) -> None:
     """Test date-collection can be disabled via config."""
     from geistfabrik.config_loader import DateCollectionConfig, GeistFabrikConfig
