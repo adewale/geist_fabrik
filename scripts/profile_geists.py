@@ -281,7 +281,6 @@ def main():
     # Default geists to profile (graph-heavy ones that should benefit from caching)
     geists_to_profile = [
         "hidden_hub",
-        "congruence_mirror",
         "stub_expander",
         "bridge_hunter",
     ]

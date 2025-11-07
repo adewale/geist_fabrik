@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **congruence_mirror geist** - Removed due to scalability issues on large vaults
+  - Timed out (60+ seconds) on vaults with 10,000+ notes and hundreds of thousands of links
+  - O(L) algorithm processed all links individually causing 891,104 sklearn validation calls
+  - Functionality partially covered by bridge_builder (IMPLICIT quadrant) and hidden_hub
+  - Specification and historical documentation preserved for reference
+
 ### Performance
 - **BIG OPTIMIZATION #1**: Fixed O(N²) algorithmic inefficiencies (6 locations)
   - **CRITICAL**: Fixed pattern_finder timeout on large vaults (10k+ notes)

@@ -84,7 +84,6 @@ These geists use embeddings to find notes that are semantically related (or deli
 | **bridge_builder** | Unlinked similar notes | Suggest missing connections |
 | **bridge_hunter** | Existing links with high similarity | Strengthen explicit connections |
 | **island_hopper** | Cross-cluster connections | Bridge isolated knowledge islands |
-| **congruence_mirror** | Similar semantic content | Find notes saying same things differently |
 
 **Characteristics**:
 - 🧮 Requires embedding computation

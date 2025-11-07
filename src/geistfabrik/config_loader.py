@@ -22,7 +22,6 @@ DEFAULT_CODE_GEISTS = [
     "complexity_mismatch",
     "concept_cluster",
     "concept_drift",
-    "congruence_mirror",
     "convergent_evolution",
     "creative_collision",
     "density_inversion",
