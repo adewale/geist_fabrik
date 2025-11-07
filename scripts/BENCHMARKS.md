@@ -1,6 +1,49 @@
-# Vector Search Backend Benchmarks
+# GeistFabrik Benchmark Scripts
 
-This directory contains benchmarking tools for comparing vector search backend performance.
+This directory contains benchmarking tools for GeistFabrik performance testing.
+
+**For comprehensive benchmarking guide, see [`../docs/BENCHMARKING_GUIDE.md`](../docs/BENCHMARKING_GUIDE.md)**
+
+---
+
+## 1. sklearn Optimization Benchmarks
+
+Test different sklearn configuration optimizations for large vaults (10k+ notes).
+
+### Running Benchmarks
+
+```bash
+# Run comprehensive benchmark (8 configs × 9 geists = 72 runs)
+python scripts/benchmark_optimizations.py \
+  --vault "/path/to/large/vault" \
+  --output /tmp/sklearn_results.json \
+  --timeout 120
+
+# Analyze results
+python scripts/analyze_benchmarks.py --input /tmp/sklearn_results.json
+```
+
+### What It Tests
+
+- **8 configurations**: baseline + 7 optimization combinations
+- **9 geists**: 6 problem geists (slow/timeout) + 3 control geists (fast)
+- **Correctness validation**: MD5 hash verification
+- **Performance analysis**: Speedup calculations, winner recommendation
+
+### Results
+
+See [`../docs/SKLEARN_OPTIMIZATION_BENCHMARK.md`](../docs/SKLEARN_OPTIMIZATION_BENCHMARK.md) for detailed results.
+
+**Key findings**:
+- 21% speedup with `assume_finite=True`
+- All optimizations preserve correctness
+- No timeouts with any configuration
+
+---
+
+## 2. Vector Search Backend Benchmarks
+
+Compare performance of different vector search backends (in-memory vs sqlite-vec).
 
 ## Running Benchmarks
 

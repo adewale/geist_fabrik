@@ -18,6 +18,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List
 
+from benchmark_config import CONFIGS
+
 
 def load_results(input_path: str) -> Dict[str, Any]:
     """Load benchmark results from JSON file."""
@@ -315,76 +317,7 @@ def main():
     print()
 
     # Decode winner config
-    winner_config = next(
-        c
-        for c in [
-            {
-                "name": "baseline",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "false",
-                    "GEIST_FAST_PATH": "false",
-                    "GEIST_VECTORIZE": "false",
-                },
-            },
-            {
-                "name": "opt1_assume_finite",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "true",
-                    "GEIST_FAST_PATH": "false",
-                    "GEIST_VECTORIZE": "false",
-                },
-            },
-            {
-                "name": "opt2_fast_path",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "false",
-                    "GEIST_FAST_PATH": "true",
-                    "GEIST_VECTORIZE": "false",
-                },
-            },
-            {
-                "name": "opt3_vectorize",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "false",
-                    "GEIST_FAST_PATH": "false",
-                    "GEIST_VECTORIZE": "true",
-                },
-            },
-            {
-                "name": "opt1+2",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "true",
-                    "GEIST_FAST_PATH": "true",
-                    "GEIST_VECTORIZE": "false",
-                },
-            },
-            {
-                "name": "opt1+3",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "true",
-                    "GEIST_FAST_PATH": "false",
-                    "GEIST_VECTORIZE": "true",
-                },
-            },
-            {
-                "name": "opt2+3",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "false",
-                    "GEIST_FAST_PATH": "true",
-                    "GEIST_VECTORIZE": "true",
-                },
-            },
-            {
-                "name": "all_optimizations",
-                "env": {
-                    "GEIST_ASSUME_FINITE": "true",
-                    "GEIST_FAST_PATH": "true",
-                    "GEIST_VECTORIZE": "true",
-                },
-            },
-        ]
-        if c["name"] == winner
-    )
+    winner_config = next(c for c in CONFIGS if c["name"] == winner)
 
     print("   SKLEARN_OPTIMIZATIONS = {")
     for key, val in winner_config["env"].items():

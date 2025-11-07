@@ -41,6 +41,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added comprehensive unit tests (tests/unit/test_sklearn_migration.py)
   - Expected impact: 10-15% speedup on geist execution phase
 
+- **BIG OPTIMIZATION #3**: sklearn configuration tuning with benchmarking suite
+  - **Optimization flags**: Three tunable sklearn optimizations for large vaults (10k+ notes)
+    - `assume_finite=True`: Skip NaN/inf validation (21% speedup, 23.2s → 19.4s avg)
+    - `force_all_finite=False`: Relaxed validation in pairwise operations
+    - NumPy array optimizations via environment variables
+  - **Benchmarking infrastructure**: Comprehensive test harness for optimization validation
+    - scripts/benchmark_optimizations.py: Test 8 configs × 9 geists = 72 runs
+    - scripts/analyze_benchmarks.py: Correctness validation + performance analysis
+    - scripts/benchmark_config.py: Shared configuration for consistency
+    - MD5 hash validation ensures optimizations don't change results
+  - **Results on 10k vault**: All optimizations preserve correctness (identical outputs)
+    - opt1_assume_finite: 21% faster overall, 24% faster on antithesis_generator
+    - No timeouts with any configuration (120s timeout limit)
+    - All configs produce identical suggestion hashes (validated via MD5)
+  - **Implementation**: Environment variable configuration in embeddings.py
+    - Allows A/B testing different optimization strategies
+    - Safe fallback to conservative defaults
+  - See docs/SKLEARN_OPTIMIZATION_BENCHMARK.md for detailed methodology
+
 ### Added
 - Vault helper functions for cleaner code patterns:
   - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:523-535)
