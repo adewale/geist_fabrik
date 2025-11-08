@@ -1083,6 +1083,107 @@ class EmbeddingMetricsComputer:
 
         return cluster_labels
 
+    def _label_clusters_keybert(
+        self, paths: List[str], labels: np.ndarray, n_terms: int = 4
+    ) -> Dict[int, str]:
+        """Generate cluster labels using KeyBERT approach with semantic embeddings.
+
+        Uses semantic similarity between candidate phrases and cluster centroids
+        to select more semantically coherent labels than frequency-based c-TF-IDF.
+
+        Requires sentence-transformers model access (lazy-loads if needed).
+
+        Args:
+            paths: Note paths
+            labels: Cluster labels
+            n_terms: Number of terms to use in final label (after MMR)
+
+        Returns:
+            Dictionary mapping cluster_id to label string
+        """
+        from .embeddings import EmbeddingComputer
+
+        cluster_labels = {}
+
+        # Load note titles/content for each cluster
+        clusters: Dict[int, List[str]] = {}
+        for i, label in enumerate(labels):
+            if label == -1:
+                continue
+            if label not in clusters:
+                clusters[label] = []
+
+            # Get note title and content
+            path = paths[i]
+            cursor = self.db.execute("SELECT title, content FROM notes WHERE path = ?", (path,))
+            row = cursor.fetchone()
+            if row:
+                title, content = row
+                # Use title + first 200 chars of content
+                text = f"{title} {content[:200]}"
+                clusters[label].append(text)
+
+        if not clusters:
+            return {}
+
+        # Get embedding computer (lazy-load model)
+        computer = EmbeddingComputer()
+
+        # Get cluster embeddings to compute centroids
+        cluster_embeddings: Dict[int, List[np.ndarray]] = {}
+        for cluster_id, texts in clusters.items():
+            # Embed all texts in this cluster
+            embeddings = computer.compute_batch_semantic(texts)
+            cluster_embeddings[cluster_id] = list(embeddings)
+
+        # Process each cluster
+        for cluster_id, texts in clusters.items():
+            # Concatenate all text for n-gram extraction
+            cluster_text = " ".join(texts)
+
+            # Compute cluster centroid
+            centroid = np.mean(cluster_embeddings[cluster_id], axis=0)
+
+            # Extract candidate phrases using TF-IDF to get good candidates
+            vectorizer = TfidfVectorizer(
+                max_features=100, stop_words="english", ngram_range=(1, 3)
+            )
+            try:
+                # Fit on this cluster's text only
+                tfidf_matrix = vectorizer.fit_transform([cluster_text])
+                feature_names = vectorizer.get_feature_names_out()
+                cluster_vector = tfidf_matrix[0].toarray()[0]
+
+                # Get top 16 candidates by TF-IDF (more than final to allow semantic filtering)
+                n_candidates = min(16, len(feature_names))
+                top_indices = cluster_vector.argsort()[-n_candidates:][::-1]
+                candidate_terms = [feature_names[idx] for idx in top_indices]
+
+                # Skip if no candidates
+                if not candidate_terms:
+                    cluster_labels[cluster_id] = f"Cluster {cluster_id}"
+                    continue
+
+                # Embed candidate phrases
+                candidate_embeddings = computer.compute_batch_semantic(candidate_terms)
+
+                # Compute semantic similarity to cluster centroid
+                centroid_2d = centroid.reshape(1, -1)
+                similarities = sklearn_cosine(centroid_2d, candidate_embeddings)[0]
+
+                # Apply MMR with semantic scores
+                diverse_terms = self._apply_mmr_filtering(
+                    candidate_terms, similarities, lambda_param=0.5, k=n_terms
+                )
+
+                cluster_labels[cluster_id] = ", ".join(diverse_terms)
+
+            except Exception as e:
+                # If KeyBERT approach fails, use simple fallback
+                cluster_labels[cluster_id] = f"Cluster {cluster_id}"
+
+        return cluster_labels
+
 
 class StatsFormatter:
     """Formats statistics for output."""
