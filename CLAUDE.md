@@ -17,7 +17,8 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 47 bundled geists (38 code, 9 Tracery) - automatically available
+  - **default_geists/**: 49 bundled geists (40 code, 9 Tracery) - automatically available
+    - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
 - **specs/**: Original technical specifications (all implemented)
@@ -29,7 +30,7 @@ The system is fully functional and operational. All phases of the specification 
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 47 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 49 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns
@@ -82,21 +83,32 @@ pytest tests/ -k "unit"
 ### Type Checking Requirements
 
 CI uses `mypy --strict` which requires:
-- Explicit type parameters for generics: `Dict[str, Any]` not `Dict`
+- Explicit type parameters for generics: `dict[str, Any]` not `dict`
 - Type hints on all function parameters and returns
 - No implicit `Any` types
 
-**Example**:
+**Type Hint Style**: GeistFabrik uses **modern Python 3.9+ syntax** (PEP 585) for built-in types:
+- Use `list[Type]`, `dict[K, V]`, `tuple[T, ...]` (lowercase, no imports)
+- NOT `List[Type]`, `Dict[K, V]`, `Tuple[T, ...]` (from `typing`)
+
+**Example - Missing Type Parameters** (This will fail CI):
 ```python
-# ❌ WRONG - Will fail CI
-def from_dict(cls, data: Dict) -> Config:
+# ❌ WRONG - Missing type parameters
+def from_dict(cls, data: dict) -> Config:  # dict needs [str, Any]
     pass
 
-# ✅ CORRECT - Will pass CI
-from typing import Any, Dict
+# ✅ CORRECT - Type parameters provided
+from typing import Any
 
-def from_dict(cls, data: Dict[str, Any]) -> Config:
+def from_dict(cls, data: dict[str, Any]) -> Config:
     pass
+```
+
+**Example - Geist Return Type**:
+```python
+# ✅ CORRECT - Modern syntax
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
+    return []
 ```
 
 ### Why This Matters
@@ -380,6 +392,32 @@ def test_mathematical_ground_truth():
 - `README.md` - High-level project description
 
 ## Common Development Patterns
+
+### Geist Count Management (Single Source of Truth)
+
+**DO NOT** hardcode geist counts anywhere in the codebase or documentation. Instead:
+
+**Use the programmatic constants**:
+```python
+from geistfabrik.default_geists import (
+    CODE_GEIST_COUNT,
+    TRACERY_GEIST_COUNT,
+    TOTAL_GEIST_COUNT,
+)
+```
+
+**How it works**:
+- `src/geistfabrik/default_geists/__init__.py` counts files programmatically using `Path.glob()`
+- These constants are the single source of truth for all geist counts
+- Automated tests verify that documentation stays synchronized (see `tests/unit/test_geist_count_consistency.py`)
+- Tests will fail if README.md or CLAUDE.md mention outdated counts
+
+**When adding/removing geists**:
+1. Add/remove the geist file (*.py or *.yaml)
+2. Run tests - they will verify counts automatically update
+3. No manual documentation updates needed for counts
+
+**Why this matters**: Prevents drift between actual geist counts and documentation, eliminating the need to manually update counts in multiple places.
 
 ### Adding a Metadata Module
 1. Create `<vault>/_geistfabrik/metadata_inference/module_name.py`
