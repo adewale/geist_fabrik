@@ -3,6 +3,17 @@
 **Before**: c-TF-IDF (frequency-based keyword extraction)
 **After**: KeyBERT (semantic similarity to cluster centroid)
 
+## About These Examples
+
+These are **realistic synthetic examples** based on common note patterns. Real examples require a vault with 10+ notes to form meaningful clusters (HDBSCAN's minimum cluster size is 5).
+
+**To generate real examples from your vault**:
+```bash
+python scripts/compare_cluster_labeling.py /path/to/your/vault
+```
+
+This will show side-by-side comparisons of both labeling methods on your actual clusters.
+
 ---
 
 ## Example 1: Personal Knowledge Management Cluster

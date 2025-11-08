@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Cluster Labeling**: Enhanced cluster naming with configurable KeyBERT method
+  - **New default**: KeyBERT (semantic similarity) replaces c-TF-IDF for cluster labels
+  - **Impact**: Cluster names will be more descriptive and semantically coherent
+    - Before: "notes, knowledge, system, management" (single keywords)
+    - After: "knowledge management systems, evergreen note-taking" (multi-word phrases)
+  - **Migration**: Existing users will see different cluster names in new sessions
+  - **Revert option**: Set `clustering.labeling_method: tfidf` in config.yaml to use old method
+  - **Configuration**:
+    ```yaml
+    clustering:
+      labeling_method: keybert  # or "tfidf" for legacy behavior
+      min_cluster_size: 5
+      n_label_terms: 4
+    ```
+  - **Technical**: KeyBERT uses semantic similarity to cluster centroids vs frequency-based TF-IDF
+  - **Performance**: ~0.5-1s slower per cluster, but significantly better label quality
+  - **Fallback**: Gracefully falls back to simple labels if sentence-transformers model unavailable
+
 ### Removed
 - **congruence_mirror geist** - Removed due to scalability issues on large vaults
   - Timed out (60+ seconds) on vaults with 10,000+ notes and hundreds of thousands of links
