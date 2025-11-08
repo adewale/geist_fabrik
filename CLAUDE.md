@@ -434,7 +434,7 @@ from geistfabrik.default_geists import (
 ### Adding a Code Geist
 1. Create `<vault>/_geistfabrik/geists/code/geist_name.py`
 2. Export `suggest(vault: VaultContext) -> List[Suggestion]`
-3. Include timeout handling (5 second default)
+3. Include timeout handling (30 second default)
 4. Return empty list if no quality suggestions found
 
 ### Adding a Tracery Geist
@@ -451,7 +451,7 @@ from geistfabrik.default_geists import (
 ## Error Handling Philosophy
 
 From the spec:
-- Geists execute with 5-second timeout (configurable)
+- Geists execute with 30-second timeout (configurable)
 - After 3 failures, geist automatically disabled
 - Error logs include test command to reproduce: `geistfabrik test geist_id /path/to/vault --date YYYY-MM-DD`
 - System continues if individual geists fail

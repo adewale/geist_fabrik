@@ -1274,8 +1274,8 @@ Examples:
     invoke_parser.add_argument(
         "--timeout",
         type=int,
-        default=5,
-        help="Geist execution timeout in seconds (default: 5)",
+        default=30,
+        help="Geist execution timeout in seconds (default: 30)",
     )
     invoke_parser.add_argument(
         "--full",
@@ -1351,8 +1351,8 @@ Examples:
     test_parser.add_argument(
         "--timeout",
         type=int,
-        default=5,
-        help="Geist execution timeout in seconds (default: 5)",
+        default=30,
+        help="Geist execution timeout in seconds (default: 30)",
     )
     test_parser.add_argument(
         "--verbose",
@@ -1383,8 +1383,8 @@ Examples:
     test_all_parser.add_argument(
         "--timeout",
         type=int,
-        default=5,
-        help="Geist execution timeout in seconds (default: 5)",
+        default=30,
+        help="Geist execution timeout in seconds (default: 30)",
     )
     test_all_parser.add_argument(
         "--verbose",

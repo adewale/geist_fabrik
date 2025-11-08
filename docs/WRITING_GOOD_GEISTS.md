@@ -431,24 +431,24 @@ Use thesis/antithesis/synthesis:
 
 ## Performance Guidance
 
-Writing good geists isn't just about philosophy—it's also about performance. Geists run within a 5-second timeout (default) and compete with 46 other geists for user attention. This section covers performance best practices learned from production use.
+Writing good geists isn't just about philosophy—it's also about performance. Geists run within a 30-second timeout (default) and compete with 46 other geists for user attention. This section covers performance best practices learned from production use.
 
 ### Understanding the Timeout
 
-**Default timeout**: 5 seconds per geist
+**Default timeout**: 30 seconds per geist
 - Configurable via `--timeout` flag during testing/development
 - After 3 consecutive timeouts, geist is automatically disabled
 - Timeout logged with test command for reproduction
 
 **What happens on timeout**:
 ```
-⚠ scale_shifter timed out (5.0s)
+⚠ scale_shifter timed out (30.0s)
 → Test: geistfabrik test scale_shifter /path/to/vault --date YYYY-MM-DD
 ```
 
 **Timeout budget breakdown** (typical 500-note vault):
 - Embeddings & setup: ~0.5s (handled by session, not your geist)
-- Your geist execution: 5.0s
+- Your geist execution: 30.0s
 - Filtering pipeline: ~0.2s per geist
 
 ### Common Performance Issues
