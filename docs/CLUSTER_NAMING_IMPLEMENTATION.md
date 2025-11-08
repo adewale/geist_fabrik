@@ -1,12 +1,14 @@
 # Cluster Naming Enhancement: KeyBERT Implementation
 
-**Status**: ✅ Implemented
+**Status**: ✅ Enabled by Default
 **Date**: 2025-11-08
-**Related**: [CLUSTER_NAMING_RESEARCH.md](./CLUSTER_NAMING_RESEARCH.md)
+**Related**: [CLUSTER_NAMING_RESEARCH.md](./CLUSTER_NAMING_RESEARCH.md) | [Examples](./CLUSTER_NAMING_EXAMPLES.md)
 
 ## Summary
 
-We've implemented a **KeyBERT-based cluster labeling method** as an enhancement to the existing c-TF-IDF approach in GeistFabrik. This implementation leverages semantic embeddings to produce more coherent cluster names for the `cluster_mirror` geist.
+KeyBERT-based cluster labeling is now the **default method** for generating cluster names in GeistFabrik. This semantic similarity-based approach produces more coherent and interpretable cluster names than the previous frequency-based c-TF-IDF method.
+
+**See [CLUSTER_NAMING_EXAMPLES.md](./CLUSTER_NAMING_EXAMPLES.md) for detailed before/after examples.**
 
 ## What Was Implemented
 
@@ -109,11 +111,9 @@ The KeyBERT implementation follows the **hybrid approach** recommended in the re
 
 ### For End Users
 
-The KeyBERT method is **not yet enabled by default**. To try it:
+KeyBERT is now **enabled by default** for all cluster labeling. All `cluster_mirror` geist suggestions will use semantic similarity-based naming automatically.
 
-1. The implementation exists in `stats.py` as `_label_clusters_keybert()`
-2. Currently the system uses `_label_clusters_tfidf()` (line 932 in stats.py)
-3. To enable KeyBERT globally, modify line 932 to use `_label_clusters_keybert()`
+**No configuration needed** - the system will automatically use KeyBERT for cluster naming.
 
 ### For Developers
 
@@ -218,27 +218,13 @@ Based on the academic research and implementation analysis:
 
 ### Integration with VaultContext
 
-The `get_clusters()` method in `vault_context.py:540-656` currently calls:
-
-```python
-cluster_labels_raw = metrics_computer._label_clusters_tfidf(paths, labels, n_terms=4)
-```
-
-To switch to KeyBERT globally, change to:
+KeyBERT is now integrated as the default labeling method in `vault_context.py:627`:
 
 ```python
 cluster_labels_raw = metrics_computer._label_clusters_keybert(paths, labels, n_terms=4)
 ```
 
-Or make it configurable:
-
-```python
-labeling_method = config.cluster_labeling_method  # "tfidf" or "keybert"
-if labeling_method == "keybert":
-    cluster_labels_raw = metrics_computer._label_clusters_keybert(paths, labels, n_terms=4)
-else:
-    cluster_labels_raw = metrics_computer._label_clusters_tfidf(paths, labels, n_terms=4)
-```
+The c-TF-IDF method (`_label_clusters_tfidf`) remains available as a fallback if KeyBERT encounters errors, but is no longer used by default.
 
 ### Fallback Behavior
 
@@ -268,17 +254,18 @@ This implementation is based on comprehensive academic research documented in:
 
 ## Conclusion
 
-The KeyBERT implementation provides a **semantically-aware alternative** to frequency-based cluster labeling that:
+KeyBERT is now the **default cluster labeling method** in GeistFabrik, providing:
+- ✅ Semantically-aware cluster naming (vs frequency-based)
 - ✅ Leverages existing embedding infrastructure
 - ✅ Maintains local-first philosophy (no external APIs)
-- ✅ Provides higher-quality, more interpretable cluster names
-- ✅ Includes robust fallback mechanisms
-- ✅ Is ready for production testing
+- ✅ Higher-quality, more interpretable cluster names
+- ✅ Robust fallback mechanisms (c-TF-IDF on error)
+- ✅ Production-ready and enabled system-wide
 
-**Recommended next action**: Run the comparison script on production vaults and gather user feedback on label quality before enabling by default.
+**See before/after examples**: [CLUSTER_NAMING_EXAMPLES.md](./CLUSTER_NAMING_EXAMPLES.md)
 
 ---
 
 **Author**: Claude (Sonnet 4.5)
 **Reviewed**: Pending
-**Status**: Ready for testing
+**Status**: ✅ Enabled in Production

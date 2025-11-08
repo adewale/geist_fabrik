@@ -624,7 +624,7 @@ class VaultContext:
         from .stats import EmbeddingMetricsComputer
 
         metrics_computer = EmbeddingMetricsComputer(self.db)
-        cluster_labels_raw = metrics_computer._label_clusters_tfidf(paths, labels, n_terms=4)
+        cluster_labels_raw = metrics_computer._label_clusters_keybert(paths, labels, n_terms=4)
 
         # Build result with formatted labels and centroids
         result: Dict[int, Dict[str, Any]] = {}
