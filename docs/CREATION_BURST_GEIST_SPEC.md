@@ -22,7 +22,7 @@ SELECT DATE(created) as creation_date,
 FROM notes
 WHERE NOT path LIKE 'geist journal/%'
 GROUP BY DATE(created)
-HAVING note_count >= 5
+HAVING note_count >= 3
 ORDER BY note_count DESC
 ```
 
@@ -31,25 +31,18 @@ ORDER BY note_count DESC
 
 ### Examples
 
-**Standard burst (5-7 notes):**
+**Small burst (3-5 notes):**
 ```
-On March 15, 2024, you created 6 notes in one day: [[Systems Thinking]],
-[[Emergence]], [[Feedback Loops]], [[Complexity]], [[Adaptation]], [[Networks]].
-How might we make today equally generative?
+On March 15, 2024, you created 4 notes in one day: [[Systems Thinking]],
+[[Emergence]], [[Feedback Loops]], [[Complexity]].
+Does today feel generative?
 ```
 
-**High burst (7-10 notes):**
+**Larger burst (6+ notes):**
 ```
 On October 12, 2024, you created 8 notes: [[Mushrooms]], [[Mycelium]],
 [[Decomposition]], [[Forest Networks]], [[Symbiosis]], [[Nutrient Cycling]],
 [[Soil]], [[Fungi]]. What was special about that day?
-```
-
-**Exceptional burst (10+ notes):**
-```
-On January 5, 2024, you created 12 notes in a single day.
-What conditions created that flow state? [[Note 1]], [[Note 2]], [[Note 3]],
-[[Note 4]], [[Note 5]], [[Note 6]], [[Note 7]], [[Note 8]], and 4 more
 ```
 
 ### Implementation Notes
@@ -68,7 +61,7 @@ Show numerically how much notes from burst days have evolved since creation.
 
 ### Detection Method
 
-1. Find burst days (same SQL as creation_burst)
+1. Find burst days (same SQL as creation_burst: 3+ notes)
 2. For selected burst day, get each note's embeddings:
    - Creation embedding: from session closest to burst date
    - Current embedding: from current session
@@ -169,11 +162,11 @@ The geist makes **observations** based on drift patterns:
 - Compares: Different eras
 - Pattern: Broad temporal grouping
 
-**New (creation_burst + burst_evolution):** Focuses on SPECIFIC DAYS when many notes were created
+**New (creation_burst + burst_evolution):** Focuses on SPECIFIC DAYS when multiple notes were created
 ```
 "On March 15, you created 7 notes. [[Note A]] stable, [[Note B]] evolved."
 ```
-- Focuses on: Creation events (burst days)
+- Focuses on: Creation events (burst days with 3+ notes)
 - Compares: Notes from same moment
 - Pattern: Cohort from single productive day
 
@@ -236,7 +229,7 @@ The geist makes **observations** based on drift patterns:
 ```
 "On March 15, 2024, you created 7 notes in one day. What was special?"
 ```
-- Pattern: Burst activity (5+ notes, single day)
+- Pattern: Burst activity (3+ notes, single day)
 - Temporal: Any productive day
 - Focus: Multiple notes from one moment
 
@@ -295,12 +288,10 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
         display += f", and {len(titles) - 8} more"
 
     # Generate question based on count
-    if count >= 10:
-        question = "What conditions created that flow state?"
-    elif count >= 7:
+    if count >= 6:
         question = "What was special about that day?"
-    else:
-        question = "How might we make today equally generative?"
+    else:  # 3-5 notes
+        question = "Does today feel generative?"
 
     text = f"On {date}, you created {count} notes: {display}. {question}"
 
@@ -450,8 +441,9 @@ One geist with two modes would be:
 
 ## Open Questions
 
-1. **Threshold tuning:** Is 5 notes the right threshold for "burst"?
-   - Consider: vault-size dependent? (3 for small vaults, 10 for large)
+1. **Threshold tuning:** Is 3 notes the right threshold for "burst"?
+   - Current: 3+ notes qualifies as burst day
+   - Consider: vault-size dependent threshold in future?
 
 2. **Creation date baseline:** For burst_evolution, should we use:
    - Option A: First session with notes (precise)
