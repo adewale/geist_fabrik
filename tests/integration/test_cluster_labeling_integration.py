@@ -1,8 +1,8 @@
 """Integration tests for cluster labeling with VaultContext."""
 
-import pytest
 from datetime import datetime
-from pathlib import Path
+
+import pytest
 
 
 class TestClusterLabelingIntegration:
@@ -11,8 +11,8 @@ class TestClusterLabelingIntegration:
     @pytest.fixture
     def vault_with_config(self, tmp_path):
         """Create a vault with clustering configuration."""
+        from geistfabrik.config_loader import GeistFabrikConfig
         from geistfabrik.vault import Vault
-        from geistfabrik.config_loader import GeistFabrikConfig, ClusterConfig
 
         # Create vault directory
         vault_path = tmp_path / "test_vault"
@@ -47,9 +47,9 @@ class TestClusterLabelingIntegration:
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
+        from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
         from geistfabrik.vault_context import VaultContext
-        from geistfabrik.config_loader import ClusterConfig
 
         vault = vault_with_config
 
@@ -78,9 +78,9 @@ class TestClusterLabelingIntegration:
         """Test get_clusters uses c-TF-IDF when configured."""
         pytest.importorskip("sklearn")
 
+        from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
         from geistfabrik.vault_context import VaultContext
-        from geistfabrik.config_loader import ClusterConfig
 
         vault = vault_with_config
 
@@ -110,9 +110,9 @@ class TestClusterLabelingIntegration:
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
+        from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
         from geistfabrik.vault_context import VaultContext
-        from geistfabrik.config_loader import ClusterConfig
 
         vault = vault_with_config
 
@@ -148,9 +148,9 @@ class TestClusterLabelingIntegration:
         """Test that n_label_terms config is respected."""
         pytest.importorskip("sklearn")
 
+        from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
         from geistfabrik.vault_context import VaultContext
-        from geistfabrik.config_loader import ClusterConfig
 
         vault = vault_with_config
 
@@ -183,8 +183,8 @@ class TestClusterMirrorGeist:
     @pytest.fixture
     def vault_for_geist(self, tmp_path):
         """Create a vault suitable for cluster_mirror testing."""
-        from geistfabrik.vault import Vault
         from geistfabrik.config_loader import GeistFabrikConfig
+        from geistfabrik.vault import Vault
 
         vault_path = tmp_path / "test_vault"
         vault_path.mkdir()
@@ -220,10 +220,10 @@ class TestClusterMirrorGeist:
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
+        from geistfabrik.config_loader import ClusterConfig
+        from geistfabrik.default_geists.code import cluster_mirror
         from geistfabrik.embeddings import Session
         from geistfabrik.vault_context import VaultContext
-        from geistfabrik.default_geists.code import cluster_mirror
-        from geistfabrik.config_loader import ClusterConfig
 
         vault = vault_for_geist
 

@@ -1163,7 +1163,7 @@ def stats_command(args: argparse.Namespace) -> int:
             latest = collector.get_latest_embeddings()
             if latest:
                 session_date, embeddings, paths = latest
-                metrics_computer = EmbeddingMetricsComputer(vault.db)
+                metrics_computer = EmbeddingMetricsComputer(vault.db, vault.config)
                 force_recompute = getattr(args, "force_recompute", False)
                 metrics = metrics_computer.compute_metrics(
                     session_date, embeddings, paths, force_recompute=force_recompute

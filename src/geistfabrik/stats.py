@@ -685,13 +685,15 @@ class StatsCollector:
 class EmbeddingMetricsComputer:
     """Computes advanced embedding-based metrics."""
 
-    def __init__(self, db: sqlite3.Connection):
+    def __init__(self, db: sqlite3.Connection, config: Any = None):
         """Initialize metrics computer.
 
         Args:
             db: SQLite database connection
+            config: Optional configuration object
         """
         self.db = db
+        self.config = config
 
     def compute_metrics(
         self,
@@ -927,9 +929,20 @@ class EmbeddingMetricsComputer:
             shannon = -np.sum(cluster_dist * np.log2(cluster_dist + 1e-10))
             metrics["shannon_entropy"] = round(float(shannon), 2)
 
-        # Label clusters using c-TF-IDF
+        # Label clusters using configured method (or default to tfidf if no config)
         if n_clusters > 0:
-            cluster_labels = self._label_clusters_tfidf(paths, labels)
+            if self.config:
+                labeling_method = self.config.clustering.labeling_method
+                n_terms = self.config.clustering.n_label_terms
+            else:
+                # Default to tfidf if no config provided (backwards compatibility)
+                labeling_method = "tfidf"
+                n_terms = 4
+
+            if labeling_method == "keybert":
+                cluster_labels = self._label_clusters_keybert(paths, labels, n_terms=n_terms)
+            else:
+                cluster_labels = self._label_clusters_tfidf(paths, labels, n_terms=n_terms)
             # Convert numpy.int64 keys to Python int for JSON serialization
             metrics["cluster_labels"] = {int(k): v for k, v in cluster_labels.items()}
 
@@ -1127,17 +1140,28 @@ class EmbeddingMetricsComputer:
             return {}
 
         # Get embedding computer (lazy-load model)
-        computer = EmbeddingComputer()
+        try:
+            computer = EmbeddingComputer()
+        except Exception:
+            # If model loading fails, fall back to simple labels for all clusters
+            return {cid: f"Cluster {cid}" for cid in clusters.keys()}
 
         # Get cluster embeddings to compute centroids
         cluster_embeddings: Dict[int, List[np.ndarray]] = {}
         for cluster_id, texts in clusters.items():
-            # Embed all texts in this cluster
-            embeddings = computer.compute_batch_semantic(texts)
-            cluster_embeddings[cluster_id] = list(embeddings)
+            try:
+                # Embed all texts in this cluster
+                embeddings = computer.compute_batch_semantic(texts)
+                cluster_embeddings[cluster_id] = list(embeddings)
+            except Exception:
+                # If embedding fails for this cluster, skip to simple label
+                cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 
         # Process each cluster
         for cluster_id, texts in clusters.items():
+            # Skip if embedding failed earlier
+            if cluster_id in cluster_labels:
+                continue
             # Concatenate all text for n-gram extraction
             cluster_text = " ".join(texts)
 
@@ -1145,9 +1169,7 @@ class EmbeddingMetricsComputer:
             centroid = np.mean(cluster_embeddings[cluster_id], axis=0)
 
             # Extract candidate phrases using TF-IDF to get good candidates
-            vectorizer = TfidfVectorizer(
-                max_features=100, stop_words="english", ngram_range=(1, 3)
-            )
+            vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 3))
             try:
                 # Fit on this cluster's text only
                 tfidf_matrix = vectorizer.fit_transform([cluster_text])
@@ -1178,7 +1200,7 @@ class EmbeddingMetricsComputer:
 
                 cluster_labels[cluster_id] = ", ".join(diverse_terms)
 
-            except Exception as e:
+            except Exception:
                 # If KeyBERT approach fails, use simple fallback
                 cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 

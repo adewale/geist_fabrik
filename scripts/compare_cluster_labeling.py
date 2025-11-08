@@ -19,10 +19,9 @@ import numpy as np
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from geistfabrik.config_loader import GeistFabrikConfig
-from geistfabrik.embeddings import Session
-from geistfabrik.stats import EmbeddingMetricsComputer
-from geistfabrik.vault import Vault
+from geistfabrik.embeddings import Session  # noqa: E402
+from geistfabrik.stats import EmbeddingMetricsComputer  # noqa: E402
+from geistfabrik.vault import Vault  # noqa: E402
 
 
 def run_comparison(vault_path: str) -> None:
@@ -31,7 +30,7 @@ def run_comparison(vault_path: str) -> None:
     Args:
         vault_path: Path to Obsidian vault
     """
-    print(f"🔬 Cluster Naming Comparison: c-TF-IDF vs KeyBERT\n")
+    print("🔬 Cluster Naming Comparison: c-TF-IDF vs KeyBERT\n")
     print(f"Vault: {vault_path}\n")
     print("=" * 80 + "\n")
 
@@ -39,6 +38,7 @@ def run_comparison(vault_path: str) -> None:
     vault_path_obj = Path(vault_path).expanduser()
     config_path = vault_path_obj / "_geistfabrik" / "config.yaml"
     from geistfabrik.config_loader import load_config
+
     config = load_config(config_path)
     vault = Vault(vault_path_obj, config=config)
 
@@ -110,13 +110,20 @@ def run_comparison(vault_path: str) -> None:
     # Run both labeling methods
     print("🏷️  Generating labels with both methods...\n")
 
-    metrics_computer = EmbeddingMetricsComputer(vault.db)
+    metrics_computer = EmbeddingMetricsComputer(vault.db, config)
 
     # Method 1: c-TF-IDF (current)
+    print("  Computing c-TF-IDF labels...")
     tfidf_labels = metrics_computer._label_clusters_tfidf(paths, labels, n_terms=4)
 
     # Method 2: KeyBERT (new)
-    keybert_labels = metrics_computer._label_clusters_keybert(paths, labels, n_terms=4)
+    print("  Computing KeyBERT labels...")
+    try:
+        keybert_labels = metrics_computer._label_clusters_keybert(paths, labels, n_terms=4)
+    except Exception as e:
+        print(f"  ⚠️  KeyBERT failed: {e}")
+        print("  Using simple labels as fallback")
+        keybert_labels = {cid: f"Cluster {cid}" for cid in set(labels) if cid != -1}
 
     # Display comparison
     print("=" * 80)
@@ -148,7 +155,7 @@ def run_comparison(vault_path: str) -> None:
         print("-" * 80)
         print(f"🔤 c-TF-IDF:  {tfidf_label}")
         print(f"🧠 KeyBERT:   {keybert_label}")
-        print(f"\n   Sample notes:")
+        print("\n   Sample notes:")
         for note_title in sample_notes:
             print(f"   • {note_title}")
 

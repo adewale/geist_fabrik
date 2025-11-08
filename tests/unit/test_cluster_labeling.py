@@ -1,18 +1,18 @@
 """Tests for cluster labeling methods (c-TF-IDF and KeyBERT)."""
 
-import pytest
-import numpy as np
 from typing import TYPE_CHECKING
 
+import numpy as np
+import pytest
+
 if TYPE_CHECKING:
-    from geistfabrik.stats import EmbeddingMetricsComputer
+    pass
 
 
 @pytest.fixture
 def mock_db(tmp_path):
     """Create a mock database with test notes."""
     import sqlite3
-    from pathlib import Path
 
     db_path = tmp_path / "test.db"
     db = sqlite3.connect(str(db_path))
@@ -153,8 +153,9 @@ class TestClusterLabelingKeyBERT:
         """Test KeyBERT falls back gracefully on errors."""
         pytest.importorskip("sklearn")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
         from unittest.mock import patch
+
+        from geistfabrik.stats import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -162,8 +163,10 @@ class TestClusterLabelingKeyBERT:
         labels = np.array([0, 0, 0])
 
         # Mock EmbeddingComputer to raise an error
-        with patch("geistfabrik.stats.EmbeddingComputer") as mock_computer:
-            mock_computer.side_effect = Exception("Model failed")
+        with patch("geistfabrik.embeddings.EmbeddingComputer") as mock_computer:
+            mock_computer.return_value.compute_batch_semantic.side_effect = Exception(
+                "Model failed"
+            )
 
             result = metrics._label_clusters_keybert(paths, labels, n_terms=3)
 
@@ -227,7 +230,7 @@ class TestClusterConfig:
 
     def test_config_has_clustering_section(self):
         """Verify GeistFabrikConfig includes clustering settings."""
-        from geistfabrik.config_loader import GeistFabrikConfig, ClusterConfig
+        from geistfabrik.config_loader import ClusterConfig, GeistFabrikConfig
 
         config = GeistFabrikConfig()
 
@@ -267,7 +270,7 @@ class TestClusterConfig:
 
     def test_config_to_dict(self):
         """Test serializing clustering config to dictionary."""
-        from geistfabrik.config_loader import GeistFabrikConfig, ClusterConfig
+        from geistfabrik.config_loader import ClusterConfig, GeistFabrikConfig
 
         config = GeistFabrikConfig(
             clustering=ClusterConfig(labeling_method="tfidf", min_cluster_size=10, n_label_terms=3)
