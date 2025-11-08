@@ -465,6 +465,45 @@ From the spec:
 - 5-minute effort to add new capability at any extensibility layer
 - 1000 notes × 20 sessions = ~30MB embedding storage
 
+## Breaking Database Changes (Pre-1.0 Policy)
+
+**Current Policy (versions < 1.0)**: We do NOT provide automatic database migrations. Users must manually delete and rebuild their database when breaking changes occur.
+
+**When you make a breaking database change:**
+
+1. **Document it in CHANGELOG.md under `## [Unreleased]` > `### Breaking Changes`**:
+   - Clearly describe what changed
+   - Explain why users need to rebuild
+   - Provide exact rebuild instructions
+   - Example format:
+   ```markdown
+   ### Breaking Changes
+   - **Virtual note titles**: Changed virtual note title format to exclude filename prefix
+     - **Why**: Older databases store titles as "Journal#2025-01-15" instead of "2025-01-15"
+     - **Action required**: Delete and rebuild database:
+       ```bash
+       rm -rf <vault>/_geistfabrik/vault.db*
+       uv run geistfabrik invoke <vault>
+       ```
+     - **Impact**: Existing vaults will show incorrect deeplinks until database is rebuilt
+   ```
+
+2. **Update relevant documentation** to reflect the new behavior
+
+3. **Add regression tests** to prevent the bug from reoccurring
+
+**Post-1.0 Policy**: After the 1.0 release, we will implement automatic database schema migrations for all breaking changes. Users will never need to manually delete their databases.
+
+**What counts as a breaking change**:
+- Changes to how data is stored in the database (column formats, title formats, path formats)
+- Changes to database schema (new tables, altered columns, changed indexes)
+- Changes to how existing data is interpreted or displayed
+
+**What is NOT breaking**:
+- Bug fixes that don't affect stored data
+- Performance optimizations that preserve existing behavior
+- New features that add data without changing existing data
+
 ## Qualitative Success Metrics
 
 GeistFabrik succeeds when suggestions generate:

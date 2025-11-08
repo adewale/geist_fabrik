@@ -871,9 +871,7 @@ More thoughts.
     # and obsidian_link as the deeplink format
     assert work_jan15.is_virtual is True
     assert work_jan15.source_file == "Work Log.md"
-    assert work_jan15.title == "2025-01-15", (
-        "Virtual note titles should be just the heading text"
-    )
+    assert work_jan15.title == "2025-01-15", "Virtual note titles should be just the heading text"
     assert work_jan15.obsidian_link == "Work Log#2025-01-15", (
         "Virtual note obsidian_link should use deeplink format (filename#heading) "
         "so geists can use [[{note.obsidian_link}]] and it works in Obsidian"
@@ -904,9 +902,7 @@ More thoughts.
     regular = vault.get_note("Regular Note.md")
     assert regular is not None
     assert not regular.is_virtual
-    assert regular.title == "Regular Note", (
-        "Regular notes should have normal titles"
-    )
+    assert regular.title == "Regular Note", "Regular notes should have normal titles"
     assert regular.obsidian_link == "Regular Note", (
         "For regular notes, obsidian_link should be the same as title"
     )
@@ -1151,5 +1147,70 @@ Another real entry.
 
     assert len(journal_notes) == 2
     assert all(n.is_virtual for n in journal_notes)  # Journal is split
+
+    vault.close()
+
+
+def test_year_month_day_obsidian_link_format(tmp_path: Path) -> None:
+    """Test that 'YYYY Month DD' headings generate correct Obsidian deeplinks.
+
+    This is a regression test for the issue where virtual note titles incorrectly
+    included the filename (e.g., "Exercise journal#2024 February 18" as the title)
+    instead of just the heading text ("2024 February 18" as title).
+
+    Correct behavior:
+    - title: "2024 February 18" (just the heading text)
+    - obsidian_link: "Exercise journal#2024 February 18" (filename + heading)
+    - In suggestions: [[Exercise journal#2024 February 18]]
+
+    Reference: https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create journal with "YYYY Month DD" format
+    (vault_path / "Exercise journal.md").write_text("""
+## 2024 February 18
+Did 30 minutes of cardio.
+
+## 2024 February 19
+Rest day.
+""")
+
+    vault = Vault(vault_path)
+    vault.sync()
+
+    # Get virtual notes
+    feb18 = vault.get_note("Exercise journal.md/2024-02-18")
+    feb19 = vault.get_note("Exercise journal.md/2024-02-19")
+
+    assert feb18 is not None
+    assert feb19 is not None
+
+    # CRITICAL: Title should be just the heading text, NOT "Exercise journal#2024 February 18"
+    assert feb18.title == "2024 February 18", (
+        "Virtual note title should be ONLY the heading text, not include filename. "
+        "Found incorrect title (old bug where title included filename prefix)."
+    )
+    assert feb18.obsidian_link == "Exercise journal#2024 February 18", (
+        "obsidian_link property should combine filename + heading for deeplink format"
+    )
+
+    # Verify second entry too
+    assert feb19.title == "2024 February 19"
+    assert feb19.obsidian_link == "Exercise journal#2024 February 19"
+
+    # Verify the link works when used in wiki-link syntax
+    wiki_link = f"[[{feb18.obsidian_link}]]"
+    assert wiki_link == "[[Exercise journal#2024 February 18]]", (
+        "When geists use [[{note.obsidian_link}]], it should produce a valid "
+        "Obsidian deeplink to the heading in the source file"
+    )
+
+    # Verify deeplink resolution works
+    resolved = vault.resolve_link_target("Exercise journal#2024 February 18")
+    assert resolved is not None
+    assert resolved.path == "Exercise journal.md/2024-02-18"
+    assert resolved.title == "2024 February 18"
 
     vault.close()

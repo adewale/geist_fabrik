@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+- **Virtual note title format change**: Fixed virtual note titles to exclude filename prefix
+  - **What changed**: Virtual note titles now store ONLY the heading text (e.g., "2024 February 18") instead of the deeplink format (e.g., "Exercise journal#2024 February 18")
+  - **Why**: The old format stored "filename#heading" in the title field, causing suggestions to display as `[[Exercise journal#Exercise journal#2024 February 18]]` (double filename prefix)
+  - **Correct behavior**:
+    - `note.title` = `"2024 February 18"` (just the heading text)
+    - `note.obsidian_link` = `"Exercise journal#2024 February 18"` (property combines them)
+    - Suggestions use `[[{note.obsidian_link}]]` = `[[Exercise journal#2024 February 18]]`
+  - **Action required**: Users with existing databases showing doubled filenames in virtual note links must rebuild:
+    ```bash
+    rm -rf <vault>/_geistfabrik/vault.db*
+    uv run geistfabrik invoke <vault>
+    ```
+  - **Impact**: Existing vaults will show incorrect deeplinks (double filename prefix) until database is rebuilt
+  - **Test coverage**: Added `test_year_month_day_obsidian_link_format()` integration test to prevent regression
+  - **Reference**: Obsidian deeplink syntax: https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note
+
 ### Removed
 - **congruence_mirror geist** - Removed due to scalability issues on large vaults
   - Timed out (60+ seconds) on vaults with 10,000+ notes and hundreds of thousands of links
