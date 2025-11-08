@@ -594,25 +594,90 @@ note1: ["$vault.sample_notes(1)"]
 note2: ["$vault.neighbours(#note1#, 1)"]  # Can we reference note1?
 ```
 
-**Answer**: No direct support. Tracery expands symbols independently. Workaround:
-- Generate all data in single vault function
-- Return structured results
-- Split in Tracery
+**Answer**: No direct support. Tracery expands symbols independently due to **preprocessing order**.
 
-```python
-@vault_function("note_and_neighbour")
-def note_and_neighbour(vault: VaultContext) -> List[str]:
-    """Return 'NoteA|NoteB' format"""
-    note = vault.sample(1)[0]
-    neighbour = vault.semantic_search(note.title, k=1)[0]
-    return [f"{note.title}|{neighbour.title}"]
+**Why This Fails**: Vault functions execute during preprocessing (before symbol expansion). When you write `$vault.neighbours(#note1#, 1)`, the literal string `"#note1#"` is passed to the function, not the expanded note title.
+
+**Critical Anti-Pattern** (DO NOT USE):
+```yaml
+# ❌ BROKEN - Will produce empty results
+origin: "[[#seed#]] shares space with #neighbours#"
+seed: ["$vault.sample_notes(1)"]
+neighbours: ["$vault.neighbours(#seed#, 3)"]  # Passes "#seed#" as string!
 ```
 
+**Solution**: Use structured vault functions with custom Tracery modifiers.
+
+#### Designing Tracery-Safe Vault Functions
+
+**The Problem**: Functions that take note titles as parameters cannot work in Tracery because:
+1. Preprocessing happens first → `$vault.*` functions execute
+2. Symbol expansion happens second → `#symbols#` expand
+
+**Unsafe Functions** (code-only, not for Tracery):
+- `neighbours(note_title, k)` - Requires expanded note title
+- `contrarian_to(note_title, k)` - Requires expanded note title
+- Any function with string parameters expecting note references
+
+**Safe Functions** (work in Tracery):
+- `sample_notes(k)` - Only primitive parameters
+- `orphans(k)` - Only primitive parameters
+- `hubs(k)` - Only primitive parameters
+
+**Workaround Pattern**: Create "cluster" functions that bundle related data:
+
+```python
+@vault_function("semantic_clusters")
+def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[str]:
+    """Sample seeds and pair with neighbours using delimiter.
+
+    Returns:
+        List of strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
+    """
+    results = []
+    seeds = vault.sample(count)
+    for seed in seeds:
+        neighbours = vault.neighbours(seed, k)
+        neighbour_links = [n.obsidian_link for n in neighbours]
+        # Format like Tracery does
+        if len(neighbour_links) == 1:
+            n_str = neighbour_links[0]
+        elif len(neighbour_links) == 2:
+            n_str = f"{neighbour_links[0]} and {neighbour_links[1]}"
+        else:
+            n_str = ", ".join(neighbour_links[:-1]) + f", and {neighbour_links[-1]}"
+        results.append(f"{seed.obsidian_link}|||{n_str}")
+    return results
+```
+
+**Custom Tracery Modifiers** to extract parts:
+```python
+# In TraceryEngine._default_modifiers()
+"split_seed": lambda text: text.split("|||")[0] if "|||" in text else text,
+"split_neighbours": lambda text: text.split("|||")[1] if "|||" in text else "",
+```
+
+**Tracery Usage**:
 ```yaml
-# Then parse in origin
-origin: "Compare these: [[#pair#]]"
-pair: ["$vault.note_and_neighbour()"]
-# Not ideal but works around limitation
+# ✓ WORKS - Bundles seed + neighbours in preprocessing
+origin: "[[#seed#]] shares space with #neighbours#. What connects them?"
+cluster: ["$vault.semantic_clusters(2, 3)"]
+seed: ["#cluster.split_seed#"]
+neighbours: ["#cluster.split_neighbours#"]
+```
+
+**Design Guidelines for Tracery Functions**:
+
+1. **Parameters must be resolvable at preprocessing** - Only integers, strings (quoted literals), not symbols
+2. **Return structured strings** - Use delimiters (|||, |, ::, etc.) to bundle related data
+3. **Add matching modifiers** - Custom Tracery modifiers to extract parts
+4. **Format like Tracery** - Use same comma/and patterns for lists
+5. **Test the preprocessing** - Functions execute once before any symbol expansion
+
+**Validation**: The system includes a validator to catch anti-patterns:
+```bash
+# This will fail validation:
+$vault.neighbours(#note#, 3)  # ERROR: Cannot pass symbols to functions
 ```
 
 #### Push-Pop with Vault Data

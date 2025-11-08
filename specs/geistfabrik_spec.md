@@ -907,23 +907,37 @@ logging:
 ### Core Vault Functions
 
 ```python
-# Always available in Tracery
+# Tracery-safe functions (parameters resolvable at preprocessing)
 $vault.sample_notes(k)           # Random k notes
-$vault.unlinked_pairs(k)         # k unlinked note pairs
-$vault.neighbours(title, k)       # k similar notes
 $vault.old_notes(k)              # k least recently touched
-$vault.tagged(tag, k)            # k notes with tag
 $vault.recent_notes(k)           # k most recently modified
 $vault.orphans(k)                # k notes with no links
 $vault.hubs(k)                   # k most linked-to notes
+$vault.random_note_title()       # Single random note
+$vault.semantic_clusters(n, k)   # n seeds paired with k neighbours each
 ```
+
+**Note**: Functions requiring note titles as parameters cannot be used in Tracery (see "Code-Only Functions" below).
+
+### Code-Only Vault Functions
+
+These functions work in Python code geists but **cannot be used in Tracery** because they require note titles that must come from symbol expansion:
+
+```python
+# Code geists only (NOT for Tracery)
+$vault.neighbours(title, k)       # ❌ Tracery: requires expanded note title
+$vault.contrarian_to(title, k)    # ❌ Tracery: requires expanded note title
+```
+
+**Why the limitation**: Tracery preprocessing executes vault functions before symbol expansion. When you write `$vault.neighbours(#seed#, 3)`, the literal string `"#seed#"` is passed to the function instead of an expanded note title.
+
+**Workaround**: Use cluster functions like `semantic_clusters()` that bundle related data with delimiters, then extract parts using Tracery modifiers (`.split_seed`, `.split_neighbours`). See `specs/tracery_research.md` for details.
 
 ### Example Extended Functions
 
 ```python
-# User-added functions
+# User-added functions (examples only - not implemented)
 $vault.find_questions(k)         # Notes phrased as questions
-$vault.contrarian_to(title, k)   # Potentially opposing notes
 $vault.notes_by_mood(mood, k)    # Sentiment-filtered notes
 $vault.by_complexity(level, k)   # Complexity-filtered notes
 ```
