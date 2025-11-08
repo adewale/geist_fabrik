@@ -7,7 +7,7 @@ hemisphere-specific seasonal assumptions.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from geistfabrik.models import Suggestion
 
 
-def suggest(vault: "VaultContext") -> List[Suggestion]:
+def suggest(vault: "VaultContext") -> list[Suggestion]:
     """Surface notes from same calendar date in previous years.
 
     This geist finds notes created on the same month and day as today,
