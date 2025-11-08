@@ -35,7 +35,7 @@ ORDER BY note_count DESC
 ```
 On March 15, 2024, you created 6 notes in one day: [[Systems Thinking]],
 [[Emergence]], [[Feedback Loops]], [[Complexity]], [[Adaptation]], [[Networks]].
-What sparked that productivity?
+How might we make today equally generative?
 ```
 
 **High burst (7-10 notes):**
@@ -47,7 +47,7 @@ On October 12, 2024, you created 8 notes: [[Mushrooms]], [[Mycelium]],
 
 **Exceptional burst (10+ notes):**
 ```
-On January 5, 2024, you created 12 notes in a single day—an exceptional burst.
+On January 5, 2024, you created 12 notes in a single day.
 What conditions created that flow state? [[Note 1]], [[Note 2]], [[Note 3]],
 [[Note 4]], [[Note 5]], [[Note 6]], [[Note 7]], [[Note 8]], and 4 more
 ```
@@ -300,7 +300,7 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
     elif count >= 7:
         question = "What was special about that day?"
     else:
-        question = "What sparked that productivity?"
+        question = "How might we make today equally generative?"
 
     text = f"On {date}, you created {count} notes: {display}. {question}"
 
