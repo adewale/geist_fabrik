@@ -5,7 +5,7 @@
 
 ## Overview
 
-Two complementary geists that focus on "burst days" - specific moments when you created multiple notes (5+) in a single day. Together they reveal productive moments and track how those creative bursts evolved.
+Two complementary geists that focus on "burst days" - specific moments when you created multiple notes (3+) in a single day. Together they reveal productive moments and track how those creative bursts evolved.
 
 ---
 
@@ -206,7 +206,7 @@ The geist makes **observations** based on drift patterns:
 
 **New (creation_burst):** Surfaces burst days regardless of recency
 ```
-"On March 15, you created 7 notes. What sparked that productivity?"
+"On March 15, you created 7 notes. What was special about that day?"
 ```
 - Focuses on: Creation moments
 - Compares: Notes from same burst
@@ -272,7 +272,7 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
         FROM notes
         WHERE NOT path LIKE 'geist journal/%'
         GROUP BY DATE(created)
-        HAVING COUNT(*) >= 5
+        HAVING COUNT(*) >= 3
     """)
 
     burst_days = cursor.fetchall()
@@ -427,7 +427,7 @@ def _generate_drift_observation(vault, date, drifts) -> Suggestion:
 **Together:** Complementary perspectives on the same phenomenon (burst days)
 
 **Separately:** Each stands alone as useful
-- creation_burst: "What was special about that day?"
+- creation_burst: "Does today feel generative?" or "What was special about that day?"
 - burst_evolution: "Here's what happened to those notes"
 
 **Compare to rejected approach:**
