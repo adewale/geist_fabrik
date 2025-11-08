@@ -254,6 +254,60 @@ class FunctionRegistry:
             # Return obsidian links
             return [candidate_notes[i].obsidian_link for i in least_similar_indices]
 
+        @vault_function("semantic_clusters")
+        def semantic_clusters(vault: "VaultContext", count: int = 2, k: int = 3) -> List[str]:
+            """Sample seed notes and pair each with its semantic neighbours.
+
+            Returns formatted strings using a delimiter to separate seed from neighbours.
+            This allows Tracery geists to extract both parts using custom modifiers.
+
+            Args:
+                count: Number of seed notes to sample
+                k: Number of neighbours per seed
+
+            Returns:
+                List of formatted strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
+                The ||| delimiter allows splitting in Tracery templates
+            """
+            import random
+
+            # Use a fixed sub-seed for deterministic sampling based on session date
+            session_seed = int(vault.session.date.strftime("%Y%m%d"))
+            cluster_seed = hash(("cluster", session_seed)) % (2**31)
+            cluster_rng = random.Random(cluster_seed)
+
+            notes = vault.notes()
+            if not notes:
+                return []
+
+            # Sample seed notes
+            sampled_seeds = cluster_rng.sample(notes, min(count, len(notes)))
+
+            # Build formatted pairs
+            results = []
+            for seed_note in sampled_seeds:
+                neighbor_notes = vault.neighbours(seed_note, k)
+
+                if neighbor_notes:
+                    # Format neighbours as comma-separated list (like Tracery does)
+                    neighbor_links = [n.obsidian_link for n in neighbor_notes]
+                    if len(neighbor_links) == 1:
+                        neighbors_str = neighbor_links[0]
+                    elif len(neighbor_links) == 2:
+                        neighbors_str = f"{neighbor_links[0]} and {neighbor_links[1]}"
+                    else:
+                        # Break long line for ruff compliance
+                        last_link = neighbor_links[-1]
+                        neighbors_str = ", ".join(neighbor_links[:-1]) + f", and {last_link}"
+                else:
+                    neighbors_str = ""
+
+                # Format as "SEED|||NEIGHBOURS" for Tracery extraction
+                formatted = f"{seed_note.obsidian_link}|||{neighbors_str}"
+                results.append(formatted)
+
+            return results
+
         # Transfer built-in functions from global registry to instance
         self.functions.update(_GLOBAL_REGISTRY)
 

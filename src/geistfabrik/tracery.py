@@ -48,6 +48,8 @@ class TraceryEngine:
             "s": self._pluralize,
             "ed": self._past_tense,
             "a": self._article,
+            "split_seed": self._split_seed,
+            "split_neighbours": self._split_neighbours,
         }
 
     def _capitalize(self, text: str) -> str:
@@ -239,6 +241,33 @@ class TraceryEngine:
             article = "a"
 
         return f"{article} {text}"
+
+    def _split_seed(self, text: str) -> str:
+        """Extract seed part from delimited semantic cluster string.
+
+        Args:
+            text: Formatted cluster string "SEED|||NEIGHBOURS"
+
+        Returns:
+            The seed part (before delimiter)
+        """
+        if "|||" in text:
+            return text.split("|||")[0]
+        return text
+
+    def _split_neighbours(self, text: str) -> str:
+        """Extract neighbours part from delimited semantic cluster string.
+
+        Args:
+            text: Formatted cluster string "SEED|||NEIGHBOURS"
+
+        Returns:
+            The neighbours part (after delimiter)
+        """
+        if "|||" in text:
+            parts = text.split("|||")
+            return parts[1] if len(parts) > 1 else ""
+        return ""
 
     def add_modifier(self, name: str, func: Callable[[str], str]) -> None:
         """Add a custom modifier.
