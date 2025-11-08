@@ -61,6 +61,22 @@ Example: `#animal.a.capitalize#` might produce "An Owl" or "A Fox"
 - **Node.js**: `npm install tracery-grammar`
 - **Java/JVM**: Grammy library `github.com/AlmasB/grammy`
 
+### GeistFabrik Implementation
+
+**GeistFabrik uses a custom TraceryEngine** (not pytracery) implemented in `src/geistfabrik/tracery.py`. This custom implementation provides:
+
+- **Core features**: Symbol expansion, modifiers, deterministic randomness
+- **Built-in modifiers**: `.capitalize`, `.capitalizeAll`, `.s` (pluralize), `.ed` (past tense), `.a` (article)
+- **Custom modifiers**: `.split_seed`, `.split_neighbours` (for cluster functions)
+- **Vault integration**: `$vault.*` function preprocessing
+- **Safety features**: Anti-pattern validation, recursion limits (`max_depth = 50`)
+
+The custom implementation was chosen over pytracery to:
+- Integrate deeply with VaultContext and vault functions
+- Support deterministic randomness via explicit seed parameter
+- Add custom modifiers specific to GeistFabrik patterns
+- Provide better error messages and validation
+
 ### Platform Integrations
 - **Twine**: Twinecery for Twine 2 story format
 - **Unity**: Multiple C# implementations available
@@ -82,17 +98,20 @@ const expansion = grammar.flatten('#origin#');
 
 #### Python
 ```python
-import tracery
-from tracery.modifiers import base_english
+# GeistFabrik uses a custom TraceryEngine (not pytracery)
+# See src/geistfabrik/tracery.py for implementation
 
-rules = {
+from geistfabrik.tracery import TraceryEngine
+
+grammar = {
     'origin': '#hello.capitalize#, #location#!',
     'hello': ['hello', 'greetings', 'howdy'],
     'location': ['world', 'universe', 'cosmos']
 }
-grammar = tracery.Grammar(rules)
-grammar.add_modifiers(base_english)
-print(grammar.flatten("#origin#"))
+
+# Built-in modifiers are automatically available
+engine = TraceryEngine(grammar, seed=42)
+print(engine.expand("#origin#"))
 ```
 
 ## Geist-Style Implementations
@@ -310,8 +329,8 @@ symbol_name: ["$vault.function_name(arg1, arg2)"]
 1. YAML parser loads geist file
 2. System detects `$vault.*` patterns in symbol arrays
 3. Before Tracery expansion, vault functions execute:
-   - `$vault.sample_notes(3)` → `["Note A", "Note B", "Note C"]`
-   - `$vault.tagged('project', 2)` → `["Project X", "Project Y"]`
+   - `$vault.sample_notes(3)` → `["[[Note A]]", "[[Note B]]", "[[Note C]]"]`
+   - `$vault.orphans(2)` → `["[[Orphan 1]]", "[[Orphan 2]]"]`
 4. Grammar symbols updated with results
 5. Tracery expansion proceeds with populated arrays
 
@@ -326,20 +345,20 @@ Vault functions support simple parameter types:
 
 #### Return Value Handling
 
-Vault functions must return **lists of strings** (typically note titles):
+Vault functions must return **lists of strings** in Obsidian link format:
 
 ```python
 @vault_function("sample_notes")
 def sample_notes(vault: VaultContext, k: int) -> List[str]:
-    """Sample k random notes, return their titles"""
+    """Sample k random notes, return as Obsidian links"""
     notes = vault.sample(k)
-    return [note.title for note in notes]
+    return [note.obsidian_link for note in notes]  # Returns "[[Note Title]]"
 ```
 
 **Edge Cases**:
 - **Empty results**: Function returns `[]` → Symbol has empty array → Tracery fails gracefully
-- **Fewer than requested**: `$vault.orphans(10)` with only 3 orphans → Returns `["Note 1", "Note 2", "Note 3"]`
-- **Single result**: Still wrapped in list → `["Only Note"]`
+- **Fewer than requested**: `$vault.orphans(10)` with only 3 orphans → Returns `["[[Note 1]]", "[[Note 2]]", "[[Note 3]]"]`
+- **Single result**: Still wrapped in list → `["[[Only Note]]"]`
 
 ### Complete Integration Example
 
@@ -394,16 +413,23 @@ origin: "#note1# connects to #note2#"
 
 **Requirement**: Same vault state + date → identical output
 
-**Implementation Strategy**:
-1. **Session-level seed**: Derive from date (e.g., `int(date.strftime('%Y%m%d'))`)
-2. **VaultContext random state**: Pass seeded RNG to all vault functions
-3. **Vault function sampling**: Use context's RNG, not Python's `random.choice()`
-4. **Tracery internal randomness**:
+**Implementation**: ✅ **IMPLEMENTED** in custom TraceryEngine
 
-**Open Question**: Does pytracery respect an external random seed? If not, may need to:
-- Pre-expand all vault function calls deterministically
-- Control Tracery's rule selection by manually choosing indices
-- Wrap pytracery with seeded selection
+The TraceryEngine accepts a `seed` parameter that ensures deterministic behavior:
+
+```python
+# TraceryEngine constructor
+engine = TraceryEngine(grammar, seed=42)
+
+# TraceryGeist passes session-based seed
+geist = TraceryGeist.from_yaml(yaml_path, seed=int(date.strftime('%Y%m%d')))
+```
+
+**How it works**:
+1. **Session-level seed**: Derived from date (e.g., `int(date.strftime('%Y%m%d'))`)
+2. **VaultContext random state**: Seeded RNG passed to all vault functions
+3. **Vault function sampling**: Use context's RNG, not Python's `random.choice()`
+4. **Tracery rule selection**: Uses `random.Random(seed)` for reproducible choice
 
 **Test Command**:
 ```bash
@@ -462,86 +488,66 @@ geistfabrik test semantic_bridge --vault ~/notes --date 2025-01-15
 
 **Question**: Can a single Tracery geist generate multiple suggestions?
 
-**Answer**: No, based on spec architecture. Each Tracery geist:
-1. Expands grammar once per session
-2. Produces single text output
-3. Wraps in `Suggestion(text=..., notes=..., geist_id=...)`
-4. Returns list with one element
+**Answer**: ✅ **YES** - Tracery geists support a `count` parameter.
 
-To generate multiple suggestions, create multiple Tracery geists or use a code geist.
+Each Tracery geist can generate multiple suggestions per session:
 
-### Python Implementation with pytracery
+```yaml
+type: geist-tracery
+id: example
+count: 3  # Generate 3 suggestions
+tracery:
+  origin: "[[#note1#]] and [[#note2#]] might be #relationship#"
+  note1: ["$vault.sample_notes(1)"]
+  note2: ["$vault.sample_notes(1)"]
+  relationship: ["connected", "contrasting", "complementary"]
+```
+
+**How it works**:
+1. Grammar expands `count` times (line 638 in tracery.py)
+2. Each expansion is independent with potentially different outputs
+3. Randomness is deterministic (based on session seed)
+4. Each expansion produces one `Suggestion` object
+5. Returns list with `count` suggestions
+
+**Example**: `semantic_neighbours.yaml` has `count: 2` and generates 2 suggestions per session.
+
+### Python Implementation Reference
+
+GeistFabrik's custom TraceryEngine implementation:
 
 ```python
+from pathlib import Path
 import yaml
-import tracery
-from tracery.modifiers import base_english
-import re
+from geistfabrik.tracery import TraceryEngine, TraceryGeist
+from geistfabrik.models import Suggestion
+from geistfabrik.vault_context import VaultContext
 
-def load_tracery_geist(path: str):
+def load_tracery_geist(path: Path) -> tuple[str, dict, int]:
     """Load YAML geist file"""
     with open(path) as f:
         data = yaml.safe_load(f)
 
     assert data['type'] == 'geist-tracery'
-    return data['id'], data['tracery']
+    return data['id'], data['tracery'], data.get('count', 1)
 
-def execute_tracery_geist(geist_id: str, grammar_dict: dict,
-                          vault: VaultContext) -> List[Suggestion]:
+def execute_tracery_geist(geist_id: str, grammar: dict, count: int,
+                          vault: VaultContext, seed: int) -> list[Suggestion]:
     """Execute Tracery geist with vault integration"""
 
-    # 1. Execute all $vault.* function calls
-    processed_grammar = {}
-    for symbol, rules in grammar_dict.items():
-        processed_rules = []
-        for rule in rules:
-            if rule.startswith('$vault.'):
-                # Parse and execute vault function
-                result = execute_vault_function(rule, vault)
-                processed_rules.extend(result)  # Flatten results
-            else:
-                processed_rules.append(rule)
-        processed_grammar[symbol] = processed_rules
+    # Create TraceryGeist instance
+    geist = TraceryGeist(geist_id, grammar, count, seed)
 
-    # 2. Create Tracery grammar
-    grammar = tracery.Grammar(processed_grammar)
-    grammar.add_modifiers(base_english)
-
-    # 3. Generate text
-    try:
-        text = grammar.flatten('#origin#')
-    except Exception as e:
-        print(f"⚠️  Tracery expansion failed for {geist_id}: {e}")
-        return []
-
-    # 4. Extract note references
-    notes = extract_note_references(text)
-
-    # 5. Create suggestion
-    return [Suggestion(text=text, notes=notes, geist_id=geist_id)]
-
-def execute_vault_function(call_str: str, vault: VaultContext) -> List[str]:
-    """Parse and execute $vault.function(args) calls"""
-    import re
-    pattern = r'\$vault\.(\w+)\(([^)]*)\)'
-    match = re.match(pattern, call_str)
-
-    if not match:
-        raise ValueError(f"Invalid vault function syntax: {call_str}")
-
-    func_name, args_str = match.groups()
-
-    # Get registered function
-    func = vault.functions.get(func_name)
-    if not func:
-        raise ValueError(f"Unknown vault function: {func_name}")
-
-    # Parse arguments (simplified - needs proper parsing)
-    args = eval(f"[{args_str}]")  # UNSAFE - use proper parser
-
-    # Execute
-    return func(vault, *args)
+    # Generate suggestions (handles vault function preprocessing internally)
+    return geist.suggest(vault)
 ```
+
+**Key differences from pytracery**:
+- Uses custom `TraceryEngine` class, not `tracery.Grammar`
+- Vault function preprocessing is built-in (no manual `$vault.*` parsing needed)
+- Validation catches unsafe patterns at load time
+- Deterministic randomness via `seed` parameter
+- Custom modifiers (`.split_seed`, `.split_neighbours`) for cluster functions
 
 ### Metadata Bridge Pattern
 
@@ -558,7 +564,7 @@ complex_notes: ["$note.complexity > 0.8"]  # ✗ Invalid
 
 ```python
 # <vault>/_geistfabrik/vault_functions/by_complexity.py
-from geistfabrik.registry import vault_function
+from geistfabrik.function_registry import vault_function
 
 @vault_function("complex_notes")
 def complex_notes(vault: VaultContext, k: int) -> List[str]:
@@ -571,7 +577,7 @@ def complex_notes(vault: VaultContext, k: int) -> List[str]:
     sorted_notes = sorted(notes_with_meta,
                           key=lambda x: x[1] or 0,
                           reverse=True)
-    return [note.title for note, _ in sorted_notes[:k]]
+    return [note.obsidian_link for note, _ in sorted_notes[:k]]
 ```
 
 ```yaml
@@ -623,6 +629,7 @@ neighbours: ["$vault.neighbours(#seed#, 3)"]  # Passes "#seed#" as string!
 - `sample_notes(k)` - Only primitive parameters
 - `orphans(k)` - Only primitive parameters
 - `hubs(k)` - Only primitive parameters
+- `semantic_clusters(count, k)` - Bundles seeds with neighbours using delimiters
 
 **Workaround Pattern**: Create "cluster" functions that bundle related data:
 
@@ -652,9 +659,11 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 
 **Custom Tracery Modifiers** to extract parts:
 ```python
-# In TraceryEngine._default_modifiers()
-"split_seed": lambda text: text.split("|||")[0] if "|||" in text else text,
-"split_neighbours": lambda text: text.split("|||")[1] if "|||" in text else "",
+# Already implemented in TraceryEngine._default_modifiers()
+# See src/geistfabrik/tracery.py lines 243-268
+
+".split_seed": lambda text: text.split("|||")[0] if "|||" in text else text,
+".split_neighbours": lambda text: text.split("|||")[1] if "|||" in text else "",
 ```
 
 **Tracery Usage**:
@@ -682,16 +691,21 @@ $vault.neighbours(#note#, 3)  # ERROR: Cannot pass symbols to functions
 
 #### Push-Pop with Vault Data
 
+**Status**: ❌ **NOT IMPLEMENTED**
+
+Push-pop stack memory (`#[variable:value]#` syntax) is not currently supported in GeistFabrik's custom TraceryEngine. The original Tracery feature allowed saving generated text for reuse:
+
 ```yaml
+# This syntax is NOT supported:
 origin: "#[hero:#vault_note#]story#"
 vault_note: ["$vault.sample_notes(1)"]
 story: "[[#hero#]] was never mentioned in [[#other#]]"
 other: ["$vault.sample_notes(1)"]
 ```
 
-**Status**: Should work. Vault function executes first, result stored in push-pop stack.
+**Workaround**: Use vault functions to pre-generate related data, or use code geists for complex state management.
 
-**Uncertainty**: Needs testing with pytracery implementation.
+**Future consideration**: Could be added to custom TraceryEngine if needed, but current cluster function pattern handles most use cases.
 
 ## Potential Features for GeistFabrik
 
@@ -705,12 +719,16 @@ These features unlock entire categories of geists and should be prioritized firs
 
 **What It Unlocks**: Grammatically correct, natural-sounding suggestions
 
-**Modifiers Available in pytracery's `base_english`**:
+**Status**: ✅ **IMPLEMENTED** in custom TraceryEngine
+
+**Modifiers Available**:
 - `.capitalize` - "hello" → "Hello"
 - `.capitalizeAll` - "hello world" → "Hello World"
-- `.s` - "cat" → "cats" (pluralization)
-- `.ed` - "walk" → "walked" (past tense)
+- `.s` - "cat" → "cats" (pluralization with irregular support)
+- `.ed` - "walk" → "walked" (past tense with irregular support)
 - `.a` - "owl" → "an owl" (article selection)
+
+**Implementation**: Built into `TraceryEngine._default_modifiers()` (lines 39-241 in tracery.py)
 
 **Geists Enabled**:
 
@@ -738,7 +756,7 @@ tracery:
 # Output: "Your three assumptions might all be symptoms of the same problem"
 ```
 
-**Implementation Status**: Pytracery includes this. **Action: Verify loaded in GeistFabrik**.
+**Status**: ✅ **IMPLEMENTED** - see `semantic_neighbours.yaml` for working example
 
 ---
 
@@ -789,9 +807,10 @@ tracery:
 # Output: "The [[Note#Assumptions]] section might answer [[How does this scale?]]"
 ```
 
-**Implementation**: Add custom modifiers to pytracery:
+**Implementation**: Add custom modifiers to TraceryEngine:
 
 ```python
+# src/geistfabrik/tracery.py
 def obsidian_modifiers():
     return {
         'wikilink': lambda s: f"[[{s}]]",
@@ -799,6 +818,8 @@ def obsidian_modifiers():
         'tag': lambda s: f"#{s.replace(' ', '-').lower()}",
         'heading': lambda s: f"#{s}",  # For use inside wikilinks
     }
+
+# Add to TraceryEngine._default_modifiers() or use add_modifier()
 ```
 
 ---
@@ -913,7 +934,7 @@ tracery:
   step3: ["Notice what's missing", "Ask who this serves", "Celebrate the failure"]
 ```
 
-**Status**: **Needs testing** - verify YAML multiline works with pytracery.
+**Status**: **Needs testing** - YAML multiline syntax should work, needs verification with TraceryEngine.
 
 ---
 
@@ -954,17 +975,19 @@ tracery:
 
 ```python
 # <vault>/_geistfabrik/vault_functions/wordlists.py
+from geistfabrik.function_registry import vault_function
+
 @vault_function("power_verbs")
 def power_verbs(vault: VaultContext) -> List[str]:
     """Load curated action verbs"""
-    wordlist_path = vault.geistfabrik_dir / "wordlists" / "power_verbs.txt"
+    wordlist_path = vault.vault.vault_dir / "_geistfabrik" / "wordlists" / "power_verbs.txt"
     with open(wordlist_path) as f:
         return [line.strip() for line in f if line.strip()]
 
 @vault_function("evocative_adjectives")
 def evocative_adjectives(vault: VaultContext) -> List[str]:
     """Load evocative descriptive words"""
-    wordlist_path = vault.geistfabrik_dir / "wordlists" / "evocative_adjectives.txt"
+    wordlist_path = vault.vault.vault_dir / "_geistfabrik" / "wordlists" / "evocative_adjectives.txt"
     with open(wordlist_path) as f:
         return [line.strip() for line in f if line.strip()]
 ```
@@ -989,56 +1012,38 @@ These features enable time-aware and number-aware suggestions.
 
 **What It Unlocks**: Retrospective and anniversary-aware geists
 
-**Geists Enabled**:
+**Status**: Partially possible via vault functions (cluster pattern required)
+
+**Challenge**: Functions like `note_age_days(note_title)` that take note titles as parameters cannot work directly in Tracery due to preprocessing order.
+
+**Solution**: Use cluster functions or pre-format in vault function:
+
+```python
+@vault_function("old_notes_with_age")
+def old_notes_with_age(vault: VaultContext, k: int = 1) -> List[str]:
+    """Return old notes with age pre-formatted"""
+    old = vault.old_notes(k)
+    results = []
+    for note in old:
+        days = (datetime.now() - note.modified).days
+        if days < 30:
+            age_str = f"{days} days ago"
+        elif days < 365:
+            age_str = f"{days // 30} months ago"
+        else:
+            age_str = f"{days // 365} years ago"
+        # Bundle note and age using delimiter
+        results.append(f"{note.obsidian_link}|||{age_str}")
+    return results
+```
 
 ```yaml
-# Memory Mirror Geist - surfaces old notes with readable timespans
-type: geist-tracery
-id: memory_mirror
-tracery:
-  origin: "#timespan.ago# you wrote [[#old_note#]]. Today's [[#new_note#]] #relationship#"
-  old_note: ["$vault.old_notes(1)"]
-  new_note: ["$vault.recent_notes(1)"]
-  timespan: ["$vault.note_age_days(old_note)"]  # Returns "847"
-  relationship: ["answers it", "contradicts it", "completes it", "has forgotten it"]
-# With .ago modifier: "847" → "2 years ago"
-# Output: "2 years ago you wrote [[Early Thoughts]]. Today's [[Synthesis]] answers it"
-```
-
-```yaml
-# Seasonal Rhythm Geist - detects patterns across time
-type: geist-tracery
-id: seasonal_notes
-tracery:
-  origin: "Every #season.capitalize#, you return to [[#topic#]]"
-  season: ["$vault.current_season()"]  # "spring", "fall", etc.
-  topic: ["$vault.notes_from_season(season, 1)"]
-```
-
-**Implementation Options**:
-
-1. **Vault function returns formatted string** (easier):
-```python
-@vault_function("note_age_formatted")
-def note_age_formatted(vault: VaultContext, note_title: str) -> List[str]:
-    days = vault.note_age_days(note_title)
-    if days < 30:
-        return [f"{days} days ago"]
-    elif days < 365:
-        return [f"{days // 30} months ago"]
-    else:
-        return [f"{days // 365} years ago"]
-```
-
-2. **Custom modifier** (more flexible):
-```python
-def temporal_modifier(days_str: str) -> str:
-    days = int(days_str)
-    if days < 30: return f"{days} days ago"
-    elif days < 365: return f"{days // 30} months ago"
-    else: return f"{days // 365} years ago"
-
-grammar.add_modifiers({'ago': temporal_modifier})
+# Usage with custom modifiers
+origin: "#timespan# you wrote [[#note#]]. #reflection#"
+note_data: ["$vault.old_notes_with_age(1)"]
+note: ["#note_data.split_seed#"]
+timespan: ["#note_data.split_neighbours#"]  # Extract pre-formatted age
+reflection: ["Today's work answers it", "Time changes perspective"]
 ```
 
 ---
@@ -1117,8 +1122,33 @@ tracery:
 
 **What It Unlocks**: Domain-specific transformations, user extensibility
 
-**Already Supported by pytracery** - just need to document pattern:
+**Status**: ✅ **IMPLEMENTED** via `TraceryEngine.add_modifier()`
 
+The custom TraceryEngine supports adding modifiers:
+
+```python
+# Built-in modifiers (always available)
+engine.modifiers = {
+    'capitalize': ...,
+    'capitalizeAll': ...,
+    's': ...,
+    'ed': ...,
+    'a': ...,
+    'split_seed': ...,
+    'split_neighbours': ...,
+}
+
+# Add custom modifier
+engine.add_modifier('reverse', lambda s: s[::-1])
+engine.add_modifier('shout', lambda s: s.upper() + '!')
+
+# For Obsidian syntax
+engine.add_modifier('wikilink', lambda s: f"[[{s}]]")
+engine.add_modifier('embed', lambda s: f"![[{s}]]")
+engine.add_modifier('tag', lambda s: f"#{s.replace(' ', '-').lower()}")
+```
+
+**User extensibility pattern** (future):
 ```python
 # <vault>/_geistfabrik/tracery_modifiers.py
 def load_custom_modifiers():
@@ -1126,21 +1156,11 @@ def load_custom_modifiers():
     return {
         # Text transformations
         'reverse': lambda s: s[::-1],
-        'shout': lambda s: s.upper() + '!',
         'whisper': lambda s: s.lower() + '...',
 
-        # Obsidian syntax
-        'wikilink': lambda s: f"[[{s}]]",
-        'embed': lambda s: f"![[{s}]]",
-        'tag': lambda s: f"#{s.replace(' ', '-').lower()}",
-
-        # Length control
+        # Custom formatting
         'truncate': lambda s: s[:50] + '...' if len(s) > 50 else s,
         'first_word': lambda s: s.split()[0] if s else s,
-
-        # Custom formatting
-        'ago': lambda days: format_timespan(int(days)),
-        'spell': lambda n: num2words(int(n)),
     }
 ```
 
@@ -1250,11 +1270,26 @@ opposite: ["$vault.semantic_opposite(note, 1)"]  # If symbol reference worked
 
 ---
 
-#### 14. Recursive Depth Limiting
+#### 14. Recursion Depth Limiting
 
 **What It Unlocks**: Protection against infinite recursion
 
-**Status**: Pytracery likely has built-in limits. **Action: Verify and configure**.
+**Status**: ✅ **IMPLEMENTED** - `max_depth = 50`
+
+The TraceryEngine has a built-in recursion limit:
+
+```python
+# src/geistfabrik/tracery.py
+class TraceryEngine:
+    def __init__(self, grammar, seed=None):
+        self.max_depth = 50  # Maximum recursion depth
+
+    def expand(self, text, depth=0):
+        if depth > self.max_depth:
+            raise RecursionError(f"Tracery expansion exceeded max depth ({self.max_depth})")
+```
+
+This prevents infinite loops from circular symbol references.
 
 ---
 
@@ -1262,30 +1297,38 @@ opposite: ["$vault.semantic_opposite(note, 1)"]  # If symbol reference worked
 
 | Feature | Geist Categories Unlocked | Implementation | Status |
 |---------|---------------------------|----------------|--------|
-| **Text modifiers** (.s, .ed, .a) | Grammar-correct suggestions, natural language | Built-in pytracery | **Verify loaded** |
-| **Obsidian modifiers** (.wikilink, .embed, .tag) | Syntax-aware geists, embed suggestions, tag bridges | Custom modifiers (easy) | **Implement** |
-| **Weighted distributions** | Serendipity control, tonal variety, rare insights | Repeat options (workaround) or custom parser | **Workaround works** |
-| **Multiline support** | Structured provocations, multi-perspective geists | YAML native | **Test with pytracery** |
-| **External wordlists** | Domain-specific vocabulary, evocative language | Vault functions (easy) | **Implement pattern** |
-| **Temporal modifiers** | Retrospective geists, anniversary awareness | Custom modifier or vault function | **Medium priority** |
-| **Number formatting** | Statistical geists, count-based suggestions | Custom modifier | **Medium priority** |
-| **Grammar composition** | DRY development, consistent voice | YAML anchors or custom loader | **Low priority** |
-| **Custom modifier framework** | User extensibility, domain transformations | Built-in pytracery | **Document pattern** |
-| **Visual formatting** | Typographic emphasis, unicode symbols | Tracery native | **Experimental** |
-| **Conditional expansion** | Adaptive geists | Anti-pattern - use code geists | **Avoid** |
-| **Semantic modifiers** | Embedding-aware text transforms | Very complex | **Use vault functions** |
-| **State persistence** | Multi-turn geists | Not needed (single expansion) | **Not applicable** |
-| **Recursion limits** | Safety | Pytracery built-in | **Verify config** |
+| **Text modifiers** (.s, .ed, .a) | Grammar-correct suggestions, natural language | Built-in TraceryEngine | ✅ **Implemented** |
+| **Custom cluster modifiers** (.split_seed, .split_neighbours) | Seed-neighbour pairing for Tracery | Built-in TraceryEngine | ✅ **Implemented** |
+| **Obsidian modifiers** (.wikilink, .embed, .tag) | Syntax-aware geists, embed suggestions, tag bridges | Custom modifiers (easy) | 🔲 **Not implemented** |
+| **Weighted distributions** | Serendipity control, tonal variety, rare insights | Repeat options (workaround) or custom parser | ⚠️ **Workaround works** |
+| **Multiline support** | Structured provocations, multi-perspective geists | YAML native | 🔲 **Needs testing** |
+| **External wordlists** | Domain-specific vocabulary, evocative language | Vault functions (easy) | 🔲 **Pattern documented** |
+| **Temporal modifiers** | Retrospective geists, anniversary awareness | Cluster function pattern | ⚠️ **Partial via clusters** |
+| **Number formatting** | Statistical geists, count-based suggestions | Custom modifier | 🔲 **Not implemented** |
+| **Grammar composition** | DRY development, consistent voice | YAML anchors or custom loader | 🔲 **Low priority** |
+| **Custom modifier framework** | User extensibility, domain transformations | Built-in add_modifier() | ✅ **Implemented** |
+| **Deterministic randomness** | Same date → same output | Built-in seed parameter | ✅ **Implemented** |
+| **Multiple suggestions** | Multiple outputs per geist | Built-in count parameter | ✅ **Implemented** |
+| **Validation** | Catch anti-patterns at load time | Built-in _validate_grammar() | ✅ **Implemented** |
+| **Recursion limits** | Safety | Built-in max_depth = 50 | ✅ **Implemented** |
+| **Push-pop stack** | Variable reuse across expansion | Not implemented | ❌ **Not available** |
+| **Visual formatting** | Typographic emphasis, unicode symbols | Tracery native | ⚠️ **Experimental** |
+| **Conditional expansion** | Adaptive geists | Anti-pattern - use code geists | ❌ **Avoid** |
+| **Semantic modifiers** | Embedding-aware text transforms | Very complex | ⚠️ **Use vault functions** |
+| **State persistence** | Multi-turn geists | Not needed (count handles this) | ✅ **Not applicable** |
 
 ## Recommended Implementation Order
 
-1. **Verify text modifiers loaded** (`base_english` from pytracery)
-2. **Implement Obsidian modifiers** (high impact, low complexity)
-3. **Document external wordlist pattern** (enables rich vocabulary)
-4. **Test multiline YAML support** (unlocks structured geists)
-5. **Add temporal modifiers** (retrospective geists)
-6. **Document custom modifier framework** (user extensibility)
-7. Consider weighted distributions enhancement (quality of life)
+1. ✅ **Text modifiers** - Already implemented in TraceryEngine
+2. ✅ **Cluster modifiers** (.split_seed/.split_neighbours) - Already implemented
+3. ✅ **Deterministic randomness** - Already implemented via seed parameter
+4. ✅ **Recursion limits** - Already implemented (max_depth = 50)
+5. ✅ **Validation** - Already implemented (_validate_grammar)
+6. 🔲 **Implement Obsidian modifiers** (high impact, low complexity)
+7. 🔲 **Document external wordlist pattern** (enables rich vocabulary)
+8. 🔲 **Test multiline YAML support** (unlocks structured geists)
+9. 🔲 **Add number formatting modifiers** (statistical geists)
+10. 🔲 Consider weighted distributions enhancement (quality of life)
 
 ## Resources
 
@@ -1294,4 +1337,9 @@ opposite: ["$vault.semantic_opposite(note, 1)"]  # If symbol reference worked
 - Academic Paper: "Tracery: An Author-Focused Generative Text Tool" (Compton et al., 2015)
 - Visual Editor: https://tracery.io/editor
 - Community Grammars: https://github.com/galaxykate/tracery/tree/tracery2/js/grammars
-- Pytracery Documentation: https://github.com/aparrish/pytracery
+
+**GeistFabrik Implementation**:
+- Custom TraceryEngine: `src/geistfabrik/tracery.py`
+- Vault function integration: `src/geistfabrik/function_registry.py`
+- Example geists: `src/geistfabrik/default_geists/tracery/`
+- Tests: `tests/unit/test_tracery.py`
