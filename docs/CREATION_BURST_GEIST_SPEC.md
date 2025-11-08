@@ -1,42 +1,24 @@
-# Creation Burst Geist Specification
+# Creation Burst Geists Specification
 
 **Date**: 2025-11-08
 **Status**: Proposed - Specification Only
 
 ## Overview
 
-A geist that identifies days when you created multiple notes (5+) and asks what was special about those moments of creative productivity. The basic version lists the notes; the temporal version shows how much those notes have evolved since that burst day.
+Two complementary geists that focus on "burst days" - specific moments when you created multiple notes (5+) in a single day. Together they reveal productive moments and track how those creative bursts evolved.
 
 ---
 
-## Core Idea
+## Geist 1: creation_burst (Basic, Metadata Only)
 
-**Basic provocation:**
-> "On March 15, 2024, you created 7 notes: [[Systems Thinking]], [[Emergence]], [[Feedback Loops]], [[Complexity]], [[Adaptation]], [[Resilience]], [[Networks]]. What was special about that day?"
+### Purpose
+Surface forgotten productive days by listing notes created together in burst moments.
 
-**Temporal evolution provocation:**
-> "On March 15, 2024, you created 7 notes. Since then:
-> - [[Systems Thinking]] has drifted 0.42 (major evolution)
-> - [[Emergence]] has drifted 0.31 (significant shift)
-> - [[Feedback Loops]] has drifted 0.08 (mostly stable)
-> - [[Complexity]] has drifted 0.29 (moderate evolution)
-> - [[Adaptation]] has drifted 0.51 (major evolution)
-> - [[Resilience]] has drifted 0.12 (mostly stable)
-> - [[Networks]] has drifted 0.38 (significant shift)
->
-> What if some ideas from that burst crystallized while others are still searching?"
-
----
-
-## Detection Method
-
-### Step 1: Find Burst Days
-
+### Detection Method
 ```sql
 SELECT DATE(created) as creation_date,
        COUNT(*) as note_count,
-       GROUP_CONCAT(title, '|') as note_titles,
-       GROUP_CONCAT(path, '|') as note_paths
+       GROUP_CONCAT(title, '|') as note_titles
 FROM notes
 WHERE NOT path LIKE 'geist journal/%'
 GROUP BY DATE(created)
@@ -44,124 +26,256 @@ HAVING note_count >= 5
 ORDER BY note_count DESC
 ```
 
-### Step 2: For Selected Burst Day
+### Output Format
+**Single suggestion** listing the burst day notes with a provocative question.
 
-**Basic version:**
-- List the notes created that day
-- Ask: "What was special about that day?"
+### Examples
 
-**Temporal version:**
-- For each note created on burst day:
-  - Get embedding from session closest to creation date (or first appearance in session_embeddings)
-  - Get embedding from current session
-  - Calculate drift: `1 - cosine_similarity(creation_embedding, current_embedding)`
-- Show drift scores for each note
-- Ask: "What if some ideas crystallized while others are still searching?"
+**Standard burst (5-7 notes):**
+```
+On March 15, 2024, you created 6 notes in one day: [[Systems Thinking]],
+[[Emergence]], [[Feedback Loops]], [[Complexity]], [[Adaptation]], [[Networks]].
+What sparked that productivity?
+```
+
+**High burst (7-10 notes):**
+```
+On October 12, 2024, you created 8 notes: [[Mushrooms]], [[Mycelium]],
+[[Decomposition]], [[Forest Networks]], [[Symbiosis]], [[Nutrient Cycling]],
+[[Soil]], [[Fungi]]. What was special about that day?
+```
+
+**Exceptional burst (10+ notes):**
+```
+On January 5, 2024, you created 12 notes in a single day—an exceptional burst.
+What conditions created that flow state? [[Note 1]], [[Note 2]], [[Note 3]],
+[[Note 4]], [[Note 5]], [[Note 6]], [[Note 7]], [[Note 8]], and 4 more
+```
+
+### Implementation Notes
+- Returns exactly 1 suggestion
+- Randomly samples one burst day (deterministic via vault seed)
+- Limits displayed titles to 8 (shows "and N more" for larger bursts)
+- Zero dependencies, works immediately on any vault
+- Execution time: <10ms
 
 ---
 
-## Drift Interpretation
+## Geist 2: burst_evolution (Temporal, Uses Embeddings)
 
-```
-Drift < 0.10  →  "mostly stable" (understanding hasn't changed much)
-Drift 0.10-0.25  →  "moderate evolution" (some shifts in understanding)
-Drift 0.25-0.40  →  "significant shift" (notable evolution)
-Drift > 0.40  →  "major evolution" (fundamentally different understanding)
-```
+### Purpose
+Show numerically how much notes from burst days have evolved since creation.
 
-### What Drift Reveals
+### Detection Method
 
-**Low drift across all notes:**
+1. Find burst days (same SQL as creation_burst)
+2. For selected burst day, get each note's embeddings:
+   - Creation embedding: from session closest to burst date
+   - Current embedding: from current session
+3. Calculate drift for each note: `1 - cosine_similarity(creation, current)`
+4. Present drift scores in descending order
+
+### Output Format
+**Single suggestion** showing numerical drift for each note. **No question** - purely declarative observation.
+
+### Examples
+
+**Mixed drift (most interesting):**
 ```
-"All 7 notes from March 15 have remained stable (avg drift: 0.09).
-That burst created foundational concepts that haven't needed revision?"
+On March 15, 2024, you created 7 notes. Since then:
+- [[Adaptation]]: 0.51 drift (major evolution)
+- [[Systems Thinking]]: 0.42 drift (major evolution)
+- [[Networks]]: 0.38 drift (significant shift)
+- [[Emergence]]: 0.31 drift (significant shift)
+- [[Complexity]]: 0.29 drift (moderate evolution)
+- [[Resilience]]: 0.12 drift (mostly stable)
+- [[Feedback Loops]]: 0.08 drift (mostly stable)
+
+[[Feedback Loops]] and [[Resilience]] are anchors—the stable core
+around which other ideas orbit and evolve.
 ```
 
 **High drift across all notes:**
 ```
-"All 7 notes from March 15 have evolved significantly (avg drift: 0.43).
-That burst was exploratory—initial sketches that developed into something else?"
-```
-
-**Mixed drift (most interesting):**
-```
-"Some notes from March 15 crystallized ([[Feedback Loops]]: 0.08),
-while others keep evolving ([[Adaptation]]: 0.51).
-What if that day planted seeds that grew at different rates?"
-```
-
----
-
-## Example Outputs
-
-### Scenario 1: Recent Burst (2 weeks ago)
-
-**Basic:**
-```
-On October 25, 2024, you created 6 notes: [[Mushrooms]], [[Mycelium]],
-[[Decomposition]], [[Forest Networks]], [[Symbiosis]], [[Nutrient Cycling]].
-What was special about that day?
-```
-
-**Temporal (limited history):**
-```
-On October 25, 2024, you created 6 notes. Only 2 weeks have passed,
-but already some are evolving:
-- [[Mycelium]] has drifted 0.18 (moderate evolution)
-- [[Forest Networks]] has drifted 0.22 (moderate evolution)
-
-Early signs of which ideas are settling vs. still moving?
-```
-
-### Scenario 2: Old Burst (6 months ago)
-
-**Basic:**
-```
-On March 15, 2024, you created 7 notes about systems thinking.
-What was special about that day?
-```
-
-**Temporal (full trajectory):**
-```
-On March 15, 2024, you created 7 notes. Six months later:
-- [[Systems Thinking]]: 0.42 drift (major evolution)
-- [[Emergence]]: 0.31 drift (significant shift)
-- [[Feedback Loops]]: 0.08 drift (mostly stable)
-- [[Complexity]]: 0.29 drift (significant shift)
-- [[Adaptation]]: 0.51 drift (major evolution)
-- [[Resilience]]: 0.12 drift (mostly stable)
-- [[Networks]]: 0.38 drift (significant shift)
-
-Average drift: 0.30 (moderate to significant evolution)
-
-What if [[Feedback Loops]] and [[Resilience]] are your anchors—
-the stable core around which other ideas orbit and evolve?
-```
-
-### Scenario 3: Burst with Exceptional Drift
-
-**Temporal:**
-```
 On January 12, 2024, you created 5 notes about consciousness.
 Ten months later, they've all evolved dramatically (avg drift: 0.58).
 
-What if that burst was asking questions, not stating answers?
-Early explorations that your understanding has completely transformed?
+That burst was asking questions, not stating answers. Early explorations
+that your understanding has completely transformed.
 ```
+
+**Low drift across all notes:**
+```
+On June 3, 2024, you created 6 notes about complexity science.
+Four months later, all remain stable (avg drift: 0.09).
+
+That burst created foundational concepts that haven't needed revision.
+```
+
+**Recent burst (limited history):**
+```
+On October 25, 2024, you created 6 notes about mycelium networks.
+Only 2 weeks have passed, but already some are evolving:
+- [[Mycelium]]: 0.18 drift (moderate evolution)
+- [[Forest Networks]]: 0.22 drift (moderate evolution)
+- [[Symbiosis]]: 0.14 drift (moderate evolution)
+
+Early signs of which ideas are settling vs. still moving.
+```
+
+### Drift Interpretation
+
+```
+Drift < 0.10  →  "mostly stable"
+Drift 0.10-0.25  →  "moderate evolution"
+Drift 0.25-0.40  →  "significant shift"
+Drift > 0.40  →  "major evolution"
+```
+
+### Declarative Statements (Not Questions)
+
+The geist makes **observations** based on drift patterns:
+
+**When avg drift > 0.45:**
+> "That burst was asking questions, not stating answers. Early explorations that your understanding has completely transformed."
+
+**When avg drift < 0.15:**
+> "That burst created foundational concepts that haven't needed revision."
+
+**When mixed (some stable, some evolving):**
+> "[[StableNote1]] and [[StableNote2]] are anchors—the stable core around which other ideas orbit and evolve."
+
+**When recent (< 1 month ago):**
+> "Early signs of which ideas are settling vs. still moving."
+
+### Implementation Notes
+- Returns exactly 1 suggestion
+- Requires session_embeddings history
+- Fallback: if <50% of burst notes have embeddings → skip to next burst day or return empty
+- Uses session closest to (but not before) creation date as baseline
+- Shows up to 7 notes with drift scores
+- Execution time: <500ms
+
+---
+
+## How These Differ from Existing Geists
+
+### vs. temporal_clustering
+**Existing:** Groups ALL notes by quarters, finds semantic clusters per time period
+```
+"Your Q2-2024 notes form a distinct cluster separate from Q4-2024. Different seasons?"
+```
+- Focuses on: Time periods (quarters)
+- Compares: Different eras
+- Pattern: Broad temporal grouping
+
+**New (creation_burst + burst_evolution):** Focuses on SPECIFIC DAYS when many notes were created
+```
+"On March 15, you created 7 notes. [[Note A]] stable, [[Note B]] evolved."
+```
+- Focuses on: Creation events (burst days)
+- Compares: Notes from same moment
+- Pattern: Cohort from single productive day
+
+**Key difference:** temporal_clustering asks "do notes from different quarters cluster differently?" while burst_evolution asks "what happened to notes born together on the same day?"
+
+---
+
+### vs. concept_drift
+**Existing:** Tracks INDIVIDUAL notes over time, shows what they're drifting toward
+```
+"[[Systems Thinking]] has migrated since 2024-03. Now drifting toward [[Emergence]]."
+```
+- Focuses on: Single notes
+- Metric: Directional drift (toward what?)
+- Output: One note + its drift target
+
+**New (burst_evolution):** Shows how GROUPS OF NOTES from specific days evolved
+```
+"On March 15, you created 7 notes. 2 stable (0.08, 0.12), 5 evolved (0.29-0.51)."
+```
+- Focuses on: Note cohorts (created same day)
+- Metric: Magnitude of drift (how much?)
+- Output: Multiple notes + their drift scores
+
+**Key difference:** concept_drift tracks individual trajectories, burst_evolution tracks cohort evolution.
+
+---
+
+### vs. recent_focus
+**Existing:** Compares recently modified notes to old similar notes
+```
+"Your recent work on [[Note A]] connects to older [[Note B]]. Thinking evolved?"
+```
+- Focuses on: Modification recency
+- Compares: Recent vs old
+- Temporal anchor: Modification dates
+
+**New (creation_burst):** Surfaces burst days regardless of recency
+```
+"On March 15, you created 7 notes. What sparked that productivity?"
+```
+- Focuses on: Creation moments
+- Compares: Notes from same burst
+- Temporal anchor: Creation dates
+
+**Key difference:** recent_focus is modification-based, creation_burst is creation-based.
+
+---
+
+### vs. on_this_day
+**Existing:** Anniversary pattern - notes from same calendar date in previous years
+```
+"One year ago today, you wrote [[Note]]. What's changed since then?"
+```
+- Pattern: Calendar anniversary (March 15, 2023 → March 15, 2024)
+- Temporal: Annual cycle
+- Focus: Single note per year
+
+**New (creation_burst):** Multiple notes from same day (any date, not anniversary)
+```
+"On March 15, 2024, you created 7 notes in one day. What was special?"
+```
+- Pattern: Burst activity (5+ notes, single day)
+- Temporal: Any productive day
+- Focus: Multiple notes from one moment
+
+**Key difference:** on_this_day is calendar-based anniversary, creation_burst is productivity-based detection.
+
+---
+
+## The Unique Insight: Cohort Analysis
+
+These two geists together provide **cohort analysis** - tracking groups of notes born at the same moment:
+
+1. **creation_burst** identifies the cohort: "These 7 notes were created together"
+2. **burst_evolution** tracks the cohort: "Some stayed stable, some evolved dramatically"
+
+**Why this matters:**
+
+- Notes created together often share context (same reading, same event, same insight)
+- Tracking cohorts reveals which ideas from that moment crystallized vs. evolved
+- Different from tracking individual notes (concept_drift) or time periods (temporal_clustering)
+
+**Analogy:**
+- **temporal_clustering** = "Students who started school in Fall 2024"
+- **concept_drift** = "Where did Alice go after graduation?"
+- **burst_evolution** = "What happened to the 7 students who all enrolled on the same day?"
+
+**The cohort matters** because notes born together may have shared origins but divergent fates.
 
 ---
 
 ## Implementation Sketch
 
-### Basic Version (Metadata Only)
+### creation_burst.py (Basic)
 
 ```python
 def suggest(vault: VaultContext) -> List[Suggestion]:
     """Find burst days and list the notes created."""
 
-    # Find days with 5+ notes
     cursor = vault.db.execute("""
-        SELECT DATE(created), GROUP_CONCAT(title, '|')
+        SELECT DATE(created), COUNT(*), GROUP_CONCAT(title, '|')
         FROM notes
         WHERE NOT path LIKE 'geist journal/%'
         GROUP BY DATE(created)
@@ -172,34 +286,41 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
     if not burst_days:
         return []
 
-    # Pick random burst day
-    date, titles_str = vault.sample(burst_days, k=1)[0]
+    date, count, titles_str = vault.sample(burst_days, k=1)[0]
     titles = titles_str.split('|')
 
-    # Generate provocation
-    title_list = ", ".join([f"[[{t}]]" for t in titles[:8]])
+    # Format title list
+    display = ", ".join([f"[[{t}]]" for t in titles[:8]])
     if len(titles) > 8:
-        title_list += f", and {len(titles) - 8} more"
+        display += f", and {len(titles) - 8} more"
 
-    text = f"On {date}, you created {len(titles)} notes: {title_list}. What was special about that day?"
+    # Generate question based on count
+    if count >= 10:
+        question = "What conditions created that flow state?"
+    elif count >= 7:
+        question = "What was special about that day?"
+    else:
+        question = "What sparked that productivity?"
+
+    text = f"On {date}, you created {count} notes: {display}. {question}"
 
     return [Suggestion(text=text, notes=titles, geist_id="creation_burst")]
 ```
 
-### Temporal Version (Using Session Embeddings)
+### burst_evolution.py (Temporal)
 
 ```python
 def suggest(vault: VaultContext) -> List[Suggestion]:
-    """Find burst days and show how notes have evolved since creation."""
+    """Show how burst-day notes have evolved since creation."""
 
     # Find burst days
     burst_days = _get_burst_days(vault)
     if not burst_days:
         return []
 
-    # Pick burst day that has temporal history
+    # Try burst days until we find one with enough embedding history
     for date, paths in vault.sample(burst_days, k=len(burst_days)):
-        # Get creation embeddings (earliest session with these notes)
+        # Find earliest session with these notes
         creation_session = _find_earliest_session_with_notes(vault, paths, date)
         if not creation_session:
             continue
@@ -214,170 +335,138 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
                 drift = 1 - cosine_similarity(creation_emb, current_emb)
                 drifts.append((path, drift))
 
-        if len(drifts) >= 3:  # Need at least 3 notes with drift data
-            return [_generate_drift_provocation(date, drifts)]
+        # Need at least 3 notes with drift data
+        if len(drifts) >= 3:
+            return [_generate_drift_observation(vault, date, drifts)]
 
-    # Fallback to basic version if no temporal data
-    return _basic_version(vault)
+    return []
 
 
-def _generate_drift_provocation(date: str, drifts: List[Tuple[str, float]]) -> Suggestion:
-    """Generate provocation based on drift patterns."""
+def _generate_drift_observation(vault, date, drifts) -> Suggestion:
+    """Generate declarative observation based on drift patterns."""
 
     # Sort by drift (highest first)
     drifts_sorted = sorted(drifts, key=lambda x: x[1], reverse=True)
-
     avg_drift = sum(d for _, d in drifts) / len(drifts)
 
     # Build drift listing
     drift_lines = []
-    for path, drift in drifts_sorted[:7]:  # Show up to 7
+    for path, drift in drifts_sorted[:7]:
         note = vault.get_note(path)
         label = _drift_label(drift)
         drift_lines.append(f"- [[{note.title}]]: {drift:.2f} drift ({label})")
 
     drift_text = "\n".join(drift_lines)
 
-    # Generate interpretation based on pattern
+    # Generate declarative interpretation
     if avg_drift > 0.45:
-        interpretation = (
-            "What if that burst was asking questions, not stating answers? "
-            "Early explorations that your understanding has completely transformed?"
+        observation = (
+            "That burst was asking questions, not stating answers. "
+            "Early explorations that your understanding has completely transformed."
         )
     elif avg_drift < 0.15:
-        interpretation = (
-            "That burst created foundational concepts that haven't needed revision?"
+        observation = (
+            "That burst created foundational concepts that haven't needed revision."
         )
     else:
-        # Mixed drift - find stable vs evolving
-        stable = [t for t, d in drifts if d < 0.15]
-        evolving = [t for t, d in drifts if d > 0.35]
-
-        if stable and evolving:
+        # Find stable anchors
+        stable = [p for p, d in drifts if d < 0.15]
+        if stable:
             stable_titles = ", ".join([f"[[{vault.get_note(p).title}]]" for p in stable[:2]])
-            interpretation = (
-                f"What if {stable_titles} are your anchors—"
-                f"the stable core around which other ideas orbit and evolve?"
+            observation = (
+                f"{stable_titles} are anchors—the stable core "
+                f"around which other ideas orbit and evolve."
             )
         else:
-            interpretation = (
-                "What if some ideas from that burst crystallized while others are still searching?"
-            )
+            observation = "Early signs of which ideas are settling vs. still moving."
 
-    text = f"On {date}, you created {len(drifts)} notes. Since then:\n{drift_text}\n\n{interpretation}"
+    # Calculate time elapsed
+    days_ago = (datetime.now() - datetime.fromisoformat(date)).days
+    if days_ago < 30:
+        time_phrase = f"Only {days_ago} days have passed"
+    elif days_ago < 365:
+        months = days_ago // 30
+        time_phrase = f"{months} months later"
+    else:
+        years = days_ago // 365
+        time_phrase = f"{years} year{'s' if years > 1 else ''} later"
+
+    text = f"On {date}, you created {len(drifts)} notes. {time_phrase}:\n{drift_text}\n\n{observation}"
 
     return Suggestion(
         text=text,
         notes=[vault.get_note(p).title for p, _ in drifts],
-        geist_id="creation_burst"
+        geist_id="burst_evolution"
     )
-
-
-def _drift_label(drift: float) -> str:
-    """Human-readable drift label."""
-    if drift < 0.10:
-        return "mostly stable"
-    elif drift < 0.25:
-        return "moderate evolution"
-    elif drift < 0.40:
-        return "significant shift"
-    else:
-        return "major evolution"
 ```
-
----
-
-## Key Questions
-
-### 1. What counts as "creation" for temporal comparison?
-
-**Option A: First appearance in session_embeddings**
-- Pro: Precise, reflects when embedding was first computed
-- Con: May not match file creation date if vault sync happened later
-
-**Option B: Closest session to file creation date**
-- Pro: More intuitive alignment with burst day
-- Con: May have lag between creation and first session
-
-**Recommendation: Option B** - Use session closest to (but not before) creation date
-
-### 2. Should we show drift for ALL notes or just top/bottom?
-
-**Show all notes** when:
-- Small burst (5-7 notes)
-- Clear pattern emerges
-
-**Show extremes** when:
-- Large burst (10+ notes)
-- Focus on most stable vs most evolved
-
-### 3. How do we handle notes that haven't been embedded yet?
-
-**Fallback gracefully:**
-- If <50% of burst notes have embeddings → use basic version
-- If ≥50% have embeddings → show temporal version with available data
-
----
-
-## Why This Works
-
-### Immediate Value (Basic)
-- Surfaces forgotten productive days
-- Zero computation, works day 1
-- Simple, clear provocation
-
-### Long-term Value (Temporal)
-- Shows which ideas from bursts became stable foundations
-- Reveals which ideas kept evolving
-- Demonstrates temporal embeddings showing what metadata cannot:
-  - Not "did you edit these notes?" (metadata)
-  - But "how has your understanding evolved?" (embeddings)
-
-### Natural Evolution Path
-```
-Week 1:    "You created 7 notes on this day. What was special?"
-           ↓
-Month 6:   "Those 7 notes have evolved differently—some stable, some shifting."
-           ↓
-Year 1:    "Looking back, 3 notes became foundations, 4 kept searching."
-```
-
-The geist grows with the vault's temporal history.
-
----
-
-## Connection to Research
-
-This implements the core temporal embeddings insight from TEMPORAL_GEISTS_RESEARCH.md:
-
-> "Temporal embeddings are a DETECTION MECHANISM, not the SUGGESTION ITSELF.
-> These geists detect patterns in how understanding evolves, then ask what those patterns MEAN."
-
-**Detection:** Notes from burst day have drifted 0.08 to 0.51
-**Provocation:** "What if some ideas crystallized while others are still searching?"
-
-Not analytics. Questions.
 
 ---
 
 ## Success Criteria
 
-**Basic version succeeds if:**
+### creation_burst succeeds if:
 - Surfaces burst days user had forgotten
 - Provokes "oh yeah, what WAS happening then?" reflection
 - Runs in <10ms
+- Works from day 1 on any vault
 
-**Temporal version succeeds if:**
-- Drift scores feel meaningful (correlate with user's sense of evolution)
+### burst_evolution succeeds if:
+- Drift scores feel meaningful (match user's intuition about evolution)
 - Distinguishes stable anchors from evolving explorations
-- Demonstrates value of temporal embeddings history
+- Demonstrates value of temporal embeddings
+- Declarative observations feel insightful without asking questions
 - Runs in <500ms
+
+---
+
+## Why Two Geists Instead of One?
+
+**Design principle:** GeistFabrik geists should each do one thing clearly.
+
+**creation_burst:**
+- Simple, immediate value
+- Works without temporal data
+- Asks questions
+
+**burst_evolution:**
+- Complex, requires history
+- Shows temporal patterns
+- Makes observations
+
+**Together:** Complementary perspectives on the same phenomenon (burst days)
+
+**Separately:** Each stands alone as useful
+- creation_burst: "What was special about that day?"
+- burst_evolution: "Here's what happened to those notes"
+
+**Compare to rejected approach:**
+One geist with two modes would be:
+- More complex to implement
+- Harder to test
+- Less clear about what it does
+- Violates single responsibility principle
+
+---
+
+## Open Questions
+
+1. **Threshold tuning:** Is 5 notes the right threshold for "burst"?
+   - Consider: vault-size dependent? (3 for small vaults, 10 for large)
+
+2. **Creation date baseline:** For burst_evolution, should we use:
+   - Option A: First session with notes (precise)
+   - Option B: Closest session to creation date (intuitive)
+   - **Recommendation: B** for clarity
+
+3. **Fallback behavior:** What if burst_evolution finds no burst days with embeddings?
+   - Return empty list (let creation_burst handle basic case)
+   - Don't try to merge concerns
 
 ---
 
 ## Next Steps
 
-1. Review this spec
-2. Decide: implement basic only, or basic + temporal together?
-3. Determine drift threshold tuning through testing
-4. Consider: should this be a default geist or example?
+1. Review this spec for clarity
+2. Decide if burst detection threshold should be configurable
+3. Confirm declarative observation style (no questions) works for burst_evolution
+4. Plan implementation order (creation_burst first, then burst_evolution)
