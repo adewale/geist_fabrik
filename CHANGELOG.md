@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Expected impact: 10-15% speedup on geist execution phase
 
 ### Added
+- **NEW GEISTS**: Two temporal burst geists for detecting creative bursts
+  - `creation_burst` - Detects days with 3+ notes created, asks provocative questions about productive moments
+  - `burst_evolution` - Tracks how notes from burst days have evolved over time using drift analysis
+  - Comprehensive unit tests (tests/unit/test_creation_burst.py, tests/unit/test_burst_evolution.py)
+  - Total geists: 49 (40 code + 9 Tracery)
 - Vault helper functions for cleaner code patterns:
   - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:523-535)
   - `vault.graph_neighbors(note)` - Get notes connected by links (src/geistfabrik/vault_context.py:537-562)
