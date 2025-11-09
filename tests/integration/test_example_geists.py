@@ -4,7 +4,7 @@ These tests verify that all geists in src/geistfabrik/default_geists/ work corre
 with a real vault. Uses stubs (kepano-obsidian-main test vault), not mocks.
 
 Tests cover:
-- All 40 code geists in src/geistfabrik/default_geists/code/
+- All 43 code geists in src/geistfabrik/default_geists/code/
 - All 9 Tracery geists in src/geistfabrik/default_geists/tracery/
 
 Performance target: All tests should complete in < 15 seconds total
@@ -669,8 +669,8 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 41 code geists in src/geistfabrik/default_geists/code/ (38 core + 3 harvesters)
-    assert len(geist_executor.geists) == 41
+    # We have 43 code geists in src/geistfabrik/default_geists/code/ (40 core + 3 harvesters)
+    assert len(geist_executor.geists) == 43
 
 
 def test_all_geists_execute_without_crashing(
