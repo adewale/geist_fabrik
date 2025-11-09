@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 52 bundled geists (43 code, 9 Tracery) - automatically available
+  - **default_geists/**: 51 bundled geists (42 code, 9 Tracery) - automatically available
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
@@ -30,7 +30,7 @@ The system is fully functional and operational. All phases of the specification 
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 49 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 51 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns
@@ -144,7 +144,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 **Current Performance Status** (post-rollback):
 - ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
 - ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 52 geists: Pass timeout thresholds on production vaults
+- ✅ All 51 geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
 - Use `similarity()` not `batch_similarity()` for cache benefits
