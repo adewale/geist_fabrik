@@ -4,10 +4,10 @@ description: Highlights hub notes with many connections for review and refinemen
 
 tracery:
   origin:
-    - "[[#hub#]] #verb.s# many #element.s#—what's the #unifying_theme#?"
-    - "#possessive.capitalize# hub note [[#hub#]] has grown—time to #action#?"
-    - "[[#hub#]] is central to your vault. #question.capitalize#?"
-    - "Many #path.s# lead through [[#hub#]]. #prompt.capitalize#?"
+    - "#hub# #verb.s# many #element.s#—what's the #unifying_theme#?"
+    - "#possessive.capitalize# hub note #hub# has grown—time to #action#?"
+    - "#hub# is central to your vault. #question.capitalize#?"
+    - "Many #path.s# lead through #hub#. #prompt.capitalize#?"
 
   hub:
     - "$vault.hubs(2)"

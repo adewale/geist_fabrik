@@ -5,8 +5,8 @@ description: Generates "What if" prompts for creative thinking
 tracery:
   origin:
     - "#question_start.capitalize# #subject# #verb.ed# #object#?"
-    - "#question_start.capitalize# the opposite of [[#note#]] were true?"
-    - "#question_start.capitalize# you #approach_verb.ed# [[#note#]] from #direction#?"
+    - "#question_start.capitalize# the opposite of #note# were true?"
+    - "#question_start.capitalize# you #approach_verb.ed# #note# from #direction#?"
     - "#question_start.capitalize# #constraint#, #result#?"
 
   question_start:

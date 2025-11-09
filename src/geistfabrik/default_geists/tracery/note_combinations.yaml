@@ -4,9 +4,9 @@ description: Suggests combining random notes in creative ways
 
 tracery:
   origin:
-    - "What if you combined [[#note1#]] with [[#note2#]]? #reason#"
-    - "Consider connecting [[#note1#]] and [[#note2#]]. #reason#"
-    - "[[#note1#]] and [[#note2#]] might #relationship# in interesting ways."
+    - "What if you combined #note1# with #note2#? #reason#"
+    - "Consider connecting #note1# and #note2#. #reason#"
+    - "#note1# and #note2# might #relationship# in interesting ways."
 
   note1:
     - "$vault.sample_notes(2)"

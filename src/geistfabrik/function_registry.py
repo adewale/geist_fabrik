@@ -108,31 +108,31 @@ class FunctionRegistry:
             """Sample k random notes from vault.
 
             Returns:
-                List of obsidian links (strings for Tracery)
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.notes()
             sampled = vault.sample(notes, k)
-            return [note.obsidian_link for note in sampled]
+            return [f"[[{note.obsidian_link}]]" for note in sampled]
 
         @vault_function("old_notes")
         def old_notes(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k least recently modified notes.
 
             Returns:
-                List of obsidian links (strings for Tracery)
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.old_notes(k)
-            return [note.obsidian_link for note in notes]
+            return [f"[[{note.obsidian_link}]]" for note in notes]
 
         @vault_function("recent_notes")
         def recent_notes(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k most recently modified notes.
 
             Returns:
-                List of obsidian links (strings for Tracery)
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.recent_notes(k)
-            return [note.obsidian_link for note in notes]
+            return [f"[[{note.obsidian_link}]]" for note in notes]
 
         @vault_function("random_note_title")
         def random_note_title(vault: "VaultContext") -> str:
@@ -141,44 +141,46 @@ class FunctionRegistry:
             Uses deterministic randomness based on vault's RNG seed.
 
             Returns:
-                Single obsidian link (string for Tracery)
+                Single bracketed Obsidian link (e.g. "[[Note A]]"), or "" if vault empty
             """
             notes = vault.notes()
             if not notes:
                 return ""
             sampled = vault.sample(notes, 1)
-            return sampled[0].obsidian_link if sampled else ""
+            return f"[[{sampled[0].obsidian_link}]]" if sampled else ""
 
         @vault_function("orphans")
         def orphans(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k orphan notes (no incoming or outgoing links).
 
             Returns:
-                List of obsidian links (strings for Tracery)
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.orphans(k)
-            return [note.obsidian_link for note in notes]
+            return [f"[[{note.obsidian_link}]]" for note in notes]
 
         @vault_function("hubs")
         def hubs(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k notes with most incoming links.
 
             Returns:
-                List of obsidian links (strings for Tracery)
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.hubs(k)
-            return [note.obsidian_link for note in notes]
+            return [f"[[{note.obsidian_link}]]" for note in notes]
 
         @vault_function("neighbours")
         def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> List[str]:
             """Get k semantically similar notes to given note.
+
+            Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
 
             Args:
                 note_title: Note link (string from Tracery)
                 k: Number of neighbors to return
 
             Returns:
-                List of obsidian links (strings for Tracery)
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             # Resolve string → Note (adapter layer responsibility)
             note = vault.resolve_link_target(note_title)
@@ -189,11 +191,13 @@ class FunctionRegistry:
             neighbor_notes = vault.neighbours(note, k)
 
             # Convert Note → string for Tracery
-            return [n.obsidian_link for n in neighbor_notes]
+            return [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
 
         @vault_function("contrarian_to")
         def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> List[str]:
             """Find notes that are semantically dissimilar to given note.
+
+            Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
 
             Performance optimized: Uses vectorized numpy operations to compute all
             similarities at once via matrix multiplication, rather than looping.
@@ -204,7 +208,7 @@ class FunctionRegistry:
                 k: Number of contrarian notes to return
 
             Returns:
-                List of obsidian links (strings for Tracery)
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             import numpy as np
 
@@ -251,8 +255,8 @@ class FunctionRegistry:
             # Get indices of k least similar (ascending sort)
             least_similar_indices = np.argsort(similarities)[:k]
 
-            # Return obsidian links
-            return [candidate_notes[i].obsidian_link for i in least_similar_indices]
+            # Return bracketed obsidian links
+            return [f"[[{candidate_notes[i].obsidian_link}]]" for i in least_similar_indices]
 
         @vault_function("semantic_clusters")
         def semantic_clusters(vault: "VaultContext", count: int = 2, k: int = 3) -> List[str]:
