@@ -2,7 +2,7 @@
 
 **A comprehensive classification of GeistFabrik's default geists by pattern and implementation status**
 
-GeistFabrik ships with 52 default geists following distinct patterns. This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
+GeistFabrik ships with 51 default geists following distinct patterns. This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
 
 **Last Updated**: 2025-11-09
 
@@ -12,9 +12,9 @@ GeistFabrik ships with 52 default geists following distinct patterns. This docum
 
 | Category | Count | Status |
 |----------|-------|--------|
-| **Code Geists** | 43 (40 core + 3 harvesters) | ✅ All implemented |
+| **Code Geists** | 42 (39 core + 3 harvesters) | ✅ All implemented |
 | **Tracery Geists** | 9 | ✅ All implemented |
-| **Total Geists** | 52 | ✅ Production ready |
+| **Total Geists** | 51 | ✅ Production ready |
 
 **Quality**: 100% pass rate on validation spec audit (see Quality Standards below)
 
