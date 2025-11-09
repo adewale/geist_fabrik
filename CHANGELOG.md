@@ -201,7 +201,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2025-10-27
 
 ### Added
-- 47 bundled default geists (38 code geists, 9 Tracery geists)
+- 49 bundled default geists (40 code geists, 9 Tracery geists)
 - Comprehensive quality audit and geist writing guide
 - Default geists system with auto-loading from package
 

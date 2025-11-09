@@ -71,8 +71,8 @@ uv run geistfabrik --help
 # Initialize a vault (creates _geistfabrik directory structure)
 uv run geistfabrik init /path/to/your/vault
 
-# This automatically configures 47 bundled default geists:
-# • 38 code geists (blind_spot_detector, temporal_drift, columbo, etc.)
+# This automatically configures 49 bundled default geists:
+# • 40 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
 # • 9 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)
 
 # Preview suggestions (read-only, no files created)
@@ -113,7 +113,7 @@ rm -rf testdata/kepano-obsidian-main/"geist journal"
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
 
-**Note**: 47 default geists work immediately - no installation needed!
+**Note**: 49 default geists work immediately - no installation needed!
 
 ## Privacy & Data Safety
 
@@ -267,7 +267,7 @@ default_geists:
 
 **Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
 
-**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 47 default geists with descriptions and configuration tips.
+**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 49 default geists with descriptions and configuration tips.
 
 ### Date-Collection Notes (Journal Files)
 
@@ -522,7 +522,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
-- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 47 default geists
+- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 49 default geists
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
 
 ### Deep Dives
