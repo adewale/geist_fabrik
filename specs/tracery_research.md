@@ -329,10 +329,12 @@ symbol_name: ["$vault.function_name(arg1, arg2)"]
 1. YAML parser loads geist file
 2. System detects `$vault.*` patterns in symbol arrays
 3. Before Tracery expansion, vault functions execute:
-   - `$vault.sample_notes(3)` → `["[[Note A]]", "[[Note B]]", "[[Note C]]"]`
-   - `$vault.orphans(2)` → `["[[Orphan 1]]", "[[Orphan 2]]"]`
+   - `$vault.sample_notes(3)` → `["Note A", "Note B", "Note C"]`
+   - `$vault.orphans(2)` → `["Orphan 1", "Orphan 2"]`
 4. Grammar symbols updated with results
 5. Tracery expansion proceeds with populated arrays
+
+**Important**: Vault functions return **link text without brackets**. The Tracery template is responsible for adding `[[...]]` brackets around note references.
 
 #### Parameter Types
 
@@ -350,15 +352,25 @@ Vault functions must return **lists of strings** in Obsidian link format:
 ```python
 @vault_function("sample_notes")
 def sample_notes(vault: VaultContext, k: int) -> List[str]:
-    """Sample k random notes, return as Obsidian links"""
+    """Sample k random notes, return as link text (without brackets)"""
     notes = vault.sample(k)
-    return [note.obsidian_link for note in notes]  # Returns "[[Note Title]]"
+    return [note.obsidian_link for note in notes]  # Returns "Note Title" (no brackets)
 ```
 
 **Edge Cases**:
 - **Empty results**: Function returns `[]` → Symbol has empty array → Tracery fails gracefully
-- **Fewer than requested**: `$vault.orphans(10)` with only 3 orphans → Returns `["[[Note 1]]", "[[Note 2]]", "[[Note 3]]"]`
-- **Single result**: Still wrapped in list → `["[[Only Note]]"]`
+- **Fewer than requested**: `$vault.orphans(10)` with only 3 orphans → Returns `["Orphan 1", "Orphan 2", "Orphan 3"]`
+- **Single result**: Still wrapped in list → `["Only Note"]`
+
+**Note**: The `obsidian_link` property returns link text **without** `[[...]]` brackets. Templates must add brackets explicitly:
+```yaml
+# Correct: Template adds brackets
+origin: "Check out [[#note#]]"
+note: ["$vault.sample_notes(1)"]
+
+# Wrong: Missing brackets (produces "Check out Note Title")
+origin: "Check out #note#"
+```
 
 ### Complete Integration Example
 
