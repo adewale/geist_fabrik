@@ -4,8 +4,8 @@ These tests verify that all geists in src/geistfabrik/default_geists/ work corre
 with a real vault. Uses stubs (kepano-obsidian-main test vault), not mocks.
 
 Tests cover:
-- All 35 code geists in src/geistfabrik/default_geists/code/
-- All 10 Tracery geists in src/geistfabrik/default_geists/tracery/
+- All 40 code geists in src/geistfabrik/default_geists/code/
+- All 9 Tracery geists in src/geistfabrik/default_geists/tracery/
 
 Performance target: All tests should complete in < 15 seconds total
 """
@@ -476,6 +476,32 @@ def test_antithesis_generator_geist(vault_context: VaultContext, geist_executor:
         assert hasattr(suggestion, "notes")
         assert hasattr(suggestion, "geist_id")
         assert suggestion.geist_id == "antithesis_generator"
+
+
+def test_creation_burst_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test creation_burst geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("creation_burst", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "creation_burst"
+
+
+def test_burst_evolution_geist(vault_context: VaultContext, geist_executor: GeistExecutor):
+    """Test burst_evolution geist returns valid suggestions."""
+    geist_executor.load_geists()
+    suggestions = geist_executor.execute_geist("burst_evolution", vault_context)
+
+    assert isinstance(suggestions, list)
+    for suggestion in suggestions:
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
+        assert suggestion.geist_id == "burst_evolution"
 
 
 # ============================================================================
