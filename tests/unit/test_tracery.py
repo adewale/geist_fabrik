@@ -1069,4 +1069,100 @@ def test_preprocessing_warns_when_fewer_items_returned(tmp_path: Path, caplog: A
     assert any("only 1 available" in record.message for record in caplog.records)
     assert any("may cause repetition" in record.message for record in caplog.records)
 
-    vault.close()
+
+def test_validation_rejects_unsafe_vault_function_pattern(tmp_path: Path) -> None:
+    """Validation should reject vault functions with Tracery symbol arguments."""
+    yaml_content = """type: geist-tracery
+id: unsafe_neighbours
+tracery:
+  origin: "[[#seed#]] connects to #neighbours#"
+  seed:
+    - "$vault.sample_notes(1)"
+  neighbours:
+    - "$vault.neighbours(#seed#, 3)"
+"""
+
+    yaml_file = tmp_path / "unsafe.yaml"
+    yaml_file.write_text(yaml_content)
+
+    # Should raise ValueError with helpful message
+    with pytest.raises(ValueError) as exc_info:
+        TraceryGeist.from_yaml(yaml_file, seed=42)
+
+    error_msg = str(exc_info.value)
+    assert "Unsafe vault function pattern" in error_msg
+    assert "unsafe_neighbours" in error_msg
+    assert "neighbours" in error_msg
+    assert "$vault.neighbours(#seed#, 3)" in error_msg
+    assert "Cannot pass Tracery symbols" in error_msg
+    assert "preprocessing" in error_msg
+    assert "cluster" in error_msg
+    assert "tracery_research.md" in error_msg
+
+
+def test_validation_rejects_contrarian_to_with_symbol(tmp_path: Path) -> None:
+    """Validation should reject contrarian_to with Tracery symbol arguments."""
+    yaml_content = """type: geist-tracery
+id: unsafe_contrarian
+tracery:
+  origin: "[[#note#]] contrasts with #opposite#"
+  note:
+    - "$vault.sample_notes(1)"
+  opposite:
+    - "$vault.contrarian_to(#note#, 3)"
+"""
+
+    yaml_file = tmp_path / "unsafe.yaml"
+    yaml_file.write_text(yaml_content)
+
+    with pytest.raises(ValueError) as exc_info:
+        TraceryGeist.from_yaml(yaml_file, seed=42)
+
+    error_msg = str(exc_info.value)
+    assert "Unsafe vault function pattern" in error_msg
+    assert "contrarian_to" in error_msg
+    assert "#note#" in error_msg
+
+
+def test_validation_allows_safe_vault_functions(tmp_path: Path) -> None:
+    """Validation should allow safe vault functions without symbol arguments."""
+    yaml_content = """type: geist-tracery
+id: safe_geist
+tracery:
+  origin: "[[#note1#]] and [[#note2#]]"
+  note1:
+    - "$vault.sample_notes(1)"
+  note2:
+    - "$vault.orphans(1)"
+  hubs:
+    - "$vault.hubs(3)"
+"""
+
+    yaml_file = tmp_path / "safe.yaml"
+    yaml_file.write_text(yaml_content)
+
+    # Should not raise any error
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    assert geist.geist_id == "safe_geist"
+
+
+def test_validation_allows_semantic_clusters_pattern(tmp_path: Path) -> None:
+    """Validation should allow the semantic_clusters pattern."""
+    yaml_content = """type: geist-tracery
+id: semantic_neighbours
+tracery:
+  origin: "[[#seed#]] connects to #neighbours#"
+  cluster:
+    - "$vault.semantic_clusters(2, 3)"
+  seed:
+    - "#cluster.split_seed#"
+  neighbours:
+    - "#cluster.split_neighbours#"
+"""
+
+    yaml_file = tmp_path / "clusters.yaml"
+    yaml_file.write_text(yaml_content)
+
+    # Should not raise any error (no vault function with symbol args)
+    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
+    assert geist.geist_id == "semantic_neighbours"

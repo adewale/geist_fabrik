@@ -8,11 +8,16 @@ tracery:
     - "Semantic cluster around [[#seed#]]: #neighbours#. What connects them?"
     - "[[#seed#]] shares conceptual space with #neighbours#. #question#"
 
+  # Use semantic_clusters to get paired seed/neighbour data
+  cluster:
+    - "$vault.semantic_clusters(2, 3)"
+
+  # Extract seed and neighbours using custom modifiers
   seed:
-    - "$vault.sample_notes(2)"
+    - "#cluster.split_seed#"
 
   neighbours:
-    - "$vault.neighbours(#seed#, 3)"
+    - "#cluster.split_neighbours#"
 
   prompt:
     - "What pattern emerges?"
