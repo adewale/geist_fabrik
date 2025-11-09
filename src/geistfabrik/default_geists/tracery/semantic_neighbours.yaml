@@ -4,9 +4,9 @@ description: Shows semantic neighbourhoods to reveal hidden connections
 
 tracery:
   origin:
-    - "Notes near [[#seed#]] in meaning: #neighbours#. #prompt#"
-    - "Semantic cluster around [[#seed#]]: #neighbours#. What connects them?"
-    - "[[#seed#]] shares conceptual space with #neighbours#. #question#"
+    - "Notes near #seed# in meaning: #neighbours#. #prompt#"
+    - "Semantic cluster around #seed#: #neighbours#. What connects them?"
+    - "#seed# shares conceptual space with #neighbours#. #question#"
 
   # Use semantic_clusters to get paired seed/neighbour data
   cluster:

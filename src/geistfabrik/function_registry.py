@@ -289,8 +289,8 @@ class FunctionRegistry:
                 neighbor_notes = vault.neighbours(seed_note, k)
 
                 if neighbor_notes:
-                    # Format neighbours as comma-separated list (like Tracery does)
-                    neighbor_links = [n.obsidian_link for n in neighbor_notes]
+                    # Format neighbours as bracketed Obsidian links
+                    neighbor_links = [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
                     if len(neighbor_links) == 1:
                         neighbors_str = neighbor_links[0]
                     elif len(neighbor_links) == 2:
@@ -303,7 +303,8 @@ class FunctionRegistry:
                     neighbors_str = ""
 
                 # Format as "SEED|||NEIGHBOURS" for Tracery extraction
-                formatted = f"{seed_note.obsidian_link}|||{neighbors_str}"
+                # Add brackets to seed as well for consistency
+                formatted = f"[[{seed_note.obsidian_link}]]|||{neighbors_str}"
                 results.append(formatted)
 
             return results
