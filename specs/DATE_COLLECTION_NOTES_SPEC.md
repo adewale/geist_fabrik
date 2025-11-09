@@ -721,7 +721,7 @@ entry_tags = file_tags + inline_tags  # ["journal", "important"]
 
 **Deliverables:**
 - Updated `journal_writer.py`, `config.py`
-- `docs/JOURNAL_FILES.md` - User guide
+- `specs/JOURNAL_FILES.md` - User guide
 - Performance benchmarks
 
 ## Testing Plan
@@ -1066,7 +1066,7 @@ PRAGMA user_version = 2;
 
 ### User Documentation
 
-1. **User Guide** (`docs/JOURNAL_FILES.md`)
+1. **User Guide** (`specs/JOURNAL_FILES.md`)
    - What are date-collection notes?
    - How detection works
    - Supported date formats
@@ -1255,7 +1255,7 @@ Decided to prioritize [[Feature X]].
 - All tests passing (100%)
 
 ✅ **Documentation**:
-- `docs/JOURNAL_FILES.md` (600+ lines comprehensive guide)
+- `specs/JOURNAL_FILES.md` (600+ lines comprehensive guide)
 - Updated README.md and CLAUDE.md
 - Configuration examples and troubleshooting
 
@@ -1292,7 +1292,7 @@ Decided to prioritize [[Feature X]].
 - `tests/integration/test_date_collection_edge_cases.py` (16 tests)
 
 **Documentation**:
-- `docs/JOURNAL_FILES.md` (new)
+- `specs/JOURNAL_FILES.md` (new)
 - `README.md` (updated)
 - `CLAUDE.md` (updated)
 

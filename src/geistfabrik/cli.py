@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from .default_geists import CODE_GEIST_COUNT, TOTAL_GEIST_COUNT, TRACERY_GEIST_COUNT
 from .embeddings import EmbeddingComputer, Session
 from .filtering import SuggestionFilter, select_suggestions
 from .geist_executor import GeistExecutor
@@ -144,9 +145,15 @@ def init_command(args: argparse.Namespace) -> int:
     print(f"Configuration: {geistfabrik_dir.relative_to(vault_path)}")
 
     # Inform about bundled defaults
-    print("\n🎁 47 default geists are bundled and ready to use:")
-    print("   • 38 code geists (blind_spot_detector, temporal_drift, columbo, etc.)")
-    print("   • 9 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)")
+    print(f"\n🎁 {TOTAL_GEIST_COUNT} default geists are bundled and ready to use:")
+    print(
+        f"   • {CODE_GEIST_COUNT} code geists "
+        "(blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)"
+    )
+    print(
+        f"   • {TRACERY_GEIST_COUNT} Tracery geists "
+        "(contradictor, hub_explorer, transformation_suggester, etc.)"
+    )
     print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
 
     print("\n🚀 Next steps:")

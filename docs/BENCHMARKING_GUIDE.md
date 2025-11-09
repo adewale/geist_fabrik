@@ -77,9 +77,9 @@ cat scripts/BENCHMARKS.md
 **Purpose**: Establish performance baselines on different vault sizes
 
 **Documents**:
-- [`PERFORMANCE_BENCHMARK.md`](PERFORMANCE_BENCHMARK.md) - Initial baseline measurements
 - [`10K_VAULT_BENCHMARK.md`](10K_VAULT_BENCHMARK.md) - 10,000 note stress test
-- [`LYT_KIT_BENCHMARK.md`](LYT_KIT_BENCHMARK.md) - Real-world vault (Linking Your Thinking Kit)
+
+**Note**: Historical benchmark files (PERFORMANCE_BENCHMARK.md, LYT_KIT_BENCHMARK.md) have been archived. Performance characteristics are documented in CHANGELOG.md.
 
 **What they measure**:
 - Session execution time (sync + embed + geists + filter + output)
@@ -94,10 +94,9 @@ cat scripts/BENCHMARKS.md
 **Purpose**: Validate that optimizations improve performance while preserving correctness
 
 **Documents**:
-- [`BENCHMARK_RESULTS_PHASE3.md`](BENCHMARK_RESULTS_PHASE3.md) - Phase 3 optimization results
-- [`PERFORMANCE_OPTIMIZATION_RESULTS.md`](PERFORMANCE_OPTIMIZATION_RESULTS.md) - Comprehensive optimization summary
-- [`PERFORMANCE_COMPARISON_2025_10_31.md`](PERFORMANCE_COMPARISON_2025_10_31.md) - Before/after comparison
 - [`SKLEARN_OPTIMIZATION_BENCHMARK.md`](SKLEARN_OPTIMIZATION_BENCHMARK.md) - sklearn tuning results
+
+**Note**: Historical optimization benchmark files have been archived. Optimization results are documented in CHANGELOG.md.
 
 **What they measure**:
 - Speedup percentage (before vs after optimization)
@@ -343,17 +342,13 @@ Benchmark documents follow this structure:
 
 ### By Vault Size
 
-- **10-100 notes**: [`PERFORMANCE_BENCHMARK.md`](PERFORMANCE_BENCHMARK.md)
-- **1,000 notes** (LYT Kit): [`LYT_KIT_BENCHMARK.md`](LYT_KIT_BENCHMARK.md)
 - **10,000 notes**: [`10K_VAULT_BENCHMARK.md`](10K_VAULT_BENCHMARK.md)
+
+**Note**: Historical benchmarks for smaller vaults have been archived. See CHANGELOG.md for performance characteristics.
 
 ### By Optimization Phase
 
-- **Phase 1-2**: Algorithmic fixes and vectorization
-- **Phase 3**: Caching and batching
-  - [`BENCHMARK_RESULTS_PHASE3.md`](BENCHMARK_RESULTS_PHASE3.md)
-- **All Phases Summary**: [`PERFORMANCE_OPTIMIZATION_RESULTS.md`](PERFORMANCE_OPTIMIZATION_RESULTS.md)
-- **Before/After Comparison**: [`PERFORMANCE_COMPARISON_2025_10_31.md`](PERFORMANCE_COMPARISON_2025_10_31.md)
+**Note**: Historical optimization phase benchmarks have been archived. See CHANGELOG.md for optimization results and performance improvements across all phases.
 
 ### By Optimization Type
 
