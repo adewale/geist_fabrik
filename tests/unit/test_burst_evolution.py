@@ -7,7 +7,15 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import burst_evolution
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
+
+
+@pytest.fixture(autouse=True)
+def clear_global_registry():
+    """Clear the global function registry before each test."""
+    _GLOBAL_REGISTRY.clear()
+    yield
+    _GLOBAL_REGISTRY.clear()
 
 
 @pytest.fixture
@@ -97,9 +105,7 @@ def test_burst_evolution_no_sessions(tmp_path):
     vault.sync()
 
     burst_date = datetime(2024, 3, 15)
-    vault.db.execute(
-        "UPDATE notes SET created = ?", (burst_date.isoformat(),)
-    )
+    vault.db.execute("UPDATE notes SET created = ?", (burst_date.isoformat(),))
     vault.db.commit()
 
     # Create session WITHOUT populating session_embeddings
@@ -195,7 +201,7 @@ def test_burst_evolution_excludes_geist_journal(tmp_path):
 
     # Create 10 journal notes
     for i in range(10):
-        note_path = journal_dir / f"2024-03-{15+i:02d}.md"
+        note_path = journal_dir / f"2024-03-{15 + i:02d}.md"
         note_path.write_text(f"# Session {i}\n\nJournal entry.")
 
     # Create only 2 regular notes (below threshold)
