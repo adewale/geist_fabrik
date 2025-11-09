@@ -11,7 +11,7 @@ Inspired by Gordon Brander's work on tools for thought.
 ## Status
 
 **Version**: 0.9.0 (Beta)
-**Default Geists**: 51 (42 code + 9 Tracery) _[programmatically verified]_
+**Default Geists**: Code + Tracery _[programmatically verified]_
 **Tests**: 611 passing (100%)
 **Progress**: ~99% (Feature-complete, approaching 1.0)
 
@@ -71,9 +71,9 @@ uv run geistfabrik --help
 # Initialize a vault (creates _geistfabrik directory structure)
 uv run geistfabrik init /path/to/your/vault
 
-# This automatically configures 52 bundled default geists:
-# • 42 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
-# • 9 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)
+# This automatically configures bundled default geists:
+# • Code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
+# • Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)
 
 # Preview suggestions (read-only, no files created)
 uv run geistfabrik invoke /path/to/your/vault
@@ -113,7 +113,7 @@ rm -rf testdata/kepano-obsidian-main/"geist journal"
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
 
-**Note**: 51 default geists work immediately - no installation needed!
+**Note**: Default geists work immediately - no installation needed!
 
 ## Privacy & Data Safety
 
@@ -267,7 +267,7 @@ default_geists:
 
 **Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
 
-**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 51 default geists with descriptions and configuration tips.
+**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all default geists with descriptions and configuration tips.
 
 ### Cluster Labeling
 
@@ -539,7 +539,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
-- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 51 default geists
+- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all default geists
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
 
 ### Deep Dives

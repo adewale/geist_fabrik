@@ -103,7 +103,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `creation_burst` - Detects days with 3+ notes created, asks provocative questions about productive moments
   - `burst_evolution` - Tracks how notes from burst days have evolved over time using drift analysis
   - Comprehensive unit tests (tests/unit/test_creation_burst.py, tests/unit/test_burst_evolution.py)
-  - Total geists: 49 (40 code + 9 Tracery)
 - Vault helper functions for cleaner code patterns:
   - `vault.has_link(a, b)` - Bidirectional link checking (src/geistfabrik/vault_context.py:523-535)
   - `vault.graph_neighbors(note)` - Get notes connected by links (src/geistfabrik/vault_context.py:537-562)
@@ -270,7 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2025-10-27
 
 ### Added
-- 49 bundled default geists (40 code geists, 9 Tracery geists)
+- 47 bundled default geists (38 code geists, 9 Tracery geists)
 - Comprehensive quality audit and geist writing guide
 - Default geists system with auto-loading from package
 
