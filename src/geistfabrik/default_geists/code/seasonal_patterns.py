@@ -191,4 +191,4 @@ def _get_season(month: int) -> str:
     elif month in [6, 7, 8]:
         return "Summer"
     else:
-        return "Fall"
+        return "Autumn"
