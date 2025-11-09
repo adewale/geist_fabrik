@@ -269,6 +269,23 @@ default_geists:
 
 **See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 47 default geists with descriptions and configuration tips.
 
+### Cluster Labeling
+
+GeistFabrik uses semantic clustering to group related notes and generate descriptive labels. You can choose between two labeling methods:
+
+```yaml
+clustering:
+  labeling_method: keybert  # or "tfidf"
+  min_cluster_size: 5       # minimum notes per cluster
+  n_label_terms: 4          # number of terms in label
+```
+
+**Labeling Methods**:
+- **keybert** (default): Uses semantic similarity to cluster centroids for more coherent, conceptual labels. Supports 1-3 word phrases.
+- **tfidf**: Frequency-based keyword extraction. Faster and more deterministic, focuses on term frequency within clusters.
+
+**Note**: KeyBERT requires the sentence-transformers model (~90MB). If unavailable, it falls back to simple labels.
+
 ### Date-Collection Notes (Journal Files)
 
 GeistFabrik automatically detects and splits journal files with multiple date-based entries into individual virtual notes:
