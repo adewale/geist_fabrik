@@ -145,8 +145,14 @@ def init_command(args: argparse.Namespace) -> int:
 
     # Inform about bundled defaults
     print("\n🎁 49 default geists are bundled and ready to use:")
-    print("   • 40 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)")
-    print("   • 9 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)")
+    print(
+        "   • 40 code geists (blind_spot_detector, temporal_drift, "
+        "columbo, creation_burst, etc.)"
+    )
+    print(
+        "   • 9 Tracery geists (contradictor, hub_explorer, "
+        "transformation_suggester, etc.)"
+    )
     print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
 
     print("\n🚀 Next steps:")

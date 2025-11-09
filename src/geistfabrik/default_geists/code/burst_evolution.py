@@ -118,7 +118,7 @@ def _find_earliest_session_with_notes(
 
         # If at least 50% of notes have embeddings, use this session
         if count >= len(note_paths) * 0.5:
-            return session_id
+            return int(session_id)
 
     return None
 
@@ -145,8 +145,7 @@ def _get_embedding_from_session(
 def _get_current_embedding(vault: "VaultContext", note_path: str) -> Optional[np.ndarray]:
     """Get current embedding for note."""
     try:
-        note = vault.get_note(note_path)
-        return vault.embedding(note)
+        return vault._backend.get_embedding(note_path)
     except Exception:
         return None
 
@@ -192,6 +191,8 @@ def _generate_drift_observation(
     drift_lines = []
     for path, drift in drifts_sorted[:7]:  # Show up to 7
         note = vault.get_note(path)
+        if note is None:
+            continue
         label = _drift_label(drift)
         drift_lines.append(f"- [[{note.title}]]: {drift:.2f} drift ({label})")
 
@@ -211,8 +212,9 @@ def _generate_drift_observation(
         # Find stable anchors
         stable = [p for p, d in drifts if d < 0.15]
         if stable:
+            stable_notes = [vault.get_note(p) for p in stable[:2]]
             stable_titles = ", ".join(
-                [f"[[{vault.get_note(p).title}]]" for p in stable[:2]]
+                [f"[[{n.title}]]" for n in stable_notes if n is not None]
             )
             observation = (
                 f"{stable_titles} are anchors—the stable core "
@@ -238,10 +240,14 @@ def _generate_drift_observation(
     except Exception:
         time_phrase = "Since then"
 
-    text = f"On {date}, you created {len(drifts)} notes. {time_phrase}:\n{drift_text}\n\n{observation}"
+    text = (
+        f"On {date}, you created {len(drifts)} notes. {time_phrase}:\n"
+        f"{drift_text}\n\n{observation}"
+    )
 
     # Get all note titles
-    note_titles = [vault.get_note(p).title for p, _ in drifts]
+    notes = [vault.get_note(p) for p, _ in drifts]
+    note_titles = [n.title for n in notes if n is not None]
 
     return Suggestion(
         text=text,
