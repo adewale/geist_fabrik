@@ -296,8 +296,8 @@ class TestPhase3BDocumentation:
         """Verify POST_MORTEM_PHASE3B.md exists and documents the rollback."""
         from pathlib import Path
 
-        docs_dir = Path(__file__).parent.parent.parent / "docs"
-        post_mortem = docs_dir / "POST_MORTEM_PHASE3B.md"
+        specs_dir = Path(__file__).parent.parent.parent / "specs" / "research"
+        post_mortem = specs_dir / "POST_MORTEM_PHASE3B.md"
 
         assert post_mortem.exists(), (
             "POST_MORTEM_PHASE3B.md should document Phase 3B rollback analysis"
