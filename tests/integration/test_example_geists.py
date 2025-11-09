@@ -656,8 +656,26 @@ def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
         assert hasattr(suggestion, "text")
         assert hasattr(suggestion, "geist_id")
         assert suggestion.geist_id == "semantic_neighbours"
-        # Should reference seed note and neighbor notes
-        assert "[[" in suggestion.text
+
+        # Should reference seed note and neighbor notes with proper formatting
+        import re
+        wikilinks = re.findall(r'\[\[([^\]]+)\]\]', suggestion.text)
+
+        # Should have at least 2 wikilinks (seed + neighbours)
+        assert len(wikilinks) >= 2, (
+            f"Expected >= 2 wikilinks (seed + neighbours), got {len(wikilinks)} "
+            f"in: {suggestion.text}"
+        )
+
+        # All wikilinks should be properly formatted (no orphaned note references)
+        assert suggestion.text.count("[[") == suggestion.text.count("]]"), \
+            f"Mismatched brackets in: {suggestion.text}"
+
+        # Suggestion.notes should match extracted wikilinks
+        assert len(suggestion.notes) == len(wikilinks), (
+            f"Suggestion.notes has {len(suggestion.notes)} entries but text has "
+            f"{len(wikilinks)} wikilinks"
+        )
 
 
 # ============================================================================

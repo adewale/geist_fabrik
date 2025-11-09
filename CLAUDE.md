@@ -204,6 +204,61 @@ GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 7. **Never destructive** - Read-only vault access, only writes session notes
 8. **Extensible at every layer** - Metadata, functions, and geists are all user-extensible
 
+## Key Architectural Decisions
+
+### The Cluster Function Pattern (Tracery Limitation Workaround)
+
+**Problem**: Tracery preprocessing order prevents passing expanded symbols to vault functions:
+- `$vault.neighbours(#note#, 3)` fails because functions execute before `#note#` expands
+- This blocks common use cases like "find neighbours of a sampled note"
+
+**Solution**: The "cluster pattern" bundles related data during preprocessing using delimiters:
+
+```python
+# semantic_clusters() returns: "[[Seed]]|||[[Neighbour1]], [[Neighbour2]]"
+# Custom modifiers extract: .split_seed → "[[Seed]]", .split_neighbours → "[[Neighbour1]], [[Neighbour2]]"
+```
+
+**Critical API Inconsistency**:
+
+Cluster functions are the **ONLY exception** to the "templates add brackets" rule:
+
+```python
+# NORMAL vault functions (simple pattern):
+sample_notes(3) → ["Note A", "Note B", "Note C"]  # NO brackets
+# Template adds: "Check out [[#note#]]"
+
+# CLUSTER vault functions (exception):
+semantic_clusters(2, 3) → ["[[Seed]]|||[[N1]], [[N2]]"]  # HAS brackets
+# Template uses as-is: "#seed# connects to #neighbours#"
+```
+
+**Why the inconsistency?**
+1. Cluster functions bundle multiple notes into delimiter-separated strings
+2. Templates cannot easily add brackets to delimited values
+3. Modifiers extract pre-formatted chunks, not individual titles
+4. Alternative solutions (push-pop, multi-return functions) not implemented in custom TraceryEngine
+
+**Trade-offs**:
+- ✅ **Pro**: Enables complex Tracery geists (semantic_neighbours, future contrarian_clusters, etc.)
+- ❌ **Con**: API inconsistency - developers must remember two patterns
+- ⚠️ **Mitigation**: Clear documentation, validation to catch `$vault.func(#symbol#)` anti-pattern
+
+**Implementation locations**:
+- Pattern implementation: `src/geistfabrik/function_registry.py::semantic_clusters()` (lines 257-309)
+- Custom modifiers: `src/geistfabrik/tracery.py::_split_seed()`, `_split_neighbours()` (lines 243-268)
+- Validation: `src/geistfabrik/tracery.py::_validate_grammar()` (lines 507-547)
+- Documentation: `specs/tracery_research.md` (Designing Tracery-Safe Vault Functions section)
+- Tests: `tests/unit/test_tracery.py::test_tracery_split_*_modifier()`, `tests/unit/test_tracery_geists.py::test_semantic_clusters_*`
+
+**Future cluster functions** (post-1.0, see `docs/GeistFabrik2.0_Wishlist.md`):
+- `contrarian_clusters(count, k)` - Seed + contrarian notes
+- `temporal_clusters(count, k)` - Seed + temporally related notes
+- `bridge_clusters(count)` - Two distant notes + their bridge
+- `tag_clusters(count, k)` - Tag + notes with that tag
+
+**For future developers**: If you "fix" this inconsistency by making cluster functions return bare text, you will break all cluster-based geists. The inconsistency is intentional and documented.
+
 ## Three-Dimensional Extensibility
 
 1. **Metadata Inference** (`<vault>/_geistfabrik/metadata_inference/`)

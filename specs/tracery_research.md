@@ -347,7 +347,7 @@ Vault functions support simple parameter types:
 
 #### Return Value Handling
 
-Vault functions must return **lists of strings** in Obsidian link format:
+Vault functions must return **lists of strings** containing link text (without `[[...]]` brackets):
 
 ```python
 @vault_function("sample_notes")
@@ -643,7 +643,11 @@ neighbours: ["$vault.neighbours(#seed#, 3)"]  # Passes "#seed#" as string!
 - `hubs(k)` - Only primitive parameters
 - `semantic_clusters(count, k)` - Bundles seeds with neighbours using delimiters
 
-**Workaround Pattern**: Create "cluster" functions that bundle related data:
+**Workaround Pattern - The Cluster Function Pattern**:
+
+The cluster pattern solves the "can't pass symbols to functions" problem by pre-bundling related data during preprocessing, then using custom modifiers to extract parts during expansion.
+
+**Key Architectural Decision**: Cluster functions are the **ONLY exception** to the "templates add brackets" rule. They return **bracketed links** `[[Note Title]]` instead of bare text because they construct composite strings that the template cannot easily wrap.
 
 ```python
 @vault_function("semantic_clusters")
@@ -651,21 +655,52 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
     """Sample seeds and pair with neighbours using delimiter.
 
     Returns:
-        List of strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
+        List of strings with BRACKETED links:
+        "[[SEED]]|||[[NEIGHBOUR1]], [[NEIGHBOUR2]], and [[NEIGHBOUR3]]"
+
+    Note:
+        This is an EXCEPTION to the rule. Most vault functions return bare text,
+        but cluster functions return pre-formatted bracketed links because:
+        1. They bundle multiple notes into a single string
+        2. Templates cannot easily add brackets to delimiter-separated values
+        3. Modifiers extract pre-formatted chunks, not individual note titles
     """
+    import random
+
+    # Deterministic sampling
+    session_seed = int(vault.session.date.strftime("%Y%m%d"))
+    cluster_seed = hash(("cluster", session_seed)) % (2**31)
+    cluster_rng = random.Random(cluster_seed)
+
+    notes = vault.notes()
+    if not notes:
+        return []
+
+    sampled_seeds = cluster_rng.sample(notes, min(count, len(notes)))
+
     results = []
-    seeds = vault.sample(count)
-    for seed in seeds:
-        neighbours = vault.neighbours(seed, k)
-        neighbour_links = [n.obsidian_link for n in neighbours]
-        # Format like Tracery does
-        if len(neighbour_links) == 1:
-            n_str = neighbour_links[0]
-        elif len(neighbour_links) == 2:
-            n_str = f"{neighbour_links[0]} and {neighbour_links[1]}"
+    for seed_note in sampled_seeds:
+        neighbor_notes = vault.neighbours(seed_note, k)
+
+        if neighbor_notes:
+            # ⚠️ EXCEPTION: Add brackets here, not in template
+            neighbor_links = [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
+
+            # Format like Tracery does (with commas and "and")
+            if len(neighbor_links) == 1:
+                neighbors_str = neighbor_links[0]
+            elif len(neighbor_links) == 2:
+                neighbors_str = f"{neighbor_links[0]} and {neighbor_links[1]}"
+            else:
+                last = neighbor_links[-1]
+                neighbors_str = ", ".join(neighbor_links[:-1]) + f", and {last}"
         else:
-            n_str = ", ".join(neighbour_links[:-1]) + f", and {neighbour_links[-1]}"
-        results.append(f"{seed.obsidian_link}|||{n_str}")
+            neighbors_str = ""
+
+        # ⚠️ EXCEPTION: Seed also gets brackets
+        formatted = f"[[{seed_note.obsidian_link}]]|||{neighbors_str}"
+        results.append(formatted)
+
     return results
 ```
 
@@ -681,11 +716,26 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 **Tracery Usage**:
 ```yaml
 # ✓ WORKS - Bundles seed + neighbours in preprocessing
-origin: "[[#seed#]] shares space with #neighbours#. What connects them?"
+# ⚠️ IMPORTANT: No [[]] brackets in template - function provides them
+origin: "#seed# shares space with #neighbours#. What connects them?"
 cluster: ["$vault.semantic_clusters(2, 3)"]
-seed: ["#cluster.split_seed#"]
-neighbours: ["#cluster.split_neighbours#"]
+seed: ["#cluster.split_seed#"]           # Extracts "[[Seed Note]]"
+neighbours: ["#cluster.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+
+# ❌ WRONG - Don't add brackets, they're already in the extracted values
+# origin: "[[#seed#]] shares space with [[#neighbours#]]"
+# This would produce: [[[[Seed Note]]]] (double brackets!)
 ```
+
+**Why No Brackets in Template?**
+
+- **Simple functions** (sample_notes, orphans): Return `"Note Title"` → Template adds `[[...]]`
+- **Cluster functions** (semantic_clusters): Return `"[[Note Title]]"` → Template uses as-is
+
+This is an architectural trade-off:
+- **Pro**: Cluster pattern works, enables complex geists
+- **Con**: API inconsistency (two patterns for note references)
+- **Mitigation**: Clear documentation, validation to catch errors
 
 **Design Guidelines for Tracery Functions**:
 
@@ -700,6 +750,102 @@ neighbours: ["#cluster.split_neighbours#"]
 # This will fail validation:
 $vault.neighbours(#note#, 3)  # ERROR: Cannot pass symbols to functions
 ```
+
+**Implementation Guide for Future Cluster Functions**:
+
+When implementing new cluster functions (see post-1.0 roadmap), follow this pattern:
+
+```python
+@vault_function("example_clusters")
+def example_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[str]:
+    """Template for implementing cluster functions.
+
+    Args:
+        count: Number of seed items to sample
+        k: Number of related items per seed
+
+    Returns:
+        List of delimiter-separated strings with PRE-BRACKETED links
+    """
+    import random
+
+    # 1. Deterministic sampling using session date
+    session_seed = int(vault.session.date.strftime("%Y%m%d"))
+    func_seed = hash(("your_function_name", session_seed)) % (2**31)
+    rng = random.Random(func_seed)
+
+    # 2. Sample seeds
+    candidate_seeds = get_candidates(vault)  # Your logic here
+    sampled_seeds = rng.sample(candidate_seeds, min(count, len(candidate_seeds)))
+
+    # 3. Build clusters
+    results = []
+    for seed_item in sampled_seeds:
+        # Get related items (your clustering logic)
+        related_items = get_related(vault, seed_item, k)
+
+        if related_items:
+            # ⚠️ CRITICAL: Add [[...]] brackets here
+            related_links = [f"[[{item.obsidian_link}]]" for item in related_items]
+
+            # Format with commas and "and" (match Tracery style)
+            if len(related_links) == 1:
+                related_str = related_links[0]
+            elif len(related_links) == 2:
+                related_str = f"{related_links[0]} and {related_links[1]}"
+            else:
+                last = related_links[-1]
+                related_str = ", ".join(related_links[:-1]) + f", and {last}"
+        else:
+            related_str = ""
+
+        # ⚠️ CRITICAL: Add [[...]] brackets to seed too
+        formatted = f"[[{seed_item.obsidian_link}]]|||{related_str}"
+        results.append(formatted)
+
+    return results
+```
+
+**Testing Requirements for Cluster Functions**:
+
+1. **Test delimiter extraction**:
+   ```python
+   def test_your_cluster_splits_correctly():
+       result = "[[Seed]]|||[[Item1]], [[Item2]]"
+       assert result.split("|||")[0] == "[[Seed]]"
+       assert result.split("|||")[1] == "[[Item1]], [[Item2]]"
+   ```
+
+2. **Test bracket formatting**:
+   ```python
+   def test_your_cluster_has_brackets():
+       results = vault.call_function("your_clusters", 1, 2)
+       for result in results:
+           # All note references should be bracketed
+           assert "[[" in result and "]]" in result
+           # Should not have nested brackets
+           assert "[[[[" not in result
+   ```
+
+3. **Test deeplinks** (if handling virtual notes):
+   ```python
+   def test_your_cluster_handles_deeplinks():
+       # Create virtual note
+       # Test that deeplinks format as [[File#Heading]]
+   ```
+
+4. **Test special characters**:
+   ```python
+   def test_your_cluster_handles_special_chars():
+       # Create notes with commas, brackets, etc.
+       # Ensure formatting doesn't break
+   ```
+
+**Planned Cluster Functions** (post-1.0 roadmap):
+- `contrarian_clusters(count, k)` - Seed + contrarian notes
+- `temporal_clusters(count, k)` - Seed + temporally related notes
+- `bridge_clusters(count)` - Two distant notes + their bridge
+- `tag_clusters(count, k)` - Tag + notes with that tag
 
 #### Push-Pop with Vault Data
 

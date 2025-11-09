@@ -57,17 +57,22 @@ class Note:
 
     @property
     def obsidian_link(self) -> str:
-        """Return the Obsidian wiki-link string for this note.
+        """Return the link text for this note (WITHOUT [[...]] brackets).
 
-        For regular notes, this is just the title.
-        For virtual notes (journal entries), this is a deeplink: "filename#heading"
+        Returns the text that should be placed inside Obsidian wikilink brackets.
+        For regular notes, this is the title. For virtual notes (journal entries),
+        this is a deeplink in the format "filename#heading".
 
         This allows geists to use note.obsidian_link without needing to know
         whether the note is virtual or not.
 
         Examples:
-            Regular note: "Project Ideas"
-            Virtual note: "Journal#2025-01-15"
+            Regular note: "Project Ideas" (use as [[Project Ideas]])
+            Virtual note: "Journal#2025-01-15" (use as [[Journal#2025-01-15]])
+
+        Note:
+            The property name "obsidian_link" is a misnomer - it returns link TEXT,
+            not a complete link with brackets. Templates/code must add [[...]] brackets.
         """
         if self.is_virtual and self.source_file:
             # For virtual notes, create deeplink: "filename#heading"
