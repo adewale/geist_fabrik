@@ -114,16 +114,29 @@ def run_comparison(vault_path: str) -> None:
 
     # Method 1: c-TF-IDF (current)
     print("  Computing c-TF-IDF labels...")
+    import time
+
+    tfidf_start = time.perf_counter()
     tfidf_labels = metrics_computer._label_clusters_tfidf(paths, labels, n_terms=4)
+    tfidf_time = time.perf_counter() - tfidf_start
+    print(f"    ⏱️  Time: {tfidf_time:.3f}s")
 
     # Method 2: KeyBERT (new)
     print("  Computing KeyBERT labels...")
     try:
+        keybert_start = time.perf_counter()
         keybert_labels = metrics_computer._label_clusters_keybert(paths, labels, n_terms=4)
+        keybert_time = time.perf_counter() - keybert_start
+        print(f"    ⏱️  Time: {keybert_time:.3f}s")
+
+        overhead = keybert_time - tfidf_time
+        overhead_pct = (overhead / tfidf_time * 100) if tfidf_time > 0 else 0
+        print(f"    Overhead: +{overhead:.3f}s ({overhead_pct:.1f}%)")
     except Exception as e:
         print(f"  ⚠️  KeyBERT failed: {e}")
         print("  Using simple labels as fallback")
         keybert_labels = {cid: f"Cluster {cid}" for cid in set(labels) if cid != -1}
+        keybert_time = None
 
     # Display comparison
     print("=" * 80)

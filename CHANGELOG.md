@@ -23,7 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       n_label_terms: 4
     ```
   - **Technical**: KeyBERT uses semantic similarity to cluster centroids vs frequency-based TF-IDF
-  - **Performance**: ~0.5-1s slower per cluster, but significantly better label quality
+  - **Performance**: ~0.1s overhead per cluster (measured on 2-cluster test: c-TF-IDF 0.004s, KeyBERT 0.194s)
+    - Absolute overhead is minimal (~0.2s for typical session with 2-3 clusters)
+    - Quality improvement easily justifies the small time cost
   - **Fallback**: Gracefully falls back to simple labels if sentence-transformers model unavailable
 
 ### Removed

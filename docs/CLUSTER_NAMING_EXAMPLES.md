@@ -5,7 +5,7 @@
 
 ## About These Examples
 
-These are **realistic synthetic examples** based on common note patterns. Real examples require a vault with 10+ notes to form meaningful clusters (HDBSCAN's minimum cluster size is 5).
+This document contains both **real examples** (from actual clustering runs) and **illustrative examples** (showing additional patterns). Real examples require a vault with 10+ notes to form meaningful clusters (HDBSCAN's minimum cluster size is 5).
 
 **To generate real examples from your vault**:
 ```bash
@@ -16,7 +16,65 @@ This will show side-by-side comparisons of both labeling methods on your actual 
 
 ---
 
-## Example 1: Personal Knowledge Management Cluster
+## Real Examples (From Test Vault)
+
+These examples come from running the comparison script on an 18-note test vault with 3 thematic areas (PKM, software development, health). HDBSCAN found 2 clusters with 11 total notes (7 were classified as noise).
+
+### Real Example 1: Health & Wellness Cluster
+
+**Cluster size**: 5 notes
+**Actual notes in cluster**:
+- Sleep Hygiene Fundamentals
+- Exercise and Movement
+- Stress Management Techniques
+- (2 others)
+
+#### c-TF-IDF Labels
+```
+sleep, stress, health, habits
+```
+**Analysis**: Single keywords, frequency-based
+
+#### KeyBERT Labels
+```
+practice mindfulness, habits, stress management, health
+```
+**Analysis**: Multi-word phrases with actionable concepts ("practice mindfulness", "stress management")
+
+**Quality Difference**: KeyBERT captures the *practices* (mindfulness, stress management) while c-TF-IDF just lists *topics* (sleep, stress). KeyBERT's labels tell you what the cluster is about more clearly.
+
+---
+
+### Real Example 2: Knowledge Management Cluster
+
+**Cluster size**: 6 notes
+**Actual notes in cluster**:
+- Evergreen Notes
+- Zettelkasten Method
+- Second Brain Building
+- (3 others)
+
+#### c-TF-IDF Labels
+```
+notes, atomic, note, linking
+```
+**Analysis**: Generic keywords, includes redundancy ("notes", "note")
+
+#### KeyBERT Labels
+```
+notes, progressive summarization, knowledge, brain
+```
+**Analysis**: Includes specific methodologies ("progressive summarization") and conceptual terms ("brain" from "second brain")
+
+**Quality Difference**: KeyBERT identifies specific PKM methodologies and concepts, while c-TF-IDF provides generic terms that could apply to any note-taking cluster. KeyBERT's "progressive summarization" signals a specific technique in the cluster.
+
+---
+
+## Illustrative Examples
+
+The following examples demonstrate additional patterns and edge cases beyond what appeared in the test vault clustering.
+
+### Illustrative Example 1: Personal Knowledge Management Cluster (Larger Scale)
 
 **Cluster size**: 12 notes
 **Sample notes**:
