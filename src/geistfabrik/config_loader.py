@@ -22,7 +22,6 @@ DEFAULT_CODE_GEISTS = [
     "complexity_mismatch",
     "concept_cluster",
     "concept_drift",
-    "congruence_mirror",
     "convergent_evolution",
     "creative_collision",
     "density_inversion",
@@ -97,6 +96,43 @@ class DateCollectionConfig:
 
 
 @dataclass
+class ClusterConfig:
+    """Configuration for clustering and cluster labeling."""
+
+    labeling_method: str = "keybert"  # "keybert" or "tfidf"
+    min_cluster_size: int = 5
+    n_label_terms: int = 4
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ClusterConfig":
+        """Create config from dictionary.
+
+        Args:
+            data: Configuration dictionary
+
+        Returns:
+            ClusterConfig instance
+        """
+        return cls(
+            labeling_method=data.get("labeling_method", "keybert"),
+            min_cluster_size=data.get("min_cluster_size", 5),
+            n_label_terms=data.get("n_label_terms", 4),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary.
+
+        Returns:
+            Configuration dictionary
+        """
+        return {
+            "labeling_method": self.labeling_method,
+            "min_cluster_size": self.min_cluster_size,
+            "n_label_terms": self.n_label_terms,
+        }
+
+
+@dataclass
 class VectorSearchConfig:
     """Configuration for vector search backend."""
 
@@ -129,6 +165,7 @@ class GeistFabrikConfig:
     default_geists: Dict[str, bool] = field(default_factory=dict)
     date_collection: DateCollectionConfig = field(default_factory=DateCollectionConfig)
     vector_search: VectorSearchConfig = field(default_factory=VectorSearchConfig)
+    clustering: ClusterConfig = field(default_factory=ClusterConfig)
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.
@@ -153,11 +190,13 @@ class GeistFabrikConfig:
         """
         date_collection_data = data.get("date_collection", {})
         vector_search_data = data.get("vector_search", {})
+        clustering_data = data.get("clustering", {})
         return cls(
             enabled_modules=data.get("enabled_modules", []),
             default_geists=data.get("default_geists", {}),
             date_collection=DateCollectionConfig.from_dict(date_collection_data),
             vector_search=VectorSearchConfig.from_dict(vector_search_data),
+            clustering=ClusterConfig.from_dict(clustering_data),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -171,6 +210,7 @@ class GeistFabrikConfig:
             "default_geists": self.default_geists,
             "date_collection": self.date_collection.to_dict(),
             "vector_search": self.vector_search.to_dict(),
+            "clustering": self.clustering.to_dict(),
         }
 
 

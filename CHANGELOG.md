@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+- **Virtual note title format change**: Fixed virtual note titles to exclude filename prefix
+  - **What changed**: Virtual note titles now store ONLY the heading text (e.g., "2024 February 18") instead of the deeplink format (e.g., "Exercise journal#2024 February 18")
+  - **Why**: The old format stored "filename#heading" in the title field, causing suggestions to display as `[[Exercise journal#Exercise journal#2024 February 18]]` (double filename prefix)
+  - **Correct behavior**:
+    - `note.title` = `"2024 February 18"` (just the heading text)
+    - `note.obsidian_link` = `"Exercise journal#2024 February 18"` (property combines them)
+    - Suggestions use `[[{note.obsidian_link}]]` = `[[Exercise journal#2024 February 18]]`
+  - **Action required**: Users with existing databases showing doubled filenames in virtual note links must rebuild:
+    ```bash
+    rm -rf <vault>/_geistfabrik/vault.db*
+    uv run geistfabrik invoke <vault>
+    ```
+  - **Impact**: Existing vaults will show incorrect deeplinks (double filename prefix) until database is rebuilt
+  - **Test coverage**: Added `test_year_month_day_obsidian_link_format()` integration test to prevent regression
+  - **Reference**: Obsidian deeplink syntax: https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note
+
+### Changed
+- **Cluster Labeling**: Enhanced cluster naming with configurable KeyBERT method
+  - **New default**: KeyBERT (semantic similarity) replaces c-TF-IDF for cluster labels
+  - **Impact**: Cluster names will be more descriptive and semantically coherent
+    - Before: "notes, knowledge, system, management" (single keywords)
+    - After: "knowledge management systems, evergreen note-taking" (multi-word phrases)
+  - **Migration**: Existing users will see different cluster names in new sessions
+  - **Revert option**: Set `clustering.labeling_method: tfidf` in config.yaml to use old method
+  - **Configuration**:
+    ```yaml
+    clustering:
+      labeling_method: keybert  # or "tfidf" for legacy behavior
+      min_cluster_size: 5
+      n_label_terms: 4
+    ```
+  - **Technical**: KeyBERT uses semantic similarity to cluster centroids vs frequency-based TF-IDF
+  - **Performance**: ~0.1s overhead per cluster (measured on 2-cluster test: c-TF-IDF 0.004s, KeyBERT 0.194s)
+    - Absolute overhead is minimal (~0.2s for typical session with 2-3 clusters)
+    - Quality improvement easily justifies the small time cost
+  - **Fallback**: Gracefully falls back to simple labels if sentence-transformers model unavailable
+
+### Removed
+- **congruence_mirror geist** - Removed due to scalability issues on large vaults
+  - Timed out (60+ seconds) on vaults with 10,000+ notes and hundreds of thousands of links
+  - O(L) algorithm processed all links individually causing 891,104 sklearn validation calls
+  - Functionality partially covered by bridge_builder (IMPLICIT quadrant) and hidden_hub
+  - Specification and historical documentation preserved for reference
+
 ### Performance
 - **BIG OPTIMIZATION #1**: Fixed O(N²) algorithmic inefficiencies (6 locations)
   - **CRITICAL**: Fixed pattern_finder timeout on large vaults (10k+ notes)
@@ -33,6 +78,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Cached redundant norm**: Eliminated 5× redundant drift_vector norm in concept_drift.py loop
   - Added comprehensive unit tests (tests/unit/test_sklearn_migration.py)
   - Expected impact: 10-15% speedup on geist execution phase
+
+- **BIG OPTIMIZATION #3**: sklearn configuration tuning with benchmarking suite
+  - **Optimization flags**: Three tunable sklearn optimizations for large vaults (10k+ notes)
+    - `assume_finite=True`: Skip NaN/inf validation (21% speedup, 23.2s → 19.4s avg)
+    - `force_all_finite=False`: Relaxed validation in pairwise operations
+    - NumPy array optimizations via environment variables
+  - **Benchmarking infrastructure**: Comprehensive test harness for optimization validation
+    - scripts/benchmark_optimizations.py: Test 8 configs × 9 geists = 72 runs
+    - scripts/analyze_benchmarks.py: Correctness validation + performance analysis
+    - scripts/benchmark_config.py: Shared configuration for consistency
+    - MD5 hash validation ensures optimizations don't change results
+  - **Results on 10k vault**: All optimizations preserve correctness (identical outputs)
+    - opt1_assume_finite: 21% faster overall, 24% faster on antithesis_generator
+    - No timeouts with any configuration (120s timeout limit)
+    - All configs produce identical suggestion hashes (validated via MD5)
+  - **Implementation**: Environment variable configuration in embeddings.py
+    - Allows A/B testing different optimization strategies
+    - Safe fallback to conservative defaults
+  - See docs/SKLEARN_OPTIMIZATION_BENCHMARK.md for detailed methodology
 
 ### Added
 - **NEW GEISTS**: Two temporal burst geists for detecting creative bursts

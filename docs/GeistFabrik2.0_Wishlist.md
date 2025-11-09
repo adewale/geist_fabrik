@@ -451,6 +451,78 @@ User reaction should be:
 
 ---
 
+## Technical Features for v2.0
+
+### Tracery-Safe Cluster Functions
+
+**Context**: The `semantic_neighbours` geist revealed a limitation in Tracery's preprocessing model—vault functions that take note titles as parameters (like `neighbours(title, k)` and `contrarian_to(title, k)`) cannot work in Tracery because symbol expansion happens after preprocessing.
+
+**Solution Pattern**: "Cluster" functions that bundle related data using delimiters:
+
+```python
+@vault_function("semantic_clusters")
+def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[str]:
+    """Bundle seeds with their neighbours: 'SEED|||NEIGHBOUR1, NEIGHBOUR2, ...'"""
+    # Implementation bundles related notes for Tracery extraction
+```
+
+**Tracery Usage**:
+```yaml
+cluster: ["$vault.semantic_clusters(2, 3)"]
+seed: ["#cluster.split_seed#"]
+neighbours: ["#cluster.split_neighbours#"]
+```
+
+**Additional Cluster Functions Needed** (post-1.0):
+
+1. **`contrarian_clusters(count, k)`** - Pairs seeds with dissimilar notes
+   ```yaml
+   # Enables contradictor-style Tracery geists
+   cluster: ["$vault.contrarian_clusters(2, 3)"]
+   note: ["#cluster.split_seed#"]
+   opposites: ["#cluster.split_contrarians#"]
+   ```
+
+2. **`temporal_clusters(count, k)`** - Pairs notes with temporally distant neighbors
+   ```yaml
+   # Enables time-based provocations
+   cluster: ["$vault.temporal_clusters(2, 3)"]
+   old_note: ["#cluster.split_seed#"]
+   recent_similar: ["#cluster.split_temporal_neighbours#"]
+   ```
+
+3. **`bridge_clusters(count)`** - Identifies note pairs that bridge clusters
+   ```yaml
+   # Enables bridge-finding in Tracery
+   cluster: ["$vault.bridge_clusters(2)"]
+   cluster_a: ["#cluster.split_cluster_a#"]
+   cluster_b: ["#cluster.split_cluster_b#"]
+   bridge: ["#cluster.split_bridge_note#"]
+   ```
+
+4. **`tag_clusters(count, k)`** - Samples tags and their associated notes
+   ```yaml
+   # Enables tag-based provocations
+   cluster: ["$vault.tag_clusters(2, 3)"]
+   tag: ["#cluster.split_tag#"]
+   tagged_notes: ["#cluster.split_notes#"]
+   ```
+
+**Design Principles**:
+- All parameters must be resolvable at preprocessing (integers, string literals)
+- Return structured strings with delimiters (|||, ::, |)
+- Add matching Tracery modifiers to extract parts
+- Format lists using Tracery conventions ("A, B, and C")
+
+**Validation**: Static analysis prevents unsafe patterns (`$vault.neighbours(#symbol#, 3)` raises error at load time)
+
+**Benefits**:
+- Enables complex Tracery geists without code
+- Maintains Tracery-first development principle
+- Provides safe, validated patterns for common operations
+
+---
+
 ## Closing Thoughts
 
 v1.0 GeistFabrik has **excellent range**—from pure oracular provocations to practical vault maintenance. This makes it useful and accessible.

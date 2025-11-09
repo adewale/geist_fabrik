@@ -272,6 +272,44 @@ We use `mypy --strict` for `src/` directory:
 - No `Any` types without explanation
 - No implicit `Optional`
 
+### Type Hint Style
+
+**GeistFabrik uses modern Python 3.9+ type hint syntax** (PEP 585):
+
+```python
+# ✅ CORRECT - Modern syntax (Python 3.9+)
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
+    pass
+
+def process_data(items: dict[str, Any]) -> tuple[int, str]:
+    pass
+
+# ❌ WRONG - Traditional syntax (requires imports)
+from typing import List, Dict, Tuple
+
+def suggest(vault: "VaultContext") -> List["Suggestion"]:
+    pass
+
+def process_data(items: Dict[str, Any]) -> Tuple[int, str]:
+    pass
+```
+
+**Key differences:**
+
+| Modern (✅ Use this) | Traditional (❌ Don't use) |
+|---------------------|---------------------------|
+| `list[Type]` | `List[Type]` from `typing` |
+| `dict[K, V]` | `Dict[K, V]` from `typing` |
+| `tuple[T, ...]` | `Tuple[T, ...]` from `typing` |
+| `set[Type]` | `Set[Type]` from `typing` |
+
+**Why modern syntax?**
+- Simpler: No imports needed for built-in types
+- Standard: Python 3.9+ best practice
+- Consistent: One style across the entire codebase
+
+**Note:** Both syntaxes are valid in Python 3.11+, but we standardize on modern for consistency.
+
 ---
 
 ## Git Workflow

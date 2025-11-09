@@ -10,6 +10,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+from .config import TOTAL_DIM
+
 
 class VectorSearchBackend(ABC):
     """Abstract base class for vector similarity search backends."""
@@ -196,12 +198,12 @@ class SqliteVecBackend(VectorSearchBackend):
     - Uses vec0 virtual table with path mapping
     """
 
-    def __init__(self, db: sqlite3.Connection, dim: int = 387):
+    def __init__(self, db: sqlite3.Connection, dim: int = TOTAL_DIM):
         """Initialize sqlite-vec backend.
 
         Args:
             db: SQLite database connection
-            dim: Embedding dimension (default: 387 for temporal embeddings)
+            dim: Embedding dimension (default: TOTAL_DIM for temporal embeddings)
 
         Raises:
             RuntimeError: If sqlite-vec extension not available

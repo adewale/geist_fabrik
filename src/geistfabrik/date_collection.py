@@ -8,7 +8,6 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
-from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from .markdown_parser import extract_links, extract_tags, parse_frontmatter
@@ -252,16 +251,18 @@ def split_date_collection_note(
         logger.debug(f"No valid date sections found in {file_path}")
         return []
 
-    # Merge duplicate dates
+    # Merge duplicate dates, keeping track of first heading text
     merged_sections: Dict[date, List[str]] = {}
+    original_headings: Dict[date, str] = {}
     for section in sections:
         if section.entry_date not in merged_sections:
             merged_sections[section.entry_date] = []
+            # Store original heading text (strip ## prefix and whitespace)
+            original_headings[section.entry_date] = section.heading.lstrip('#').strip()
         merged_sections[section.entry_date].append(section.content)
 
     # Create virtual notes
     virtual_notes = []
-    file_stem = Path(file_path).stem
 
     for entry_date in sorted(merged_sections.keys()):
         contents = merged_sections[entry_date]
@@ -275,8 +276,12 @@ def split_date_collection_note(
         all_tags = frontmatter_tags + [tag for tag in inline_tags if tag not in frontmatter_tags]
 
         # Generate virtual path and title
+        # Path uses ISO date for consistency and uniqueness
+        # Title is just the original heading text (e.g., "2025-01-15" or "January 15, 2025")
+        # The obsidian_link property on Note will construct the deeplink format when needed
         virtual_path = f"{file_path}/{entry_date.isoformat()}"
-        title = f"{file_stem} - {entry_date.isoformat()}"
+        original_heading_text = original_headings[entry_date]
+        title = original_heading_text
 
         # Create note with entry_date as created time
         entry_datetime = datetime.combine(entry_date, datetime.min.time())

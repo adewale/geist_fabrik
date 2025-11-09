@@ -69,7 +69,7 @@ class GeistExecutor:
     def __init__(
         self,
         geists_dir: Path,
-        timeout: int = 5,
+        timeout: int = 30,
         max_failures: int = 3,
         default_geists_dir: Optional[Path] = None,
         enabled_defaults: Optional[Dict[str, bool]] = None,

@@ -48,6 +48,8 @@ class TraceryEngine:
             "s": self._pluralize,
             "ed": self._past_tense,
             "a": self._article,
+            "split_seed": self._split_seed,
+            "split_neighbours": self._split_neighbours,
         }
 
     def _capitalize(self, text: str) -> str:
@@ -239,6 +241,33 @@ class TraceryEngine:
             article = "a"
 
         return f"{article} {text}"
+
+    def _split_seed(self, text: str) -> str:
+        """Extract seed part from delimited semantic cluster string.
+
+        Args:
+            text: Formatted cluster string "SEED|||NEIGHBOURS"
+
+        Returns:
+            The seed part (before delimiter)
+        """
+        if "|||" in text:
+            return text.split("|||")[0]
+        return text
+
+    def _split_neighbours(self, text: str) -> str:
+        """Extract neighbours part from delimited semantic cluster string.
+
+        Args:
+            text: Formatted cluster string "SEED|||NEIGHBOURS"
+
+        Returns:
+            The neighbours part (after delimiter)
+        """
+        if "|||" in text:
+            parts = text.split("|||")
+            return parts[1] if len(parts) > 1 else ""
+        return ""
 
     def add_modifier(self, name: str, func: Callable[[str], str]) -> None:
         """Add a custom modifier.
@@ -504,6 +533,48 @@ class TraceryGeist:
         self.engine = TraceryEngine(grammar, seed)
         self.count = count
 
+    @staticmethod
+    def _validate_grammar(grammar: Dict[str, List[str]], geist_id: str, yaml_path: Path) -> None:
+        """Validate Tracery grammar for common anti-patterns.
+
+        Args:
+            grammar: Tracery grammar dictionary
+            geist_id: Geist identifier (for error messages)
+            yaml_path: Path to YAML file (for error messages)
+
+        Raises:
+            ValueError: If anti-patterns are detected
+        """
+        # Pattern to detect vault function calls with Tracery symbol arguments
+        # Matches: $vault.func(#symbol#, ...) or $vault.func(..., #symbol#)
+        unsafe_pattern = r"\$vault\.\w+\([^)]*#\w+#[^)]*\)"
+
+        for symbol, rules in grammar.items():
+            for rule in rules:
+                if not isinstance(rule, str):
+                    continue
+
+                # Check for unsafe vault function patterns
+                if re.search(unsafe_pattern, rule):
+                    # Extract the problematic function call
+                    match = re.search(r"(\$vault\.\w+\([^)]+\))", rule)
+                    func_call = match.group(1) if match else rule
+
+                    raise ValueError(
+                        f"Unsafe vault function pattern in {yaml_path}\n"
+                        f"  → Geist: {geist_id}\n"
+                        f"  → Symbol: {symbol}\n"
+                        f"  → Pattern: {func_call}\n"
+                        f"  → Problem: Cannot pass Tracery symbols (#symbol#) to vault functions\n"
+                        f"  → Reason: Vault functions execute during preprocessing, "
+                        f"before symbol expansion\n"
+                        f"  → Solution: Use 'cluster' functions that bundle related data\n"
+                        f"  → Example: $vault.semantic_clusters(2, 3) with "
+                        f".split_seed/.split_neighbours modifiers\n"
+                        f"  → See: specs/tracery_research.md "
+                        f"(Designing Tracery-Safe Vault Functions)"
+                    )
+
     @classmethod
     def from_yaml(cls, yaml_path: Path, seed: int | None = None) -> "TraceryGeist":
         """Load Tracery geist from YAML file.
@@ -539,6 +610,9 @@ class TraceryGeist:
         geist_id = data["id"]
         grammar = data["tracery"]
         count = data.get("count", 1)
+
+        # Validate grammar for anti-patterns
+        cls._validate_grammar(grammar, geist_id, yaml_path)
 
         return cls(geist_id, grammar, count, seed)
 

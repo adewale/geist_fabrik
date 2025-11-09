@@ -45,12 +45,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         quote_clean = " ".join(quote.split())
 
-        text = f'From [[{note.title}]]: "{quote_clean}" What if you reflected on this again?'
+        text = (
+            f'From [[{note.obsidian_link}]]: "{quote_clean}" '
+            f"What if you reflected on this again?"
+        )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.title],
+                notes=[note.obsidian_link],
                 geist_id="quote_harvester",
             )
         )

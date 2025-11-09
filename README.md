@@ -11,7 +11,7 @@ Inspired by Gordon Brander's work on tools for thought.
 ## Status
 
 **Version**: 0.9.0 (Beta)
-**Default Geists**: 47 (38 code + 9 Tracery)
+**Default Geists**: 52 (43 code + 9 Tracery) _[programmatically verified]_
 **Tests**: 611 passing (100%)
 **Progress**: ~99% (Feature-complete, approaching 1.0)
 
@@ -71,8 +71,8 @@ uv run geistfabrik --help
 # Initialize a vault (creates _geistfabrik directory structure)
 uv run geistfabrik init /path/to/your/vault
 
-# This automatically configures 49 bundled default geists:
-# • 40 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
+# This automatically configures 52 bundled default geists:
+# • 43 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
 # • 9 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)
 
 # Preview suggestions (read-only, no files created)
@@ -113,7 +113,7 @@ rm -rf testdata/kepano-obsidian-main/"geist journal"
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
 
-**Note**: 49 default geists work immediately - no installation needed!
+**Note**: 52 default geists work immediately - no installation needed!
 
 ## Privacy & Data Safety
 
@@ -267,7 +267,24 @@ default_geists:
 
 **Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
 
-**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 49 default geists with descriptions and configuration tips.
+**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 52 default geists with descriptions and configuration tips.
+
+### Cluster Labeling
+
+GeistFabrik uses semantic clustering to group related notes and generate descriptive labels. You can choose between two labeling methods:
+
+```yaml
+clustering:
+  labeling_method: keybert  # or "tfidf"
+  min_cluster_size: 5       # minimum notes per cluster
+  n_label_terms: 4          # number of terms in label
+```
+
+**Labeling Methods**:
+- **keybert** (default): Uses semantic similarity to cluster centroids for more coherent, conceptual labels. Supports 1-3 word phrases.
+- **tfidf**: Frequency-based keyword extraction. Faster and more deterministic, focuses on term frequency within clusters.
+
+**Note**: KeyBERT requires the sentence-transformers model (~90MB). If unavailable, it falls back to simple labels.
 
 ### Date-Collection Notes (Journal Files)
 
@@ -522,7 +539,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
-- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 49 default geists
+- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 52 default geists
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
 
 ### Deep Dives

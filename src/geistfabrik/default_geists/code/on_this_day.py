@@ -7,7 +7,7 @@ hemisphere-specific seasonal assumptions.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from geistfabrik.models import Suggestion
 
 
-def suggest(vault: "VaultContext") -> List[Suggestion]:
+def suggest(vault: "VaultContext") -> list[Suggestion]:
     """Surface notes from same calendar date in previous years.
 
     This geist finds notes created on the same month and day as today,
@@ -49,8 +49,10 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
         else:
             time_phrase = f"{years_ago} years ago today"
 
-        text = f"{time_phrase}, you wrote [[{note.title}]]. What's changed since then?"
-        suggestions.append(Suggestion(text=text, notes=[note.title], geist_id="on_this_day"))
+        text = f"{time_phrase}, you wrote [[{note.obsidian_link}]]. What's changed since then?"
+        suggestions.append(
+            Suggestion(text=text, notes=[note.obsidian_link], geist_id="on_this_day")
+        )
 
     # Sample up to 2 suggestions
     return vault.sample(suggestions, min(2, len(suggestions)))

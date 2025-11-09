@@ -77,7 +77,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 if days_since_modified > 60:  # Stable content, unstable interpretation
                     text = (
-                        f"[[{note.title}]] has been interpreted differently in each of "
+                        f"[[{note.obsidian_link}]] has been interpreted differently in each of "
                         f"your last {len(embeddings)} sessions, despite not being edited "
                         f"in {days_since_modified} days. Meaning unsettled? Or does it mean "
                         f"different things in different contexts?"
@@ -86,7 +86,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[note.title],
+                            notes=[note.obsidian_link],
                             geist_id="hermeneutic_instability",
                         )
                     )

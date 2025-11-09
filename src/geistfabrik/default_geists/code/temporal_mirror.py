@@ -4,7 +4,7 @@ Divides vault notes into 10 temporal periods and juxtaposes notes from
 different eras to reveal how thinking has evolved over time.
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from geistfabrik.models import Suggestion
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
 
-def suggest(vault: "VaultContext") -> List[Suggestion]:
+def suggest(vault: "VaultContext") -> list[Suggestion]:
     """Compare notes from different temporal periods.
 
     Divides all notes (excluding geist journal) into 10 time periods based on
@@ -83,14 +83,14 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
     relationship = vault.sample(relationships, k=1)[0]
 
     suggestion_text = (
-        f"From period {period1_num}, [[{note1.title}]] {relationship} "
-        f"period {period2_num}'s [[{note2.title}]]."
+        f"From period {period1_num}, [[{note1.obsidian_link}]] {relationship} "
+        f"period {period2_num}'s [[{note2.obsidian_link}]]."
     )
 
     return [
         Suggestion(
             text=suggestion_text,
-            notes=[note1.title, note2.title],
+            notes=[note1.obsidian_link, note2.obsidian_link],
             geist_id="temporal_mirror",
         )
     ]

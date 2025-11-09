@@ -44,15 +44,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             old_note = old_similar[0]  # Pick the most similar old note
 
             text = (
-                f"What if your recent work on [[{recent_note.title}]] "
-                f"connects to your older note [[{old_note.title}]]? "
+                f"What if your recent work on [[{recent_note.obsidian_link}]] "
+                f"connects to your older note [[{old_note.obsidian_link}]]? "
                 f"They're semantically similar - has your thinking evolved?"
             )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[recent_note.title, old_note.title],
+                    notes=[recent_note.obsidian_link, old_note.obsidian_link],
                     geist_id="recent_focus",
                 )
             )

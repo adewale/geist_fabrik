@@ -83,8 +83,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 if connections:
                     text = (
-                        f"I think you're lying about your claim in [[{note.title}]] "
-                        f"because [[{other.title}]] argues something that seems to contradict it"
+                        f"I think you're lying about your claim in "
+                        f"[[{note.obsidian_link}]] because [[{other.obsidian_link}]] "
+                        f"argues something that seems to contradict it"
                     )
 
                     if connections:
@@ -95,14 +96,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         )
                 else:
                     text = (
-                        f"[[{note.title}]] and [[{other.title}]] seem to contradict "
-                        f"each other—what gives?"
+                        f"[[{note.obsidian_link}]] and [[{other.obsidian_link}]] seem "
+                        f"to contradict each other—what gives?"
                     )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[note.title, other.title],
+                        notes=[note.obsidian_link, other.obsidian_link],
                         geist_id="columbo",
                     )
                 )

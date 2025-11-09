@@ -17,7 +17,8 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 49 bundled geists (40 code, 9 Tracery) - automatically available
+  - **default_geists/**: 52 bundled geists (43 code, 9 Tracery) - automatically available
+    - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
 - **specs/**: Original technical specifications (all implemented)
@@ -82,21 +83,32 @@ pytest tests/ -k "unit"
 ### Type Checking Requirements
 
 CI uses `mypy --strict` which requires:
-- Explicit type parameters for generics: `Dict[str, Any]` not `Dict`
+- Explicit type parameters for generics: `dict[str, Any]` not `dict`
 - Type hints on all function parameters and returns
 - No implicit `Any` types
 
-**Example**:
+**Type Hint Style**: GeistFabrik uses **modern Python 3.9+ syntax** (PEP 585) for built-in types:
+- Use `list[Type]`, `dict[K, V]`, `tuple[T, ...]` (lowercase, no imports)
+- NOT `List[Type]`, `Dict[K, V]`, `Tuple[T, ...]` (from `typing`)
+
+**Example - Missing Type Parameters** (This will fail CI):
 ```python
-# ❌ WRONG - Will fail CI
-def from_dict(cls, data: Dict) -> Config:
+# ❌ WRONG - Missing type parameters
+def from_dict(cls, data: dict) -> Config:  # dict needs [str, Any]
     pass
 
-# ✅ CORRECT - Will pass CI
-from typing import Any, Dict
+# ✅ CORRECT - Type parameters provided
+from typing import Any
 
-def from_dict(cls, data: Dict[str, Any]) -> Config:
+def from_dict(cls, data: dict[str, Any]) -> Config:
     pass
+```
+
+**Example - Geist Return Type**:
+```python
+# ✅ CORRECT - Modern syntax
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
+    return []
 ```
 
 ### Why This Matters
@@ -132,7 +144,7 @@ def from_dict(cls, data: Dict[str, Any]) -> Config:
 **Current Performance Status** (post-rollback):
 - ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
 - ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 49 geists: Pass timeout thresholds on production vaults
+- ✅ All 52 geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
 - Use `similarity()` not `batch_similarity()` for cache benefits
@@ -381,6 +393,32 @@ def test_mathematical_ground_truth():
 
 ## Common Development Patterns
 
+### Geist Count Management (Single Source of Truth)
+
+**DO NOT** hardcode geist counts anywhere in the codebase or documentation. Instead:
+
+**Use the programmatic constants**:
+```python
+from geistfabrik.default_geists import (
+    CODE_GEIST_COUNT,
+    TRACERY_GEIST_COUNT,
+    TOTAL_GEIST_COUNT,
+)
+```
+
+**How it works**:
+- `src/geistfabrik/default_geists/__init__.py` counts files programmatically using `Path.glob()`
+- These constants are the single source of truth for all geist counts
+- Automated tests verify that documentation stays synchronized (see `tests/unit/test_geist_count_consistency.py`)
+- Tests will fail if README.md or CLAUDE.md mention outdated counts
+
+**When adding/removing geists**:
+1. Add/remove the geist file (*.py or *.yaml)
+2. Run tests - they will verify counts automatically update
+3. No manual documentation updates needed for counts
+
+**Why this matters**: Prevents drift between actual geist counts and documentation, eliminating the need to manually update counts in multiple places.
+
 ### Adding a Metadata Module
 1. Create `<vault>/_geistfabrik/metadata_inference/module_name.py`
 2. Export `infer(note: Note, vault: VaultContext) -> Dict`
@@ -396,7 +434,7 @@ def test_mathematical_ground_truth():
 ### Adding a Code Geist
 1. Create `<vault>/_geistfabrik/geists/code/geist_name.py`
 2. Export `suggest(vault: VaultContext) -> List[Suggestion]`
-3. Include timeout handling (5 second default)
+3. Include timeout handling (30 second default)
 4. Return empty list if no quality suggestions found
 
 ### Adding a Tracery Geist
@@ -413,7 +451,7 @@ def test_mathematical_ground_truth():
 ## Error Handling Philosophy
 
 From the spec:
-- Geists execute with 5-second timeout (configurable)
+- Geists execute with 30-second timeout (configurable)
 - After 3 failures, geist automatically disabled
 - Error logs include test command to reproduce: `geistfabrik test geist_id /path/to/vault --date YYYY-MM-DD`
 - System continues if individual geists fail
@@ -426,6 +464,45 @@ From the spec:
 - Sub-second semantic search queries
 - 5-minute effort to add new capability at any extensibility layer
 - 1000 notes × 20 sessions = ~30MB embedding storage
+
+## Breaking Database Changes (Pre-1.0 Policy)
+
+**Current Policy (versions < 1.0)**: We do NOT provide automatic database migrations. Users must manually delete and rebuild their database when breaking changes occur.
+
+**When you make a breaking database change:**
+
+1. **Document it in CHANGELOG.md under `## [Unreleased]` > `### Breaking Changes`**:
+   - Clearly describe what changed
+   - Explain why users need to rebuild
+   - Provide exact rebuild instructions
+   - Example format:
+   ```markdown
+   ### Breaking Changes
+   - **Virtual note titles**: Changed virtual note title format to exclude filename prefix
+     - **Why**: Older databases store titles as "Journal#2025-01-15" instead of "2025-01-15"
+     - **Action required**: Delete and rebuild database:
+       ```bash
+       rm -rf <vault>/_geistfabrik/vault.db*
+       uv run geistfabrik invoke <vault>
+       ```
+     - **Impact**: Existing vaults will show incorrect deeplinks until database is rebuilt
+   ```
+
+2. **Update relevant documentation** to reflect the new behavior
+
+3. **Add regression tests** to prevent the bug from reoccurring
+
+**Post-1.0 Policy**: After the 1.0 release, we will implement automatic database schema migrations for all breaking changes. Users will never need to manually delete their databases.
+
+**What counts as a breaking change**:
+- Changes to how data is stored in the database (column formats, title formats, path formats)
+- Changes to database schema (new tables, altered columns, changed indexes)
+- Changes to how existing data is interpreted or displayed
+
+**What is NOT breaking**:
+- Bug fixes that don't affect stored data
+- Performance optimizations that preserve existing behavior
+- New features that add data without changing existing data
 
 ## Qualitative Success Metrics
 

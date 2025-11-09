@@ -18,6 +18,7 @@ from typing import (
 
 import numpy as np
 
+from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
 from .models import Link, Note
 from .vault import Vault
@@ -347,7 +348,7 @@ class VaultContext:
                 embeddings_a.append(emb)
             except KeyError:
                 # Note not found, use zero vector
-                embeddings_a.append(np.zeros(387))  # 384 + 3 temporal features
+                embeddings_a.append(np.zeros(TOTAL_DIM))  # 384 + 3 temporal features
 
         for note in notes_b:
             try:
@@ -355,7 +356,7 @@ class VaultContext:
                 embeddings_b.append(emb)
             except KeyError:
                 # Note not found, use zero vector
-                embeddings_b.append(np.zeros(387))
+                embeddings_b.append(np.zeros(TOTAL_DIM))
 
         # Stack into matrices: (n, d) and (m, d)
         matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), 387)
@@ -622,8 +623,20 @@ class VaultContext:
         # Generate labels using stats module
         from .stats import EmbeddingMetricsComputer
 
-        metrics_computer = EmbeddingMetricsComputer(self.db)
-        cluster_labels_raw = metrics_computer._label_clusters_tfidf(paths, labels, n_terms=4)
+        metrics_computer = EmbeddingMetricsComputer(self.db, self.vault.config)
+
+        # Choose labeling method based on config
+        labeling_method = self.vault.config.clustering.labeling_method
+        n_terms = self.vault.config.clustering.n_label_terms
+
+        if labeling_method == "keybert":
+            cluster_labels_raw = metrics_computer._label_clusters_keybert(
+                paths, labels, n_terms=n_terms
+            )
+        else:  # Default to tfidf
+            cluster_labels_raw = metrics_computer._label_clusters_tfidf(
+                paths, labels, n_terms=n_terms
+            )
 
         # Build result with formatted labels and centroids
         result: Dict[int, Dict[str, Any]] = {}

@@ -108,77 +108,77 @@ class FunctionRegistry:
             """Sample k random notes from vault.
 
             Returns:
-                List of note titles (strings for Tracery)
+                List of obsidian links (strings for Tracery)
             """
             notes = vault.notes()
             sampled = vault.sample(notes, k)
-            return [note.title for note in sampled]
+            return [note.obsidian_link for note in sampled]
 
         @vault_function("old_notes")
         def old_notes(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k least recently modified notes.
 
             Returns:
-                List of note titles (strings for Tracery)
+                List of obsidian links (strings for Tracery)
             """
             notes = vault.old_notes(k)
-            return [note.title for note in notes]
+            return [note.obsidian_link for note in notes]
 
         @vault_function("recent_notes")
         def recent_notes(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k most recently modified notes.
 
             Returns:
-                List of note titles (strings for Tracery)
+                List of obsidian links (strings for Tracery)
             """
             notes = vault.recent_notes(k)
-            return [note.title for note in notes]
+            return [note.obsidian_link for note in notes]
 
         @vault_function("random_note_title")
         def random_note_title(vault: "VaultContext") -> str:
-            """Get a random note title from the vault.
+            """Get a random note from the vault.
 
             Uses deterministic randomness based on vault's RNG seed.
 
             Returns:
-                Single note title (string for Tracery)
+                Single obsidian link (string for Tracery)
             """
             notes = vault.notes()
             if not notes:
                 return ""
             sampled = vault.sample(notes, 1)
-            return sampled[0].title if sampled else ""
+            return sampled[0].obsidian_link if sampled else ""
 
         @vault_function("orphans")
         def orphans(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k orphan notes (no incoming or outgoing links).
 
             Returns:
-                List of note titles (strings for Tracery)
+                List of obsidian links (strings for Tracery)
             """
             notes = vault.orphans(k)
-            return [note.title for note in notes]
+            return [note.obsidian_link for note in notes]
 
         @vault_function("hubs")
         def hubs(vault: "VaultContext", k: int = 5) -> List[str]:
             """Get k notes with most incoming links.
 
             Returns:
-                List of note titles (strings for Tracery)
+                List of obsidian links (strings for Tracery)
             """
             notes = vault.hubs(k)
-            return [note.title for note in notes]
+            return [note.obsidian_link for note in notes]
 
         @vault_function("neighbours")
         def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> List[str]:
             """Get k semantically similar notes to given note.
 
             Args:
-                note_title: Note title (string from Tracery)
+                note_title: Note link (string from Tracery)
                 k: Number of neighbors to return
 
             Returns:
-                List of note titles (strings for Tracery)
+                List of obsidian links (strings for Tracery)
             """
             # Resolve string → Note (adapter layer responsibility)
             note = vault.resolve_link_target(note_title)
@@ -189,7 +189,7 @@ class FunctionRegistry:
             neighbor_notes = vault.neighbours(note, k)
 
             # Convert Note → string for Tracery
-            return [n.title for n in neighbor_notes]
+            return [n.obsidian_link for n in neighbor_notes]
 
         @vault_function("contrarian_to")
         def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> List[str]:
@@ -200,11 +200,11 @@ class FunctionRegistry:
             This is 10-100x faster than the loop-based approach.
 
             Args:
-                note_title: Note title (string from Tracery)
+                note_title: Note link (string from Tracery)
                 k: Number of contrarian notes to return
 
             Returns:
-                List of note titles (strings for Tracery)
+                List of obsidian links (strings for Tracery)
             """
             import numpy as np
 
@@ -251,8 +251,62 @@ class FunctionRegistry:
             # Get indices of k least similar (ascending sort)
             least_similar_indices = np.argsort(similarities)[:k]
 
-            # Return note titles
-            return [candidate_notes[i].title for i in least_similar_indices]
+            # Return obsidian links
+            return [candidate_notes[i].obsidian_link for i in least_similar_indices]
+
+        @vault_function("semantic_clusters")
+        def semantic_clusters(vault: "VaultContext", count: int = 2, k: int = 3) -> List[str]:
+            """Sample seed notes and pair each with its semantic neighbours.
+
+            Returns formatted strings using a delimiter to separate seed from neighbours.
+            This allows Tracery geists to extract both parts using custom modifiers.
+
+            Args:
+                count: Number of seed notes to sample
+                k: Number of neighbours per seed
+
+            Returns:
+                List of formatted strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
+                The ||| delimiter allows splitting in Tracery templates
+            """
+            import random
+
+            # Use a fixed sub-seed for deterministic sampling based on session date
+            session_seed = int(vault.session.date.strftime("%Y%m%d"))
+            cluster_seed = hash(("cluster", session_seed)) % (2**31)
+            cluster_rng = random.Random(cluster_seed)
+
+            notes = vault.notes()
+            if not notes:
+                return []
+
+            # Sample seed notes
+            sampled_seeds = cluster_rng.sample(notes, min(count, len(notes)))
+
+            # Build formatted pairs
+            results = []
+            for seed_note in sampled_seeds:
+                neighbor_notes = vault.neighbours(seed_note, k)
+
+                if neighbor_notes:
+                    # Format neighbours as comma-separated list (like Tracery does)
+                    neighbor_links = [n.obsidian_link for n in neighbor_notes]
+                    if len(neighbor_links) == 1:
+                        neighbors_str = neighbor_links[0]
+                    elif len(neighbor_links) == 2:
+                        neighbors_str = f"{neighbor_links[0]} and {neighbor_links[1]}"
+                    else:
+                        # Break long line for ruff compliance
+                        last_link = neighbor_links[-1]
+                        neighbors_str = ", ".join(neighbor_links[:-1]) + f", and {last_link}"
+                else:
+                    neighbors_str = ""
+
+                # Format as "SEED|||NEIGHBOURS" for Tracery extraction
+                formatted = f"{seed_note.obsidian_link}|||{neighbors_str}"
+                results.append(formatted)
+
+            return results
 
         # Transfer built-in functions from global registry to instance
         self.functions.update(_GLOBAL_REGISTRY)
