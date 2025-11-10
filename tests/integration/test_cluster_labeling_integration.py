@@ -1,4 +1,4 @@
-"""Integration tests for cluster labeling with VaultContext."""
+"""Integration tests for cluster labelling with VaultContext."""
 
 from datetime import datetime
 
@@ -6,7 +6,7 @@ import pytest
 
 
 class TestClusterLabelingIntegration:
-    """Test cluster labeling through VaultContext with config."""
+    """Test cluster labelling through VaultContext with config."""
 
     @pytest.fixture
     def vault_with_config(self, tmp_path):
@@ -53,7 +53,7 @@ class TestClusterLabelingIntegration:
 
         vault = vault_with_config
 
-        # Set KeyBERT as labeling method (default)
+        # Set KeyBERT as labelling method (default)
         vault.config.clustering = ClusterConfig(labeling_method="keybert", n_label_terms=3)
 
         # Create session and compute embeddings
@@ -84,7 +84,7 @@ class TestClusterLabelingIntegration:
 
         vault = vault_with_config
 
-        # Set TF-IDF as labeling method
+        # Set TF-IDF as labelling method
         vault.config.clustering = ClusterConfig(labeling_method="tfidf", n_label_terms=3)
 
         # Create session and compute embeddings
@@ -106,7 +106,7 @@ class TestClusterLabelingIntegration:
                 assert len(cluster_info["label"]) > 0
 
     def test_switching_labeling_methods(self, vault_with_config):
-        """Test that changing config affects labeling method."""
+        """Test that changing config affects labelling method."""
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
@@ -138,7 +138,7 @@ class TestClusterLabelingIntegration:
             # Should have same cluster IDs (same clustering)
             assert set(clusters_keybert.keys()) == set(clusters_tfidf.keys())
 
-            # But may have different labels (different labeling methods)
+            # But may have different labels (different labelling methods)
             # This is hard to assert definitively, but at least verify both produced labels
             for cluster_id in clusters_keybert:
                 assert len(clusters_keybert[cluster_id]["label"]) > 0
@@ -192,10 +192,10 @@ class TestClusterMirrorGeist:
         # Create enough notes for meaningful clusters
         ml_notes = [
             ("ml1.md", "# Machine Learning\nDeep learning neural networks training"),
-            ("ml2.md", "# Neural Nets\nBackpropagation gradient descent optimization"),
+            ("ml2.md", "# Neural Nets\nBackpropagation gradient descent optimisation"),
             ("ml3.md", "# AI Training\nModel validation testing evaluation metrics"),
             ("ml4.md", "# Deep Learning\nConvolutional networks image recognition"),
-            ("ml5.md", "# Model Optimization\nHyperparameter tuning learning rate"),
+            ("ml5.md", "# Model Optimisation\nHyperparameter tuning learning rate"),
         ]
 
         web_notes = [

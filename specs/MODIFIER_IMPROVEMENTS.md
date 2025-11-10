@@ -189,7 +189,7 @@ relationship:
 
 **Sample Output (Before):**
 - "6 months ago you wrote [[Early Ideas]]. today's [[Synthesis]] might be the answer you were looking for"
-- "1 years ago you wrote [[Questions]]. today's [[Framework]] shows how far you've traveled"
+- "1 years ago you wrote [[Questions]]. today's [[Framework]] shows how far you've travelled"
 
 **After** (with modifiers):
 ```yaml
@@ -213,12 +213,12 @@ today:
 
 relationship:
   - "might be the answer you were looking for"
-  - "shows how far you've traveled"
+  - "shows how far you've travelled"
 ```
 
 **Sample Output (After):**
 - "6 months ago you wrote [[Early Ideas]]. Today's [[Synthesis]] might be the answer you were looking for"
-- "12 months ago you created [[Questions]]. Today's [[Framework]] shows how far you've traveled"
+- "12 months ago you created [[Questions]]. Today's [[Framework]] shows how far you've travelled"
 
 **Improvements:**
 - Grammatically correct plurals ("months" not "month")

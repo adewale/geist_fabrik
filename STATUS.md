@@ -41,7 +41,7 @@
 | **Phase 8** | ✅ Complete | 100% | 0* | Metadata extensibility |
 | **Phase 9** | ✅ Complete | 100% | 0* | Function extensibility |
 | **Phase 10** | ✅ Complete | 100% | 7 | CLI implementation |
-| **Phase 11** | ✅ Complete | 90% | 0* | Polish & optimization |
+| **Phase 11** | ✅ Complete | 90% | 0* | Polish & optimisation |
 
 **Total**: 10/12 phases complete, 2 with partial implementation (*comprehensive tests pending but functionality validated)
 
@@ -126,9 +126,9 @@
 - [x] Function registry:
   - [x] `register_function(name, func)`
   - [x] `call_function(name, *args)`
-- [x] Performance optimizations:
+- [x] Performance optimisations:
   - [x] Session-level caching for `notes()` calls (2025-10-31)
-  - [x] Optimized orphans query with LEFT JOIN pattern (2025-10-31)
+  - [x] Optimised orphans query with LEFT JOIN pattern (2025-10-31)
 
 **Tests**: 22 passing in `tests/unit/test_vault_context.py`
 **Tests**: 16 passing in `tests/unit/test_vault_context_helpers.py` (NEW)
@@ -251,7 +251,7 @@
   - [x] Shannon entropy (cluster distribution balance)
   - [x] Silhouette score (cluster quality)
 - [x] Output formats:
-  - [x] Text format (human-readable, colored)
+  - [x] Text format (human-readable, coloured)
   - [x] JSON format (`--json` flag for scripting)
   - [x] Verbose mode (`--verbose` for detailed breakdowns)
 - [x] Performance features:
@@ -310,13 +310,13 @@
 
 **New Modules**: `function_registry.py` (280+ LOC)
 
-### Phase 11: Polish & Optimization ⭐ (95% COMPLETE)
+### Phase 11: Polish & Optimisation ⭐ (95% COMPLETE)
 - [x] Documentation (examples/ directory with comprehensive README)
 - [x] Example geists (39 examples: 29 code + 10 Tracery)
 - [x] Example metadata modules (3)
 - [x] Example vault functions (2 + 12 built-in)
 - [x] All tests passing (247/247)
-- [ ] Performance optimization for large vaults (1000+ notes)
+- [ ] Performance optimisation for large vaults (1000+ notes)
 - [ ] Schema migration support
 - [ ] Enhanced error messages
 - [x] Logging configuration (via Python logging module)
@@ -545,7 +545,7 @@ uv run python scripts/check_phase_completion.py
 
 ## 📝 Recent Changes
 
-### 2025-10-31 - Performance Optimizations & Helper Functions (MAJOR UPDATE)
+### 2025-10-31 - Performance Optimisations & Helper Functions (MAJOR UPDATE)
 
 **Added**:
 - **Three new helper functions** for cleaner geist code:
@@ -555,7 +555,7 @@ uv run python scripts/check_phase_completion.py
 - **Performance regression test suite** (tests/unit/test_performance_regression.py)
   - 8 tests covering caching, indexing, vectorization
   - Prevents future performance degradation
-  - Documents optimization patterns
+  - Documents optimisation patterns
 - **Comprehensive performance analysis** (docs/PERFORMANCE_COMPARISON_2025_10_31.md)
   - Before/after measurements with real data
   - 16% faster overall, 56% faster geist phase
@@ -565,7 +565,7 @@ uv run python scripts/check_phase_completion.py
 **Performance Improvements**:
 - **Session-level caching**: 98.6% reduction in redundant I/O for `vault.notes()` calls
 - **Vectorized similarity**: 5.4x speedup using sklearn's `cosine_similarity`
-- **Database optimization**: 85.6% faster orphan queries with composite index
+- **Database optimisation**: 85.6% faster orphan queries with composite index
 - **Code quality**: Updated 5 geist files to use new helper functions
 
 **Database Schema**:
@@ -587,7 +587,7 @@ uv run python scripts/check_phase_completion.py
   - Advanced embedding metrics: TwoNN, Vendi Score, IsoScore, Shannon entropy
   - Temporal drift analysis with Procrustes alignment
   - Actionable recommendations based on vault state
-  - Three output formats: text (colored), JSON, verbose
+  - Three output formats: text (coloured), JSON, verbose
   - Metrics caching for performance
   - 26 comprehensive unit tests
 
@@ -708,7 +708,7 @@ uv run python scripts/check_phase_completion.py
 
 ### Short-term (Month 1)
 4. **Phase 7**: Multi-session temporal analysis and drift tracking
-5. **Phase 11**: Performance optimization for large vaults (1000+ notes)
+5. **Phase 11**: Performance optimisation for large vaults (1000+ notes)
 6. **Polish**: Enhanced error messages and logging
 7. **Geist ideas**: Implement remaining Subconscious geist ideas (see docs/research/SUBCONSCIOUS_GEIST_COMPARISON.md)
 
@@ -723,7 +723,7 @@ uv run python scripts/check_phase_completion.py
 ## 🐛 Known Issues
 
 - Phase completion checker doesn't detect all passing criteria (some verification commands may be incorrect)
-- Cannot handle vaults >1000 notes efficiently (needs Phase 11 optimization)
+- Cannot handle vaults >1000 notes efficiently (needs Phase 11 optimisation)
 - Some geists may need performance tuning for large vaults
 
 ---

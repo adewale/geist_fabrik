@@ -244,7 +244,7 @@ Semantic Structure:
 ```python
 from sklearn.cluster import HDBSCAN
 from sklearn.metrics import silhouette_score
-from sklearn.neighbors import LocalOutlierFactor
+from sklearn.neighbours import LocalOutlierFactor
 from skdim.id import TwoNN
 from vendi_score import vendi
 from scipy.stats import entropy
@@ -290,7 +290,7 @@ Detected Clusters:
 
 Cluster Naming Method: c-TF-IDF (top 5 terms)
 
-Space Utilization:
+Space Utilisation:
   IsoScore: 0.67 (healthy distribution)
   Embedding space usage: 67% of available variance
   Unused dimensions: ~127 (effectively redundant)
@@ -611,7 +611,7 @@ def stats_command(args: argparse.Namespace) -> int:
     db_path = vault_path / "_geistfabrik" / "vault.db"
 
     if not db_path.exists():
-        print("Error: GeistFabrik not initialized. Run: geistfabrik init")
+        print("Error: GeistFabrik not initialised. Run: geistfabrik init")
         return 1
 
     vault = Vault(vault_path, db_path)
@@ -984,7 +984,7 @@ def test_stats_performance():
 1. **ML-based insights**: Predict vault growth, suggest optimal geist mix
 2. **Comparative analytics**: Compare vault to anonymized corpus of other vaults
 3. **Health score**: Single 0-100 score summarizing vault quality
-4. **Auto-optimization**: Suggest config changes to improve metrics
+4. **Auto-optimisation**: Suggest config changes to improve metrics
 
 ---
 

@@ -11,7 +11,7 @@ This specification defines how GeistFabrik handles **date-collection notes** (al
 
 ## Motivation
 
-### Current Behavior (Problem)
+### Current Behaviour (Problem)
 
 GeistFabrik currently treats journal files as single atomic notes:
 
@@ -35,7 +35,7 @@ Read an interesting paper on graph theory...
 - **Cannot distinguish** between entries from different dates
 - **Temporal queries** lack granularity
 
-### Desired Behavior (Solution)
+### Desired Behaviour (Solution)
 
 Split date-collection files into virtual atomic entries:
 
@@ -378,7 +378,7 @@ Continued from [[2025-01-15]]. Made progress.
 
 ### VaultContext Integration
 
-#### Query Behavior
+#### Query Behaviour
 
 Virtual entries behave like regular notes in all queries:
 
@@ -452,7 +452,7 @@ Session notes reference virtual entries using the `obsidian_link` property:
 suggestion_text = f"What if you revisited [[{note.obsidian_link}]]?"
 ```
 
-**Correct behavior**:
+**Correct behaviour**:
 - For virtual notes: `note.obsidian_link` returns `"Exercise journal#2024 February 18"` (Obsidian deeplink format)
 - For regular notes: `note.obsidian_link` returns `"Project Ideas"` (just the title)
 - Geists use `[[{note.obsidian_link}]]` uniformly for ALL note types
@@ -478,7 +478,7 @@ Users can follow links to journal entries using Obsidian's native deeplink featu
 - GeistFabrik generates: `[[Exercise journal#2024 February 18]]`
 - User clicks link in Obsidian
 - Obsidian opens `Exercise journal.md` and scrolls to the `## 2024 February 18` heading
-- This is Obsidian's standard heading link behavior (no special handling needed)
+- This is Obsidian's standard heading link behaviour (no special handling needed)
 
 **Reference**: [Obsidian Deeplink Documentation](https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note)
 
@@ -499,7 +499,7 @@ Not a date, but might parse as one?
 ```
 
 **Solution**: Use strict date parsing
-- Only recognize unambiguous date formats
+- Only recognise unambiguous date formats
 - Require 50%+ of H2 headings to be dates before splitting
 - Log warnings for ambiguous cases
 
@@ -714,7 +714,7 @@ entry_tags = file_tags + inline_tags  # ["journal", "important"]
 
 **Tasks:**
 1. Update journal writer to format virtual note references
-2. Add configuration options for splitting behavior
+2. Add configuration options for splitting behaviour
 3. Handle edge cases (duplicates, empty sections, etc.)
 4. Add user documentation
 5. Performance testing with large journals
@@ -889,7 +889,7 @@ entry_tags = file_tags + inline_tags  # ["journal", "important"]
 |---------|-----------|-------------|
 | DC-R-001 | `test_regular_notes_unaffected` | Regular notes work as before |
 | DC-R-002 | `test_existing_geists_work` | All default geists still work |
-| DC-R-003 | `test_kepano_vault_unchanged` | Kepano vault behavior unchanged |
+| DC-R-003 | `test_kepano_vault_unchanged` | Kepano vault behaviour unchanged |
 | DC-R-004 | `test_filtering_unchanged` | Filtering pipeline unchanged |
 | DC-R-005 | `test_journal_output_format` | Session notes format unchanged |
 
@@ -1025,7 +1025,7 @@ Found issue in [[Module Y]].
 **Existing vaults continue to work:**
 - Regular notes processed exactly as before
 - Files without date patterns treated as atomic notes
-- No breaking changes to API or behavior
+- No breaking changes to API or behaviour
 - Feature can be disabled in config
 
 ### Migration Path
@@ -1075,7 +1075,7 @@ PRAGMA user_version = 2;
 
 2. **Update README.md**
    - Add journal files to feature list
-   - Example of split behavior
+   - Example of split behaviour
 
 3. **Update CLAUDE.md**
    - Explain virtual entry architecture
@@ -1225,7 +1225,7 @@ Action items: [[Task 1]], [[Task 2]].
 
 ## Wednesday, January 17, 2025 - Planning
 Reviewed [[Product Roadmap]].
-Decided to prioritize [[Feature X]].
+Decided to prioritise [[Feature X]].
 ```
 
 **Result**: 2 virtual entries
@@ -1259,7 +1259,7 @@ Decided to prioritize [[Feature X]].
 - Updated README.md and CLAUDE.md
 - Configuration examples and troubleshooting
 
-✅ **Performance Optimizations**:
+✅ **Performance Optimisations**:
 - Pre-compiled regex patterns (10-50ms improvement for large journals)
 - Incremental sync with mtime checking
 - Efficient database queries with proper indexing
@@ -1407,7 +1407,7 @@ uv run geistfabrik invoke <vault>
    - `test_year_month_day_obsidian_link_format()`
    - End-to-end test with real vault
    - Verifies deeplink resolution works
-   - Includes detailed error messages explaining correct behavior
+   - Includes detailed error messages explaining correct behaviour
 
 **Coverage**: Prevents future regressions of the title format bug
 
@@ -1434,7 +1434,7 @@ uv run geistfabrik invoke <vault>
 - Heading: Exact text of the H2 heading (with spaces and special chars)
 - Example: `[[Exercise journal#2024 February 18]]`
 
-**Behavior in Obsidian**:
+**Behaviour in Obsidian**:
 1. User clicks link in GeistFabrik session note
 2. Obsidian opens `Exercise journal.md`
 3. Obsidian scrolls to `## 2024 February 18` heading

@@ -84,7 +84,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
     """
 
     def __init__(self, db: sqlite3.Connection):
-        """Initialize in-memory backend.
+        """Initialise in-memory backend.
 
         Args:
             db: SQLite database connection
@@ -199,7 +199,7 @@ class SqliteVecBackend(VectorSearchBackend):
     """
 
     def __init__(self, db: sqlite3.Connection, dim: int = TOTAL_DIM):
-        """Initialize sqlite-vec backend.
+        """Initialise sqlite-vec backend.
 
         Args:
             db: SQLite database connection

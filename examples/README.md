@@ -185,19 +185,19 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
                 )
 
         # Example: Analyze graph neighborhood density
-        neighbors = vault.graph_neighbors(note)  # All connected notes (both directions)
-        if len(neighbors) > 10:
-            # Check how interconnected the neighbors are
+        neighbours = vault.graph_neighbors(note)  # All connected notes (both directions)
+        if len(neighbours) > 10:
+            # Check how interconnected the neighbours are
             interconnections = sum(
-                1 for i, n1 in enumerate(neighbors)
-                for n2 in neighbors[i+1:]
+                1 for i, n1 in enumerate(neighbours)
+                for n2 in neighbours[i+1:]
                 if vault.has_link(n1, n2)
             )
 
-            if interconnections < len(neighbors):
+            if interconnections < len(neighbours):
                 suggestions.append(
                     Suggestion(
-                        text=f"[[{note.title}]] has {len(neighbors)} neighbors, "
+                        text=f"[[{note.title}]] has {len(neighbours)} neighbours, "
                              "but they're not well connected to each other. "
                              "Is there a central theme?",
                         notes=[note.title],

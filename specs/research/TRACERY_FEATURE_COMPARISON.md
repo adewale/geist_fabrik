@@ -11,7 +11,7 @@ This document compares three Tracery implementations:
 2. **PyTracery** - Python port by Allison Parrish (aparrish/pytracery)
 3. **GeistFabrik Tracery** - Custom implementation for vault-aware text generation
 
-**Key Finding**: GeistFabrik implements standard Tracery's core expansion and modifier features, but intentionally omits state management (push-pop stacks) in favor of a novel `$vault.*` function system for dynamic vault queries.
+**Key Finding**: GeistFabrik implements standard Tracery's core expansion and modifier features, but intentionally omits state management (push-pop stacks) in favour of a novel `$vault.*` function system for dynamic vault queries.
 
 ## Quick Reference: Feature Support Matrix
 
@@ -52,7 +52,7 @@ Modifiers transform expanded text using `.modifier` syntax (e.g., `#word.capital
 | **`.a`** | Add article (a/an) | "owl" | "an owl" | ✅ | ✅ | ✅ |
 | **Modifier chaining** | Multiple modifiers | "#word.s.capitalize#" | "Cats" | ✅ | ✅ | ✅ |
 | **Custom modifiers** | User-defined transforms | `.reverse`, `.shout` | Varies | ✅ | ✅ via `add_modifiers()` | ✅ via `add_modifier()` |
-| **Parameterized modifiers** | Modifiers with args | `.replace(a,b)` | - | ✅ | ✅ | ❌ Not implemented |
+| **Parameterised modifiers** | Modifiers with args | `.replace(a,b)` | - | ✅ | ✅ | ❌ Not implemented |
 
 **Modifier Implementation Details:**
 
@@ -72,7 +72,7 @@ State management allows storing and reusing generated values across an expansion
 
 | Feature | Syntax | Description | Tracery.js | PyTracery | GeistFabrik |
 |---------|--------|-------------|------------|-----------|-------------|
-| **Push (labeled action)** | `[key:value]` | Store value on stack | ✅ | ✅ | ❌ |
+| **Push (labelled action)** | `[key:value]` | Store value on stack | ✅ | ✅ | ❌ |
 | **Pop action** | `[key:POP]` | Remove top value from stack | ✅ | ✅ | ❌ |
 | **Unlabeled actions** | `[#symbol#]` | Execute without storing | ✅ | ✅ | ❌ |
 | **Variable consistency** | Reuse same random choice | ✅ Via push-pop | ✅ Via push-pop | ❌ Each expansion independent |
@@ -265,7 +265,7 @@ This section tracks features as they're added to GeistFabrik.
 - [ ] Unlabeled actions (`[#symbol#]`)
 - [ ] JSON format support
 - [ ] Variable consistency across expansions
-- [ ] Parameterized modifiers (`.replace(a,b)`)
+- [ ] Parameterised modifiers (`.replace(a,b)`)
 
 ### Potential Future Additions 🔮
 
@@ -289,7 +289,7 @@ This section tracks features as they're added to GeistFabrik.
 **What Breaks**:
 - Any use of push-pop syntax (`[var:value]`)
 - Any use of `.a`, `.s`, `.ed` modifiers (UPDATE: Now works! ✅)
-- Parameterized modifiers
+- Parameterised modifiers
 - JSON format (needs conversion to YAML + metadata)
 
 **Conversion Difficulty**: Medium

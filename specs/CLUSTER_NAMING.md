@@ -19,7 +19,7 @@
 
 ## Summary
 
-KeyBERT-based cluster labeling is now the **default method** for generating cluster names in GeistFabrik. This semantic similarity-based approach produces more coherent and interpretable cluster names than the previous frequency-based c-TF-IDF method.
+KeyBERT-based cluster labelling is now the **default method** for generating cluster names in GeistFabrik. This semantic similarity-based approach produces more coherent and interpretable cluster names than the previous frequency-based c-TF-IDF method.
 
 ### What Changed
 
@@ -115,7 +115,7 @@ The KeyBERT implementation follows a **hybrid approach** recommended in the rese
 
 ```yaml
 clustering:
-  labeling_method: keybert  # or "tfidf" for legacy behavior
+  labeling_method: keybert  # or "tfidf" for legacy behaviour
   min_cluster_size: 5       # minimum notes per cluster
   n_label_terms: 4          # number of terms in label
 ```
@@ -125,7 +125,7 @@ clustering:
 - `src/geistfabrik/stats.py:932-947` - stats command
 - `src/geistfabrik/cli.py` - CLI instantiation
 
-### 5. Fallback Behavior
+### 5. Fallback Behaviour
 
 The KeyBERT implementation includes robust error handling:
 
@@ -317,11 +317,11 @@ academic research methodology, literature review writing, citation practices
 
 ### For End Users
 
-KeyBERT is now **enabled by default** for all cluster labeling. All `cluster_mirror` geist suggestions will use semantic similarity-based naming automatically.
+KeyBERT is now **enabled by default** for all cluster labelling. All `cluster_mirror` geist suggestions will use semantic similarity-based naming automatically.
 
 **No configuration needed** - the system will automatically use KeyBERT for cluster naming.
 
-**To revert to old behavior** (if needed), add to your `config.yaml`:
+**To revert to old behaviour** (if needed), add to your `config.yaml`:
 
 ```yaml
 clustering:
@@ -340,7 +340,7 @@ from geistfabrik.vault import Vault
 vault = Vault("/path/to/vault")
 vault.sync()
 
-# Run KeyBERT labeling
+# Run KeyBERT labelling
 metrics = EmbeddingMetricsComputer(vault.db)
 labels = metrics._label_clusters_keybert(paths, cluster_labels, n_terms=4)
 ```
@@ -435,7 +435,7 @@ separate from your Q3-2024 notes. Different intellectual seasons?
 
 **Enhanced with KeyBERT clusters**:
 ```
-Your Q1-2024 notes cohere around "machine learning experimentation, neural network architectures, model optimization"
+Your Q1-2024 notes cohere around "machine learning experimentation, neural network architectures, model optimisation"
 while your Q3-2024 notes focus on "production deployment, system reliability, infrastructure scaling".
 From research season to engineering season?
 ```
@@ -478,7 +478,7 @@ Perhaps create a note called "React Architecture Patterns"?
 **What it currently does**:
 - Finds notes semantically related to many others but with few links
 - Suggests they might be "hidden hubs"
-- BUT: Doesn't characterize WHAT KIND of hub
+- BUT: Doesn't characterise WHAT KIND of hub
 
 **Current output**:
 ```
@@ -489,7 +489,7 @@ but only has 2 links. Hidden hub? Maybe it's a concept that connects many of you
 **Enhanced with KeyBERT clusters**:
 ```
 [[Systems Thinking]] is semantically related to 25 notes about
-"complex systems analysis, feedback loop modeling, emergent behavior patterns"
+"complex systems analysis, feedback loop modelling, emergent behaviour patterns"
 but only has 2 links. It's a methodological hub connecting your complexity work—
 worth making it a proper index note?
 ```
@@ -505,7 +505,7 @@ worth making it a proper index note?
 **What it currently does**:
 - Tracks how individual notes' embeddings migrate over time
 - Says note is "drifting toward" another note
-- BUT: Doesn't characterize the DIRECTION of drift thematically
+- BUT: Doesn't characterise the DIRECTION of drift thematically
 
 **Current output**:
 ```
@@ -594,7 +594,7 @@ Time to start a new area of exploration?
 [[Systems Thinking]] bridges three clusters:
 - "software architecture patterns"
 - "organizational design principles"
-- "complex systems modeling"
+- "complex systems modelling"
 
 Could this be a meta-pattern connecting multiple domains?
 ```
@@ -612,8 +612,8 @@ Could this be a meta-pattern connecting multiple domains?
 **Impact**: Immediate value for users, concrete suggestions
 **Effort**: Low - just integrate existing `get_clusters()` API
 
-#### Phase 2: Enhanced Characterization (Medium Priority)
-5. 💡 **hidden_hub** - Characterize hub type
+#### Phase 2: Enhanced Characterisation (Medium Priority)
+5. 💡 **hidden_hub** - Characterise hub type
 6. 💡 **concept_drift** - Name drift direction
 7. 💡 **convergent_evolution** - Name convergence target
 
@@ -654,11 +654,11 @@ def get_neighborhood_theme(notes: List[Note], n_terms: int = 3) -> str:
     """Get KeyBERT theme for a group of notes."""
     from geistfabrik.stats import EmbeddingMetricsComputer
 
-    # Treat neighbors as mini-cluster
+    # Treat neighbours as mini-cluster
     paths = [n.path for n in notes]
     labels = np.zeros(len(paths))  # All in cluster 0
 
-    # Apply KeyBERT labeling
+    # Apply KeyBERT labelling
     metrics = EmbeddingMetricsComputer(vault.db)
     cluster_labels = metrics._label_clusters_keybert(paths, labels, n_terms)
 
@@ -717,7 +717,7 @@ def get_clusters_at_session(self, session_id: int, min_size: int = 5) -> Dict:
 
 ### What Was Accomplished
 
-KeyBERT is now the **default cluster labeling method** in GeistFabrik, providing:
+KeyBERT is now the **default cluster labelling method** in GeistFabrik, providing:
 - ✅ Semantically-aware cluster naming (vs frequency-based)
 - ✅ Leverages existing embedding infrastructure
 - ✅ Maintains local-first philosophy (no external APIs)
@@ -733,17 +733,17 @@ This implementation is based on comprehensive academic research documented in [d
 **Key papers informing this implementation**:
 1. Grootendorst, M. (2020). "KeyBERT: Minimal keyword extraction with BERT"
 2. Angelov, D. (2020). "Top2Vec: Distributed Representations of Topics"
-3. Grootendorst, M. (2022). "BERTopic: Neural topic modeling with a class-based TF-IDF procedure"
+3. Grootendorst, M. (2022). "BERTopic: Neural topic modelling with a class-based TF-IDF procedure"
 
 ### Future Potential
 
 KeyBERT cluster naming unlocks **massive potential** for GeistFabrik geists:
 
 1. **Immediate wins**: 4 geists can be enhanced with minimal effort
-2. **Rich characterization**: 3 more geists can provide deeper insights
+2. **Rich characterisation**: 3 more geists can provide deeper insights
 3. **Novel capabilities**: 3+ new geists become possible
 
-The key insight: **Many geists already find semantic groups but don't name them**. KeyBERT transforms vague pattern detection into concrete conceptual characterization.
+The key insight: **Many geists already find semantic groups but don't name them**. KeyBERT transforms vague pattern detection into concrete conceptual characterisation.
 
 ---
 

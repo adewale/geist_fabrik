@@ -22,7 +22,7 @@ class TraceryEngine:
     """Simple Tracery grammar engine with vault function support."""
 
     def __init__(self, grammar: Dict[str, List[str]], seed: int | None = None):
-        """Initialize Tracery engine.
+        """Initialise Tracery engine.
 
         Args:
             grammar: Dictionary mapping symbols to expansion rules
@@ -232,7 +232,7 @@ class TraceryEngine:
         first_char = text[0].lower()
 
         # Special cases
-        if text.lower().startswith(("honest", "hour", "honor", "heir")):
+        if text.lower().startswith(("honest", "hour", "honour", "heir")):
             article = "an"
         elif text.lower().startswith("uni"):
             article = "a"  # 'university', 'unique' etc. have 'yoo' sound
@@ -292,7 +292,7 @@ class TraceryEngine:
         """Execute all $vault.* calls and expand symbol arrays.
 
         This pre-populates symbol arrays with vault function results before
-        Tracery expansion begins, ensuring idiomatic Tracery behavior where
+        Tracery expansion begins, ensuring idiomatic Tracery behaviour where
         each expansion independently samples from pre-populated arrays.
         """
         if self._preprocessed or not self.vault_context:
@@ -529,7 +529,7 @@ class TraceryGeist:
         count: int = 1,
         seed: int | None = None,
     ):
-        """Initialize Tracery geist.
+        """Initialise Tracery geist.
 
         Args:
             geist_id: Unique identifier for this geist
@@ -729,7 +729,7 @@ class TraceryGeistLoader:
         default_geists_dir: Path | None = None,
         enabled_defaults: Dict[str, bool] | None = None,
     ):
-        """Initialize loader.
+        """Initialise loader.
 
         Args:
             geists_dir: Directory containing custom .yaml geist files

@@ -88,7 +88,7 @@ CREATE INDEX IF NOT EXISTS idx_session_embeddings_path ON session_embeddings(not
 -- Session suggestions (for novelty filtering and history tracking)
 -- NOTE: This table serves the same purpose as the previously-defined
 -- "suggestions" + "suggestion_notes" tables but with a denormalized design.
--- The normalized tables were never used and have been removed (see commit history).
+-- The normalised tables were never used and have been removed (see commit history).
 CREATE TABLE IF NOT EXISTS session_suggestions (
     session_date TEXT NOT NULL,
     geist_id TEXT NOT NULL,
@@ -118,13 +118,13 @@ CREATE TABLE IF NOT EXISTS embedding_metrics (
 
 
 def init_db(db_path: Optional[Path] = None) -> sqlite3.Connection:
-    """Initialize database with schema.
+    """Initialise database with schema.
 
     Args:
         db_path: Path to SQLite database file. If None, use in-memory database.
 
     Returns:
-        SQLite connection with schema initialized.
+        SQLite connection with schema initialised.
     """
     if db_path is None:
         conn = sqlite3.connect(":memory:")

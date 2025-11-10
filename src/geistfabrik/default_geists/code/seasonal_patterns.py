@@ -58,7 +58,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Calculate average intra-month similarity
         sample = vault.sample(month_notes, min(10, len(month_notes)))
 
-        # OPTIMIZATION #5: Use batch_similarity for pairwise comparisons
+        # OPTIMISATION #5: Use batch_similarity for pairwise comparisons
         if len(sample) > 1:
             sim_matrix = vault.batch_similarity(sample, sample)
             # Extract upper triangle (avoid diagonal and duplicates)
@@ -93,7 +93,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if len(year_samples) >= 3:
                 # Check if notes from different years but same month are similar
-                # OPTIMIZATION #5: Collect cross-year pairs, then batch compute similarities
+                # OPTIMISATION #5: Collect cross-year pairs, then batch compute similarities
                 cross_year_pairs = []
                 for i, (year1, note1) in enumerate(year_samples):
                     for year2, note2 in year_samples[i + 1 :]:

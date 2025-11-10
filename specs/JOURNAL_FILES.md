@@ -501,7 +501,7 @@ They are **merged** into a single virtual entry:
 
 ### Configuration Options
 
-Date-collection behavior is configured in `.geistfabrik/config.yaml`:
+Date-collection behaviour is configured in `.geistfabrik/config.yaml`:
 
 ```yaml
 date_collection:
@@ -529,7 +529,7 @@ date_collection:
 ```
 
 **Notes:**
-- Changes to `enabled` require vault re-initialization
+- Changes to `enabled` require vault re-initialisation
 - `exclude_files` uses glob patterns
 - Threshold changes apply immediately on next sync
 - Format selection affects detection but not existing entries
@@ -774,7 +774,7 @@ This prevents templates from being detected as journals.
 1. Only one date heading (need ≥2)
 2. Less than 50% of H2 headings are dates
 3. Using H3 or lower for dates (must be H2)
-4. Date format not recognized
+4. Date format not recognised
 
 **Solutions:**
 - Add a second date heading
@@ -829,7 +829,7 @@ This prevents templates from being detected as journals.
 - ✅ Date pattern recognition (7 formats)
 - ✅ Virtual entry creation and storage
 - ✅ Link resolution for virtual paths
-- ✅ Incremental sync optimization
+- ✅ Incremental sync optimisation
 - ✅ Frontmatter inheritance
 - ✅ Schema migration (v3 → v4)
 - ✅ Comprehensive test coverage (64 tests)

@@ -17,11 +17,11 @@ This document provides a detailed comparison between GeistFabrik's custom Tracer
 
 ## Executive Summary
 
-**GeistFabrik's Implementation** is a custom, lightweight Tracery-like engine (283 lines) built specifically for vault-aware text generation. It intentionally omits standard Tracery features (modifiers, stack memory) in favor of a novel `$vault.*` function call system that enables declarative grammars to query Obsidian vaults.
+**GeistFabrik's Implementation** is a custom, lightweight Tracery-like engine (283 lines) built specifically for vault-aware text generation. It intentionally omits standard Tracery features (modifiers, stack memory) in favour of a novel `$vault.*` function call system that enables declarative grammars to query Obsidian vaults.
 
 **Standard Tracery** is a mature, feature-rich generative grammar system with widespread adoption, supporting modifiers, push-pop stack memory, and extensive language ports.
 
-**Key Difference**: GeistFabrik's implementation is **not** standard Tracery. It's a Tracery-*inspired* engine optimized for a specific use case (vault-aware suggestion generation) rather than general-purpose text generation.
+**Key Difference**: GeistFabrik's implementation is **not** standard Tracery. It's a Tracery-*inspired* engine optimised for a specific use case (vault-aware suggestion generation) rather than general-purpose text generation.
 
 ---
 
@@ -30,7 +30,7 @@ This document provides a detailed comparison between GeistFabrik's custom Tracer
 | Feature | GeistFabrik Tracery | Standard Tracery (pytracery) | Notes |
 |---------|--------------------|-----------------------------|-------|
 | **Basic Symbol Expansion** | ✅ `#symbol#` | ✅ `#symbol#` | Identical syntax |
-| **Recursive Expansion** | ✅ Full support | ✅ Full support | Identical behavior |
+| **Recursive Expansion** | ✅ Full support | ✅ Full support | Identical behaviour |
 | **Random Selection** | ✅ Deterministic seed | ✅ Optional seed | GF uses session-based seeding |
 | **Grammar Format** | YAML | JSON | Different file formats |
 | **Modifiers** | ❌ None | ✅ `.capitalize`, `.s`, `.ed`, `.a`, etc. | GF has no modifier support |
@@ -115,7 +115,7 @@ tracery:
 ```json
 {
   "origin": "#[hero:#name#][heroPet:#animal#]story#",
-  "story": "#hero# traveled with their pet #heroPet#. #hero# was brave.",
+  "story": "#hero# travelled with their pet #heroPet#. #hero# was brave.",
   "name": ["Arjun", "Lina", "Azra"],
   "animal": ["unicorn", "raven", "duck"]
 }
@@ -419,7 +419,7 @@ Similar depth tracking (implementation-dependent)
 
 **GeistFabrik:**
 ```python
-self.rng = random.Random(seed)  # Seed set at initialization
+self.rng = random.Random(seed)  # Seed set at initialisation
 selected = self.rng.choice(rules)  # Same seed = same output
 ```
 
@@ -799,7 +799,7 @@ all_suggestions = {**code_suggestions, **tracery_suggestions}
 
 ## Conclusion
 
-GeistFabrik's Tracery implementation is **intentionally minimal and specialized**. It sacrifices standard Tracery features (modifiers, stack memory) for a novel `$vault.*` function call system that enables declarative grammars to query and reference actual vault content.
+GeistFabrik's Tracery implementation is **intentionally minimal and specialised**. It sacrifices standard Tracery features (modifiers, stack memory) for a novel `$vault.*` function call system that enables declarative grammars to query and reference actual vault content.
 
 **Choose GeistFabrik Tracery** if:
 - You need vault-aware text generation
@@ -811,7 +811,7 @@ GeistFabrik's Tracery implementation is **intentionally minimal and specialized*
 - You're building general-purpose text generators
 - You want maximum compatibility with Tracery ecosystem
 
-**Both are valid tools** - GeistFabrik's implementation is not "broken Tracery," it's a purpose-built variant optimized for a specific use case (muses for Obsidian vaults).
+**Both are valid tools** - GeistFabrik's implementation is not "broken Tracery," it's a purpose-built variant optimised for a specific use case (muses for Obsidian vaults).
 
 ---
 

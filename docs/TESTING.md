@@ -188,6 +188,6 @@ geist = TraceryGeist.from_yaml(path, seed=42)
 ### Test Organization
 
 - One test class per geist/component
-- Descriptive test names: `test_<component>_<behavior>`
+- Descriptive test names: `test_<component>_<behaviour>`
 - Group related tests together
 - Keep tests independent (no shared state)

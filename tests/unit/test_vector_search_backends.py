@@ -371,7 +371,7 @@ class TestInMemoryVectorBackend:
     """Test suite for InMemoryVectorBackend."""
 
     def test_initialization(self, db):
-        """Test backend initialization."""
+        """Test backend initialisation."""
         backend = InMemoryVectorBackend(db)
         assert backend.db == db
         assert backend.embeddings == {}
@@ -486,7 +486,7 @@ class TestInMemoryVectorBackend:
             backend.get_embedding("missing.md")
 
     def test_empty_vault(self, db):
-        """Test backend behavior with empty vault."""
+        """Test backend behaviour with empty vault."""
         backend = InMemoryVectorBackend(db)
 
         # Create empty session
@@ -511,7 +511,7 @@ class TestSqliteVecBackend:
     """Test suite for SqliteVecBackend."""
 
     def test_initialization(self, db):
-        """Test backend initialization."""
+        """Test backend initialisation."""
         # Skip if sqlite-vec not available
         if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not loadable")
@@ -523,7 +523,7 @@ class TestSqliteVecBackend:
         assert backend._id_to_path == {}
 
     def test_initialization_raises_without_sqlite_vec(self, db):
-        """Test that initialization raises RuntimeError without sqlite-vec."""
+        """Test that initialisation raises RuntimeError without sqlite-vec."""
         # Mock sqlite-vec not available by patching the version check
         # This test only makes sense if sqlite-vec is actually installed
         # So we skip it if sqlite-vec is not installed
@@ -702,7 +702,7 @@ class TestSqliteVecBackend:
         assert vec_id1 == vec_id2
 
     def test_empty_vault(self, db):
-        """Test backend behavior with empty vault."""
+        """Test backend behaviour with empty vault."""
         if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not loadable")
 
@@ -873,7 +873,7 @@ class TestBackendIntegration:
             "Daily/2025-01-15.md": np.random.randn(387).astype(np.float32),
         }
 
-        # Normalize embeddings
+        # Normalise embeddings
         for path in embeddings:
             embeddings[path] = embeddings[path] / np.linalg.norm(embeddings[path])
 
@@ -951,7 +951,7 @@ class TestBackendIntegration:
         vec_js = np.array([0.9, 0.4, 0.1], dtype=np.float32)  # Similar to Python
         vec_cooking = np.array([0.0, 0.1, 1.0], dtype=np.float32)  # Different
 
-        # Normalize
+        # Normalise
         vec_python = vec_python / np.linalg.norm(vec_python)
         vec_js = vec_js / np.linalg.norm(vec_js)
         vec_cooking = vec_cooking / np.linalg.norm(vec_cooking)

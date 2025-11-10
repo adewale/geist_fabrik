@@ -20,7 +20,7 @@ class JournalWriter:
     """Writes suggestions to session notes in the geist journal."""
 
     def __init__(self, vault_path: Path, db: sqlite3.Connection):
-        """Initialize journal writer.
+        """Initialise journal writer.
 
         Args:
             vault_path: Path to Obsidian vault root

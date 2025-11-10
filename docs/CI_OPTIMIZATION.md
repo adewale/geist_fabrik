@@ -1,4 +1,4 @@
-# CI Optimization Summary
+# CI Optimisation Summary
 
 ## Problem Analysis
 
@@ -23,7 +23,7 @@ CI builds were taking 14-19 minutes due to:
 
 ### 3. **Insufficient Caching**
 - **Root Cause**: sentence-transformers model (all-MiniLM-L6-v2) downloaded on first test run
-- **Impact**: Additional ~90MB download + model initialization time per job
+- **Impact**: Additional ~90MB download + model initialisation time per job
 
 ## Solutions Implemented
 
@@ -120,7 +120,7 @@ We tried several approaches to install CPU-only PyTorch:
 - Most CI runs will hit the cache
 - Simpler workflow is easier to maintain
 
-### Future Optimization
+### Future Optimisation
 If first-run times become problematic, we can:
 1. Create a CPU-only lockfile specifically for CI
 2. Use pip instead of uv in CI (doesn't respect lockfile)

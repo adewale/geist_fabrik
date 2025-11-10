@@ -54,7 +54,7 @@ print(embeddings)
 ```
 
 ## Usage (HuggingFace Transformers)
-Without [sentence-transformers](https://www.SBERT.net), you can use the model like this: First, you pass your input through the transformer model, then you have to apply the right pooling-operation on-top of the contextualized word embeddings.
+Without [sentence-transformers](https://www.SBERT.net), you can use the model like this: First, you pass your input through the transformer model, then you have to apply the right pooling-operation on-top of the contextualised word embeddings.
 
 ```python
 from transformers import AutoTokenizer, AutoModel
@@ -85,8 +85,8 @@ with torch.no_grad():
 # Perform pooling
 sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
 
-# Normalize embeddings
-sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
+# Normalise embeddings
+sentence_embeddings = F.normalise(sentence_embeddings, p=2, dim=1)
 
 print("Sentence embeddings:")
 print(sentence_embeddings)

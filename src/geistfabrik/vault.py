@@ -28,7 +28,7 @@ class Vault:
         db_path: Optional[Path | str] = None,
         config: Optional[GeistFabrikConfig] = None,
     ):
-        """Initialize vault.
+        """Initialise vault.
 
         Args:
             vault_path: Path to Obsidian vault directory
@@ -48,7 +48,7 @@ class Vault:
         else:
             self.config = config
 
-        # Initialize database
+        # Initialise database
         if db_path is None:
             self.db = init_db(None)
         else:
@@ -440,9 +440,9 @@ class Vault:
     def get_notes_batch(self, paths: List[str]) -> Dict[str, Optional[Note]]:
         """Load multiple notes efficiently in batched queries.
 
-        Performance optimized (OP-6): Batches database queries to load N notes
+        Performance optimised (OP-6): Batches database queries to load N notes
         in 3 queries instead of 3×N queries. This is significantly faster when
-        loading many notes (e.g., backlinks, neighbors).
+        loading many notes (e.g., backlinks, neighbours).
 
         Args:
             paths: List of note paths to load

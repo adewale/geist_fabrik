@@ -26,13 +26,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     for note in vault.sample(notes, min(30, len(notes))):
-        # Get graph neighbors (notes linked to/from this note)
+        # Get graph neighbours (notes linked to/from this note)
         graph_neighbors = vault.graph_neighbors(note)
 
         if len(graph_neighbors) < 3:
             continue
 
-        # Calculate graph density (how interconnected are the neighbors?)
+        # Calculate graph density (how interconnected are the neighbours?)
         edges = 0
         for i, n1 in enumerate(graph_neighbors):
             for n2 in graph_neighbors[i + 1 :]:
@@ -42,7 +42,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         max_possible_edges = len(graph_neighbors) * (len(graph_neighbors) - 1) / 2
         graph_density = edges / max_possible_edges if max_possible_edges > 0 else 0
 
-        # Calculate semantic density (how similar are the neighbors?)
+        # Calculate semantic density (how similar are the neighbours?)
         similarities = []
         for i, n1 in enumerate(graph_neighbors):
             for n2 in graph_neighbors[i + 1 :]:
@@ -59,7 +59,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             neighbor_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbor_sample])
 
             text = (
-                f"[[{note.obsidian_link}]]'s neighbors ({neighbor_names}) are tightly "
+                f"[[{note.obsidian_link}]]'s neighbours ({neighbor_names}) are tightly "
                 f"linked to each other but semantically scattered. Is there a coherent "
                 f"topic here, or is this just organizational linking?"
             )
@@ -78,8 +78,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             neighbor_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbor_sample])
 
             text = (
-                f"[[{note.obsidian_link}]]'s neighbors ({neighbor_names}) are semantically similar "
-                f"but aren't linked to each other. Missing connections in a coherent cluster?"
+                f"[[{note.obsidian_link}]]'s neighbours ({neighbor_names}) are "
+                f"semantically similar but aren't linked to each other. "
+                f"Missing connections in a coherent cluster?"
             )
 
             suggestions.append(

@@ -75,7 +75,7 @@ class GeistExecutor:
         enabled_defaults: Optional[Dict[str, bool]] = None,
         debug: bool = False,
     ):
-        """Initialize geist executor.
+        """Initialise geist executor.
 
         Args:
             geists_dir: Directory containing custom geist modules

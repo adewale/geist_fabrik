@@ -45,7 +45,7 @@ class GeistValidator:
     """Validates geists without executing them."""
 
     def __init__(self, strict: bool = False):
-        """Initialize validator.
+        """Initialise validator.
 
         Args:
             strict: If True, treat warnings as errors

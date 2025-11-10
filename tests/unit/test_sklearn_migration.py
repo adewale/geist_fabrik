@@ -1,4 +1,4 @@
-"""Unit tests for sklearn/scipy migration in BIG OPTIMIZATION #2.
+"""Unit tests for sklearn/scipy migration in BIG OPTIMISATION #2.
 
 Tests verify that sklearn/scipy implementations produce identical results
 to manual implementations for cosine similarity and Euclidean distance.
@@ -134,7 +134,7 @@ class TestRedundantNormCaching:
         last_emb = np.random.rand(384)
         drift_vector = last_emb - first_emb
 
-        # Simulate 5 neighbor embeddings
+        # Simulate 5 neighbour embeddings
         neighbor_embeddings = [np.random.rand(384) for _ in range(5)]
 
         # BEFORE: Redundant norm computation in loop (5 times)

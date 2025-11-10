@@ -17,13 +17,13 @@ Each embedding consists of **387 dimensions**:
 
 **Semantic Component (384 dimensions)** — `src/geistfabrik/embeddings.py:114-124`
 - Generated using the `all-MiniLM-L6-v2` sentence-transformer model
-- L2-normalized to unit length
+- L2-normalised to unit length
 - Captures semantic meaning via BERT-based architecture
 - Cached based on content hash (SHA-256) for performance
 
 **Temporal Component (3 dimensions)** — `src/geistfabrik/embeddings.py:150-175`
 1. **Note Age**: `(session_date - note_created).days / 365.0`
-   - Linear normalization to years
+   - Linear normalisation to years
    - Distinguishes fresh vs. established thinking
 
 2. **Creation Season**: `sin(2π × creation_day_of_year / 365)`
@@ -53,7 +53,7 @@ Recent TKGE models address two key challenges that GeistFabrik also tackles:
 The TLT-KGE (Timeline-Traced Knowledge Graph Embedding) approach notes that "current models have difficulty distinguishing representations of the same entity or relation at different timestamps." GeistFabrik addresses this by storing separate embeddings per session in the `session_embeddings` table, creating an explicit temporal index.
 
 **Challenge 2: Irregular Intervals**
-The ODETKGE model uses neural ODEs to "track TKG dynamics with irregular intervals." GeistFabrik achieves this more simply through on-demand session computation — embeddings are computed whenever invoked, naturally handling irregular intervals without specialized models.
+The ODETKGE model uses neural ODEs to "track TKG dynamics with irregular intervals." GeistFabrik achieves this more simply through on-demand session computation — embeddings are computed whenever invoked, naturally handling irregular intervals without specialised models.
 
 ### 2. Semantic Drift and Concept Evolution
 
@@ -111,7 +111,7 @@ The separation of semantic (cached) and temporal (recomputed) components is nove
 
 ### 3. Hermeneutic Computing
 
-The `hermeneutic_instability` geist represents a rare computational implementation of interpretive theory. While sentiment analysis and topic modeling track *content* changes, GeistFabrik tracks *understanding* changes — detecting when your reading of an unchanged note shifts.
+The `hermeneutic_instability` geist represents a rare computational implementation of interpretive theory. While sentiment analysis and topic modelling track *content* changes, GeistFabrik tracks *understanding* changes — detecting when your reading of an unchanged note shifts.
 
 This is philosophically significant: it acknowledges that meaning is **co-created between text and reader**, not inherent to text alone.
 
@@ -130,7 +130,7 @@ The `temporal_clustering` geist (`src/geistfabrik/default_geists/code/temporal_c
 Traditional "related notes" features using static embeddings miss temporal dynamics. GeistFabrik demonstrates that **when** you read matters as much as **what** you read.
 
 **Implication 2: Personal AI Requires Temporal Context**
-As personal AI assistants integrate with knowledge bases, they need temporal awareness. A note about "productivity systems" written in 2020 (optimization-focused) may have different implications in 2025 (meaning-focused) even with identical content.
+As personal AI assistants integrate with knowledge bases, they need temporal awareness. A note about "productivity systems" written in 2020 (optimisation-focused) may have different implications in 2025 (meaning-focused) even with identical content.
 
 **Implication 3: Privacy-Preserving Personalization**
 GeistFabrik's local-first architecture (all embeddings computed locally, stored in SQLite) demonstrates that sophisticated personalization doesn't require cloud telemetry. The session-based approach creates rich temporal profiles entirely offline.
@@ -138,7 +138,7 @@ GeistFabrik's local-first architecture (all embeddings computed locally, stored 
 ### For Research Directions
 
 **Research Question 1: Optimal Temporal Feature Design**
-Current features (age, seasons) are simple. Could circadian rhythms, weekly patterns, or life events (moves, jobs) improve temporal modeling?
+Current features (age, seasons) are simple. Could circadian rhythms, weekly patterns, or life events (moves, jobs) improve temporal modelling?
 
 **Research Question 2: Predictive Temporal Embeddings**
 Could the system predict *future* interpretive drift? If note similarity is increasing over 6 sessions, will they converge?
@@ -295,7 +295,7 @@ def semantic_velocity(vault: VaultContext) -> List[Suggestion]:
     for note in vault.notes():
         embeddings = [get_embedding(note, s) for s in sessions]
 
-        # Compute velocity (distance traveled per session)
+        # Compute velocity (distance travelled per session)
         velocity = compute_velocity(embeddings)
 
         if velocity > threshold_high:

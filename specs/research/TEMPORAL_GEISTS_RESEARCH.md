@@ -66,7 +66,7 @@ actual_drift = mean([cosine_distance(emb[t], emb[t+1])
 
 > "[[Systems Thinking]] anchors many notes, yet you're reading it differently now. Are you revising a core assumption?"
 
-> "[[Feedback Loops]] connects everywhere, but its meaning is drifting. What if this destabilizes more than you realize?"
+> "[[Feedback Loops]] connects everywhere, but its meaning is drifting. What if this destabilizes more than you realise?"
 
 **Why It Works**: Uses temporal data to detect the pattern, then asks what the instability MEANS rather than reporting the numbers. Provocative, not analytical.
 
@@ -140,7 +140,7 @@ fft_result = np.fft.fft(detrend(trajectory))
 
 **Academic Grounding**: Hamilton et al. (2016) global displacement with Procrustes alignment
 
-**What It Detects**: Notes whose meaning has traveled the furthest distance over 6-12 months (using aligned embeddings to normalize coordinate systems).
+**What It Detects**: Notes whose meaning has travelled the furthest distance over 6-12 months (using aligned embeddings to normalise coordinate systems).
 
 **Detection Method**:
 ```python
@@ -160,7 +160,7 @@ displacements = {path: cosine_distance(aligned_historical[path], current_embeds[
 **Example Suggestions**:
 > "Six months ago you thought about [[Personal Knowledge Management]] completely differently. What if the old version still has something to teach you?"
 
-> "[[Creativity]] has traveled the furthest in semantic space since winter. Are you discovering it or inventing it?"
+> "[[Creativity]] has travelled the furthest in semantic space since winter. Are you discovering it or inventing it?"
 
 > "[[Systems Thinking]] moved more than any other note this year. What if you're not refining the concept—you're replacing it?"
 
@@ -249,7 +249,7 @@ context_drift = cosine_distance(
 
 **Detection Method**:
 ```python
-# Track note's similarity to vault center over time
+# Track note's similarity to vault centre over time
 trajectory = []
 for session in last_20_sessions:
     similarity_to_center = compute_centrality(note, session)
@@ -419,7 +419,7 @@ class SessionAligner:
         X = np.array([session1.embedding(note) for note in anchors])
         Y = np.array([session2.embedding(note) for note in anchors])
 
-        # Center
+        # Centre
         X_centered = X - X.mean(axis=0)
         Y_centered = Y - Y.mean(axis=0)
 
@@ -613,7 +613,7 @@ Current average session time: ~30 seconds for 47 geists on 1000-note vault.
 
 **Total**: +20 seconds (acceptable for enhanced insights)
 
-**Optimization**: Run expensive geists (FFT-based) only once per week using config:
+**Optimisation**: Run expensive geists (FFT-based) only once per week using config:
 ```yaml
 geists:
   temporal_wave_classifier:
@@ -748,7 +748,7 @@ Guide for developers writing temporal geists:
 - How to query `session_embeddings` table
 - When to use Procrustes alignment
 - Signal processing patterns (FFT, detrending)
-- Performance optimization tips
+- Performance optimisation tips
 - Testing temporal patterns
 
 ---

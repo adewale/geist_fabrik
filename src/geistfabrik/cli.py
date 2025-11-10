@@ -72,7 +72,7 @@ def init_command(args: argparse.Namespace) -> int:
         print("This doesn't appear to be an Obsidian vault, but continuing anyway...")
         print()
 
-    print(f"Initializing GeistFabrik in: {vault_path}\n")
+    print(f"Initialising GeistFabrik in: {vault_path}\n")
 
     # Display first-run warnings
     print("⚠️  GeistFabrik will:")
@@ -117,8 +117,8 @@ def init_command(args: argparse.Namespace) -> int:
             f.write(config_content)
         print(f"✓ Created {config_path.relative_to(vault_path)}")
 
-    # Initialize database
-    print("\n🗄️  Initializing database...")
+    # Initialise database
+    print("\n🗄️  Initialising database...")
     db_path = geistfabrik_dir / "vault.db"
     try:
         vault = Vault(vault_path, db_path)
@@ -134,12 +134,12 @@ def init_command(args: argparse.Namespace) -> int:
         print(f"   Database size: {db_size_mb:.2f} MB")
 
     except Exception as e:
-        print(f"Error initializing database: {e}", file=sys.stderr)
+        print(f"Error initialising database: {e}", file=sys.stderr)
         return 1
 
     # Success message
     print("\n" + "=" * 60)
-    print("✨ GeistFabrik initialized successfully!")
+    print("✨ GeistFabrik initialised successfully!")
     print("=" * 60)
     print(f"\nVault: {vault_path}")
     print(f"Configuration: {geistfabrik_dir.relative_to(vault_path)}")
@@ -638,7 +638,7 @@ def test_command(args: argparse.Namespace) -> int:
     # Set up database path
     geistfabrik_dir = vault_path / "_geistfabrik"
     if not geistfabrik_dir.exists():
-        print(f"Error: GeistFabrik not initialized in {vault_path}", file=sys.stderr)
+        print(f"Error: GeistFabrik not initialised in {vault_path}", file=sys.stderr)
         print(f"Run: geistfabrik init {vault_path}")
         return 1
 
@@ -817,7 +817,7 @@ def test_all_command(args: argparse.Namespace) -> int:
     # Set up database path
     geistfabrik_dir = vault_path / "_geistfabrik"
     if not geistfabrik_dir.exists():
-        print(f"Error: GeistFabrik not initialized in {vault_path}", file=sys.stderr)
+        print(f"Error: GeistFabrik not initialised in {vault_path}", file=sys.stderr)
         print(f"Run: geistfabrik init {vault_path}")
         return 1
 
@@ -998,10 +998,10 @@ def validate_command(args: argparse.Namespace) -> int:
             return 1
         vault_path = vault_path_maybe
 
-    # Check if vault is initialized
+    # Check if vault is initialised
     geistfabrik_dir = vault_path / "_geistfabrik"
     if not geistfabrik_dir.exists():
-        print(f"Error: GeistFabrik not initialized in {vault_path}", file=sys.stderr)
+        print(f"Error: GeistFabrik not initialised in {vault_path}", file=sys.stderr)
         print(f"Run: geistfabrik init {vault_path}", file=sys.stderr)
         return 1
 
@@ -1014,7 +1014,7 @@ def validate_command(args: argparse.Namespace) -> int:
     default_code_dir = package_dir / "default_geists" / "code"
     default_tracery_dir = package_dir / "default_geists" / "tracery"
 
-    # Initialize validator
+    # Initialise validator
     validator = GeistValidator(strict=args.strict if hasattr(args, "strict") else False)
 
     # Determine what to validate
@@ -1148,10 +1148,10 @@ def stats_command(args: argparse.Namespace) -> int:
                 return 1
             vault_path = vault_path_maybe
 
-        # Check if vault is initialized
+        # Check if vault is initialised
         db_path = vault_path / "_geistfabrik" / "vault.db"
         if not db_path.exists():
-            print("Error: GeistFabrik not initialized in this vault.", file=sys.stderr)
+            print("Error: GeistFabrik not initialised in this vault.", file=sys.stderr)
             print(f"Run: geistfabrik init {vault_path}", file=sys.stderr)
             return 1
 
@@ -1220,7 +1220,7 @@ def main() -> int:
         epilog="""
 Examples:
   # Lifecycle: Setup → Preview → Write
-  geistfabrik init ~/my-vault                   # [1] Initialize vault (45 geists bundled)
+  geistfabrik init ~/my-vault                   # [1] Initialise vault (45 geists bundled)
   geistfabrik invoke ~/my-vault                 # [2] Preview suggestions
   geistfabrik invoke ~/my-vault --write         # [3] Write to journal
 
@@ -1237,7 +1237,7 @@ Examples:
     # Init command
     init_parser = subparsers.add_parser(
         "init",
-        help="[Step 1] Initialize GeistFabrik in a vault (creates _geistfabrik/ directory)",
+        help="[Step 1] Initialise GeistFabrik in a vault (creates _geistfabrik/ directory)",
     )
     init_parser.add_argument(
         "vault",

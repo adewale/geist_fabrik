@@ -25,7 +25,7 @@ def clear_global_registry():
 
 
 def test_function_registry_initialization() -> None:
-    """Test FunctionRegistry initialization."""
+    """Test FunctionRegistry initialisation."""
     registry = FunctionRegistry()
     assert registry.function_dir is None
     # Should have built-in functions

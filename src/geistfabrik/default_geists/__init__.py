@@ -22,7 +22,7 @@ This count is computed programmatically by scanning the default_geists/code/
 directory for Python files (excluding __init__.py).
 
 Use this constant instead of hardcoding geist counts in code or documentation.
-Automated tests verify that documentation stays synchronized with this count.
+Automated tests verify that documentation stays synchronised with this count.
 """
 
 # Count Tracery geists (*.yaml files)
@@ -34,7 +34,7 @@ This count is computed programmatically by scanning the default_geists/tracery/
 directory for YAML files.
 
 Use this constant instead of hardcoding geist counts in code or documentation.
-Automated tests verify that documentation stays synchronized with this count.
+Automated tests verify that documentation stays synchronised with this count.
 """
 
 # Total count
@@ -45,7 +45,7 @@ This is simply CODE_GEIST_COUNT + TRACERY_GEIST_COUNT, computed programmatically
 to ensure it always matches reality.
 
 Use this constant instead of hardcoding geist counts in code or documentation.
-Automated tests verify that documentation stays synchronized with this count.
+Automated tests verify that documentation stays synchronised with this count.
 """
 
 __all__ = ["CODE_GEIST_COUNT", "TRACERY_GEIST_COUNT", "TOTAL_GEIST_COUNT"]

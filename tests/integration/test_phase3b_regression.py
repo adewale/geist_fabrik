@@ -1,6 +1,6 @@
-"""Regression tests for Phase 3B optimization issues.
+"""Regression tests for Phase 3B optimisation issues.
 
-Phase 3B introduced two harmful optimizations:
+Phase 3B introduced two harmful optimisations:
 1. pattern_finder sampling that limited coverage to 5% on large vaults
 2. scale_shifter batch_similarity() that bypassed session cache
 
@@ -59,7 +59,7 @@ class TestPatternFinderCoverage:
             note_path = vault_dir / f"note_{i:04d}.md"
             note_path.write_text(f"# Note {i}\n\nDifferent content {i}.\n")
 
-        # Initialize vault and context
+        # Initialise vault and context
         vault = Vault(str(vault_dir))
         vault.sync()
         notes = vault.all_notes()
@@ -86,7 +86,7 @@ class TestPatternFinderCoverage:
         """Verify pattern_finder doesn't use aggressive sampling.
 
         This test creates a vault where sampling would cause observable
-        behavioral differences (returning empty vs non-empty suggestions).
+        behavioural differences (returning empty vs non-empty suggestions).
         """
         from geistfabrik.default_geists.code import pattern_finder
 
@@ -132,7 +132,7 @@ class TestPatternFinderPerformance:
         """Regression: pattern_finder must complete on 10k vault within reasonable time.
 
         Phase 3B Issue:
-        - Sampling was introduced as a "performance optimization"
+        - Sampling was introduced as a "performance optimisation"
         - Reality: Phrase extraction isn't the bottleneck (link checking is)
         - Full processing completes in acceptable time (~76s on 10k vault)
 
@@ -174,7 +174,7 @@ class TestPatternFinderPerformance:
         # Assertions
         assert elapsed < 60.0, (
             f"pattern_finder took {elapsed:.2f}s on 1000 notes. "
-            f"This suggests O(N²) behavior or performance regression. "
+            f"This suggests O(N²) behaviour or performance regression. "
             f"Expected: <60s for 1000 notes, <10 minutes for 10k notes."
         )
 
@@ -197,7 +197,7 @@ class TestScaleShifterCacheUsage:
         This test verifies scale_shifter calls vault.similarity() (cached)
         rather than vault.batch_similarity() (uncached).
 
-        Note: This is a behavioral test, not a mock test. We verify that
+        Note: This is a behavioural test, not a mock test. We verify that
         scale_shifter completes efficiently on a vault with warm cache.
         """
         from geistfabrik.default_geists.code import scale_shifter

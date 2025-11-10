@@ -1,8 +1,8 @@
 """Performance regression tests.
 
-These tests ensure that performance optimizations don't regress in future
+These tests ensure that performance optimisations don't regress in future
 changes. They don't measure absolute performance, but rather verify that
-optimizations are in place and working correctly.
+optimisations are in place and working correctly.
 """
 
 import tempfile

@@ -657,7 +657,7 @@ def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
         assert hasattr(suggestion, "geist_id")
         assert suggestion.geist_id == "semantic_neighbours"
 
-        # Should reference seed note and neighbor notes with proper formatting
+        # Should reference seed note and neighbour notes with proper formatting
         import re
         wikilinks = re.findall(r'\[\[([^\]]+)\]\]', suggestion.text)
 

@@ -194,7 +194,7 @@ This separates **muses** from **oracles**.
 "Your [[Democracy Note]] assumes majority = wisdom. What if it's tyranny of the median?"
 ```
 
-**category_breaker** - Finds notes that don't fit their neighbors
+**category_breaker** - Finds notes that don't fit their neighbours
 ```
 "[[This Note]] is in your 'Philosophy' cluster but reads like engineering. Misclassified or bridge?"
 ```
@@ -211,7 +211,7 @@ This separates **muses** from **oracles**.
 
 **absent_voice** - Identifies missing perspectives in clusters
 ```
-"Your [[Economics]] cluster has no notes from labor's perspective. Intentional blindspot?"
+"Your [[Economics]] cluster has no notes from labour's perspective. Intentional blindspot?"
 ```
 
 **style_mirror** - Compares how you write about different topics
@@ -445,7 +445,7 @@ User reaction should be:
    - But adds complexity
 
 6. **How do we handle user-contributed geists that are prescriptive?**
-   - Tier labeling system helps
+   - Tier labelling system helps
    - But enforcing philosophy in open source is hard
    - Documentation and examples might be enough
 
@@ -483,7 +483,7 @@ neighbours: ["#cluster.split_neighbours#"]
    opposites: ["#cluster.split_contrarians#"]
    ```
 
-2. **`temporal_clusters(count, k)`** - Pairs notes with temporally distant neighbors
+2. **`temporal_clusters(count, k)`** - Pairs notes with temporally distant neighbours
    ```yaml
    # Enables time-based provocations
    cluster: ["$vault.temporal_clusters(2, 3)"]
@@ -527,7 +527,7 @@ neighbours: ["#cluster.split_neighbours#"]
 
 v1.0 GeistFabrik has **excellent range**—from pure oracular provocations to practical vault maintenance. This makes it useful and accessible.
 
-v2.0 GeistFabrik should have **laser focus**—optimized for Brander's vision of "muses not oracles." This means:
+v2.0 GeistFabrik should have **laser focus**—optimised for Brander's vision of "muses not oracles." This means:
 
 1. **More pure provocations** (double Tier S geists)
 2. **Separate maintenance from muses** (vault-health vs invoke)

@@ -778,7 +778,7 @@ def test_vault_function_preprocessing(tmp_path: Path) -> None:
 
 
 def test_geist_with_count_2_produces_different_hubs(tmp_path: Path) -> None:
-    """Behavior test: requesting 2 hubs with count=2 should produce different hubs.
+    """Behaviour test: requesting 2 hubs with count=2 should produce different hubs.
 
     This test articulates the problem we're fixing: without preprocessing,
     both suggestions would reference the same hub. With preprocessing,

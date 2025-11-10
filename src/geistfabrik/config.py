@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 # Embedding Configuration
 # -----------------------
-# These constants define the dimensionality and behavior of the embedding system.
+# These constants define the dimensionality and behaviour of the embedding system.
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 """str: Name of the sentence-transformers model used for semantic embeddings.
@@ -29,7 +29,7 @@ TEMPORAL_DIM = 3
 """int: Dimension of temporal feature vectors.
 
 Temporal features include:
-1. Note age (days since creation, normalized)
+1. Note age (days since creation, normalised)
 2. Creation season (sin/cos encoding of time of year)
 3. Session season (sin/cos encoding of current session time)
 

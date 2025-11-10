@@ -14,7 +14,7 @@ This specification defines a **pluggable vector search backend architecture** fo
 
 **Primary Goal**: Support both in-memory and sqlite-vec backends with identical functionality, configurable selection, and comprehensive benchmarking.
 
-**Secondary Goal**: Establish performance characteristics at different vault scales to inform future optimization decisions.
+**Secondary Goal**: Establish performance characteristics at different vault scales to inform future optimisation decisions.
 
 ---
 
@@ -43,7 +43,7 @@ This specification defines a **pluggable vector search backend architecture** fo
 
 **This makes it difficult to:**
 - Give users guidance on expected performance
-- Make data-driven decisions about future optimization
+- Make data-driven decisions about future optimisation
 - Justify the current in-memory approach
 - Know when to recommend alternative approaches
 
@@ -95,7 +95,7 @@ This specification defines a **pluggable vector search backend architecture** fo
 1. **Backward Compatibility**: Existing vaults work without config changes
 2. **Zero Breaking Changes**: Current API unchanged
 3. **Optional Dependency**: sqlite-vec is opt-in (not required)
-4. **Identical Behavior**: Both backends return same results (within epsilon)
+4. **Identical Behaviour**: Both backends return same results (within epsilon)
 5. **Performance Transparency**: Benchmarks guide user decisions
 6. **Test Parity**: Both backends tested identically
 
@@ -424,7 +424,7 @@ class EmbeddingComputer:
         self.db = db
         self.model = None
 
-        # NEW: Initialize vector search backend
+        # NEW: Initialise vector search backend
         self.backend = self._create_backend(backend)
 
     def _create_backend(self, backend: str) -> VectorSearchBackend:
@@ -674,9 +674,9 @@ def test_vault_context_with_backend(tmp_vault, backend):
     # Test semantic search
     notes = context.notes()
     if notes:
-        neighbors = context.neighbours(notes[0], k=5)
-        assert len(neighbors) <= 5
-        assert all(isinstance(n, Note) for n in neighbors)
+        neighbours = context.neighbours(notes[0], k=5)
+        assert len(neighbours) <= 5
+        assert all(isinstance(n, Note) for n in neighbours)
 
 
 @pytest.mark.parametrize("backend", ["in-memory", "sqlite-vec"])
@@ -1001,7 +1001,7 @@ See `scripts/BENCHMARKS.md` for full results and analysis.
 
 **Tasks**:
 1. ✅ Unit tests (`tests/unit/test_vector_search_backends.py`):
-   - Parameterized tests for both backends
+   - Parameterised tests for both backends
    - Backend parity tests (same results)
    - Interface compliance tests
    - Edge case tests (empty vault, single note, etc.)
@@ -1247,7 +1247,7 @@ No data loss - embeddings are stored in SQLite regardless of backend.
    - GPU acceleration support
    - Best for 10,000+ notes
 
-2. **Annoy Backend** (Approximate Nearest Neighbors)
+2. **Annoy Backend** (Approximate Nearest Neighbours)
    - Memory-mapped indices
    - Very fast approximate search
    - Good for 5,000-50,000 notes

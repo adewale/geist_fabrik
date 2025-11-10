@@ -32,7 +32,7 @@ This document contains all acceptance criteria for each implementation phase. Us
 | AC-0.8 | ⬜ | uv configuration correct | `test -f uv.lock && uv sync --frozen && uv run python -c "import geistfabrik"` |
 | AC-0.9 | ⬜ | Python version enforcement | `uv run python -c "import sys; assert sys.version_info >= (3, 11)"` |
 | AC-0.10 | ⬜ | Development dependencies separate | `uv sync --only-dev` (dev tools available), `uv sync --no-dev` (dev tools not in production) |
-| AC-0.11 | ⬜ | Git initialization | `test -d .git && test -f .gitignore && grep "^\.venv$" .gitignore` |
+| AC-0.11 | ⬜ | Git initialisation | `test -d .git && test -f .gitignore && grep "^\.venv$" .gitignore` |
 | AC-0.12 | ⬜ | Editable install works | `uv pip install -e . && uv run python -c "import geistfabrik; print(geistfabrik.__file__)"` (points to src/) |
 | AC-0.13 | ⬜ | Pre-commit hooks | `test -f .pre-commit-config.yaml && pre-commit run --all-files` |
 | AC-0.14 | ⬜ | Package metadata complete | Verify project.name, version, dependencies in pyproject.toml |
@@ -482,7 +482,7 @@ This document contains all acceptance criteria for each implementation phase. Us
 
 ---
 
-## Phase 11: Polish & Optimization
+## Phase 11: Polish & Optimisation
 
 ### Core Acceptance Criteria
 

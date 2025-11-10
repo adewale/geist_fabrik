@@ -21,7 +21,7 @@ This is a pure muse geist—it presents patterns without interpretation, letting
 
 ## Research Foundation
 
-### Automatic Cluster Labeling: State of the Art (2024)
+### Automatic Cluster Labelling: State of the Art (2024)
 
 #### c-TF-IDF (Class-Based TF-IDF)
 The current industry standard for cluster naming, implemented in BERTopic and other production systems.
@@ -74,7 +74,7 @@ Showing example notes alongside cluster labels dramatically improves interpretab
 - Lau et al. (2011): "Best Topic Word Selection for Topic Labelling"
   - https://aclanthology.org/P11-2084/
   - Found that showing representative documents increased label quality by 23%
-- BERTopic default behavior: Always show top-3 representative documents
+- BERTopic default behaviour: Always show top-3 representative documents
 - Human evaluation studies consistently prefer labels + examples over labels alone
 
 **Selection methods:**
@@ -104,7 +104,7 @@ Research consensus: **2-4 terms** provides best balance.
 Phrases strongly preferred by users in evaluation studies.
 
 **Research validation:**
-- Mei et al. (2007): "Automatic Labeling of Multinomial Topic Models"
+- Mei et al. (2007): "Automatic Labelling of Multinomial Topic Models"
   - https://dl.acm.org/doi/10.1145/1281192.1281246
   - Keyphrase extraction consistently outperforms keyword lists
   - Hybrid linguistic + statistical approaches balance readability with relevance
@@ -213,7 +213,7 @@ Returns the k most representative notes for a cluster.
 - Mathematically principled
 - Consistently identifies "typical" notes
 
-### Cluster Labeling Algorithm
+### Cluster Labelling Algorithm
 
 #### Step 1: c-TF-IDF Extraction
 
@@ -420,8 +420,8 @@ What do these clusters remind you of?
 
 **`lambda_param`**: MMR balance parameter
 - Default: 0.5
-- Higher = prioritize relevance over diversity
-- Lower = prioritize diversity over relevance
+- Higher = prioritise relevance over diversity
+- Lower = prioritise diversity over relevance
 
 **`max_features`**: TF-IDF vocabulary size
 - Default: 100
@@ -438,9 +438,9 @@ What do these clusters remind you of?
 1. **MMR filtering**
    - Verify diverse terms selected
    - Test edge cases (empty clusters, single term)
-   - Validate λ parameter behavior
+   - Validate λ parameter behaviour
 
-2. **Cluster labeling**
+2. **Cluster labelling**
    - c-TF-IDF produces sensible keywords
    - Phrase formatting works correctly
    - Handles clusters of various sizes
@@ -514,9 +514,9 @@ Additional geists:
 
 ### Key Papers
 
-1. Grootendorst, M. (2022). "BERTopic: Neural topic modeling with a class-based TF-IDF procedure"
+1. Grootendorst, M. (2022). "BERTopic: Neural topic modelling with a class-based TF-IDF procedure"
    - https://arxiv.org/abs/2203.05794
-   - Industry-standard cluster labeling
+   - Industry-standard cluster labelling
 
 2. Carbonell, J. & Goldstein, J. (1998). "The Use of MMR, Diversity-Based Reranking for Reordering Documents"
    - https://www.cs.cmu.edu/~jgc/publication/The_Use_MMR_Diversity_Based_LTMIR_1998.pdf
@@ -534,7 +534,7 @@ Additional geists:
    - https://aclanthology.org/P14-1009/
    - Multi-word phrases more effective than unigrams
 
-6. Mei, Q., Shen, X., & Zhai, C. (2007). "Automatic Labeling of Multinomial Topic Models"
+6. Mei, Q., Shen, X., & Zhai, C. (2007). "Automatic Labelling of Multinomial Topic Models"
    - https://dl.acm.org/doi/10.1145/1281192.1281246
    - Keyphrase extraction outperforms keyword lists
 
@@ -546,7 +546,7 @@ Additional geists:
 
 1. **BERTopic** (Maarten Grootendorst)
    - https://github.com/MaartenGr/BERTopic
-   - Industry standard for topic modeling
+   - Industry standard for topic modelling
    - Used by Google, Spotify, Netflix
 
 2. **KeyBERT** (Maarten Grootendorst)

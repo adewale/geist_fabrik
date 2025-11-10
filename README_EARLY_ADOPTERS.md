@@ -15,7 +15,7 @@ This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide va
 **Expect:**
 - Rough edges in CLI output
 - Occasional unclear error messages
-- Performance not optimized for 1000+ notes
+- Performance not optimised for 1000+ notes
 
 **Won't happen:**
 - Data loss (GeistFabrik never modifies your notes)
@@ -36,7 +36,7 @@ git clone https://github.com/adewale/geist_fabrik.git
 cd geist_fabrik
 uv sync
 
-# 2. Initialize sample vault
+# 2. Initialise sample vault
 uv run geistfabrik init testdata/kepano-obsidian-main
 
 # 3. Run geists and view suggestions
@@ -64,7 +64,7 @@ Create a copy of your vault for realistic testing without risk.
 # 1. Create test copy
 cp -r ~/Documents/MyVault ~/Documents/MyVault-Test
 
-# 2. Initialize GeistFabrik
+# 2. Initialise GeistFabrik
 uv run geistfabrik init ~/Documents/MyVault-Test
 
 # 3. Preview suggestions (read-only, no files created)
@@ -101,7 +101,7 @@ Use your actual vault. Safe because GeistFabrik is read-only.
 # Optional: Backup first
 cp -r ~/Documents/MyVault ~/Documents/MyVault.backup
 
-# 1. Initialize with confirmation prompts
+# 1. Initialise with confirmation prompts
 uv run geistfabrik init ~/Documents/MyVault
 # You'll see warnings about what GeistFabrik will/won't do
 
@@ -312,7 +312,7 @@ rm ~/MyVault/_geistfabrik/geists/code/temporal_drift.py
 **Most valuable feedback:**
 
 1. **Useful suggestions:** "This geist suggestion was surprisingly helpful because..."
-2. **Unexpected behavior:** "I expected X but got Y"
+2. **Unexpected behaviour:** "I expected X but got Y"
 3. **Confusion:** "I couldn't figure out how to..."
 4. **Errors:** "This error message confused me:"
 
@@ -320,7 +320,7 @@ rm ~/MyVault/_geistfabrik/geists/code/temporal_drift.py
 - GitHub Issues: https://github.com/adewale/geist_fabrik/issues
 - Include: OS, Python version, GeistFabrik version (0.9.0)
 - Steps to reproduce
-- Expected vs actual behavior
+- Expected vs actual behaviour
 - Anonymize note titles if needed
 
 ---
@@ -382,7 +382,7 @@ cd ~/Documents/MyVault-FullTest
 # Step 2: Backup (extra safety)
 tar -czf ../MyVault-FullTest-backup.tar.gz .
 
-# Step 3: Initialize (45 default geists enabled)
+# Step 3: Initialise (45 default geists enabled)
 uv run geistfabrik init ~/Documents/MyVault-FullTest
 
 # Step 4a: Try --full first (filtered but not sampled)
@@ -445,7 +445,7 @@ With `--nofilter` (raw):
 ## Known Limitations (v0.9.0)
 
 1. **Command-line only** - No GUI
-2. **English-centric** - Embeddings optimized for English
+2. **English-centric** - Embeddings optimised for English
 3. **Obsidian-specific** - Designed for Obsidian vaults
 4. **Single vault** - One at a time
 5. **Fixed embedding model** - Can't swap without code changes
@@ -470,7 +470,7 @@ rm -rf ~/MyVault/"geist journal"
 
 ## Performance Benchmarking for Early Adopters
 
-As an early adopter, you can help us validate performance optimizations by running benchmarks on your vault and reporting results. Your data helps us improve GeistFabrik for everyone!
+As an early adopter, you can help us validate performance optimisations by running benchmarks on your vault and reporting results. Your data helps us improve GeistFabrik for everyone!
 
 ### Why Your Performance Data Matters
 
@@ -481,10 +481,10 @@ GeistFabrik's performance varies based on:
 - **System specs** (CPU, RAM, disk speed)
 
 Your real-world data helps us:
-1. Validate optimizations work across different vaults
+1. Validate optimisations work across different vaults
 2. Identify bottlenecks in production use
 3. Set realistic performance expectations
-4. Prioritize future improvements
+4. Prioritise future improvements
 
 ### Quick Performance Check
 
@@ -515,12 +515,12 @@ Performance Profiling (--debug mode)
 
 **What to report:**
 - Geists that take >2s (slow but acceptable)
-- Geists approaching timeout (>4s, need optimization)
+- Geists approaching timeout (>4s, need optimisation)
 - Geists that timeout (>5s, blocking issue)
 
 ### Run Cluster Caching Benchmark
 
-Validate the 75% speedup from recent cluster caching optimization:
+Validate the 75% speedup from recent cluster caching optimisation:
 
 ```bash
 # From GeistFabrik directory
@@ -564,7 +564,7 @@ PASSED
 
 ### Run Full Performance Test Suite
 
-Validate all performance optimizations:
+Validate all performance optimisations:
 
 ```bash
 # All regression tests (fast, mocked)
@@ -578,11 +578,11 @@ uv run pytest tests/unit/test_performance_regression.py::test_stats_vectorized_p
 These tests validate:
 - ✅ Session-scoped caching (notes, clusters)
 - ✅ Vectorized similarity computations (5.4x speedup)
-- ✅ Optimized orphan queries (85.6% faster)
+- ✅ Optimised orphan queries (85.6% faster)
 - ✅ Composite indexing on links table
 - ✅ Efficient graph operations
 
-### Run Phase 1 Optimization Benchmarks (NEW)
+### Run Phase 1 Optimisation Benchmarks (NEW)
 
 Validate the latest Phase 1 performance improvements:
 
@@ -648,7 +648,7 @@ Total time: 0.349s
 
 ---
 
-### Run Phase 2 Optimization Benchmarks (NEW)
+### Run Phase 2 Optimisation Benchmarks (NEW)
 
 Validate the latest Phase 2 algorithmic improvements:
 
@@ -660,16 +660,16 @@ uv run geistfabrik test congruence_mirror ~/my-vault --debug
 **Expected results** (3406-note vault):
 ```
 ======================================================================
-Congruence_Mirror Performance (OP-4: Single-Pass Optimization)
+Congruence_Mirror Performance (OP-4: Single-Pass Optimisation)
 ======================================================================
 ✓ congruence_mirror: 1.930s (4 suggestions)
 
 Performance improvements:
-  Before optimization: 60.838s
-  After optimization:  1.930s
+  Before optimisation: 60.838s
+  After optimisation:  1.930s
   Speedup:             31.5x (97% reduction)
 
-Optimization techniques:
+Optimisation techniques:
   - Single-pass algorithm (4 separate passes → 1 combined pass)
   - Cached similarity computations
   - Batch note loading (OP-6)
@@ -680,11 +680,11 @@ Optimization techniques:
 **What's tested:**
 1. **OP-4**: Single-pass congruence_mirror (31.5x faster)
 2. **OP-6**: Batch note loading (3 queries instead of 3×N)
-3. **OP-8**: Optimized hubs() SQL query (JOIN-based resolution)
+3. **OP-8**: Optimised hubs() SQL query (JOIN-based resolution)
 4. **OP-9**: neighbours() with return_scores (avoids recomputation)
 
-**Geists optimized with OP-9** (return_scores=True):
-- `hidden_hub` - Avoids recomputing similarity for semantic neighbors
+**Geists optimised with OP-9** (return_scores=True):
+- `hidden_hub` - Avoids recomputing similarity for semantic neighbours
 - `bridge_hunter` - Gets scores when finding semantic paths
 - `columbo` - Detects contradictions without redundant similarity calls
 - `bridge_builder` - Identifies bridge notes efficiently
@@ -779,7 +779,7 @@ From: `uv run geistfabrik test <geist_name> ~/my-vault --debug`
 
 ### Understanding Cold vs Warm Start Performance
 
-The 7-10x performance difference between "First Run" and "Daily Use" reflects GeistFabrik's **cold start** vs **warm start** behavior:
+The 7-10x performance difference between "First Run" and "Daily Use" reflects GeistFabrik's **cold start** vs **warm start** behaviour:
 
 **Cold Start** (First Run):
 - Happens when embeddings need to be computed from scratch
@@ -883,7 +883,7 @@ print(f"Peak memory: {peak / 1024 / 1024:.1f}MB")
 tracemalloc.stop()
 ```
 
-### Performance Optimization Checklist
+### Performance Optimisation Checklist
 
 Before reporting slow performance, verify:
 

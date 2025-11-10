@@ -1,4 +1,4 @@
-"""Tests for Phase 2 Optimization: OP-6 Batch Note Loading.
+"""Tests for Phase 2 Optimisation: OP-6 Batch Note Loading.
 
 Tests the get_notes_batch() method and its usage in neighbours(), backlinks(), and hubs().
 """
@@ -148,11 +148,11 @@ class TestBatchLoadingInVaultContext:
         assert note is not None
 
         # This should use batch loading internally
-        neighbors = context.neighbours(note, k=5)
+        neighbours = context.neighbours(note, k=5)
 
         # Verify we got results
-        assert isinstance(neighbors, list)
-        assert all(isinstance(n, Note) for n in neighbors)
+        assert isinstance(neighbours, list)
+        assert all(isinstance(n, Note) for n in neighbours)
 
     def test_backlinks_uses_batch_loading(self, vault_with_notes: Vault):
         """Test that backlinks() uses get_notes_batch() internally."""

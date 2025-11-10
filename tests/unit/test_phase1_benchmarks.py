@@ -1,4 +1,4 @@
-"""Benchmark tests for Phase 1 performance optimizations.
+"""Benchmark tests for Phase 1 performance optimisations.
 
 These tests measure actual performance improvements from:
 - Session-scoped caching (backlinks, outgoing_links, graph_neighbors)
@@ -141,7 +141,7 @@ def test_contrarian_to_vectorization_benchmark(benchmark_vault):
     session.compute_embeddings(vault.all_notes())
     context = VaultContext(vault, session)
 
-    # Initialize function registry
+    # Initialise function registry
     registry = FunctionRegistry(context)
 
     # Get a note to query against
@@ -202,7 +202,7 @@ def test_unlinked_pairs_vectorization_benchmark(benchmark_vault):
 def test_phase1_integrated_benchmark(benchmark_vault):
     """Integrated benchmark: Measure cumulative Phase 1 improvements.
 
-    Simulates typical geist execution pattern using all optimized operations.
+    Simulates typical geist execution pattern using all optimised operations.
     """
     # Clear global registry to avoid test pollution
     from geistfabrik.function_registry import _GLOBAL_REGISTRY

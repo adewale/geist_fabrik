@@ -308,7 +308,7 @@ def process_data(items: Dict[str, Any]) -> Tuple[int, str]:
 - Standard: Python 3.9+ best practice
 - Consistent: One style across the entire codebase
 
-**Note:** Both syntaxes are valid in Python 3.11+, but we standardize on modern for consistency.
+**Note:** Both syntaxes are valid in Python 3.11+, but we standardise on modern for consistency.
 
 ---
 

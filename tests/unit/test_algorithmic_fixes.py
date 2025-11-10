@@ -1,4 +1,4 @@
-"""Unit tests for O(N²) algorithmic fixes in BIG OPTIMIZATION #1.
+"""Unit tests for O(N²) algorithmic fixes in BIG OPTIMISATION #1.
 
 Tests verify that dict/set-based implementations produce identical results
 to the original list-based implementations, while being more efficient.

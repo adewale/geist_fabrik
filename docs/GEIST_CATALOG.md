@@ -1,4 +1,4 @@
-# Geist Catalog
+# Geist Catalogue
 
 **A comprehensive classification of GeistFabrik's default geists by pattern and implementation status**
 
@@ -427,7 +427,7 @@ When designing new geists:
 3. **Maintain principles** - Muses not oracles, questions not answers
 4. **Consider reusability** - Can this become a family?
 
-The catalog reveals clear patterns that can be identified, extended, and combined. The **Harvester Family** demonstrates how a simple pattern (extract → surface) can be applied to multiple content types while maintaining consistent behavior and performance characteristics.
+The catalogue reveals clear patterns that can be identified, extended, and combined. The **Harvester Family** demonstrates how a simple pattern (extract → surface) can be applied to multiple content types while maintaining consistent behaviour and performance characteristics.
 
 ---
 

@@ -87,7 +87,7 @@ def _classify_structure(vault: "VaultContext", note: "Note") -> str:
     heading_count = metadata.get("heading_count", 0)
     word_count = len(note.content.split())
 
-    # Normalize by word count to get density
+    # Normalise by word count to get density
     list_density = list_count / max(1, word_count / 100)
     task_density = task_count / max(1, word_count / 100)
     code_density = code_block_count / max(1, word_count / 200)

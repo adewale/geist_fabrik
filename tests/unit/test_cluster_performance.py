@@ -1,4 +1,4 @@
-"""Performance tests for cluster caching optimization.
+"""Performance tests for cluster caching optimisation.
 
 These tests validate that get_clusters() caching reduces redundant HDBSCAN
 clustering operations from O(n) to O(1) within a session.
@@ -21,8 +21,8 @@ class TestClusterCaching:
     def test_get_clusters_caches_by_min_size(self, vault_with_notes: "VaultContext") -> None:
         """Verify get_clusters() caches results per session by min_size parameter.
 
-        Before optimization: get_clusters() re-computes HDBSCAN on every call
-        After optimization: get_clusters() returns cached result within session
+        Before optimisation: get_clusters() re-computes HDBSCAN on every call
+        After optimisation: get_clusters() returns cached result within session
 
         This test verifies caching works correctly by tracking HDBSCAN calls.
         """
@@ -93,8 +93,8 @@ class TestClusterCaching:
     ) -> None:
         """Verify get_cluster_representatives() accepts clusters parameter to avoid re-clustering.
 
-        Before optimization: get_cluster_representatives() calls get_clusters() internally
-        After optimization: accepts optional clusters parameter to reuse existing results
+        Before optimisation: get_cluster_representatives() calls get_clusters() internally
+        After optimisation: accepts optional clusters parameter to reuse existing results
 
         This is the key fix for cluster_mirror's redundant clustering.
         """
@@ -128,8 +128,8 @@ class TestClusterCaching:
     def test_cluster_mirror_performance_improvement(self, vault_with_notes: "VaultContext") -> None:
         """Integration test: verify cluster_mirror uses caching and clusters parameter.
 
-        Before optimization: 4 clustering operations (1 initial + 3 in loop)
-        After optimization: 1 clustering operation (cached for subsequent calls)
+        Before optimisation: 4 clustering operations (1 initial + 3 in loop)
+        After optimisation: 1 clustering operation (cached for subsequent calls)
 
         This test simulates the actual cluster_mirror geist execution.
         """
@@ -162,14 +162,14 @@ class TestClusterCaching:
     def test_timing_baseline_without_caching(self, vault_with_notes: "VaultContext") -> None:
         """Baseline timing test WITHOUT caching (for comparison).
 
-        This documents the before-optimization behavior for regression testing.
+        This documents the before-optimisation behaviour for regression testing.
         """
         # Skip if sklearn not available
         pytest.importorskip("sklearn")
 
         vault = vault_with_notes
 
-        # Simulate old behavior: call get_clusters() 4 times
+        # Simulate old behaviour: call get_clusters() 4 times
         start_time = time.perf_counter()
 
         clusters1 = vault.get_clusters(min_size=5)
@@ -218,7 +218,7 @@ def vault_with_notes(tmp_path):
             )
             note_id += 1
 
-    # Initialize vault
+    # Initialise vault
     vault = Vault(str(vault_dir))
     vault.sync()
 
@@ -244,7 +244,7 @@ def vault_with_notes(tmp_path):
 def test_cluster_caching_benchmark(tmp_path):
     """Real-world benchmark: validates 75% speedup from cluster caching.
 
-    This test measures ACTUAL performance (not mocked) to verify the optimization
+    This test measures ACTUAL performance (not mocked) to verify the optimisation
     identified via --debug instrumentation:
     - Before: cluster_mirror called get_clusters() 4 times (20.9s on 3406 notes)
     - After: session-scoped caching makes subsequent calls instant (5.3s)
@@ -290,14 +290,14 @@ def test_cluster_caching_benchmark(tmp_path):
                 f"and {topic} patterns. Topic code: {topic_idx}."
             )
 
-    # Initialize vault and compute embeddings
+    # Initialise vault and compute embeddings
     vault = Vault(str(vault_dir))
     vault.sync()
 
     session = Session(datetime(2023, 6, 15), vault.db)
     session.compute_embeddings(vault.all_notes())
 
-    # Test WITHOUT caching (simulates old cluster_mirror behavior)
+    # Test WITHOUT caching (simulates old cluster_mirror behaviour)
     context_no_cache = VaultContext(vault, session)
     context_no_cache._clusters_cache.clear()
 
@@ -307,7 +307,7 @@ def test_cluster_caching_benchmark(tmp_path):
         context_no_cache._clusters_cache.clear()  # Force re-clustering each time
     time_no_cache = time.perf_counter() - start_no_cache
 
-    # Test WITH caching (current optimized behavior)
+    # Test WITH caching (current optimised behaviour)
     context_with_cache = VaultContext(vault, session)
     context_with_cache._clusters_cache.clear()
 

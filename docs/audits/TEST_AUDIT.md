@@ -114,7 +114,7 @@ def test_compute_semantic_embedding_mock(mock_embedding_computer):
     assert isinstance(embedding, np.ndarray)
     assert embedding.shape == (384,)
 
-    # ✅ Verify deterministic behavior
+    # ✅ Verify deterministic behaviour
     embedding2 = mock_embedding_computer.compute_semantic(text)
     assert np.array_equal(embedding, embedding2)
 ```
@@ -161,7 +161,7 @@ def test_real_semantic_similarity(db_with_notes, sample_notes):
 
     embeddings = session.get_all_embeddings()
 
-    # ✅ Verifies ACTUAL semantic similarity (not just mock behavior)
+    # ✅ Verifies ACTUAL semantic similarity (not just mock behaviour)
     sim_ai = cosine_similarity(embeddings["note1.md"], embeddings["note2.md"])
     sim_unrelated = cosine_similarity(embeddings["note1.md"], embeddings["note3.md"])
 
@@ -171,7 +171,7 @@ def test_real_semantic_similarity(db_with_notes, sample_notes):
 ```
 
 **Why This is Good**:
-1. Tests with REAL model (validates actual ML behavior)
+1. Tests with REAL model (validates actual ML behaviour)
 2. Verifies semantic quality (not just shapes)
 3. Properly marked to skip in CI
 4. Has timeout to prevent hangs
@@ -217,7 +217,7 @@ def test_real_semantic_similarity(db_with_notes, sample_notes):
 | Mock external dependencies | Yes | All mocked | ✅ PASS |
 | Use pytest fixtures | Yes | Extensive fixture usage | ✅ PASS |
 | Test coverage >80% | >80% | Not measured, but comprehensive | ⚠️ TODO |
-| Avoid testing implementation details | Test behavior | Tests test behavior, not implementation | ✅ PASS |
+| Avoid testing implementation details | Test behaviour | Tests test behaviour, not implementation | ✅ PASS |
 | Use descriptive test names | `test_verb_noun` | All tests follow pattern | ✅ PASS |
 | One assertion per test (ideal) | 1-3 | Most tests 2-3 assertions | ✅ ACCEPTABLE |
 
@@ -226,7 +226,7 @@ def test_real_semantic_similarity(db_with_notes, sample_notes):
 | Common LLM Error | Present? | Evidence |
 |------------------|----------|----------|
 | Over-mocking (mocking stdlib) | ❌ No | Only mocks ML model |
-| Brittle tests (testing implementation) | ❌ No | Tests behavior |
+| Brittle tests (testing implementation) | ❌ No | Tests behaviour |
 | Missing edge cases | ❌ No | Good edge case coverage |
 | Hardcoded test data | ✅ Yes | But acceptable for fixtures |
 | Missing cleanup | ❌ No | All fixtures have cleanup |
@@ -254,7 +254,7 @@ Layer 3: Test-Level Mocks (tests/unit/conftest.py)
    └─ Uses unittest.mock.Mock with custom encode()
 ```
 
-✅ **EXCELLENT**: Defense-in-depth approach ensures NO test accidentally downloads model
+✅ **EXCELLENT**: Defence-in-depth approach ensures NO test accidentally downloads model
 
 ### Stub Implementation Quality
 
@@ -281,7 +281,7 @@ class SentenceTransformerStub:
 **Strengths**:
 1. ✅ Maintains full interface compatibility
 2. ✅ Deterministic (hash-based)
-3. ✅ Proper vector normalization
+3. ✅ Proper vector normalisation
 4. ✅ Handles edge cases (empty strings, batches)
 5. ✅ No external dependencies
 6. ✅ Fast (~1000x faster than real model)

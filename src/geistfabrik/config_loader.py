@@ -97,7 +97,7 @@ class DateCollectionConfig:
 
 @dataclass
 class ClusterConfig:
-    """Configuration for clustering and cluster labeling."""
+    """Configuration for clustering and cluster labelling."""
 
     labeling_method: str = "keybert"  # "keybert" or "tfidf"
     min_cluster_size: int = 5

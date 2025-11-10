@@ -38,9 +38,9 @@ See [STATUS.md](STATUS.md) for detailed implementation status and test results, 
 ✅ **Tracery Geists**: Declarative YAML grammars with vault functions
 
 ### Performance
-✅ **Batch Operations**: Optimized for vaults with 100+ notes
+✅ **Batch Operations**: Optimised for vaults with 100+ notes
 ✅ **Incremental Sync**: Only reprocesses changed files
-✅ **Query Optimization**: Sub-second semantic search
+✅ **Query Optimisation**: Sub-second semantic search
 ✅ **Batch Embeddings**: 15-20x faster than naive implementation
 
 ## Quick Start
@@ -68,7 +68,7 @@ uv run geistfabrik --help
 ### First Run
 
 ```bash
-# Initialize a vault (creates _geistfabrik directory structure)
+# Initialise a vault (creates _geistfabrik directory structure)
 uv run geistfabrik init /path/to/your/vault
 
 # This automatically configures 51 bundled default geists:
@@ -269,9 +269,9 @@ default_geists:
 
 **See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 51 default geists with descriptions and configuration tips.
 
-### Cluster Labeling
+### Cluster Labelling
 
-GeistFabrik uses semantic clustering to group related notes and generate descriptive labels. You can choose between two labeling methods:
+GeistFabrik uses semantic clustering to group related notes and generate descriptive labels. You can choose between two labelling methods:
 
 ```yaml
 clustering:
@@ -280,7 +280,7 @@ clustering:
   n_label_terms: 4          # number of terms in label
 ```
 
-**Labeling Methods**:
+**Labelling Methods**:
 - **keybert** (default): Uses semantic similarity to cluster centroids for more coherent, conceptual labels. Supports 1-3 word phrases.
 - **tfidf**: Frequency-based keyword extraction. Faster and more deterministic, focuses on term frequency within clusters.
 
@@ -556,12 +556,12 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ## Performance
 
-Optimized for vaults with 100+ notes and 100+ geists:
+Optimised for vaults with 100+ notes and 100+ geists:
 
 - **Vault loading**: ~3-5s for 1000 notes (vs 72s naive)
 - **Embedding computation**: Batch processing with GPU support
 - **Incremental sync**: Only reprocesses changed files
-- **Query optimization**: Batch loading eliminates N+1 queries
+- **Query optimisation**: Batch loading eliminates N+1 queries
 - **Memory efficient**: Streaming where possible
 
 ### Recent Performance Improvements (2025-10-31)
@@ -570,7 +570,7 @@ Optimized for vaults with 100+ notes and 100+ geists:
 
 **Vectorized similarity computations**: Embedding similarity calculations now use `sklearn.metrics.pairwise.cosine_similarity` with vectorized NumPy operations, replacing O(n²) nested loops. **Estimated 50-70% speedup** for stats commands and similarity-heavy geists.
 
-**Optimized database queries**:
+**Optimised database queries**:
 - Orphan queries now use `LEFT JOIN` instead of `NOT IN` subqueries
 - New composite index `idx_links_target_source` for backlink operations
 - Schema v5→v6 migration applies automatically
@@ -595,7 +595,7 @@ uv run geistfabrik test cluster_mirror ~/my-vault --timeout 10 --debug
 - Top 10 most expensive operations with timing breakdown
 - Function call counts and per-call averages
 - Percentage of total execution time
-- Pattern-based suggestions for optimization
+- Pattern-based suggestions for optimisation
 
 **Example diagnostic output**:
 ```

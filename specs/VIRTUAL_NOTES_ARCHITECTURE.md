@@ -70,7 +70,7 @@ No conditional logic. No awareness of virtual vs regular notes.
 2. **`date_collection.py`**
    - Creates virtual notes from journal files
    - Sets `is_virtual=True`, `source_file`, `entry_date`, and title fields
-   - Preserves original heading text in title (not normalized to ISO)
+   - Preserves original heading text in title (not normalised to ISO)
 
 3. **`vault.py`**
    - Persists virtual note fields to database
@@ -110,7 +110,7 @@ Virtual note titles preserve the exact heading text from the file:
 This ensures:
 - Links work in Obsidian (which requires exact heading match)
 - Human-readable titles in vault queries
-- No surprising normalization
+- No surprising normalisation
 
 ### 4. ISO Dates Only for Internal Paths
 

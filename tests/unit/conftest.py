@@ -66,7 +66,7 @@ def mock_sentence_transformer():
             seed = hash(text) % (2**32)
             rng = np.random.RandomState(seed)
             embedding = rng.randn(384).astype(np.float32)
-            # Normalize to unit vector (like real sentence-transformers)
+            # Normalise to unit vector (like real sentence-transformers)
             embedding = embedding / np.linalg.norm(embedding)
             embeddings.append(embedding)
 

@@ -35,7 +35,7 @@ def test_vault_with_sessions(tmp_path):
         content = f"# {title}\n\n{'Content ' * (i + 1)} about topic {i}."
         note_path.write_text(content)
 
-    # Initialize vault and sync
+    # Initialise vault and sync
     vault = Vault(str(vault_path), ":memory:")
     vault.sync()
 
