@@ -334,7 +334,7 @@ symbol_name: ["$vault.function_name(arg1, arg2)"]
 4. Grammar symbols updated with results
 5. Tracery expansion proceeds with populated arrays
 
-**Important**: Vault functions return **link text without brackets**. The Tracery template is responsible for adding `[[...]]` brackets around note references.
+**Important**: Vault functions return **bracketed wikilinks**. The Tracery template should use these directly without adding additional brackets.
 
 #### Parameter Types
 
@@ -347,29 +347,29 @@ Vault functions support simple parameter types:
 
 #### Return Value Handling
 
-Vault functions must return **lists of strings** containing link text (without `[[...]]` brackets):
+Vault functions must return **lists of strings** containing bracketed wikilinks:
 
 ```python
 @vault_function("sample_notes")
 def sample_notes(vault: VaultContext, k: int) -> List[str]:
-    """Sample k random notes, return as link text (without brackets)"""
+    """Sample k random notes, return as bracketed wikilinks"""
     notes = vault.sample(k)
-    return [note.obsidian_link for note in notes]  # Returns "Note Title" (no brackets)
+    return [f"[[{note.obsidian_link}]]" for note in notes]  # Returns "[[Note Title]]"
 ```
 
 **Edge Cases**:
 - **Empty results**: Function returns `[]` → Symbol has empty array → Tracery fails gracefully
-- **Fewer than requested**: `$vault.orphans(10)` with only 3 orphans → Returns `["Orphan 1", "Orphan 2", "Orphan 3"]`
-- **Single result**: Still wrapped in list → `["Only Note"]`
+- **Fewer than requested**: `$vault.orphans(10)` with only 3 orphans → Returns `["[[Orphan 1]]", "[[Orphan 2]]", "[[Orphan 3]]"]`
+- **Single result**: Still wrapped in list → `["[[Only Note]]"]`
 
-**Note**: The `obsidian_link` property returns link text **without** `[[...]]` brackets. Templates must add brackets explicitly:
+**Note**: The `obsidian_link` property returns link text. Vault functions wrap this in brackets before returning:
 ```yaml
-# Correct: Template adds brackets
-origin: "Check out [[#note#]]"
+# Correct: Template uses function result as-is
+origin: "Check out #note#"
 note: ["$vault.sample_notes(1)"]
 
-# Wrong: Missing brackets (produces "Check out Note Title")
-origin: "Check out #note#"
+# Wrong: Double brackets (produces "Check out [[[[Note Title]]]]")
+origin: "Check out [[#note#]]"
 ```
 
 ### Complete Integration Example
@@ -379,7 +379,7 @@ origin: "Check out #note#"
 type: geist-tracery
 id: semantic_bridge
 tracery:
-  origin: "[[#note1#]] and [[#note2#]] both seem to be about #theme#. #question#?"
+  origin: "#note1# and #note2# both seem to be about #theme#. #question#?"
   note1: ["$vault.sample_notes(1)"]
   note2: ["$vault.sample_notes(1)"]
   theme:
@@ -397,6 +397,8 @@ tracery:
 ```
 [[Project Planning]] and [[Fermentation]] both seem to be about the tension between theory and practice. What if they're describing the same thing at different scales?
 ```
+
+**Note**: The brackets appear in the output because `$vault.sample_notes(1)` returns `["[[Project Planning]]"]`, not `["Project Planning"]`.
 
 ### Note Reference Tracking
 
@@ -647,7 +649,7 @@ neighbours: ["$vault.neighbours(#seed#, 3)"]  # Passes "#seed#" as string!
 
 The cluster pattern solves the "can't pass symbols to functions" problem by pre-bundling related data during preprocessing, then using custom modifiers to extract parts during expansion.
 
-**Key Architectural Decision**: Cluster functions are the **ONLY exception** to the "templates add brackets" rule. They return **bracketed links** `[[Note Title]]` instead of bare text because they construct composite strings that the template cannot easily wrap.
+**Key Pattern**: Cluster functions bundle multiple notes using delimiters, with all note references already bracketed (consistent with all other vault functions).
 
 ```python
 @vault_function("semantic_clusters")
@@ -659,11 +661,8 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
         "[[SEED]]|||[[NEIGHBOUR1]], [[NEIGHBOUR2]], and [[NEIGHBOUR3]]"
 
     Note:
-        This is an EXCEPTION to the rule. Most vault functions return bare text,
-        but cluster functions return pre-formatted bracketed links because:
-        1. They bundle multiple notes into a single string
-        2. Templates cannot easily add brackets to delimiter-separated values
-        3. Modifiers extract pre-formatted chunks, not individual note titles
+        Like all vault functions, this returns bracketed wikilinks.
+        The delimiter pattern (|||) allows extracting parts via modifiers.
     """
     import random
 
@@ -683,7 +682,7 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
         neighbor_notes = vault.neighbours(seed_note, k)
 
         if neighbor_notes:
-            # ⚠️ EXCEPTION: Add brackets here, not in template
+            # Add brackets (consistent with all vault functions)
             neighbor_links = [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
 
             # Format like Tracery does (with commas and "and")
@@ -697,7 +696,7 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
         else:
             neighbors_str = ""
 
-        # ⚠️ EXCEPTION: Seed also gets brackets
+        # Seed also gets brackets (consistent with all vault functions)
         formatted = f"[[{seed_note.obsidian_link}]]|||{neighbors_str}"
         results.append(formatted)
 
@@ -716,7 +715,7 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 **Tracery Usage**:
 ```yaml
 # ✓ WORKS - Bundles seed + neighbours in preprocessing
-# ⚠️ IMPORTANT: No [[]] brackets in template - function provides them
+# Template uses extracted values as-is (already bracketed)
 origin: "#seed# shares space with #neighbours#. What connects them?"
 cluster: ["$vault.semantic_clusters(2, 3)"]
 seed: ["#cluster.split_seed#"]           # Extracts "[[Seed Note]]"
@@ -727,23 +726,25 @@ neighbours: ["#cluster.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
 # This would produce: [[[[Seed Note]]]] (double brackets!)
 ```
 
-**Why No Brackets in Template?**
+**Consistent Bracket Handling**:
 
-- **Simple functions** (sample_notes, orphans): Return `"Note Title"` → Template adds `[[...]]`
-- **Cluster functions** (semantic_clusters): Return `"[[Note Title]]"` → Template uses as-is
+- **ALL vault functions** return bracketed wikilinks: `"[[Note Title]]"`
+- **Templates** use function results as-is: `#symbol#` (not `[[#symbol#]]`)
+- **Cluster functions** follow this same pattern, with the addition of delimiter-based extraction
 
-This is an architectural trade-off:
-- **Pro**: Cluster pattern works, enables complex geists
-- **Con**: API inconsistency (two patterns for note references)
-- **Mitigation**: Clear documentation, validation to catch errors
+This design provides:
+- **Consistency**: Single pattern for all vault functions
+- **Simplicity**: Templates don't need bracket logic
+- **Correctness**: Eliminates bracket-related bugs
 
 **Design Guidelines for Tracery Functions**:
 
-1. **Parameters must be resolvable at preprocessing** - Only integers, strings (quoted literals), not symbols
-2. **Return structured strings** - Use delimiters (|||, |, ::, etc.) to bundle related data
-3. **Add matching modifiers** - Custom Tracery modifiers to extract parts
-4. **Format like Tracery** - Use same comma/and patterns for lists
-5. **Test the preprocessing** - Functions execute once before any symbol expansion
+1. **Return bracketed wikilinks** - ALL vault functions must wrap note titles in `[[...]]` brackets
+2. **Parameters must be resolvable at preprocessing** - Only integers, strings (quoted literals), not symbols
+3. **Return structured strings** (for cluster functions) - Use delimiters (|||, |, ::, etc.) to bundle related data
+4. **Add matching modifiers** (for cluster functions) - Custom Tracery modifiers to extract parts
+5. **Format like Tracery** - Use same comma/and patterns for lists
+6. **Test the preprocessing** - Functions execute once before any symbol expansion
 
 **Validation**: The system includes a validator to catch anti-patterns:
 ```bash
@@ -785,7 +786,7 @@ def example_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[st
         related_items = get_related(vault, seed_item, k)
 
         if related_items:
-            # ⚠️ CRITICAL: Add [[...]] brackets here
+            # Add [[...]] brackets (standard pattern for all vault functions)
             related_links = [f"[[{item.obsidian_link}]]" for item in related_items]
 
             # Format with commas and "and" (match Tracery style)
@@ -799,7 +800,7 @@ def example_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[st
         else:
             related_str = ""
 
-        # ⚠️ CRITICAL: Add [[...]] brackets to seed too
+        # Add [[...]] brackets to seed (standard pattern for all vault functions)
         formatted = f"[[{seed_item.obsidian_link}]]|||{related_str}"
         results.append(formatted)
 
