@@ -354,9 +354,11 @@ class TestOrphanConnector:
 
         suggestions = geist.suggest(context)
 
-        # Should have capitalized words
+        # Should have generated suggestions with capitalized content
+        # (Check for uppercase letters anywhere in the text, accounting for [[brackets]])
+        assert len(suggestions) > 0, "Should generate at least one suggestion"
         text = " ".join([s.text for s in suggestions])
-        assert any(word[0].isupper() for word in text.split())
+        assert any(c.isupper() for c in text), "Should contain uppercase letters"
 
     def test_orphan_connector_uses_multiple_templates(self, tmp_path: Path):
         """Test that orphan_connector uses multiple origin templates."""
@@ -431,9 +433,9 @@ class TestOrphanConnector:
             f"Expected 1 orphan in symbol array (since count=1), "
             f"but got {len(orphan_symbol)}: {orphan_symbol}"
         )
-        # Should be one of the two orphans
-        assert orphan_symbol[0] in {"Orphan One", "Orphan Two"}, (
-            f"Expected one of the orphans, but got {orphan_symbol}"
+        # Should be one of the two orphans (now with brackets)
+        assert orphan_symbol[0] in {"[[Orphan One]]", "[[Orphan Two]]"}, (
+            f"Expected one of the orphans with brackets, but got {orphan_symbol}"
         )
 
         # Generate suggestions

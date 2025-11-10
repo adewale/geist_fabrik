@@ -462,12 +462,12 @@ def test_vault_functions_adapter_layer():
         assert isinstance(result, list), "orphans should return list"
         assert all(isinstance(item, str) for item in result), "Should return strings"
 
-        # Test hubs: List[Note] → List[str]
+        # Test hubs: List[Note] → List[str] (with brackets)
         result = registry.call("hubs", ctx, 5)
         assert isinstance(result, list), "hubs should return list"
         assert all(isinstance(item, str) for item in result), "Should return strings"
         if result:  # If we found hubs
-            assert "Hub Note" in result, "Should find hub by title"
+            assert "[[Hub Note]]" in result, "Should find hub by title with brackets"
 
         # Test random_note_title: Note → str
         result = registry.call("random_note_title", ctx)
