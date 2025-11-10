@@ -68,6 +68,92 @@ Split date-collection files into virtual atomic entries:
 5. **Efficient**: Only parse files that match journal patterns
 6. **Deterministic**: Same file = same split every time
 
+## Architecture Principles (Key Insights)
+
+### The obsidian_link Abstraction
+
+**The Core Problem**: Virtual notes need to be linkable in Obsidian using deeplink syntax (`[[Journal#2025-01-15]]`), but we must separate **what a note is called** (title) from **how to reference it** (link syntax).
+
+**The Solution**: A computed property that encapsulates linking logic:
+
+```python
+@property
+def obsidian_link(self) -> str:
+    """Return the Obsidian wiki-link string for this note."""
+    if self.is_virtual and self.source_file:
+        filename = self.source_file.replace(".md", "")
+        return f"{filename}#{self.title}"
+    else:
+        return self.title
+```
+
+**Examples**:
+- **Regular note**: `title="Project Ideas"`, `obsidian_link="Project Ideas"`
+- **Virtual note**: `title="2025-01-15"`, `obsidian_link="Journal#2025-01-15"`
+
+### Title vs Path vs Link
+
+Three distinct concepts that must NOT be conflated:
+
+1. **`path`** (Internal identifier)
+   - Regular: `"Project Ideas.md"`
+   - Virtual: `"Journal.md/2025-01-15"` (always ISO date)
+   - Purpose: Database primary key, uniqueness, sorting
+
+2. **`title`** (Human-readable name)
+   - Regular: `"Project Ideas"` (from heading or filename)
+   - Virtual: `"2025-01-15"` or `"January 15, 2025"` (original heading text)
+   - Purpose: Display, human reference, Obsidian heading match
+
+3. **`obsidian_link`** (Linking syntax)
+   - Regular: `"Project Ideas"` (same as title)
+   - Virtual: `"Journal#2025-01-15"` (deeplink format)
+   - Purpose: Obsidian wiki-links, geist suggestions
+
+### Why Original Heading Text Matters
+
+Virtual note titles preserve the **exact heading text** from the markdown file:
+
+```markdown
+## January 15, 2025
+Content here...
+```
+
+**Result**:
+- `title` = `"January 15, 2025"` (exact match)
+- `entry_date` = `date(2025, 1, 15)` (parsed for operations)
+- `path` = `"Journal.md/2025-01-15"` (normalized ISO)
+- `obsidian_link` = `"Journal#January 15, 2025"` (uses original)
+
+**Why**: Obsidian heading links require exact text match. A link to `[[Journal#January 15, 2025]]` will only work if the heading is exactly `## January 15, 2025`.
+
+### Separation of Concerns
+
+**Infrastructure Layer** (knows about virtual notes):
+- `Note.obsidian_link` property
+- `date_collection.py` (creates virtuals)
+- `vault.py` (persists, resolves heading links)
+- `schema.py` (database schema)
+
+**Application Layer** (doesn't know about virtual notes):
+- All 49 default geists (use `note.obsidian_link`)
+- VaultContext (no virtual-specific methods)
+- Filtering pipeline
+- Session output
+
+**Key Rule**: Geists NEVER check `is_virtual`. They use `note.obsidian_link` uniformly:
+
+```python
+# CORRECT - Works for all notes
+suggestion = f"Consider [[{note.obsidian_link}]]"
+
+# WRONG - Don't do this
+if note.is_virtual:
+    suggestion = f"Consider [[{note.source_file}#{note.title}]]"
+else:
+    suggestion = f"Consider [[{note.title}]]"
+```
+
 ## Architecture
 
 ### Data Model
@@ -77,29 +163,29 @@ Split date-collection files into virtual atomic entries:
 ```python
 @dataclass(frozen=True)
 class Note:
-    path: str              # "Daily Journal.md/2025-01-15" (virtual path)
-    title: str             # "2024 February 18" (JUST the heading text)
+    path: str              # "Daily Journal.md/2025-01-15" (virtual path, ISO date)
+    title: str             # "2025-01-15" or "January 15, 2025" (original heading text)
     content: str           # Content of this entry only
     links: List[Link]      # Links from this entry
     tags: List[str]        # Tags from this entry
     created: datetime      # Entry date (from heading)
     modified: datetime     # File modification time
 
-    # New fields for date-collection support
+    # Fields for date-collection support
     is_virtual: bool = False           # True for split entries
     source_file: Optional[str] = None  # "Daily Journal.md"
-    entry_date: Optional[date] = None  # Date from heading
+    entry_date: Optional[date] = None  # Parsed date from heading
 
     @property
     def obsidian_link(self) -> str:
         """Return the Obsidian wiki-link string for this note.
 
-        For regular notes: Just the title
-        For virtual notes: Deeplink format "filename#heading"
+        For regular notes: Returns title
+        For virtual notes: Returns deeplink format "filename#heading"
 
         Examples:
-            Regular note: "Project Ideas"
-            Virtual note: "Exercise journal#2024 February 18"
+            Regular: "Project Ideas"
+            Virtual: "Journal#2025-01-15" or "Journal#January 15, 2025"
         """
         if self.is_virtual and self.source_file:
             filename = self.source_file.replace(".md", "")
@@ -107,6 +193,17 @@ class Note:
         else:
             return self.title
 ```
+
+**Key Properties**:
+
+| Property | Regular Note | Virtual Note | Purpose |
+|----------|--------------|--------------|---------|
+| `path` | `"Ideas.md"` | `"Journal.md/2025-01-15"` | Database key, uniqueness |
+| `title` | `"Project Ideas"` | `"2025-01-15"` (original) | Display, heading match |
+| `obsidian_link` | `"Project Ideas"` | `"Journal#2025-01-15"` | Wiki-link syntax |
+| `is_virtual` | `False` | `True` | Infrastructure flag |
+| `source_file` | `None` | `"Journal.md"` | Parent journal file |
+| `entry_date` | `None` | `date(2025, 1, 15)` | Parsed date value |
 
 #### Database Schema Extensions
 
@@ -227,27 +324,32 @@ def split_date_collection_note(
             continue  # Skip non-date sections
 
         # Create virtual path: "filename.md/YYYY-MM-DD"
+        # Path always uses ISO date for consistency and uniqueness
         virtual_path = f"{file_path}/{entry_date.isoformat()}"
 
         # Extract links and tags from this section only
         links = extract_links(section_content)
         tags = extract_tags(section_content, frontmatter)
 
-        # Generate title (IMPORTANT: Just the heading text, NOT "filename - date")
+        # CRITICAL: Preserve original heading text in title
+        # This ensures Obsidian heading links work correctly
         # The obsidian_link property will combine filename + heading for deeplinks
-        title = heading.lstrip('#').strip()  # e.g., "2024 February 18"
+        # If heading is "## January 15, 2025", title is "January 15, 2025"
+        # If heading is "## 2025-01-15", title is "2025-01-15"
+        original_heading_text = extract_heading_text(heading)
+        title = original_heading_text
 
         entries.append(NoteEntry(
-            path=virtual_path,
-            title=title,
+            path=virtual_path,           # ISO: "Journal.md/2025-01-15"
+            title=title,                 # Original: "January 15, 2025"
             content=section_content,
             links=links,
             tags=tags,
             created=entry_date,
             modified=file_modified,
             is_virtual=True,
-            source_file=file_path,
-            entry_date=entry_date
+            source_file=file_path,       # "Journal.md"
+            entry_date=entry_date        # date(2025, 1, 15)
         ))
 
     return entries
@@ -315,21 +417,28 @@ Virtual entry paths:    Daily Journal.md/2025-01-15
 
 #### Link Resolution
 
-When resolving links from split entries:
+When resolving links from split entries, the system supports multiple link formats:
 
 ```python
 def resolve_link_target(
     target: str,
-    source_path: str
+    source_path: Optional[str] = None
 ) -> Optional[Note]:
     """Resolve wiki-link target to Note.
 
     Args:
-        target: Link target (e.g., "Other Note")
-        source_path: Could be virtual path (e.g., "Journal.md/2025-01-15")
+        target: Link target (e.g., "Other Note", "Journal#2025-01-15")
+        source_path: Optional source path (enables context-aware resolution)
 
     Returns:
         Resolved Note (could be virtual or regular)
+
+    Resolution order:
+        1. Exact path match (handles both regular and virtual paths)
+        2. Path with .md extension
+        3. Title match (searches all notes by title)
+        4. Heading link (e.g., "Journal#2025-01-15")
+        5. Context-aware date resolution (bare dates from within journals)
     """
     # 1. Try exact path match (handles both regular and virtual)
     note = get_note(target)
@@ -347,18 +456,51 @@ def resolve_link_target(
     if note:
         return note
 
-    # 4. Check if target is a date reference to a virtual entry
-    entry_date = parse_date(target)
-    if entry_date and "/" in source_path:
-        # Link like [[2025-01-16]] from a journal entry
-        source_file = source_path.split("/")[0]
-        virtual_path = f"{source_file}/{entry_date.isoformat()}"
-        note = get_note(virtual_path)
-        if note:
-            return note
+    # 4. Try heading link format: "filename#heading"
+    if "#" in target:
+        filename, heading = target.split("#", 1)
+        # Parse date from heading
+        entry_date = parse_date_heading(heading)
+        if entry_date:
+            # Construct virtual path
+            source_file = f"{filename}.md" if not filename.endswith(".md") else filename
+            virtual_path = f"{source_file}/{entry_date.isoformat()}"
+            note = get_note(virtual_path)
+            if note:
+                return note
+
+    # 5. Context-aware date resolution
+    # If source is a virtual note and target is a bare date,
+    # resolve within the same journal file
+    if source_path and "/" in source_path:
+        entry_date = parse_date(target)
+        if entry_date:
+            # Link like [[2025-01-16]] from a journal entry
+            source_file = source_path.split("/")[0]
+            virtual_path = f"{source_file}/{entry_date.isoformat()}"
+            note = get_note(virtual_path)
+            if note:
+                return note
 
     return None
 ```
+
+**Supported Link Formats**:
+
+| Format | Example | Use Case |
+|--------|---------|----------|
+| Direct path | `[[Journal.md/2025-01-15]]` | Unambiguous internal reference |
+| Heading link | `[[Journal#2025-01-15]]` | Obsidian-native deeplink format |
+| Title match | `[[2025-01-15]]` | If title is unique |
+| Bare date (context) | `[[2025-01-15]]` | From within same journal file |
+
+**Obsidian Compatibility**:
+
+The heading link format (`[[Journal#heading]]`) is native Obsidian syntax that:
+- Opens the file and scrolls to the heading
+- Works in both reading and editing mode
+- Supports both exact heading text and normalized versions
+- Is the recommended format for virtual note links
 
 #### Cross-Entry Links
 
@@ -445,7 +587,7 @@ def compute_session_embeddings(vault: Vault, session_date: date):
 
 #### Referencing Virtual Entries
 
-Session notes reference virtual entries using the `obsidian_link` property:
+Session notes reference virtual entries using `note.obsidian_link`:
 
 ```python
 # In geist code, ALWAYS use note.obsidian_link
@@ -453,7 +595,7 @@ suggestion_text = f"What if you revisited [[{note.obsidian_link}]]?"
 ```
 
 **Correct behaviour**:
-- For virtual notes: `note.obsidian_link` returns `"Exercise journal#2024 February 18"` (Obsidian deeplink format)
+- For virtual notes: `note.obsidian_link` returns `"Journal#2025-01-15"` (Obsidian deeplink format)
 - For regular notes: `note.obsidian_link` returns `"Project Ideas"` (just the title)
 - Geists use `[[{note.obsidian_link}]]` uniformly for ALL note types
 
@@ -463,26 +605,58 @@ suggestion_text = f"What if you revisited [[{note.obsidian_link}]]?"
 
 ### Suggestions
 
-What if you revisited [[Exercise journal#2024 February 18]]? It's been 283 days since you wrote about embeddings. ^g20251024-001
+What if you revisited [[Journal#2025-01-15]]? It's been 283 days since you wrote about embeddings, and your understanding has likely evolved. ^g20251024-001
 
-Consider connecting [[Exercise journal#2024 February 18]] with [[Paper on Transformers]]. Both mention semantic similarity. ^g20251024-002
+Consider connecting [[Journal#2025-01-15]] with [[Paper on Transformers]]. Both mention semantic similarity but from different angles. ^g20251024-002
+```
+
+**How Geists Generate Links**:
+
+```python
+def suggest(vault: VaultContext) -> List[Suggestion]:
+    """Example geist using obsidian_link."""
+    old = vault.old_notes(k=1)[0]
+    recent = vault.recent_notes(k=1)[0]
+
+    # CORRECT: Use obsidian_link (works for both regular and virtual notes)
+    return [Suggestion(
+        text=f"What if you revisited [[{old.obsidian_link}]]?",
+        notes=[old.obsidian_link, recent.obsidian_link],
+        geist_id="example"
+    )]
 ```
 
 **CRITICAL**: Do NOT manually construct links like `[[{filename}#{title}]]` or `[[{filename} - {date}]]`. Always use `note.obsidian_link` which handles the correct format automatically.
 
+**Link Format Produced**:
+- **Regular note**: `[[Project Ideas]]` (title)
+- **Virtual note**: `[[Journal#2025-01-15]]` (deeplink)
+
+**Why This Works**:
+- Geists don't need to know if a note is virtual
+- `obsidian_link` property handles the format automatically
+- Links work correctly in Obsidian for both types
+
 #### Viewing in Obsidian
 
-Users can follow links to journal entries using Obsidian's native deeplink feature:
+When users click links in session notes:
 
-**How it works**:
-- GeistFabrik generates: `[[Exercise journal#2024 February 18]]`
-- User clicks link in Obsidian
-- Obsidian opens `Exercise journal.md` and scrolls to the `## 2024 February 18` heading
-- This is Obsidian's standard heading link behaviour (no special handling needed)
+**For Regular Notes**:
+- `[[Project Ideas]]` → Opens `Project Ideas.md`
+
+**For Virtual Notes (Journal Entries)**:
+- `[[Journal#2025-01-15]]` → Opens `Journal.md` and scrolls to `## 2025-01-15` heading
+- Uses Obsidian's native heading link functionality
+- Works in both reading and editing modes
+- No additional files needed
+
+**Why Heading Links**:
+1. **Native support**: Obsidian handles them automatically
+2. **No file clutter**: No need to generate virtual files
+3. **Always current**: Shows live content from journal file
+4. **Context preserved**: User sees surrounding entries
 
 **Reference**: [Obsidian Deeplink Documentation](https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note)
-
-**Note**: The `obsidian_link` property automatically generates the correct deeplink format for virtual notes. Geists don't need to know about the internal virtual path (`Exercise journal.md/2024-02-18`) - they just use `note.obsidian_link` and get the user-friendly deeplink format.
 
 ## Edge Cases & Error Handling
 
@@ -1094,17 +1268,15 @@ PRAGMA user_version = 2;
    - Document virtual path format
    - Document link resolution changes
 
-## Open Questions
+## Implementation Decisions Record
 
 ### Q1: Preamble Handling
 **Question**: What to do with content before first date heading?
 
-**Options:**
-- A) Discard (simplest)
-- B) Create special "preamble" entry
-- C) Include in first entry
-
-**Recommendation**: Option A (discard) for v1, reconsider based on user feedback.
+**Decision**: ✅ **Option A (Discard)** - Implemented in v0.9.0
+- Content before first date heading is not included in any virtual entry
+- Keeps implementation simple and behavior predictable
+- User feedback has not requested preamble support
 
 ### Q2: Link Format in Output
 **Question**: How to format links to virtual entries in session notes?
@@ -1114,40 +1286,51 @@ PRAGMA user_version = 2;
 - B) `[[Daily Journal.md/2025-01-15]]` (path format, unambiguous)
 - C) `[[Daily Journal#2025-01-15]]` (heading format, Obsidian native)
 
-**Implementation**: Option C (heading format) via `note.obsidian_link` property
-- Virtual notes: Returns `f"{filename}#{title}"` (e.g., `"Exercise journal#2024 February 18"`)
+**Decision**: ✅ **Option C (Heading format)** - Implemented in November 2025
+- Uses `[[Journal#2025-01-15]]` format (Obsidian native deeplink)
+- Implemented via `note.obsidian_link` property
+- Virtual notes: Returns `f"{filename}#{title}"` (e.g., `"Journal#2025-01-15"`)
 - Regular notes: Returns `title` (e.g., `"Project Ideas"`)
 - Geists use `[[{note.obsidian_link}]]` uniformly for all note types
 - Most compatible with Obsidian's native deeplink feature
+- Works seamlessly in Obsidian for navigation
 
 ### Q3: Duplicate Date Strategy
 **Question**: How to handle multiple sections with same date?
 
-**Options:**
-- A) Merge content (simpler implementation)
-- B) Append sequence numbers (preserves structure)
-
-**Recommendation**: Option A (merge) for v1 simplicity.
+**Decision**: ✅ **Option A (Merge content)** - Implemented in v0.9.0
+- Multiple sections with same date are merged into single virtual entry
+- Simpler implementation, cleaner database
+- No user requests for separate entries
 
 ### Q4: Non-H2 Date Headings
 **Question**: Should we support date detection in H3 or H1 headings?
 
-**Options:**
-- A) Only H2 (clear, standard)
-- B) Configurable heading level
-- C) Auto-detect any heading level
-
-**Recommendation**: Option A (H2 only) for v1 clarity.
+**Decision**: ✅ **Option A (H2 only)** - Implemented in v0.9.0
+- Only H2 headings (`##`) trigger date detection
+- Clear, unambiguous behavior
+- Matches common journaling conventions
+- No requests for other heading levels
 
 ### Q5: Cross-Journal Links
 **Question**: Should `[[2025-01-15]]` be ambiguous if multiple journals have that date?
 
-**Options:**
-- A) Resolve to first match (ambiguous but simple)
-- B) Require source file context (unambiguous but complex)
-- C) Create warning for ambiguous dates
+**Decision**: ✅ **Option B (Context-aware resolution)** - Implemented in November 2025
+- Bare date links resolve within same journal when source is virtual
+- From `Journal.md/2025-01-20`, `[[2025-01-15]]` → `Journal.md/2025-01-15`
+- From regular notes, bare dates try title match first
+- Provides best UX while maintaining unambiguous behavior
 
-**Recommendation**: Option B (context-aware resolution from same file).
+### Q6: Title Format (Discovered During Development)
+**Question**: Should virtual note titles use ISO dates or preserve original heading text?
+
+**Decision**: ✅ **Preserve original heading text** - Implemented in November 2025
+- Title stores exact heading text (e.g., "January 15, 2025")
+- Path uses ISO format for consistency (e.g., "Journal.md/2025-01-15")
+- Enables Obsidian heading links to work correctly
+- `obsidian_link` property constructs deeplink with original title
+
+**Rationale**: Obsidian requires exact heading match for `[[file#heading]]` links to work.
 
 ## Future Enhancements
 
@@ -1267,16 +1450,43 @@ Decided to prioritise [[Feature X]].
 ### Implementation Decisions
 
 **Adopted** (from spec):
-- ✅ Virtual path format: `source_file/YYYY-MM-DD`
+- ✅ Virtual path format: `source_file/YYYY-MM-DD` (ISO date for consistency)
 - ✅ H2 headings only (not H1 or H3)
 - ✅ Merge duplicate dates (Option A)
 - ✅ Discard preamble content (Option A)
 - ✅ Non-destructive (never modify source files)
 - ✅ Transparent virtual entries (behave like regular notes)
-
-**Deviations** (from spec):
-- ⚠️ Link format in output: Implementation uses direct virtual paths, not `#heading` format
 - ✅ Configuration added: `enabled`, `exclude_files`, `min_sections`, `date_threshold`
+
+**Key Implementation Insights** (discovered during development):
+
+1. **Title Preservation** (November 2025)
+   - ✅ Virtual note `title` preserves exact heading text from markdown
+   - ✅ Path uses ISO date, title uses original format
+   - **Rationale**: Obsidian heading links require exact text match
+
+2. **obsidian_link Property** (November 2025)
+   - ✅ Added computed property to Note dataclass
+   - ✅ Returns deeplink format for virtual notes: `"Journal#heading"`
+   - ✅ Returns title for regular notes
+   - **Rationale**: Separates "what note is called" from "how to link to it"
+
+3. **Geist Simplification** (November 2025)
+   - ✅ All geists use `note.obsidian_link` uniformly
+   - ✅ No geist checks `is_virtual` flag
+   - ✅ Application layer unaware of virtual note complexity
+   - **Rationale**: Clean abstraction boundary, maintainable code
+
+4. **Link Format in Output** (November 2025)
+   - ✅ Uses Obsidian native heading format: `[[Journal#2025-01-15]]`
+   - ✅ Not direct paths: `[[Journal.md/2025-01-15]]`
+   - **Rationale**: Better Obsidian compatibility, cleaner UX
+
+5. **Heading Link Resolution** (November 2025)
+   - ✅ Vault resolves `[[Journal#date]]` to virtual entries
+   - ✅ Parses date from heading part, constructs virtual path
+   - ✅ Works with any supported date format in heading
+   - **Rationale**: Supports both ISO and human-readable date formats
 
 ### Files Modified/Created
 
@@ -1298,52 +1508,24 @@ Decided to prioritise [[Feature X]].
 
 ---
 
-## Post-Implementation Insights (November 2025)
+## Key Architectural Insights (November 2025 Updates)
 
-### Virtual Note Title Bug and Fix
+This specification was initially written in October 2025. During implementation and refinement through November 2025, several critical insights emerged that shaped the final architecture:
 
-**Issue Discovered**: Users reported seeing doubled filename prefixes in virtual note links:
-- Observed: `[[Exercise journal#Exercise journal#2024 February 18]]`
-- Expected: `[[Exercise journal#2024 February 18]]`
+### The Missing Abstraction: obsidian_link
 
-**Root Cause**: Early implementation (commit cb0654e) incorrectly stored the deeplink format in the `title` field:
+**Problem Identified**: Early implementation conflated **title** (what a note is called) with **link syntax** (how to reference it in Obsidian). This forced application code to understand virtual note internals.
+
+**Solution**: Added `note.obsidian_link` computed property that:
+- Returns title for regular notes
+- Returns deeplink format (`filename#heading`) for virtual notes
+- Encapsulates all virtual note linking logic in one place
+
+**Impact**: All 49 geists use uniform linking without knowing about virtual notes:
 ```python
-# ❌ INCORRECT (old code)
-title = f"{file_stem}#{entry_date.isoformat()}"
-# Result: title = "Exercise journal#2024-02-18"
+# Works for both regular and virtual notes
+text = f"Consider [[{note.obsidian_link}]]"
 ```
-
-When the `obsidian_link` property combined filename + title, it doubled the filename:
-```python
-# obsidian_link property (always correct)
-return f"{filename}#{self.title}"
-# With buggy title: "Exercise journal#Exercise journal#2024-02-18"
-```
-
-**Correct Implementation**: The `title` field should store ONLY the heading text:
-```python
-# ✅ CORRECT (current code)
-title = original_heading_text.lstrip('#').strip()
-# Result: title = "2024 February 18"
-```
-
-Now `obsidian_link` combines correctly:
-```python
-return f"{filename}#{self.title}"
-# Result: "Exercise journal#2024 February 18" ✓
-```
-
-**Key Architecture Insight**: Separation of concerns between Note fields:
-- **`note.path`**: Internal identifier (`"Exercise journal.md/2024-02-18"`)
-- **`note.title`**: Just the heading text (`"2024 February 18"`)
-- **`note.obsidian_link`**: Computed deeplink property (`"Exercise journal#2024 February 18"`)
-
-This separation allows:
-1. Internal consistency (unique paths for database operations)
-2. User-friendly titles (clean heading text for display)
-3. Obsidian compatibility (automatic deeplink generation)
-
-### Geist Usage Pattern
 
 **Critical Rule**: Geists must ALWAYS use `note.obsidian_link` for wiki-links:
 
@@ -1356,74 +1538,53 @@ suggestion_text = f"What if you revisited [[{note.title}]]?"  # Breaks virtual n
 suggestion_text = f"What if you revisited [[{note.source_file}#{note.title}]]?"  # Redundant
 ```
 
-**Why it works**:
-- Regular notes: `obsidian_link` returns just the title (e.g., `"Project Ideas"`)
-- Virtual notes: `obsidian_link` returns deeplink format (e.g., `"Exercise journal#2024 February 18"`)
-- Uniform API: Geists don't need to check `is_virtual` flag
+### Title Preservation vs Path Normalization
 
-**Example from temporal_mirror.py** (lines 86-87):
-```python
-suggestion_text = (
-    f"From period {period1_num}, [[{note1.obsidian_link}]] {relationship} "
-    f"period {period2_num}'s [[{note2.obsidian_link}]]."
-)
-```
+**Discovery**: Virtual notes need TWO distinct date representations:
+1. **Path**: Normalized ISO format for database consistency (`Journal.md/2025-01-15`)
+2. **Title**: Original heading text for Obsidian compatibility (`"January 15, 2025"`)
 
-### Breaking Change and Migration
+**Why**: Obsidian heading links (`[[Journal#January 15, 2025]]`) only work if heading text matches exactly.
 
-**Database Migration Required**: Users with databases created before commit 921b58e (November 2025) will have incorrect virtual note titles stored.
+**Implementation**:
+- `path` always uses ISO dates (sorting, uniqueness)
+- `title` preserves exact markdown heading text (Obsidian linking)
+- `entry_date` stores parsed date value (temporal operations)
 
-**Symptoms**:
-- Suggestions show `[[Exercise journal#Exercise journal#2024 February 18]]`
-- Double filename prefix in all virtual note links
+**Key Architecture Insight**: Separation of concerns between Note fields:
+- **`note.path`**: Internal identifier (e.g., `"Journal.md/2025-01-15"`)
+- **`note.title`**: Just the heading text (e.g., `"January 15, 2025"`)
+- **`note.obsidian_link`**: Computed deeplink property (e.g., `"Journal#January 15, 2025"`)
 
-**Fix**: Delete and rebuild database:
-```bash
-rm -rf <vault>/_geistfabrik/vault.db*
-uv run geistfabrik invoke <vault>
-```
+This separation allows:
+1. Internal consistency (unique paths for database operations)
+2. User-friendly titles (clean heading text for display)
+3. Obsidian compatibility (automatic deeplink generation)
 
-**Why no automatic migration**: Pre-1.0 policy documented in CLAUDE.md (lines 468-506)
-- Breaking changes are documented, not migrated
-- Users must manually rebuild
-- Post-1.0 will include automatic schema migrations
+### Separation of Concerns
 
-**Documentation**:
-- CHANGELOG.md (lines 10-25): Breaking change entry with migration instructions
-- CLAUDE.md (lines 468-506): Breaking change policy
-- This spec: Updated to reflect correct implementation
+**Infrastructure Layer** (knows about virtuals):
+- Note model with `obsidian_link` property
+- `date_collection.py` (splitting logic)
+- `vault.py` (heading link resolution)
+- Database schema
 
-### Regression Testing
+**Application Layer** (unaware of virtuals):
+- All geists
+- VaultContext
+- Filtering pipeline
+- Session output
 
-**Tests Added** (commit 47f87f1):
+This clean boundary means adding new geists or modifying existing ones never requires virtual note knowledge.
 
-1. **Unit Test** (`tests/unit/test_date_collection.py:676-723`):
-   - `test_obsidian_link_for_year_month_day_heading()`
-   - Verifies title is heading text only
-   - Verifies obsidian_link combines filename + heading
-   - Checks wiki-link format: `[[Journal#2024 July 10]]`
+### Heading Link Resolution
 
-2. **Integration Test** (`tests/integration/test_date_collection_integration.py:1158-1220`):
-   - `test_year_month_day_obsidian_link_format()`
-   - End-to-end test with real vault
-   - Verifies deeplink resolution works
-   - Includes detailed error messages explaining correct behaviour
+**Addition to Spec**: Link resolution now includes heading link format:
+- `[[Journal#2025-01-15]]` → Parses date, resolves to `Journal.md/2025-01-15`
+- Works with any supported date format in heading part
+- Context-aware: bare dates from virtual notes resolve within same journal
 
-**Coverage**: Prevents future regressions of the title format bug
-
-### Implementation Files
-
-**Core Implementation**:
-- `src/geistfabrik/date_collection.py:261` - Title extraction (heading text only)
-- `src/geistfabrik/date_collection.py:284` - Title assignment to Note
-- `src/geistfabrik/models.py:58-79` - `obsidian_link` property definition
-
-**Reference Implementation**: See temporal_mirror.py (lines 86-87) for example geist usage
-
-**Git History**:
-- Commit cb0654e: Old buggy implementation (title included filename)
-- Commit 921b58e: Fix implemented (title is heading text only)
-- Commit 47f87f1: Regression tests added
+**Why**: Provides natural Obsidian UX while maintaining implementation consistency.
 
 ### Obsidian Deeplink Reference
 
@@ -1432,24 +1593,24 @@ uv run geistfabrik invoke <vault>
 **Format**: `[[filename#heading]]`
 - Filename: Without `.md` extension
 - Heading: Exact text of the H2 heading (with spaces and special chars)
-- Example: `[[Exercise journal#2024 February 18]]`
+- Example: `[[Journal#2025-01-15]]` or `[[Journal#January 15, 2025]]`
 
 **Behaviour in Obsidian**:
 1. User clicks link in GeistFabrik session note
-2. Obsidian opens `Exercise journal.md`
-3. Obsidian scrolls to `## 2024 February 18` heading
+2. Obsidian opens `Journal.md`
+3. Obsidian scrolls to the matching H2 heading
 4. Standard Obsidian feature (no special GeistFabrik handling)
 
 **Why This Works**:
-- GeistFabrik virtual path: `"Exercise journal.md/2024-02-18"` (internal)
-- GeistFabrik obsidian_link: `"Exercise journal#2024 February 18"` (user-facing)
+- GeistFabrik virtual path: `"Journal.md/2025-01-15"` (internal)
+- GeistFabrik obsidian_link: `"Journal#2025-01-15"` (user-facing)
 - Obsidian doesn't know about virtual paths
 - Obsidian sees standard deeplink and handles it natively
 
 ---
 
-**Document Status**: Specification and Implementation Complete, with Post-Implementation Insights
+**Document Status**: Specification and Implementation Complete (with Nov 2025 refinements)
 **Last Updated**: November 2025
 **Author**: Claude (AI Assistant)
-**Implementation**: Complete in v0.9.0
-**Bug Fix**: Virtual note title format corrected (November 2025)
+**Implementation**: Complete in v0.9.0 + November 2025 refinements
+**Key Reference**: See `docs/VIRTUAL_NOTES_ARCHITECTURE.md` for detailed architectural rationale
