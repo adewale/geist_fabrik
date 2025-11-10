@@ -11,10 +11,20 @@ from pathlib import Path
 import pytest
 
 from geistfabrik.embeddings import Session
+from geistfabrik import function_registry
 from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
+
+
+@pytest.fixture(autouse=True)
+def clear_function_registry():
+    """Clear the global function registry before each test."""
+    function_registry._GLOBAL_REGISTRY.clear()
+    yield
+    # Optionally clear after test as well
+    function_registry._GLOBAL_REGISTRY.clear()
 
 
 @pytest.fixture
