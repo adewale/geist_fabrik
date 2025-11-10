@@ -551,6 +551,152 @@ def apply_mmr(
 - Independent testing and optimization of labelling algorithms
 - Easy experimentation with new labelling strategies
 
+**Unit Testing**
+
+Since cluster_labeling is stateless with no GeistFabrik dependencies, it's ideal for unit testing:
+
+```python
+# tests/unit/test_cluster_labeling.py
+
+def test_label_tfidf_basic():
+    """Test basic c-TF-IDF labelling."""
+    # Setup: Create in-memory SQLite with sample notes
+    db = create_test_db([
+        ("note1.md", "machine learning neural networks"),
+        ("note2.md", "deep learning artificial intelligence"),
+        ("note3.md", "cooking recipes italian food"),
+    ])
+
+    paths = ["note1.md", "note2.md", "note3.md"]
+    labels = np.array([0, 0, 1])  # First two in cluster 0, third in cluster 1
+
+    result = label_tfidf(paths, labels, db, n_terms=2)
+
+    assert 0 in result
+    assert 1 in result
+    assert "learning" in result[0] or "neural" in result[0]
+    assert "cooking" in result[1] or "recipes" in result[1]
+
+
+def test_label_tfidf_noise_handling():
+    """Test that noise points (label=-1) are ignored."""
+    db = create_test_db([("note1.md", "test"), ("note2.md", "noise")])
+    labels = np.array([0, -1])  # Second note is noise
+
+    result = label_tfidf(["note1.md", "note2.md"], labels, db, n_terms=2)
+
+    assert -1 not in result  # Noise cluster should not be labelled
+    assert 0 in result
+
+
+def test_apply_mmr_diversity():
+    """Test MMR selects diverse terms."""
+    terms = ["machine learning", "machine intelligence", "deep learning", "neural"]
+    scores = np.array([1.0, 0.9, 0.8, 0.7])
+
+    result = apply_mmr(terms, scores, lambda_param=0.5, k=2)
+
+    assert len(result) == 2
+    # Should prefer "machine learning" and "neural" over "machine intelligence"
+    # (which overlaps with "machine learning")
+    assert "machine learning" in result
+    assert "neural" in result or "deep learning" in result
+
+
+def test_apply_mmr_fallback():
+    """Test MMR falls back to top-k if MMR fails."""
+    terms = ["term1", "term2", "term3"]
+    scores = np.array([1.0, 0.8, 0.6])
+
+    result = apply_mmr(terms, scores, lambda_param=0.5, k=2)
+
+    assert len(result) == 2
+    assert result[0] in ["term1", "term2"]  # Top scores
+
+
+def test_label_keybert_basic():
+    """Test KeyBERT labelling (if KeyBERT available)."""
+    pytest.importorskip("keybert")
+
+    db = create_test_db([
+        ("note1.md", "Python programming language syntax"),
+        ("note2.md", "Python code examples tutorials"),
+    ])
+
+    paths = ["note1.md", "note2.md"]
+    labels = np.array([0, 0])
+
+    result = label_keybert(paths, labels, db, n_terms=2)
+
+    assert 0 in result
+    assert "python" in result[0].lower() or "programming" in result[0].lower()
+
+
+def test_label_tfidf_empty_cluster():
+    """Test handling of empty clusters."""
+    db = create_test_db([("note1.md", "content")])
+    labels = np.array([0])
+
+    result = label_tfidf(["note1.md"], labels, db, n_terms=2)
+
+    assert 0 in result
+    assert len(result[0]) > 0  # Should have some label
+
+
+def test_label_tfidf_n_terms_parameter():
+    """Test that n_terms parameter controls label length."""
+    db = create_test_db([
+        ("note1.md", "word1 word2 word3 word4 word5"),
+        ("note2.md", "word1 word2 word3 word4 word6"),
+    ])
+
+    labels = np.array([0, 0])
+
+    result_2 = label_tfidf(["note1.md", "note2.md"], labels, db, n_terms=2)
+    result_4 = label_tfidf(["note1.md", "note2.md"], labels, db, n_terms=4)
+
+    # More terms should result in longer labels
+    assert len(result_2[0].split(", ")) <= 2
+    assert len(result_4[0].split(", ")) <= 4
+```
+
+**Integration Testing**
+
+Test interaction with ClusterAnalyser:
+
+```python
+# tests/integration/test_clustering_with_labeling.py
+
+def test_cluster_analyser_uses_labeling():
+    """Test that ClusterAnalyser properly delegates to cluster_labeling."""
+    vault = create_test_vault_with_notes([
+        ("note1.md", "machine learning"),
+        ("note2.md", "deep learning"),
+        ("note3.md", "cooking recipes"),
+    ])
+
+    analyser = ClusterAnalyser(vault, strategy="hdbscan", min_size=2)
+    clusters = analyser.get_clusters()
+
+    # Verify labels were generated
+    for cluster_id, cluster in clusters.items():
+        assert cluster.label is not None
+        assert len(cluster.label) > 0
+        assert cluster.formatted_label is not None
+
+
+def test_stats_uses_cluster_analyser():
+    """Test that stats.py uses ClusterAnalyser (not duplicate HDBSCAN)."""
+    vault = create_test_vault_with_notes(sample_notes)
+
+    # Call stats clustering metrics
+    metrics = compute_clustering_metrics(vault)
+
+    # Should have cluster labels from ClusterAnalyser
+    assert "cluster_labels" in metrics
+    assert len(metrics["cluster_labels"]) > 0
+```
+
 ---
 
 ### 4. Graph Pattern Queries
