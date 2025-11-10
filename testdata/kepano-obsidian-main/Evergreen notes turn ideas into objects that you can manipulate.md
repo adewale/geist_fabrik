@@ -15,9 +15,11 @@ tags:
 status:
   - "[[Published]]"
 ---
-Using [[evergreen]] notes in Obsidian has been the most impactful change to how I think.
+Using [[evergreen]] notes in [[Obsidian]] has been the most impactful change to how I think.
 
 Evergreen notes allow you to think about complex ideas by building them up from smaller composable ideas.
+
+See also: [[Obsidian]]
 
 My evergreen notes have titles that distill each idea in a succinct and memorable way, that I can use in a sentence. For example:
 

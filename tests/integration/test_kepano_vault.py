@@ -116,7 +116,7 @@ def test_kepano_embeddings(kepano_vault: Vault) -> None:
     Note: We compute one session, not 8×2 like the AC suggests.
     """
     notes = kepano_vault.all_notes()
-    assert len(notes) == 8
+    assert len(notes) == 10
 
     # Compute embeddings for all notes
     session = Session(datetime(2023, 6, 15), kepano_vault.db)
@@ -135,8 +135,8 @@ def test_kepano_embeddings(kepano_vault: Vault) -> None:
         note_path, embedding_bytes = row
         embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
 
-    # Should have 8 embeddings (one per note)
-    assert len(embeddings) == 8
+    # Should have 10 embeddings (one per note)
+    assert len(embeddings) == 10
 
     # Each embedding should have correct dimensions (384 semantic + 3 temporal)
     for note_path, embedding in embeddings.items():

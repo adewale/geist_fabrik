@@ -12,7 +12,7 @@ from geistfabrik import Vault
 def test_scenario_first_time_setup(tmp_path: Path) -> None:
     """Test first-time setup scenario with kepano vault.
 
-    AC-1.7: 8 notes should sync in <5 seconds.
+    AC-1.7: 10 notes should sync in <5 seconds.
     """
     vault_path = Path("testdata/kepano-obsidian-main")
     db_path = tmp_path / "vault.db"
@@ -25,7 +25,7 @@ def test_scenario_first_time_setup(tmp_path: Path) -> None:
 
     # Verify results
     notes = vault.all_notes()
-    assert len(notes) == 8, f"Expected 8 notes, got {len(notes)}"
+    assert len(notes) == 10, f"Expected 10 notes, got {len(notes)}"
 
     # Performance target: <5 seconds
     assert elapsed < 5.0, f"Sync took {elapsed:.2f}s, expected <5s"

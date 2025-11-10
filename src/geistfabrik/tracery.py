@@ -35,6 +35,7 @@ class TraceryEngine:
         self.modifiers: Dict[str, Callable[[str], str]] = self._default_modifiers()
         self._preprocessed = False  # Track if pre-population done
         self._prepopulation_failed = False  # Track if pre-population failed
+        self._has_empty_symbols = False  # Track if any symbols have empty arrays
 
     def _default_modifiers(self) -> Dict[str, Callable[[str], str]]:
         """Get default English language modifiers.
@@ -335,6 +336,13 @@ class TraceryEngine:
 
                         # If result is a list, expand into multiple rules
                         if isinstance(result, list):
+                            if len(result) == 0:
+                                logger.warning(
+                                    f"Symbol '{symbol}' has empty result from "
+                                    f"$vault.{func_name}(). This will produce "
+                                    f"suggestions with empty placeholders."
+                                )
+                                self._has_empty_symbols = True
                             expanded_rules.extend([str(item) for item in result])
                         else:
                             expanded_rules.append(str(result))
@@ -634,11 +642,25 @@ class TraceryGeist:
             )
             return []
 
+        # If any symbols have empty arrays, don't generate suggestions
+        if self.engine._has_empty_symbols:
+            logger.debug(
+                f"Geist {self.geist_id}: skipping suggestions due to empty symbol arrays"
+            )
+            return []
+
         suggestions = []
         for _ in range(self.count):
             try:
                 # Expand the origin symbol
                 text = self.engine.expand("#origin#")
+
+                # Check for empty placeholders in expanded text
+                if self._has_empty_placeholder(text):
+                    logger.debug(
+                        f"Geist {self.geist_id}: skipping suggestion with empty placeholder: {text}"
+                    )
+                    continue
 
                 # Extract note references from text
                 note_pattern = r"\[\[([^\]]+)\]\]"
@@ -661,6 +683,40 @@ class TraceryGeist:
                 continue
 
         return suggestions
+
+    def _has_empty_placeholder(self, text: str) -> bool:
+        """Check if text has empty placeholders from failed symbol expansion.
+
+        Detects patterns like:
+        - Double spaces: "word  word"
+        - Space before punctuation: "word . "
+        - Missing content: "through . Is"
+
+        Args:
+            text: Expanded text to check
+
+        Returns:
+            True if text has empty placeholders
+        """
+        # Check for double spaces (common sign of empty expansion)
+        if "  " in text:
+            return True
+
+        # Check for space before common punctuation
+        if " ." in text or " ," in text or " !" in text or " ?" in text:
+            return True
+
+        # Check for punctuation preceded by space (e.g., "word . word")
+        # This catches patterns like "through . Is"
+        patterns = [
+            r"\s+\.\s+[A-Z]",  # Space, period, space, capital letter
+            r"\s+,\s+[A-Z]",  # Space, comma, space, capital letter
+        ]
+        for pattern in patterns:
+            if re.search(pattern, text):
+                return True
+
+        return False
 
 
 class TraceryGeistLoader:
