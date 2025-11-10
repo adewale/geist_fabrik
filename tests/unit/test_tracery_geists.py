@@ -1061,16 +1061,17 @@ def test_semantic_neighbours_notes_metadata_includes_all_links(tmp_path: Path):
 
 def test_semantic_clusters_handles_deeplinks_correctly(tmp_path: Path):
     """Test that semantic_clusters() formats deeplinks correctly for virtual notes."""
+    from datetime import datetime
+
+    from geistfabrik.embeddings import Session
     from geistfabrik.function_registry import FunctionRegistry
     from geistfabrik.vault import Vault
-    from geistfabrik.embeddings import Session
-    from datetime import datetime
-    
+
     # Create vault with journal file containing date entries
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
     (vault_path / ".obsidian").mkdir()
-    
+
     # Create a journal file with multiple date entries
     journal_content = """# 2025-01-15
 Some thoughts on [[Project Alpha]].
@@ -1082,49 +1083,48 @@ More notes about [[Project Beta]].
 Final reflections on [[Project Gamma]].
 """
     (vault_path / "Journal.md").write_text(journal_content)
-    
+
     # Create some regular notes
     (vault_path / "Project Alpha.md").write_text("# Project Alpha\nContent")
     (vault_path / "Project Beta.md").write_text("# Project Beta\nContent")
-    
+
     vault = Vault(vault_path)
     vault.sync()
-    
+
     # Create session
     session_date = datetime(2025, 1, 20)
     mock_computer = create_mock_embedding_computer(len(vault.all_notes()))
     session = Session(session_date, vault.db, computer=mock_computer)
     session.compute_embeddings(vault.all_notes())
-    
+
     # Create vault context
     function_registry = FunctionRegistry()
     context = VaultContext(vault, session, seed=42, function_registry=function_registry)
-    
+
     # Call semantic_clusters
     results = context.call_function("semantic_clusters", 2, 2)
-    
+
     # Should return properly formatted cluster strings
     assert isinstance(results, list)
     assert len(results) >= 1
-    
+
     for result in results:
         # Should contain delimiter
         assert "|||" in result, f"Missing delimiter in: {result}"
-        
+
         # Should have bracketed links
         assert "[[" in result and "]]" in result, f"Missing brackets in: {result}"
-        
+
         # Extract seed and neighbours
         parts = result.split("|||")
         assert len(parts) == 2, f"Should have exactly 2 parts: {result}"
-        
+
         seed = parts[0]
-        neighbours = parts[1]
-        
+
         # Seed should be a single bracketed link
         assert seed.startswith("[[") and seed.endswith("]]"), \
             f"Seed should be bracketed: {seed}"
-        
+
         # If seed is a deeplink, it should have the format [[File#Heading]]
         if "#" in seed:
             # Extract the link text
@@ -1138,47 +1138,50 @@ Final reflections on [[Project Gamma]].
 
 def test_semantic_clusters_with_special_characters_in_titles(tmp_path: Path):
     """Test semantic_clusters with note titles containing special characters."""
+    from datetime import datetime
+
+    from geistfabrik.embeddings import Session
     from geistfabrik.function_registry import FunctionRegistry
     from geistfabrik.vault import Vault
-    from geistfabrik.embeddings import Session
-    from datetime import datetime
-    
+
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
     (vault_path / ".obsidian").mkdir()
-    
+
     # Create notes with special characters
     (vault_path / "Note with [brackets].md").write_text("# Note with [brackets]\nContent")
     (vault_path / "Note with (parens).md").write_text("# Note with (parens)\nContent")
-    (vault_path / "Note with commas, colons: semicolons;.md").write_text("# Note with commas, colons: semicolons;\nContent")
-    
+    (vault_path / "Note with commas, colons: semicolons;.md").write_text(
+        "# Note with commas, colons: semicolons;\nContent"
+    )
+
     vault = Vault(vault_path)
     vault.sync()
-    
+
     session_date = datetime(2025, 1, 20)
     mock_computer = create_mock_embedding_computer(len(vault.all_notes()))
     session = Session(session_date, vault.db, computer=mock_computer)
     session.compute_embeddings(vault.all_notes())
-    
+
     function_registry = FunctionRegistry()
     context = VaultContext(vault, session, seed=42, function_registry=function_registry)
-    
+
     results = context.call_function("semantic_clusters", 1, 2)
-    
+
     # Should handle special characters correctly
     assert isinstance(results, list)
     assert len(results) >= 1
-    
+
     for result in results:
         # Should still be properly formatted despite special chars
         assert "|||" in result
         assert "[[" in result and "]]" in result
-        
+
         # Should not have nested brackets or broken formatting
         # (e.g., no [[Note with [[brackets]]]] or similar)
         parts = result.split("|||")
         seed = parts[0]
-        
+
         # Count brackets - should be exactly one pair
         assert seed.count("[[") == 1, f"Should have exactly one [[ in seed: {seed}"
         assert seed.count("]]") == 1, f"Should have exactly one ]] in seed: {seed}"
