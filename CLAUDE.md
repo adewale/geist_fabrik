@@ -204,6 +204,98 @@ GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 7. **Never destructive** - Read-only vault access, only writes session notes
 8. **Extensible at every layer** - Metadata, functions, and geists are all user-extensible
 
+## Key Architectural Decisions
+
+### Vault Function Link Formatting (Consistent API)
+
+**Design Principle**: All vault functions return Obsidian wikilinks with brackets already included.
+
+**The Consistent Pattern**:
+
+```python
+# ALL vault functions return bracketed links:
+sample_notes(3) → ["[[Note A]]", "[[Note B]]", "[[Note C]]"]
+orphans(2) → ["[[Orphan 1]]", "[[Orphan 2]]"]
+semantic_clusters(2, 3) → ["[[Seed]]|||[[N1]], [[N2]]"]  # Delimiter-separated but still bracketed
+
+# Templates use function results as-is (NO additional brackets):
+origin: "Check out #note#"  # ✓ Correct
+origin: "[[#note#]]"         # ✗ Wrong - produces [[[[Note]]]]
+```
+
+**Why This Matters**:
+- **Consistency**: Developers don't need to remember different patterns for different functions
+- **Simplicity**: Templates just use `#symbol#` - no bracket logic needed
+- **Correctness**: Eliminates bugs from forgetting to add brackets to specific references
+
+**The Cluster Pattern** (for advanced use cases):
+
+Some vault functions bundle multiple related notes using delimiters to work around Tracery's preprocessing order:
+
+```python
+# Problem: Can't pass expanded symbols to vault functions
+$vault.neighbours(#note#, 3)  # ✗ Fails - #note# not expanded during preprocessing
+
+# Solution: Cluster functions bundle seed + related notes with delimiters
+semantic_clusters(2, 3) → ["[[Seed]]|||[[N1]], [[N2]]"]
+
+# Custom modifiers extract parts:
+cluster: ["$vault.semantic_clusters(2, 3)"]
+seed: ["#cluster.split_seed#"]           # Extracts "[[Seed]]"
+neighbours: ["#cluster.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+
+# Template uses extracted values (already bracketed):
+origin: "#seed# shares space with #neighbours#"
+```
+
+**Implementation locations**:
+- Pattern implementation: `src/geistfabrik/function_registry.py::semantic_clusters()`
+- Custom modifiers: `src/geistfabrik/tracery.py::_split_seed()`, `_split_neighbours()`
+- Validation: `src/geistfabrik/tracery.py::_validate_grammar()`
+- Documentation: `specs/tracery_research.md` (Designing Tracery-Safe Vault Functions section)
+- Tests: `tests/unit/test_tracery.py::test_tracery_split_*_modifier()`, `tests/unit/test_tracery_geists.py::test_semantic_clusters_*`
+
+**Future cluster functions** (post-1.0, see `docs/GeistFabrik2.0_Wishlist.md`):
+- `contrarian_clusters(count, k)` - Seed + contrarian notes
+- `temporal_clusters(count, k)` - Seed + temporally related notes
+- `bridge_clusters(count)` - Two distant notes + their bridge
+- `tag_clusters(count, k)` - Tag + notes with that tag
+
+**Historical Note**: Before v0.9.1, GeistFabrik had an API inconsistency where simple functions returned bare text and cluster functions returned bracketed links. This was fixed in a breaking change (commit d080f66) to establish the current consistent pattern where ALL functions return bracketed links.
+
+### Lessons Learned: API Consistency (November 2025)
+
+**Context**: In November 2025, a bug was discovered in the `semantic_neighbours` Tracery geist where neighbour note references were missing `[[...]]` brackets. Investigation revealed a deeper API design issue.
+
+**The Problem**:
+- **Original Design** (pre-v0.9.1): Simple vault functions returned bare text (`"Note Title"`), while cluster functions returned bracketed links (`"[[Note Title]]"`)
+- **Why it existed**: Cluster functions needed to bundle multiple notes with delimiters, making bracket addition in templates difficult
+- **The bug**: Missing brackets in neighbour references because developers forgot which pattern applied where
+
+**The Investigation**:
+1. **Immediate fix** (commit 3efc96c): Documented the API inconsistency as intentional, added comprehensive tests
+2. **Root cause analysis**: Realized the two-pattern API was a design flaw, not a necessary trade-off
+3. **Better solution** (commit d080f66): Breaking change to make ALL functions return bracketed links
+
+**The Breaking Change**:
+- Updated 7 vault functions to return bracketed links: `sample_notes()`, `old_notes()`, `recent_notes()`, `random_note_title()`, `orphans()`, `hubs()`, `neighbours()`
+- Updated 7 Tracery geists to remove `[[...]]` from templates
+- Result: **Consistent API** - all functions follow the same pattern
+
+**Why This Was The Right Call**:
+- ✅ **Eliminates confusion**: Developers don't need to remember two patterns
+- ✅ **Prevents bugs**: No more forgetting to add brackets to specific references
+- ✅ **Simplifies templates**: Just use `#symbol#`, never `[[#symbol#]]`
+- ✅ **Acceptable timing**: Pre-1.0, so breaking changes are expected
+
+**Key Lesson**: API consistency is more important than avoiding breaking changes in beta. When you discover a fundamental design flaw, fix it immediately rather than documenting it as "intentional".
+
+**See Also**:
+- Commit 3efc96c: Initial documentation of the inconsistency
+- Commit d080f66: Breaking change implementing consistent API
+- `specs/tracery_research.md`: Updated technical documentation
+- `tests/unit/test_tracery_geists.py`: Regression tests to prevent similar bugs
+
 ## Three-Dimensional Extensibility
 
 1. **Metadata Inference** (`<vault>/_geistfabrik/metadata_inference/`)

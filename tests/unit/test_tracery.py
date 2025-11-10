@@ -646,6 +646,62 @@ def test_tracery_custom_modifier() -> None:
     assert result == "olleh"
 
 
+def test_tracery_split_seed_modifier() -> None:
+    """Test .split_seed custom modifier extracts seed from cluster string."""
+    grammar = {
+        "origin": ["#cluster.split_seed#"],
+        "cluster": ["[[Seed Note]]|||[[Neighbour 1]], [[Neighbour 2]]"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    # Should extract only the seed part
+    assert result == "[[Seed Note]]"
+
+
+def test_tracery_split_neighbours_modifier() -> None:
+    """Test .split_neighbours custom modifier extracts neighbours from cluster string."""
+    grammar = {
+        "origin": ["#cluster.split_neighbours#"],
+        "cluster": ["[[Seed Note]]|||[[Neighbour 1]], [[Neighbour 2]]"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    # Should extract only the neighbours part
+    assert result == "[[Neighbour 1]], [[Neighbour 2]]"
+
+
+def test_tracery_split_modifiers_with_empty_neighbours() -> None:
+    """Test split modifiers handle empty neighbours list."""
+    grammar = {
+        "origin": ["Seed: #cluster.split_seed# | Neighbours: #cluster.split_neighbours#"],
+        "cluster": ["[[Seed Note]]|||"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    # Should handle empty neighbours gracefully
+    assert result == "Seed: [[Seed Note]] | Neighbours: "
+
+
+def test_tracery_split_modifiers_with_no_delimiter() -> None:
+    """Test split modifiers handle strings without delimiter."""
+    grammar = {
+        "origin": ["#text.split_seed# and #text.split_neighbours#"],
+        "text": ["No delimiter here"],
+    }
+
+    engine = TraceryEngine(grammar, seed=42)
+    result = engine.expand("#origin#")
+
+    # Should return original text for split_seed, empty for split_neighbours
+    assert result == "No delimiter here and "
+
+
 def test_tracery_modifier_in_geist(tmp_path: Path) -> None:
     """Test modifiers work in complete Tracery geist."""
     # Create vault

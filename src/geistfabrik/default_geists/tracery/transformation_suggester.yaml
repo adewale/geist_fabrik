@@ -5,28 +5,28 @@ description: Showcase geist demonstrating all Tracery modifiers (.capitalize, .c
 tracery:
   origin:
     # Showcase .capitalize and .ed
-    - "#opening.capitalize# you #action.ed# [[#note#]] like #metaphor.a#"
+    - "#opening.capitalize# you #action.ed# #note# like #metaphor.a#"
 
     # Showcase .s and .capitalize
-    - "#observation.capitalize# about [[#note#]]: it has #count# #element.s#"
+    - "#observation.capitalize# about #note#: it has #count# #element.s#"
 
     # Showcase .capitalizeAll with chaining
-    - "#concept.capitalizeAll#: [[#note#]] #relationship.s# with #num# other #item.s#"
+    - "#concept.capitalizeAll#: #note# #relationship.s# with #num# other #item.s#"
 
     # Showcase .a with different starting vowels/consonants
-    - "[[#note#]] could be #descriptor.a#, not #other_descriptor.a#"
+    - "#note# could be #descriptor.a#, not #other_descriptor.a#"
 
     # Showcase complex chaining: .s then .capitalize
-    - "#question_start.capitalize# the #pattern.s.capitalize# in [[#note#]] reveal #insight.a#?"
+    - "#question_start.capitalize# the #pattern.s.capitalize# in #note# reveal #insight.a#?"
 
     # Showcase .ed with irregular verbs + .capitalize
-    - "#time_phrase.capitalize#, you #verb.ed# [[#note#]]. #prompt.capitalize# now"
+    - "#time_phrase.capitalize#, you #verb.ed# #note#. #prompt.capitalize# now"
 
     # Showcase all modifiers in one template
-    - "#starter.capitalize# [[#note#]] #transform_verb.ed# into #number# #new_form.s#. #question.capitalize#"
+    - "#starter.capitalize# #note# #transform_verb.ed# into #number# #new_form.s#. #question.capitalize#"
 
     # Showcase .a with multiple noun types
-    - "treat [[#note#]] as #treatment.a#, apply #method.a#, discover #outcome.a#"
+    - "treat #note# as #treatment.a#, apply #method.a#, discover #outcome.a#"
 
   # Basic verbs (for .ed modifier)
   opening:

@@ -4,10 +4,10 @@ description: Suggests viewing notes through different lenses using natural langu
 
 tracery:
   origin:
-    - "#action.capitalize# [[#note#]] as #metaphor.a#"
-    - "#question_start.capitalize# you #verb.ed# [[#note#]] like #comparison.a#?"
-    - "#suggestion.capitalize# [[#note#]] through the lens of #concept.s#"
-    - "try #approach_verb# [[#note#]] from #num# different #angle.s#"
+    - "#action.capitalize# #note# as #metaphor.a#"
+    - "#question_start.capitalize# you #verb.ed# #note# like #comparison.a#?"
+    - "#suggestion.capitalize# #note# through the lens of #concept.s#"
+    - "try #approach_verb# #note# from #num# different #angle.s#"
 
   action:
     - "view"

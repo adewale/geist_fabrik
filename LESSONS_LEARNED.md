@@ -116,6 +116,125 @@ The geist's job is not to know the answer. Its job is to ask questions you would
 
 ---
 
+## API Consistency Over Avoiding Breaking Changes
+
+**Date:** 2025-11-09
+**Context:** Bug discovered in `semantic_neighbours` Tracery geist where neighbour note references were missing `[[...]]` brackets
+
+### The Problem
+
+GeistFabrik had an API inconsistency where vault functions followed two different patterns:
+
+- **Simple functions** (sample_notes, orphans, etc.): Returned bare text `"Note Title"`
+  - Templates had to add brackets: `"Check out [[#note#]]"`
+- **Cluster functions** (semantic_clusters): Returned bracketed text `"[[Note Title]]"`
+  - Templates used as-is: `"#seed# connects to #neighbours#"`
+
+**Why it existed:**
+- Cluster functions bundle multiple notes with delimiters (`"[[Seed]]|||[[N1]], [[N2]]"`)
+- Adding brackets to delimiter-separated values in templates seemed difficult
+- The exception was documented as "intentional architectural decision"
+
+**The bug:**
+- Missing brackets in `semantic_neighbours` neighbour references
+- Developers forgot which pattern applied where
+- Two-pattern API caused confusion and bugs
+
+### The Investigation
+
+The bug prompted a three-step process:
+
+1. **Immediate fix** (commit 3efc96c):
+   - Documented the API inconsistency as intentional
+   - Added comprehensive tests to prevent regression
+   - Fixed the immediate bug
+
+2. **Root cause analysis**:
+   - Realized the two-pattern API was a **design flaw**, not a necessary trade-off
+   - Templates don't need to add brackets to delimited values - the function already added them
+   - The "difficulty" was imagined, not real
+
+3. **Better solution** (commit d080f66):
+   - Breaking change: ALL vault functions now return bracketed links
+   - Updated 7 vault functions and 7 Tracery geists
+   - Result: **Consistent single-pattern API**
+
+### The Insight
+
+**Fix fundamental design flaws immediately, don't document them as "intentional."**
+
+When you discover an API inconsistency:
+1. Don't accept it as "necessary" without thorough analysis
+2. Don't document it as "intentional" just because it's been there a while
+3. Consider whether fixing it (even with breaking changes) is better than preserving it
+4. In beta/pre-1.0, breaking changes are **acceptable and expected**
+
+### The Principle
+
+**"API consistency is more important than avoiding breaking changes in beta."**
+
+Benefits of the consistent API:
+- ✅ **Eliminates confusion**: Single pattern, no exceptions to remember
+- ✅ **Prevents bugs**: No more forgetting to add brackets to specific references
+- ✅ **Simplifies templates**: Just use `#symbol#`, never `[[#symbol#]]`
+- ✅ **Better onboarding**: New developers learn one pattern, not two
+
+### Why This Was The Right Call
+
+**Timing matters:**
+- Pre-1.0: Breaking changes expected, users understand things may change
+- Post-1.0: Would require migration guides, deprecation warnings, version bumps
+- **Fix design flaws in beta**, preserve stability after 1.0
+
+**Scope matters:**
+- 7 functions updated (out of ~15 total vault functions)
+- 7 Tracery geists updated (out of 9 total)
+- No user-facing geists in production yet
+- **Small breaking change now** vs. permanent technical debt
+
+**Quality matters:**
+- Bugs from API inconsistency cost more than fixing the API
+- Documentation complexity ("remember the exception") is cognitive overhead
+- **Consistent APIs are easier to learn, use, and maintain**
+
+### Impact
+
+**Before (two-pattern API):**
+```yaml
+# Simple functions - template adds brackets
+note: ["$vault.sample_notes(1)"]  # Returns "Note Title"
+origin: "Check out [[#note#]]"     # Template adds [[...]]
+
+# Cluster functions - function adds brackets
+cluster: ["$vault.semantic_clusters(2, 3)"]  # Returns "[[Seed]]|||[[N1]], [[N2]]"
+origin: "#seed# connects to #neighbours#"     # Template uses as-is
+```
+
+**After (single-pattern API):**
+```yaml
+# ALL functions - function adds brackets, template uses as-is
+note: ["$vault.sample_notes(1)"]         # Returns "[[Note Title]]"
+origin: "Check out #note#"                # Template uses as-is
+
+cluster: ["$vault.semantic_clusters(2, 3)"]  # Returns "[[Seed]]|||[[N1]], [[N2]]"
+origin: "#seed# connects to #neighbours#"     # Template uses as-is
+```
+
+**Lesson applied to:**
+- All vault function implementations (src/geistfabrik/function_registry.py)
+- All Tracery geist templates (src/geistfabrik/default_geists/tracery/*.yaml)
+- Documentation (CLAUDE.md, specs/tracery_research.md)
+- Tests (tests/unit/test_tracery_geists.py)
+
+**See also:**
+- Commit 3efc96c: Initial documentation of inconsistency
+- Commit d080f66: Breaking change implementing consistent API
+- Commit 113e718: Documentation updates reflecting new API
+- `specs/tracery_research.md`: Technical documentation of vault functions
+- `tests/unit/test_tracery_geists.py`: Regression tests
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_

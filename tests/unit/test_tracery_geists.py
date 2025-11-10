@@ -46,14 +46,18 @@ def create_test_vault_context(tmp_path: Path, num_notes: int = 10) -> VaultConte
     vault_path.mkdir()
     (vault_path / ".obsidian").mkdir()
 
-    # Create test notes
-    for i in range(num_notes):
-        content = f"# Note {i:02d}\nThis is test note {i}."
-        (vault_path / f"note_{i:02d}.md").write_text(content)
-
-    # Create a few hub notes (with many backlinks)
+    # Create hub note first (will have many incoming links)
     hub_content = "# Hub Note\nThis is a hub."
     (vault_path / "hub.md").write_text(hub_content)
+
+    # Create test notes that link to hub (making it an actual hub)
+    for i in range(num_notes):
+        # Most notes link to hub
+        if i < num_notes - 2:
+            content = f"# Note {i:02d}\nThis is test note {i}. Related to [[Hub Note]]."
+        else:
+            content = f"# Note {i:02d}\nThis is test note {i}."
+        (vault_path / f"note_{i:02d}.md").write_text(content)
 
     # Create orphan note (no links)
     (vault_path / "orphan.md").write_text("# Orphan Note\nNo links here.")
@@ -350,9 +354,11 @@ class TestOrphanConnector:
 
         suggestions = geist.suggest(context)
 
-        # Should have capitalized words
+        # Should have generated suggestions with capitalized content
+        # (Check for uppercase letters anywhere in the text, accounting for [[brackets]])
+        assert len(suggestions) > 0, "Should generate at least one suggestion"
         text = " ".join([s.text for s in suggestions])
-        assert any(word[0].isupper() for word in text.split())
+        assert any(c.isupper() for c in text), "Should contain uppercase letters"
 
     def test_orphan_connector_uses_multiple_templates(self, tmp_path: Path):
         """Test that orphan_connector uses multiple origin templates."""
@@ -427,9 +433,9 @@ class TestOrphanConnector:
             f"Expected 1 orphan in symbol array (since count=1), "
             f"but got {len(orphan_symbol)}: {orphan_symbol}"
         )
-        # Should be one of the two orphans
-        assert orphan_symbol[0] in {"Orphan One", "Orphan Two"}, (
-            f"Expected one of the orphans, but got {orphan_symbol}"
+        # Should be one of the two orphans (now with brackets)
+        assert orphan_symbol[0] in {"[[Orphan One]]", "[[Orphan Two]]"}, (
+            f"Expected one of the orphans with brackets, but got {orphan_symbol}"
         )
 
         # Generate suggestions
@@ -604,6 +610,83 @@ class TestSemanticNeighbours:
         assert "question" in geist.engine.grammar
         assert len(geist.engine.grammar["prompt"]) >= 4
         assert len(geist.engine.grammar["question"]) >= 4
+
+    def test_semantic_neighbours_all_notes_properly_bracketed(self, tmp_path: Path):
+        """Regression test: All note references should have [[...]] brackets."""
+        import re
+
+        context = create_test_vault_context(tmp_path)
+        geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
+        geist = TraceryGeist.from_yaml(geist_path, seed=42)
+
+        suggestions = geist.suggest(context)
+
+        for suggestion in suggestions:
+            text = suggestion.text
+
+            # Find all properly formatted wikilinks
+            wikilinks = re.findall(r'\[\[([^\]]+)\]\]', text)
+
+            # Should have at least seed + 1 neighbour
+            assert len(wikilinks) >= 2, f"Expected >= 2 wikilinks, got {len(wikilinks)} in: {text}"
+
+            # Check for orphaned note references (note titles without brackets)
+            # Pattern matches "Word#YYYY Month Day" or "Word Word#YYYY Month Day"
+            # that are NOT inside [[ ]]
+            orphaned = re.findall(r'(?<!\[)\b([\w\s]+#\d{4}[^,.\]]*?)(?=[\s,.]|$)', text)
+
+            # Filter out false positives (things already in brackets)
+            actual_orphaned = [o for o in orphaned if o not in ' '.join(wikilinks)]
+
+            assert len(actual_orphaned) == 0, \
+                f"Found unbracketed note references: {actual_orphaned} in '{text}'"
+
+    def test_semantic_neighbours_consistent_formatting(self, tmp_path: Path):
+        """Regression test: Seed and neighbours should have consistent formatting."""
+        import re
+
+        context = create_test_vault_context(tmp_path)
+        geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
+        geist = TraceryGeist.from_yaml(geist_path, seed=42)
+
+        suggestions = geist.suggest(context)
+
+        for suggestion in suggestions:
+            text = suggestion.text
+
+            # All wikilinks should be properly closed
+            open_brackets = text.count('[[')
+            close_brackets = text.count(']]')
+            assert open_brackets == close_brackets, \
+                f"Mismatched brackets: {open_brackets} [[ vs {close_brackets} ]] in '{text}'"
+
+            # Should not have partial brackets like "[[Note" or "Note]]"
+            assert not re.search(r'\[\[[^\]]*$', text), "Found unclosed [["
+            assert not re.search(r'^[^\[]*\]\]', text), "Found unmatched ]]"
+
+    def test_semantic_neighbours_structure_matches_pattern(self, tmp_path: Path):
+        """Regression test: Output should match expected structure."""
+        import re
+
+        context = create_test_vault_context(tmp_path)
+        geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
+        geist = TraceryGeist.from_yaml(geist_path, seed=42)
+
+        suggestions = geist.suggest(context)
+
+        for suggestion in suggestions:
+            text = suggestion.text
+
+            # Extract all wikilinks
+            wikilinks = re.findall(r'\[\[([^\]]+)\]\]', text)
+
+            # Verify structure: should have seed (first mention) + neighbours
+            assert len(wikilinks) >= 2, \
+                f"Expected seed + neighbours (>=2 links), got {len(wikilinks)}"
+
+            # All wikilinks should be non-empty
+            assert all(link.strip() for link in wikilinks), \
+                f"Found empty wikilink in: {text}"
 
 
 # ============================================================================
@@ -815,3 +898,292 @@ class TestAllTraceryGeists:
                                     f"Should request at least {count} items to avoid "
                                     f"guaranteed duplicates."
                                 )
+
+
+def test_all_tracery_geists_have_consistent_wikilink_formatting(tmp_path: Path):
+    """Test that all Tracery geists format wikilinks consistently.
+
+    This regression test ensures that geists which reference notes:
+    1. Always wrap note references in [[...]] brackets
+    2. Don't have orphaned note references (missing brackets)
+    3. Have properly balanced brackets
+    """
+    import re
+
+    context = create_test_vault_context(tmp_path, num_notes=15)
+    geist_files = list(GEISTS_DIR.glob("*.yaml"))
+
+    # Define expected structure for each geist
+    # Maps geist_id -> minimum expected wikilinks (for geists that ALWAYS reference notes)
+    # Geists with variable templates (like what_if) are checked differently
+    always_has_notes = {
+        "orphan_connector": 1,      # Always references [[orphan]]
+        "hub_explorer": 1,          # Always references [[hub]]
+        "note_combinations": 2,     # Always references [[note1]] and [[note2]]
+        "contradictor": 1,          # Always references [[note]]
+        "perspective_shifter": 1,   # Always references [[note]]
+        "transformation_suggester": 1,  # Always references [[note]]
+        "semantic_neighbours": 2,   # Always references [[seed]] + [[neighbours]]
+    }
+
+    # Geists that SOMETIMES reference notes (variable templates)
+    sometimes_has_notes = {
+        "what_if",  # Some templates use [[note]], others don't
+    }
+
+    for geist_file in geist_files:
+        geist = TraceryGeist.from_yaml(geist_file, seed=42)
+        geist_id = geist.geist_id
+
+        # Skip geists that never reference notes (like random_prompts)
+        if geist_id not in always_has_notes and geist_id not in sometimes_has_notes:
+            continue
+
+        suggestions = geist.suggest(context)
+
+        for suggestion in suggestions:
+            text = suggestion.text
+
+            # 1. Find all properly formatted wikilinks
+            wikilinks = re.findall(r'\[\[([^\]]+)\]\]', text)
+
+            # Verify minimum expected wikilinks (only for geists that ALWAYS have notes)
+            if geist_id in always_has_notes:
+                min_expected = always_has_notes[geist_id]
+                assert len(wikilinks) >= min_expected, (
+                    f"{geist_id}: Expected >= {min_expected} wikilinks, "
+                    f"got {len(wikilinks)} in: {text}"
+                )
+
+            # 2. Check for orphaned note references
+            # This regex catches patterns like "Word#YYYY" or "Word Word#YYYY"
+            # that look like note references but aren't in brackets
+            potential_orphans = re.findall(
+                r'(?<!\[)\b([\w\s]+#\d{4}[^\],.\]]*?)(?=[\s,.]|$)',
+                text
+            )
+
+            # Filter out false positives (content that's actually inside wikilinks)
+            wikilink_content = ' '.join(wikilinks)
+            actual_orphans = [
+                o for o in potential_orphans
+                if o.strip() and o not in wikilink_content
+            ]
+
+            assert len(actual_orphans) == 0, (
+                f"{geist_id}: Found unbracketed note references: {actual_orphans} in '{text}'"
+            )
+
+            # 3. Verify bracket balance
+            open_brackets = text.count('[[')
+            close_brackets = text.count(']]')
+            assert open_brackets == close_brackets, (
+                f"{geist_id}: Mismatched brackets: {open_brackets} [[ vs "
+                f"{close_brackets} ]] in '{text}'"
+            )
+
+            # 4. All wikilinks should be non-empty
+            assert all(link.strip() for link in wikilinks), (
+                f"{geist_id}: Found empty wikilink in: {text}"
+            )
+
+
+def test_all_tracery_geists_extract_notes_metadata_correctly(tmp_path: Path):
+    """Test that Suggestion.notes metadata is correctly extracted from wikilinks.
+
+    This regression test ensures that the note extraction regex in TraceryGeist.suggest()
+    properly parses [[...]] links and populates the Suggestion.notes field.
+    """
+    import re
+
+    context = create_test_vault_context(tmp_path, num_notes=15)
+    geist_files = list(GEISTS_DIR.glob("*.yaml"))
+
+    # Geists that reference notes
+    geists_with_notes = {
+        "orphan_connector", "hub_explorer", "note_combinations",
+        "contradictor", "perspective_shifter", "transformation_suggester",
+        "semantic_neighbours", "what_if"
+    }
+
+    for geist_file in geist_files:
+        geist = TraceryGeist.from_yaml(geist_file, seed=42)
+        geist_id = geist.geist_id
+
+        # Skip geists that never reference notes
+        if geist_id not in geists_with_notes:
+            continue
+
+        suggestions = geist.suggest(context)
+
+        for suggestion in suggestions:
+            text = suggestion.text
+
+            # Extract wikilinks manually from text
+            manual_extraction = re.findall(r'\[\[([^\]]+)\]\]', text)
+
+            # Compare with Suggestion.notes field
+            # Both should contain the same note references
+            assert suggestion.notes is not None, \
+                f"{geist_id}: Suggestion.notes should not be None for: {text}"
+
+            # If there are wikilinks in the text, notes should be populated
+            if manual_extraction:
+                assert len(suggestion.notes) == len(manual_extraction), (
+                    f"{geist_id}: Suggestion.notes has {len(suggestion.notes)} entries, "
+                    f"but text has {len(manual_extraction)} wikilinks: {text}"
+                )
+
+                # Content should match (note references without brackets)
+                assert set(suggestion.notes) == set(manual_extraction), (
+                    f"{geist_id}: Suggestion.notes {suggestion.notes} doesn't match "
+                    f"extracted wikilinks {manual_extraction} from: {text}"
+                )
+
+
+def test_semantic_neighbours_notes_metadata_includes_all_links(tmp_path: Path):
+    """Regression test: semantic_neighbours.notes should include seed AND neighbours."""
+    context = create_test_vault_context(tmp_path, num_notes=15)
+    geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
+    geist = TraceryGeist.from_yaml(geist_path, seed=42)
+
+    suggestions = geist.suggest(context)
+
+    for suggestion in suggestions:
+        # Should have at least 2 note references (seed + 1 neighbour minimum)
+        assert len(suggestion.notes) >= 2, (
+            f"Expected >= 2 notes (seed + neighbours), got {len(suggestion.notes)}: "
+            f"{suggestion.notes}"
+        )
+
+        # All note references should be non-empty
+        assert all(note.strip() for note in suggestion.notes), \
+            f"Found empty note reference in: {suggestion.notes}"
+
+
+def test_semantic_clusters_handles_deeplinks_correctly(tmp_path: Path):
+    """Test that semantic_clusters() formats deeplinks correctly for virtual notes."""
+    from datetime import datetime
+
+    from geistfabrik.embeddings import Session
+    from geistfabrik.function_registry import FunctionRegistry
+    from geistfabrik.vault import Vault
+
+    # Create vault with journal file containing date entries
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    # Create a journal file with multiple date entries
+    journal_content = """# 2025-01-15
+Some thoughts on [[Project Alpha]].
+
+# 2025-01-16
+More notes about [[Project Beta]].
+
+# 2025-01-17
+Final reflections on [[Project Gamma]].
+"""
+    (vault_path / "Journal.md").write_text(journal_content)
+
+    # Create some regular notes
+    (vault_path / "Project Alpha.md").write_text("# Project Alpha\nContent")
+    (vault_path / "Project Beta.md").write_text("# Project Beta\nContent")
+
+    vault = Vault(vault_path)
+    vault.sync()
+
+    # Create session
+    session_date = datetime(2025, 1, 20)
+    mock_computer = create_mock_embedding_computer(len(vault.all_notes()))
+    session = Session(session_date, vault.db, computer=mock_computer)
+    session.compute_embeddings(vault.all_notes())
+
+    # Create vault context
+    function_registry = FunctionRegistry()
+    context = VaultContext(vault, session, seed=42, function_registry=function_registry)
+
+    # Call semantic_clusters
+    results = context.call_function("semantic_clusters", 2, 2)
+
+    # Should return properly formatted cluster strings
+    assert isinstance(results, list)
+    assert len(results) >= 1
+
+    for result in results:
+        # Should contain delimiter
+        assert "|||" in result, f"Missing delimiter in: {result}"
+
+        # Should have bracketed links
+        assert "[[" in result and "]]" in result, f"Missing brackets in: {result}"
+
+        # Extract seed and neighbours
+        parts = result.split("|||")
+        assert len(parts) == 2, f"Should have exactly 2 parts: {result}"
+
+        seed = parts[0]
+
+        # Seed should be a single bracketed link
+        assert seed.startswith("[[") and seed.endswith("]]"), \
+            f"Seed should be bracketed: {seed}"
+
+        # If seed is a deeplink, it should have the format [[File#Heading]]
+        if "#" in seed:
+            # Extract the link text
+            link_text = seed[2:-2]  # Remove [[ and ]]
+            assert "#" in link_text, f"Deeplink should contain #: {link_text}"
+            # Format should be "Filename#Heading"
+            file_part, heading_part = link_text.split("#", 1)
+            assert file_part.strip(), "File part should not be empty"
+            assert heading_part.strip(), "Heading part should not be empty"
+
+
+def test_semantic_clusters_with_special_characters_in_titles(tmp_path: Path):
+    """Test semantic_clusters with note titles containing special characters."""
+    from datetime import datetime
+
+    from geistfabrik.embeddings import Session
+    from geistfabrik.function_registry import FunctionRegistry
+    from geistfabrik.vault import Vault
+
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    (vault_path / ".obsidian").mkdir()
+
+    # Create notes with special characters
+    (vault_path / "Note with [brackets].md").write_text("# Note with [brackets]\nContent")
+    (vault_path / "Note with (parens).md").write_text("# Note with (parens)\nContent")
+    (vault_path / "Note with commas, colons: semicolons;.md").write_text(
+        "# Note with commas, colons: semicolons;\nContent"
+    )
+
+    vault = Vault(vault_path)
+    vault.sync()
+
+    session_date = datetime(2025, 1, 20)
+    mock_computer = create_mock_embedding_computer(len(vault.all_notes()))
+    session = Session(session_date, vault.db, computer=mock_computer)
+    session.compute_embeddings(vault.all_notes())
+
+    function_registry = FunctionRegistry()
+    context = VaultContext(vault, session, seed=42, function_registry=function_registry)
+
+    results = context.call_function("semantic_clusters", 1, 2)
+
+    # Should handle special characters correctly
+    assert isinstance(results, list)
+    assert len(results) >= 1
+
+    for result in results:
+        # Should still be properly formatted despite special chars
+        assert "|||" in result
+        assert "[[" in result and "]]" in result
+
+        # Should not have nested brackets or broken formatting
+        # (e.g., no [[Note with [[brackets]]]] or similar)
+        parts = result.split("|||")
+        seed = parts[0]
+
+        # Count brackets - should be exactly one pair
+        assert seed.count("[[") == 1, f"Should have exactly one [[ in seed: {seed}"
+        assert seed.count("]]") == 1, f"Should have exactly one ]] in seed: {seed}"
