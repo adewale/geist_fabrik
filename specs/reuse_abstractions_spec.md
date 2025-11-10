@@ -130,34 +130,38 @@ class EmbeddingTrajectoryCalculator:
 class TemporalPatternFinder:
     """Finds patterns across multiple trajectories."""
 
-    @staticmethod
+    def __init__(self, vault: VaultContext):
+        """Initialize pattern finder with vault context.
+
+        Args:
+            vault: VaultContext with session history
+        """
+        self.vault = vault
+
     def find_converging_pairs(
-        vault: VaultContext,
+        self,
         candidate_pairs: List[Tuple[Note, Note]],
         threshold: float = 0.15
     ) -> List[Tuple[Note, Note]]:
         """Find pairs whose embeddings are converging across sessions."""
 
-    @staticmethod
     def find_high_drift_notes(
-        vault: VaultContext,
+        self,
         notes: List[Note],
         min_drift: float = 0.2
     ) -> List[Tuple[Note, np.ndarray]]:
         """Find notes with significant drift and their drift direction vectors."""
 
-    @staticmethod
     def find_aligned_with_direction(
-        vault: VaultContext,
+        self,
         notes: List[Note],
         direction: np.ndarray,
         min_alignment: float = 0.5
     ) -> List[Note]:
         """Find notes drifting in a specific semantic direction."""
 
-    @staticmethod
     def find_cycling_notes(
-        vault: VaultContext,
+        self,
         notes: List[Note],
         min_cycles: int = 2
     ) -> List[Note]:
@@ -220,22 +224,19 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
 
 # AFTER (concept_drift.py - ~15 lines)
 def suggest(vault: VaultContext) -> list[Suggestion]:
-    from geistfabrik.temporal_analysis import TemporalPatternFinder
+    from geistfabrik.temporal_analysis import TemporalPatternFinder, EmbeddingTrajectoryCalculator
 
     notes = vault.notes()
 
     # Find notes with high drift and their directions
-    drifting_notes = TemporalPatternFinder.find_high_drift_notes(
-        vault, notes, min_drift=0.2
-    )
+    finder = TemporalPatternFinder(vault)
+    drifting_notes = finder.find_high_drift_notes(notes, min_drift=0.2)
 
     for note, drift_vector in drifting_notes:
         # Find what note is drifting toward
         neighbors = vault.neighbours(note, k=5)
-        aligned = max(neighbors, key=lambda n:
-            EmbeddingTrajectoryCalculator(vault, note).drift_alignment(
-                vault.embedding(n)
-            ))
+        calc = EmbeddingTrajectoryCalculator(vault, note)
+        aligned = max(neighbors, key=lambda n: calc.drift_alignment(vault.embedding(n)))
 
         yield Suggestion(f"[[{note.title}]] drifting toward [[{aligned.title}]]", ...)
 ```
@@ -307,9 +308,16 @@ class SimilarityProfile:
 class SimilarityFilter:
     """Declarative filtering on similarity."""
 
-    @staticmethod
+    def __init__(self, vault: VaultContext):
+        """Initialize similarity filter with vault context.
+
+        Args:
+            vault: VaultContext for similarity computations
+        """
+        self.vault = vault
+
     def filter_by_range(
-        vault: VaultContext,
+        self,
         source: Note,
         candidates: List[Note],
         min_sim: float,
@@ -317,18 +325,16 @@ class SimilarityFilter:
     ) -> List[Note]:
         """Filter candidates by similarity range."""
 
-    @staticmethod
     def filter_similar_to_any(
-        vault: VaultContext,
+        self,
         anchors: List[Note],
         candidates: List[Note],
         threshold: float = SimilarityLevel.MODERATE
     ) -> List[Note]:
         """Find candidates similar to ANY anchor (union)."""
 
-    @staticmethod
     def filter_similar_to_all(
-        vault: VaultContext,
+        self,
         anchors: List[Note],
         candidates: List[Note],
         threshold: float = SimilarityLevel.MODERATE
@@ -574,9 +580,16 @@ Ad-hoc combinations in individual geists.
 class TemporalSemanticQuery:
     """Combine time and semantics."""
 
+    def __init__(self, vault: VaultContext):
+        """Initialize temporal-semantic query with vault context.
+
+        Args:
+            vault: VaultContext for time and semantic queries
+        """
+        self.vault = vault
+
     def notes_created_similar_to(
         self,
-        vault: VaultContext,
         anchor: Note,
         start_date: datetime,
         end_date: datetime,
@@ -586,14 +599,12 @@ class TemporalSemanticQuery:
 
     def seasonal_pattern_for_topic(
         self,
-        vault: VaultContext,
         topic_keywords: List[str]
     ) -> Dict[str, int]:
         """Count notes about topic by season (spring/summer/fall/winter)."""
 
     def drift_direction_by_period(
         self,
-        vault: VaultContext,
         note: Note
     ) -> Dict[str, np.ndarray]:
         """Get drift direction vectors by time period (month, season)."""
@@ -824,8 +835,11 @@ Session-scoped caching (clustering, session history) happens in abstractions, no
 ### Principle 6: Protocols Over Classes
 Use Protocol for extensibility (ExtractionStrategy, ContentFilter).
 
-### Principle 7: Stateless Where Possible
-Most abstractions are stateless utilities. State only when caching is valuable.
+### Principle 7: Constructor Dependency Injection
+All abstractions use constructor DI for VaultContext. No static methods with vault parameters.
+
+### Principle 8: Minimal State
+Abstractions hold only VaultContext references. Computational state (caching) only when valuable.
 
 ---
 
@@ -909,7 +923,8 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
     from geistfabrik.temporal_analysis import TemporalPatternFinder, EmbeddingTrajectoryCalculator
 
     notes = vault.notes()
-    drifting = TemporalPatternFinder.find_high_drift_notes(vault, notes, min_drift=0.2)
+    finder = TemporalPatternFinder(vault)
+    drifting = finder.find_high_drift_notes(notes, min_drift=0.2)
 
     suggestions = []
     for note, drift_vector in drifting[:10]:
