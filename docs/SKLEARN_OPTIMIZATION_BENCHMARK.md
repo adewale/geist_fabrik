@@ -1,21 +1,21 @@
-# sklearn Optimization Benchmark Results
+# sklearn Optimisation Benchmark Results
 
 **Date**: 2025-11-07
 **Test Environment**: 10,000-note synthetic vault
 **Benchmark Scripts**: `scripts/benchmark_optimizations.py`, `scripts/analyze_benchmarks.py`
-**Status**: ✅ BIG OPTIMIZATION #3 (Complete)
+**Status**: ✅ BIG OPTIMISATION #3 (Complete)
 
 ---
 
 ## Executive Summary
 
-GeistFabrik uses scikit-learn extensively for vector similarity operations (cosine similarity, k-NN search). On large vaults (10k+ notes), sklearn's validation overhead becomes significant. This benchmark tested 8 different optimization configurations to find the best balance of performance and safety.
+GeistFabrik uses scikit-learn extensively for vector similarity operations (cosine similarity, k-NN search). On large vaults (10k+ notes), sklearn's validation overhead becomes significant. This benchmark tested 8 different optimisation configurations to find the best balance of performance and safety.
 
 **Key Findings**:
 - ✅ **21% speedup** with `assume_finite=True` (23.2s → 19.4s average)
-- ✅ **All optimizations preserve correctness** (identical MD5 hashes across configs)
+- ✅ **All optimisations preserve correctness** (identical MD5 hashes across configs)
 - ✅ **No timeouts** with any configuration (120s timeout limit)
-- ✅ **Winner**: `opt1_assume_finite` (single optimization, maximum safety)
+- ✅ **Winner**: `opt1_assume_finite` (single optimisation, maximum safety)
 
 **Recommendation**: Enable `assume_finite=True` for large vaults (1000+ notes).
 
@@ -25,7 +25,7 @@ GeistFabrik uses scikit-learn extensively for vector similarity operations (cosi
 
 ### sklearn Validation Overhead
 
-sklearn's default behavior includes extensive input validation:
+sklearn's default behaviour includes extensive input validation:
 - Check for NaN and Inf values
 - Validate array shapes and types
 - Ensure finite values in all computations
@@ -172,7 +172,7 @@ Note: Different hashes for stub_expander/recent_focus is expected (they don't us
 | opt2+3              | 1.011x      | 0.977x  | 1.003x  |
 | all_optimizations   | 1.188x      | 1.042x  | 1.305x  |
 
-**Key Observation**: `assume_finite` provides the most benefit (~20% speedup). Other optimizations have minimal impact.
+**Key Observation**: `assume_finite` provides the most benefit (~20% speedup). Other optimisations have minimal impact.
 
 ### Per-Geist Speedup (Best Configuration)
 
@@ -196,7 +196,7 @@ Note: Different hashes for stub_expander/recent_focus is expected (they don't us
 
 ### Why opt1_assume_finite Wins
 
-The `assume_finite=True` optimization skips NaN/Inf validation in sklearn operations:
+The `assume_finite=True` optimisation skips NaN/Inf validation in sklearn operations:
 
 ```python
 # Before
@@ -210,7 +210,7 @@ cosine_similarity(X, Y, assume_finite=True)  # Skips validation
 
 **Impact**: ~20% speedup on similarity-heavy operations.
 
-### Why Other Optimizations Don't Help
+### Why Other Optimisations Don't Help
 
 - **opt2_fast_path**: Minimal benefit because bottleneck is in sklearn, not our code
 - **opt3_vectorize**: Already using NumPy arrays efficiently
@@ -253,7 +253,7 @@ SKLEARN_OPTIMIZATIONS = {
 If you have a vault with 5000+ notes and experience timeouts:
 
 ```bash
-# Test with optimization enabled
+# Test with optimisation enabled
 export GEIST_ASSUME_FINITE=true
 uv run geistfabrik invoke ~/my-vault --full
 
@@ -262,7 +262,7 @@ unset GEIST_ASSUME_FINITE
 uv run geistfabrik invoke ~/my-vault --full
 ```
 
-Report results to help validate the optimization on real-world vaults.
+Report results to help validate the optimisation on real-world vaults.
 
 ---
 
@@ -273,7 +273,7 @@ Report results to help validate the optimization on real-world vaults.
 Environment variable configuration in `src/geistfabrik/embeddings.py`:
 
 ```python
-# Read optimization flags from environment
+# Read optimisation flags from environment
 SKLEARN_ASSUME_FINITE = os.environ.get("GEIST_ASSUME_FINITE", "false").lower() == "true"
 SKLEARN_FAST_PATH = os.environ.get("GEIST_FAST_PATH", "false").lower() == "true"
 SKLEARN_VECTORIZE = os.environ.get("GEIST_VECTORIZE", "false").lower() == "true"
@@ -289,7 +289,7 @@ def cosine_similarity_optimized(X, Y=None):
 ### Future Plans
 
 1. **Make configurable**: Add `sklearn_optimizations` section to config.yaml
-2. **Auto-enable**: Detect vault size and enable optimizations for large vaults
+2. **Auto-enable**: Detect vault size and enable optimisations for large vaults
 3. **Add safety checks**: Validate embeddings for NaN/Inf at computation time
 4. **Benchmark more**: Test on real-world vaults beyond synthetic 10k vault
 
@@ -407,9 +407,9 @@ winner_config = next(c for c in CONFIGS if c["name"] == winner)
 ## Related Documentation
 
 - [`BENCHMARKING_GUIDE.md`](BENCHMARKING_GUIDE.md) - Comprehensive benchmarking overview
-- [`PERFORMANCE_OPTIMIZATION_RESULTS.md`](PERFORMANCE_OPTIMIZATION_RESULTS.md) - All optimization phases
+- [`PERFORMANCE_OPTIMIZATION_RESULTS.md`](PERFORMANCE_OPTIMIZATION_RESULTS.md) - All optimisation phases
 - [`10K_VAULT_BENCHMARK.md`](10K_VAULT_BENCHMARK.md) - 10k vault baseline
-- [`CHANGELOG.md`](../CHANGELOG.md) - BIG OPTIMIZATION #3 entry
+- [`CHANGELOG.md`](../CHANGELOG.md) - BIG OPTIMISATION #3 entry
 
 ---
 
@@ -422,9 +422,9 @@ sklearn configuration tuning provides significant performance improvements for l
 - ✅ **Safe for production** (embeddings are always finite)
 - ✅ **Simple to implement** (single boolean flag)
 
-This optimization complements earlier work:
-- **BIG OPTIMIZATION #1**: Algorithmic fixes (O(n²) → O(n))
-- **BIG OPTIMIZATION #2**: Vectorization (loops → sklearn)
-- **BIG OPTIMIZATION #3**: Configuration tuning (validation overhead)
+This optimisation complements earlier work:
+- **BIG OPTIMISATION #1**: Algorithmic fixes (O(n²) → O(n))
+- **BIG OPTIMISATION #2**: Vectorization (loops → sklearn)
+- **BIG OPTIMISATION #3**: Configuration tuning (validation overhead)
 
-Together, these optimizations make GeistFabrik viable for vaults with 10,000+ notes, with sub-2-minute session times and no timeouts.
+Together, these optimisations make GeistFabrik viable for vaults with 10,000+ notes, with sub-2-minute session times and no timeouts.

@@ -253,7 +253,7 @@ Unused: 9 (32%)
 
 ### Recommendations
 
-1. **High coverage** (VaultContext, Metadata): ✅ Well-utilized
+1. **High coverage** (VaultContext, Metadata): ✅ Well-utilised
 2. **Medium coverage** (Built-in Functions): ⚠️ Opportunity to create more Tracery geists
 3. **Low coverage** (Example Functions): ❌ These are demos, low usage is expected
 
@@ -318,7 +318,7 @@ No geist currently:
 
 ## 10. Conclusion
 
-**GeistFabrik's extension points are well-utilized:**
+**GeistFabrik's extension points are well-utilised:**
 
 - ✅ **80% of VaultContext methods** used by geists
 - ✅ **100% of metadata modules** actively used

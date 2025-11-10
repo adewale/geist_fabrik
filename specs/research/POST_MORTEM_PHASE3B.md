@@ -1,4 +1,4 @@
-# Post-Mortem: Phase 3B Optimization Rollback
+# Post-Mortem: Phase 3B Optimisation Rollback
 
 **Date**: 2025-11-06
 **Branch**: `claude/implement-tracery-vault-spec-011CUSk6JtinPP6j83fmkJaK`
@@ -6,12 +6,12 @@
 
 ## Executive Summary
 
-Phase 3B geist optimizations introduced a **21% regression** in 10k vault success rates (95% → 74%). A surgical rollback of two specific optimizations restored performance while keeping beneficial changes:
+Phase 3B geist optimisations introduced a **21% regression** in 10k vault success rates (95% → 74%). A surgical rollback of two specific optimisations restored performance while keeping beneficial changes:
 
 - **Removed**: pattern_finder sampling (95% coverage loss)
 - **Removed**: scale_shifter batch_similarity (cache invalidation)
-- **Kept**: Early termination optimizations (63-75% speedup, no quality loss)
-- **Kept**: Link set optimizations (O(N³) → O(N) algorithmic improvement)
+- **Kept**: Early termination optimisations (63-75% speedup, no quality loss)
+- **Kept**: Link set optimisations (O(N³) → O(N) algorithmic improvement)
 
 **Final Result**: 79% success rate on 10k vaults (37/47 geists), with surgical rollback complete.
 
@@ -25,9 +25,9 @@ Phase 3B geist optimizations introduced a **21% regression** in 10k vault succes
 - **Actual Impact**: 95% → 74% regression on 10k vaults
 
 ### Phase 3B Rollback (This Work)
-1. **Investigation**: Analyzed each optimization in isolation
+1. **Investigation**: Analyzed each optimisation in isolation
 2. **Root Cause Identification**: Found two critical regressions
-3. **Surgical Rollback**: Removed harmful optimizations only
+3. **Surgical Rollback**: Removed harmful optimisations only
 4. **Validation**: Tested on 10k vault with multiple timeout thresholds
 
 ---
@@ -58,7 +58,7 @@ for note in notes:
     # ... phrase extraction ...
 ```
 
-**Reasoning**: The sampling was a premature optimization. On 10k vaults, only analyzing 500 notes meant missing the majority of pattern detection opportunities, causing suggestions to fail quality filters.
+**Reasoning**: The sampling was a premature optimisation. On 10k vaults, only analyzing 500 notes meant missing the majority of pattern detection opportunities, causing suggestions to fail quality filters.
 
 ---
 
@@ -93,7 +93,7 @@ for abstract in vault.sample(abstract_notes, min(10, len(abstract_notes))):
 
 ---
 
-## What We Kept (Good Optimizations)
+## What We Kept (Good Optimisations)
 
 ### ✅ Early Termination Pattern
 
@@ -120,7 +120,7 @@ return vault.sample(suggestions, k=3)  # Final sampling only needs 2-3
 
 ---
 
-### ✅ Link Set Optimization
+### ✅ Link Set Optimisation
 
 **Geist**: pattern_finder
 
@@ -197,23 +197,23 @@ if pair in all_link_pairs:  # O(1) set lookup
 
 ### 1. Always Benchmark on Target Scale
 
-Phase 3B claimed success based on small vault testing (235 notes) but regressed on 10k vaults. **Lesson**: Test optimizations at the scale where they're intended to work.
+Phase 3B claimed success based on small vault testing (235 notes) but regressed on 10k vaults. **Lesson**: Test optimisations at the scale where they're intended to work.
 
 ### 2. Sampling Can Harm Quality, Not Just Performance
 
-The pattern_finder sampling was intended as a performance optimization but actually caused quality regression by reducing pattern detection coverage from 100% → 5%.
+The pattern_finder sampling was intended as a performance optimisation but actually caused quality regression by reducing pattern detection coverage from 100% → 5%.
 
 ### 3. Cache Invalidation is Subtle
 
-The `batch_similarity()` optimization looked good on paper (vectorized operations) but actually harmed performance by bypassing the session-scoped similarity cache.
+The `batch_similarity()` optimisation looked good on paper (vectorized operations) but actually harmed performance by bypassing the session-scoped similarity cache.
 
-### 4. Not All Optimizations Are Bad
+### 4. Not All Optimisations Are Bad
 
-Early termination and link set optimizations were correctly designed and provided genuine improvements without quality trade-offs.
+Early termination and link set optimisations were correctly designed and provided genuine improvements without quality trade-offs.
 
 ### 5. Surgical Rollback > Complete Rollback
 
-Rather than reverting all Phase 3B changes, we isolated and removed only the harmful optimizations while keeping the beneficial ones.
+Rather than reverting all Phase 3B changes, we isolated and removed only the harmful optimisations while keeping the beneficial ones.
 
 ---
 
@@ -243,13 +243,13 @@ This overhead is unavoidable when using sklearn's cosine_similarity. The caching
 1. **pattern_finder.py** (lines 38-41)
    - Removed: `sampled_notes = vault.sample(notes, k=min(500, len(notes)))`
    - Changed: `for note in sampled_notes:` → `for note in notes:`
-   - Kept: Link set optimization (lines 29-36, 68-73, 129-134)
+   - Kept: Link set optimisation (lines 29-36, 68-73, 129-134)
 
 2. **scale_shifter.py** (lines 141-158)
    - Removed: `batch_similarity()` call and matrix iteration
    - Restored: Nested loops with individual `similarity()` calls
 
-### Kept Optimizations
+### Kept Optimisations
 
 1. **antithesis_generator.py** - Early termination (no changes)
 2. **assumption_challenger.py** - Early termination (no changes)
@@ -264,7 +264,7 @@ This overhead is unavoidable when using sklearn's cosine_similarity. The caching
 2. ✅ Commit changes with detailed message
 3. Create PR with this post-mortem as documentation
 
-### Future Optimizations (If Needed)
+### Future Optimisations (If Needed)
 
 If 10k vault performance becomes a bottleneck again:
 
@@ -277,7 +277,7 @@ If 10k vault performance becomes a bottleneck again:
        sample_size = len(notes)  # Process all
    ```
 
-2. **Pattern_finder Phrase Extraction**: Optimize the O(N×M) word processing
+2. **Pattern_finder Phrase Extraction**: Optimise the O(N×M) word processing
    - Currently: 51.961s (67.7% of pattern_finder time)
    - Potential: Use Trie or suffix tree for phrase detection
 
@@ -293,7 +293,7 @@ If 10k vault performance becomes a bottleneck again:
 
 ## Regression Tests Added
 
-To prevent similar issues in future optimization work, comprehensive regression tests were added in `tests/integration/test_phase3b_regression.py`:
+To prevent similar issues in future optimisation work, comprehensive regression tests were added in `tests/integration/test_phase3b_regression.py`:
 
 ### Test Coverage
 
@@ -323,11 +323,11 @@ All regression tests pass with current (post-rollback) code.
 
 ---
 
-## Salvage Analysis: Discarded Optimizations
+## Salvage Analysis: Discarded Optimisations
 
-This section analyzes the two discarded optimizations to determine if they have salvageable potential for future optimization work.
+This section analyzes the two discarded optimisations to determine if they have salvageable potential for future optimisation work.
 
-### Optimization #1: pattern_finder Sampling
+### Optimisation #1: pattern_finder Sampling
 
 **Status**: DISCARDED
 **Salvage Potential**: Medium
@@ -368,17 +368,17 @@ for note in sampled_notes:
    - Cons: Complex control flow, unpredictable execution time
    - Risk: High - could timeout on vaults with few patterns
 
-3. **Algorithm Optimization** (Best long-term):
-   - Optimize phrase extraction using Trie or suffix tree
+3. **Algorithm Optimisation** (Best long-term):
+   - Optimise phrase extraction using Trie or suffix tree
    - Current bottleneck: O(N×M) word processing (51.961s, 67.7% of execution)
    - Potential: Process all notes without sampling
    - Risk: Low - algorithmic improvement without quality trade-offs
 
-**Recommendation**: Pursue Algorithm Optimization (Option 3). Profile analysis shows phrase extraction is the real bottleneck, not the full corpus iteration. Optimizing the algorithm eliminates the need for sampling entirely.
+**Recommendation**: Pursue Algorithm Optimisation (Option 3). Profile analysis shows phrase extraction is the real bottleneck, not the full corpus iteration. Optimising the algorithm eliminates the need for sampling entirely.
 
 ---
 
-### Optimization #2: scale_shifter batch_similarity
+### Optimisation #2: scale_shifter batch_similarity
 
 **Status**: DISCARDED
 **Salvage Potential**: High
@@ -448,7 +448,7 @@ for i, abstract in enumerate(abstract_sample):
    ```
    - Pros: Simple, uses existing cache infrastructure
    - Cons: Loses batch efficiency (falls back to O(N²) individual calls)
-   - Risk: Low - no cache behavior changes
+   - Risk: Low - no cache behaviour changes
 
 3. **Hybrid Approach**:
    - Check cache hit rate at runtime
@@ -464,9 +464,9 @@ for i, abstract in enumerate(abstract_sample):
 
 ### Summary: Salvage Recommendations
 
-| Optimization | Potential | Recommended Approach | Estimated Effort |
+| Optimisation | Potential | Recommended Approach | Estimated Effort |
 |-------------|-----------|---------------------|------------------|
-| pattern_finder sampling | Medium | Algorithm optimization (Trie/suffix tree) | 4-6 hours |
+| pattern_finder sampling | Medium | Algorithm optimisation (Trie/suffix tree) | 4-6 hours |
 | scale_shifter batch_similarity | High | Add caching to batch_similarity() | 3-4 hours |
 
 **Total Estimated Effort**: 7-10 hours
@@ -477,8 +477,8 @@ for i, abstract in enumerate(abstract_sample):
 **Next Steps for Implementation**:
 1. Create feature branch for salvage work
 2. Implement batch_similarity caching first (higher impact, lower risk)
-3. Profile pattern_finder phrase extraction to identify optimization targets
-4. Add regression tests for both optimizations
+3. Profile pattern_finder phrase extraction to identify optimisation targets
+4. Add regression tests for both optimisations
 5. Test on 10k vaults with full 47-geist sessions
 
 ---
@@ -486,17 +486,17 @@ for i, abstract in enumerate(abstract_sample):
 ## Conclusion
 
 The Phase 3B surgical rollback successfully:
-- ✅ Identified and removed two harmful optimizations
-- ✅ Kept beneficial optimizations (early termination, link sets)
+- ✅ Identified and removed two harmful optimisations
+- ✅ Kept beneficial optimisations (early termination, link sets)
 - ✅ Restored 10k vault success rates from 74% to 79%
 - ✅ Maintained all test suite passing (508 unit + 90 integration tests)
 - ✅ **Added 7 regression tests to prevent similar issues**
 
 The rollback demonstrates the importance of:
-- Testing at target scale before merging optimizations
-- Understanding cache behavior when refactoring
+- Testing at target scale before merging optimisations
+- Understanding cache behaviour when refactoring
 - Surgical fixes over complete reverts
-- Documenting lessons learned for future optimizations
+- Documenting lessons learned for future optimisations
 - **Adding regression tests to codify learned lessons**
 
 **Status**: Complete with regression tests added.

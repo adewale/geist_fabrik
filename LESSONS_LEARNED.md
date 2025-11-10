@@ -62,7 +62,7 @@ Geists should provoke thinking, not try to think for the user. This is especiall
 - **Computation is needed**: Statistics, graph algorithms, similarity scores
 - **Objective analysis**: Finding orphans, calculating embeddings, counting links
 - **Complex queries**: Multi-step database operations
-- **Performance matters**: Caching, optimization, batch processing
+- **Performance matters**: Caching, optimisation, batch processing
 - **Integration required**: External APIs, ML models, system calls
 
 #### Use Tracery Geists When:
@@ -109,8 +109,8 @@ All of these work as simple Tracery geists without any complex logic:
 
 This insight reinforces the core GeistFabrik principle: **Muses, not oracles.**
 
-- **Oracle behavior**: "I will tell you what the opposite is"
-- **Muse behavior**: "Have you considered the opposite?"
+- **Oracle behaviour**: "I will tell you what the opposite is"
+- **Muse behaviour**: "Have you considered the opposite?"
 
 The geist's job is not to know the answer. Its job is to ask questions you wouldn't ask yourself.
 

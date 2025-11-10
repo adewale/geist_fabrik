@@ -6,9 +6,9 @@ This directory contains benchmarking tools for GeistFabrik performance testing.
 
 ---
 
-## 1. sklearn Optimization Benchmarks
+## 1. sklearn Optimisation Benchmarks
 
-Test different sklearn configuration optimizations for large vaults (10k+ notes).
+Test different sklearn configuration optimisations for large vaults (10k+ notes).
 
 ### Running Benchmarks
 
@@ -25,7 +25,7 @@ python scripts/analyze_benchmarks.py --input /tmp/sklearn_results.json
 
 ### What It Tests
 
-- **8 configurations**: baseline + 7 optimization combinations
+- **8 configurations**: baseline + 7 optimisation combinations
 - **9 geists**: 6 problem geists (slow/timeout) + 3 control geists (fast)
 - **Correctness validation**: MD5 hash verification
 - **Performance analysis**: Speedup calculations, winner recommendation
@@ -36,7 +36,7 @@ See [`../docs/SKLEARN_OPTIMIZATION_BENCHMARK.md`](../docs/SKLEARN_OPTIMIZATION_B
 
 **Key findings**:
 - 21% speedup with `assume_finite=True`
-- All optimizations preserve correctness
+- All optimisations preserve correctness
 - No timeouts with any configuration
 
 ---

@@ -1,7 +1,7 @@
 """Integration tests for embeddings module (real models).
 
 These tests use the actual SentenceTransformer model and are slower.
-They verify end-to-end behavior with real embeddings.
+They verify end-to-end behaviour with real embeddings.
 
 Run separately with: pytest -v tests/integration/test_embeddings_integration.py
 Mark as slow: pytest -m "not slow" to skip these in CI

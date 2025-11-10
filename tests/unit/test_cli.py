@@ -48,7 +48,7 @@ def test_find_vault_root_current_dir_default(
 
 
 def test_invoke_command_no_filter_flag(tmp_path: Path) -> None:
-    """Test that --no-filter flag is recognized by argument parser."""
+    """Test that --no-filter flag is recognised by argument parser."""
     import sys
 
     from geistfabrik.cli import main
@@ -141,7 +141,7 @@ tracery:
 """
     (tracery_geists_dir / "test_tracery.yaml").write_text(tracery_geist)
 
-    # Initialize vault database
+    # Initialise vault database
     vault = Vault(vault_path)
     vault.sync()
     vault.close()
@@ -184,7 +184,7 @@ tracery:
 """
     (tracery_geists_dir / "test_tracery.yaml").write_text(tracery_geist)
 
-    # Initialize vault
+    # Initialise vault
     vault = Vault(vault_path)
     vault.sync()
 

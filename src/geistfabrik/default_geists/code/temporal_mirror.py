@@ -72,7 +72,7 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
     relationships = [
         "might answer questions raised in",
         "contradicts assumptions from",
-        "shows how far your thinking has traveled since",
+        "shows how far your thinking has travelled since",
         "reveals patterns you couldn't see when writing",
         "completes ideas that began in",
         "challenges the worldview of",

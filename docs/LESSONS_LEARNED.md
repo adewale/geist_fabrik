@@ -11,7 +11,7 @@
 1. [Architecture & Design](#architecture--design)
 2. [Testing Philosophy](#testing-philosophy)
 3. [CI/CD & Automation](#cicd--automation)
-4. [Performance & Optimization](#performance--optimization)
+4. [Performance & Optimisation](#performance--optimisation)
 5. [Developer Experience](#developer-experience)
 6. [LLM-Assisted Development](#llm-assisted-development)
 7. [Tool Selection](#tool-selection)
@@ -92,7 +92,7 @@ class VaultContext:
 - Makes debugging possible
 - Sessions are idempotent
 
-**Lesson**: Make "random" systems deterministic for debugging and reproducibility. Users appreciate predictable behavior.
+**Lesson**: Make "random" systems deterministic for debugging and reproducibility. Users appreciate predictable behaviour.
 
 ---
 
@@ -131,7 +131,7 @@ class VaultContext:
 
 ### ✅ Three-Layer Mocking Architecture
 
-**Decision**: Defense-in-depth approach to prevent accidental model downloads
+**Decision**: Defence-in-depth approach to prevent accidental model downloads
 
 **Layers**:
 1. **pytest_configure hook**: Patches `sentence_transformers` module globally
@@ -149,13 +149,13 @@ class VaultContext:
 
 ### ✅ Deterministic Stub Implementation
 
-**Decision**: Generate embeddings from text content hash, normalize to unit vector
+**Decision**: Generate embeddings from text content hash, normalise to unit vector
 
 ```python
 def encode(self, text):
     # Generate deterministic embedding from text hash
     text_hash = hashlib.sha256(text.encode()).digest()
-    # ... convert to 384-dim vector, normalize
+    # ... convert to 384-dim vector, normalise
 ```
 
 **Why It's Brilliant**:
@@ -164,7 +164,7 @@ def encode(self, text):
 - Tests verify logic, not ML model quality
 - No variance between test runs
 
-**Lesson**: Stubs should be deterministic and maintain structural invariants (shape, normalization) without semantic meaning.
+**Lesson**: Stubs should be deterministic and maintain structural invariants (shape, normalisation) without semantic meaning.
 
 ---
 
@@ -176,7 +176,7 @@ def encode(self, text):
 
 **Solution**: Changed to `scope="function"` and used stub
 
-**Lesson**: Module/session-scoped fixtures are dangerous with expensive initialization. Keep them lightweight or use stubs.
+**Lesson**: Module/session-scoped fixtures are dangerous with expensive initialisation. Keep them lightweight or use stubs.
 
 ---
 
@@ -207,12 +207,12 @@ pytestmark = [
 
 ### ✅ Test What Matters, Not Implementation
 
-**Good Test** (tests behavior):
+**Good Test** (tests behaviour):
 ```python
 def test_compute_semantic_embedding_mock(mock_computer):
     embedding = mock_computer.compute_semantic("test")
     assert embedding.shape == (384,)  # Verify shape
-    assert np.linalg.norm(embedding) == pytest.approx(1.0)  # Verify normalization
+    assert np.linalg.norm(embedding) == pytest.approx(1.0)  # Verify normalisation
 ```
 
 **Bad Test** (tests implementation):
@@ -221,7 +221,7 @@ def test_compute_semantic_embedding():
     assert computer._model.encode.called_with("test")  # Brittle!
 ```
 
-**Lesson**: Test public interfaces and behavior, not internal implementation details.
+**Lesson**: Test public interfaces and behaviour, not internal implementation details.
 
 ---
 
@@ -317,7 +317,7 @@ strategy:
 
 ---
 
-## Performance & Optimization
+## Performance & Optimisation
 
 ### ✅ Semantic Embedding Cache
 
@@ -523,7 +523,7 @@ raise ValueError(
 
 **Fix**: Updated `compute_embeddings()` to check cache first
 
-**Lesson**: Verify that optimization code (caches, indexes) is **actually used**. LLMs often create infrastructure that goes unused.
+**Lesson**: Verify that optimisation code (caches, indexes) is **actually used**. LLMs often create infrastructure that goes unused.
 
 ---
 
@@ -850,7 +850,7 @@ def temp_vault(tmp_path):
 3. **CI/CD**: Keep CI fast and focused. Stub expensive dependencies.
 4. **Performance**: Cache everything, batch ML operations, use SQLite
 5. **DX**: Modern tools (uv, ruff, mypy) are worth adopting
-6. **LLMs**: Write detailed specs first, audit generated code for dead code and unused optimizations
+6. **LLMs**: Write detailed specs first, audit generated code for dead code and unused optimisations
 7. **Types**: `mypy --strict` prevents bugs. Always use type hints.
 8. **Docs**: Write comprehensive docs. Future you will thank present you.
 

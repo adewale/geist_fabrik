@@ -48,7 +48,7 @@ class StatsCollector:
     """Collects statistics from a GeistFabrik vault."""
 
     def __init__(self, vault: Any, config: Any, history_days: int = 30):
-        """Initialize stats collector.
+        """Initialise stats collector.
 
         Args:
             vault: Vault instance
@@ -213,7 +213,7 @@ class StatsCollector:
         note_count = self.stats["notes"]["total"]
 
         # Orphans: notes with no incoming or outgoing links
-        # Optimized with LEFT JOIN instead of NOT IN subqueries (5-10x faster)
+        # Optimised with LEFT JOIN instead of NOT IN subqueries (5-10x faster)
         cursor = self.db.execute(
             """
             SELECT COUNT(*)
@@ -686,7 +686,7 @@ class EmbeddingMetricsComputer:
     """Computes advanced embedding-based metrics."""
 
     def __init__(self, db: sqlite3.Connection, config: Any = None):
-        """Initialize metrics computer.
+        """Initialise metrics computer.
 
         Args:
             db: SQLite database connection
@@ -785,7 +785,7 @@ class EmbeddingMetricsComputer:
 
     def _cache_metrics(self, session_date: str, metrics: Dict[str, Any]) -> None:
         """Cache computed metrics to database."""
-        # Serialize cluster_labels to JSON (keys already converted to Python int)
+        # Serialise cluster_labels to JSON (keys already converted to Python int)
         cluster_labels_json = json.dumps(metrics.get("cluster_labels", {}))
 
         # Convert numpy types to Python types for SQLite
@@ -854,7 +854,7 @@ class EmbeddingMetricsComputer:
                 eigenvalues = eigenvalues[eigenvalues > 1e-10]  # Filter near-zero
 
                 if len(eigenvalues) > 0:
-                    # IsoScore: normalize eigenvalues and compute entropy
+                    # IsoScore: normalise eigenvalues and compute entropy
                     eigenvalues_norm = eigenvalues / eigenvalues.sum()
                     entropy = -np.sum(eigenvalues_norm * np.log(eigenvalues_norm + 1e-10))
                     max_entropy = np.log(len(eigenvalues))
@@ -1213,7 +1213,7 @@ class StatsFormatter:
     def __init__(
         self, stats: Dict[str, Any], recommendations: List[Dict[str, Any]], verbose: bool = False
     ):
-        """Initialize formatter.
+        """Initialise formatter.
 
         Args:
             stats: Collected statistics

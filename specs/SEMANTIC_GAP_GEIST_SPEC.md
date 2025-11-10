@@ -126,7 +126,7 @@ The Semantic Gap Geist uses **four complementary approaches** to identify gaps. 
 
 **Algorithm**:
 ```python
-from sklearn.neighbors import LocalOutlierFactor
+from sklearn.neighbours import LocalOutlierFactor
 
 def detect_density_gaps(embeddings, contamination=0.1):
     """
@@ -189,7 +189,7 @@ def detect_intercluster_gaps(embeddings, labels, k_nearest=5, threshold=0.5):
     Args:
         embeddings: np.ndarray of note embeddings
         labels: Cluster labels from HDBSCAN
-        k_nearest: Number of nearest neighbors to check
+        k_nearest: Number of nearest neighbours to check
         threshold: Distance threshold for "empty" space
 
     Returns:
@@ -414,9 +414,9 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
     for gap_idx, lof_score in density_gaps[:3]:  # Top 3 gaps
         gap_note = notes[gap_idx]
 
-        # Find nearest neighbors for context
-        neighbors = vault.find_similar(gap_note.path, k=5)
-        neighbor_titles = [n.title for n, _ in neighbors[1:4]]
+        # Find nearest neighbours for context
+        neighbours = vault.find_similar(gap_note.path, k=5)
+        neighbor_titles = [n.title for n, _ in neighbours[1:4]]
 
         suggestions.append(Suggestion(
             text=f"What if you deepened your exploration around [[{gap_note.title}]]? "
@@ -560,7 +560,7 @@ from typing import List
 from geistfabrik import Suggestion, VaultContext
 
 # External (add to pyproject.toml)
-from sklearn.neighbors import LocalOutlierFactor
+from sklearn.neighbours import LocalOutlierFactor
 from sklearn.cluster import HDBSCAN
 from sklearn.decomposition import PCA
 from scipy.spatial import ConvexHull, Delaunay
@@ -676,7 +676,7 @@ def test_semantic_gap_requires_minimum_notes(small_vault):
 **Poor fit**:
 - Vaults with < 50 notes (insufficient data)
 - Users preferring concrete, actionable suggestions
-- Vaults with highly specialized/narrow domains
+- Vaults with highly specialised/narrow domains
 - Performance-sensitive environments
 
 ### Suggestion Tone
@@ -700,7 +700,7 @@ Semantic Gap suggestions should be:
 ### Phase 2 Features (Post-1.0)
 
 1. **Gap Tracking**: Store identified gaps in database, track when they're filled
-2. **Gap Evolution**: Visualize how gaps change as vault grows
+2. **Gap Evolution**: Visualise how gaps change as vault grows
 3. **User Feedback**: Let users mark gaps as "interesting" or "irrelevant"
 4. **Topological Data Analysis**: Use persistent homology for gap detection
 5. **LLM-Assisted Gap Naming**: Use Claude/GPT-4 to name conceptual gaps
@@ -745,7 +745,7 @@ This provides **quantitative context** before generating suggestions.
 
 The Semantic Gap Geist succeeds when:
 
-1. **Users discover blind spots**: "I didn't realize I hadn't explored this!"
+1. **Users discover blind spots**: "I didn't realise I hadn't explored this!"
 2. **Suggestions feel actionable**: Users can translate gaps into note ideas
 3. **False positives are rare**: Gaps should feel meaningful, not random
 4. **Complements other geists**: Works alongside bridge/island geists without redundancy

@@ -37,7 +37,7 @@ def vault_with_embeddings(sample_notes, mock_embedding_computer, temp_dir):
         note_path.parent.mkdir(parents=True, exist_ok=True)
         note_path.write_text(note.content)
 
-    # Initialize vault
+    # Initialise vault
     db_path = vault_path / "_geistfabrik" / "vault.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     vault = Vault(vault_path, db_path)
@@ -57,11 +57,11 @@ def vault_with_embeddings(sample_notes, mock_embedding_computer, temp_dir):
 
 
 def test_stats_collector_initialization(vault_with_embeddings):
-    """Test StatsCollector initialization and basic stats collection."""
+    """Test StatsCollector initialisation and basic stats collection."""
     config = GeistFabrikConfig()
     collector = StatsCollector(vault_with_embeddings, config, history_days=30)
 
-    # Should have collected basic stats on initialization
+    # Should have collected basic stats on initialisation
     assert "vault" in collector.stats
     assert "notes" in collector.stats
     assert "tags" in collector.stats
@@ -110,7 +110,7 @@ def test_stats_collector_get_latest_embeddings(vault_with_embeddings):
 
 
 def test_embedding_metrics_computer_initialization(vault_with_embeddings):
-    """Test EmbeddingMetricsComputer initialization."""
+    """Test EmbeddingMetricsComputer initialisation."""
     computer = EmbeddingMetricsComputer(vault_with_embeddings.db)
 
     assert computer.db is vault_with_embeddings.db
@@ -271,15 +271,15 @@ def test_metrics_caching_with_clustering(vault_with_embeddings):
     embeddings = []
     for i in range(15):
         if i < 5:
-            # Cluster 0: centered around [1, 0, 0, ...]
+            # Cluster 0: centred around [1, 0, 0, ...]
             base = np.array([1.0, 0.0, 0.0] + [0.0] * 384)
             noise = np.random.randn(387) * 0.1
         elif i < 10:
-            # Cluster 1: centered around [0, 1, 0, ...]
+            # Cluster 1: centred around [0, 1, 0, ...]
             base = np.array([0.0, 1.0, 0.0] + [0.0] * 384)
             noise = np.random.randn(387) * 0.1
         else:
-            # Cluster 2: centered around [0, 0, 1, ...]
+            # Cluster 2: centred around [0, 0, 1, ...]
             base = np.array([0.0, 0.0, 1.0] + [0.0] * 384)
             noise = np.random.randn(387) * 0.1
 
@@ -371,7 +371,7 @@ def test_temporal_drift_with_past_session(temp_dir, mock_embedding_computer):
     for note in notes:
         (vault_path / note.path).write_text(note.content)
 
-    # Initialize vault
+    # Initialise vault
     db_path = vault_path / "_geistfabrik" / "vault.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     vault = Vault(vault_path, db_path)
@@ -629,7 +629,7 @@ def test_format_json_with_nested_numpy_keys():
     recommendations = []
     formatter = StatsFormatter(stats, recommendations, verbose=False)
 
-    # Should successfully serialize
+    # Should successfully serialise
     json_output = formatter.format_json()
     parsed = json.loads(json_output)
 

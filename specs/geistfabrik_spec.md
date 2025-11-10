@@ -374,7 +374,7 @@ def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
 
 - **Fast startup** - First run computes everything, subsequent runs only process changes
 - **Efficient queries** - SQL indexes make graph operations instant
-- **Vector search** - sqlite-vec optimized for nearest-neighbour queries
+- **Vector search** - sqlite-vec optimised for nearest-neighbour queries
 - **Single file** - Entire vault intelligence in `_geistfabrik/vault.db`
 - **Portable** - Copy .db file with vault, everything works
 - **Deterministic** - Same vault state = same query results
@@ -1003,7 +1003,7 @@ Each comes in both code and Tracery versions where appropriate.
 def invoke_session(date: datetime, mode: str = "default"):
     """Complete session invocation flow"""
 
-    # 1. Initialize vault and sync filesystem
+    # 1. Initialise vault and sync filesystem
     vault = Vault(vault_path="~/Documents/MyVault",
                   db_path="~/Documents/MyVault/_geistfabrik/vault.db")
 
@@ -1339,7 +1339,7 @@ tracery:
   relationship:
     - "might be the answer you were looking for"
     - "contradicts everything you believed then"
-    - "shows how far you've traveled"
+    - "shows how far you've travelled"
     - "suggests you're walking in circles"
 ```
 
@@ -1548,7 +1548,7 @@ As sessions accumulate, storage of embeddings grows. A pruning strategy will sel
 
 Current implementation rehashes entire vault content on each invocation to detect changes. For large vaults (10K+ notes), this can be slow.
 
-**Optimization**: Only rehash files that have changed since last invocation by tracking file modification times and maintaining a hash cache.
+**Optimisation**: Only rehash files that have changed since last invocation by tracking file modification times and maintaining a hash cache.
 
 **Benefit**: Reduces sync time from O(n) to O(changed files), particularly important for large vaults with infrequent changes.
 

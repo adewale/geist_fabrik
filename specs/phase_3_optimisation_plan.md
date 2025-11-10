@@ -1,10 +1,10 @@
-# GeistFabrik Phase 3: Performance Optimization Plan
+# GeistFabrik Phase 3: Performance Optimisation Plan
 
-This plan implements four major optimizations in sequence, each validated with unit tests and benchmarked before committing. Expected gains: 60-75% total runtime reduction on 10k vault (247s → ~62-90s).
+This plan implements four major optimisations in sequence, each validated with unit tests and benchmarked before committing. Expected gains: 60-75% total runtime reduction on 10k vault (247s → ~62-90s).
 
 ---
 
-## BIG OPTIMIZATION #1: Fix O(N²) Algorithmic Inefficiencies
+## BIG OPTIMISATION #1: Fix O(N²) Algorithmic Inefficiencies
 
 **Replace list operations with O(1) dict/set alternatives**
 
@@ -110,7 +110,7 @@ This plan implements four major optimizations in sequence, each validated with u
 
 ---
 
-## BIG OPTIMIZATION #2: sklearn Vectorization + Cache Redundant Norms
+## BIG OPTIMISATION #2: sklearn Vectorization + Cache Redundant Norms
 
 **Replace manual implementations with sklearn/scipy + eliminate redundant computations**
 
@@ -141,7 +141,7 @@ Replace with:
 # BEFORE: Computes drift_vector norm 5 times in loop
 drift_vector = last_emb - first_emb
 
-for neighbor in current_neighbors:  # ~5 iterations
+for neighbour in current_neighbors:  # ~5 iterations
     alignment = np.dot(drift_vector, neighbor_emb) / (
         np.linalg.norm(drift_vector) * np.linalg.norm(neighbor_emb)  # redundant!
     )
@@ -150,7 +150,7 @@ for neighbor in current_neighbors:  # ~5 iterations
 drift_vector = last_emb - first_emb
 drift_vector_norm = np.linalg.norm(drift_vector)  # Compute once
 
-for neighbor in current_neighbors:
+for neighbour in current_neighbors:
     alignment = np.dot(drift_vector, neighbor_emb) / (
         drift_vector_norm * np.linalg.norm(neighbor_emb)
     )
@@ -169,7 +169,7 @@ for neighbor in current_neighbors:
 
 ---
 
-## BIG OPTIMIZATION #3: GPU Acceleration
+## BIG OPTIMISATION #3: GPU Acceleration
 
 **Enable GPU for embedding computation using existing PyTorch dependency**
 
@@ -201,7 +201,7 @@ for neighbor in current_neighbors:
 
 ---
 
-## BIG OPTIMIZATION #4: Database Layer
+## BIG OPTIMISATION #4: Database Layer
 
 **Batch inserts and pre-compile regex patterns**
 
@@ -255,7 +255,7 @@ for neighbor in current_neighbors:
 
 ## FINAL REVIEW: Check for Hoisted Calculations
 
-**After all 4 optimizations, review for remaining optimization opportunities**
+**After all 4 optimisations, review for remaining optimisation opportunities**
 
 ### Review Areas:
 
@@ -278,14 +278,14 @@ for neighbor in current_neighbors:
 
 1. **After OP-4 is committed**, run comprehensive code review
 2. **Document findings** in a review note (not committed)
-3. **If minor optimizations found** (< 5% impact): Create GitHub issue for future
+3. **If minor optimisations found** (< 5% impact): Create GitHub issue for future
 4. **If significant patterns found** (> 5% impact): Discuss whether to include in Phase 3 or defer
 
 **Expected Impact**: Identify any remaining low-hanging fruit (likely < 5% additional gains)
 
 ---
 
-## Process for Each Big Optimization:
+## Process for Each Big Optimisation:
 
 1. ✅ Write unit tests (test-first)
 2. ✅ Implement changes
@@ -293,7 +293,7 @@ for neighbor in current_neighbors:
 4. ✅ Benchmark locally with LYT Kit and 10k vault
 5. ✅ Update `CHANGELOG.md` with measured gains
 6. ✅ Commit and push
-7. ✅ Move to next optimization
+7. ✅ Move to next optimisation
 
 ---
 
@@ -304,7 +304,7 @@ for neighbor in current_neighbors:
 - **After OP-1**: ~242s (pattern_finder timeout **FIXED**)
 - **After OP-2**: ~215s (45s → 38s geists)
 - **After OP-3**: ~53s (200s → 35s embeddings with GPU)
-- **After OP-4**: ~45-48s (optimized sync)
+- **After OP-4**: ~45-48s (optimised sync)
 - **After Review**: Document any additional opportunities
 
 **Total speedup**:
@@ -317,7 +317,7 @@ for neighbor in current_neighbors:
 
 - Benchmarks stay LOCAL (not committed)
 - Nothing pushes until validation passes
-- Each optimization = separate CHANGELOG entry
-- All changes preserve behavioral equivalence (test-verified)
+- Each optimisation = separate CHANGELOG entry
+- All changes preserve behavioural equivalence (test-verified)
 - **OP-1 is critical** - fixes pattern_finder timeout
-- Final review identifies future optimization opportunities
+- Final review identifies future optimisation opportunities

@@ -96,7 +96,7 @@ def test_graph_neighbors_includes_outgoing(vault_context):
 
     neighbors_a = vault_context.graph_neighbors(note_a)
 
-    # A links to B, so B should be in neighbors
+    # A links to B, so B should be in neighbours
     assert note_b in neighbors_a
 
 
@@ -110,7 +110,7 @@ def test_graph_neighbors_includes_backlinks(vault_context):
 
     neighbors_a = vault_context.graph_neighbors(note_a)
 
-    # C links to A, so C should be in neighbors (backlink)
+    # C links to A, so C should be in neighbours (backlink)
     assert note_c in neighbors_a
 
 
@@ -139,10 +139,10 @@ def test_graph_neighbors_bidirectional(vault_context):
     neighbors_a = vault_context.graph_neighbors(note_a)
     neighbors_b = vault_context.graph_neighbors(note_b)
 
-    # A should be in B's neighbors
+    # A should be in B's neighbours
     assert note_a in neighbors_b
 
-    # B should be in A's neighbors
+    # B should be in A's neighbours
     assert note_b in neighbors_a
 
 
@@ -154,7 +154,7 @@ def test_graph_neighbors_empty_for_orphan(vault_context):
 
     neighbors_d = vault_context.graph_neighbors(note_d)
 
-    # D has no links, should have no neighbors
+    # D has no links, should have no neighbours
     assert neighbors_d == []
 
 
@@ -164,10 +164,10 @@ def test_graph_neighbors_returns_notes_not_links(vault_context):
 
     assert note_a is not None
 
-    neighbors = vault_context.graph_neighbors(note_a)
+    neighbours = vault_context.graph_neighbors(note_a)
 
     # Should return Note objects
-    assert all(isinstance(n, Note) for n in neighbors)
+    assert all(isinstance(n, Note) for n in neighbours)
 
 
 def test_has_link_equivalent_to_links_between(vault_context):
@@ -268,10 +268,10 @@ def test_graph_neighbors_equals_outgoing_plus_backlinks(vault_context):
 
     outgoing = vault_context.outgoing_links(note_a)
     backlinks = vault_context.backlinks(note_a)
-    neighbors = vault_context.graph_neighbors(note_a)
+    neighbours = vault_context.graph_neighbors(note_a)
 
     # Convert to sets for comparison (graph_neighbors deduplicates)
     expected = set(outgoing + backlinks)
-    actual = set(neighbors)
+    actual = set(neighbours)
 
     assert expected == actual

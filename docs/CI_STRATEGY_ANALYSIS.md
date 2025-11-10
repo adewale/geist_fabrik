@@ -30,7 +30,7 @@ pytestmark = [
 
 **Known Issues**:
 
-a) **Threading behavior** (`tests/integration/test_vault.py:test_concurrent_sync`):
+a) **Threading behaviour** (`tests/integration/test_vault.py:test_concurrent_sync`):
    - Uses `threading.Thread` with concurrent SQLite access
    - Windows handles thread joining differently than Unix
    - SQLite file locking is stricter on Windows

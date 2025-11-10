@@ -68,7 +68,7 @@ tests/
 - **test_load_all_notes**: Load all .md files from vault directory
 - **test_ignore_obsidian_folder**: Skip `.obsidian/` directory
 - **test_ignore_non_markdown**: Skip non-.md files
-- **test_respect_exclude_paths**: Honor `exclude_paths` configuration
+- **test_respect_exclude_paths**: Honour `exclude_paths` configuration
 - **test_handle_nested_directories**: Parse notes in subdirectories
 - **test_handle_unicode_filenames**: Support non-ASCII file names
 - **test_handle_spaces_in_filenames**: Parse files with spaces
@@ -89,7 +89,7 @@ tests/
 - **test_truncate_long_content**: Truncate content >1000 chars before embedding
 - **test_embedding_deterministic**: Same text = same embedding
 - **test_embedding_model_loading**: Load sentence-transformers model once
-- **test_embedding_normalization**: Embeddings are normalized vectors
+- **test_embedding_normalization**: Embeddings are normalised vectors
 
 ### 2. test_vault_context.py - VaultContext Layer
 
@@ -206,7 +206,7 @@ tests/
 - **test_index_performance_links**: Links indexed by source/target
 - **test_index_performance_tags**: Tags indexed
 - **test_index_performance_metadata**: Metadata key indexed
-- **test_bulk_insert_performance**: Batch insert optimization
+- **test_bulk_insert_performance**: Batch insert optimisation
 
 ### 5. test_markdown_parser.py - Markdown Parsing
 
@@ -633,7 +633,7 @@ def test_kepano_semantic_clusters():
 ```python
 def test_scenario_first_time_setup():
     """User runs GeistFabrik on kepano vault for first time"""
-    # Step 1: Initialize vault from kepano testdata
+    # Step 1: Initialise vault from kepano testdata
     # Step 2: Sync parses all 8 files
     # Step 3: Compute embeddings for all notes
     # Step 4: Build SQLite database

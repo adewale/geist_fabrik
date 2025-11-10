@@ -1,7 +1,7 @@
 """Hidden Hub geist - finds semantically central notes that aren't well-linked.
 
 Identifies notes that are semantically related to many other notes but have few
-actual links, suggesting they might be important conceptual hubs that are under-recognized.
+actual links, suggesting they might be important conceptual hubs that are under-recognised.
 """
 
 from typing import TYPE_CHECKING
@@ -31,15 +31,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         incoming = len(vault.backlinks(note))
         total_links = outgoing + incoming
 
-        # Find semantic neighbors with scores (OP-9: avoid recomputing similarities)
+        # Find semantic neighbours with scores (OP-9: avoid recomputing similarities)
         neighbors_with_scores = vault.neighbours(note, k=30, return_scores=True)
 
-        # Filter to only high-similarity neighbors
+        # Filter to only high-similarity neighbours
         high_similarity_count = sum(1 for n, sim in neighbors_with_scores if sim > 0.6)
 
         # High semantic centrality, low graph centrality = hidden hub
         if high_similarity_count > 10 and total_links < 5:
-            # Sample some neighbors to mention (extract notes from tuples)
+            # Sample some neighbours to mention (extract notes from tuples)
             neighbor_notes = [n for n, sim in neighbors_with_scores[:10]]
             neighbor_sample = vault.sample(neighbor_notes, k=3)
             neighbor_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbor_sample])

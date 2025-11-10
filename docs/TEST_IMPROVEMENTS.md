@@ -11,7 +11,7 @@
 1. [Acceptance Criteria Tool Improvements](#acceptance-criteria-tool-improvements)
 2. [Test Architecture Improvements](#test-architecture-improvements)
 3. [Shared Stub Library](#shared-stub-library)
-4. [Performance Optimizations](#performance-optimizations)
+4. [Performance Optimisations](#performance-optimisations)
 5. [Resilience Improvements](#resilience-improvements)
 6. [Implementation Plan](#implementation-plan)
 
@@ -206,7 +206,7 @@ SAMPLE_NOTES = [
     # ... more standard fixtures
 ]
 
-# Specialized fixtures
+# Specialised fixtures
 LONG_NOTE = Note(...)        # For testing large content
 EMPTY_NOTE = Note(...)       # For testing edge cases
 LINKED_NOTES = [...]         # Notes with complex link graph
@@ -229,7 +229,7 @@ def test_embedding(mock_computer):
 - Easy to add new standard fixtures
 - Tests are more readable
 
-#### 2. Parameterized Tests
+#### 2. Parameterised Tests
 
 Use `@pytest.mark.parametrize` to test multiple scenarios:
 
@@ -244,7 +244,7 @@ def test_parse_link_with_heading():
 def test_parse_link_with_alias():
     assert parse_links("[[note|alias]]") == ["note"]
 
-# ✅ BETTER: Single parameterized test
+# ✅ BETTER: Single parameterised test
 @pytest.mark.parametrize("text,expected", [
     ("[[note]]", ["note"]),
     ("[[note#heading]]", ["note"]),
@@ -270,7 +270,7 @@ from hypothesis import given, strategies as st
 
 @given(st.text(min_size=1, max_size=1000))
 def test_embedding_always_normalized(text):
-    """Any text should produce normalized embedding."""
+    """Any text should produce normalised embedding."""
     embedding = compute_semantic(text)
     norm = np.linalg.norm(embedding)
     assert norm == pytest.approx(1.0, abs=1e-6)
@@ -443,7 +443,7 @@ def test_temporal_clustering():
 
 ---
 
-## Performance Optimizations
+## Performance Optimisations
 
 ### 1. Parallel Test Execution
 
@@ -464,7 +464,7 @@ pytest -n 4
 addopts = -n auto  # Automatically detect CPU count
 ```
 
-### 2. Fixture Scope Optimization
+### 2. Fixture Scope Optimisation
 
 **Analysis**: Which fixtures can be session-scoped vs function-scoped?
 
@@ -490,7 +490,7 @@ def test_db():
 
 ### 3. Lazy Imports
 
-**Optimization**: Import heavy modules only when needed
+**Optimisation**: Import heavy modules only when needed
 
 ```python
 # ❌ CURRENT: Import at module level
@@ -639,7 +639,7 @@ def test_geist_output(snapshot):
 
 ### Phase 3: Test Enhancements (3-4 hours)
 
-1. ✅ Add parameterized tests for parsers
+1. ✅ Add parameterised tests for parsers
 2. ✅ Add property-based tests (hypothesis)
 3. ✅ Create stub factories
 4. ✅ Add more test presets
@@ -647,7 +647,7 @@ def test_geist_output(snapshot):
 ### Phase 4: Performance (1 hour)
 
 1. ✅ Enable `pytest-xdist` for parallel execution
-2. ✅ Optimize fixture scopes
+2. ✅ Optimise fixture scopes
 3. ✅ Add lazy imports where appropriate
 
 ### Phase 5: Resilience (1-2 hours)
@@ -688,14 +688,14 @@ def test_geist_output(snapshot):
 - [ ] Add --fast, --medium, --slow flags for selective running
 
 ### Test Enhancements
-- [ ] Convert similar tests to parameterized tests
+- [ ] Convert similar tests to parameterised tests
 - [ ] Add hypothesis for property-based testing
 - [ ] Add snapshot testing for geist outputs
 - [ ] Add more edge case tests (using hypothesis)
 
 ### Performance
 - [ ] Enable pytest-xdist (parallel execution)
-- [ ] Optimize fixture scopes (session vs function)
+- [ ] Optimise fixture scopes (session vs function)
 - [ ] Add lazy imports for heavy modules
 - [ ] Profile test suite to identify slow tests
 

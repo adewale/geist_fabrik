@@ -1,6 +1,6 @@
 # GeistFabrik Benchmarking Guide
 
-This guide consolidates all benchmarking documentation and provides a roadmap for understanding GeistFabrik's performance characteristics across different vault sizes and optimization strategies.
+This guide consolidates all benchmarking documentation and provides a roadmap for understanding GeistFabrik's performance characteristics across different vault sizes and optimisation strategies.
 
 ## Table of Contents
 
@@ -9,7 +9,7 @@ This guide consolidates all benchmarking documentation and provides a roadmap fo
 3. [Benchmark Types](#benchmark-types)
 4. [Running Benchmarks](#running-benchmarks)
 5. [Understanding Results](#understanding-results)
-6. [Optimization Strategies](#optimization-strategies)
+6. [Optimisation Strategies](#optimisation-strategies)
 7. [Detailed Results](#detailed-results)
 
 ---
@@ -19,14 +19,14 @@ This guide consolidates all benchmarking documentation and provides a roadmap fo
 GeistFabrik includes comprehensive benchmarking infrastructure to:
 
 - **Validate performance** across different vault sizes (10-10,000+ notes)
-- **Test optimization strategies** (algorithmic improvements, sklearn tuning)
-- **Ensure correctness** (optimizations must preserve output)
-- **Guide configuration** (help users optimize for their vault size)
+- **Test optimisation strategies** (algorithmic improvements, sklearn tuning)
+- **Ensure correctness** (optimisations must preserve output)
+- **Guide configuration** (help users optimise for their vault size)
 
 Key performance targets:
 - **Small vaults** (10-100 notes): <5s session time
 - **Medium vaults** (100-1,000 notes): <30s session time
-- **Large vaults** (1,000-10,000+ notes): <2min session time with optimizations
+- **Large vaults** (1,000-10,000+ notes): <2min session time with optimisations
 
 ---
 
@@ -45,10 +45,10 @@ uv run geistfabrik test pattern_finder ~/my-vault --timeout 60 --debug
 uv run geistfabrik stats ~/my-vault
 ```
 
-### Optimization Benchmarking
+### Optimisation Benchmarking
 
 ```bash
-# Run sklearn optimization benchmark (72 runs = 8 configs × 9 geists)
+# Run sklearn optimisation benchmark (72 runs = 8 configs × 9 geists)
 python scripts/benchmark_optimizations.py \
   --vault "/path/to/large/vault" \
   --output benchmark_results.json \
@@ -89,22 +89,22 @@ cat scripts/BENCHMARKS.md
 
 **When to use**: Testing on a new vault size or validating baseline performance
 
-### 2. Optimization Benchmarks
+### 2. Optimisation Benchmarks
 
-**Purpose**: Validate that optimizations improve performance while preserving correctness
+**Purpose**: Validate that optimisations improve performance while preserving correctness
 
 **Documents**:
 - [`SKLEARN_OPTIMIZATION_BENCHMARK.md`](SKLEARN_OPTIMIZATION_BENCHMARK.md) - sklearn tuning results
 
-**Note**: Historical optimization benchmark files have been archived. Optimization results are documented in CHANGELOG.md.
+**Note**: Historical optimisation benchmark files have been archived. Optimisation results are documented in CHANGELOG.md.
 
 **What they measure**:
-- Speedup percentage (before vs after optimization)
+- Speedup percentage (before vs after optimisation)
 - Correctness preservation (MD5 hash validation)
 - Cache hit rates and memory overhead
-- Individual optimization contributions
+- Individual optimisation contributions
 
-**When to use**: After implementing performance improvements, before committing optimizations
+**When to use**: After implementing performance improvements, before committing optimisations
 
 ### 3. Profiling and Debugging
 
@@ -120,7 +120,7 @@ cat scripts/BENCHMARKS.md
 **What they measure**:
 - Function-level time breakdown
 - Hot paths and bottlenecks
-- Suggestions for optimization
+- Suggestions for optimisation
 
 **When to use**: Investigating slow geists, debugging timeouts
 
@@ -162,19 +162,19 @@ uv run geistfabrik test geist_name ~/my-vault --timeout 60 --debug
 uv run geistfabrik test pattern_finder /tmp/10k-vault --timeout 120 --debug
 ```
 
-### Optimization Benchmarks
+### Optimisation Benchmarks
 
-Test different optimization configurations:
+Test different optimisation configurations:
 
 ```bash
-# Run comprehensive sklearn optimization benchmark
+# Run comprehensive sklearn optimisation benchmark
 python scripts/benchmark_optimizations.py \
   --vault "/tmp/10000-markdown-files/10000 markdown files/" \
   --output /tmp/sklearn_results.json \
   --timeout 120
 
 # This tests:
-# - 8 configurations (baseline + 7 optimization combinations)
+# - 8 configurations (baseline + 7 optimisation combinations)
 # - 9 geists (6 problem geists + 3 control geists)
 # - 72 total runs with correctness validation
 ```
@@ -252,19 +252,19 @@ Speedup = baseline_time / optimized_time
 
 Example:
   Baseline: 23.2s avg
-  Optimized: 19.4s avg
+  Optimised: 19.4s avg
   Speedup: 1.20x (20% faster)
 ```
 
 #### Correctness Validation
 
-All optimization benchmarks validate correctness using MD5 hashes:
+All optimisation benchmarks validate correctness using MD5 hashes:
 
 ```
 ✅ pattern_finder: consistent across all configs (hash: 56580ef8)
 ```
 
-If hashes differ, the optimization has changed behavior (bug).
+If hashes differ, the optimisation has changed behaviour (bug).
 
 ### Reading Benchmark Reports
 
@@ -279,9 +279,9 @@ Benchmark documents follow this structure:
 
 ---
 
-## Optimization Strategies
+## Optimisation Strategies
 
-### 1. Algorithmic Optimizations (BIG OPTIMIZATION #1)
+### 1. Algorithmic Optimisations (BIG OPTIMISATION #1)
 
 **Target**: O(n²) or worse algorithmic inefficiencies
 
@@ -292,9 +292,9 @@ Benchmark documents follow this structure:
 
 **Impact**: Fixes timeouts, 2-5% overall improvement
 
-**See**: CHANGELOG.md "BIG OPTIMIZATION #1"
+**See**: CHANGELOG.md "BIG OPTIMISATION #1"
 
-### 2. Vectorization (BIG OPTIMIZATION #2)
+### 2. Vectorization (BIG OPTIMISATION #2)
 
 **Target**: Manual loop-based similarity calculations
 
@@ -305,16 +305,16 @@ Benchmark documents follow this structure:
 
 **Impact**: 10-15% speedup on geist execution phase
 
-**See**: CHANGELOG.md "BIG OPTIMIZATION #2"
+**See**: CHANGELOG.md "BIG OPTIMISATION #2"
 
-### 3. sklearn Configuration Tuning (BIG OPTIMIZATION #3)
+### 3. sklearn Configuration Tuning (BIG OPTIMISATION #3)
 
 **Target**: sklearn validation overhead in large vaults
 
-**Optimizations**:
+**Optimisations**:
 - `assume_finite=True`: Skip NaN/inf checks (21% speedup)
 - `force_all_finite=False`: Relax validation
-- NumPy array optimizations
+- NumPy array optimisations
 
 **Impact**: 21% speedup on 10k vault, preserves correctness
 
@@ -346,11 +346,11 @@ Benchmark documents follow this structure:
 
 **Note**: Historical benchmarks for smaller vaults have been archived. See CHANGELOG.md for performance characteristics.
 
-### By Optimization Phase
+### By Optimisation Phase
 
-**Note**: Historical optimization phase benchmarks have been archived. See CHANGELOG.md for optimization results and performance improvements across all phases.
+**Note**: Historical optimisation phase benchmarks have been archived. See CHANGELOG.md for optimisation results and performance improvements across all phases.
 
-### By Optimization Type
+### By Optimisation Type
 
 - **sklearn Tuning**: [`SKLEARN_OPTIMIZATION_BENCHMARK.md`](SKLEARN_OPTIMIZATION_BENCHMARK.md)
 - **Profiling System**: [`GEIST_INSTRUMENTATION_DESIGN.md`](GEIST_INSTRUMENTATION_DESIGN.md)
@@ -358,7 +358,7 @@ Benchmark documents follow this structure:
 ### Scripts Reference
 
 - **Quick command reference**: [`scripts/BENCHMARKS.md`](../scripts/BENCHMARKS.md)
-- **Optimization benchmark**: `scripts/benchmark_optimizations.py`
+- **Optimisation benchmark**: `scripts/benchmark_optimizations.py`
 - **Results analysis**: `scripts/analyze_benchmarks.py`
 - **Configuration**: `scripts/benchmark_config.py`
 
@@ -366,15 +366,15 @@ Benchmark documents follow this structure:
 
 ## Contributing Performance Improvements
 
-When optimizing GeistFabrik:
+When optimising GeistFabrik:
 
 1. **Establish baseline**: Run benchmarks before changes
-2. **Implement optimization**: Make targeted improvements
+2. **Implement optimisation**: Make targeted improvements
 3. **Validate correctness**: Ensure outputs haven't changed
 4. **Measure impact**: Run benchmarks after changes
 5. **Document results**: Update CHANGELOG.md and add benchmark doc
 6. **Test edge cases**: Different vault sizes, unusual structures
-7. **Add tests**: Unit tests for optimization logic
+7. **Add tests**: Unit tests for optimisation logic
 
 **Example workflow**:
 
@@ -385,13 +385,13 @@ python scripts/benchmark_optimizations.py --vault /tmp/10k-vault \
 
 # 2. Make changes...
 
-# 3. Test optimized version
+# 3. Test optimised version
 python scripts/benchmark_optimizations.py --vault /tmp/10k-vault \
-  --output optimized.json --timeout 120
+  --output optimised.json --timeout 120
 
 # 4. Compare
 python scripts/analyze_benchmarks.py --input baseline.json > baseline_report.txt
-python scripts/analyze_benchmarks.py --input optimized.json > optimized_report.txt
+python scripts/analyze_benchmarks.py --input optimised.json > optimized_report.txt
 
 # 5. Validate
 diff baseline_report.txt optimized_report.txt
@@ -421,7 +421,7 @@ Look for:
 - Large list operations (remove, index)
 - Redundant computations
 
-**Fix**: Apply algorithmic optimizations or caching
+**Fix**: Apply algorithmic optimisations or caching
 
 ### Memory Issues
 
@@ -466,14 +466,14 @@ done
 GeistFabrik's benchmarking suite provides comprehensive performance testing across:
 
 - **Multiple vault sizes** (10 to 10,000+ notes)
-- **Different optimization strategies** (algorithmic, vectorization, configuration tuning)
+- **Different optimisation strategies** (algorithmic, vectorization, configuration tuning)
 - **Correctness validation** (MD5 hash verification)
 - **Detailed profiling** (function-level breakdown with `--debug`)
 
 **Start here**:
 1. Run basic timing: `time uv run geistfabrik invoke ~/vault --full`
 2. If too slow, profile: Add `--debug` flag
-3. For large vaults (10k+), test optimizations: `scripts/benchmark_optimizations.py`
+3. For large vaults (10k+), test optimisations: `scripts/benchmark_optimizations.py`
 4. Compare before/after: `scripts/analyze_benchmarks.py`
 
 **Key documents**:

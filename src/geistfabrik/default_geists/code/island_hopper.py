@@ -40,7 +40,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Find notes semantically near cluster but not in it
         boundary_notes = []
 
-        # OPTIMIZATION #5: Batch compute similarities between all notes and cluster
+        # OPTIMISATION #5: Batch compute similarities between all notes and cluster
         cluster_set = set(n.path for n in cluster)
         candidate_notes = [note for note in all_notes if note.path not in cluster_set]
 

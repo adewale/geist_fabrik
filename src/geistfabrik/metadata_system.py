@@ -39,7 +39,7 @@ class MetadataLoader:
     """
 
     def __init__(self, module_dir: Optional[Path] = None):
-        """Initialize metadata loader.
+        """Initialise metadata loader.
 
         Args:
             module_dir: Directory containing metadata inference modules.

@@ -160,7 +160,7 @@ All unlisted geists remain enabled.
 
 ## Default Config Generation
 
-When a new vault is initialized, `_geistfabrik/config.yaml` is created with:
+When a new vault is initialised, `_geistfabrik/config.yaml` is created with:
 
 ```yaml
 default_geists:
@@ -247,7 +247,7 @@ Works globally (not hemisphere-specific), simple date matching, focuses on perso
    - Load all default geists from package
    - Filter by config: `if config.default_geists.get(geist_id, True)`
    - Load custom geists (always enabled)
-4. **Config generation**: When initializing vault, write full default config showing all geists
+4. **Config generation**: When initialising vault, write full default config showing all geists
 5. **Built-in functions**: `contrarian_to()` is now a built-in vault function
 6. **Documentation**: Update examples/ to focus on metadata_inference and vault_functions only
 7. **File migrations**:

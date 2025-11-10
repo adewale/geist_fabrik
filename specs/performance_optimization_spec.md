@@ -1,4 +1,4 @@
-# Performance Optimization Spec
+# Performance Optimisation Spec
 
 **Version**: 1.0
 **Date**: 2025-11-01
@@ -6,17 +6,17 @@
 
 ## Overview
 
-This specification documents performance optimization patterns discovered through empirical research on GeistFabrik, and identifies opportunities for applying these patterns throughout the codebase.
+This specification documents performance optimisation patterns discovered through empirical research on GeistFabrik, and identifies opportunities for applying these patterns throughout the codebase.
 
 ## Background
 
-GeistFabrik generates suggestions by executing 45+ geists per session. Initial profiling revealed cluster_mirror taking 20.9s on a 3406-note vault. Through systematic optimization, we achieved 75% speedup (5.3s) by applying session-scoped caching patterns.
+GeistFabrik generates suggestions by executing 45+ geists per session. Initial profiling revealed cluster_mirror taking 20.9s on a 3406-note vault. Through systematic optimisation, we achieved 75% speedup (5.3s) by applying session-scoped caching patterns.
 
 This spec captures lessons learned and extends those insights to other hot paths.
 
 ---
 
-## Core Optimization Patterns
+## Core Optimisation Patterns
 
 ### Pattern 1: Session-Scoped Caching
 
@@ -71,7 +71,7 @@ class VaultContext:
 
 **When to apply**:
 - Computing similarity for multiple note pairs
-- Finding k-nearest neighbors
+- Finding k-nearest neighbours
 - Matrix operations on embeddings
 - Statistical computations on large datasets
 
@@ -138,7 +138,7 @@ SELECT * FROM notes WHERE path IN (?, ?, ?, ...)
 
 ---
 
-### Pattern 4: Query Optimization
+### Pattern 4: Query Optimisation
 
 **Principle**: Use efficient SQL patterns for common queries.
 
@@ -224,7 +224,7 @@ connected = find_connected_pair()    # Pass 3
 detached = find_detached_pair()      # Pass 4
 
 # ✅ Fast: Single pass with categorization
-all_pairs = analyze_all_pairs()  # Single pass, categorize on the fly
+all_pairs = analyze_all_pairs()  # Single pass, categorise on the fly
 explicit = all_pairs['explicit']
 implicit = all_pairs['implicit']
 connected = all_pairs['connected']
@@ -233,7 +233,7 @@ detached = all_pairs['detached']
 
 ---
 
-## Identified Optimization Opportunities
+## Identified Optimisation Opportunities
 
 ### Priority 1: High Impact, Low Effort
 
@@ -327,7 +327,7 @@ def outgoing_links(self, note: Note) -> List[Note]:
 - Doesn't scale to large vaults
 - Tracery geists may call multiple times
 
-**Solution source**: User-provided optimization strategy: "Do NOT switch to sampling. Instead of looping through notes, compute ALL similarities at once using numpy matrix multiplication"
+**Solution source**: User-provided optimisation strategy: "Do NOT switch to sampling. Instead of looping through notes, compute ALL similarities at once using numpy matrix multiplication"
 
 **Implemented approach - Vectorized computation**:
 ```python
@@ -355,7 +355,7 @@ def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> List[st
     candidates_matrix = np.array(candidate_embeddings)
     similarities = np.dot(candidates_matrix, query_array)
 
-    # Normalize (vectorized)
+    # Normalise (vectorized)
     query_norm = np.linalg.norm(query_array)
     candidate_norms = np.linalg.norm(candidates_matrix, axis=1)
     similarities = similarities / (candidate_norms * query_norm)
@@ -390,7 +390,7 @@ def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> List[st
 
 **Problem**:
 - find_explicit_pair(): O(n) links × similarity
-- find_implicit_pair(): O(n) notes × O(k) neighbors × similarity
+- find_implicit_pair(): O(n) notes × O(k) neighbours × similarity
 - find_connected_pair(): O(n) links × similarity
 - find_detached_pair(): 50 samples × similarity
 
@@ -399,9 +399,9 @@ Refactor to single-pass categorization:
 
 ```python
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Analyze all note pairs in single pass, categorize into quadrants."""
+    """Analyze all note pairs in single pass, categorise into quadrants."""
 
-    # Single pass: categorize pairs as we encounter them
+    # Single pass: categorise pairs as we encounter them
     explicit, implicit, connected, detached = [], [], [], []
     processed = set()
 
@@ -418,7 +418,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 continue
             processed.add(pair_key)
 
-            # Compute similarity once, categorize
+            # Compute similarity once, categorise
             sim = vault.similarity(note, target)  # Cached
 
             if sim > 0.65:
@@ -433,10 +433,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     sample_notes = vault.sample(all_notes, sample_size)
 
     for i, note_a in enumerate(sample_notes):
-        # Get semantic neighbors (cached)
-        neighbors = vault.neighbours(note_a, k=10)
+        # Get semantic neighbours (cached)
+        neighbours = vault.neighbours(note_a, k=10)
 
-        for note_b in neighbors:
+        for note_b in neighbours:
             pair_key = tuple(sorted([note_a.path, note_b.path]))
             if pair_key in processed:
                 continue
@@ -548,7 +548,7 @@ def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> List[Tuple[
     # Matrix multiplication: X @ X^T gives all dot products
     similarity_matrix = np.dot(embeddings_matrix, embeddings_matrix.T)
 
-    # Normalize to get cosine similarities
+    # Normalise to get cosine similarities
     norms = np.linalg.norm(embeddings_matrix, axis=1)
     similarity_matrix = similarity_matrix / np.outer(norms, norms)
 
@@ -686,7 +686,7 @@ def get_notes_batch(self, paths: List[str]) -> Dict[str, Optional[Note]]:
     return result
 ```
 
-Then optimize VaultContext methods:
+Then optimise VaultContext methods:
 
 ```python
 def backlinks(self, note: Note) -> List[Note]:
@@ -729,22 +729,22 @@ def backlinks(self, note: Note) -> List[Note]:
 self._graph_neighbors_cache: Dict[str, List[Note]] = {}
 
 def graph_neighbors(self, note: Note) -> List[Note]:
-    """Get bidirectional graph neighbors (cached)."""
+    """Get bidirectional graph neighbours (cached)."""
     if note.path in self._graph_neighbors_cache:
         return self._graph_neighbors_cache[note.path]
 
-    neighbors = set()
+    neighbours = set()
 
     # Uses cached methods
     for link in note.links:
         target = self.resolve_link_target(link.target)
         if target is not None:
-            neighbors.add(target)
+            neighbours.add(target)
 
     for source in self.backlinks(note):  # Now cached
-        neighbors.add(source)
+        neighbours.add(source)
 
-    result = list(neighbors)
+    result = list(neighbours)
     self._graph_neighbors_cache[note.path] = result
     return result
 ```
@@ -753,7 +753,7 @@ def graph_neighbors(self, note: Note) -> List[Note]:
 
 ---
 
-#### OP-8: Optimize hubs() SQL query ✅ IMPLEMENTED
+#### OP-8: Optimise hubs() SQL query ✅ IMPLEMENTED
 
 **Location**: `src/geistfabrik/vault_context.py:305-335`
 
@@ -764,7 +764,7 @@ def graph_neighbors(self, note: Note) -> List[Note]:
 **Solution**:
 ```python
 def hubs(self, k: int = 10) -> List[Note]:
-    """Find most-linked-to notes (optimized SQL)."""
+    """Find most-linked-to notes (optimised SQL)."""
     cursor = self.db.execute(
         """
         SELECT n.path, COUNT(DISTINCT l.source_path) as link_count
@@ -862,7 +862,7 @@ high_similarity_count = sum(1 for n, sim in neighbors_with_scores if sim > 0.6)
 
 ### Benchmark Structure
 
-Each optimization should include:
+Each optimisation should include:
 
 1. **Unit test** verifying correctness
 2. **Performance regression test** preventing slowdowns
@@ -895,18 +895,18 @@ def test_method_uses_caching(vault_context):
 ```python
 @pytest.mark.skipif(True, reason="Benchmark - run manually")
 def test_method_benchmark(tmp_path):
-    """Benchmark: Verify optimization improves performance."""
+    """Benchmark: Verify optimisation improves performance."""
 
     # Setup realistic vault
     vault = create_benchmark_vault(tmp_path, num_notes=100)
 
-    # Measure WITHOUT optimization (simulation)
+    # Measure WITHOUT optimisation (simulation)
     start = time.perf_counter()
     for _ in range(N_ITERATIONS):
         vault.method_no_cache(param)
     time_no_cache = time.perf_counter() - start
 
-    # Measure WITH optimization
+    # Measure WITH optimisation
     start = time.perf_counter()
     for _ in range(N_ITERATIONS):
         vault.method_with_cache(param)
@@ -915,8 +915,8 @@ def test_method_benchmark(tmp_path):
     # Calculate speedup
     speedup = time_no_cache / time_with_cache
 
-    print(f"Without optimization: {time_no_cache:.3f}s")
-    print(f"With optimization: {time_with_cache:.3f}s")
+    print(f"Without optimisation: {time_no_cache:.3f}s")
+    print(f"With optimisation: {time_with_cache:.3f}s")
     print(f"Speedup: {speedup:.1f}x")
 
     # Assert minimum speedup threshold
@@ -929,7 +929,7 @@ def test_method_benchmark(tmp_path):
 
 ### Phase 1: Quick Wins ✅ COMPLETED
 
-**Goal**: Implement low-effort, high-impact caching optimizations.
+**Goal**: Implement low-effort, high-impact caching optimisations.
 
 **Tasks**:
 1. ✅ OP-1: Implement backlinks() caching
@@ -942,7 +942,7 @@ def test_method_benchmark(tmp_path):
 - ✅ Update `test_performance_regression.py`
 - ✅ Run existing benchmark: `test_cluster_caching_benchmark`
 
-**Outcome**: All Phase 1 optimizations implemented and tested.
+**Outcome**: All Phase 1 optimisations implemented and tested.
 
 ---
 
@@ -960,7 +960,7 @@ def test_method_benchmark(tmp_path):
 - ⏳ Verify correctness with integration tests (TODO)
 - ⏳ Create `test_geist_performance.py` module (TODO)
 
-**Outcome**: All Phase 2 optimizations implemented. OP-4 exceeded expectations with 31.5x speedup. Testing pending.
+**Outcome**: All Phase 2 optimisations implemented. OP-4 exceeded expectations with 31.5x speedup. Testing pending.
 
 ---
 
@@ -969,9 +969,9 @@ def test_method_benchmark(tmp_path):
 **Goal**: Add infrastructure improvements for long-term maintainability.
 
 **Tasks**:
-1. ✅ OP-8: Optimize hubs() SQL query (JOIN-based resolution + batch loading)
+1. ✅ OP-8: Optimise hubs() SQL query (JOIN-based resolution + batch loading)
 2. ✅ OP-9: Add return_scores parameter to neighbours() (Used by 5 geists)
-3. ✅ Document optimization patterns in code comments
+3. ✅ Document optimisation patterns in code comments
 
 **Geists using OP-9 (return_scores=True)**:
 - hidden_hub, bridge_hunter, columbo, bridge_builder, antithesis_generator
@@ -981,7 +981,7 @@ def test_method_benchmark(tmp_path):
 - ⏳ Add SQL query performance tests (TODO)
 - ✅ Run full benchmark suite (validate.sh passes)
 
-**Outcome**: All Phase 3 optimizations implemented. API improvements enable cleaner geist code.
+**Outcome**: All Phase 3 optimisations implemented. API improvements enable cleaner geist code.
 
 ---
 
@@ -992,11 +992,11 @@ def test_method_benchmark(tmp_path):
 - **Session execution time**: 30-50% reduction for typical vaults
 - **Database queries**: 40-60% reduction in total queries
 - **Memory usage**: <100MB cache overhead for 1000-note vault
-- **Test coverage**: 100% coverage of optimized paths
+- **Test coverage**: 100% coverage of optimised paths
 
 ### Qualitative
 
-- **Code clarity**: Optimizations don't obscure logic
+- **Code clarity**: Optimisations don't obscure logic
 - **Maintainability**: Cache invalidation is simple
 - **Extensibility**: Patterns apply to new geists
 
@@ -1060,7 +1060,7 @@ def method(self, param):
 
 ## Lessons Learned
 
-### From cluster_mirror Optimization
+### From cluster_mirror Optimisation
 
 **Problem identified**: 4 HDBSCAN clustering operations per session
 
@@ -1074,7 +1074,7 @@ def method(self, param):
 
 ---
 
-### From similarity() Optimization
+### From similarity() Optimisation
 
 **Problem identified**: Multiple geists computing similarity for same note pairs
 
@@ -1088,7 +1088,7 @@ def method(self, param):
 
 ---
 
-### From neighbours() Optimization
+### From neighbours() Optimisation
 
 **Problem identified**: Hub notes queried repeatedly by multiple geists
 
@@ -1102,7 +1102,7 @@ def method(self, param):
 
 ---
 
-### From orphans() Optimization
+### From orphans() Optimisation
 
 **Problem identified**: Slow NOT IN subquery for large vaults
 
@@ -1132,9 +1132,9 @@ def method(self, param):
 
 ## Anti-Patterns to Avoid
 
-### ❌ Premature Optimization
+### ❌ Premature Optimisation
 
-**Don't optimize** without profiling first.
+**Don't optimise** without profiling first.
 
 **Example**: Caching `get_note(path)` results across sessions
 - Vault files can change
@@ -1189,7 +1189,7 @@ def method(self, param):
 
 ## Conclusion
 
-This specification documents performance optimization patterns discovered through empirical research on GeistFabrik. By applying these patterns systematically, we can achieve 30-50% speedup for typical sessions and 50-80% for large vaults (1000+ notes).
+This specification documents performance optimisation patterns discovered through empirical research on GeistFabrik. By applying these patterns systematically, we can achieve 30-50% speedup for typical sessions and 50-80% for large vaults (1000+ notes).
 
 Key principles:
 1. **Profile first**: Use --debug flag to find hot paths
@@ -1199,7 +1199,7 @@ Key principles:
 5. **Sample large datasets**: "Sample, don't rank" principle
 6. **Single-pass algorithms**: Avoid redundant iterations
 
-These optimizations maintain code clarity and don't compromise the "muses, not oracles" design philosophy.
+These optimisations maintain code clarity and don't compromise the "muses, not oracles" design philosophy.
 
 ---
 

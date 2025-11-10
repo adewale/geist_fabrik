@@ -88,7 +88,7 @@ BM25(tf) = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (doc_len / avg_doc_len)))
 
 Parameters:
 - k1 = 1.5 (term saturation)
-- b = 0.75 (length normalization)
+- b = 0.75 (length normalisation)
 ```
 
 **Academic Foundation**:
@@ -115,7 +115,7 @@ Parameters:
 
 ---
 
-### 3. Centroid-Based Labeling (Top2Vec Approach)
+### 3. Centroid-Based Labelling (Top2Vec Approach)
 
 **Description**: Find nearest vocabulary words to cluster centroid in embedding space.
 
@@ -161,7 +161,7 @@ Combines 5 statistical features per term:
 1. Casing (uppercase/title case preference)
 2. Word position (earlier = more important)
 3. Word frequency
-4. Context (relation to neighbors)
+4. Context (relation to neighbours)
 5. Term dispersion across documents
 
 → Produces composite score for multi-word phrases
@@ -256,7 +256,7 @@ where D(wi, wj) = # documents containing both wi and wj
 Higher score = better coherence
 ```
 
-### 2. NPMI (Normalized Pointwise Mutual Information)
+### 2. NPMI (Normalised Pointwise Mutual Information)
 Measures word association strength, less affected by rare words.
 
 ```
@@ -298,7 +298,7 @@ Gold standard but not scalable - use for validation only.
 
 ### Phase 2: Future Enhancements
 
-- **Centroid-based labeling** as alternative representation
+- **Centroid-based labelling** as alternative representation
 - **YAKE** for improved multi-word phrase extraction
 - **Evaluate local LLM approach** (research spike)
 
@@ -374,7 +374,7 @@ def _label_clusters_keybert(
 
 2. **BM25 & c-TF-IDF**:
    - Robertson, S., Zaragoza, H. (2009). "The Probabilistic Relevance Framework: BM25 and Beyond"
-   - Grootendorst, M. (2022). "BERTopic: Neural topic modeling with a class-based TF-IDF procedure." arXiv:2203.05794
+   - Grootendorst, M. (2022). "BERTopic: Neural topic modelling with a class-based TF-IDF procedure." arXiv:2203.05794
 
 3. **YAKE**:
    - Campos, R. et al. (2020). "YAKE! Keyword Extraction from Single Documents using Multiple Local Features." Information Sciences, Vol 509, pp 257-289
@@ -382,7 +382,7 @@ def _label_clusters_keybert(
 4. **Top2Vec**:
    - Angelov, D. (2020). "Top2Vec: Distributed Representations of Topics." arXiv:2008.09470
 
-5. **LLM Cluster Labeling**:
+5. **LLM Cluster Labelling**:
    - Vicinanza, P. et al. (2024). "Large Language Models Enable Few-Shot Clustering." TACL
    - Zhang, Y. et al. (2024). "Text Clustering as Classification with LLMs." arXiv:2410.00927
    - Wei, X. et al. (2024). "Evaluation of Text Cluster Naming with Generative LLMs." Journal of Data Science
@@ -396,7 +396,7 @@ def _label_clusters_keybert(
 ## Conclusion
 
 **Recommended next steps**:
-1. Implement KeyBERT-based labeling (highest ROI)
+1. Implement KeyBERT-based labelling (highest ROI)
 2. Add UMass coherence metrics for evaluation
 3. Run A/B comparison on test vault
 4. Consider BM25 c-TF-IDF as fallback/complement

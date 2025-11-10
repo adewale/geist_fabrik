@@ -450,7 +450,7 @@ One geist with two modes would be:
    - Option B: Closest session to creation date (intuitive)
    - **Recommendation: B** for clarity
 
-3. **Fallback behavior:** What if burst_evolution finds no burst days with embeddings?
+3. **Fallback behaviour:** What if burst_evolution finds no burst days with embeddings?
    - Return empty list (let creation_burst handle basic case)
    - Don't try to merge concerns
 

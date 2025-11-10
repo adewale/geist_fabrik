@@ -406,7 +406,7 @@ Pre-filtering quality checks (before suggestions reach filtering pipeline):
 **Complexity**: Low
 **Implementation**: New command `geistfabrik docs`
 
-- 📋 **Auto-generate geist catalog**
+- 📋 **Auto-generate geist catalogue**
   - Scan all geists
   - Extract: ID, description, type, required functions
   - Generate markdown documentation
@@ -493,7 +493,7 @@ Each validation type must have unit tests:
 
 - ✅ Example geists - `tests/integration/test_example_geists.py`
 - 📋 End-to-end validation workflow
-- 📋 Pre-commit hook behavior
+- 📋 Pre-commit hook behaviour
 
 ---
 
@@ -527,7 +527,7 @@ Each validation type must have unit tests:
 6. Test coverage enforcement - Ensure all default geists have tests
 7. Performance benchmarking - Track slow geists
 8. Enhanced suggestion quality validation - Placeholder detection, better heuristics
-9. Documentation generation - Auto-generate geist catalog
+9. Documentation generation - Auto-generate geist catalogue
 
 **Note**: Current validation (AC-4.* criteria) is **sufficient for 1.0**. These enhancements improve developer experience but aren't required for stable release.
 

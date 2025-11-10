@@ -28,7 +28,7 @@ This specification defines the exact computation so any language can produce ide
 **Architecture**:
 - BERT-based transformer
 - Mean pooling over token embeddings
-- Normalized to unit L2 norm
+- Normalised to unit L2 norm
 
 **Output Dimensions**: 384 (float32)
 
@@ -45,16 +45,16 @@ Preprocessing:
 Output: 384-dimensional vector (float32[384])
 ```
 
-### Normalization
+### Normalisation
 
-**CRITICAL**: All semantic embeddings MUST be L2-normalized to unit length.
+**CRITICAL**: All semantic embeddings MUST be L2-normalised to unit length.
 
 ```
 Given raw_embedding (384-dim vector):
   norm = sqrt(sum(raw_embedding[i]^2 for i in 0..383))
-  normalized = raw_embedding / norm
+  normalised = raw_embedding / norm
 
-Postcondition: |normalized| = 1.0
+Postcondition: |normalised| = 1.0
 ```
 
 ### Caching
@@ -115,7 +115,7 @@ Temporal features capture **when** a note was created and **when** the session i
 age_seconds = (session_date - note_created).total_seconds()
 age_days = age_seconds / 86400.0  # Convert to days
 
-# Normalize to [0, 1] range (max ~2.7 years)
+# Normalise to [0, 1] range (max ~2.7 years)
 # This assumes notes older than 1000 days are treated similarly
 normalized_age = min(age_days / 1000.0, 1.0)
 
@@ -174,8 +174,8 @@ Output: float32[3]
 ### Concatenation
 
 ```
-semantic_embedding: float32[384]  # L2-normalized
-temporal_features: float32[3]     # Not normalized
+semantic_embedding: float32[384]  # L2-normalised
+temporal_features: float32[3]     # Not normalised
 
 combined = concatenate(semantic_embedding, temporal_features)
 
@@ -186,13 +186,13 @@ Output: float32[387]
 ```
 Index   | Content
 --------|------------------
-0-383   | Semantic embedding (normalized)
+0-383   | Semantic embedding (normalised)
 384     | Note age
 385     | Creation season (sine)
 386     | Session season (sine)
 ```
 
-**IMPORTANT**: Semantic portion (0-383) is normalized, temporal portion (384-386) is NOT normalized.
+**IMPORTANT**: Semantic portion (0-383) is normalised, temporal portion (384-386) is NOT normalised.
 
 ---
 
@@ -309,13 +309,13 @@ for batch in chunks(note_contents, batch_size):
     # Model computes all at once (GPU-friendly)
     embeddings = model.encode(batch)
 
-    # Each embedding is normalized
+    # Each embedding is normalised
     for i, embedding in enumerate(embeddings):
         assert |embedding| ≈ 1.0
         store(batch[i], embedding)
 ```
 
-**Optimization**: Batching is 10-20x faster than one-at-a-time encoding
+**Optimisation**: Batching is 10-20x faster than one-at-a-time encoding
 
 ### Temporal Features
 
@@ -337,7 +337,7 @@ for note in notes:
 To implement this spec in another language:
 
 - [ ] Load `all-MiniLM-L6-v2` model from HuggingFace
-- [ ] Implement semantic embedding computation (with normalization)
+- [ ] Implement semantic embedding computation (with normalisation)
 - [ ] Implement SHA-256 content hashing
 - [ ] Implement embedding cache (SQLite or equivalent)
 - [ ] Implement temporal feature computation (age, seasons)
@@ -427,7 +427,7 @@ Semantic norm (dims 0-383): 1.0 ± 1e-6
 
 ## Future Extensions
 
-### Possible Optimizations
+### Possible Optimisations
 
 1. **Approximate Nearest Neighbours**: Use HNSW or FAISS for >10K notes
 2. **Quantization**: Reduce float32 to int8 for 4x storage savings

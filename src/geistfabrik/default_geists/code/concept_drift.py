@@ -71,26 +71,26 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             drift = 1.0 - float(similarity[0, 0])
 
             if drift > 0.2:  # Significant migration
-                # Try to characterize the drift by finding what it's moving toward
+                # Try to characterise the drift by finding what it's moving toward
                 current_neighbors = vault.neighbours(note, k=5)
 
-                # Find which neighbors are most aligned with the drift direction
+                # Find which neighbours are most aligned with the drift direction
                 drift_vector = last_emb - first_emb
                 # Cache drift_vector norm to avoid redundant computation (5 times in loop)
                 drift_vector_norm = np.linalg.norm(drift_vector)
 
                 neighbor_alignments = []
-                for neighbor in current_neighbors:
-                    if neighbor.path == note.path:
+                for neighbour in current_neighbors:
+                    if neighbour.path == note.path:
                         continue
 
-                    # Get neighbor embedding from database
+                    # Get neighbour embedding from database
                     cursor = vault.db.execute(
                         """
                         SELECT embedding FROM session_embeddings
                         WHERE session_id = ? AND note_path = ?
                         """,
-                        (sessions[-1][0], neighbor.path),
+                        (sessions[-1][0], neighbour.path),
                     )
                     row = cursor.fetchone()
                     if row is None:
@@ -98,12 +98,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                     neighbor_emb = np.frombuffer(row[0], dtype=np.float32)
 
-                    # How aligned is neighbor with drift direction?
+                    # How aligned is neighbour with drift direction?
                     # Use cached drift_vector_norm instead of recomputing
                     alignment = np.dot(drift_vector, neighbor_emb) / (
                         drift_vector_norm * np.linalg.norm(neighbor_emb)
                     )
-                    neighbor_alignments.append((neighbor, alignment))
+                    neighbor_alignments.append((neighbour, alignment))
 
                 if neighbor_alignments:
                     neighbor_alignments.sort(key=lambda x: x[1], reverse=True)

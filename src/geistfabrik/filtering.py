@@ -29,7 +29,7 @@ class SuggestionFilter:
         embedding_computer: EmbeddingComputer,
         config: Dict[str, Any] | None = None,
     ):
-        """Initialize filter with database and configuration.
+        """Initialise filter with database and configuration.
 
         Args:
             db: SQLite database connection

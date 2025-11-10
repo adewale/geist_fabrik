@@ -11,7 +11,7 @@
 7. [Python Anti-Patterns](#python-anti-patterns)
 8. [Security Vulnerabilities](#security-vulnerabilities)
 9. [Testing Best Practices](#testing-best-practices)
-10. [Performance Optimization](#performance-optimization)
+10. [Performance Optimisation](#performance-optimisation)
 11. [Concurrency & Async Patterns](#concurrency--async-patterns)
 12. [Documentation Standards](#documentation-standards)
 13. [Database & Type System Pitfalls](#database--type-system-pitfalls)
@@ -29,7 +29,7 @@ This document provides comprehensive heuristics for auditing Python codebases, w
 - **Explicit is better than implicit**: Code should be clear and self-documenting
 - **Fail fast**: Errors should be caught early through static analysis and testing
 - **Security by default**: Assume untrusted input and validate rigorously
-- **Profile before optimizing**: Avoid premature optimization without data
+- **Profile before optimising**: Avoid premature optimisation without data
 
 ---
 
@@ -67,7 +67,7 @@ def compute_metrics(embeddings):
 ```
 
 #### 2. Implementation Without Validation
-**Problem**: Writing code but never executing it to verify behavior
+**Problem**: Writing code but never executing it to verify behaviour
 **Critical insight**: **Assume your code doesn't work until you've proven it does**
 
 **The Validation Checklist**:
@@ -197,7 +197,7 @@ A three-phase approach proven effective for catching implementation gaps:
 4. Don't accept partial credit
 
 #### Phase 2: Correctness Check
-**Goal**: Verify implementation behavior matches spec
+**Goal**: Verify implementation behaviour matches spec
 
 **SQL Query Audit**:
 ```sql
@@ -764,7 +764,7 @@ words = text.split()
 #### 2. Naming and Clarity
 
 - [ ] Classes, variables, and functions have descriptive names
-- [ ] Names accurately reflect purpose and behavior
+- [ ] Names accurately reflect purpose and behaviour
 - [ ] Avoid abbreviations unless universally understood
 - [ ] No misleading or confusing names
 
@@ -1202,7 +1202,7 @@ user_input = request.GET['username']
 query = f"SELECT * FROM users WHERE username = '{user_input}'"
 cursor.execute(query)  # NEVER DO THIS
 
-# SECURE: Parameterized queries
+# SECURE: Parameterised queries
 user_input = request.GET['username']
 query = "SELECT * FROM users WHERE username = %s"
 cursor.execute(query, (user_input,))
@@ -1287,7 +1287,7 @@ filename = request.GET['file']
 with open(f"/var/data/{filename}", 'r') as f:  # User could pass "../../etc/passwd"
     content = f.read()
 
-# SECURE: Validate and normalize paths
+# SECURE: Validate and normalise paths
 import os
 from pathlib import Path
 
@@ -1600,7 +1600,7 @@ def test_with_real_objects():
 
 ---
 
-## Performance Optimization
+## Performance Optimisation
 
 ### Common Performance Pitfalls
 
@@ -1710,7 +1710,7 @@ for i, item in enumerate(items):
 
 #### 6. Not Using Built-in Functions
 
-**Problem**: Python's built-ins are optimized in C
+**Problem**: Python's built-ins are optimised in C
 
 ```python
 # BAD: Manual implementation
@@ -1751,11 +1751,11 @@ def add_to_cache(item, cache=None):
     return cache
 ```
 
-### Optimization Best Practices
+### Optimisation Best Practices
 
-#### 1. Profile Before Optimizing
+#### 1. Profile Before Optimising
 
-**Principle**: "Premature optimization is the root of all evil" - Donald Knuth
+**Principle**: "Premature optimisation is the root of all evil" - Donald Knuth
 
 ```python
 # Use cProfile for profiling
@@ -2189,7 +2189,7 @@ class MyClass:
     """
     One-line summary of the class.
 
-    Extended description of the class purpose and behavior.
+    Extended description of the class purpose and behaviour.
 
     Attributes:
         attribute1 (str): Description of attribute1
@@ -2198,7 +2198,7 @@ class MyClass:
 
     def __init__(self, param1, param2):
         """
-        Initialize MyClass.
+        Initialise MyClass.
 
         Args:
             param1 (str): Description of param1
@@ -2209,7 +2209,7 @@ class MyClass:
 
     def method(self, arg):
         """
-        Summary of method behavior.
+        Summary of method behaviour.
 
         Args:
             arg (str): Description of argument
@@ -2314,7 +2314,7 @@ def function(arg1, arg2):
 1. **Always use `"""triple double quotes"""`** - Never single quotes for docstrings
 2. **First line should be a one-line summary** - Ending with a period
 3. **Document all public modules, functions, classes, and methods**
-4. **Describe behavior, not implementation** - Focus on what, not how
+4. **Describe behaviour, not implementation** - Focus on what, not how
 5. **Include examples for complex functionality**
 6. **Document exceptions that can be raised**
 7. **Keep docstrings up to date** - Outdated docs are worse than no docs
@@ -2330,17 +2330,17 @@ This section covers common issues when working with databases and type systems i
 
 ### SQLite Type System Quirks
 
-SQLite has a dynamic type system that can cause unexpected behavior with Python type annotations and NumPy types.
+SQLite has a dynamic type system that can cause unexpected behaviour with Python type annotations and NumPy types.
 
 #### NumPy Type Serialization
 
-**Problem**: NumPy integer and float types are not recognized as native Python types by SQLite's parameter binding.
+**Problem**: NumPy integer and float types are not recognised as native Python types by SQLite's parameter binding.
 
 ```python
 import numpy as np
 import sqlite3
 
-# BAD: NumPy types serialized as blobs
+# BAD: NumPy types serialised as blobs
 conn = sqlite3.connect("data.db")
 conn.execute("CREATE TABLE metrics (id INTEGER, count INTEGER)")
 
@@ -2728,7 +2728,7 @@ This comprehensive checklist consolidates all heuristics for auditing Python cod
 - [ ] **Algorithmic Efficiency**: Efficient algorithms
   - [ ] No O(n²) when O(n log n) or O(n) available
   - [ ] No repeated expensive operations
-  - [ ] Profile-guided optimization (not premature)
+  - [ ] Profile-guided optimisation (not premature)
 
 ### 8. Concurrency
 
@@ -2784,7 +2784,7 @@ This comprehensive checklist consolidates all heuristics for auditing Python cod
 - [ ] **No Bare Excepts**: Specific exceptions caught
 - [ ] **Identity vs Equality**: `is` used only for None/True/False
 - [ ] **Pythonic Idioms**: enumerate, zip, itertools used appropriately
-- [ ] **No Premature Optimization**: Profile before optimizing
+- [ ] **No Premature Optimisation**: Profile before optimising
 
 ### 11. Code Organisation
 
@@ -2863,7 +2863,7 @@ This comprehensive checklist consolidates all heuristics for auditing Python cod
    ```
 
 2. **Review Tool Output**
-   - Prioritize by severity
+   - Prioritise by severity
    - Group related issues
    - Identify patterns
 
@@ -2888,7 +2888,7 @@ This comprehensive checklist consolidates all heuristics for auditing Python cod
 ### Documentation
 
 1. **Create Issue List**
-   - Categorize by severity (Critical/High/Medium/Low)
+   - Categorise by severity (Critical/High/Medium/Low)
    - Link to specific code locations
    - Provide fix recommendations
 
@@ -2917,7 +2917,7 @@ This comprehensive checklist consolidates all heuristics for auditing Python cod
 
 **Low (Technical Debt)**
 - Style inconsistencies
-- Minor optimizations
+- Minor optimisations
 - Documentation gaps
 
 ---
@@ -2937,7 +2937,7 @@ Regular application of these heuristics, combined with automated tooling, ensure
 ### Key Takeaways
 
 1. **Automate what you can**: Use Black, Flake8/Ruff, Mypy, Bandit
-2. **Focus manual review**: Prioritize logic, security, and LLM-specific patterns
+2. **Focus manual review**: Prioritise logic, security, and LLM-specific patterns
 3. **Test thoroughly**: High coverage of critical paths and edge cases
 4. **Document clearly**: Good docs prevent bugs and aid maintenance
 5. **Stay updated**: Keep dependencies current and follow Python evolution

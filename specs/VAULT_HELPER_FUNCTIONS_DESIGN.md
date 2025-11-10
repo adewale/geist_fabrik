@@ -14,7 +14,7 @@ While implementing `congruence_mirror`, several patterns emerged that would bene
 
 1. **Verbose link checking**: `len(vault.links_between(a, b)) > 0` is common but verbose
 2. **Manual link iteration**: Iterating through `note.links` and resolving targets manually
-3. **No graph neighbor abstraction**: Need to combine outgoing links + backlinks manually
+3. **No graph neighbour abstraction**: Need to combine outgoing links + backlinks manually
 
 These helpers would:
 - Make geist code more readable and maintainable
@@ -57,15 +57,15 @@ def resolve_link_target(self, target: str) -> Optional[Note]:
 **Pattern 1: Checking if two notes are linked**
 ```python
 # Current (verbose):
-links_ab = vault.links_between(note, neighbor)
-links_ba = vault.links_between(neighbor, note)  # BUG: Redundant!
+links_ab = vault.links_between(note, neighbour)
+links_ba = vault.links_between(neighbour, note)  # BUG: Redundant!
 is_linked = len(links_ab) > 0 or len(links_ba) > 0
 
 # Should be:
-is_linked = len(vault.links_between(note, neighbor)) > 0
+is_linked = len(vault.links_between(note, neighbour)) > 0
 
 # Proposed helper:
-is_linked = vault.has_link(note, neighbor)
+is_linked = vault.has_link(note, neighbour)
 ```
 
 **Pattern 2: Getting all linked notes**
@@ -80,8 +80,8 @@ for note in vault.notes():
 
 # Proposed helper:
 for note in vault.notes():
-    for neighbor in vault.graph_neighbors(note):
-        # Use neighbor...
+    for neighbour in vault.graph_neighbors(note):
+        # Use neighbour...
 ```
 
 ---
@@ -155,19 +155,19 @@ def graph_neighbors(self, note: Note) -> List[Note]:
 ```python
 def graph_neighbors(self, note: Note) -> List[Note]:
     """Get all notes connected to this note by links (bidirectional)."""
-    neighbors = set()
+    neighbours = set()
 
     # Add outgoing link targets
     for link in note.links:
         target = self.resolve_link_target(link.target)
         if target is not None:
-            neighbors.add(target)
+            neighbours.add(target)
 
     # Add incoming link sources (backlinks)
     for source in self.backlinks(note):
-        neighbors.add(source)
+        neighbours.add(source)
 
-    return list(neighbors)
+    return list(neighbours)
 ```
 
 **Usage**:
@@ -180,8 +180,8 @@ for link in note.links:
     # Process target...
 
 # After:
-for neighbor in vault.graph_neighbors(note):
-    # Process neighbor...
+for neighbour in vault.graph_neighbors(note):
+    # Process neighbour...
 ```
 
 **Benefits**:
@@ -255,7 +255,7 @@ for target in vault.outgoing_links(note):
 
 **2. density_inversion** (blocked)
 From `docs/BLOCKED_GEISTS.md`:
-> Needs: For each note, count graph neighbors (linked) vs semantic neighbors (similar)
+> Needs: For each note, count graph neighbours (linked) vs semantic neighbours (similar)
 
 ```python
 # With helpers:
@@ -304,7 +304,7 @@ Could simplify logic with `graph_neighbors()`
 
 **Performance**:
 - No performance regression (same underlying operations)
-- `has_link()` could short-circuit on first link found (micro-optimization)
+- `has_link()` could short-circuit on first link found (micro-optimisation)
 
 ---
 
@@ -338,12 +338,12 @@ def test_graph_neighbors_deduplicates():
 Fix the redundant `links_between` calls:
 ```python
 # Before:
-links_ab = vault.links_between(note, neighbor)
-links_ba = vault.links_between(neighbor, note)
+links_ab = vault.links_between(note, neighbour)
+links_ba = vault.links_between(neighbour, note)
 is_linked = len(links_ab) > 0 or len(links_ba) > 0
 
 # After:
-is_linked = vault.has_link(note, neighbor)
+is_linked = vault.has_link(note, neighbour)
 ```
 
 ### Phase 4: Documentation
@@ -391,7 +391,7 @@ Virtual notes (date headings) appear in `vault.notes()` but may not resolve prop
 ### 2. Should we cache `graph_neighbors()` results?
 Could cache per-note if called multiple times.
 
-**Decision**: No caching initially - premature optimization. Add if profiling shows bottleneck.
+**Decision**: No caching initially - premature optimisation. Add if profiling shows bottleneck.
 
 ### 3. Should `outgoing_links()` be included in Phase 1?
 It's useful but not strictly necessary for current use cases.
@@ -489,19 +489,19 @@ def graph_neighbors(self, note: Note) -> List[Note]:
     - This note links to (outgoing links)
     - Link to this note (incoming links / backlinks)
     """
-    neighbors = set()
+    neighbours = set()
 
     # Add outgoing link targets
     for link in note.links:
         target = self.resolve_link_target(link.target)
         if target is not None:
-            neighbors.add(target)
+            neighbours.add(target)
 
     # Add incoming link sources (backlinks)
     for source in self.backlinks(note):
-        neighbors.add(source)
+        neighbours.add(source)
 
-    return list(neighbors)
+    return list(neighbours)
 ```
 
 **Test coverage**: 6 tests
@@ -536,7 +536,7 @@ The following geists were updated to use the new helpers:
 
 ### Performance Impact
 
-No performance regression observed. All optimizations maintained:
+No performance regression observed. All optimisations maintained:
 - Session-level caching still applies
 - Vectorized similarity computation unchanged
 - Database indexing benefits retained

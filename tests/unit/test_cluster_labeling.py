@@ -1,4 +1,4 @@
-"""Tests for cluster labeling methods (c-TF-IDF and KeyBERT)."""
+"""Tests for cluster labelling methods (c-TF-IDF and KeyBERT)."""
 
 from typing import TYPE_CHECKING
 
@@ -31,7 +31,7 @@ def mock_db(tmp_path):
     # Insert test notes for clustering
     test_notes = [
         ("note1.md", "Machine Learning", "Deep learning neural networks training models"),
-        ("note2.md", "Neural Networks", "Backpropagation gradient descent optimization"),
+        ("note2.md", "Neural Networks", "Backpropagation gradient descent optimisation"),
         ("note3.md", "AI Training", "Model training validation testing evaluation"),
         ("note4.md", "React Components", "React hooks useState useEffect components"),
         ("note5.md", "Frontend Development", "JavaScript TypeScript web development"),
@@ -45,10 +45,10 @@ def mock_db(tmp_path):
 
 
 class TestClusterLabelingTFIDF:
-    """Test c-TF-IDF cluster labeling method."""
+    """Test c-TF-IDF cluster labelling method."""
 
     def test_label_clusters_tfidf_basic(self, mock_db):
-        """Test that c-TF-IDF labeling produces keyword lists."""
+        """Test that c-TF-IDF labelling produces keyword lists."""
         pytest.importorskip("sklearn")
 
         from geistfabrik.stats import EmbeddingMetricsComputer
@@ -106,10 +106,10 @@ class TestClusterLabelingTFIDF:
 
 
 class TestClusterLabelingKeyBERT:
-    """Test KeyBERT cluster labeling method."""
+    """Test KeyBERT cluster labelling method."""
 
     def test_label_clusters_keybert_basic(self, mock_db):
-        """Test that KeyBERT labeling produces semantic phrases."""
+        """Test that KeyBERT labelling produces semantic phrases."""
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 

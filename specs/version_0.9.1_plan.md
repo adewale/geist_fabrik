@@ -246,7 +246,7 @@ These are explicitly **NOT** in scope for 0.9.1 or 1.0:
 - ❌ Implementing sqlite-vec (current approach works fine)
 - ❌ Persistent metadata storage (in-memory is sufficient)
 - ❌ New geists (45 is plenty)
-- ❌ Performance optimizations beyond current (fast enough)
+- ❌ Performance optimisations beyond current (fast enough)
 - ❌ Weighted distributions for Tracery (deferred to 2.0)
 - ❌ Geist validation spec features (deferred)
 

@@ -56,7 +56,7 @@ def test_vault_with_notes():
 
 
 def test_vault_context_initialization(test_vault_with_notes):
-    """Test VaultContext initialization."""
+    """Test VaultContext initialisation."""
     vault, session = test_vault_with_notes
 
     ctx = VaultContext(vault, session)
@@ -122,11 +122,11 @@ def test_neighbors_semantic_search(test_vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
-    neighbors = ctx.neighbours(ai_note, k=2)
+    neighbours = ctx.neighbours(ai_note, k=2)
 
     # ml.md should be most similar to ai.md
-    assert len(neighbors) >= 1
-    assert any(n.path == "ml.md" for n in neighbors)
+    assert len(neighbours) >= 1
+    assert any(n.path == "ml.md" for n in neighbours)
 
 
 def test_similarity(test_vault_with_notes):

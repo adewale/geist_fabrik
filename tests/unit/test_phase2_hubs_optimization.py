@@ -1,4 +1,4 @@
-"""Tests for Phase 2 Optimization: OP-8 Optimized hubs() SQL query.
+"""Tests for Phase 2 Optimisation: OP-8 Optimised hubs() SQL query.
 
 Tests the JOIN-based hubs() implementation that resolves targets in SQL
 rather than Python, combined with batch loading.
@@ -54,7 +54,7 @@ def context_with_hubs(vault_with_hub_structure: Vault) -> VaultContext:
 
 
 class TestHubsOptimization:
-    """Test OP-8: Optimized hubs() SQL query with JOIN."""
+    """Test OP-8: Optimised hubs() SQL query with JOIN."""
 
     def test_hubs_returns_most_linked_notes(self, context_with_hubs: VaultContext):
         """Test that hubs() returns notes with most incoming links."""
@@ -200,7 +200,7 @@ class TestHubsCorrectness:
 
 
 class TestHubsEdgeCases:
-    """Test edge cases for hubs() optimization."""
+    """Test edge cases for hubs() optimisation."""
 
     def test_hubs_with_duplicate_links(self, tmp_path: Path):
         """Test that hubs() counts unique source notes, not total link count."""
@@ -254,7 +254,7 @@ class TestHubsEdgeCases:
 
 @pytest.mark.benchmark
 class TestHubsPerformanceBenchmark:
-    """Benchmark tests for hubs() optimization (OP-8).
+    """Benchmark tests for hubs() optimisation (OP-8).
 
     Run with: pytest -m benchmark -v -s
     """
@@ -276,7 +276,7 @@ class TestHubsPerformanceBenchmark:
         max_time = max(times)
 
         print("\n" + "=" * 70)
-        print("Hubs Optimization Benchmark (OP-8)")
+        print("Hubs Optimisation Benchmark (OP-8)")
         print("=" * 70)
         print(f"Vault notes: {len(context_with_hubs.vault.all_notes())}")
         print("K hubs requested: 5")

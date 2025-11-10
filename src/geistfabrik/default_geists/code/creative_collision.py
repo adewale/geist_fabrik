@@ -26,7 +26,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 2:
         return []
 
-    # OPTIMIZATION #5: Collect pairs first, then batch compute similarities
+    # OPTIMISATION #5: Collect pairs first, then batch compute similarities
     pairs_to_check = []
     for _ in range(10):
         pair = vault.sample(notes, k=2)

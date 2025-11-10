@@ -63,14 +63,14 @@ pipx install uv
 
 ## Project Setup
 
-### Initializing a New Project
+### Initialising a New Project
 
 ```bash
 # Create a new project
 uv init my-project
 cd my-project
 
-# Initialize in an existing directory
+# Initialise in an existing directory
 uv init
 ```
 
@@ -767,7 +767,7 @@ This action automatically:
 - Configures caching based on OS, workflow, job, and `pyproject.toml` hash
 - Expires cache weekly
 
-#### Cache Optimization
+#### Cache Optimisation
 
 ```yaml
 name: CI
@@ -956,9 +956,9 @@ lint:
 ### Common Daily Commands
 
 ```bash
-# Project initialization
+# Project initialisation
 uv init my-project              # Create new project
-uv init                         # Initialize existing directory
+uv init                         # Initialise existing directory
 
 # Python management
 uv python install               # Install Python from .python-version
@@ -1128,7 +1128,7 @@ dev = [
 ]
 EOF
 
-# Initialize and run
+# Initialise and run
 uv sync
 uv run python script.py
 ```
@@ -1202,7 +1202,7 @@ dev = [
 rm poetry.lock poetry.toml
 ```
 
-3. **Initialize uv:**
+3. **Initialise uv:**
 ```bash
 uv sync
 ```
@@ -1523,7 +1523,7 @@ uvx safety check
 uvx pip-audit
 ```
 
-### 10. Performance Optimization
+### 10. Performance Optimisation
 
 **Use cache effectively:**
 ```dockerfile

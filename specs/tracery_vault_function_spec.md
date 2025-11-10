@@ -2,9 +2,9 @@
 
 ## Problem Statement
 
-GeistFabrik's Tracery implementation currently evaluates `$vault.*` function calls **during expansion**, which violates idiomatic Tracery behavior. This causes geists with `count > 1` to generate duplicate suggestions when vault functions return deterministic results.
+GeistFabrik's Tracery implementation currently evaluates `$vault.*` function calls **during expansion**, which violates idiomatic Tracery behaviour. This causes geists with `count > 1` to generate duplicate suggestions when vault functions return deterministic results.
 
-### Current (Incorrect) Behavior
+### Current (Incorrect) Behaviour
 
 ```yaml
 # hub_explorer.yaml
@@ -24,7 +24,7 @@ origin: "[[#hub#]] is central to your vault..."
 - The `hub` symbol is an array with one element: the literal string `"$vault.hubs(1)"`
 - No variation possible across multiple expansions
 
-### Correct (Idiomatic Tracery) Behavior
+### Correct (Idiomatic Tracery) Behaviour
 
 In standard Tracery, symbols are **pre-populated arrays** that each expansion independently samples from.
 
@@ -259,7 +259,7 @@ If vault only has 3 hubs:
 - Symbol array has 3 options (not 10)
 - Suggestions may still repeat if `count > 3`
 
-**This is expected behavior** - geists adapt to vault contents.
+**This is expected behaviour** - geists adapt to vault contents.
 
 ### Mixing Vault and Static Options
 
@@ -292,7 +292,7 @@ If vault has no orphans:
 - Tracery expansion fails gracefully
 - Geist returns empty suggestion list
 
-**This is correct behavior** - geist only generates suggestions when data exists.
+**This is correct behaviour** - geist only generates suggestions when data exists.
 
 ### Single Result
 
@@ -458,7 +458,7 @@ For each, ensure vault functions request enough options:
 - If `count: 3`, vault functions should request 6-8 items
 
 ### Phase 3: Update Documentation
-- Update `CLAUDE.md` with correct behavior
+- Update `CLAUDE.md` with correct behaviour
 - Add examples to `tracery_research.md`
 - Create user-facing guide for geist authoring
 
@@ -637,7 +637,7 @@ if self.count > len(self.grammar.get('hub', [])):
 **Rationale:**
 - Geists should adapt to vault contents (small vaults naturally have fewer options)
 - Repeats are acceptable when vault is small
-- Warning helps geist authors debug unexpected behavior
+- Warning helps geist authors debug unexpected behaviour
 - Does not fail or reduce functionality
 
 ### 2. "All Items" Syntax

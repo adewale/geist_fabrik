@@ -99,7 +99,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
     note = vault.random_notes(k=1)[0]
     content = vault.read(note)
 
-    # 2. Extract target content using optimized regex
+    # 2. Extract target content using optimised regex
     extracted = extract_[content_type](content)
 
     # 3. Silent abstention if nothing found
@@ -197,7 +197,7 @@ Working on neural networks. How do they learn from data?
 What is backpropagation exactly?
 
 Open questions:
-- Can we visualize hidden layers?
+- Can we visualise hidden layers?
 - What determines optimal architecture?
 ```
 
@@ -205,7 +205,7 @@ Open questions:
 ```markdown
 From [[Research Ideas]]: "How do they learn from data?" What if you revisited this question now?
 
-From [[Research Ideas]]: "Can we visualize hidden layers?" What if you revisited this question now?
+From [[Research Ideas]]: "Can we visualise hidden layers?" What if you revisited this question now?
 ```
 
 ---
@@ -401,7 +401,7 @@ From [[Reading Notes - Deep Work]]: "If you don't produce, you won't thrive—no
 - Try again another day (different random note)
 
 **Alternative**: Fallback to nearby notes
-- **Rejected**: Violates determinism, unpredictable behavior
+- **Rejected**: Violates determinism, unpredictable behaviour
 
 ### Why 1-3 Items Max?
 
@@ -425,9 +425,9 @@ From [[Reading Notes - Deep Work]]: "If you don't produce, you won't thrive—no
 
 ---
 
-## Performance Optimization
+## Performance Optimisation
 
-### Shared Optimizations
+### Shared Optimisations
 
 All harvesters implement these performance strategies:
 
@@ -458,7 +458,7 @@ if len(extracted) >= 20:  # More than we'll sample anyway
     break
 
 # ❌ Bad: Process entire note even if hundreds of matches
-# (Not implemented yet, but could optimize further)
+# (Not implemented yet, but could optimise further)
 ```
 
 #### 4. Compiled Regex (If Needed)
@@ -514,7 +514,7 @@ def test_ignore_code_blocks():
 #### TODO Harvester Tests
 ```python
 def test_extract_todo_markers():
-    content = "TODO: investigate this\nFIXME: broken behavior"
+    content = "TODO: investigate this\nFIXME: broken behaviour"
     todos = extract_todos(content)
     assert len(todos) == 2
     assert "TODO: investigate" in todos[0]

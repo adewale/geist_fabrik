@@ -43,7 +43,7 @@ pytest -m "not slow"
 - `test_embeddings.py` - Unit tests for embeddings module with mocked models
   - Tests embedding computation logic
   - Tests session management
-  - Tests caching behavior
+  - Tests caching behaviour
   - Tests similarity calculations
   - All tests use deterministic mocked embeddings
 
@@ -74,7 +74,7 @@ The original `test_embeddings.py` would hang due to:
 
 ### Solutions Applied:
 
-1. **Model Injection**: Updated `EmbeddingComputer` and `Session` to accept pre-initialized models
+1. **Model Injection**: Updated `EmbeddingComputer` and `Session` to accept pre-initialised models
 2. **Mocked Unit Tests**: Unit tests use deterministic mocked embeddings
 3. **Timeout Decorators**: All tests have timeouts (5s for unit, 60s for integration)
 4. **Fixture Scope**: Changed from module-scoped to function-scoped fixtures

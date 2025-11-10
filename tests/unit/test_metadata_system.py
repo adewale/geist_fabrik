@@ -13,7 +13,7 @@ from geistfabrik import (
 
 
 def test_metadata_loader_initialization() -> None:
-    """Test MetadataLoader initialization."""
+    """Test MetadataLoader initialisation."""
     loader = MetadataLoader(Path("/nonexistent"))
     assert loader.module_dir == Path("/nonexistent")
     assert loader.modules == {}

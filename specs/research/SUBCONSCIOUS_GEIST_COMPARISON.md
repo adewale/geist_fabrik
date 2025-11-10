@@ -76,7 +76,7 @@
 ### 9. Concept Collider (Semantic similarity)
 **Status**: ✅ Already exists
 **Implementation**:
-- `VaultContext.neighbours(note, k)` - Semantic nearest neighbors
+- `VaultContext.neighbours(note, k)` - Semantic nearest neighbours
 - `examples/geists/code/creative_collision.py` - Uses semantic distance
 - `embeddings.py` - Full sentence-transformers integration with all-MiniLM-L6-v2
 
@@ -192,7 +192,7 @@ description: Nature analogy prompts
 tracery:
   origin:
     - "[[#note#]] is like #nature_thing# because #reason#"
-    - "If [[#note#]] were a #nature_system#, it would #behavior#"
+    - "If [[#note#]] were a #nature_system#, it would #behaviour#"
     - "The #nature_pattern# in [[#note#]] suggests #insight#"
 
   note:
@@ -210,7 +210,7 @@ tracery:
     - "both grow through connection"
     - "both adapt over time"
     - "both create emergent complexity"
-    - "both follow simple rules that create rich behavior"
+    - "both follow simple rules that create rich behaviour"
 
   nature_system:
     - "tree"
@@ -218,7 +218,7 @@ tracery:
     - "organism"
     - "season"
 
-  behavior:
+  behaviour:
     - "grow toward light"
     - "branch and merge"
     - "lie dormant then bloom"

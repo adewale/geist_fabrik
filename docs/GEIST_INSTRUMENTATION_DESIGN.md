@@ -240,7 +240,7 @@ def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -
 No new flags needed - use existing `--debug`:
 
 ```bash
-# Current behavior (minimal output)
+# Current behaviour (minimal output)
 uv run geistfabrik invoke ~/vault --geist cluster_mirror
 # Output:
 #   ✗ cluster_mirror: Execution timed out (>5s)
@@ -293,12 +293,12 @@ This is actionable! We can immediately see that HDBSCAN is the bottleneck.
 1. **Users**: Clear visibility into performance issues
 2. **Maintainers**: Actionable bug reports with profiling data
 3. **Debugging**: Identify bottlenecks without code inspection
-4. **Performance**: Data-driven optimization decisions
+4. **Performance**: Data-driven optimisation decisions
 
 ## Non-Goals
 
 - This is not replacing the timeout mechanism
-- This is not adding automatic performance optimization
+- This is not adding automatic performance optimisation
 - This is not changing the geist execution model
 
 ## Future Enhancements

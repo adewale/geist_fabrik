@@ -143,7 +143,7 @@ def test_extract_todo_markers() -> None:
     """Test extracting various TODO markers."""
     content = """
 TODO: investigate this feature
-FIXME: broken behavior in edge case
+FIXME: broken behaviour in edge case
 HACK: temporary workaround
 NOTE: remember to check this
 XXX: urgent issue
@@ -166,7 +166,7 @@ ToDo: mixed case
 """
     todos = extract_todos(content)
     assert len(todos) == 3
-    # All should be normalized to uppercase marker
+    # All should be normalised to uppercase marker
     assert all(t.startswith("TODO:") or t.startswith("TODO:") for t in todos)
 
 

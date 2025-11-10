@@ -40,12 +40,12 @@ from .models import Note
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# sklearn Performance Optimizations
+# sklearn Performance Optimisations
 # ============================================================================
 # Based on comprehensive benchmarking (8 configs × 9 geists = 72 runs),
 # the optimal configuration is opt1+2:
 #   - assume_finite: Disables sklearn input validation (safe for trusted embeddings)
-#   - fast_path: Uses np.dot() for L2-normalized vectors
+#   - fast_path: Uses np.dot() for L2-normalised vectors
 #   - vectorize: Disabled (adds overhead for typical batch sizes)
 #
 # Performance improvement: 21.5% speedup on large vaults (10k+ notes)
@@ -63,7 +63,7 @@ SKLEARN_OPTIMIZATIONS = {
 
 # Apply sklearn configuration
 sklearn.set_config(assume_finite=True)
-logger.info("sklearn optimizations enabled: assume_finite=True, fast_path=True (21.5% speedup)")
+logger.info("sklearn optimisations enabled: assume_finite=True, fast_path=True (21.5% speedup)")
 
 
 class EmbeddingComputer:
@@ -74,11 +74,11 @@ class EmbeddingComputer:
         model_name: str = MODEL_NAME,
         model: Optional[SentenceTransformer] = None,
     ):
-        """Initialize embedding computer.
+        """Initialise embedding computer.
 
         Args:
             model_name: Name of sentence-transformers model to use
-            model: Pre-initialized model (for testing/injection), if None will lazy-load
+            model: Pre-initialised model (for testing/injection), if None will lazy-load
         """
         self.model_name = model_name
         self._model: Optional[SentenceTransformer] = model
@@ -189,7 +189,7 @@ class EmbeddingComputer:
         """
         # Note age in days
         age_days = (session_date - note.created).days
-        note_age = age_days / 365.0  # Normalize to years
+        note_age = age_days / 365.0  # Normalise to years
 
         # Creation season (cyclical encoding)
         creation_doy = note.created.timetuple().tm_yday
@@ -262,7 +262,7 @@ class Session:
         computer: Optional[EmbeddingComputer] = None,
         backend: str = "in-memory",
     ):
-        """Initialize session.
+        """Initialise session.
 
         Args:
             date: Session date
@@ -371,7 +371,7 @@ class Session:
             embedding: Semantic embedding to cache
         """
         content_hash = self._compute_content_hash(note.content)
-        # Serialize using numpy's native format (safe, no code execution risk)
+        # Serialise using numpy's native format (safe, no code execution risk)
         # Store as float32 to reduce storage size (sufficient precision)
         embedding_bytes = embedding.astype(np.float32).tobytes()
 
@@ -455,7 +455,7 @@ class Session:
             temporal_scaled = temporal * temporal_weight
             embedding = np.concatenate([semantic_scaled, temporal_scaled])
 
-            # Serialize embedding to bytes using numpy's native format (safe)
+            # Serialise embedding to bytes using numpy's native format (safe)
             # Store as float32 to reduce storage size (sufficient precision for embeddings)
             embedding_bytes = embedding.astype(np.float32).tobytes()
 
@@ -515,7 +515,7 @@ class Session:
         """Create vector search backend based on configuration.
 
         Returns:
-            Initialized VectorSearchBackend
+            Initialised VectorSearchBackend
 
         Raises:
             ValueError: If unknown backend type specified
@@ -563,10 +563,10 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     if norm_a == 0 or norm_b == 0:
         return 0.0
 
-    # Fast path: if vectors are L2-normalized, cosine_similarity = dot product
-    # sentence-transformers outputs normalized embeddings, so this is safe
+    # Fast path: if vectors are L2-normalised, cosine_similarity = dot product
+    # sentence-transformers outputs normalised embeddings, so this is safe
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
-        # Check if both vectors are approximately normalized (norm ≈ 1.0)
+        # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
             return float(np.dot(a, b))
 
@@ -603,16 +603,16 @@ def find_similar_notes(
     # Vectorized computation: compute all similarities at once
     embedding_matrix = np.vstack([embeddings[p] for p in filtered_paths])
 
-    # Optimization: use np.dot for normalized vectors
+    # Optimisation: use np.dot for normalised vectors
     if SKLEARN_OPTIMIZATIONS["vectorize"]:
-        # For L2-normalized vectors, cosine_similarity(query, matrix) = matrix @ query
+        # For L2-normalised vectors, cosine_similarity(query, matrix) = matrix @ query
         # This is much faster than sklearn_cosine for batch operations
         query_norm = np.linalg.norm(query_embedding)
         if query_norm > 0 and abs(query_norm - 1.0) < 1e-6:
-            # Query is normalized, check if matrix rows are normalized
+            # Query is normalised, check if matrix rows are normalised
             row_norms = np.linalg.norm(embedding_matrix, axis=1)
             if np.all(np.abs(row_norms - 1.0) < 1e-6):
-                # All normalized, use fast dot product
+                # All normalised, use fast dot product
                 similarity_scores = embedding_matrix @ query_embedding
             else:
                 # Fall back to sklearn

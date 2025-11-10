@@ -33,7 +33,7 @@ Tracery grammars are JSON objects where keys are symbols and values are arrays o
 ```json
 {
   "origin": "#[hero:#name#][heroPet:#animal#]story#",
-  "story": "#hero# traveled with their pet #heroPet#. #hero# was never #mood#.",
+  "story": "#hero# travelled with their pet #heroPet#. #hero# was never #mood#.",
   "name": ["Arjun", "Lina", "Azra"],
   "animal": ["unicorn", "raven", "duck"],
   "mood": ["vexed", "indignant", "wistful"]
@@ -251,7 +251,7 @@ Complete grammar for inverting statements philosophically:
 | **Ink** | Powerful narrative logic, professional tool, state tracking | Steeper learning curve, narrative-focused | Interactive fiction, game dialogue |
 | **Twine** | Visual authoring, self-contained HTML output | Less suited for pure generation | Choice-based stories, hypertext |
 | **Markov Chains** | Natural-sounding output, learns from corpus | Less control, can be nonsensical | Mimicking style, creative writing |
-| **L-Systems** | Mathematical rigor, good for recursive structures | Complex for text, better for graphics | Formal generation, plant/fractal modeling |
+| **L-Systems** | Mathematical rigor, good for recursive structures | Complex for text, better for graphics | Formal generation, plant/fractal modelling |
 | **LLMs** | Contextual understanding, infinite variety | Unpredictable, requires API, expensive | Complex generation, conversational AI |
 
 ## Implementation Best Practices
@@ -278,7 +278,7 @@ Complete grammar for inverting statements philosophically:
 
 ## Historical Context
 
-Tracery emerged from Kate Compton's work at UC Santa Cruz's Center for Games and Playable Media (2014-2015). It gained widespread adoption through:
+Tracery emerged from Kate Compton's work at UC Santa Cruz's Centre for Games and Playable Media (2014-2015). It gained widespread adoption through:
 - **Cheap Bots, Done Quick** (2015-2023): Zero-code Twitter bot platform
 - **NaNoGenMo**: National Novel Generation Month projects
 - **Game Industry**: Integration into narrative games
@@ -429,7 +429,7 @@ origin: "#note1# connects to #note2#"
 
 **Implementation**: ✅ **IMPLEMENTED** in custom TraceryEngine
 
-The TraceryEngine accepts a `seed` parameter that ensures deterministic behavior:
+The TraceryEngine accepts a `seed` parameter that ensures deterministic behaviour:
 
 ```python
 # TraceryEngine constructor
@@ -872,7 +872,7 @@ This section ranks Tracery features **by the creative geists they would unlock**
 
 ### Tier 1: Foundational Geist Enablers
 
-These features unlock entire categories of geists and should be prioritized first.
+These features unlock entire categories of geists and should be prioritised first.
 
 #### 1. Text Modifiers (.s, .ed, .a, .capitalize)
 

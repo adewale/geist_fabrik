@@ -53,7 +53,7 @@ def mocked_session(db_with_notes, mock_embedding_computer):
 
 
 def test_embedding_computer_initialization():
-    """Test EmbeddingComputer initialization."""
+    """Test EmbeddingComputer initialisation."""
     computer = EmbeddingComputer()
     assert computer.model_name == "all-MiniLM-L6-v2"
     assert computer._model is None  # Lazy loading
@@ -75,7 +75,7 @@ def test_compute_semantic_embedding_mock(mock_embedding_computer):
     assert isinstance(embedding, np.ndarray)
     assert embedding.shape == (384,)  # all-MiniLM-L6-v2 produces 384-dim embeddings
 
-    # Verify deterministic behavior - same text produces same embedding
+    # Verify deterministic behaviour - same text produces same embedding
     embedding2 = mock_embedding_computer.compute_semantic(text)
     assert np.array_equal(embedding, embedding2)
 

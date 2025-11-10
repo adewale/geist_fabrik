@@ -53,7 +53,7 @@ git clone https://github.com/adewale/geist_fabrik.git
 ls -lh models/all-MiniLM-L6-v2/
 ```
 
-## Fallback Behavior
+## Fallback Behaviour
 
 If the local model is not found, GeistFabrik will automatically download it from HuggingFace on first use. The local model is checked first to enable:
 

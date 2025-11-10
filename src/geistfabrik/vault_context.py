@@ -61,7 +61,7 @@ class VaultContext:
         metadata_loader: Optional["MetadataLoader"] = None,
         function_registry: Optional["FunctionRegistry"] = None,
     ):
-        """Initialize vault context.
+        """Initialise vault context.
 
         Args:
             vault: Vault instance
@@ -84,33 +84,33 @@ class VaultContext:
         self._functions: Dict[str, Callable[..., Any]] = {}
         self._function_registry = function_registry
 
-        # Cache for notes (performance optimization)
+        # Cache for notes (performance optimisation)
         self._notes_cache: Optional[List[Note]] = None
 
         # Cache for metadata
         self._metadata_cache: Dict[str, Dict[str, Any]] = {}
 
-        # Cache for clusters (performance optimization - keyed by min_size)
+        # Cache for clusters (performance optimisation - keyed by min_size)
         self._clusters_cache: Dict[int, Dict[int, Dict[str, Any]]] = {}
 
-        # Cache for similarity scores (performance optimization - keyed by note path pair)
+        # Cache for similarity scores (performance optimisation - keyed by note path pair)
         self._similarity_cache: Dict[Tuple[str, str], float] = {}
 
-        # Cache for neighbours (performance optimization - keyed by (note_path, k))
+        # Cache for neighbours (performance optimisation - keyed by (note_path, k))
         self._neighbours_cache: Dict[
             Tuple[str, int, bool], Union[List[Note], List[Tuple[Note, float]]]
         ] = {}
 
-        # Cache for backlinks (performance optimization - keyed by note_path)
+        # Cache for backlinks (performance optimisation - keyed by note_path)
         self._backlinks_cache: Dict[str, List[Note]] = {}
 
-        # Cache for outgoing_links (performance optimization - keyed by note_path)
+        # Cache for outgoing_links (performance optimisation - keyed by note_path)
         self._outgoing_links_cache: Dict[str, List[Note]] = {}
 
-        # Cache for graph_neighbors (performance optimization - keyed by note_path)
+        # Cache for graph_neighbors (performance optimisation - keyed by note_path)
         self._graph_neighbors_cache: Dict[str, List[Note]] = {}
 
-        # Cache for read() content (OPTIMIZATION #2 - session-scoped)
+        # Cache for read() content (OPTIMISATION #2 - session-scoped)
         self._read_cache: Dict[str, str] = {}
 
         # Metadata loader for extensible metadata inference
@@ -141,7 +141,7 @@ class VaultContext:
     def notes(self) -> List[Note]:
         """Get all notes in vault (cached).
 
-        Performance optimization: Notes are loaded once and cached
+        Performance optimisation: Notes are loaded once and cached
         for the duration of the VaultContext session.
 
         Returns:
@@ -187,7 +187,7 @@ class VaultContext:
         Returns:
             Note content
         """
-        # Check cache first (OPTIMIZATION #2 - session-scoped)
+        # Check cache first (OPTIMISATION #2 - session-scoped)
         if note.path in self._read_cache:
             return self._read_cache[note.path]
 
@@ -218,7 +218,7 @@ class VaultContext:
         eliminates redundant vector searches across all geists in a session.
 
         Performance: return_scores=True avoids recomputing similarities that were
-        already computed during the neighbor search (OP-9).
+        already computed during the neighbour search (OP-9).
 
         Args:
             note: Query note
@@ -311,12 +311,12 @@ class VaultContext:
         return similarity_score
 
     def batch_similarity(self, notes_a: List[Note], notes_b: List[Note]) -> np.ndarray:
-        """Calculate semantic similarity between two sets of notes (vectorized).
+        """Calculate semantic similarity between two sets of notes (vectorised).
 
         Computes all pairwise similarities between notes_a and notes_b using
-        vectorized matrix operations for 10-100× speedup compared to nested loops.
+        vectorised matrix operations for 10-100× speedup compared to nested loops.
 
-        OPTIMIZATION #3: Use this instead of nested similarity() calls:
+        OPTIMISATION #3: Use this instead of nested similarity() calls:
 
         Before (O(N×M) individual calls):
             for a in notes_a:
@@ -362,7 +362,7 @@ class VaultContext:
         matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), 387)
         matrix_b = np.stack(embeddings_b)  # shape: (len(notes_b), 387)
 
-        # Normalize rows to unit vectors for cosine similarity
+        # Normalise rows to unit vectors for cosine similarity
         # ||a|| = sqrt(sum(a^2)) for each row
         norms_a = np.linalg.norm(matrix_a, axis=1, keepdims=True)
         norms_b = np.linalg.norm(matrix_b, axis=1, keepdims=True)
@@ -371,12 +371,12 @@ class VaultContext:
         norms_a = np.where(norms_a == 0, 1, norms_a)
         norms_b = np.where(norms_b == 0, 1, norms_b)
 
-        matrix_a_normalized = matrix_a / norms_a
-        matrix_b_normalized = matrix_b / norms_b
+        matrix_a_normalised = matrix_a / norms_a
+        matrix_b_normalised = matrix_b / norms_b
 
         # Compute cosine similarity matrix: A @ B.T
         # Result shape: (len(notes_a), len(notes_b))
-        similarity_matrix = matrix_a_normalized @ matrix_b_normalized.T
+        similarity_matrix = matrix_a_normalised @ matrix_b_normalised.T
 
         # Clip to [0, 1] range (numerical errors can cause slight overshoot)
         clipped: np.ndarray = np.clip(similarity_matrix, 0.0, 1.0)
@@ -461,7 +461,7 @@ class VaultContext:
     def orphans(self, k: Optional[int] = None) -> List[Note]:
         """Find notes with no outgoing or incoming links.
 
-        Performance optimized with LEFT JOINs instead of NOT IN subqueries.
+        Performance optimised with LEFT JOINs instead of NOT IN subqueries.
 
         Args:
             k: Maximum number to return. If None, return all.
@@ -496,9 +496,9 @@ class VaultContext:
         return result
 
     def hubs(self, k: int = 10) -> List[Note]:
-        """Find most-linked-to notes using optimized SQL query.
+        """Find most-linked-to notes using optimised SQL query.
 
-        Performance optimized (OP-8): Uses JOIN to resolve link targets in SQL
+        Performance optimised (OP-8): Uses JOIN to resolve link targets in SQL
         rather than fetching k×3 candidates and resolving in Python. This is
         15-25% faster and eliminates redundant database queries.
 
@@ -625,7 +625,7 @@ class VaultContext:
 
         metrics_computer = EmbeddingMetricsComputer(self.db, self.vault.config)
 
-        # Choose labeling method based on config
+        # Choose labelling method based on config
         labeling_method = self.vault.config.clustering.labeling_method
         n_terms = self.vault.config.clustering.n_label_terms
 
@@ -745,7 +745,7 @@ class VaultContext:
     def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> List[Tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
 
-        Performance optimized: Uses vectorized numpy matrix multiplication to compute
+        Performance optimised: Uses vectorised numpy matrix multiplication to compute
         all pairwise similarities at once, rather than nested loops. This is 10-50x
         faster than the loop-based approach, especially for large vaults.
 
@@ -758,7 +758,7 @@ class VaultContext:
         """
         all_notes = self.notes()
 
-        # Optimize for large vaults by limiting candidate set
+        # Optimise for large vaults by limiting candidate set
         if len(all_notes) > candidate_limit:
             # Sample a diverse set: recent notes + random notes
             recent = self.recent_notes(k=candidate_limit // 2)
@@ -783,13 +783,13 @@ class VaultContext:
         if len(valid_notes) < 2:
             return []
 
-        # Vectorized: Compute all pairwise similarities at once
+        # Vectorised: Compute all pairwise similarities at once
         embeddings_matrix = np.array(embeddings_list)
 
         # Matrix multiplication: X @ X^T gives all dot products
         similarity_matrix = np.dot(embeddings_matrix, embeddings_matrix.T)
 
-        # Normalize to get cosine similarities
+        # Normalise to get cosine similarities
         norms = np.linalg.norm(embeddings_matrix, axis=1)
         similarity_matrix = similarity_matrix / np.outer(norms, norms)
 
@@ -876,17 +876,17 @@ class VaultContext:
         if note.path in self._graph_neighbors_cache:
             return self._graph_neighbors_cache[note.path]
 
-        neighbors = set()
+        neighbours = set()
 
         # Add outgoing link targets (now cached)
         for target in self.outgoing_links(note):
-            neighbors.add(target)
+            neighbours.add(target)
 
         # Add incoming link sources (now cached)
         for source in self.backlinks(note):
-            neighbors.add(source)
+            neighbours.add(source)
 
-        result = list(neighbors)
+        result = list(neighbours)
 
         # Cache the result
         self._graph_neighbors_cache[note.path] = result

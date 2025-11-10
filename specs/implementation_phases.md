@@ -21,7 +21,7 @@ This document outlines the implementation roadmap for GeistFabrik. Each phase bu
 | 8 | Metadata extensibility | 2-3 days | Phase 3 | 5 | 14 | 19 |
 | 9 | Function extensibility | 2-3 days | Phase 3, 6, 8 | 5 | 14 | 19 |
 | 10 | CLI & invocation modes | 2-3 days | Phase 5 | 8 | 18 | 26 |
-| 11 | Polish & optimization | 3-5 days | All | 8 | 17 | 25 |
+| 11 | Polish & optimisation | 3-5 days | All | 8 | 17 | 25 |
 | **Total** | | **6-8 weeks** | | **73** | **158** | **231** |
 
 ---
@@ -407,9 +407,9 @@ See [acceptance_criteria.md](acceptance_criteria.md#phase-10-cli--invocation-mod
 
 ---
 
-## Phase 11: Polish & Optimization
+## Phase 11: Polish & Optimisation
 
-**Goal**: Performance optimization, documentation, and production readiness.
+**Goal**: Performance optimisation, documentation, and production readiness.
 
 ### Deliverables
 - Performance benchmarks met
@@ -427,7 +427,7 @@ See [acceptance_criteria.md](acceptance_criteria.md#phase-10-cli--invocation-mod
 - bandit for security scanning
 
 ### Acceptance Criteria
-See [acceptance_criteria.md](acceptance_criteria.md#phase-11-polish--optimization) - **25 criteria total**
+See [acceptance_criteria.md](acceptance_criteria.md#phase-11-polish--optimisation) - **25 criteria total**
 - 8 core criteria (performance, coverage, E2E, docs, examples, linting, security)
 - 17 additional criteria (migration, compatibility, platform tests, load testing, etc.)
 

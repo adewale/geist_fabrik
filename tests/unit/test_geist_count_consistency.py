@@ -1,6 +1,6 @@
 """Test that documentation geist counts match reality.
 
-This test ensures that geist counts in documentation files stay synchronized
+This test ensures that geist counts in documentation files stay synchronised
 with the actual number of default geists bundled with GeistFabrik.
 
 Single source of truth: src/geistfabrik/default_geists/__init__.py

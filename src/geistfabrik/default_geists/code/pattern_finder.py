@@ -26,7 +26,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 15:
         return []
 
-    # OPTIMIZATION: Build link pair set once for O(1) lookups
+    # OPTIMISATION: Build link pair set once for O(1) lookups
     # This replaces thousands of O(N) links_between() calls
     all_link_pairs = set()
     for note in notes:

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Virtual note title format change**: Fixed virtual note titles to exclude filename prefix
   - **What changed**: Virtual note titles now store ONLY the heading text (e.g., "2024 February 18") instead of the deeplink format (e.g., "Exercise journal#2024 February 18")
   - **Why**: The old format stored "filename#heading" in the title field, causing suggestions to display as `[[Exercise journal#Exercise journal#2024 February 18]]` (double filename prefix)
-  - **Correct behavior**:
+  - **Correct behaviour**:
     - `note.title` = `"2024 February 18"` (just the heading text)
     - `note.obsidian_link` = `"Exercise journal#2024 February 18"` (property combines them)
     - Suggestions use `[[{note.obsidian_link}]]` = `[[Exercise journal#2024 February 18]]`
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Reference**: Obsidian deeplink syntax: https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note
 
 ### Changed
-- **Cluster Labeling**: Enhanced cluster naming with configurable KeyBERT method
+- **Cluster Labelling**: Enhanced cluster naming with configurable KeyBERT method
   - **New default**: KeyBERT (semantic similarity) replaces c-TF-IDF for cluster labels
   - **Impact**: Cluster names will be more descriptive and semantically coherent
     - Before: "notes, knowledge, system, management" (single keywords)
@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Configuration**:
     ```yaml
     clustering:
-      labeling_method: keybert  # or "tfidf" for legacy behavior
+      labeling_method: keybert  # or "tfidf" for legacy behaviour
       min_cluster_size: 5
       n_label_terms: 4
     ```
@@ -53,19 +53,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Specification and historical documentation preserved for reference
 
 ### Performance
-- **BIG OPTIMIZATION #1**: Fixed O(N²) algorithmic inefficiencies (6 locations)
+- **BIG OPTIMISATION #1**: Fixed O(N²) algorithmic inefficiencies (6 locations)
   - **CRITICAL**: Fixed pattern_finder timeout on large vaults (10k+ notes)
     - Replaced O(N³) list.remove() in nested loops with O(N²) set.remove() (pattern_finder.py:88, 95)
-  - Optimized stats command for large vaults:
+  - Optimised stats command for large vaults:
     - Dict lookup instead of list.index() in vault drift computation (stats.py:591)
     - Dict lookup instead of list.index() in MMR term selection (stats.py:973)
     - Set membership instead of list membership in MMR loop (stats.py:966)
-  - Optimized unlinked_pairs for large vaults:
+  - Optimised unlinked_pairs for large vaults:
     - Set membership instead of list membership (vault_context.py:619)
   - Added comprehensive unit tests (tests/unit/test_algorithmic_fixes.py)
   - Expected impact: Fixes timeouts on 10k vault, minor ~2-5% overall improvement
 
-- **BIG OPTIMIZATION #2**: sklearn vectorization + cache redundant norms (13 locations)
+- **BIG OPTIMISATION #2**: sklearn vectorization + cache redundant norms (13 locations)
   - **Vectorized operations**: Replaced manual cosine similarity loops with sklearn
     - embeddings.py: cosine_similarity() function and find_similar_notes() batch computation
     - concept_drift.py: sklearn cosine similarity (2 places) + cached drift_vector norm
@@ -79,22 +79,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added comprehensive unit tests (tests/unit/test_sklearn_migration.py)
   - Expected impact: 10-15% speedup on geist execution phase
 
-- **BIG OPTIMIZATION #3**: sklearn configuration tuning with benchmarking suite
-  - **Optimization flags**: Three tunable sklearn optimizations for large vaults (10k+ notes)
+- **BIG OPTIMISATION #3**: sklearn configuration tuning with benchmarking suite
+  - **Optimisation flags**: Three tunable sklearn optimisations for large vaults (10k+ notes)
     - `assume_finite=True`: Skip NaN/inf validation (21% speedup, 23.2s → 19.4s avg)
     - `force_all_finite=False`: Relaxed validation in pairwise operations
-    - NumPy array optimizations via environment variables
-  - **Benchmarking infrastructure**: Comprehensive test harness for optimization validation
+    - NumPy array optimisations via environment variables
+  - **Benchmarking infrastructure**: Comprehensive test harness for optimisation validation
     - scripts/benchmark_optimizations.py: Test 8 configs × 9 geists = 72 runs
     - scripts/analyze_benchmarks.py: Correctness validation + performance analysis
     - scripts/benchmark_config.py: Shared configuration for consistency
-    - MD5 hash validation ensures optimizations don't change results
-  - **Results on 10k vault**: All optimizations preserve correctness (identical outputs)
+    - MD5 hash validation ensures optimisations don't change results
+  - **Results on 10k vault**: All optimisations preserve correctness (identical outputs)
     - opt1_assume_finite: 21% faster overall, 24% faster on antithesis_generator
     - No timeouts with any configuration (120s timeout limit)
     - All configs produce identical suggestion hashes (validated via MD5)
   - **Implementation**: Environment variable configuration in embeddings.py
-    - Allows A/B testing different optimization strategies
+    - Allows A/B testing different optimisation strategies
     - Safe fallback to conservative defaults
   - See docs/SKLEARN_OPTIMIZATION_BENCHMARK.md for detailed methodology
 
@@ -114,7 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance regression tests (tests/unit/test_performance_regression.py)
   - 8 tests covering caching, indexing, vectorization
   - Prevents future performance regressions
-  - Documents optimization patterns
+  - Documents optimisation patterns
 - Real performance profiling with validated measurements
   - `scripts/profile_congruence_mirror.py` - Profiling script
   - `docs/congruence_mirror_profile_results.json` - Raw performance data
@@ -130,15 +130,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminates redundant HDBSCAN clustering within session
   - get_clusters() results cached by min_size parameter
   - get_cluster_representatives() accepts optional clusters parameter
-  - cluster_mirror geist optimized: 4 clusterings → 1 clustering
-  - Comprehensive performance tests validate optimization
+  - cluster_mirror geist optimised: 4 clusterings → 1 clustering
+  - Comprehensive performance tests validate optimisation
 - **PERFORMANCE (Phase 2)**: Batch note loading infrastructure (OP-6)
   - `vault.get_notes_batch(paths)` loads N notes in 3 queries instead of 3×N
   - Eliminates database query overhead by 66% for batch operations
   - Used by neighbours(), backlinks(), hubs() methods
   - Implementation: src/geistfabrik/vault.py
 - **PERFORMANCE (Phase 2)**: neighbours() with return_scores parameter (OP-9)
-  - Optional `return_scores=True` returns similarity scores with neighbors
+  - Optional `return_scores=True` returns similarity scores with neighbours
   - Avoids recomputing similarities already computed during k-NN search
   - Type-safe implementation using `@overload` with `Literal` types
   - Used by 5 geists: hidden_hub, bridge_hunter, columbo, bridge_builder, antithesis_generator
@@ -151,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Actual speedup: 31.5x (97% reduction)
   - Multiplicative effect: single-pass (4x) + cached similarity (3x) + cached links (2x) + batch loading (1.3x)
   - Implementation: src/geistfabrik/default_geists/code/congruence_mirror.py
-- **PERFORMANCE (Phase 2)**: Optimized hubs() SQL query (OP-8)
+- **PERFORMANCE (Phase 2)**: Optimised hubs() SQL query (OP-8)
   - Uses JOIN to resolve link targets in SQL instead of Python
   - Eliminates k×3 oversampling pattern
   - Combined with batch loading (OP-6) for maximum efficiency
@@ -164,13 +164,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses `sklearn.metrics.pairwise.cosine_similarity` when available
   - Replaces O(n²) nested loops with vectorized NumPy operations
   - 5.4x speedup for embedding similarity calculations
-- **PERFORMANCE**: Optimized graph operations using `itertools.combinations`
+- **PERFORMANCE**: Optimised graph operations using `itertools.combinations`
   - `concept_cluster` geist now uses combinations instead of nested loops
   - Cleaner code with identical functionality
-- Improved orphan query performance with optimized SQL
+- Improved orphan query performance with optimised SQL
   - Changed from `NOT IN (subquery)` to `LEFT JOIN` pattern
   - 85.6% faster orphan queries with composite indexing
-  - Better query plan and index utilization
+  - Better query plan and index utilisation
 - Refactored 4 geist files to use new helper functions:
   - congruence_mirror.py - outgoing_links() and has_link()
   - density_inversion.py - graph_neighbors()
@@ -191,8 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All references now accurate to actual source code locations
 
 ### Documentation
-- **NEW**: `docs/PERFORMANCE_OPTIMIZATION_RESULTS.md` - Comprehensive performance optimization results
-  - All Phase 1, 2, and 3 optimizations (OP-1 through OP-9)
+- **NEW**: `docs/PERFORMANCE_OPTIMIZATION_RESULTS.md` - Comprehensive performance optimisation results
+  - All Phase 1, 2, and 3 optimisations (OP-1 through OP-9)
   - Measured results: 38-46% session speedup, 86.3% cache hit rate, 69MB memory on 1000-note vault
   - Benchmark summary, cache hit rates, memory usage, testing coverage
   - Replaces and consolidates earlier performance documentation
@@ -261,10 +261,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual entry system for notes split from journal files
 
 ### Changed
-- Optimized date-collection processing to eliminate vault duplication
+- Optimised date-collection processing to eliminate vault duplication
 
 ### Fixed
-- Hub explorer variety tests updated for new preprocessing behavior
+- Hub explorer variety tests updated for new preprocessing behaviour
 
 ## [0.3.0] - 2025-10-27
 
@@ -297,7 +297,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Deterministic geist execution using config file order
-- Standardized on `count` parameter (removed `suggestions_per_invocation`)
+- Standardised on `count` parameter (removed `suggestions_per_invocation`)
 - Made Note objects hashable for cleaner deduplication
 
 ### Fixed

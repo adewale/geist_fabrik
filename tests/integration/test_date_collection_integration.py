@@ -659,7 +659,7 @@ def test_empty_journal_file(tmp_path: Path) -> None:
     # or not create any note at all
     # Current implementation creates a note with empty content
     notes = vault.all_notes()
-    assert len(notes) <= 1  # Accept either behavior
+    assert len(notes) <= 1  # Accept either behaviour
 
     vault.close()
 
@@ -888,7 +888,7 @@ More thoughts.
     # This ensures the link works in Obsidian (which requires exact heading match)
     assert journal_jan15.title == "January 15, 2025", (
         "Virtual note titles should use original heading text from the file, "
-        "not normalized ISO format"
+        "not normalised ISO format"
     )
     assert journal_jan15.obsidian_link == "Daily Journal#January 15, 2025", (
         "Virtual note obsidian_link should use original heading text "
@@ -1158,7 +1158,7 @@ def test_year_month_day_obsidian_link_format(tmp_path: Path) -> None:
     included the filename (e.g., "Exercise journal#2024 February 18" as the title)
     instead of just the heading text ("2024 February 18" as title).
 
-    Correct behavior:
+    Correct behaviour:
     - title: "2024 February 18" (just the heading text)
     - obsidian_link: "Exercise journal#2024 February 18" (filename + heading)
     - In suggestions: [[Exercise journal#2024 February 18]]

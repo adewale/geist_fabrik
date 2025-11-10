@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-GeistFabrik successfully handled a 10,000 note vault with good performance. The system synced, embedded, and ran 45 geists in approximately 7 minutes total, with only 2 geists timing out. The Phase 2 optimizations proved critical for scaling to this size.
+GeistFabrik successfully handled a 10,000 note vault with good performance. The system synced, embedded, and ran 45 geists in approximately 7 minutes total, with only 2 geists timing out. The Phase 2 optimisations proved critical for scaling to this size.
 
 ---
 
@@ -60,10 +60,10 @@ Raw suggestions: 51
 Filtered suggestions: 43
 ```
 
-**Analysis**: Most geists completed within the 5-second timeout. Only 2 geists (cluster_mirror and pattern_finder) timed out, indicating O(n²) operations that need optimization for large vaults.
+**Analysis**: Most geists completed within the 5-second timeout. Only 2 geists (cluster_mirror and pattern_finder) timed out, indicating O(n²) operations that need optimisation for large vaults.
 
 **Lessons Learned**:
-- Phase 2 optimizations (OP-4, OP-6, OP-8, OP-9) were critical
+- Phase 2 optimisations (OP-4, OP-6, OP-8, OP-9) were critical
 - Most geists scale well to 10k notes
 - 2 geists need performance review for large vaults
 - Filtering pipeline works efficiently even with large input sets
@@ -106,7 +106,7 @@ The notes contain AI-generated Lorem Ipsum-style text with:
 - `columbo` - Generated 3 suggestions (contradiction detection)
 - `complexity_mismatch` - Generated 3 suggestions
 - `concept_cluster` - Generated 2 suggestions
-- `congruence_mirror` - Generated 1 suggestion (optimized single-pass algorithm)
+- `congruence_mirror` - Generated 1 suggestion (optimised single-pass algorithm)
 - `creative_collision` - Generated 2 suggestions
 - `hidden_hub` - Generated 3 suggestions (semantically central notes)
 - `link_density_analyser` - Generated 1 suggestion
@@ -131,7 +131,7 @@ The notes contain AI-generated Lorem Ipsum-style text with:
 - Implement sampling for large vaults (limit to top N clusters by size)
 - Cache cluster computations
 - Add early termination when sufficient suggestions found
-- Consider using Phase 2 optimization techniques (batch loading, vectorization)
+- Consider using Phase 2 optimisation techniques (batch loading, vectorization)
 
 #### 2. pattern_finder
 **Status**: Execution timed out (>5s)
@@ -158,7 +158,7 @@ These geists returned no suggestions, primarily because:
 - `stub_expander` - No stubs to expand
 - `task_archaeology` - No tasks in random text
 
-**This is expected** and shows proper geist behavior: they return empty lists when criteria aren't met rather than forcing irrelevant suggestions.
+**This is expected** and shows proper geist behaviour: they return empty lists when criteria aren't met rather than forcing irrelevant suggestions.
 
 ---
 
@@ -167,7 +167,7 @@ These geists returned no suggestions, primarily because:
 ### 1. Embedding Computation (200s) 🔴
 **Impact**: Highest
 **Solution**:
-- Already optimized (batch processing, caching)
+- Already optimised (batch processing, caching)
 - Further speedup requires GPU or quantized models
 - Cache hit rate will be 100% on subsequent runs
 
@@ -186,9 +186,9 @@ These geists returned no suggestions, primarily because:
 - Use database indexes
 
 ### 4. Graph Operations ✅
-**Impact**: Low (Phase 2 optimizations worked!)
+**Impact**: Low (Phase 2 optimisations worked!)
 **Evidence**:
-- `congruence_mirror` completed (was O(n²), now optimized)
+- `congruence_mirror` completed (was O(n²), now optimised)
 - `bridge_hunter` found paths through 10k notes
 - `hidden_hub` analyzed 10k notes successfully
 - All benefited from OP-4, OP-6, OP-8, OP-9
@@ -204,7 +204,7 @@ Most geists scale linearly with vault size:
 - Semantic search with embeddings (k-NN is log(n) with proper indexing)
 
 ### Quadratic Operations (O(n²)) ⚠️
-Two geists exhibited O(n²) behavior:
+Two geists exhibited O(n²) behaviour:
 - `cluster_mirror` - Comparing all cluster pairs
 - `pattern_finder` - Multiple passes over all notes
 
@@ -218,7 +218,7 @@ Two geists exhibited O(n²) behavior:
 | 10,000     | 2.4s      | 200s           | 247s (4:07)     |
 | 100,000    | 24s       | 2,000s (33m)   | ~400s (7m)*     |
 
-\* Projection assumes Phase 3 sampling optimizations implemented
+\* Projection assumes Phase 3 sampling optimisations implemented
 
 ---
 
@@ -276,9 +276,9 @@ These show the system working as designed: finding **implicit connections** that
 
 ---
 
-## Phase 2 Optimizations Validation
+## Phase 2 Optimisations Validation
 
-The Phase 2 optimizations (OP-4, OP-6, OP-8, OP-9) proved their value at 10k scale:
+The Phase 2 optimisations (OP-4, OP-6, OP-8, OP-9) proved their value at 10k scale:
 
 ### OP-4: Single-Pass Congruence Mirror ✅
 **Result**: `congruence_mirror` completed successfully in 247s total run
@@ -290,7 +290,7 @@ The Phase 2 optimizations (OP-4, OP-6, OP-8, OP-9) proved their value at 10k sca
 **Evidence**: Fast semantic searches across 10k notes
 **Impact**: Reduced query overhead from 3×N to 3 queries
 
-### OP-8: Optimized Hubs Query ✅
+### OP-8: Optimised Hubs Query ✅
 **Result**: Hubs identified despite no links in test vault
 **Evidence**: JOIN-based resolution completed quickly
 **Impact**: Fast even with complex link resolution
@@ -300,7 +300,7 @@ The Phase 2 optimizations (OP-4, OP-6, OP-8, OP-9) proved their value at 10k sca
 **Evidence**: All 5 geists completed successfully
 **Impact**: Avoided redundant similarity computations
 
-**Conclusion**: Phase 2 optimizations were essential for 10k scale. Without them, multiple geists would have timed out.
+**Conclusion**: Phase 2 optimisations were essential for 10k scale. Without them, multiple geists would have timed out.
 
 ---
 
@@ -310,7 +310,7 @@ The Phase 2 optimizations (OP-4, OP-6, OP-8, OP-9) proved their value at 10k sca
 
 1. **Incremental sync** - 2.4s for 10k notes
 2. **Embedding caching** - Reused embeddings from first computation
-3. **Phase 2 optimizations** - Prevented multiple timeouts
+3. **Phase 2 optimisations** - Prevented multiple timeouts
 4. **Sampling** - Geists using `vault.sample()` scaled well
 5. **Timeout mechanism** - Prevented infinite hangs
 6. **Filtering pipeline** - Handled 51→43 suggestions efficiently
@@ -320,7 +320,7 @@ The Phase 2 optimizations (OP-4, OP-6, OP-8, OP-9) proved their value at 10k sca
 ### What Needs Improvement ⚠️
 
 1. **cluster_mirror** - Needs sampling for large vaults
-2. **pattern_finder** - Needs optimization or sampling
+2. **pattern_finder** - Needs optimisation or sampling
 3. **Link-dependent geists** - Many returned empty (expected for this vault)
 4. **GPU support** - Would provide 10x speedup for embeddings
 5. **Parallel geist execution** - Could run geists concurrently (future work)
@@ -362,7 +362,7 @@ This benchmark revealed:
 1. **Semantic geists are robust** - Work without link structure
 2. **Timeout mechanism is critical** - Prevents system hangs
 3. **Sampling is essential** - For scaling beyond 10k notes
-4. **Phase 2 optimizations validated** - Prevented multiple failures
+4. **Phase 2 optimisations validated** - Prevented multiple failures
 5. **Filtering works at scale** - Handled large suggestion sets efficiently
 
 ---
@@ -390,10 +390,10 @@ This benchmark revealed:
 ✅ **Sync**: Will scale linearly (24s for 100k)
 ✅ **Embeddings**: Will scale linearly but take ~33 minutes
 ✅ **Most geists**: Will complete with sampling
-⚠️ **2-3 geists**: Will need optimization or longer timeouts
+⚠️ **2-3 geists**: Will need optimisation or longer timeouts
 ✅ **Memory**: Should fit in 2-4GB RAM
 
-**Recommendation**: Implement Phase 3 sampling optimizations for 100k+ vaults.
+**Recommendation**: Implement Phase 3 sampling optimisations for 100k+ vaults.
 
 ### Performance Goals Achieved
 
@@ -424,7 +424,7 @@ This benchmark revealed:
 1. **Semantic-only geists are valuable** even without links
 2. **Empty results are acceptable** - better than forced suggestions
 3. **Deterministic RNG** enables reproducible testing
-4. **Incremental design** (sync, embeddings, execution) allows optimization
+4. **Incremental design** (sync, embeddings, execution) allows optimisation
 5. **Modular architecture** (45 geists) scales to large codebases
 
 ### User Experience Lessons
@@ -440,14 +440,14 @@ This benchmark revealed:
 ## Next Steps
 
 ### Immediate (for 1.0 release)
-1. ✅ Phase 2 optimizations validated
-2. ⚠️ Optimize cluster_mirror for large vaults
-3. ⚠️ Optimize pattern_finder for large vaults
+1. ✅ Phase 2 optimisations validated
+2. ⚠️ Optimise cluster_mirror for large vaults
+3. ⚠️ Optimise pattern_finder for large vaults
 4. ✅ Document performance characteristics
 5. ✅ Add benchmark to test suite
 
 ### Future (post-1.0)
-1. Implement Phase 3 sampling optimizations
+1. Implement Phase 3 sampling optimisations
 2. Add GPU support for embeddings
 3. Parallel geist execution
 4. Incremental embedding updates
@@ -457,13 +457,13 @@ This benchmark revealed:
 
 ## Conclusion
 
-**GeistFabrik successfully handles 10,000 note vaults** with only 2 minor timeouts. The Phase 2 optimizations proved critical for this scale, and the system demonstrates good scalability characteristics. With Phase 3 optimizations, 100k+ note vaults should be feasible.
+**GeistFabrik successfully handles 10,000 note vaults** with only 2 minor timeouts. The Phase 2 optimisations proved critical for this scale, and the system demonstrates good scalability characteristics. With Phase 3 optimisations, 100k+ note vaults should be feasible.
 
 **Performance Summary**:
 - ✅ Sync: Excellent (4,229 notes/sec)
 - ✅ Embeddings: Good (50 notes/sec, cacheable)
 - ✅ Geist execution: Excellent (36/38 code geists succeeded)
-- ⚠️ 2 geists need optimization for large vaults
+- ⚠️ 2 geists need optimisation for large vaults
 - ✅ No crashes or errors
 - ✅ Meaningful suggestions generated despite challenging test data
 

@@ -50,7 +50,7 @@ Similar notes:
 ```
 Note created: 2023-06-15
 Session date: 2025-01-15
-Age: 579 days → normalized to 0.579
+Age: 579 days → normalised to 0.579
 ```
 
 **Why It Matters**:
@@ -172,7 +172,7 @@ Similarity: 0.78 (very similar)
 
 **Analysis**:
 ```
-Q1 2024 notes: Cluster around "productivity, systems, optimization"
+Q1 2024 notes: Cluster around "productivity, systems, optimisation"
 Q2 2024 notes: Cluster around "meaning, philosophy, relationships"
 Q3 2024 notes: Cluster around "creativity, play, experimentation"
 Q4 2024 notes: Return to "systems, structure, planning"
@@ -477,7 +477,7 @@ def seasonal_patterns(vault: VaultContext) -> List[Suggestion]:
 2. **Computation**: Re-embedding was too slow
    - **Now**: sentence-transformers + caching makes it practical
 
-3. **Vector Search**: Comparing across sessions required specialized DBs
+3. **Vector Search**: Comparing across sessions required specialised DBs
    - **Now**: sqlite-vec extension provides vector similarity
 
 4. **Local-First**: Tracking was privacy-invasive

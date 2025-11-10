@@ -75,7 +75,7 @@ def _find_semantic_path(
         best_path = None
         best_score = 0.0
 
-        # OPTIMIZATION #5: Batch compute similarities to end note
+        # OPTIMISATION #5: Batch compute similarities to end note
         candidates_list = [
             candidate for candidate, _ in candidates_with_scores if candidate.path != end.path
         ]
@@ -109,7 +109,7 @@ def _find_semantic_path(
         best_path = None
         best_score = 0.0
 
-        # OPTIMIZATION #5: Batch compute all pairwise similarities between mid1 and mid2
+        # OPTIMISATION #5: Batch compute all pairwise similarities between mid1 and mid2
         candidates1 = [mid for mid, _ in candidates1_with_scores]
         candidates2 = [mid for mid, _ in candidates2_with_scores]
 

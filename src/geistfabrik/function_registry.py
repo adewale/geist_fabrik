@@ -81,7 +81,7 @@ class FunctionRegistry:
     """
 
     def __init__(self, function_dir: Optional[Path] = None):
-        """Initialize function registry.
+        """Initialise function registry.
 
         Args:
             function_dir: Directory containing vault function modules.
@@ -177,7 +177,7 @@ class FunctionRegistry:
 
             Args:
                 note_title: Note link (string from Tracery)
-                k: Number of neighbors to return
+                k: Number of neighbours to return
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
@@ -199,7 +199,7 @@ class FunctionRegistry:
 
             Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
 
-            Performance optimized: Uses vectorized numpy operations to compute all
+            Performance optimised: Uses vectorised numpy operations to compute all
             similarities at once via matrix multiplication, rather than looping.
             This is 10-100x faster than the loop-based approach.
 
@@ -247,7 +247,7 @@ class FunctionRegistry:
             # Compute dot products (similarity scores)
             similarities = np.dot(candidates_matrix, query_array)
 
-            # Normalize to get cosine similarities
+            # Normalise to get cosine similarities
             query_norm = np.linalg.norm(query_array)
             candidate_norms = np.linalg.norm(candidates_matrix, axis=1)
             similarities = similarities / (candidate_norms * query_norm)

@@ -39,7 +39,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # (indicating a cluster, not just a hub-and-spoke)
         cluster_notes = [seed] + neighbours[:3]
 
-        # Calculate average pairwise similarity within cluster (OPTIMIZATION #5: batch_similarity)
+        # Calculate average pairwise similarity within cluster (OPTIMISATION #5: batch_similarity)
         # Using batch_similarity for vectorized computation instead of individual calls
         if len(cluster_notes) > 1:
             sim_matrix = vault.batch_similarity(cluster_notes, cluster_notes)

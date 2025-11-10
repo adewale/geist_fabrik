@@ -22,7 +22,7 @@ class SentenceTransformerStub:
     """
 
     def __init__(self, model_name: str, device: str = "cpu"):
-        """Initialize stub.
+        """Initialise stub.
 
         Args:
             model_name: Model name (ignored, for compatibility)
@@ -68,10 +68,10 @@ class SentenceTransformerStub:
             num_repeats = (SEMANTIC_DIM + len(text_hash) - 1) // len(text_hash)
             extended = (text_hash * num_repeats)[:SEMANTIC_DIM]
 
-            # Convert bytes to normalized float values [-1, 1]
+            # Convert bytes to normalised float values [-1, 1]
             embedding = np.array([b / 128.0 - 1.0 for b in extended], dtype=np.float32)
 
-            # Normalize to unit vector (like real sentence-transformers)
+            # Normalise to unit vector (like real sentence-transformers)
             norm = np.linalg.norm(embedding)
             if norm > 0:
                 embedding = embedding / norm
@@ -145,7 +145,7 @@ def pytest_configure(config: Any) -> None:
 
         Args:
             model_name: Name of model (used for stub creation)
-            model: Pre-initialized model (if provided, uses this instead of creating stub)
+            model: Pre-initialised model (if provided, uses this instead of creating stub)
         """
         self.model_name = model_name
         self._model = model  # Use provided model or None (will be lazy-loaded)
@@ -167,7 +167,7 @@ def shared_embedding_computer() -> Generator[EmbeddingComputer, None, None]:
 
     Note: Most embedding tests should use the shared_session_with_embeddings
     fixture instead, which includes pre-computed embeddings. This fixture is
-    for tests that specifically need to test EmbeddingComputer behavior.
+    for tests that specifically need to test EmbeddingComputer behaviour.
     """
     computer = EmbeddingComputer()
     yield computer

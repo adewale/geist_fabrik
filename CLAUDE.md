@@ -117,17 +117,17 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
 **See**: `docs/CI_VALIDATION_GUIDE.md` and `docs/POST_MORTEM_PR30.md` for detailed explanation.
 
-### Optimization Lessons (Phase 3B Rollback)
+### Optimisation Lessons (Phase 3B Rollback)
 
-**Context**: In November 2025, several "optimizations" were introduced to improve geist performance on large vaults (10k+ notes). After benchmarking and analysis, these optimizations were rolled back because they **reduced suggestion quality** while providing minimal performance gains.
+**Context**: In November 2025, several "optimisations" were introduced to improve geist performance on large vaults (10k+ notes). After benchmarking and analysis, these optimisations were rolled back because they **reduced suggestion quality** while providing minimal performance gains.
 
 **Key Lessons**:
 
-1. **Profile First, Optimize Second**
+1. **Profile First, Optimise Second**
    - **What happened**: pattern_finder added sampling (500 notes from 10k vault) without profiling
    - **Reality**: Phrase extraction was the bottleneck (67.7% of time), not corpus iteration
    - **Impact**: Saved ~20s but lost 95% pattern coverage
-   - **Lesson**: Measure before optimizing—intuition often misleads about bottlenecks
+   - **Lesson**: Measure before optimising—intuition often misleads about bottlenecks
 
 2. **Respect Session-Scoped Caches**
    - **What happened**: scale_shifter switched from `similarity()` to `batch_similarity()`
@@ -136,7 +136,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
    - **Lesson**: Individual `similarity()` calls > batch calls when cache is warm
 
 3. **Quality Wins Over Speed**
-   - **What happened**: Both optimizations prioritized speed over accuracy
+   - **What happened**: Both optimisations prioritised speed over accuracy
    - **Reality**: Users prefer slightly slower geists that generate good suggestions
    - **Impact**: Reduced suggestion quality led to worse user experience
    - **Lesson**: A 5-second geist that works > 2-second geist that doesn't
@@ -149,7 +149,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 **Implementation Guidance**:
 - Use `similarity()` not `batch_similarity()` for cache benefits
 - Build lookup structures (sets, dicts) instead of O(N) repeated searches
-- Profile with `cProfile` before optimizing—don't guess bottlenecks
+- Profile with `cProfile` before optimising—don't guess bottlenecks
 - Adaptive sampling: `min(N, max(50, len(notes)//10))` not fixed sizes
 - See `docs/POST_MORTEM_PHASE3B.md` for detailed salvage analysis
 
@@ -459,7 +459,7 @@ if os.environ.get("CI") and not DEPENDENCY_AVAILABLE:
 def test_core_functionality(db):
     """Test core path (NEVER SKIPS)."""
     backend = DefaultBackend(db)
-    # ... test default behavior ...
+    # ... test default behaviour ...
 
     # Test enhanced path if available
     if DEPENDENCY_AVAILABLE:
@@ -501,7 +501,7 @@ from geistfabrik.default_geists import (
 **How it works**:
 - `src/geistfabrik/default_geists/__init__.py` counts files programmatically using `Path.glob()`
 - These constants are the single source of truth for all geist counts
-- Automated tests verify that documentation stays synchronized (see `tests/unit/test_geist_count_consistency.py`)
+- Automated tests verify that documentation stays synchronised (see `tests/unit/test_geist_count_consistency.py`)
 - Tests will fail if README.md or CLAUDE.md mention outdated counts
 
 **When adding/removing geists**:
@@ -580,7 +580,7 @@ From the spec:
      - **Impact**: Existing vaults will show incorrect deeplinks until database is rebuilt
    ```
 
-2. **Update relevant documentation** to reflect the new behavior
+2. **Update relevant documentation** to reflect the new behaviour
 
 3. **Add regression tests** to prevent the bug from reoccurring
 
@@ -593,7 +593,7 @@ From the spec:
 
 **What is NOT breaking**:
 - Bug fixes that don't affect stored data
-- Performance optimizations that preserve existing behavior
+- Performance optimisations that preserve existing behaviour
 - New features that add data without changing existing data
 
 ## Qualitative Success Metrics

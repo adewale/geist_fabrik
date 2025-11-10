@@ -42,7 +42,7 @@ def test_vault(tmp_path):
         note_path = vault_path / f"normal_note_{i}.md"
         note_path.write_text(f"# Normal Note {i}\n\nRegular note.")
 
-    # Initialize vault and sync
+    # Initialise vault and sync
     vault = Vault(str(vault_path), ":memory:")
     vault.sync()
 

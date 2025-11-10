@@ -544,7 +544,7 @@ text = (
 )
 ```
 
-### 10. **Profile Before Optimize**
+### 10. **Profile Before Optimise**
 Measure bottlenecks, don't guess.
 
 ```python
@@ -674,7 +674,7 @@ operation = vault.sample(scamper_operations, k=1)[0]
 
 ### 2. `vault.neighbours(note, k, return_scores=True)` - Semantic Similarity
 
-Critical optimization: Use `return_scores=True` to avoid recomputation.
+Critical optimisation: Use `return_scores=True` to avoid recomputation.
 
 ```python
 # ❌ BAD: Scores not returned, must recompute if needed
@@ -733,7 +733,7 @@ for i, mid1 in enumerate(candidates1):
 
 ---
 
-## Performance Optimization Techniques
+## Performance Optimisation Techniques
 
 ### Technique 1: Build Lookup Structures Once
 
@@ -759,10 +759,10 @@ for note_a in cluster:
 # Get scores once, use multiple times
 neighbors_with_scores = vault.neighbours(note, k=30, return_scores=True)
 
-# Use 1: Count high-similarity neighbors
+# Use 1: Count high-similarity neighbours
 high_similarity_count = sum(1 for n, sim in neighbors_with_scores if sim > 0.6)
 
-# Use 2: Extract top neighbors
+# Use 2: Extract top neighbours
 neighbor_notes = [n for n, sim in neighbors_with_scores[:10]]
 
 # Use 3: Filter by threshold
@@ -1140,10 +1140,10 @@ Geists run within a 30-second timeout (default) and must complete efficiently.
 
 **Three key lessons from the Phase 3B rollback** (see `docs/POST_MORTEM_PHASE3B.md`):
 
-1. **Profile first, optimize second**
+1. **Profile first, optimise second**
    - Sampling introduced to "improve performance" without profiling
    - Reality: Phrase extraction was the bottleneck, not corpus iteration
-   - Lesson: Measure before optimizing; intuition misleads
+   - Lesson: Measure before optimising; intuition misleads
 
 2. **Respect the session cache**
    - `batch_similarity()` bypassed session-scoped similarity cache
@@ -1183,16 +1183,16 @@ Geists run within a 30-second timeout (default) and must complete efficiently.
    stats.print_stats(20)
    ```
 
-4. **Optimize bottlenecks only**
-   - Don't optimize until you've identified the actual bottleneck
+4. **Optimise bottlenecks only**
+   - Don't optimise until you've identified the actual bottleneck
    - Focus on algorithmic improvements (O(N³) → O(N))
 
-### When NOT to Optimize
+### When NOT to Optimise
 
-**Don't optimize if**:
+**Don't optimise if**:
 - Your geist completes in <2 seconds on 1000-note vaults
 - You haven't profiled to find the bottleneck
-- Optimization would reduce suggestion quality
+- Optimisation would reduce suggestion quality
 - The geist only runs on small sample sizes anyway
 
 **Remember**: GeistFabrik's filtering pipeline runs AFTER your geist. Quality matters more than speed.
@@ -1301,16 +1301,16 @@ Compare graph density vs semantic density:
 ```python
 def _analyze_density_mismatch(vault, note):
     """Detect mismatch between link density and semantic density."""
-    neighbors = vault.neighbours(note, k=10)
+    neighbours = vault.neighbours(note, k=10)
 
     # Graph density: actual links / possible links
-    edges = sum(1 for n1 in neighbors for n2 in neighbors
+    edges = sum(1 for n1 in neighbours for n2 in neighbours
                 if vault.links_between(n1, n2))
-    max_edges = len(neighbors) * (len(neighbors) - 1) / 2
+    max_edges = len(neighbours) * (len(neighbours) - 1) / 2
     graph_density = edges / max_edges if max_edges > 0 else 0.0
 
     # Semantic density: average similarity
-    sim_matrix = vault.batch_similarity(neighbors, neighbors)
+    sim_matrix = vault.batch_similarity(neighbours, neighbours)
     semantic_density = np.mean(sim_matrix)
 
     # Detect mismatches
@@ -1385,7 +1385,7 @@ def _divide_into_periods(notes, num_periods=10):
 
 ### Documentation
 
-- `docs/POST_MORTEM_PHASE3B.md` - Optimization lessons learned
+- `docs/POST_MORTEM_PHASE3B.md` - Optimisation lessons learned
 - `tests/integration/test_phase3b_regression.py` - Anti-regression tests
 - `specs/geistfabrik_spec.md` - Complete technical specification
 - `specs/geistfabrik_vision.md` - Core principles
@@ -1415,7 +1415,7 @@ Most importantly, it should ask **different questions than users would ask thems
 7. Match threshold to complexity
 8. Never crash
 9. Explain the insight
-10. Profile before optimize
+10. Profile before optimise
 
 ---
 

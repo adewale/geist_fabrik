@@ -62,7 +62,7 @@ print(f"Error: Vault path does not exist: {vault_path}", file=sys.stderr)
 ```
 
 **Recommendation:**
-- Standardize on **logging for all library code**
+- Standardise on **logging for all library code**
 - CLI should only print to stdout/stderr
 - Add `--verbose` flag to show debug logs
 - Document that users should configure logging for detailed errors
@@ -105,7 +105,7 @@ for _ in range(self.count):
 2. Add timeout protection (same 5-second default)
 3. Track failures and auto-disable after 3 failures
 4. Unify execution logging with code geists
-5. Add tests for Tracery timeout behavior
+5. Add tests for Tracery timeout behaviour
 
 ---
 
@@ -312,7 +312,7 @@ print(f"Warning: Failed to load {yaml_file}: {e}")
 
 **Recommendation:**
 - Create `LoadingLog` class used by all loaders
-- Standardize format: `{type: "geist", id: "...", error: "...", traceback: "..."}`
+- Standardise format: `{type: "geist", id: "...", error: "...", traceback: "..."}`
 - CLI displays unified loading summary
 
 ---
@@ -335,11 +335,11 @@ if sys.platform != "win32":
 **Impact:**
 - Windows users have no timeout protection
 - Infinite loops can hang Windows installations
-- Platform-dependent behavior not documented
+- Platform-dependent behaviour not documented
 
 **Recommendation:**
 - Use `threading.Timer` for cross-platform timeout
-- Add test for Windows timeout behavior
+- Add test for Windows timeout behaviour
 - Document platform differences if SIGALRM kept
 
 ---
@@ -547,7 +547,7 @@ TEMPORAL_DIM = 3       # Why 3?
 
 **Issue:** Some test files are `test_module.py`, others `test_module_name.py` (based on exploration agent findings)
 
-**Recommendation:** Standardize on `test_<module_name>.py` pattern
+**Recommendation:** Standardise on `test_<module_name>.py` pattern
 
 ---
 
@@ -756,10 +756,10 @@ Checking against CLAUDE.md principles:
 
 ---
 
-## Prioritized Fix Plan
+## Prioritised Fix Plan
 
 ### Phase 1: Critical Fixes (Week 1)
-1. **Standardize error reporting** - logging for all library code
+1. **Standardise error reporting** - logging for all library code
 2. **Add Tracery timeout protection** - Create TraceryGeistExecutor
 3. **Fix error message embedding** - Raise exception instead of returning error string
 4. **Add database commit error handling** - Try/catch all commits
@@ -837,7 +837,7 @@ The **38 issues identified** are primarily:
 3. Reduce complexity
 4. Improve cross-platform support
 
-The **prioritized fix plan** provides a clear path to 1.0 release quality.
+The **prioritised fix plan** provides a clear path to 1.0 release quality.
 
 ---
 

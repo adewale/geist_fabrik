@@ -45,7 +45,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         "proves",
     ]
 
-    # OPTIMIZATION: Early termination after finding enough suggestions
+    # OPTIMISATION: Early termination after finding enough suggestions
     # Final sampling only returns 2, so generating 5 is sufficient
     max_suggestions = 5
     suggestion_count = 0

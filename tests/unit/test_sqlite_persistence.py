@@ -6,7 +6,7 @@ from geistfabrik.schema import SCHEMA_VERSION, get_schema_version, init_db, migr
 
 
 def test_init_db_memory() -> None:
-    """Test initializing in-memory database."""
+    """Test initialising in-memory database."""
     conn = init_db(None)
     assert conn is not None
 
