@@ -369,6 +369,7 @@ HDBSCAN + c-TF-IDF/KeyBERT labelling implemented 4+ times. Each run is expensive
 - No session-scoped caching (one clustering per session vs per geist)
 - Strategy baked in (can't swap HDBSCAN for K-means)
 - Labelling reimplemented independently
+- **Circular dependency risk**: VaultContext and stats.py both need clustering
 
 **Proposed API**
 
@@ -376,7 +377,11 @@ HDBSCAN + c-TF-IDF/KeyBERT labelling implemented 4+ times. Each run is expensive
 # New module: src/geistfabrik/clustering_analysis.py
 
 class ClusterAnalyser:
-    """Session-scoped clustering with strategy swapping."""
+    """Session-scoped clustering with strategy swapping.
+
+    Single source of truth for clustering. Delegates labelling to
+    shared cluster_labeling module to avoid circular dependencies.
+    """
 
     def __init__(self, vault: VaultContext, strategy: str = "hdbscan", min_size: int = 5):
         """Initialise clustering analyser.
@@ -388,7 +393,11 @@ class ClusterAnalyser:
         """
 
     def get_clusters(self) -> Dict[int, Cluster]:
-        """Get clusters (cached per session)."""
+        """Get clusters (cached per session).
+
+        Uses cluster_labeling module for labelling to avoid circular
+        dependency with stats.py.
+        """
 
     def get_cluster_for_note(self, note: Note) -> Optional[int]:
         """Get cluster ID for a note."""
@@ -416,11 +425,131 @@ class Cluster:
         """Compute note's similarity to cluster centroid."""
 ```
 
+**Architectural Note: Avoiding Circular Dependencies**
+
+To prevent circular dependency between `ClusterAnalyser` and `stats.py`:
+- Labelling logic extracted to separate `cluster_labeling` module
+- Both `ClusterAnalyser` and `stats.py` can use labelling independently
+- Single source of truth for clustering (ClusterAnalyser) and labelling (cluster_labeling)
+
+**Dependency flow**:
+```
+cluster_labeling.py  ← No dependencies on GeistFabrik modules
+        ↑
+        ├──────────┬──────────────┐
+        │          │              │
+ClusterAnalyser    stats.py       (any other module)
+```
+
 **What It Unlocks**
 - One clustering per session (shared across all geists)
 - Strategy experimentation (HDBSCAN vs K-means)
 - Temporal cluster tracking (births, deaths, merges, splits)
 - Cross-geist cluster consistency
+
+---
+
+### 3b. Cluster Labelling (Shared Module)
+
+**Conceptual Pattern**
+
+Generate human-readable labels for semantic clusters using:
+- **c-TF-IDF**: Class-based Term Frequency-Inverse Document Frequency
+- **KeyBERT**: Keyword extraction using BERT embeddings
+- **MMR filtering**: Maximal Marginal Relevance for diverse, non-redundant terms
+
+Currently duplicated in `stats.py` and `VaultContext.get_clusters()`.
+
+**Architectural Purpose**
+
+Extracted to break circular dependency:
+- `ClusterAnalyser` needs labelling to return complete `Cluster` objects
+- `stats.py` needs clustering to compute metrics (silhouette, entropy)
+- Extracting labelling allows both to depend on shared module
+
+**Proposed API**
+
+```python
+# New module: src/geistfabrik/cluster_labeling.py
+
+def label_tfidf(
+    paths: List[str],
+    labels: np.ndarray,
+    db: sqlite3.Connection,
+    n_terms: int = 4
+) -> Dict[int, str]:
+    """Generate cluster labels using c-TF-IDF.
+
+    Applies class-based TF-IDF to extract keywords, then uses Maximal
+    Marginal Relevance to select diverse, non-redundant terms.
+
+    Args:
+        paths: Note paths
+        labels: Cluster labels from clustering algorithm
+        db: Database connection to read note content
+        n_terms: Number of terms to use in final label (after MMR)
+
+    Returns:
+        Dictionary mapping cluster_id to label string (comma-separated keywords)
+    """
+
+
+def label_keybert(
+    paths: List[str],
+    labels: np.ndarray,
+    db: sqlite3.Connection,
+    n_terms: int = 4
+) -> Dict[int, str]:
+    """Generate cluster labels using KeyBERT.
+
+    Uses KeyBERT to extract keywords, then applies MMR for diversity.
+
+    Args:
+        paths: Note paths
+        labels: Cluster labels from clustering algorithm
+        db: Database connection to read note content
+        n_terms: Number of terms to use in final label (after MMR)
+
+    Returns:
+        Dictionary mapping cluster_id to label string (comma-separated keywords)
+    """
+
+
+def apply_mmr(
+    terms: List[str],
+    scores: np.ndarray,
+    lambda_param: float = 0.5,
+    k: int = 4
+) -> List[str]:
+    """Apply Maximal Marginal Relevance to select diverse terms.
+
+    MMR balances relevance (TF-IDF/KeyBERT score) with diversity
+    (dissimilarity to already-selected terms) to prevent redundant keywords.
+
+    Args:
+        terms: Candidate terms
+        scores: Relevance scores for each term
+        lambda_param: Balance parameter (0.5 = equal weight)
+        k: Number of terms to select
+
+    Returns:
+        List of k diverse terms
+    """
+```
+
+**Key Properties**
+
+- **Stateless**: Pure functions, no dependencies on GeistFabrik classes
+- **Reusable**: Any module can import and use labelling
+- **Tested independently**: Can unit test labelling without clustering
+- **No circular deps**: Depends only on standard libraries and sklearn
+
+**What It Unlocks**
+
+- Clean separation between clustering (ClusterAnalyser) and labelling
+- Multiple consumers (ClusterAnalyser, stats.py, future modules)
+- Independent testing and optimization of labelling algorithms
+- Easy experimentation with new labelling strategies
 
 ---
 
@@ -658,16 +787,22 @@ class MetadataAnalyser:
 
 ## III. Architectural Placement
 
-### New Modules (5)
+### New Modules (6)
 
 ```
 src/geistfabrik/
 ├── temporal_analysis.py         (EmbeddingTrajectoryCalculator, TemporalPatternFinder)
 ├── similarity_analysis.py       (SimilarityLevel, SimilarityProfile, SimilarityFilter)
 ├── clustering_analysis.py       (ClusterAnalyser, Cluster)
+├── cluster_labeling.py          (label_tfidf, label_keybert, apply_mmr)
 ├── graph_analysis.py           (GraphPatternFinder)
 └── content_extraction.py       (ExtractionPipeline, strategies, filters)
 ```
+
+**Dependency order** (for implementation):
+1. `cluster_labeling.py` - No dependencies on GeistFabrik modules
+2. `clustering_analysis.py` - Depends on cluster_labeling
+3. Other modules - Independent
 
 ### Enhanced Modules (2)
 
@@ -706,11 +841,18 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyser)
 - Refactor concept_drift, convergent_evolution, divergent_evolution
 - **Deliverable**: Temporal analysis module + 3 refactored geists
 
-### Phase 3 (Weeks 3-4): Cluster Analyser
+### Phase 3 (Weeks 3-4): Cluster Analyser + Labelling
+- Extract labelling from stats.py to `cluster_labeling` module
+  - Move `_label_clusters_tfidf()`, `_label_clusters_keybert()`, `_apply_mmr_filtering()`
+  - Make stateless functions with no GeistFabrik dependencies
 - Implement `ClusterAnalyser` with session caching
+  - Delegates labelling to `cluster_labeling` module
+  - Single source of truth for clustering
 - Implement strategy swapping (HDBSCAN, K-means)
-- Refactor concept_cluster, cluster_mirror
-- **Deliverable**: Clustering analyser + 2 refactored geists
+- Refactor VaultContext.get_clusters() to use ClusterAnalyser
+- Refactor stats.py to use ClusterAnalyser (breaks circular dependency)
+- Refactor concept_cluster, cluster_mirror geists
+- **Deliverable**: Labelling module + clustering analyser + 2 refactored geists + refactored stats.py
 
 ### Phase 4 (Weeks 4-5): Graph Analysis
 - Implement `GraphPatternFinder`
@@ -742,28 +884,56 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyser)
 
 **How do these proposed abstractions differ from existing `stats.py` functionality?**
 
-`stats.py` already provides:
+`stats.py` currently provides:
 - `get_temporal_drift()`: Vault-wide drift using Procrustes alignment
 - `EmbeddingMetricsComputer`: Clustering, diversity, intrinsic dimensionality
 - `_label_clusters_tfidf()` / `_label_clusters_keybert()`: Cluster labelling
+
+**After refactoring**:
+
+`stats.py` will **delegate** clustering and labelling to shared modules:
+- Clustering → `ClusterAnalyser` (single source of truth)
+- Labelling → `cluster_labeling` module (shared functions)
+- Focus on metrics: silhouette score, Shannon entropy, vault-wide aggregations
 
 **Key differences**:
 - **Purpose**: `stats.py` = diagnostic metrics (vault health reports), Abstractions = operational primitives (geist execution)
 - **Granularity**: `stats.py` = vault-wide aggregates, Abstractions = per-note operations
 - **Usage**: `stats.py` = called by CLI for reports, Abstractions = called by geists during suggestion generation
 - **Temporal**: `stats.py` = two-session comparison, Abstractions = multi-session trajectories per note
-- **Clustering**: `stats.py` = compute once for report, Abstractions = session-scoped cache for all geists
+- **Clustering**: `stats.py` delegates to `ClusterAnalyser`, adds statistical metrics
 
-**Is there overlap?**
-- Both use HDBSCAN for clustering → Could refactor stats.py to use `ClusterAnalyser`
-- Both compute drift → `stats.py` for vault-wide, abstractions for per-note
-- Cluster labelling → Shared implementation possible
+**Dependency resolution**:
 
-**Should they be unified?**
-- No. Different purposes, different usage patterns
-- `stats.py` remains diagnostic/reporting layer
-- Abstractions remain operational/execution layer
-- Could share underlying implementations (e.g., both call same clustering code)
+```
+cluster_labeling.py      ← Shared labelling functions (no dependencies)
+        ↑
+        ├──────────┬──────────────┐
+        │          │              │
+ClusterAnalyser    │              │
+(clustering)       │              │
+        ↑          │              │
+        │          │              │
+stats.py ──────────┴──────────────┘
+(metrics: silhouette, entropy, aggregations)
+```
+
+**No circular dependency**:
+- `cluster_labeling.py` has no dependencies on GeistFabrik modules
+- `ClusterAnalyser` depends on `cluster_labeling.py` (not stats.py)
+- `stats.py` depends on `ClusterAnalyser` and `cluster_labeling.py`
+
+**What stats.py keeps**:
+- Vault-wide temporal drift (Procrustes alignment)
+- Embedding diversity metrics
+- Intrinsic dimensionality estimation
+- Silhouette score computation
+- Shannon entropy computation
+- Database caching for report metrics
+
+**What stats.py delegates**:
+- Clustering algorithm execution → `ClusterAnalyser`
+- Cluster label generation → `cluster_labeling.py`
 
 ### Question 2: What New Geists Are Unlocked?
 
