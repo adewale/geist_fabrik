@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from geistfabrik.embeddings import Session
 from geistfabrik import function_registry
+from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
