@@ -27,7 +27,7 @@ Analysis of the GeistFabrik codebase reveals **seven core conceptual abstraction
 |---|-------------|-----------|--------------|---------------------|
 | 1 | **Embedding Trajectory Calculator** | 4 geists | Session queries duplicated | Temporal analysis as first-class |
 | 2 | **Similarity Threshold Profiles** | 8+ geists | Magic numbers (0.6, 0.5, 0.7) | Semantic naming, systematic tuning |
-| 3 | **Clustering Service** | 4+ geists | HDBSCAN + labeling 4× | Strategy swapping, session caching |
+| 3 | **Cluster Analyser** | 4+ geists | HDBSCAN + labelling 4× | Strategy swapping, session caching |
 | 4 | **Graph Pattern Queries** | 5+ geists | Hub/orphan/bridge duplicated | Unified interface, node roles |
 | 5 | **Content Extraction Pipeline** | 1 geist | Baked into question_harvester | 8+ new extractor types |
 | 6 | **Temporal-Semantic Fusion** | 3 geists | Ad-hoc time+semantics | Cyclical thinking, seasonal patterns |
@@ -75,7 +75,7 @@ class EmbeddingTrajectoryCalculator:
     """
 
     def __init__(self, vault: VaultContext, note: Note, sessions: Optional[List[int]] = None):
-        """Initialize trajectory calculator for a note.
+        """Initialise trajectory calculator for a note.
 
         Args:
             vault: VaultContext with session history
@@ -131,7 +131,7 @@ class TemporalPatternFinder:
     """Finds patterns across multiple trajectories."""
 
     def __init__(self, vault: VaultContext):
-        """Initialize pattern finder with vault context.
+        """Initialise pattern finder with vault context.
 
         Args:
             vault: VaultContext with session history
@@ -284,7 +284,7 @@ class SimilarityProfile:
     """Analyzes a note's similarity distribution."""
 
     def __init__(self, vault: VaultContext, note: Note, candidates: Optional[List[Note]] = None):
-        """Create similarity profile for a note against candidates."""
+        """Initialise similarity profile for a note against candidates."""
         self.vault = vault
         self.note = note
         self.candidates = candidates or vault.notes()
@@ -309,7 +309,7 @@ class SimilarityFilter:
     """Declarative filtering on similarity."""
 
     def __init__(self, vault: VaultContext):
-        """Initialize similarity filter with vault context.
+        """Initialise similarity filter with vault context.
 
         Args:
             vault: VaultContext for similarity computations
@@ -350,7 +350,7 @@ class SimilarityFilter:
 
 ---
 
-### 3. Clustering Service
+### 3. Cluster Analyser
 
 **Conceptual Pattern**
 
@@ -362,24 +362,24 @@ Group notes into semantic clusters, label them, find representatives. Used by:
 
 **Current Implementation**
 
-HDBSCAN + c-TF-IDF/KeyBERT labeling implemented 4+ times. Each run is expensive (minutes on large vaults).
+HDBSCAN + c-TF-IDF/KeyBERT labelling implemented 4+ times. Each run is expensive (minutes on large vaults).
 
 **Pain Points**
 - Clustering computed per-geist (expensive, redundant)
 - No session-scoped caching (one clustering per session vs per geist)
 - Strategy baked in (can't swap HDBSCAN for K-means)
-- Labeling reimplemented independently
+- Labelling reimplemented independently
 
 **Proposed API**
 
 ```python
 # New module: src/geistfabrik/clustering_analysis.py
 
-class ClusteringService:
+class ClusterAnalyser:
     """Session-scoped clustering with strategy swapping."""
 
     def __init__(self, vault: VaultContext, strategy: str = "hdbscan", min_size: int = 5):
-        """Initialize clustering service.
+        """Initialise clustering analyser.
 
         Args:
             vault: VaultContext
@@ -513,7 +513,7 @@ class ExtractionPipeline:
 
     def __init__(self, strategies: List[ExtractionStrategy],
                  filters: Optional[List[ContentFilter]] = None):
-        """Initialize pipeline with strategies and filters."""
+        """Initialise pipeline with strategies and filters."""
 
     def extract(self, content: str) -> List[str]:
         """Run full pipeline: strategies → filters → deduplicate."""
@@ -581,7 +581,7 @@ class TemporalSemanticQuery:
     """Combine time and semantics."""
 
     def __init__(self, vault: VaultContext):
-        """Initialize temporal-semantic query with vault context.
+        """Initialise temporal-semantic query with vault context.
 
         Args:
             vault: VaultContext for time and semantic queries
@@ -635,8 +635,8 @@ Manual ratio calculations in individual geists.
 ```python
 # Extends src/geistfabrik/metadata_system.py
 
-class MetadataAnalyzer:
-    """Analyze metadata distributions."""
+class MetadataAnalyser:
+    """Analyse metadata distributions."""
 
     def __init__(self, vault: VaultContext):
         self.vault = vault
@@ -664,7 +664,7 @@ class MetadataAnalyzer:
 src/geistfabrik/
 ├── temporal_analysis.py         (EmbeddingTrajectoryCalculator, TemporalPatternFinder)
 ├── similarity_analysis.py       (SimilarityLevel, SimilarityProfile, SimilarityFilter)
-├── clustering_analysis.py       (ClusteringService, Cluster)
+├── clustering_analysis.py       (ClusterAnalyser, Cluster)
 ├── graph_analysis.py           (GraphPatternFinder)
 └── content_extraction.py       (ExtractionPipeline, strategies, filters)
 ```
@@ -673,7 +673,7 @@ src/geistfabrik/
 
 ```
 src/geistfabrik/vault_context.py   (May add convenience methods calling new modules)
-src/geistfabrik/metadata_system.py (+ MetadataAnalyzer)
+src/geistfabrik/metadata_system.py (+ MetadataAnalyser)
 ```
 
 ### Why Not in VaultContext?
@@ -706,11 +706,11 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyzer)
 - Refactor concept_drift, convergent_evolution, divergent_evolution
 - **Deliverable**: Temporal analysis module + 3 refactored geists
 
-### Phase 3 (Weeks 3-4): Clustering Service
-- Implement `ClusteringService` with session caching
+### Phase 3 (Weeks 3-4): Cluster Analyser
+- Implement `ClusterAnalyser` with session caching
 - Implement strategy swapping (HDBSCAN, K-means)
 - Refactor concept_cluster, cluster_mirror
-- **Deliverable**: Clustering service + 2 refactored geists
+- **Deliverable**: Clustering analyser + 2 refactored geists
 
 ### Phase 4 (Weeks 4-5): Graph Analysis
 - Implement `GraphPatternFinder`
@@ -720,7 +720,7 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyzer)
 
 ### Phase 5 (Weeks 5-6): Temporal-Semantic + Metadata
 - Implement `TemporalSemanticQuery`
-- Implement `MetadataAnalyzer`
+- Implement `MetadataAnalyser`
 - **Deliverable**: Fusion queries + metadata profiles
 
 ### Phase 6 (Weeks 6-7): New Geists (Proof of Concept)
@@ -745,7 +745,7 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyzer)
 `stats.py` already provides:
 - `get_temporal_drift()`: Vault-wide drift using Procrustes alignment
 - `EmbeddingMetricsComputer`: Clustering, diversity, intrinsic dimensionality
-- `_label_clusters_tfidf()` / `_label_clusters_keybert()`: Cluster labeling
+- `_label_clusters_tfidf()` / `_label_clusters_keybert()`: Cluster labelling
 
 **Key differences**:
 - **Purpose**: `stats.py` = diagnostic metrics (vault health reports), Abstractions = operational primitives (geist execution)
@@ -755,9 +755,9 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyzer)
 - **Clustering**: `stats.py` = compute once for report, Abstractions = session-scoped cache for all geists
 
 **Is there overlap?**
-- Both use HDBSCAN for clustering → Could refactor stats.py to use `ClusteringService`
+- Both use HDBSCAN for clustering → Could refactor stats.py to use `ClusterAnalyser`
 - Both compute drift → `stats.py` for vault-wide, abstractions for per-note
-- Cluster labeling → Shared implementation possible
+- Cluster labelling → Shared implementation possible
 
 **Should they be unified?**
 - No. Different purposes, different usage patterns
