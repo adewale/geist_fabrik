@@ -136,7 +136,7 @@ Content here...
 - `schema.py` (database schema)
 
 **Application Layer** (doesn't know about virtual notes):
-- All 49 default geists (use `note.obsidian_link`)
+- All default geists (use `note.obsidian_link`)
 - VaultContext (no virtual-specific methods)
 - Filtering pipeline
 - Session output
@@ -166,8 +166,8 @@ class Note:
     path: str              # "Daily Journal.md/2025-01-15" (virtual path, ISO date)
     title: str             # "2025-01-15" or "January 15, 2025" (original heading text)
     content: str           # Content of this entry only
-    links: List[Link]      # Links from this entry
-    tags: List[str]        # Tags from this entry
+    links: list[Link]      # Links from this entry
+    tags: list[str]        # Tags from this entry
     created: datetime      # Entry date (from heading)
     modified: datetime     # File modification time
 
@@ -296,7 +296,7 @@ def split_date_collection_note(
     file_path: str,
     content: str,
     file_modified: datetime
-) -> List[NoteEntry]:
+) -> list[NoteEntry]:
     """Split journal file into virtual note entries.
 
     Args:
@@ -526,7 +526,7 @@ Virtual entries behave like regular notes in all queries:
 
 ```python
 # All return both regular and virtual notes
-ctx.notes()                    # Returns List[Note] including virtuals
+ctx.notes()                    # Returns list[Note] including virtuals
 ctx.get_note(path)             # Works with virtual paths
 ctx.neighbours(note, k=5)      # Semantic search across all
 ctx.old_notes(k=10)            # Includes virtual entries by entry_date
@@ -613,7 +613,7 @@ Consider connecting [[Journal#2025-01-15]] with [[Paper on Transformers]]. Both 
 **How Geists Generate Links**:
 
 ```python
-def suggest(vault: VaultContext) -> List[Suggestion]:
+def suggest(vault: VaultContext) -> list["Suggestion"]:
     """Example geist using obsidian_link."""
     old = vault.old_notes(k=1)[0]
     recent = vault.recent_notes(k=1)[0]
@@ -1521,7 +1521,7 @@ This specification was initially written in October 2025. During implementation 
 - Returns deeplink format (`filename#heading`) for virtual notes
 - Encapsulates all virtual note linking logic in one place
 
-**Impact**: All 49 geists use uniform linking without knowing about virtual notes:
+**Impact**: All geists use uniform linking without knowing about virtual notes:
 ```python
 # Works for both regular and virtual notes
 text = f"Consider [[{note.obsidian_link}]]"
