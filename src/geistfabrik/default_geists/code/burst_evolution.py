@@ -5,7 +5,7 @@ revealing which ideas crystallized vs. evolved.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -57,7 +57,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return []
 
 
-def _get_burst_days(vault: "VaultContext") -> List[Tuple[str, List[str]]]:
+def _get_burst_days(vault: "VaultContext") -> list[tuple[str, list[str]]]:
     """Get burst days with 3+ notes created."""
     cursor = vault.db.execute(
         """
@@ -81,8 +81,8 @@ def _get_burst_days(vault: "VaultContext") -> List[Tuple[str, List[str]]]:
 
 
 def _find_earliest_session_with_notes(
-    vault: "VaultContext", note_paths: List[str], burst_date: str
-) -> Optional[int]:
+    vault: "VaultContext", note_paths: list[str], burst_date: str
+) -> int | None:
     """Find earliest session that has embeddings for burst notes.
 
     Looks for session closest to (but not before) burst_date.
@@ -125,7 +125,7 @@ def _find_earliest_session_with_notes(
 
 def _get_embedding_from_session(
     vault: "VaultContext", note_path: str, session_id: int
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """Get note embedding from specific session."""
     cursor = vault.db.execute(
         """
@@ -142,7 +142,7 @@ def _get_embedding_from_session(
     return None
 
 
-def _get_current_embedding(vault: "VaultContext", note_path: str) -> Optional[np.ndarray]:
+def _get_current_embedding(vault: "VaultContext", note_path: str) -> np.ndarray | None:
     """Get current embedding for note."""
     try:
         return vault._backend.get_embedding(note_path)
@@ -150,9 +150,7 @@ def _get_current_embedding(vault: "VaultContext", note_path: str) -> Optional[np
         return None
 
 
-def _calculate_drift(
-    creation_emb: np.ndarray, current_emb: np.ndarray
-) -> float:
+def _calculate_drift(creation_emb: np.ndarray, current_emb: np.ndarray) -> float:
     """Calculate drift between two embeddings.
 
     Drift = 1 - cosine_similarity
@@ -161,9 +159,7 @@ def _calculate_drift(
         cosine_similarity as sklearn_cosine,
     )
 
-    similarity = sklearn_cosine(
-        creation_emb.reshape(1, -1), current_emb.reshape(1, -1)
-    )
+    similarity = sklearn_cosine(creation_emb.reshape(1, -1), current_emb.reshape(1, -1))
     return 1.0 - float(similarity[0, 0])
 
 
@@ -180,7 +176,7 @@ def _drift_label(drift: float) -> str:
 
 
 def _generate_drift_observation(
-    vault: "VaultContext", date: str, drifts: List[Tuple[str, float]]
+    vault: "VaultContext", date: str, drifts: list[tuple[str, float]]
 ) -> Suggestion:
     """Generate declarative observation based on drift patterns."""
     # Sort by drift (highest first)
@@ -205,9 +201,7 @@ def _generate_drift_observation(
             "Early explorations that your understanding has completely transformed."
         )
     elif avg_drift < 0.15:
-        observation = (
-            "That burst created foundational concepts that haven't needed revision."
-        )
+        observation = "That burst created foundational concepts that haven't needed revision."
     else:
         # Find stable anchors
         stable = [p for p, d in drifts if d < 0.15]
@@ -241,13 +235,12 @@ def _generate_drift_observation(
         time_phrase = "Since then"
 
     text = (
-        f"On {date}, you created {len(drifts)} notes. {time_phrase}:\n"
-        f"{drift_text}\n\n{observation}"
+        f"On {date}, you created {len(drifts)} notes. {time_phrase}:\n{drift_text}\n\n{observation}"
     )
 
     # Get all note titles
     notes = [vault.get_note(p) for p, _ in drifts]
-    note_titles = [n.title for n in notes if n is not None]
+    note_titles = [n.obsidian_link for n in notes if n is not None]
 
     return Suggestion(
         text=text,
