@@ -4,7 +4,7 @@ Identifies "burst days" when you created 3+ notes and asks what was special
 about those moments of creative activity.
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from geistfabrik.models import Note, Suggestion
 
 
-def suggest(vault: "VaultContext") -> List[Suggestion]:
+def suggest(vault: "VaultContext") -> list[Suggestion]:
     """Find days when 3+ notes were created and ask what was special.
 
     Detects "burst days" of creative activity by grouping notes by
