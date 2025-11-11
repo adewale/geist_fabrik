@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from geistfabrik.models import Suggestion
 
 
-def suggest(vault: "VaultContext") -> list[Suggestion]:
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Surface notes from same calendar date in previous years.
 
     This geist finds notes created on the same month and day as today,

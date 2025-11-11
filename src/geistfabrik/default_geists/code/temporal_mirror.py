@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
 
-def suggest(vault: "VaultContext") -> list[Suggestion]:
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Compare notes from different temporal periods.
 
     Divides all notes (excluding geist journal) into 10 time periods based on
