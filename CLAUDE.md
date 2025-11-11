@@ -51,19 +51,40 @@ Pre-commit hooks run automatically on `git commit`:
 
 ### Before Pushing (MANDATORY)
 
-**Run the validation script:**
+**Choose your validation script based on environment:**
+
+- **Local with models (recommended):** `./scripts/validate.sh`
+- **Claude Code for Web (no models):** `./scripts/validate_web.sh`
+
+Both scripts run the same linting and type checks. The difference:
+- **validate.sh**: Runs all tests including 2 integration tests that require the real sentence-transformers model (~90MB download on first run)
+- **validate_web.sh**: Skips those 2 model-dependent tests, runs everything else with mocked models
+
+**Full validation (local/CI):**
 ```bash
 ./scripts/validate.sh
 ```
 
-This script runs the **exact same checks as CI**:
+This runs the **exact same checks as CI**:
 1. `ruff check src/ tests/` - Linting
 2. `mypy src/ --strict` - Type checking (STRICT MODE)
 3. `python scripts/detect_unused_tables.py` - Database validation
-4. `pytest tests/unit -v` - Unit tests
-5. `pytest tests/integration -v -m "not slow"` - Integration tests
+4. `pytest tests/unit -v` - Unit tests (mocked models)
+5. `pytest tests/integration -v -m "not slow"` - Integration tests (real models)
 
-**If validate.sh passes, CI will pass. If it fails, DO NOT PUSH.**
+**Web-safe validation (Claude Code for Web):**
+```bash
+./scripts/validate_web.sh
+```
+
+Same checks as full validation, except:
+- Excludes `tests/integration/test_embeddings_integration.py` (needs real model)
+- Excludes `tests/integration/test_phase3b_regression.py` (needs real model)
+- All other tests use automatic model mocking (`SentenceTransformerStub`)
+
+**If your chosen validation script passes locally, CI will pass. If it fails, DO NOT PUSH.**
+
+See `docs/VALIDATION_MODES.md` for detailed explanation of the two validation modes.
 
 ### Common Mistakes to Avoid
 
@@ -75,9 +96,13 @@ mypy src/ --config-file mypy.ini
 pytest tests/ -k "unit"
 ```
 
-✅ **ALWAYS** use the validated script:
+✅ **ALWAYS** use one of the validated scripts:
 ```bash
+# Full validation (matches CI exactly)
 ./scripts/validate.sh
+
+# Web-safe validation (for Claude Code for Web)
+./scripts/validate_web.sh
 ```
 
 ### Type Checking Requirements
