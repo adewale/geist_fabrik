@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from geistfabrik.models import Suggestion
 
 
-def suggest(vault: "VaultContext") -> List[Suggestion]:
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Show how burst-day notes have evolved since creation.
 
     Finds burst days (3+ notes), calculates drift for each note from

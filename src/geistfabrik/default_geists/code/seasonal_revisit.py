@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 from geistfabrik import Suggestion
 
 
-def suggest(vault: "VaultContext") -> list[Suggestion]:
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find notes from the same season for seasonal reflection.
 
     Args:

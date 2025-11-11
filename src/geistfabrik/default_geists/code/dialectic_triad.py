@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from geistfabrik import Suggestion
 
 
-def suggest(vault: "VaultContext") -> list[Suggestion]:
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Create dialectic thesis-antithesis-synthesis suggestions.
 
     Args:

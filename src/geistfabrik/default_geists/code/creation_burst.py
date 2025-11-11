@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from geistfabrik.models import Suggestion
 
 
-def suggest(vault: "VaultContext") -> List[Suggestion]:
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find days when 3+ notes were created and ask what was special.
 
     Detects "burst days" of creative activity by grouping notes by

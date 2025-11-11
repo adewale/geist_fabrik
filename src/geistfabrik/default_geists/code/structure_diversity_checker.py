@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from geistfabrik import Suggestion
 
 
-def suggest(vault: "VaultContext") -> list[Suggestion]:
+def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Check for structural diversity in recent notes.
 
     Args:
