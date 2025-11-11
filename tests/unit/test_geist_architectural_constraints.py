@@ -112,12 +112,15 @@ def test_geists_have_proper_type_hints() -> None:
     """Enforce that all code geists have proper type hints on suggest() function.
 
     Architectural Principle:
-    All geist suggest() functions must have proper type hints for maintainability.
+    All geist suggest() functions must have proper type hints for maintainability
+    and must follow the project's type hint style guide.
 
-    Accepted signatures:
+    Required signature (per CLAUDE.md):
         def suggest(vault: "VaultContext") -> list["Suggestion"]:
-        def suggest(vault: "VaultContext") -> list[Suggestion]:
-        def suggest(vault: "VaultContext") -> List[Suggestion]:
+
+    Style requirements:
+        - Use lowercase 'list' (not 'List' from typing)
+        - Use quotes for forward references (TYPE_CHECKING pattern)
     """
     geist_dir = Path("src/geistfabrik/default_geists/code")
     violations = []
@@ -135,7 +138,7 @@ def test_geists_have_proper_type_hints() -> None:
         for line_num, line in enumerate(lines, start=1):
             match = suggest_pattern.match(line)
             if match:
-                # Check if line has proper type hints
+                # Check for proper type hints
                 if 'vault: "VaultContext"' not in line:
                     violations.append(
                         {
@@ -145,13 +148,21 @@ def test_geists_have_proper_type_hints() -> None:
                             "code": line.strip(),
                         }
                     )
-                # Accept any of: list["Suggestion"], list[Suggestion], List[Suggestion]
-                elif not re.search(r'-> (?:list|List)\[(?:"|)?Suggestion(?:"|)?\]', line):
+                # Enforce project standard: list["Suggestion"] (lowercase, quoted)
+                elif '-> list["Suggestion"]' not in line:
+                    # Detect specific violations for better error messages
+                    if 'List[' in line:
+                        issue = "Uses 'List' instead of 'list' (violates PEP 585 style)"
+                    elif '-> list[Suggestion]' in line:
+                        issue = "Missing quotes around 'Suggestion' (should be list[\"Suggestion\"])"
+                    else:
+                        issue = "Missing or incorrect return type hint"
+
                     violations.append(
                         {
                             "file": geist_file.name,
                             "line": line_num,
-                            "issue": "Missing return type hint",
+                            "issue": issue,
                             "code": line.strip(),
                         }
                     )
@@ -163,12 +174,14 @@ def test_geists_have_proper_type_hints() -> None:
             "TYPE HINT VIOLATIONS IN GEISTS",
             "=" * 80,
             "",
-            "All geist suggest() functions must have proper type hints.",
+            "All geist suggest() functions must follow the project type hint style.",
             "",
-            "Accepted signatures:",
+            "Required signature (per CLAUDE.md):",
             '    def suggest(vault: "VaultContext") -> list["Suggestion"]:',
-            '    def suggest(vault: "VaultContext") -> list[Suggestion]:',
-            '    def suggest(vault: "VaultContext") -> List[Suggestion]:',
+            "",
+            "Style requirements:",
+            "  - Use lowercase 'list' (not 'List' from typing)",
+            "  - Use quotes for forward references",
             "",
             "Violations found:",
             "",
