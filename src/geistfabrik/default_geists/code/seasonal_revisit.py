@@ -1,6 +1,6 @@
 """Seasonal Revisit - Surface notes from the same season.
 
-This geist finds notes created in the same season (Spring/Summer/Fall/Winter)
+This geist finds notes created in the same season (Spring/Summer/Autumn/Winter)
 as the current date, revealing seasonal patterns in your thinking and
 encouraging reflection on yearly rhythms.
 """
@@ -79,7 +79,7 @@ def _get_season(date: datetime) -> str:
         date: Date to check
 
     Returns:
-        Season name: "Spring", "Summer", "Fall", or "Winter"
+        Season name: "Spring", "Summer", "Autumn", or "Winter"
     """
     month = date.month
 
@@ -88,6 +88,6 @@ def _get_season(date: datetime) -> str:
     elif month in (6, 7, 8):
         return "Summer"
     elif month in (9, 10, 11):
-        return "Fall"
+        return "Autumn"
     else:  # 12, 1, 2
         return "Winter"

@@ -876,7 +876,7 @@ class TemporalSemanticQuery:
         self,
         topic_keywords: List[str]
     ) -> Dict[str, int]:
-        """Count notes about topic by season (spring/summer/fall/winter)."""
+        """Count notes about topic by season (spring/summer/autumn/winter)."""
 
     def drift_direction_by_period(
         self,
