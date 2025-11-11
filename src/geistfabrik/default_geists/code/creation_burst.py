@@ -4,7 +4,7 @@ Identifies "burst days" when you created 3+ notes and asks what was special
 about those moments of creative activity.
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext

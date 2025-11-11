@@ -100,7 +100,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 # Check if they're currently similar but not linked
                 if not vault.links_between(note_a, note_b):
                     text = (
-                        f"[[{note_a.obsidian_link}]] and [[{note_b.obsidian_link}]] have been converging "
+                        f"[[{note_a.obsidian_link}]] and "
+                        f"[[{note_b.obsidian_link}]] have been converging "
                         f"semantically across your last {len(similarities)} sessions. "
                         f"Two ideas independently developing in the same direction—"
                         f"time to link them?"

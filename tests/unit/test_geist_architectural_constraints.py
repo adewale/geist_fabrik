@@ -154,7 +154,10 @@ def test_geists_have_proper_type_hints() -> None:
                     if 'List[' in line:
                         issue = "Uses 'List' instead of 'list' (violates PEP 585 style)"
                     elif '-> list[Suggestion]' in line:
-                        issue = "Missing quotes around 'Suggestion' (should be list[\"Suggestion\"])"
+                        issue = (
+                            'Missing quotes around \'Suggestion\' '
+                            '(should be list["Suggestion"])'
+                        )
                     else:
                         issue = "Missing or incorrect return type hint"
 
@@ -224,12 +227,8 @@ def test_geists_use_vault_sample_not_random() -> None:
         content = geist_file.read_text()
         lines = content.splitlines()
 
-        has_random_import = False
-        has_random_usage = False
-
         for line_num, line in enumerate(lines, start=1):
             if import_pattern.match(line):
-                has_random_import = True
                 violations.append(
                     {
                         "file": geist_file.name,
@@ -240,7 +239,6 @@ def test_geists_use_vault_sample_not_random() -> None:
                 )
 
             if usage_pattern.search(line):
-                has_random_usage = True
                 violations.append(
                     {
                         "file": geist_file.name,
