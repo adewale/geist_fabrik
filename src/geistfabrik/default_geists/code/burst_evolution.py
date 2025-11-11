@@ -194,7 +194,7 @@ def _generate_drift_observation(
         if note is None:
             continue
         label = _drift_label(drift)
-        drift_lines.append(f"- [[{note.title}]]: {drift:.2f} drift ({label})")
+        drift_lines.append(f"- [[{note.obsidian_link}]]: {drift:.2f} drift ({label})")
 
     drift_text = "\n".join(drift_lines)
 
@@ -214,7 +214,7 @@ def _generate_drift_observation(
         if stable:
             stable_notes = [vault.get_note(p) for p in stable[:2]]
             stable_titles = ", ".join(
-                [f"[[{n.title}]]" for n in stable_notes if n is not None]
+                [f"[[{n.obsidian_link}]]" for n in stable_notes if n is not None]
             )
             observation = (
                 f"{stable_titles} are anchors—the stable core "
