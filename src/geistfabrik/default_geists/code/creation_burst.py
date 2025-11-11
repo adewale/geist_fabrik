@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, List
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
-from geistfabrik.models import Suggestion
+from geistfabrik.models import Note, Suggestion
 
 
 def suggest(vault: "VaultContext") -> List[Suggestion]:
@@ -50,8 +50,12 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
 
     # Parse note paths and get Note objects to access obsidian_link
     note_paths = paths_str.split("|") if paths_str else []
-    notes = [vault.get_note(path) for path in note_paths]
-    notes = [note for note in notes if note is not None]  # Filter out any None results
+    notes_with_none = [vault.get_note(path) for path in note_paths]
+    # Filter out None results and collect in a clean list for type checker
+    notes: list[Note] = []
+    for note in notes_with_none:
+        if note is not None:
+            notes.append(note)
 
     if not notes:
         return []

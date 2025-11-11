@@ -8,7 +8,8 @@ The bug this prevents:
 - Virtual notes from journal files have identical titles in the database
   (e.g., multiple entries for "2024-03-15" from different journal files)
 - Geists that query raw titles will show duplicates: "[[2024-03-15]], [[2024-03-15]]"
-- Geists that use obsidian_link will show deeplinks: "[[Work Journal#2024-03-15]], [[Personal Journal#2024-03-15]]"
+- Geists that use obsidian_link will show deeplinks:
+  "[[Work Journal#2024-03-15]], [[Personal Journal#2024-03-15]]"
 
 This test runs ALL code geists against a vault with virtual notes and
 verifies that any suggestions referencing those notes use proper deeplinks.
@@ -24,7 +25,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists import code as code_geists_module
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry, _GLOBAL_REGISTRY
+from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
 
 
 @pytest.fixture(autouse=True)

@@ -341,7 +341,10 @@ More research notes.
 
     # Check that suggestion text contains deeplinks (filename#heading format)
     # Virtual notes should show as "Work Journal#2024-03-15" etc., not just "2024-03-15"
-    assert "Work Journal#" in suggestion.text or "Personal Journal#" in suggestion.text or "Research Journal#" in suggestion.text
+    assert any(
+        journal in suggestion.text
+        for journal in ["Work Journal#", "Personal Journal#", "Research Journal#"]
+    )
 
     # Check that notes list contains deeplinks for virtual entries
     # Virtual notes should use deeplink format in the notes list

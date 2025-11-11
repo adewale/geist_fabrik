@@ -22,7 +22,7 @@ import pytest
 
 from geistfabrik import Vault, VaultContext
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry, _GLOBAL_REGISTRY
+from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
 
 
 @pytest.fixture(autouse=True)
