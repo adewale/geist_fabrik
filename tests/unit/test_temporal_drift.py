@@ -135,9 +135,9 @@ def test_temporal_drift_suggestion_structure(vault_with_stale_notes):
 
     for suggestion in suggestions:
         # Required fields
-        assert hasattr(suggestion, 'text')
-        assert hasattr(suggestion, 'notes')
-        assert hasattr(suggestion, 'geist_id')
+        assert hasattr(suggestion, "text")
+        assert hasattr(suggestion, "notes")
+        assert hasattr(suggestion, "geist_id")
 
         # Correct types and values
         assert isinstance(suggestion.text, str)
@@ -391,18 +391,21 @@ def test_temporal_drift_deterministic_with_seed(vault_with_stale_notes):
     """Test that temporal_drift returns same results with same seed."""
     vault, session = vault_with_stale_notes
 
+    # Reuse same FunctionRegistry to avoid duplicate registration
+    registry = FunctionRegistry()
+
     context1 = VaultContext(
         vault=vault,
         session=session,
         seed=20240315,
-        function_registry=FunctionRegistry(),
+        function_registry=registry,
     )
 
     context2 = VaultContext(
         vault=vault,
         session=session,
         seed=20240315,
-        function_registry=FunctionRegistry(),
+        function_registry=registry,
     )
 
     suggestions1 = temporal_drift.suggest(context1)
