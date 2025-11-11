@@ -96,7 +96,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if early_sim > recent_sim + 0.15:  # Significant divergence
                 text = (
-                    f"[[{note_a.title}]] and [[{note_b.title}]] are linked, "
+                    f"[[{note_a.obsidian_link}]] and [[{note_b.obsidian_link}]] are linked, "
                     f"but they've been semantically diverging across your last "
                     f"{len(similarities)} sessions. They were similar when connected "
                     f"but have drifted apart—does the link still make sense?"
@@ -105,7 +105,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[note_a.title, note_b.title],
+                        notes=[note_a.obsidian_link, note_b.obsidian_link],
                         geist_id="divergent_evolution",
                     )
                 )

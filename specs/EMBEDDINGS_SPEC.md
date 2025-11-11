@@ -99,8 +99,8 @@ Temporal features capture **when** a note was created and **when** the session i
 
 **Dimensions**: 3
 1. **Note Age** (at session time)
-2. **Creation Season** (cyclic: winter/spring/summer/fall)
-3. **Session Season** (cyclic: winter/spring/summer/fall)
+2. **Creation Season** (cyclic: winter/spring/summer/autumn)
+3. **Session Season** (cyclic: winter/spring/summer/autumn)
 
 ### 1. Note Age
 
