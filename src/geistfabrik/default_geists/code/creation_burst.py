@@ -31,7 +31,7 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
         """
         SELECT DATE(created) as creation_date,
                COUNT(*) as note_count,
-               GROUP_CONCAT(title, '|') as note_titles
+               GROUP_CONCAT(path, '|') as note_paths
         FROM notes
         WHERE NOT path LIKE 'geist journal/%'
         GROUP BY DATE(created)
@@ -46,17 +46,25 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
         return []
 
     # Randomly select one burst day (deterministic via vault's RNG)
-    day_date, count, titles_str = vault.sample(burst_days, k=1)[0]
+    day_date, count, paths_str = vault.sample(burst_days, k=1)[0]
 
-    # Parse note titles
-    note_titles = titles_str.split("|") if titles_str else []
+    # Parse note paths and get Note objects to access obsidian_link
+    note_paths = paths_str.split("|") if paths_str else []
+    notes = [vault.get_note(path) for path in note_paths]
+    notes = [note for note in notes if note is not None]  # Filter out any None results
 
-    # Limit to showing first 8 titles to avoid overwhelming output
-    display_titles = note_titles[:8]
-    more_count = len(note_titles) - len(display_titles)
+    if not notes:
+        return []
+
+    # Get obsidian link text for each note (handles both regular and virtual notes)
+    note_links = [note.obsidian_link for note in notes]
+
+    # Limit to showing first 8 notes to avoid overwhelming output
+    display_links = note_links[:8]
+    more_count = len(note_links) - len(display_links)
 
     # Build note list for suggestion text
-    title_list = ", ".join([f"[[{title}]]" for title in display_titles])
+    title_list = ", ".join([f"[[{link}]]" for link in display_links])
     if more_count > 0:
         title_list += f", and {more_count} more"
 
@@ -71,7 +79,7 @@ def suggest(vault: "VaultContext") -> List[Suggestion]:
     return [
         Suggestion(
             text=text,
-            notes=note_titles,  # All notes, not just displayed ones
+            notes=note_links,  # All notes (obsidian links), not just displayed ones
             geist_id="creation_burst",
         )
     ]

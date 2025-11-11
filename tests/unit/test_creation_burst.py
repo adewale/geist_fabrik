@@ -257,3 +257,89 @@ def test_creation_burst_returns_single_suggestion(vault_context):
 
     # Should return exactly 1, not a list of many
     assert len(suggestions) == 1
+
+
+def test_creation_burst_virtual_notes_use_deeplinks(tmp_path):
+    """Test that virtual notes from journal files use deeplink format.
+
+    When multiple journal entries exist for the same date (e.g., from different
+    journal files), the suggestion should show distinct deeplinks like
+    "Journal#2024-03-15" instead of duplicate titles.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create multiple journal files with entries for the same date
+    burst_date = datetime(2024, 3, 15, 10, 0, 0)
+    date_heading = "2024-03-15"
+
+    # Journal 1
+    journal1 = vault_path / "Work Journal.md"
+    journal1.write_text(f"""# {date_heading}
+
+Work meeting about project planning.
+""")
+
+    # Journal 2
+    journal2 = vault_path / "Personal Journal.md"
+    journal2.write_text(f"""# {date_heading}
+
+Had a great idea about productivity.
+""")
+
+    # Journal 3
+    journal3 = vault_path / "Research Journal.md"
+    journal3.write_text(f"""# {date_heading}
+
+Found interesting paper on embeddings.
+""")
+
+    # Add regular note on same day to reach 4 total notes (above threshold)
+    note = vault_path / "regular_note.md"
+    note.write_text("# Regular Note\n\nSome content.")
+
+    # Initialize vault
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Set created dates
+    vault.db.execute(
+        "UPDATE notes SET created = ? WHERE path LIKE '%Journal%'",
+        (burst_date.isoformat(),),
+    )
+    vault.db.execute(
+        "UPDATE notes SET created = ? WHERE title = ?",
+        (burst_date.isoformat(), "Regular Note"),
+    )
+    vault.db.commit()
+
+    session = Session(burst_date, vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
+
+    assert len(suggestions) == 1
+    suggestion = suggestions[0]
+
+    # Check that suggestion text contains deeplinks (filename#heading format)
+    # Virtual notes should show as "Work Journal#2024-03-15" etc., not just "2024-03-15"
+    assert "Work Journal#" in suggestion.text or "Personal Journal#" in suggestion.text or "Research Journal#" in suggestion.text
+
+    # Check that notes list contains deeplinks for virtual entries
+    # Virtual notes should use deeplink format in the notes list
+    virtual_note_refs = [n for n in suggestion.notes if "#" in n]
+    assert len(virtual_note_refs) >= 3, (
+        f"Expected at least 3 virtual note refs with deeplinks, got {len(virtual_note_refs)}: "
+        f"{suggestion.notes}"
+    )
+
+    # Verify all notes are distinct (no duplicates like "2024-03-15" repeated)
+    assert len(suggestion.notes) == len(set(suggestion.notes)), (
+        f"Found duplicate note references: {suggestion.notes}"
+    )
