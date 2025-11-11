@@ -251,7 +251,7 @@ These two geists together provide **cohort analysis** - tracking groups of notes
 - Different from tracking individual notes (concept_drift) or time periods (temporal_clustering)
 
 **Analogy:**
-- **temporal_clustering** = "Students who started school in Fall 2024"
+- **temporal_clustering** = "Students who started school in Autumn 2024"
 - **concept_drift** = "Where did Alice go after graduation?"
 - **burst_evolution** = "What happened to the 7 students who all enrolled on the same day?"
 
