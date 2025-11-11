@@ -273,25 +273,37 @@ def test_creation_burst_virtual_notes_use_deeplinks(tmp_path):
     burst_date = datetime(2024, 3, 15, 10, 0, 0)
     date_heading = "2024-03-15"
 
-    # Journal 1
+    # Journal 1 - Use H2 headings (##) for date-collection detection
     journal1 = vault_path / "Work Journal.md"
-    journal1.write_text(f"""# {date_heading}
+    journal1.write_text(f"""## {date_heading}
 
 Work meeting about project planning.
+
+## 2024-03-16
+
+Another day of work.
 """)
 
-    # Journal 2
+    # Journal 2 - Use H2 headings (##) for date-collection detection
     journal2 = vault_path / "Personal Journal.md"
-    journal2.write_text(f"""# {date_heading}
+    journal2.write_text(f"""## {date_heading}
 
 Had a great idea about productivity.
+
+## 2024-03-16
+
+Continued thinking about it.
 """)
 
-    # Journal 3
+    # Journal 3 - Use H2 headings (##) for date-collection detection
     journal3 = vault_path / "Research Journal.md"
-    journal3.write_text(f"""# {date_heading}
+    journal3.write_text(f"""## {date_heading}
 
 Found interesting paper on embeddings.
+
+## 2024-03-16
+
+More research notes.
 """)
 
     # Add regular note on same day to reach 4 total notes (above threshold)

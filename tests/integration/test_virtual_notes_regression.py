@@ -52,35 +52,35 @@ def vault_with_virtual_notes(tmp_path):
     burst_date = datetime(2024, 3, 15, 10, 0, 0)
     other_date = datetime(2024, 3, 20, 14, 0, 0)
 
-    # Work Journal with entries for both dates
+    # Work Journal with entries for both dates - Use H2 headings (##) for date-collection
     work_journal = vault_path / "Work Journal.md"
-    work_journal.write_text("""# 2024-03-15
+    work_journal.write_text("""## 2024-03-15
 
 Project planning meeting. Discussed roadmap for Q2.
 
-# 2024-03-20
+## 2024-03-20
 
 Team sync. Reviewed sprint progress.
 """)
 
-    # Personal Journal with entries for both dates
+    # Personal Journal with entries for both dates - Use H2 headings (##) for date-collection
     personal_journal = vault_path / "Personal Journal.md"
-    personal_journal.write_text("""# 2024-03-15
+    personal_journal.write_text("""## 2024-03-15
 
 Had a great insight about productivity systems.
 
-# 2024-03-20
+## 2024-03-20
 
 Reflection on learning journey.
 """)
 
-    # Research Journal with entries for both dates
+    # Research Journal with entries for both dates - Use H2 headings (##) for date-collection
     research_journal = vault_path / "Research Journal.md"
-    research_journal.write_text("""# 2024-03-15
+    research_journal.write_text("""## 2024-03-15
 
 Found interesting paper on embeddings and semantic search.
 
-# 2024-03-20
+## 2024-03-20
 
 Reading about clustering algorithms.
 """)
@@ -195,7 +195,7 @@ def test_geist_uses_obsidian_link_for_virtual_notes(
         return
 
     # Get all virtual note titles from the vault for comparison
-    all_notes = vault_context.all_notes()
+    all_notes = vault_context.notes()
     virtual_note_titles = {
         note.title for note in all_notes if note.is_virtual
     }
