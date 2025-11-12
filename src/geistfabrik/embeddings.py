@@ -125,7 +125,22 @@ class EmbeddingComputer:
             project_root = Path(__file__).parent.parent.parent
             local_model_path = project_root / "models" / self.model_name
 
-            if local_model_path.exists():
+            # Verify model path contains actual model files, not Git LFS pointers
+            # Git LFS pointers are small text files (~130 bytes) that start with "version https://git-lfs.github.com"
+            model_file = local_model_path / "model.safetensors"
+            use_local_model = False
+            if local_model_path.exists() and model_file.exists():
+                # Check if file is a Git LFS pointer (small file starting with "version https://git-lfs.github.com")
+                file_size = model_file.stat().st_size
+                if file_size > 1000:  # Real model files are >1KB, LFS pointers are ~130 bytes
+                    use_local_model = True
+                else:
+                    logger.info(
+                        f"Local model appears to be Git LFS pointer ({file_size} bytes), "
+                        f"falling back to HuggingFace download"
+                    )
+
+            if use_local_model:
                 # Use local bundled model (offline, faster, reproducible)
                 model_source = str(local_model_path)
             else:
