@@ -11,7 +11,7 @@ Inspired by Gordon Brander's work on tools for thought.
 ## Status
 
 **Version**: 0.9.0 (Beta)
-**Default Geists**: 51 (42 code + 9 Tracery) _[programmatically verified]_
+**Default Geists**: 54 (45 code + 9 Tracery) _[programmatically verified]_
 **Tests**: 611 passing (100%)
 **Progress**: ~99% (Feature-complete, approaching 1.0)
 
@@ -71,8 +71,8 @@ uv run geistfabrik --help
 # Initialise a vault (creates _geistfabrik directory structure)
 uv run geistfabrik init /path/to/your/vault
 
-# This automatically configures 51 bundled default geists:
-# • 42 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
+# This automatically configures 54 bundled default geists:
+# • 45 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
 # • 9 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)
 
 # Preview suggestions (read-only, no files created)

@@ -143,7 +143,9 @@ class TestAllCodeGeistsWithEmptyVault:
         # Filter out __init__.py
         geist_files = [f for f in geist_files if f.stem != "__init__"]
 
-        assert len(geist_files) == 42, f"Expected 42 code geists, found {len(geist_files)}"
+        # 45 code geists: 42 original + 3 demonstration geists for reuse abstractions
+        # (definition_harvester, drift_velocity_anomaly, cyclical_thinking)
+        assert len(geist_files) == 45, f"Expected 45 code geists, found {len(geist_files)}"
 
         for geist_file in geist_files:
             geist_module = _load_code_geist(geist_file)

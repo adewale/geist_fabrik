@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 51 bundled geists (42 code, 9 Tracery) - automatically available
+  - **default_geists/**: 54 bundled geists (45 code, 9 Tracery) - automatically available
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
@@ -30,7 +30,7 @@ The system is fully functional and operational. All phases of the specification 
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 51 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 54 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns

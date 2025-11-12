@@ -10,7 +10,7 @@ components.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import numpy as np
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
@@ -476,3 +476,171 @@ class TemporalPatternFinder:
                 cycling.append(note)
 
         return cycling
+
+
+class TemporalSemanticQuery:
+    """Combine time and semantics for advanced queries.
+
+    Fuses temporal constraints (creation date, session date) with semantic
+    similarity to enable queries like "notes about X created in season Y" or
+    "what was I thinking about Z last winter?".
+
+    Example:
+        >>> query = TemporalSemanticQuery(vault)
+        >>> winter_notes = query.notes_created_similar_to(
+        ...     anchor_note,
+        ...     start_date=datetime(2024, 12, 1),
+        ...     end_date=datetime(2025, 2, 28),
+        ...     min_similarity=0.6
+        ... )
+    """
+
+    def __init__(self, vault: "VaultContext"):
+        """Initialize temporal-semantic query with vault context.
+
+        Args:
+            vault: VaultContext for time and semantic queries
+        """
+        self.vault = vault
+
+    def notes_created_similar_to(
+        self,
+        anchor: "Note",
+        start_date: datetime,
+        end_date: datetime,
+        min_similarity: float = 0.6,
+    ) -> List["Note"]:
+        """Find notes created in time range similar to anchor.
+
+        Args:
+            anchor: Reference note for similarity
+            start_date: Start of date range (inclusive)
+            end_date: End of date range (inclusive)
+            min_similarity: Minimum similarity threshold
+
+        Returns:
+            List of notes created in time range and similar to anchor
+        """
+        notes = self.vault.notes()
+        results = []
+
+        for note in notes:
+            # Check temporal constraint
+            if not (start_date <= note.created <= end_date):
+                continue
+
+            # Check semantic constraint
+            sim = self.vault.similarity(anchor, note)
+            if sim >= min_similarity and note.path != anchor.path:
+                results.append(note)
+
+        return results
+
+    def seasonal_pattern_for_topic(
+        self, topic_keywords: List[str]
+    ) -> Dict[str, int]:
+        """Count notes about topic by season (spring/summer/autumn/winter).
+
+        Args:
+            topic_keywords: Keywords to search for in note content
+
+        Returns:
+            Dictionary mapping season name to note count
+        """
+        from datetime import datetime
+
+        notes = self.vault.notes()
+
+        # Define seasons (Northern Hemisphere)
+        def get_season(date: datetime) -> str:
+            month = date.month
+            if month in [3, 4, 5]:
+                return "spring"
+            elif month in [6, 7, 8]:
+                return "summer"
+            elif month in [9, 10, 11]:
+                return "autumn"
+            else:  # 12, 1, 2
+                return "winter"
+
+        # Count notes by season
+        season_counts = {"spring": 0, "summer": 0, "autumn": 0, "winter": 0}
+
+        for note in notes:
+            # Check if note contains any topic keywords
+            content_lower = note.content.lower()
+            title_lower = note.title.lower()
+
+            matches_topic = any(
+                keyword.lower() in content_lower or keyword.lower() in title_lower
+                for keyword in topic_keywords
+            )
+
+            if matches_topic:
+                season = get_season(note.created)
+                season_counts[season] += 1
+
+        return season_counts
+
+    def drift_direction_by_period(
+        self, note: "Note"
+    ) -> Dict[str, np.ndarray]:
+        """Get drift direction vectors by time period (month, season).
+
+        Analyzes how note's drift direction varies across different time
+        periods, revealing temporal patterns in conceptual evolution.
+
+        Args:
+            note: Note to analyze
+
+        Returns:
+            Dictionary mapping period name to drift vector
+        """
+        from datetime import datetime
+
+        calc = EmbeddingTrajectoryCalculator(self.vault, note)
+        snapshots = calc.snapshots()
+
+        if len(snapshots) < 4:  # Need enough data
+            return {}
+
+        # Group snapshots by season
+        def get_season(date: datetime) -> str:
+            month = date.month
+            if month in [3, 4, 5]:
+                return "spring"
+            elif month in [6, 7, 8]:
+                return "summer"
+            elif month in [9, 10, 11]:
+                return "autumn"
+            else:
+                return "winter"
+
+        season_snapshots: Dict[str, List[Tuple[datetime, np.ndarray]]] = {
+            "spring": [],
+            "summer": [],
+            "autumn": [],
+            "winter": [],
+        }
+
+        for date, emb in snapshots:
+            season = get_season(date)
+            season_snapshots[season].append((date, emb))
+
+        # Compute drift direction per season
+        drift_directions: Dict[str, np.ndarray] = {}
+
+        for season, season_snaps in season_snapshots.items():
+            if len(season_snaps) >= 2:
+                first_emb = season_snaps[0][1]
+                last_emb = season_snaps[-1][1]
+
+                drift_vector = last_emb - first_emb
+                norm = float(np.linalg.norm(drift_vector))
+
+                if norm > 1e-10:
+                    drift_directions[season] = drift_vector / norm
+                else:
+                    drift_directions[season] = np.zeros_like(drift_vector)
+
+        return drift_directions

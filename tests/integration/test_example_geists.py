@@ -687,10 +687,13 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 42 code geists (39 core + 3 harvesters)
-    # Includes creation_burst and burst_evolution (new temporal geists)
+    # We have 45 code geists (42 existing + 3 new demonstration geists)
+    # New geists from reuse abstractions implementation:
+    #   - definition_harvester (content extraction)
+    #   - drift_velocity_anomaly (temporal analysis)
+    #   - cyclical_thinking (temporal patterns)
     # Note: congruence_mirror was removed from main
-    assert len(geist_executor.geists) == 42
+    assert len(geist_executor.geists) == 45
 
 
 def test_all_geists_execute_without_crashing(

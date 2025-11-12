@@ -217,3 +217,175 @@ class MetadataLoader:
     def clear_cache(self) -> None:
         """Clear the key-to-module mapping cache."""
         self._key_to_module.clear()
+
+
+class MetadataAnalyser:
+    """Analyse metadata distributions and outliers.
+
+    Provides statistical operations on metadata values across the vault:
+    percentiles, outliers, comparisons, and profiles. Enables reasoning
+    about metadata patterns without manual aggregation.
+
+    Example:
+        >>> analyser = MetadataAnalyser(vault)
+        >>> dist = analyser.distribution("word_count")
+        >>> # {'p10': 150, 'p25': 300, 'p50': 500, 'p75': 800, 'p90': 1200}
+        >>> outliers = analyser.outliers("word_count", threshold=2.0)
+    """
+
+    def __init__(self, vault: "VaultContext"):
+        """Initialize metadata analyser with vault context.
+
+        Args:
+            vault: VaultContext for accessing notes and metadata
+        """
+        self.vault = vault
+
+    def distribution(self, metadata_key: str) -> Dict[str, float]:
+        """Get percentiles (p10, p25, p50, p75, p90) for metadata.
+
+        Args:
+            metadata_key: Metadata key to analyze
+
+        Returns:
+            Dictionary with percentile values
+        """
+        import numpy as np
+
+        notes = self.vault.notes()
+        values = []
+
+        for note in notes:
+            metadata = self.vault.metadata(note)
+            if metadata_key in metadata:
+                value = metadata[metadata_key]
+                # Only numeric values can be analyzed
+                if isinstance(value, (int, float)):
+                    values.append(float(value))
+
+        if not values:
+            return {
+                "p10": 0.0,
+                "p25": 0.0,
+                "p50": 0.0,
+                "p75": 0.0,
+                "p90": 0.0,
+            }
+
+        values_array = np.array(values)
+        return {
+            "p10": float(np.percentile(values_array, 10)),
+            "p25": float(np.percentile(values_array, 25)),
+            "p50": float(np.percentile(values_array, 50)),
+            "p75": float(np.percentile(values_array, 75)),
+            "p90": float(np.percentile(values_array, 90)),
+        }
+
+    def outliers(
+        self, metadata_key: str, threshold: float = 2.0
+    ) -> List[Note]:
+        """Find notes with metadata > threshold standard deviations from mean.
+
+        Args:
+            metadata_key: Metadata key to analyze
+            threshold: Number of standard deviations (default: 2.0)
+
+        Returns:
+            List of notes with outlier values
+        """
+        import numpy as np
+
+        notes = self.vault.notes()
+        values = []
+        note_value_map: Dict[str, float] = {}
+
+        for note in notes:
+            metadata = self.vault.metadata(note)
+            if metadata_key in metadata:
+                value = metadata[metadata_key]
+                if isinstance(value, (int, float)):
+                    values.append(float(value))
+                    note_value_map[note.path] = float(value)
+
+        if not values:
+            return []
+
+        values_array = np.array(values)
+        mean = float(np.mean(values_array))
+        std = float(np.std(values_array))
+
+        if std < 1e-10:  # Avoid division by zero
+            return []
+
+        # Find outliers
+        outlier_notes = []
+        for note in notes:
+            if note.path in note_value_map:
+                value = note_value_map[note.path]
+                z_score = abs((value - mean) / std)
+                if z_score > threshold:
+                    outlier_notes.append(note)
+
+        return outlier_notes
+
+    def compare_notes(
+        self, note_a: Note, note_b: Note, keys: List[str]
+    ) -> Dict[str, float]:
+        """Compare metadata between two notes (ratios).
+
+        Args:
+            note_a: First note
+            note_b: Second note
+            keys: Metadata keys to compare
+
+        Returns:
+            Dictionary mapping keys to ratios (note_a / note_b)
+        """
+        metadata_a = self.vault.metadata(note_a)
+        metadata_b = self.vault.metadata(note_b)
+
+        ratios: Dict[str, float] = {}
+
+        for key in keys:
+            value_a = metadata_a.get(key)
+            value_b = metadata_b.get(key)
+
+            # Can only compute ratios for numeric values
+            if isinstance(value_a, (int, float)) and isinstance(value_b, (int, float)):
+                if value_b != 0:
+                    ratios[key] = float(value_a) / float(value_b)
+                else:
+                    ratios[key] = float("inf")  # Infinite ratio
+
+        return ratios
+
+    def profile(self, note: Note) -> Dict[str, str]:
+        """Get metadata profile: {key: 'high'|'moderate'|'low'} based on percentiles.
+
+        Args:
+            note: Note to profile
+
+        Returns:
+            Dictionary mapping metadata keys to qualitative levels
+        """
+        metadata = self.vault.metadata(note)
+        profile: Dict[str, str] = {}
+
+        for key, value in metadata.items():
+            if not isinstance(value, (int, float)):
+                continue  # Only profile numeric metadata
+
+            dist = self.distribution(key)
+            p25 = dist["p25"]
+            p75 = dist["p75"]
+
+            float_value = float(value)
+
+            if float_value >= p75:
+                profile[key] = "high"
+            elif float_value <= p25:
+                profile[key] = "low"
+            else:
+                profile[key] = "moderate"
+
+        return profile

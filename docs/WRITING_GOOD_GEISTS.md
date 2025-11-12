@@ -1339,6 +1339,266 @@ def _divide_into_periods(notes, num_periods=10):
 
 ---
 
+## Reuse Abstractions (GeistFabrik 0.9+)
+
+**New in v0.9**: GeistFabrik now provides 6 core abstraction modules that eliminate 70% of boilerplate code and enable rapid geist development through composition.
+
+### Overview
+
+Instead of manually implementing recurring patterns (similarity thresholds, temporal analysis, content extraction), use the provided abstractions:
+
+1. **`similarity_analysis`** - Named thresholds and declarative filtering
+2. **`content_extraction`** - Generalizable extraction pipeline
+3. **`temporal_analysis`** - Embedding trajectory and drift patterns
+4. **`cluster_labeling`** - Shared labeling with MMR
+5. **`clustering_analysis`** - Session-scoped clustering
+6. **`graph_analysis`** - Unified graph pattern detection
+
+**Metadata extensions**:
+- **`TemporalSemanticQuery`** (in `temporal_analysis`) - Fuse time + semantics
+- **`MetadataAnalyser`** (in `metadata_system`) - Statistical metadata operations
+
+### Abstraction 1: Similarity Analysis
+
+**Before** (manual threshold handling):
+```python
+def suggest(vault):
+    for note_a in notes:
+        for note_b in notes:
+            sim = vault.similarity(note_a, note_b)
+            if sim >= 0.65 and sim < 0.80:  # Magic numbers!
+                # ... bridge detection logic ...
+```
+
+**After** (named thresholds):
+```python
+from geistfabrik.similarity_analysis import SimilarityLevel, SimilarityFilter
+
+def suggest(vault):
+    filter = SimilarityFilter(vault)
+    # Find notes similar to topic anchors
+    candidates = filter.filter_similar_to_all(
+        anchors=[topic_a, topic_b],
+        candidates=vault.notes(),
+        threshold=SimilarityLevel.HIGH  # Clear, semantic naming!
+    )
+```
+
+**Available Classes**:
+- `SimilarityLevel`: Named constants (VERY_HIGH=0.80, HIGH=0.65, MODERATE=0.50, etc.)
+- `SimilarityProfile`: Analyze note's similarity distribution (hub detection, percentiles)
+- `SimilarityFilter`: Declarative operations (filter_similar_to_any, filter_dissimilar_to_all)
+
+### Abstraction 2: Content Extraction
+
+**Before** (bespoke extraction logic):
+```python
+def suggest(vault):
+    # 80 lines of regex patterns, validation, deduplication...
+    questions = []
+    for pattern in patterns:
+        matches = re.findall(pattern, content)
+        # ... validation ...
+        # ... deduplication ...
+```
+
+**After** (reusable pipeline):
+```python
+from geistfabrik.content_extraction import (
+    ExtractionPipeline,
+    DefinitionExtractor,
+    LengthFilter,
+    AlphaFilter
+)
+
+def suggest(vault):
+    pipeline = ExtractionPipeline(
+        strategies=[DefinitionExtractor()],
+        filters=[LengthFilter(min_len=15, max_len=300), AlphaFilter()]
+    )
+    definitions = pipeline.extract(note.content)
+```
+
+**Built-in Extractors**:
+- `QuestionExtractor` - Sentence and list questions
+- `DefinitionExtractor` - "X is Y", "X: Y", "X means Y" patterns
+- `ClaimExtractor` - Assertive statements ("shows", "proves", "demonstrates")
+- `HypothesisExtractor` - If/then, may/might, conditionals
+
+**Example Geist**: See `definition_harvester.py` for full example (~75 lines → ~25 lines)
+
+### Abstraction 3: Temporal Analysis
+
+**Before** (manual session queries):
+```python
+def suggest(vault):
+    # Get session history (8 lines)
+    cursor = vault.db.execute("SELECT session_id, session_date FROM sessions...")
+    sessions = cursor.fetchall()
+
+    # For each note (40+ lines)
+    for note in notes:
+        trajectory = []
+        for session_id, session_date in sessions:
+            cursor = vault.db.execute(
+                "SELECT embedding FROM session_embeddings WHERE..."
+            )
+            # ... manual drift computation ...
+```
+
+**After** (trajectory calculator):
+```python
+from geistfabrik.temporal_analysis import (
+    EmbeddingTrajectoryCalculator,
+    TemporalPatternFinder
+)
+
+def suggest(vault):
+    finder = TemporalPatternFinder(vault)
+    drifting = finder.find_high_drift_notes(vault.notes(), min_drift=0.2)
+
+    for note, drift_vector in drifting:
+        calc = EmbeddingTrajectoryCalculator(vault, note)
+        if calc.is_accelerating(threshold=0.1):
+            # Found accelerating drift!
+```
+
+**Available Classes**:
+- `EmbeddingTrajectoryCalculator`: Track note evolution (drift, alignment, convergence)
+- `TemporalPatternFinder`: Find patterns (converging pairs, cycling notes, aligned drift)
+- `TemporalSemanticQuery`: Fuse time + semantics (seasonal patterns, time-bounded similarity)
+
+**Example Geists**:
+- `drift_velocity_anomaly.py` - Detects accelerating drift (~30 lines vs 60+)
+- `cyclical_thinking.py` - Finds cyclical patterns (~25 lines)
+
+### Abstraction 4: Graph Analysis
+
+**Before** (manual graph traversal):
+```python
+def suggest(vault):
+    # Hub detection (20 lines)
+    for note in notes:
+        backlinks = vault.backlinks(note)
+        if len(backlinks) >= 10:
+            hubs.append(note)
+
+    # Bridge detection (30+ lines)
+    for bridge in candidates:
+        connected = set(vault.outgoing_links(bridge))
+        connected.update(vault.backlinks(bridge))
+        # ... unlinked pair checking ...
+```
+
+**After** (unified pattern finder):
+```python
+from geistfabrik.graph_analysis import GraphPatternFinder
+
+def suggest(vault):
+    finder = GraphPatternFinder(vault)
+    hubs = finder.find_hubs(min_backlinks=10)
+    bridges = finder.find_bridges(min_similarity=0.6)
+    structural_holes = finder.detect_structural_holes(min_similarity=0.6)
+```
+
+**Available Methods**:
+- `find_hubs()`, `find_orphans()`, `find_bridges()`
+- `shortest_path()`, `k_hop_neighborhood()`
+- `find_connected_components()`, `detect_structural_holes()`
+
+### Abstraction 5: Clustering Analysis
+
+**Before** (duplicate HDBSCAN calls):
+```python
+def suggest(vault):
+    # Every geist runs HDBSCAN independently (expensive!)
+    clusterer = HDBSCAN(min_cluster_size=5)
+    labels = clusterer.fit_predict(embeddings)
+    # ... labelling ...
+```
+
+**After** (session-scoped caching):
+```python
+from geistfabrik.clustering_analysis import ClusterAnalyser
+
+def suggest(vault):
+    # Clustering computed once per session, cached for all geists
+    analyser = ClusterAnalyser(vault, strategy="hdbscan", min_size=5)
+    clusters = analyser.get_clusters()
+
+    for cluster_id, cluster in clusters.items():
+        reps = analyser.get_representatives(cluster_id, k=3)
+        # cluster.formatted_label already available!
+```
+
+### Abstraction 6: Metadata Analysis
+
+**Before** (manual aggregation):
+```python
+def suggest(vault):
+    # Manual percentile computation
+    values = [vault.metadata(n).get("word_count", 0) for n in notes]
+    p75 = np.percentile(values, 75)
+    outliers = [n for n in notes if vault.metadata(n).get("word_count") > p75 * 2]
+```
+
+**After** (statistical operations):
+```python
+from geistfabrik.metadata_system import MetadataAnalyser
+
+def suggest(vault):
+    analyser = MetadataAnalyser(vault)
+    outliers = analyser.outliers("word_count", threshold=2.0)  # Z-score based
+    profile = analyser.profile(note)  # {'word_count': 'high', 'link_density': 'low'}
+```
+
+### Best Practices for Using Abstractions
+
+1. **Import at function level** (not module level) to avoid circular dependencies
+2. **Combine abstractions** for complex patterns:
+   ```python
+   # Temporal + Similarity + Graph
+   from geistfabrik.temporal_analysis import TemporalPatternFinder
+   from geistfabrik.similarity_analysis import SimilarityLevel
+   from geistfabrik.graph_analysis import GraphPatternFinder
+   ```
+
+3. **Use named constants** over magic numbers:
+   ```python
+   # ✅ Good
+   filter.filter_by_range(note, candidates,
+                          SimilarityLevel.MODERATE, SimilarityLevel.HIGH)
+
+   # ❌ Bad
+   filter.filter_by_range(note, candidates, 0.5, 0.65)
+   ```
+
+4. **Leverage caching** - ClusterAnalyser caches per session for all geists
+5. **Compose abstractions** - Power comes from combining primitives
+
+### Migration Guide
+
+To refactor existing geists:
+
+1. **Identify patterns**: Look for similarity thresholds, session queries, graph traversal
+2. **Import abstractions**: Add imports at function level
+3. **Replace logic**: Swap manual implementation for abstraction calls
+4. **Test equivalence**: Ensure output matches original behavior
+5. **Simplify**: Remove now-redundant helper functions
+
+**Example**: See how `concept_drift.py` could be refactored from 65 lines to 15 lines using `TemporalPatternFinder`.
+
+### Reference Documentation
+
+- **Specification**: `specs/reuse_abstractions_spec.md` - Complete API reference
+- **Example Geists**:
+  - `definition_harvester.py` - Content extraction
+  - `drift_velocity_anomaly.py` - Temporal analysis
+  - `cyclical_thinking.py` - Pattern finding
+- **Source Modules**: `src/geistfabrik/{similarity,temporal,clustering,graph}_analysis.py`
+
+---
+
 ## Common Questions
 
 ### Q: Can I ever use directive language?
