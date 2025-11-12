@@ -21,7 +21,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Uses TemporalSemanticQuery to find notes created in specific seasons
     that are semantically similar, suggesting seasonal thinking patterns.
     """
-    notes = vault.notes()
+    # Exclude geist journal to avoid analyzing session output
+    all_notes = vault.notes()
+    notes = [n for n in all_notes if not n.path.startswith("geist journal/")]
+
     if len(notes) < 20:
         return []
 
@@ -29,11 +32,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     tsq = TemporalSemanticQuery(vault)
 
     # Define seasons (Northern Hemisphere)
+    # Use current year for all seasons, wrapping winter across year boundary
     current_date = vault.session.date
     current_year = current_date.year
 
+    # Determine which year's winter to check based on current month
+    winter_year = current_year if current_date.month >= 3 else current_year - 1
+
     seasons = {
-        "winter": (datetime(current_year - 1, 12, 21), datetime(current_year, 3, 20)),
+        "winter": (datetime(winter_year, 12, 21), datetime(winter_year + 1, 3, 20)),
         "spring": (datetime(current_year, 3, 21), datetime(current_year, 6, 20)),
         "summer": (datetime(current_year, 6, 21), datetime(current_year, 9, 20)),
         "fall": (datetime(current_year, 9, 21), datetime(current_year, 12, 20)),
@@ -43,9 +50,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Try to find seasonal clusters for each season
     for season_name, (start_date, end_date) in seasons.items():
-        # Get notes created in this season
+        # Get notes created in this season (excluding geist journal)
         seasonal_notes = [
-            n for n in notes if start_date <= n.created <= end_date
+            n
+            for n in notes
+            if start_date <= n.created <= end_date
         ]
 
         if len(seasonal_notes) < 3:
@@ -62,14 +71,23 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             min_similarity=0.60,
         )
 
+        # Filter out geist journal from results
+        similar_in_season = [
+            n for n in similar_in_season if not n.path.startswith("geist journal/")
+        ]
+
         if len(similar_in_season) >= 2:
             # Found a seasonal pattern!
             note_titles = [f"[[{n.obsidian_link}]]" for n in similar_in_season[:3]]
             pattern_text = ", ".join(note_titles)
+
+            # Use the actual year from the season dates for display
+            display_year = start_date.year if season_name != "winter" else winter_year
+
             suggestions.append(
                 Suggestion(
                     text=(
-                        f"In {season_name} {current_year}, you explored "
+                        f"In {season_name} {display_year}, you explored "
                         f"related ideas: {pattern_text}. "
                         f"What seasonal pattern might this reflect?"
                     ),

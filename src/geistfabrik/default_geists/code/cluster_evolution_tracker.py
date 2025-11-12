@@ -21,7 +21,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     current clusters, then compares with historical session data to find
     notes with shifting conceptual neighborhoods.
     """
-    notes = vault.notes()
+    # Exclude geist journal to avoid tracking session output migrations
+    all_notes = vault.notes()
+    notes = [n for n in all_notes if not n.path.startswith("geist journal/")]
+
     if len(notes) < 15:
         return []
 
@@ -50,7 +53,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     current_assignments: dict[str, str] = {}
     for cluster in current_clusters.values():
         for note in cluster.notes:
-            current_assignments[note.path] = cluster.label
+            # Only track non-journal notes
+            if not note.path.startswith("geist journal/"):
+                current_assignments[note.path] = cluster.label
 
     suggestions = []
 
