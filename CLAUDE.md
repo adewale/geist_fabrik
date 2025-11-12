@@ -60,10 +60,12 @@ This script runs the **exact same checks as CI**:
 1. `ruff check src/ tests/` - Linting
 2. `mypy src/ --strict` - Type checking (STRICT MODE)
 3. `python scripts/detect_unused_tables.py` - Database validation
-4. `pytest tests/unit -v` - Unit tests
-5. `pytest tests/integration -v -m "not slow"` - Integration tests
+4. `pytest tests/unit -v -m "not slow"` - Unit tests (with mocked models)
+5. `pytest tests/integration -v -m "not slow"` - Integration tests (with mocked models)
 
 **If validate.sh passes, CI will pass. If it fails, DO NOT PUSH.**
+
+**Note on model downloads**: The validation script uses mocked sentence-transformers models (via `SentenceTransformerStub` in `tests/conftest.py`) so it works in environments without Git LFS or network access (like Claude Code for Web). The `-m "not slow"` flag triggers automatic model mocking. Only 9 tests marked as "slow" require the real model (~90MB).
 
 ### Common Mistakes to Avoid
 
