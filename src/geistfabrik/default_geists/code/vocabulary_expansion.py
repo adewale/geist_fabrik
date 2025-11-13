@@ -26,8 +26,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Get recent session history
         cursor = vault.db.execute(
             """
-            SELECT session_id, session_date FROM sessions
-            ORDER BY session_date DESC
+            SELECT session_id, date FROM sessions
+            ORDER BY date DESC
             LIMIT 5
             """
         )

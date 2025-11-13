@@ -46,11 +46,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Get session dates for context
         cursor = vault.db.execute(
             """
-            SELECT s.session_date
+            SELECT s.date
             FROM session_embeddings se
             JOIN sessions s ON se.session_id = s.session_id
             WHERE se.note_path = ?
-            ORDER BY s.session_date ASC
+            ORDER BY s.date ASC
             """,
             (note.path,),
         )

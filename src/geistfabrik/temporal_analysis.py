@@ -61,7 +61,7 @@ class EmbeddingTrajectoryCalculator:
             List of session IDs ordered by date
         """
         cursor = self.vault.db.execute(
-            "SELECT session_id FROM sessions ORDER BY session_date ASC"
+            "SELECT session_id FROM sessions ORDER BY date ASC"
         )
         return [row[0] for row in cursor.fetchall()]
 
@@ -86,8 +86,8 @@ class EmbeddingTrajectoryCalculator:
         # Get session info
         cursor = self.vault.db.execute(
             """
-            SELECT session_id, session_date FROM sessions
-            ORDER BY session_date ASC
+            SELECT session_id, date FROM sessions
+            ORDER BY date ASC
             """
         )
         sessions = cursor.fetchall()

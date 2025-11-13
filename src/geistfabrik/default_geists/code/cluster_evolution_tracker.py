@@ -31,7 +31,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     cursor = vault.db.execute(
         """
         SELECT session_id FROM sessions
-        ORDER BY session_date DESC
+        ORDER BY date DESC
         LIMIT 3
         """,
     )
