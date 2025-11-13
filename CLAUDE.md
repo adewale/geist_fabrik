@@ -149,7 +149,41 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 - ✅ All 51 geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
-- Use `similarity()` not `batch_similarity()` for cache benefits
+
+### Cache-Aware Similarity Computation
+
+**Critical Rule**: Individual `similarity()` calls only outperform `batch_similarity()` when cache hit rate > 91%.
+
+**Use batch_similarity() when:**
+- Computing >20 pairwise similarities on cold cache data (random samples, temporal cohorts)
+- All-pairs within a cluster: N choose 2 pairs where N > 6
+- Cross-product comparisons: N×M where product > 20
+- Expected cache hit rate < 90%
+
+**Use individual similarity() calls when:**
+- Computing <10 similarities
+- Working with "hot" notes (hubs, recent notes) that have higher cache hit probability
+- Lookups likely to benefit from warm cache (>90% hit rate)
+- Early in execution order (cache warming for later geists)
+
+**Typical cache hit rates:**
+- Hub notes: 40-60% (queried by multiple geists)
+- Recent notes: 30-50% (shared across geists)
+- Random samples: 0-5% (different samples each geist)
+- Temporal cohorts (quarterly/monthly): 0-10% (specific date ranges, no overlap)
+
+**Decision tree:**
+```
+Are you computing >20 similarities?
+  Yes → Are you working with random samples or temporal cohorts?
+    Yes → Use batch_similarity() (0-10% cache hit rate)
+    No → Are you working with hubs or recent notes?
+      Yes → Use individual similarity() calls (40-60% cache hit rate)
+      No → Use batch_similarity() (safer default)
+  No → Use individual similarity() calls (small computation count)
+```
+
+**Other optimizations:**
 - Build lookup structures (sets, dicts) instead of O(N) repeated searches
 - Profile with `cProfile` before optimising—don't guess bottlenecks
 - Adaptive sampling: `min(N, max(50, len(notes)//10))` not fixed sizes
