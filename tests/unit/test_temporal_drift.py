@@ -73,28 +73,31 @@ Links: [[note1]], [[note2]], [[note3]]
     old_date = now - timedelta(days=200)  # Very stale
     recent_date = now - timedelta(days=5)  # Recent
 
-    vault.db.execute(
-        "UPDATE notes SET created = ?, modified = ? WHERE title = ?",
-        (old_date.isoformat(), old_date.isoformat(), "Stale Hub"),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ?, modified = ? WHERE title = ?",
-        (old_date.isoformat(), old_date.isoformat(), "Old Important"),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ?, modified = ? WHERE title = ?",
-        (old_date.isoformat(), old_date.isoformat(), "Stale Orphan"),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ?, modified = ? WHERE title = ?",
-        (recent_date.isoformat(), now.isoformat(), "Recent"),
-    )
-    vault.db.commit()
+    _set_note_dates(vault, "Stale Hub", old_date, old_date)
+    _set_note_dates(vault, "Old Important", old_date, old_date)
+    _set_note_dates(vault, "Stale Orphan", old_date, old_date)
+    _set_note_dates(vault, "Recent", recent_date, now)
 
     session = Session(now, vault.db)
     session.compute_embeddings(vault.all_notes())
 
     return vault, session
+
+
+def _set_note_dates(vault, title, created, modified):
+    """Helper to set created and modified dates for a specific note.
+
+    Args:
+        vault: Vault instance with database connection
+        title: Title of note to update
+        created: datetime for created field
+        modified: datetime for modified field
+    """
+    vault.db.execute(
+        "UPDATE notes SET created = ?, modified = ? WHERE title = ?",
+        (created.isoformat(), modified.isoformat(), title),
+    )
+    vault.db.commit()
 
 
 # ============================================================================
@@ -297,11 +300,7 @@ Links: [[note1]]
     now = datetime(2024, 3, 15, 10, 0)
     old_date = now - timedelta(days=365)
 
-    vault.db.execute(
-        "UPDATE notes SET created = ?, modified = ? WHERE title = ?",
-        (old_date.isoformat(), old_date.isoformat(), "Stale Orphan"),
-    )
-    vault.db.commit()
+    _set_note_dates(vault, "Stale Orphan", old_date, old_date)
 
     session = Session(now, vault.db)
     session.compute_embeddings(vault.all_notes())
@@ -342,11 +341,7 @@ Links: [[note1]], [[note2]], [[note3]]
     now = datetime(2024, 3, 15, 10, 0)
     moderate_date = now - timedelta(days=50)  # Not stale enough
 
-    vault.db.execute(
-        "UPDATE notes SET created = ?, modified = ? WHERE title = ?",
-        (moderate_date.isoformat(), moderate_date.isoformat(), "Somewhat Old"),
-    )
-    vault.db.commit()
+    _set_note_dates(vault, "Somewhat Old", moderate_date, moderate_date)
 
     session = Session(now, vault.db)
     session.compute_embeddings(vault.all_notes())
