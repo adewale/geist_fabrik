@@ -489,23 +489,32 @@ except Exception:
     return []  # Graceful degradation
 ```
 
-### 6. **Respect Session Cache**
-Use `similarity()` not `batch_similarity()` when cache might be warm.
+### 6. **Respect Session Cache (Updated)**
+Both similarity() and batch_similarity() are cache-aware.
 
 ```python
-# ❌ BAD: Bypasses session cache
-sim_matrix = vault.batch_similarity([note], candidates)
-
-# ✅ GOOD: Benefits from session-scoped cache
+# Example: Sequential comparison with early termination
 for candidate in candidates:
-    sim = vault.similarity(note, candidate)  # Cache hit if computed before
+    sim = vault.similarity(note, candidate)  # Cache-aware
     if sim > threshold:
-        # ...
+        break  # Early termination benefits from individual calls
+
+# Example: N×M matrix computation
+sim_matrix = vault.batch_similarity(notes_a, notes_b)  # Cache-aware
+for i in range(len(notes_a)):
+    for j in range(len(notes_b)):
+        similarity = sim_matrix[i, j]
 ```
 
-**Context**: Other geists may have already computed these similarities in the same session. Individual calls leverage the cache; batch operations don't.
+**When to use each:**
+- Use `similarity()` for sequential loops with conditional logic/early termination
+- Use `batch_similarity()` for N×M matrices where you need all pairwise similarities
 
-**Exception**: Use `batch_similarity()` for pairwise matrices where you need all N×M combinations.
+**Cache behavior (as of v0.9+)**:
+- Both methods check session cache before computation (fast path at 100% cache hit)
+- Both methods populate cache for newly computed pairs
+- At partial cache hits, batch_similarity() computes full matrix; individual calls skip cached pairs
+- In practice, choose based on use case (matrix vs loop), not cache optimization
 
 ### 7. **Match Threshold to Complexity**
 Different operations need different minimum data.
@@ -708,19 +717,24 @@ if metadata.get("word_count", 0) < 50:
     # Short note
 ```
 
-### 4. `vault.similarity()` vs `vault.batch_similarity()`
+### 4. `vault.similarity()` vs `vault.batch_similarity()` (Updated v0.9+)
 
-**Use `similarity()` for individual comparisons** (cache-aware):
+Both methods are now cache-aware (check cache, populate cache).
+
+**Use `similarity()` for sequential comparisons:**
 ```python
+# Good for: loops with conditional logic, early termination
 for candidate in candidates:
     sim = vault.similarity(seed, candidate)  # Benefits from session cache
     if sim > threshold:
-        # ...
+        matches.append(candidate)
+        if len(matches) >= max_matches:
+            break  # Early termination
 ```
 
-**Use `batch_similarity()` for pairwise matrices** (when you need all N×M):
+**Use `batch_similarity()` for N×M matrices:**
 ```python
-# Computing full similarity matrix
+# Good for: computing all pairwise similarities
 candidates1 = vault.neighbours(start, k=10)
 candidates2 = vault.neighbours(end, k=10)
 sim_matrix = vault.batch_similarity(candidates1, candidates2)
@@ -728,8 +742,14 @@ sim_matrix = vault.batch_similarity(candidates1, candidates2)
 for i, mid1 in enumerate(candidates1):
     for j, mid2 in enumerate(candidates2):
         similarity = sim_matrix[i, j]
-        # ...
+        # Process all pairs
 ```
+
+**Performance notes:**
+- At 100% cache hit: Both methods return immediately (fast path)
+- At 0% cache hit: batch_similarity() wins via vectorized matrix operations
+- At partial cache hits: Individual calls slightly faster (skip cached pairs), but difference rarely matters
+- **Practical advice**: Choose based on use case (matrix vs loop), not micro-optimization
 
 ---
 
@@ -1106,16 +1126,23 @@ if len(notes) < 1:
 note = vault.sample(notes, k=1)[0]
 ```
 
-### Anti-Pattern 5: Using batch_similarity When Cache is Warm
+### Anti-Pattern 5: Matrix Computation in Sequential Loop (UPDATED)
 
 ```python
-# ❌ BAD: Bypasses session cache
-similarities = vault.batch_similarity([note], candidates)
+# ❌ BAD: Computing matrix via loop (slower and less clear)
+similarities = []
+for note_a in set_a:
+    row = []
+    for note_b in set_b:
+        row.append(vault.similarity(note_a, note_b))
+    similarities.append(row)
 
-# ✅ GOOD: Benefits from cache
-for candidate in candidates:
-    sim = vault.similarity(note, candidate)
+# ✅ GOOD: Use batch_similarity for matrices
+sim_matrix = vault.batch_similarity(set_a, set_b)
+# sim_matrix[i, j] = similarity between set_a[i] and set_b[j]
 ```
+
+**Note**: This anti-pattern was previously about "bypassing cache," but as of v0.9+, batch_similarity() is cache-aware. The real issue is clarity—batch_similarity() makes matrix computation intent explicit.
 
 ---
 
@@ -1145,10 +1172,12 @@ Geists run within a 30-second timeout (default) and must complete efficiently.
    - Reality: Phrase extraction was the bottleneck, not corpus iteration
    - Lesson: Measure before optimising; intuition misleads
 
-2. **Respect the session cache**
-   - `batch_similarity()` bypassed session-scoped similarity cache
-   - Other geists had already computed those similarities
-   - Lesson: Individual `similarity()` calls > batch calls when cache is warm
+2. **Respect the session cache (UPDATED v0.9+)**
+   - Both similarity() and batch_similarity() now integrate with session-scoped cache
+   - batch_similarity() checks cache (Phase 1), computes full matrix on any miss (Phase 2), populates cache (Phase 3)
+   - Individual similarity() calls skip computation for cache hits
+   - At partial cache hits, individual calls slightly faster, but difference rarely significant
+   - **Modern guidance**: Choose based on use case (matrix vs loop), not cache micro-optimization
 
 3. **Quality > Speed**
    - pattern_finder sampling saved ~20s but lost 95% pattern coverage
