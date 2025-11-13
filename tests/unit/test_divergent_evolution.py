@@ -118,7 +118,13 @@ def vault_no_links(tmp_path):
 
 
 def test_divergent_evolution_returns_suggestions(vault_with_linked_notes):
-    """Test that divergent_evolution returns suggestions with linked notes."""
+    """Test that divergent_evolution returns suggestions with linked notes.
+
+    Setup:
+        Vault with notes diverging over time.
+
+    Verifies:
+        - Returns suggestions (max 1)"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -136,7 +142,14 @@ def test_divergent_evolution_returns_suggestions(vault_with_linked_notes):
 
 
 def test_divergent_evolution_suggestion_structure(vault_with_linked_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with diverging notes.
+
+    Verifies:
+        - Has required fields
+        - References notes showing divergence"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -169,7 +182,13 @@ def test_divergent_evolution_suggestion_structure(vault_with_linked_notes):
 
 
 def test_divergent_evolution_uses_obsidian_link(vault_with_linked_notes):
-    """Test that divergent_evolution uses obsidian_link for note references."""
+    """Test that divergent_evolution uses obsidian_link for note references.
+
+    Setup:
+        Vault with diverging notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -197,7 +216,13 @@ def test_divergent_evolution_uses_obsidian_link(vault_with_linked_notes):
 
 
 def test_divergent_evolution_empty_vault(tmp_path):
-    """Test that divergent_evolution handles empty vault gracefully."""
+    """Test that divergent_evolution handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -256,7 +281,13 @@ def test_divergent_evolution_no_links(vault_no_links):
 
 
 def test_divergent_evolution_max_suggestions(vault_with_linked_notes):
-    """Test that divergent_evolution never returns more than 2 suggestions."""
+    """Test that divergent_evolution never returns more than 2 suggestions.
+
+    Setup:
+        Vault with diverging notes.
+
+    Verifies:
+        - Returns at most 1"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -273,7 +304,13 @@ def test_divergent_evolution_max_suggestions(vault_with_linked_notes):
 
 
 def test_divergent_evolution_deterministic_with_seed(vault_with_linked_notes):
-    """Test that divergent_evolution returns same results with same seed."""
+    """Test that divergent_evolution returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_linked_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -307,7 +344,13 @@ def test_divergent_evolution_deterministic_with_seed(vault_with_linked_notes):
 
 
 def test_divergent_evolution_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

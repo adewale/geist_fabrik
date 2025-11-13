@@ -100,7 +100,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_creative_collision_returns_suggestions(vault_with_diverse_notes):
-    """Test that creative_collision returns suggestions."""
+    """Test that creative_collision returns suggestions.
+
+    Setup:
+        Vault with notes from different domains.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_diverse_notes
 
     context = VaultContext(
@@ -118,7 +124,14 @@ def test_creative_collision_returns_suggestions(vault_with_diverse_notes):
 
 
 def test_creative_collision_suggestion_structure(vault_with_diverse_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with cross-domain notes.
+
+    Verifies:
+        - Has required fields
+        - References 2+ notes from different domains"""
     vault, session = vault_with_diverse_notes
 
     context = VaultContext(
@@ -151,7 +164,13 @@ def test_creative_collision_suggestion_structure(vault_with_diverse_notes):
 
 
 def test_creative_collision_uses_obsidian_link(vault_with_diverse_notes):
-    """Test that creative_collision uses obsidian_link for note references."""
+    """Test that creative_collision uses obsidian_link for note references.
+
+    Setup:
+        Vault with cross-domain notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_diverse_notes
 
     context = VaultContext(
@@ -179,7 +198,13 @@ def test_creative_collision_uses_obsidian_link(vault_with_diverse_notes):
 
 
 def test_creative_collision_empty_vault(tmp_path):
-    """Test that creative_collision handles empty vault gracefully."""
+    """Test that creative_collision handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     from datetime import datetime
 
     vault_path = tmp_path / "vault"
@@ -206,7 +231,13 @@ def test_creative_collision_empty_vault(tmp_path):
 
 
 def test_creative_collision_insufficient_notes(vault_insufficient_notes):
-    """Test that creative_collision handles insufficient notes gracefully."""
+    """Test that creative_collision handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 15 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -240,7 +271,13 @@ def test_creative_collision_all_linked_notes(vault_with_linked_notes):
 
 
 def test_creative_collision_max_suggestions(vault_with_diverse_notes):
-    """Test that creative_collision never returns more than 3 suggestions."""
+    """Test that creative_collision never returns more than 3 suggestions.
+
+    Setup:
+        Vault with many cross-domain pairs.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_diverse_notes
 
     context = VaultContext(
@@ -257,7 +294,13 @@ def test_creative_collision_max_suggestions(vault_with_diverse_notes):
 
 
 def test_creative_collision_deterministic_with_seed(vault_with_diverse_notes):
-    """Test that creative_collision returns same results with same seed."""
+    """Test that creative_collision returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_diverse_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -310,7 +353,13 @@ def test_creative_collision_suggests_unlinked_pairs(vault_with_diverse_notes):
 
 
 def test_creative_collision_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     from datetime import datetime
 
     vault_path = tmp_path / "vault"

@@ -102,7 +102,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_method_scrambler_returns_suggestions(vault_with_linked_notes):
-    """Test that method_scrambler returns suggestions with linked notes."""
+    """Test that method_scrambler returns suggestions with linked notes.
+
+    Setup:
+        Vault with notes suitable for method mixing.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -120,7 +126,14 @@ def test_method_scrambler_returns_suggestions(vault_with_linked_notes):
 
 
 def test_method_scrambler_suggestion_structure(vault_with_linked_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with method-bearing notes.
+
+    Verifies:
+        - Has required fields
+        - References 2+ notes for method combination"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -153,7 +166,13 @@ def test_method_scrambler_suggestion_structure(vault_with_linked_notes):
 
 
 def test_method_scrambler_uses_obsidian_link(vault_with_linked_notes):
-    """Test that method_scrambler uses obsidian_link for note references."""
+    """Test that method_scrambler uses obsidian_link for note references.
+
+    Setup:
+        Vault with notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -211,7 +230,13 @@ def test_method_scrambler_uses_scamper_operations(vault_with_linked_notes):
 
 
 def test_method_scrambler_empty_vault(tmp_path):
-    """Test that method_scrambler handles empty vault gracefully."""
+    """Test that method_scrambler handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -236,7 +261,13 @@ def test_method_scrambler_empty_vault(tmp_path):
 
 
 def test_method_scrambler_insufficient_notes(vault_insufficient_notes):
-    """Test that method_scrambler handles insufficient notes gracefully."""
+    """Test that method_scrambler handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 10 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -298,7 +329,13 @@ def test_method_scrambler_works_with_unlinked_pairs(vault_with_unlinked_pairs):
 
 
 def test_method_scrambler_max_suggestions(vault_with_linked_notes):
-    """Test that method_scrambler never returns more than 3 suggestions."""
+    """Test that method_scrambler never returns more than 3 suggestions.
+
+    Setup:
+        Vault with many notes.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_linked_notes
 
     context = VaultContext(
@@ -315,7 +352,13 @@ def test_method_scrambler_max_suggestions(vault_with_linked_notes):
 
 
 def test_method_scrambler_deterministic_with_seed(vault_with_linked_notes):
-    """Test that method_scrambler returns same results with same seed."""
+    """Test that method_scrambler returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_linked_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -349,7 +392,13 @@ def test_method_scrambler_deterministic_with_seed(vault_with_linked_notes):
 
 
 def test_method_scrambler_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

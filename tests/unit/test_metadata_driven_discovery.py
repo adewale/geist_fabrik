@@ -121,7 +121,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_metadata_driven_discovery_returns_suggestions(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery returns suggestions with metadata patterns."""
+    """Test that metadata_driven_discovery returns suggestions with metadata patterns.
+
+    Setup:
+        Vault with rich metadata.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_metadata_patterns
 
     context = VaultContext(
@@ -139,7 +145,14 @@ def test_metadata_driven_discovery_returns_suggestions(vault_with_metadata_patte
 
 
 def test_metadata_driven_discovery_suggestion_structure(vault_with_metadata_patterns):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with metadata patterns.
+
+    Verifies:
+        - Has required fields
+        - References notes with interesting metadata"""
     vault, session = vault_with_metadata_patterns
 
     context = VaultContext(
@@ -172,7 +185,13 @@ def test_metadata_driven_discovery_suggestion_structure(vault_with_metadata_patt
 
 
 def test_metadata_driven_discovery_uses_obsidian_link(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery uses obsidian_link for note references."""
+    """Test that metadata_driven_discovery uses obsidian_link for note references.
+
+    Setup:
+        Vault with metadata.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_metadata_patterns
 
     context = VaultContext(
@@ -200,7 +219,13 @@ def test_metadata_driven_discovery_uses_obsidian_link(vault_with_metadata_patter
 
 
 def test_metadata_driven_discovery_empty_vault(tmp_path):
-    """Test that metadata_driven_discovery handles empty vault gracefully."""
+    """Test that metadata_driven_discovery handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -243,7 +268,13 @@ def test_metadata_driven_discovery_insufficient_patterns(vault_insufficient_note
 
 
 def test_metadata_driven_discovery_max_suggestions(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery never returns more than 2 suggestions."""
+    """Test that metadata_driven_discovery never returns more than 2 suggestions.
+
+    Setup:
+        Vault with metadata patterns.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_metadata_patterns
 
     context = VaultContext(
@@ -260,7 +291,13 @@ def test_metadata_driven_discovery_max_suggestions(vault_with_metadata_patterns)
 
 
 def test_metadata_driven_discovery_deterministic_with_seed(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery returns same results with same seed."""
+    """Test that metadata_driven_discovery returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_metadata_patterns
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -294,7 +331,13 @@ def test_metadata_driven_discovery_deterministic_with_seed(vault_with_metadata_p
 
 
 def test_metadata_driven_discovery_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

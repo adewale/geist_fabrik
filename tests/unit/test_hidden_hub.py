@@ -103,7 +103,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_hidden_hub_returns_suggestions(vault_with_hidden_hubs):
-    """Test that hidden_hub returns suggestions with semantically central notes."""
+    """Test that hidden_hub returns suggestions with semantically central notes.
+
+    Setup:
+        Vault with high-degree nodes (hubs).
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_hidden_hubs
 
     context = VaultContext(
@@ -121,7 +127,14 @@ def test_hidden_hub_returns_suggestions(vault_with_hidden_hubs):
 
 
 def test_hidden_hub_suggestion_structure(vault_with_hidden_hubs):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with hub nodes.
+
+    Verifies:
+        - Has required fields
+        - References 1 hub note with many links"""
     vault, session = vault_with_hidden_hubs
 
     context = VaultContext(
@@ -154,7 +167,13 @@ def test_hidden_hub_suggestion_structure(vault_with_hidden_hubs):
 
 
 def test_hidden_hub_uses_obsidian_link(vault_with_hidden_hubs):
-    """Test that hidden_hub uses obsidian_link for note references."""
+    """Test that hidden_hub uses obsidian_link for note references.
+
+    Setup:
+        Vault with hubs.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_hidden_hubs
 
     context = VaultContext(
@@ -182,7 +201,13 @@ def test_hidden_hub_uses_obsidian_link(vault_with_hidden_hubs):
 
 
 def test_hidden_hub_empty_vault(tmp_path):
-    """Test that hidden_hub handles empty vault gracefully."""
+    """Test that hidden_hub handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -207,7 +232,13 @@ def test_hidden_hub_empty_vault(tmp_path):
 
 
 def test_hidden_hub_insufficient_notes(vault_insufficient_notes):
-    """Test that hidden_hub handles insufficient notes gracefully."""
+    """Test that hidden_hub handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 10 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -224,7 +255,13 @@ def test_hidden_hub_insufficient_notes(vault_insufficient_notes):
 
 
 def test_hidden_hub_max_suggestions(vault_with_hidden_hubs):
-    """Test that hidden_hub never returns more than 3 suggestions."""
+    """Test that hidden_hub never returns more than 3 suggestions.
+
+    Setup:
+        Vault with multiple hubs.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_hidden_hubs
 
     context = VaultContext(
@@ -241,7 +278,13 @@ def test_hidden_hub_max_suggestions(vault_with_hidden_hubs):
 
 
 def test_hidden_hub_deterministic_with_seed(vault_with_hidden_hubs):
-    """Test that hidden_hub returns same results with same seed."""
+    """Test that hidden_hub returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_hidden_hubs
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -275,7 +318,13 @@ def test_hidden_hub_deterministic_with_seed(vault_with_hidden_hubs):
 
 
 def test_hidden_hub_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

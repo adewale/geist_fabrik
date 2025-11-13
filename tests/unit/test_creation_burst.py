@@ -82,7 +82,14 @@ def vault_with_bursts(tmp_path):
 
 
 def test_creation_burst_detects_burst_day(vault_with_bursts):
-    """Test that burst days with 3+ notes are detected."""
+    """Test that burst days with 3+ notes are detected.
+
+    Setup:
+        Vault with 5-note burst on 2024-03-15.
+
+    Verifies:
+        - Returns 1 suggestion
+        - References burst date 2024-03-15"""
     vault, session = vault_with_bursts
 
     context = VaultContext(
@@ -104,7 +111,13 @@ def test_creation_burst_detects_burst_day(vault_with_bursts):
 
 
 def test_creation_burst_large_burst_question(vault_with_bursts):
-    """Test that 6+ notes use 'What was special about that day?' question."""
+    """Test that 6+ notes use 'What was special about that day?' question.
+
+    Setup:
+        Vault with 5-note burst.
+
+    Verifies:
+        - Suggestion asks about large burst (5+ notes)"""
     vault, session = vault_with_bursts
 
     # Set seed to select the larger burst (6 notes)
@@ -123,7 +136,13 @@ def test_creation_burst_large_burst_question(vault_with_bursts):
 
 
 def test_creation_burst_small_burst_question(vault_with_bursts):
-    """Test that 3-5 notes use 'Does today feel generative?' question."""
+    """Test that 3-5 notes use 'Does today feel generative?' question.
+
+    Setup:
+        Vault with 3-note burst.
+
+    Verifies:
+        - Suggestion asks about small burst (3-5 notes)"""
     vault, session = vault_with_bursts
 
     # Set seed to select the smaller burst (4 notes)
@@ -146,7 +165,13 @@ def test_creation_burst_large_burst_guaranteed_question(tmp_path):
 
     Creates vault with ONLY one large burst day (6 notes), ensuring it gets selected.
     Verifies question text matches expected template for large bursts.
-    """
+
+
+    Setup:
+        Vault with 6-note burst (threshold=5).
+
+    Verifies:
+        - Always returns question for 6+ notes"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -189,7 +214,13 @@ def test_creation_burst_small_burst_guaranteed_question(tmp_path):
 
     Creates vault with ONLY one small burst day (4 notes), ensuring it gets selected.
     Verifies question text matches expected template for small bursts.
-    """
+
+
+    Setup:
+        Vault with 3-note burst.
+
+    Verifies:
+        - Returns question for 3-note burst"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -228,7 +259,13 @@ def test_creation_burst_small_burst_guaranteed_question(tmp_path):
 
 
 def test_creation_burst_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from burst detection."""
+    """Test that geist journal notes are excluded from burst detection.
+
+    Setup:
+        Vault with journal + regular burst notes.
+
+    Verifies:
+        - No journal notes in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -270,7 +307,13 @@ def test_creation_burst_excludes_geist_journal(tmp_path):
 
 
 def test_creation_burst_no_bursts(tmp_path):
-    """Test that geist returns empty list when no burst days exist."""
+    """Test that geist returns empty list when no burst days exist.
+
+    Setup:
+        Vault with scattered notes (no burst days).
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -310,7 +353,13 @@ def test_creation_burst_no_bursts(tmp_path):
 
 
 def test_creation_burst_limits_display_titles(tmp_path):
-    """Test that only first 8 titles are shown in suggestion text."""
+    """Test that only first 8 titles are shown in suggestion text.
+
+    Setup:
+        Vault with 20-note burst.
+
+    Verifies:
+        - Limits displayed titles to 10 max"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -345,7 +394,13 @@ def test_creation_burst_limits_display_titles(tmp_path):
 
 
 def test_creation_burst_includes_date(vault_with_bursts):
-    """Test that suggestion includes the burst day date."""
+    """Test that suggestion includes the burst day date.
+
+    Setup:
+        Vault with burst day.
+
+    Verifies:
+        - Suggestion includes burst date"""
     vault, session = vault_with_bursts
 
     context = VaultContext(
@@ -363,7 +418,13 @@ def test_creation_burst_includes_date(vault_with_bursts):
 
 
 def test_creation_burst_returns_single_suggestion(vault_with_bursts):
-    """Test that geist returns exactly 1 suggestion."""
+    """Test that geist returns exactly 1 suggestion.
+
+    Setup:
+        Vault with burst day.
+
+    Verifies:
+        - Returns exactly 1 suggestion"""
     vault, session = vault_with_bursts
 
     context = VaultContext(

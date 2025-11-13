@@ -85,7 +85,14 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_pattern_finder_returns_suggestions(vault_with_repeated_phrases):
-    """Test that pattern_finder returns suggestions with repeated patterns."""
+    """Test that pattern_finder returns suggestions with repeated patterns.
+
+    Setup:
+        Vault with repeated phrases across notes.
+
+    Verifies:
+        - Returns suggestions (max 2)
+        - Detects repeated patterns"""
     vault, session = vault_with_repeated_phrases
 
     context = VaultContext(
@@ -124,7 +131,15 @@ def test_pattern_finder_returns_suggestions(vault_with_repeated_phrases):
 
 
 def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with pattern notes.
+
+    Verifies:
+        - Has required fields
+        - References 3+ notes sharing pattern
+        - Notes are unlinked"""
     vault, session = vault_with_repeated_phrases
 
     context = VaultContext(
@@ -200,7 +215,13 @@ def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
 
 
 def test_pattern_finder_uses_obsidian_link(vault_with_repeated_phrases):
-    """Test that pattern_finder uses obsidian_link for note references."""
+    """Test that pattern_finder uses obsidian_link for note references.
+
+    Setup:
+        Vault with patterns.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_repeated_phrases
 
     context = VaultContext(
@@ -227,7 +248,13 @@ def test_pattern_finder_detects_semantic_clusters(vault_with_repeated_phrases):
 
     Pattern finder has two detection modes: phrase-based and semantic clusters.
     This test verifies the semantic cluster logic works correctly.
-    """
+
+
+    Setup:
+        Vault with semantically similar notes.
+
+    Verifies:
+        - Detects semantic clusters (>0.6 avg similarity)"""
     vault, session = vault_with_repeated_phrases
 
     context = VaultContext(
@@ -278,7 +305,13 @@ def test_pattern_finder_detects_semantic_clusters(vault_with_repeated_phrases):
 
 
 def test_pattern_finder_empty_vault(tmp_path):
-    """Test that pattern_finder handles empty vault gracefully."""
+    """Test that pattern_finder handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -303,7 +336,13 @@ def test_pattern_finder_empty_vault(tmp_path):
 
 
 def test_pattern_finder_insufficient_notes(vault_insufficient_notes):
-    """Test that pattern_finder handles insufficient notes gracefully."""
+    """Test that pattern_finder handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 15 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -320,7 +359,13 @@ def test_pattern_finder_insufficient_notes(vault_insufficient_notes):
 
 
 def test_pattern_finder_max_suggestions(vault_with_repeated_phrases):
-    """Test that pattern_finder never returns more than 2 suggestions."""
+    """Test that pattern_finder never returns more than 2 suggestions.
+
+    Setup:
+        Vault with multiple patterns.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_repeated_phrases
 
     context = VaultContext(
@@ -337,7 +382,13 @@ def test_pattern_finder_max_suggestions(vault_with_repeated_phrases):
 
 
 def test_pattern_finder_deterministic_with_seed(vault_with_repeated_phrases):
-    """Test that pattern_finder returns same results with same seed."""
+    """Test that pattern_finder returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_repeated_phrases
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -371,7 +422,13 @@ def test_pattern_finder_deterministic_with_seed(vault_with_repeated_phrases):
 
 
 def test_pattern_finder_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

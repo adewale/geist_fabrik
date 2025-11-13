@@ -94,7 +94,13 @@ def vault_with_insufficient_sessions(tmp_path):
 
 
 def test_hermeneutic_instability_returns_suggestions(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability returns suggestions."""
+    """Test that hermeneutic_instability returns suggestions.
+
+    Setup:
+        Vault with notes changing interpretation.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_multiple_sessions
 
     context = VaultContext(
@@ -112,7 +118,14 @@ def test_hermeneutic_instability_returns_suggestions(vault_with_multiple_session
 
 
 def test_hermeneutic_instability_suggestion_structure(vault_with_multiple_sessions):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with unstable interpretations.
+
+    Verifies:
+        - Has required fields
+        - References notes with interpretation shifts"""
     vault, session = vault_with_multiple_sessions
 
     context = VaultContext(
@@ -145,7 +158,13 @@ def test_hermeneutic_instability_suggestion_structure(vault_with_multiple_sessio
 
 
 def test_hermeneutic_instability_uses_obsidian_link(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability uses obsidian_link for note references."""
+    """Test that hermeneutic_instability uses obsidian_link for note references.
+
+    Setup:
+        Vault with interpretation changes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_multiple_sessions
 
     context = VaultContext(
@@ -173,7 +192,13 @@ def test_hermeneutic_instability_uses_obsidian_link(vault_with_multiple_sessions
 
 
 def test_hermeneutic_instability_empty_vault(tmp_path):
-    """Test that hermeneutic_instability handles empty vault gracefully."""
+    """Test that hermeneutic_instability handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -250,7 +275,13 @@ def test_hermeneutic_instability_no_old_notes(tmp_path):
 
 
 def test_hermeneutic_instability_max_suggestions(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability never returns more than 2 suggestions."""
+    """Test that hermeneutic_instability never returns more than 2 suggestions.
+
+    Setup:
+        Vault with multiple unstable notes.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_multiple_sessions
 
     context = VaultContext(
@@ -267,7 +298,13 @@ def test_hermeneutic_instability_max_suggestions(vault_with_multiple_sessions):
 
 
 def test_hermeneutic_instability_deterministic_with_seed(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability returns same results with same seed."""
+    """Test that hermeneutic_instability returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_multiple_sessions
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -357,7 +394,13 @@ def test_hermeneutic_instability_handles_missing_embeddings(tmp_path):
 
 
 def test_hermeneutic_instability_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

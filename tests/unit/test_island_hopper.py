@@ -104,7 +104,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_island_hopper_returns_suggestions(vault_with_clusters):
-    """Test that island_hopper returns suggestions with disconnected clusters."""
+    """Test that island_hopper returns suggestions with disconnected clusters.
+
+    Setup:
+        Vault with disconnected note clusters.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_clusters
 
     context = VaultContext(
@@ -122,7 +128,14 @@ def test_island_hopper_returns_suggestions(vault_with_clusters):
 
 
 def test_island_hopper_suggestion_structure(vault_with_clusters):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with isolated clusters.
+
+    Verifies:
+        - Has required fields
+        - References notes from different clusters"""
     vault, session = vault_with_clusters
 
     context = VaultContext(
@@ -155,7 +168,13 @@ def test_island_hopper_suggestion_structure(vault_with_clusters):
 
 
 def test_island_hopper_uses_obsidian_link(vault_with_clusters):
-    """Test that island_hopper uses obsidian_link for note references."""
+    """Test that island_hopper uses obsidian_link for note references.
+
+    Setup:
+        Vault with isolated clusters.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_clusters
 
     context = VaultContext(
@@ -183,7 +202,13 @@ def test_island_hopper_uses_obsidian_link(vault_with_clusters):
 
 
 def test_island_hopper_empty_vault(tmp_path):
-    """Test that island_hopper handles empty vault gracefully."""
+    """Test that island_hopper handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -208,7 +233,13 @@ def test_island_hopper_empty_vault(tmp_path):
 
 
 def test_island_hopper_insufficient_notes(vault_insufficient_notes):
-    """Test that island_hopper handles insufficient notes gracefully."""
+    """Test that island_hopper handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 15 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -225,7 +256,13 @@ def test_island_hopper_insufficient_notes(vault_insufficient_notes):
 
 
 def test_island_hopper_max_suggestions(vault_with_clusters):
-    """Test that island_hopper never returns more than 3 suggestions."""
+    """Test that island_hopper never returns more than 3 suggestions.
+
+    Setup:
+        Vault with multiple islands.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_clusters
 
     context = VaultContext(
@@ -242,7 +279,13 @@ def test_island_hopper_max_suggestions(vault_with_clusters):
 
 
 def test_island_hopper_deterministic_with_seed(vault_with_clusters):
-    """Test that island_hopper returns same results with same seed."""
+    """Test that island_hopper returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_clusters
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -276,7 +319,13 @@ def test_island_hopper_deterministic_with_seed(vault_with_clusters):
 
 
 def test_island_hopper_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

@@ -82,7 +82,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_link_density_analyser_returns_suggestions(vault_with_link_density_issues):
-    """Test that link_density_analyser returns suggestions with density issues."""
+    """Test that link_density_analyser returns suggestions with density issues.
+
+    Setup:
+        Vault with varying link densities.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_link_density_issues
 
     context = VaultContext(
@@ -100,7 +106,14 @@ def test_link_density_analyser_returns_suggestions(vault_with_link_density_issue
 
 
 def test_link_density_analyser_suggestion_structure(vault_with_link_density_issues):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with density variations.
+
+    Verifies:
+        - Has required fields
+        - References notes with notable link density"""
     vault, session = vault_with_link_density_issues
 
     context = VaultContext(
@@ -137,7 +150,13 @@ def test_link_density_analyser_suggestion_structure(vault_with_link_density_issu
 
 
 def test_link_density_analyser_uses_obsidian_link(vault_with_link_density_issues):
-    """Test that link_density_analyser uses obsidian_link for note references."""
+    """Test that link_density_analyser uses obsidian_link for note references.
+
+    Setup:
+        Vault with density variations.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_link_density_issues
 
     context = VaultContext(
@@ -217,7 +236,13 @@ def test_link_density_analyser_identifies_too_few_links(vault_with_link_density_
 
 
 def test_link_density_analyser_empty_vault(tmp_path):
-    """Test that link_density_analyser handles empty vault gracefully."""
+    """Test that link_density_analyser handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -259,7 +284,13 @@ def test_link_density_analyser_skips_short_notes(vault_insufficient_notes):
 
 
 def test_link_density_analyser_max_suggestions(vault_with_link_density_issues):
-    """Test that link_density_analyser never returns more than 3 suggestions."""
+    """Test that link_density_analyser never returns more than 3 suggestions.
+
+    Setup:
+        Vault with density variations.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_link_density_issues
 
     context = VaultContext(
@@ -276,7 +307,13 @@ def test_link_density_analyser_max_suggestions(vault_with_link_density_issues):
 
 
 def test_link_density_analyser_deterministic_with_seed(vault_with_link_density_issues):
-    """Test that link_density_analyser returns same results with same seed."""
+    """Test that link_density_analyser returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_link_density_issues
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -311,7 +348,13 @@ def test_link_density_analyser_deterministic_with_seed(vault_with_link_density_i
 
 @pytest.mark.xfail(reason="Geist needs to be updated to exclude journal notes - see #TBD")
 def test_link_density_analyser_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

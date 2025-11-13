@@ -136,7 +136,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_density_inversion_returns_suggestions(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion returns suggestions."""
+    """Test that density_inversion returns suggestions.
+
+    Setup:
+        Vault with varying link density areas.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_dense_links_sparse_meaning
 
     context = VaultContext(
@@ -154,7 +160,14 @@ def test_density_inversion_returns_suggestions(vault_with_dense_links_sparse_mea
 
 
 def test_density_inversion_suggestion_structure(vault_with_dense_links_sparse_meaning):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with density contrasts.
+
+    Verifies:
+        - Has required fields
+        - References notes from different density areas"""
     vault, session = vault_with_dense_links_sparse_meaning
 
     context = VaultContext(
@@ -187,7 +200,13 @@ def test_density_inversion_suggestion_structure(vault_with_dense_links_sparse_me
 
 
 def test_density_inversion_uses_obsidian_link(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion uses obsidian_link for note references."""
+    """Test that density_inversion uses obsidian_link for note references.
+
+    Setup:
+        Vault with density variations.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_dense_links_sparse_meaning
 
     context = VaultContext(
@@ -215,7 +234,13 @@ def test_density_inversion_uses_obsidian_link(vault_with_dense_links_sparse_mean
 
 
 def test_density_inversion_empty_vault(tmp_path):
-    """Test that density_inversion handles empty vault gracefully."""
+    """Test that density_inversion handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     from datetime import datetime
 
     vault_path = tmp_path / "vault"
@@ -242,7 +267,13 @@ def test_density_inversion_empty_vault(tmp_path):
 
 
 def test_density_inversion_insufficient_notes(vault_insufficient_notes):
-    """Test that density_inversion handles insufficient notes gracefully."""
+    """Test that density_inversion handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 20 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -289,7 +320,13 @@ def test_density_inversion_notes_without_neighbors(tmp_path):
 
 
 def test_density_inversion_max_suggestions(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion never returns more than 2 suggestions."""
+    """Test that density_inversion never returns more than 2 suggestions.
+
+    Setup:
+        Vault with density contrasts.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_dense_links_sparse_meaning
 
     context = VaultContext(
@@ -306,7 +343,13 @@ def test_density_inversion_max_suggestions(vault_with_dense_links_sparse_meaning
 
 
 def test_density_inversion_deterministic_with_seed(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion returns same results with same seed."""
+    """Test that density_inversion returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_dense_links_sparse_meaning
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -368,7 +411,13 @@ def test_density_inversion_detects_dense_links_sparse_meaning(
 
 
 def test_density_inversion_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     from datetime import datetime
 
     vault_path = tmp_path / "vault"

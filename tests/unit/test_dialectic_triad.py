@@ -87,7 +87,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_dialectic_triad_returns_suggestions(vault_with_dialectic_pairs):
-    """Test that dialectic_triad returns suggestions."""
+    """Test that dialectic_triad returns suggestions.
+
+    Setup:
+        Vault with thesis/antithesis patterns.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_dialectic_pairs
 
     context = VaultContext(
@@ -105,7 +111,14 @@ def test_dialectic_triad_returns_suggestions(vault_with_dialectic_pairs):
 
 
 def test_dialectic_triad_suggestion_structure(vault_with_dialectic_pairs):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with dialectic patterns.
+
+    Verifies:
+        - Has required fields
+        - References 2-3 notes (thesis/antithesis/synthesis)"""
     vault, session = vault_with_dialectic_pairs
 
     context = VaultContext(
@@ -138,7 +151,13 @@ def test_dialectic_triad_suggestion_structure(vault_with_dialectic_pairs):
 
 
 def test_dialectic_triad_uses_obsidian_link(vault_with_dialectic_pairs):
-    """Test that dialectic_triad uses obsidian_link for note references."""
+    """Test that dialectic_triad uses obsidian_link for note references.
+
+    Setup:
+        Vault with dialectic notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_dialectic_pairs
 
     context = VaultContext(
@@ -166,7 +185,13 @@ def test_dialectic_triad_uses_obsidian_link(vault_with_dialectic_pairs):
 
 
 def test_dialectic_triad_empty_vault(tmp_path):
-    """Test that dialectic_triad handles empty vault gracefully."""
+    """Test that dialectic_triad handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     from datetime import datetime
 
     vault_path = tmp_path / "vault"
@@ -193,7 +218,13 @@ def test_dialectic_triad_empty_vault(tmp_path):
 
 
 def test_dialectic_triad_insufficient_notes(vault_insufficient_notes):
-    """Test that dialectic_triad handles insufficient notes gracefully."""
+    """Test that dialectic_triad handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 15 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -241,7 +272,13 @@ def test_dialectic_triad_no_contrarians(tmp_path):
 
 
 def test_dialectic_triad_max_suggestions(vault_with_dialectic_pairs):
-    """Test that dialectic_triad never returns more than 2 suggestions."""
+    """Test that dialectic_triad never returns more than 2 suggestions.
+
+    Setup:
+        Vault with multiple dialectic patterns.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_dialectic_pairs
 
     context = VaultContext(
@@ -258,7 +295,13 @@ def test_dialectic_triad_max_suggestions(vault_with_dialectic_pairs):
 
 
 def test_dialectic_triad_deterministic_with_seed(vault_with_dialectic_pairs):
-    """Test that dialectic_triad returns same results with same seed."""
+    """Test that dialectic_triad returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_dialectic_pairs
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -313,7 +356,13 @@ def test_dialectic_triad_contains_dialectic_structure(vault_with_dialectic_pairs
 
 
 def test_dialectic_triad_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     from datetime import datetime
 
     vault_path = tmp_path / "vault"
