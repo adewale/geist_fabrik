@@ -122,6 +122,20 @@ def test_temporal_drift_returns_suggestions(vault_with_stale_notes):
     assert isinstance(suggestions, list)
     assert len(suggestions) <= 3
 
+    # BEHAVIORAL: Verify suggested notes meet staleness threshold (>0.7 from line 32)
+    for suggestion in suggestions:
+        note_ref = suggestion.notes[0]
+        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+
+        if note:
+            metadata = context.metadata(note)
+            staleness = metadata.get("staleness", 0)
+
+            # Temporal drift requires staleness > 0.7 (core threshold)
+            assert staleness > 0.7, (
+                f"Suggested note [[{note_ref}]] should have staleness >0.7, got {staleness:.2f}"
+            )
+
 
 def test_temporal_drift_suggestion_structure(vault_with_stale_notes):
     """Test that suggestions have correct structure."""
@@ -156,6 +170,19 @@ def test_temporal_drift_suggestion_structure(vault_with_stale_notes):
 
         # Should mention temporal aspects
         assert "days" in suggestion.text or "modified" in suggestion.text
+
+        # BEHAVIORAL: Verify link_count threshold (>=3 from line 32)
+        note_ref = suggestion.notes[0]
+        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+
+        if note:
+            metadata = context.metadata(note)
+            link_count = metadata.get("link_count", 0)
+
+            # Temporal drift requires link_count >= 3 (well-connected notes)
+            assert link_count >= 3, (
+                f"Suggested note [[{note_ref}]] should have >=3 links, got {link_count}"
+            )
 
 
 def test_temporal_drift_uses_obsidian_link(vault_with_stale_notes):
@@ -202,6 +229,33 @@ def test_temporal_drift_mentions_days_and_links(vault_with_stale_notes):
 
         # Should mention links
         assert "links" in suggestion.text or "link" in suggestion.text
+
+        # BEHAVIORAL: Verify exact numbers in text match metadata (lines 33, 36-37)
+        import re
+
+        note_ref = suggestion.notes[0]
+        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+
+        if note:
+            metadata = context.metadata(note)
+            actual_days = metadata.get("days_since_modified", 0)
+            actual_links = metadata.get("link_count", 0)
+
+            # Extract numbers from suggestion text
+            days_match = re.search(r"(\d+)\s+days", suggestion.text)
+            links_match = re.search(r"(\d+)\s+links", suggestion.text)
+
+            if days_match:
+                mentioned_days = int(days_match.group(1))
+                assert mentioned_days == actual_days, (
+                    f"Text mentions {mentioned_days} days but metadata shows {actual_days}"
+                )
+
+            if links_match:
+                mentioned_links = int(links_match.group(1))
+                assert mentioned_links == actual_links, (
+                    f"Text mentions {mentioned_links} links but metadata shows {actual_links}"
+                )
 
 
 # ============================================================================
@@ -440,6 +494,21 @@ def test_temporal_drift_uses_metadata(vault_with_stale_notes):
         # (this is indirect - we're verifying the geist's logic)
         assert "links" in suggestion.text.lower() or "link" in suggestion.text.lower()
         assert "days" in suggestion.text.lower()
+
+        # BEHAVIORAL: Verify both thresholds are met (staleness >0.7 AND link_count >=3)
+        note_ref = suggestion.notes[0]
+        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+
+        if note:
+            metadata = context.metadata(note)
+            staleness = metadata.get("staleness", 0)
+            link_count = metadata.get("link_count", 0)
+
+            # Temporal drift requires BOTH conditions (line 32: staleness > 0.7 and link_count >= 3)
+            assert staleness > 0.7 and link_count >= 3, (
+                f"Suggested note [[{note_ref}]] must meet both thresholds: "
+                f"staleness={staleness:.2f} (need >0.7), link_count={link_count} (need >=3)"
+            )
 
 
 # ============================================================================
