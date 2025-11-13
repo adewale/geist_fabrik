@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
-from geistfabrik.models import Note, Suggestion
+from geistfabrik.models import Suggestion
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -25,37 +25,21 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         Single suggestion about a burst day (or empty list if no bursts found)
     """
-    # Query: Group notes by creation date, count per day
-    # Exclude geist journal to avoid noise from session output
-    cursor = vault.db.execute(
-        """
-        SELECT DATE(created) as creation_date,
-               COUNT(*) as note_count,
-               GROUP_CONCAT(path, '|') as note_paths
-        FROM notes
-        WHERE NOT path LIKE 'geist journal/%'
-        GROUP BY DATE(created)
-        HAVING note_count >= 3
-        ORDER BY note_count DESC
-        """
+    # Use VaultContext aggregation method instead of direct SQL
+    # This respects architectural layering and hides database implementation
+    burst_days_dict = vault.notes_grouped_by_creation_date(
+        min_per_day=3, exclude_journal=True
     )
 
-    burst_days = cursor.fetchall()
-
-    if not burst_days:
+    if not burst_days_dict:
         return []
 
-    # Randomly select one burst day (deterministic via vault's RNG)
-    day_date, count, paths_str = vault.sample(burst_days, k=1)[0]
+    # Convert to list of (date, notes) for sampling
+    burst_days = list(burst_days_dict.items())
 
-    # Parse note paths and get Note objects to access obsidian_link
-    note_paths = paths_str.split("|") if paths_str else []
-    notes_with_none = [vault.get_note(path) for path in note_paths]
-    # Filter out None results and collect in a clean list for type checker
-    notes: list[Note] = []
-    for note in notes_with_none:
-        if note is not None:
-            notes.append(note)
+    # Randomly select one burst day (deterministic via vault's RNG)
+    day_date, notes = vault.sample(burst_days, k=1)[0]
+    count = len(notes)
 
     if not notes:
         return []

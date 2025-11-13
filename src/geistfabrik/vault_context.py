@@ -563,6 +563,55 @@ class VaultContext:
 
         return result
 
+    def notes_grouped_by_creation_date(
+        self, min_per_day: int = 1, exclude_journal: bool = True
+    ) -> Dict[str, List[Note]]:
+        """Group notes by creation date.
+
+        Provides temporal aggregation without exposing SQL implementation.
+        Use this instead of direct database queries for grouping notes by date.
+
+        Args:
+            min_per_day: Minimum notes per day to include in results
+            exclude_journal: If True, exclude "geist journal/" notes (default)
+
+        Returns:
+            Dictionary mapping date strings (YYYY-MM-DD) to lists of notes
+            created on that date, sorted by note count descending
+        """
+        journal_filter = "WHERE NOT path LIKE 'geist journal/%'" if exclude_journal else ""
+
+        cursor = self.db.execute(
+            f"""
+            SELECT DATE(created) as creation_date,
+                   GROUP_CONCAT(path, '|') as note_paths
+            FROM notes
+            {journal_filter}
+            GROUP BY DATE(created)
+            HAVING COUNT(*) >= ?
+            ORDER BY COUNT(*) DESC
+            """,
+            (min_per_day,),
+        )
+
+        result: Dict[str, List[Note]] = {}
+        for row in cursor.fetchall():
+            date_str, paths_str = row
+            if paths_str:
+                paths = paths_str.split("|")
+                # Batch load notes for efficiency
+                notes_map = self.vault.get_notes_batch(paths)
+                # Preserve order and filter out None
+                notes: List[Note] = []
+                for p in paths:
+                    note = notes_map.get(p)
+                    if note is not None:
+                        notes.append(note)
+                if notes:
+                    result[date_str] = notes
+
+        return result
+
     def get_clusters(self, min_size: int = 5) -> Dict[int, Dict[str, Any]]:
         """Get cluster assignments and labels for current session.
 

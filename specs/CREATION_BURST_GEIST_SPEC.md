@@ -15,16 +15,18 @@ Two complementary geists that focus on "burst days" - specific moments when you 
 Surface forgotten productive days by listing notes created together in burst moments.
 
 ### Detection Method
-```sql
-SELECT DATE(created) as creation_date,
-       COUNT(*) as note_count,
-       GROUP_CONCAT(title, '|') as note_titles
-FROM notes
-WHERE NOT path LIKE 'geist journal/%'
-GROUP BY DATE(created)
-HAVING note_count >= 3
-ORDER BY note_count DESC
+
+Uses `VaultContext.notes_grouped_by_creation_date()` to aggregate notes by date:
+
+```python
+burst_days = vault.notes_grouped_by_creation_date(
+    min_per_day=3,
+    exclude_journal=True
+)
+# Returns: dict[str, list[Note]] mapping dates to notes created that day
 ```
+
+**Architectural Note**: Geists use VaultContext methods, not direct SQL queries. This maintains proper layering where VaultContext abstracts database implementation details.
 
 ### Output Format
 **Single suggestion** listing the burst day notes with a provocative question.
@@ -264,28 +266,28 @@ These two geists together provide **cohort analysis** - tracking groups of notes
 ### creation_burst.py (Basic)
 
 ```python
-def suggest(vault: VaultContext) -> List[Suggestion]:
+def suggest(vault: VaultContext) -> list[Suggestion]:
     """Find burst days and list the notes created."""
 
-    cursor = vault.db.execute("""
-        SELECT DATE(created), COUNT(*), GROUP_CONCAT(title, '|')
-        FROM notes
-        WHERE NOT path LIKE 'geist journal/%'
-        GROUP BY DATE(created)
-        HAVING COUNT(*) >= 3
-    """)
+    # Use VaultContext method (proper architectural layering)
+    burst_days_dict = vault.notes_grouped_by_creation_date(
+        min_per_day=3,
+        exclude_journal=True
+    )
 
-    burst_days = cursor.fetchall()
-    if not burst_days:
+    if not burst_days_dict:
         return []
 
-    date, count, titles_str = vault.sample(burst_days, k=1)[0]
-    titles = titles_str.split('|')
+    # Convert to list for sampling
+    burst_days = list(burst_days_dict.items())
+    date, notes = vault.sample(burst_days, k=1)[0]
+    count = len(notes)
 
-    # Format title list
-    display = ", ".join([f"[[{t}]]" for t in titles[:8]])
-    if len(titles) > 8:
-        display += f", and {len(titles) - 8} more"
+    # Format title list from Note objects
+    note_links = [note.obsidian_link for note in notes]
+    display = ", ".join([f"[[{link}]]" for link in note_links[:8]])
+    if len(note_links) > 8:
+        display += f", and {len(note_links) - 8} more"
 
     # Generate question based on count
     if count >= 6:
@@ -295,7 +297,7 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
 
     text = f"On {date}, you created {count} notes: {display}. {question}"
 
-    return [Suggestion(text=text, notes=titles, geist_id="creation_burst")]
+    return [Suggestion(text=text, notes=note_links, geist_id="creation_burst")]
 ```
 
 ### burst_evolution.py (Temporal)

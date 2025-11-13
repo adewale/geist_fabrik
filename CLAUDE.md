@@ -298,6 +298,84 @@ origin: "#seed# shares space with #neighbours#"
 - `specs/tracery_research.md`: Updated technical documentation
 - `tests/unit/test_tracery_geists.py`: Regression tests to prevent similar bugs
 
+### Architectural Layering: Geists Must Use VaultContext, Not Direct SQL (November 2025)
+
+**Context**: During implementation review, we discovered that some geists (creation_burst, burst_evolution) were directly calling `vault.db.execute()` to run SQL queries, bypassing VaultContext abstraction. The specs themselves showed this pattern as the "correct" implementation.
+
+**The Problem**:
+- **Architectural violation**: Geists accessing database directly breaks the two-layer architecture
+- **Tight coupling**: Geists depend on database schema implementation details
+- **Fragile code**: Schema changes break geists
+- **Inconsistent patterns**: Some operations use VaultContext methods (`vault.hubs()`, `vault.orphans()`), others use raw SQL
+- **Documented in specs**: Specs perpetuated the anti-pattern by showing direct SQL as the implementation approach
+
+**The Two-Layer Architecture**:
+```
+Layer 1: Vault (Raw Data)
+  ↓ provides data access
+Layer 2: VaultContext (Rich API) ← Geists work at THIS level
+  ↓ provides abstractions
+Geists (Suggestion Generation)
+```
+
+**The Rule**:
+- **VaultContext methods** CAN use SQL (they ARE the abstraction layer)
+- **Geists** MUST use VaultContext methods, NEVER direct SQL
+
+**The Fix**:
+1. Added `VaultContext.notes_grouped_by_creation_date()` method
+2. Updated geists to use the abstraction:
+```python
+# ❌ WRONG - Direct SQL in geist
+cursor = vault.db.execute("""
+    SELECT DATE(created), COUNT(*), GROUP_CONCAT(path, '|')
+    FROM notes
+    WHERE NOT path LIKE 'geist journal/%'
+    GROUP BY DATE(created)
+    HAVING COUNT(*) >= 3
+""")
+
+# ✅ CORRECT - Use VaultContext method
+burst_days = vault.notes_grouped_by_creation_date(
+    min_per_day=3,
+    exclude_journal=True
+)
+```
+3. Updated specs to show proper layering
+
+**Why This Matters**:
+- ✅ **Maintainability**: Database schema changes only affect VaultContext, not 48 geists
+- ✅ **Testability**: Can mock VaultContext methods without mocking SQL
+- ✅ **Clarity**: Geist code expresses intent (`notes_grouped_by_creation_date()`) not implementation (SQL)
+- ✅ **Consistency**: All geists use same abstraction level
+
+**What Changed**:
+- **Fixed geists**: creation_burst.py, burst_evolution.py (commit d80a93e)
+- **New VaultContext method**: `notes_grouped_by_creation_date()` in vault_context.py:566
+- **Updated spec**: CREATION_BURST_GEIST_SPEC.md now shows VaultContext usage
+- **Added lesson**: This section in CLAUDE.md
+
+**When to Add VaultContext Methods**:
+If you find yourself writing SQL in a geist, STOP. Ask:
+1. Is this a common operation other geists might need?
+2. Does this hide implementation details?
+3. Would this make geist code clearer?
+
+If yes to any → Add a VaultContext method instead.
+
+**Examples of Good Abstractions**:
+- `vault.hubs(k)` - Hides complex JOIN query for finding hub notes
+- `vault.orphans(k)` - Hides LEFT JOIN logic for finding orphaned notes
+- `vault.notes_grouped_by_creation_date()` - Hides GROUP BY aggregation logic
+- `vault.similarity()` - Hides embedding lookup and cosine distance computation
+
+**Key Lesson**: Specs can contain architectural mistakes. When you spot a violation of core principles (like layering), fix both the code AND the specs. Document the lesson so we don't repeat it.
+
+**See Also**:
+- Commit d80a93e: Fix architectural violation in burst geists
+- `src/geistfabrik/vault_context.py:566`: Implementation of aggregation method
+- `docs/ARCHITECTURE.md`: Two-layer architecture documentation
+
 ## Three-Dimensional Extensibility
 
 1. **Metadata Inference** (`<vault>/_geistfabrik/metadata_inference/`)

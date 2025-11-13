@@ -58,23 +58,20 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
 
 def _get_burst_days(vault: "VaultContext") -> list[tuple[str, list[str]]]:
-    """Get burst days with 3+ notes created."""
-    cursor = vault.db.execute(
-        """
-        SELECT DATE(created) as creation_date,
-               GROUP_CONCAT(path, '|') as note_paths
-        FROM notes
-        WHERE NOT path LIKE 'geist journal/%'
-        GROUP BY DATE(created)
-        HAVING COUNT(*) >= 3
-        ORDER BY COUNT(*) DESC
-        """
+    """Get burst days with 3+ notes created.
+
+    Uses VaultContext aggregation method instead of direct SQL
+    to respect architectural layering.
+    """
+    # Use VaultContext method instead of direct SQL query
+    burst_days_dict = vault.notes_grouped_by_creation_date(
+        min_per_day=3, exclude_journal=True
     )
 
+    # Convert Note objects to paths for compatibility with existing code
     results = []
-    for row in cursor.fetchall():
-        date_str, paths_str = row
-        paths = paths_str.split("|") if paths_str else []
+    for date_str, notes in burst_days_dict.items():
+        paths = [note.path for note in notes]
         results.append((date_str, paths))
 
     return results
