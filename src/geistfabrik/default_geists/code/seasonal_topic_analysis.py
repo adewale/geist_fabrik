@@ -22,8 +22,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     that are semantically similar, suggesting seasonal thinking patterns.
     """
     # Exclude geist journal to avoid analyzing session output
-    all_notes = vault.notes()
-    notes = [n for n in all_notes if not n.path.startswith("geist journal/")]
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 20:
         return []

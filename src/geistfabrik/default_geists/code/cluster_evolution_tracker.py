@@ -22,8 +22,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     notes with shifting conceptual neighborhoods.
     """
     # Exclude geist journal to avoid tracking session output migrations
-    all_notes = vault.notes()
-    notes = [n for n in all_notes if not n.path.startswith("geist journal/")]
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 15:
         return []

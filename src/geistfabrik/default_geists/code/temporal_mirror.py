@@ -26,14 +26,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         Single suggestion comparing notes from different time periods
     """
     # Get all notes excluding geist journal
-    all_notes = vault.notes()
-    non_journal_notes = [n for n in all_notes if not n.path.startswith("geist journal/")]
+    notes = vault.notes_excluding_journal()
 
-    if len(non_journal_notes) < 2:
+    if len(notes) < 2:
         return []
 
     # Sort notes by creation date
-    sorted_notes = sorted(non_journal_notes, key=lambda n: n.created)
+    sorted_notes = sorted(notes, key=lambda n: n.created)
 
     # Divide into 10 periods
     total = len(sorted_notes)

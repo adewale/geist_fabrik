@@ -151,6 +151,32 @@ class VaultContext:
             self._notes_cache = self.vault.all_notes()
         return self._notes_cache
 
+    def notes_excluding_journal(self) -> List[Note]:
+        """Get all notes except geist journal entries.
+
+        Convenience method for geists that analyze vault history.
+        Geist journal notes are ephemeral session output and should
+        typically be excluded from historical analysis to avoid:
+        - Circular references (analyzing system output as user notes)
+        - Statistical skew (session notes have different characteristics)
+        - False patterns (journal structure is predictable)
+
+        When to use:
+        - Analyzing vault history or temporal patterns
+        - Computing statistical distributions
+        - Tracking note evolution over time
+        - Building cohort analysis
+
+        When NOT to use:
+        - Point-in-time content analysis (pattern extraction)
+        - Semantic similarity queries (no risk of circular reference)
+        - Single-note operations
+
+        Returns:
+            List of notes excluding those in "geist journal/" directory
+        """
+        return [n for n in self.notes() if not n.path.startswith("geist journal/")]
+
     def get_note(self, path: str) -> Optional[Note]:
         """Get specific note by path.
 
