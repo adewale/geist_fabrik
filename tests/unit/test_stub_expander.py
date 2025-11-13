@@ -306,3 +306,86 @@ def test_stub_expander_deterministic_with_seed(vault_with_stubs):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_stub_expander_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with stub-like content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"""# Session {i}
+
+Short note with [[link_{i}]]. Only a few words.
+
+^g20240315-{i}"""
+        )
+
+    # Create stub notes (< 50 words with links)
+    for i in range(5):
+        path = vault_path / f"stub_{i}.md"
+        content = f"""# Stub {i}
+
+Short note with [[link_{i}]]. Only a few words."""
+        path.write_text(content)
+
+    # Create stub notes with backlinks
+    for i in range(5):
+        path = vault_path / f"stub_backlinked_{i}.md"
+        content = f"""# Stub Backlinked {i}
+
+Brief content here."""
+        path.write_text(content)
+
+    # Create notes that link to stubs (to create backlinks)
+    for i in range(5):
+        path = vault_path / f"linker_{i}.md"
+        content = f"""# Linker {i}
+
+This note links to [[Stub Backlinked {i}]]."""
+        path.write_text(content)
+
+    # Create substantial notes (> 50 words)
+    for i in range(5):
+        path = vault_path / f"substantial_{i}.md"
+        content = f"""# Substantial {i}
+
+This is a substantial note with many words. It contains multiple sentences
+that elaborate on various topics. The content is rich and detailed, exploring
+different aspects of the subject matter. There are many paragraphs and
+extensive discussion of relevant themes and ideas."""
+        path.write_text(content)
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = stub_expander.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    # Note: This test reveals that stub_expander does NOT currently
+    # filter geist journal notes, which is a bug that should be fixed.
+    all_notes = vault.all_notes()
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            # Check that the referenced note is not from geist journal
+            # The note_ref is an obsidian_link (title), so we need to find
+            # the actual note to check its path
+            matching_notes = [n for n in all_notes if n.obsidian_link == note_ref]
+            for note in matching_notes:
+                assert not note.path.startswith("geist journal/"), (
+                    f"geist should exclude geist journal notes, but found: {note.path}"
+                )

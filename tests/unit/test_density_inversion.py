@@ -365,3 +365,69 @@ def test_density_inversion_detects_dense_links_sparse_meaning(
             "similar" in s.text and "aren't linked" in s.text for s in suggestions
         )
         assert found_dense_sparse or found_sparse_dense
+
+
+def test_density_inversion_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    from datetime import datetime
+
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with sessions
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
+        journal_note.write_text(
+            f"# Session {i}\n\n"
+            "## Suggestions\n\n"
+            "The hub note links densely to scattered neighbors.\n\n"
+            "[[hub]] connects to [[note_1]], [[note_2]], [[note_3]]"
+        )
+
+    # Create a hub note with dense links
+    hub_path = vault_path / "hub.md"
+    hub_content = "# Hub\n\nCentral hub note.\n\n"
+    for i in range(5):
+        hub_content += f"[[diverse_{i}]]\n"
+    hub_path.write_text(hub_content)
+
+    # Create diverse neighbor notes
+    topics = [
+        "quantum physics",
+        "impressionist art",
+        "medieval history",
+        "jazz music",
+        "molecular biology",
+    ]
+    for i, topic in enumerate(topics):
+        path = vault_path / f"diverse_{i}.md"
+        content = f"# Diverse {i}\n\nContent about {topic}.\n\n[[hub]]\n"
+        path.write_text(content)
+
+    # Add filler notes to reach minimum threshold
+    for i in range(15):
+        (vault_path / f"filler_{i}.md").write_text(f"# Filler {i}\n\nFiller content.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = density_inversion.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern

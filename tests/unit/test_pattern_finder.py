@@ -260,3 +260,69 @@ def test_pattern_finder_deterministic_with_seed(vault_with_repeated_phrases):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_pattern_finder_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with repeated phrases
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n"
+            f"This discusses emergent behaviour patterns in complex systems. "
+            f"Various phenomena exhibit these characteristics."
+        )
+
+    # Create regular notes with repeated phrases
+    # Create notes with repeated phrase "emergent behaviour patterns"
+    for i in range(5):
+        (vault_path / f"emergent_{i}.md").write_text(
+            f"# Emergent Note {i}\n\n"
+            f"This discusses emergent behaviour patterns in complex systems. "
+            f"Various phenomena exhibit these characteristics."
+        )
+
+    # Create notes with repeated phrase "distributed consensus algorithms"
+    for i in range(5):
+        (vault_path / f"consensus_{i}.md").write_text(
+            f"# Consensus Note {i}\n\n"
+            f"Exploring distributed consensus algorithms for fault tolerance. "
+            f"These protocols ensure agreement."
+        )
+
+    # Create filler notes to reach minimum count
+    for i in range(10):
+        (vault_path / f"filler_{i}.md").write_text(
+            f"# Filler Note {i}\n\nUnrelated content about topic {i}."
+        )
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = pattern_finder.suggest(context)
+
+    # Get all journal note titles to check against
+    journal_notes = [n for n in vault.all_notes() if "geist journal" in n.path.lower()]
+    journal_titles = {n.title for n in journal_notes}
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert note_ref not in journal_titles, (
+                f"Geist journal note '{note_ref}' was included in suggestions. "
+                f"Expected only non-journal notes."
+            )

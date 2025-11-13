@@ -307,3 +307,72 @@ def test_blind_spot_detector_checks_old_contrarians(vault_with_contrarian_notes)
     for suggestion in suggestions:
         # Text should mention days since modified
         assert "days since you touched it" in suggestion.text
+
+
+def test_blind_spot_detector_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with contrarian content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n"
+            "Content about pessimism, despair, and negativity. "
+            "Contrarian views on optimism and hope."
+        )
+
+    now = datetime.now()
+    old_date = now - timedelta(days=200)
+
+    # Create recent notes that should trigger suggestions
+    recent_topics = ["Optimism", "Innovation", "Collaboration", "Simplicity"]
+    for i, topic in enumerate(recent_topics):
+        path = vault_path / f"recent_{topic}.md"
+        path.write_text(f"# {topic}\n\nContent about {topic.lower()}.")
+        path.touch()
+        recent_time = (now - timedelta(days=i * 5)).timestamp()
+        import os
+
+        os.utime(path, (recent_time, recent_time))
+
+    # Create old contrarian notes (>180 days old)
+    contrarian_topics = ["Pessimism", "Tradition", "Solitude", "Complexity"]
+    for i, topic in enumerate(contrarian_topics):
+        path = vault_path / f"old_{topic}.md"
+        path.write_text(f"# {topic}\n\nContent about {topic.lower()}.")
+        path.touch()
+        old_time = (old_date - timedelta(days=i * 10)).timestamp()
+        import os
+
+        os.utime(path, (old_time, old_time))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = blind_spot_detector.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    # Build title-to-path mapping to check note paths
+    cursor = vault.db.execute("SELECT title, path FROM notes")
+    title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            # Look up path by title or use note_ref as path
+            note_path = title_to_path.get(note_ref, note_ref)
+            assert "geist journal" not in note_path.lower(), (
+                f"Geist journal note '{note_path}' was included in suggestions"
+            )

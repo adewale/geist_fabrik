@@ -269,3 +269,84 @@ def test_bridge_hunter_deterministic_with_seed(vault_with_unlinked_pairs):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_bridge_hunter_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with unlinked notes
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n"
+            "Neural networks and machine learning topics. "
+            "Cognitive architecture and mental models."
+        )
+
+    # Create cluster A (artificial intelligence)
+    (vault_path / "neural_networks.md").write_text(
+        "# Neural Networks\n\nDeep learning and artificial neural networks."
+    )
+    (vault_path / "machine_learning.md").write_text(
+        "# Machine Learning\n\nAlgorithms that learn from data."
+    )
+    (vault_path / "deep_learning.md").write_text(
+        "# Deep Learning\n\nMulti-layer neural networks for complex patterns."
+    )
+
+    # Create cluster B (cognitive science)
+    (vault_path / "cognitive_architecture.md").write_text(
+        "# Cognitive Architecture\n\nMental models and cognitive processes."
+    )
+    (vault_path / "human_cognition.md").write_text(
+        "# Human Cognition\n\nHow the human brain processes information."
+    )
+    (vault_path / "mental_models.md").write_text(
+        "# Mental Models\n\nFrameworks for understanding thinking patterns."
+    )
+
+    # Create potential bridges (AI-related but not linked to cluster A)
+    (vault_path / "artificial_intelligence.md").write_text(
+        "# Artificial Intelligence\n\nIntelligent systems, neural networks, and machine learning."
+    )
+    (vault_path / "brain_cognition.md").write_text(
+        "# Brain and Cognition\n\nHuman cognition, mental models, and cognitive architecture."
+    )
+
+    # Add some unrelated notes to increase vault size
+    for i in range(10):
+        (vault_path / f"random_{i}.md").write_text(
+            f"# Random Note {i}\n\nUnrelated content about topic {i}."
+        )
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = bridge_hunter.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    # Build title-to-path mapping to check note paths
+    cursor = vault.db.execute("SELECT title, path FROM notes")
+    title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            # Look up path by title or use note_ref as path
+            note_path = title_to_path.get(note_ref, note_ref)
+            assert "geist journal" not in note_path.lower(), (
+                f"Geist journal note '{note_path}' was included in suggestions"
+            )

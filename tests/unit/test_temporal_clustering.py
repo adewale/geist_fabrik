@@ -1,5 +1,6 @@
 """Unit tests for temporal_clustering geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -39,8 +40,6 @@ def vault_with_temporal_notes(tmp_path):
             path.write_text(f"# Q{quarter} Note {i}\n\nContent from quarter {quarter}.")
             # Set file times to match the quarter
             timestamp = date.timestamp()
-            import os
-
             os.utime(path, (timestamp, timestamp))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -262,8 +261,6 @@ def test_temporal_clustering_groups_by_quarter(tmp_path):
         path = vault_path / f"recent_{i}.md"
         path.write_text(f"# Recent {i}\n\nRecent content.")
         timestamp = date.timestamp()
-        import os
-
         os.utime(path, (timestamp, timestamp))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -284,3 +281,55 @@ def test_temporal_clustering_groups_by_quarter(tmp_path):
     # With only one quarter populated, should not find multiple clusters
     # (need at least 2 quarters with >= 5 notes each)
     assert isinstance(suggestions, list)
+
+
+def test_temporal_clustering_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    now = datetime.now()
+
+    for i in range(5):
+        date = now - timedelta(days=i)
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\nClustering patterns across temporal quarters."
+        )
+        # Set file times
+        timestamp = (now - timedelta(days=90 * i)).timestamp()
+        os.utime(journal_dir / f"2024-03-{15 + i:02d}.md", (timestamp, timestamp))
+
+    # Create notes across different quarters (over 2 years)
+    for quarter in range(8):
+        for i in range(7):  # 7 notes per quarter (56 total)
+            date = now - timedelta(days=quarter * 90 + i * 10)
+            path = vault_path / f"q{quarter}_note_{i}.md"
+            path.write_text(f"# Q{quarter} Note {i}\n\nContent from quarter {quarter}.")
+            # Set file times to match the quarter
+            timestamp = date.timestamp()
+            os.utime(path, (timestamp, timestamp))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = temporal_clustering.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

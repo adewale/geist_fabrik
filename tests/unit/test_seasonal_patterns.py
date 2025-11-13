@@ -1,5 +1,6 @@
 """Unit tests for seasonal_patterns geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -39,8 +40,6 @@ Winter theme content about cold weather, #winter, #reflection."""
         path.write_text(content)
         # Set creation time to January 2022
         winter_time = datetime(2022, 1, 15 + i).timestamp()
-        import os
-
         os.utime(path, (winter_time, winter_time))
 
     # Year 2: January notes (Winter) - similar content for pattern detection
@@ -51,8 +50,6 @@ Winter theme content about cold weather, #winter, #reflection."""
 Winter theme content about cold weather, #winter, #planning."""
         path.write_text(content)
         winter_time = datetime(2023, 1, 15 + i).timestamp()
-        import os
-
         os.utime(path, (winter_time, winter_time))
 
     # Year 3: June notes (Summer)
@@ -63,8 +60,6 @@ Winter theme content about cold weather, #winter, #planning."""
 Summer activities, vacation planning, #summer, #travel."""
         path.write_text(content)
         summer_time = datetime(2022, 6, 15 + i).timestamp()
-        import os
-
         os.utime(path, (summer_time, summer_time))
 
     # Year 4: June notes (Summer) - similar content
@@ -75,8 +70,6 @@ Summer activities, vacation planning, #summer, #travel."""
 Summer activities, beach trips, #summer, #outdoors."""
         path.write_text(content)
         summer_time = datetime(2023, 6, 15 + i).timestamp()
-        import os
-
         os.utime(path, (summer_time, summer_time))
 
     # Add scattered notes in other months for variety
@@ -254,8 +247,6 @@ def test_seasonal_patterns_no_recurrence(tmp_path):
         path.write_text(content)
         # Spread across 5 years, different months
         note_time = (base_date + timedelta(days=i * 30)).timestamp()
-        import os
-
         os.utime(path, (note_time, note_time))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -327,3 +318,103 @@ def test_seasonal_patterns_deterministic_with_seed(vault_with_seasonal_notes):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_seasonal_patterns_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with seasonal content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        path = journal_dir / f"2024-03-{15 + i:02d}.md"
+        content = f"""# Session {i}
+
+Winter theme content about cold weather, #winter, #reflection.
+
+^g20240315-{i}"""
+        path.write_text(content)
+        # Set creation time to winter
+        winter_time = datetime(2024, 1, 15 + i).timestamp()
+        os.utime(path, (winter_time, winter_time))
+
+    # Create regular notes across multiple seasons and years
+    # Year 1: January notes (Winter)
+    for i in range(10):
+        path = vault_path / f"winter_2022_{i}.md"
+        content = f"""# Winter Note 2022 {i}
+
+Winter theme content about cold weather, #winter, #reflection."""
+        path.write_text(content)
+        winter_time = datetime(2022, 1, 15 + i).timestamp()
+        os.utime(path, (winter_time, winter_time))
+
+    # Year 2: January notes (Winter)
+    for i in range(10):
+        path = vault_path / f"winter_2023_{i}.md"
+        content = f"""# Winter Note 2023 {i}
+
+Winter theme content about cold weather, #winter, #planning."""
+        path.write_text(content)
+        winter_time = datetime(2023, 1, 15 + i).timestamp()
+        os.utime(path, (winter_time, winter_time))
+
+    # Year 3: June notes (Summer)
+    for i in range(10):
+        path = vault_path / f"summer_2022_{i}.md"
+        content = f"""# Summer Note 2022 {i}
+
+Summer activities, vacation planning, #summer, #travel."""
+        path.write_text(content)
+        summer_time = datetime(2022, 6, 15 + i).timestamp()
+        os.utime(path, (summer_time, summer_time))
+
+    # Year 4: June notes (Summer)
+    for i in range(10):
+        path = vault_path / f"summer_2023_{i}.md"
+        content = f"""# Summer Note 2023 {i}
+
+Summer activities, beach trips, #summer, #outdoors."""
+        path.write_text(content)
+        summer_time = datetime(2023, 6, 15 + i).timestamp()
+        os.utime(path, (summer_time, summer_time))
+
+    # Add scattered notes in other months
+    for i in range(15):
+        path = vault_path / f"misc_{i}.md"
+        content = f"""# Misc Note {i}
+
+Miscellaneous content without strong seasonal pattern."""
+        path.write_text(content)
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = seasonal_patterns.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    # Note: This test reveals that seasonal_patterns does NOT currently
+    # filter geist journal notes, which is a bug that should be fixed.
+    all_notes = vault.all_notes()
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            # Check that the referenced note is not from geist journal
+            # The note_ref is an obsidian_link (title), so we need to find
+            # the actual note to check its path
+            matching_notes = [n for n in all_notes if n.obsidian_link == note_ref]
+            for note in matching_notes:
+                assert not note.path.startswith("geist journal/"), (
+                    f"geist should exclude geist journal notes, but found: {note.path}"
+                )

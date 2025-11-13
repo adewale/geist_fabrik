@@ -356,3 +356,66 @@ def test_antithesis_generator_recognizes_existing_antithesis(vault_with_antithes
 
     # Should generate suggestions (either about existing pair or new antithesis)
     assert isinstance(suggestions, list)
+
+
+def test_antithesis_generator_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with strong claims
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n"
+            f"This is fundamental. It must be essential. "
+            f"This will always prove critical. This cannot be denied."
+        )
+
+    # Create regular notes with strong claims
+    claim_notes = [
+        (
+            "Strong Position.md",
+            "This is fundamental. It must be essential. This will always prove critical.",
+        ),
+        (
+            "Absolute View.md",
+            "This cannot be changed. It is impossible to deny. This proves everything.",
+        ),
+        (
+            "Necessary Truth.md",
+            "This should always be important. It is key that we never forget this.",
+        ),
+    ]
+
+    for filename, content in claim_notes:
+        (vault_path / filename).write_text(f"# {filename.replace('.md', '')}\n\n{content}")
+
+    # Create regular notes
+    for i in range(8):
+        (vault_path / f"regular_{i}.md").write_text(
+            f"# Regular Note {i}\n\nSome general content here."
+        )
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = antithesis_generator.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

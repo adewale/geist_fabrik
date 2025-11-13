@@ -1,5 +1,6 @@
 """Unit tests for seasonal_revisit geist."""
 
+import os
 from datetime import datetime
 
 import pytest
@@ -43,8 +44,6 @@ Content from the same season {year_offset} year(s) ago."""
             path.write_text(content)
             # Set creation time to same month, previous years
             past_date = datetime(now.year - year_offset, current_month, min(15 + i, 28))
-            import os
-
             os.utime(path, (past_date.timestamp(), past_date.timestamp()))
 
     # Add current year notes (should be excluded)
@@ -65,8 +64,6 @@ Content from current year."""
 Content from different season."""
         path.write_text(content)
         other_date = datetime(now.year - 1, other_month, 15)
-        import os
-
         os.utime(path, (other_date.timestamp(), other_date.timestamp()))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -97,8 +94,6 @@ def vault_no_past_seasonal_notes(tmp_path):
 Content from different season."""
         path.write_text(content)
         other_date = datetime(now.year - 1, other_month, 15)
-        import os
-
         os.utime(path, (other_date.timestamp(), other_date.timestamp()))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -317,3 +312,78 @@ def test_seasonal_revisit_deterministic_with_seed(vault_with_past_seasonal_notes
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_seasonal_revisit_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with seasonal content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    now = datetime.now()
+    current_month = now.month
+
+    for i in range(5):
+        path = journal_dir / f"2024-03-{15 + i:02d}.md"
+        content = f"""# Session {i}
+
+Content from the same season years ago. Seasonal patterns.
+
+^g20240315-{i}"""
+        path.write_text(content)
+        # Set creation time to same season, previous year
+        past_date = datetime(now.year - 1, current_month, min(15 + i, 28))
+        os.utime(path, (past_date.timestamp(), past_date.timestamp()))
+
+    # Create notes from same season in previous years
+    for year_offset in range(1, 4):  # 1, 2, 3 years ago
+        for i in range(5):
+            path = vault_path / f"seasonal_{year_offset}y_ago_{i}.md"
+            content = f"""# Seasonal Note {year_offset} Years Ago {i}
+
+Content from the same season {year_offset} year(s) ago."""
+            path.write_text(content)
+            past_date = datetime(now.year - year_offset, current_month, min(15 + i, 28))
+            os.utime(path, (past_date.timestamp(), past_date.timestamp()))
+
+    # Add current year notes
+    for i in range(5):
+        path = vault_path / f"current_season_{i}.md"
+        content = f"""# Current Season Note {i}
+
+Content from current year."""
+        path.write_text(content)
+
+    # Add notes from different seasons
+    for i in range(10):
+        path = vault_path / f"other_season_{i}.md"
+        other_month = (current_month + 6) % 12 or 12
+        content = f"""# Other Season Note {i}
+
+Content from different season."""
+        path.write_text(content)
+        other_date = datetime(now.year - 1, other_month, 15)
+        os.utime(path, (other_date.timestamp(), other_date.timestamp()))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = seasonal_revisit.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

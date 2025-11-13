@@ -1,5 +1,6 @@
 """Unit tests for structure_diversity_checker geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -48,8 +49,6 @@ def vault_with_uniform_structure(tmp_path):
 - Item 10"""
         path.write_text(content)
         recent_time = (now - timedelta(days=i)).timestamp()
-        import os
-
         os.utime(path, (recent_time, recent_time))
 
     # Create older notes with different structures (for contrast)
@@ -65,8 +64,6 @@ ideas in depth. Multiple paragraphs build on each other.
 
 Another paragraph continues the thought."""
     path.write_text(content)
-    import os
-
     os.utime(path, (old_time, old_time))
 
     # Task-oriented note
@@ -136,8 +133,6 @@ def vault_with_diverse_structure(tmp_path):
 {content_snippet}"""
         path.write_text(content)
         recent_time = (now - timedelta(days=i)).timestamp()
-        import os
-
         os.utime(path, (recent_time, recent_time))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -343,3 +338,74 @@ def test_structure_diversity_checker_deterministic_with_seed(vault_with_uniform_
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_structure_diversity_checker_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    now = datetime.now()
+
+    # Create geist journal directory with uniform structure
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        path = journal_dir / f"2024-03-{15 + i:02d}.md"
+        content = f"""# Session {i}
+
+- Item 1
+- Item 2
+- Item 3
+- Item 4
+- Item 5"""
+        path.write_text(content)
+
+    # Create 8 recent list-heavy notes (uniform structure)
+    for i in range(8):
+        path = vault_path / f"recent_list_{i}.md"
+        content = f"""# Recent List Note {i}
+
+- Item 1
+- Item 2
+- Item 3
+- Item 4
+- Item 5
+- Item 6
+- Item 7
+- Item 8"""
+        path.write_text(content)
+        recent_time = (now - timedelta(days=i)).timestamp()
+        os.utime(path, (recent_time, recent_time))
+
+    # Create older note with different structure
+    old_time = (now - timedelta(days=100)).timestamp()
+    path = vault_path / "old_prose.md"
+    content = """# Old Prose Note
+
+This is a long-form prose note with extended paragraphs.
+No lists or tasks, just flowing narrative text."""
+    path.write_text(content)
+    os.utime(path, (old_time, old_time))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = structure_diversity_checker.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

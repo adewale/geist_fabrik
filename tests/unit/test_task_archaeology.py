@@ -1,5 +1,6 @@
 """Unit tests for task_archaeology geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -43,8 +44,6 @@ Project notes with tasks:
 - [ ] Incomplete task 2
 - [ ] Incomplete task 3"""
         path.write_text(content)
-        import os
-
         task_time = (old_date - timedelta(days=i * 5)).timestamp()
         os.utime(path, (task_time, task_time))
 
@@ -58,8 +57,6 @@ All done:
 - [x] Completed task 2
 - [x] Completed task 3"""
         path.write_text(content)
-        import os
-
         task_time = (old_date - timedelta(days=i * 5)).timestamp()
         os.utime(path, (task_time, task_time))
 
@@ -73,8 +70,6 @@ Recent project:
 - [ ] Incomplete task 1
 - [ ] Incomplete task 2"""
         path.write_text(content)
-        import os
-
         recent_time = (recent_date - timedelta(days=i)).timestamp()
         os.utime(path, (recent_time, recent_time))
 
@@ -262,8 +257,6 @@ def test_task_archaeology_recent_tasks_excluded(tmp_path):
 - [ ] Incomplete task 1
 - [ ] Incomplete task 2"""
         path.write_text(content)
-        import os
-
         recent_time = (recent_date - timedelta(days=i)).timestamp()
         os.utime(path, (recent_time, recent_time))
 
@@ -335,3 +328,98 @@ def test_task_archaeology_deterministic_with_seed(vault_with_old_tasks):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_task_archaeology_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with old task content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    now = datetime.now()
+    old_date = now - timedelta(days=60)
+
+    for i in range(5):
+        path = journal_dir / f"2024-03-{15 + i:02d}.md"
+        content = f"""# Session {i}
+
+Project notes with tasks:
+- [ ] Incomplete task 1
+- [x] Completed task 1
+- [ ] Incomplete task 2
+
+^g20240315-{i}"""
+        path.write_text(content)
+        task_time = (old_date - timedelta(days=i * 5)).timestamp()
+        os.utime(path, (task_time, task_time))
+
+    # Create notes with old incomplete tasks
+    for i in range(5):
+        path = vault_path / f"old_tasks_{i}.md"
+        content = f"""# Old Tasks {i}
+
+Project notes with tasks:
+- [ ] Incomplete task 1
+- [x] Completed task 1
+- [ ] Incomplete task 2
+- [ ] Incomplete task 3"""
+        path.write_text(content)
+        task_time = (old_date - timedelta(days=i * 5)).timestamp()
+        os.utime(path, (task_time, task_time))
+
+    # Create notes with all completed tasks (should be excluded)
+    for i in range(3):
+        path = vault_path / f"completed_tasks_{i}.md"
+        content = f"""# Completed Tasks {i}
+
+All done:
+- [x] Completed task 1
+- [x] Completed task 2
+- [x] Completed task 3"""
+        path.write_text(content)
+        task_time = (old_date - timedelta(days=i * 5)).timestamp()
+        os.utime(path, (task_time, task_time))
+
+    # Create recent notes with tasks (should be excluded)
+    recent_date = now - timedelta(days=10)
+    for i in range(3):
+        path = vault_path / f"recent_tasks_{i}.md"
+        content = f"""# Recent Tasks {i}
+
+Recent project:
+- [ ] Incomplete task 1
+- [ ] Incomplete task 2"""
+        path.write_text(content)
+        recent_time = (recent_date - timedelta(days=i)).timestamp()
+        os.utime(path, (recent_time, recent_time))
+
+    # Create notes without tasks
+    for i in range(5):
+        path = vault_path / f"no_tasks_{i}.md"
+        content = f"""# No Tasks {i}
+
+Just regular content without any tasks."""
+        path.write_text(content)
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = task_archaeology.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

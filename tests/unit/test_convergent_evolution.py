@@ -296,3 +296,51 @@ def test_convergent_evolution_deterministic_with_seed(vault_with_session_history
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_convergent_evolution_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\nJournal content that may show convergence patterns."
+        )
+
+    # Create regular notes with varying content
+    now = datetime.now()
+    for i in range(35):
+        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent about topic {i}.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Create multiple sessions (5 sessions over time)
+    for i in range(5):
+        session_date = now - timedelta(days=(5 - i) * 30)
+        session = Session(session_date, vault.db)
+        session.compute_embeddings(vault.all_notes())
+
+    # Return most recent session as active session
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = convergent_evolution.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

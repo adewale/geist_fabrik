@@ -357,3 +357,70 @@ def test_vocabulary_expansion_handles_database_errors(tmp_path):
     # Should not crash even if database operations fail
     suggestions = vocabulary_expansion.suggest(context)
     assert isinstance(suggestions, list)
+
+
+def test_vocabulary_expansion_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    # Create journal notes with diverse topics
+    for i in range(5):
+        content = f"""# Session {i}
+
+Technology and software development topics. Philosophy and existential questions.
+Art, design, and creative expression. Scientific methods and discoveries."""
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(content)
+
+    # Create regular notes with varying topics
+    topics = [
+        ("tech", "Technology and software development topics."),
+        ("philosophy", "Philosophy and existential questions."),
+        ("art", "Art, design, and creative expression."),
+        ("science", "Scientific methods and discoveries."),
+        ("history", "Historical events and contexts."),
+    ]
+
+    for i, (topic, desc) in enumerate(topics):
+        for j in range(3):
+            content = f"# {topic.title()} Note {j}\n\n{desc} " * 5
+            (vault_path / f"{topic}_{j}.md").write_text(content)
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Create 5 sessions with different semantic coverage
+    now = datetime.now()
+    session_dates = [
+        now - timedelta(days=120),  # 4 months ago
+        now - timedelta(days=90),  # 3 months ago
+        now - timedelta(days=60),  # 2 months ago
+        now - timedelta(days=30),  # 1 month ago
+        now,  # Today
+    ]
+
+    for session_date in session_dates:
+        session = Session(session_date, vault.db)
+        session.compute_embeddings(vault.all_notes())
+
+    session = Session(now, vault.db)
+
+    context = VaultContext(
+        vault=vault, session=session, seed=20240315, function_registry=FunctionRegistry()
+    )
+
+    suggestions = vocabulary_expansion.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    journal_notes = [note for note in vault.all_notes() if "geist journal" in note.path.lower()]
+    journal_titles = {note.title.lower() for note in journal_notes}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert note_ref.lower() not in journal_titles, (
+                f"Found journal note reference: {note_ref}"
+            )

@@ -273,3 +273,71 @@ def test_island_hopper_deterministic_with_seed(vault_with_clusters):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_island_hopper_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\nJournal content with potential clusters and connections."
+        )
+
+    # Create cluster A: AI hub with backlinks
+    (vault_path / "ai_hub.md").write_text(
+        "# AI Hub\n\nCentral hub for artificial intelligence topics."
+    )
+    (vault_path / "neural_networks.md").write_text(
+        "# Neural Networks\n\nDeep learning networks. See [[ai_hub]]."
+    )
+    (vault_path / "machine_learning.md").write_text(
+        "# Machine Learning\n\nLearning algorithms. See [[ai_hub]]."
+    )
+
+    # Create cluster B: Cognition hub with backlinks
+    (vault_path / "cognition_hub.md").write_text(
+        "# Cognition Hub\n\nCentral hub for cognitive science topics."
+    )
+    (vault_path / "thinking.md").write_text(
+        "# Thinking\n\nCognitive processes. See [[cognition_hub]]."
+    )
+    (vault_path / "reasoning.md").write_text(
+        "# Reasoning\n\nLogical reasoning. See [[cognition_hub]]."
+    )
+
+    # Create bridge notes
+    (vault_path / "artificial_intelligence.md").write_text(
+        "# Artificial Intelligence\n\n"
+        "Intelligent systems using neural networks and machine learning."
+    )
+
+    # Add additional notes
+    for i in range(5):
+        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = island_hopper.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

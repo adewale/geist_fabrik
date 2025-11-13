@@ -269,3 +269,56 @@ def test_complexity_mismatch_deterministic_with_seed(vault_with_complexity_misma
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+@pytest.mark.xfail(reason="Geist needs to be updated to exclude journal notes - see #TBD")
+def test_complexity_mismatch_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    # Create journal notes with complexity mismatches (high links, low words)
+    for i in range(5):
+        links = " ".join([f"[[note_{j}]]" for j in range(10)])
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\nShort note. {links}"
+        )
+
+    # Create regular notes with complexity mismatches
+    # Underdeveloped notes (high links, low words)
+    for i in range(5):
+        links = " ".join([f"[[important_{j}]]" for j in range(5) if j != i])
+        (vault_path / f"important_{i}.md").write_text(
+            f"# Important Note {i}\n\nShort note. {links}"
+        )
+
+    # Overcomplicated notes (high words, low links)
+    for i in range(5):
+        long_content = " ".join([f"Word{j}" for j in range(500)])
+        (vault_path / f"isolated_{i}.md").write_text(f"# Isolated Note {i}\n\n{long_content}")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault, session=session, seed=20240315, function_registry=FunctionRegistry()
+    )
+
+    suggestions = complexity_mismatch.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    journal_notes = [note for note in vault.all_notes() if "geist journal" in note.path.lower()]
+    journal_titles = {note.title.lower() for note in journal_notes}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert note_ref.lower() not in journal_titles, (
+                f"Found journal note reference: {note_ref}"
+            )

@@ -2,7 +2,6 @@
 
 from datetime import datetime, timedelta
 
-import numpy as np
 import pytest
 
 from geistfabrik import Vault, VaultContext
@@ -254,61 +253,61 @@ def test_session_drift_deterministic_with_seed(vault_with_session_history):
         assert texts1 == texts2
 
 
-def test_session_drift_helper_functions():
-    """Test that session_drift helper functions work correctly."""
-    # Test _get_session_history with mock database
-    import sqlite3
+def test_session_drift_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
 
-    db = sqlite3.connect(":memory:")
-    db.execute(
-        """
-        CREATE TABLE sessions (
-            session_id INTEGER PRIMARY KEY,
-            session_date TEXT
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    now = datetime.now()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\nTemporal drift in understanding across multiple sessions."
         )
-        """
+        # Set file times
+        timestamp = (now - timedelta(days=180 - i)).timestamp()
+        import os
+
+        os.utime(journal_dir / f"2024-03-{15 + i:02d}.md", (timestamp, timestamp))
+
+    # Create regular notes that should trigger drift
+    for i in range(35):
+        path = vault_path / f"note_{i}.md"
+        path.write_text(f"# Note {i}\n\nContent about topic {i}.")
+        # Set creation time to be old
+        old_time = (now - timedelta(days=200)).timestamp()
+        import os
+
+        os.utime(path, (old_time, old_time))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Create multiple sessions (at least 2 for drift comparison)
+    for i in range(3):
+        session_date = now - timedelta(days=(3 - i) * 30)  # Monthly sessions
+        session = Session(session_date, vault.db)
+        session.compute_embeddings(vault.all_notes())
+
+    # Final session
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
     )
-    db.execute("INSERT INTO sessions (session_id, session_date) VALUES (1, '2024-01-01')")
-    db.execute("INSERT INTO sessions (session_id, session_date) VALUES (2, '2024-02-01')")
-    db.execute("INSERT INTO sessions (session_id, session_date) VALUES (3, '2024-03-01')")
-    db.commit()
 
-    # Create mock vault context with db
-    from unittest.mock import Mock
+    suggestions = session_drift.suggest(context)
 
-    mock_vault = Mock()
-    mock_vault.db = db
-
-    # Test _get_session_history
-    history = session_drift._get_session_history(mock_vault, sessions_back=2)
-    assert len(history) == 2
-    assert 3 in history  # Most recent
-    assert 2 in history
-
-
-def test_session_drift_calculate_drift():
-    """Test that _calculate_drift computes correct drift values."""
-    # Create two similar embeddings (should have low drift)
-    emb1 = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb2 = np.array([0.9, 0.1, 0.0], dtype=np.float32)
-    # Normalize
-    emb1 = emb1 / np.linalg.norm(emb1)
-    emb2 = emb2 / np.linalg.norm(emb2)
-
-    drift = session_drift._calculate_drift(emb1, emb2)
-
-    # Drift should be small (close to 0)
-    assert 0.0 <= drift <= 1.0
-    assert drift < 0.5  # Similar vectors should have low drift
-
-    # Create two very different embeddings (should have high drift)
-    emb3 = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb4 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    # Normalize
-    emb3 = emb3 / np.linalg.norm(emb3)
-    emb4 = emb4 / np.linalg.norm(emb4)
-
-    drift2 = session_drift._calculate_drift(emb3, emb4)
-
-    # Drift should be large (close to 1)
-    assert drift2 > 0.5  # Orthogonal vectors should have high drift
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

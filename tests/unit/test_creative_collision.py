@@ -307,3 +307,56 @@ def test_creative_collision_suggests_unlinked_pairs(vault_with_diverse_notes):
         # Text should suggest combining ideas
         assert "combined" in suggestion.text.lower() or "combine" in suggestion.text.lower()
         assert "different domains" in suggestion.text.lower()
+
+
+def test_creative_collision_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    from datetime import datetime
+
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with sessions
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
+        journal_note.write_text(
+            f"# Session {i}\n\n"
+            "## Suggestions\n\n"
+            "What if Physics and Music combined created new insights?\n\n"
+            "Different domains colliding might reveal unexpected patterns."
+        )
+
+    # Create regular notes from different domains
+    domains = {
+        "Science": ["Physics", "Biology", "Chemistry"],
+        "Art": ["Painting", "Music", "Dance"],
+    }
+
+    for domain, topics in domains.items():
+        for topic in topics:
+            path = vault_path / f"{domain}_{topic}.md"
+            path.write_text(f"# {topic}\n\nContent about {topic.lower()} in {domain.lower()}.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creative_collision.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern

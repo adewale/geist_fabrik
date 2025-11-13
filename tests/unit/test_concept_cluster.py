@@ -258,3 +258,63 @@ def test_concept_cluster_deterministic_with_seed(vault_with_concept_clusters):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_concept_cluster_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with tightly clustered content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n"
+            f"Python testing frameworks: pytest, unittest, fixtures, mocking, "
+            f"assertions, test discovery, parametrization, coverage analysis."
+        )
+
+    # Create regular notes with tightly related groups
+    # Create a tight cluster of Python testing notes
+    for i in range(8):
+        (vault_path / f"testing_{i}.md").write_text(
+            f"# Testing Note {i}\n\n"
+            f"Python testing frameworks: pytest, unittest, fixtures, mocking, "
+            f"assertions, test discovery, parametrization, coverage analysis."
+        )
+
+    # Create a tight cluster of React hooks notes
+    for i in range(8):
+        (vault_path / f"hooks_{i}.md").write_text(
+            f"# Hooks Note {i}\n\n"
+            f"React hooks patterns: useState, useEffect, useContext, useReducer, "
+            f"custom hooks, dependency arrays, hook rules, optimization."
+        )
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = concept_cluster.suggest(context)
+
+    # Get all journal note titles to check against
+    journal_notes = [n for n in vault.all_notes() if "geist journal" in n.path.lower()]
+    journal_titles = {n.title for n in journal_notes}
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert note_ref not in journal_titles, (
+                f"Geist journal note '{note_ref}' was included in suggestions. "
+                f"Expected only non-journal notes."
+            )

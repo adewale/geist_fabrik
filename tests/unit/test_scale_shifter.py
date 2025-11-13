@@ -262,3 +262,71 @@ def test_scale_shifter_deterministic_with_seed(vault_with_scale_variety):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_scale_shifter_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with abstract content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n"
+            f"This explores theoretical frameworks and general principles. "
+            f"The concept provides a paradigm for understanding universal patterns."
+        )
+
+    # Create regular notes with scale variety
+    # Create abstract/theoretical notes
+    for i in range(10):
+        (vault_path / f"abstract_{i}.md").write_text(
+            f"# Abstract Theory {i}\n\n"
+            f"This note explores theoretical frameworks and general principles. "
+            f"The concept provides a paradigm for understanding universal patterns "
+            f"and abstract models that apply across categories and systems."
+        )
+
+    # Create concrete/specific notes
+    for i in range(10):
+        (vault_path / f"concrete_{i}.md").write_text(
+            f"# Concrete Example {i}\n\n"
+            f"This note describes a specific case study with practical details. "
+            f"The actual implementation shows real individual instances and "
+            f"tangible examples of particular situations."
+        )
+
+    # Create mixed notes to reach minimum
+    for i in range(5):
+        (vault_path / f"mixed_{i}.md").write_text(
+            f"# Mixed Note {i}\n\nSome general content and some specific details."
+        )
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = scale_shifter.suggest(context)
+
+    # Get all journal note titles to check against
+    journal_notes = [n for n in vault.all_notes() if "geist journal" in n.path.lower()]
+    journal_titles = {n.title for n in journal_notes}
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert note_ref not in journal_titles, (
+                f"Geist journal note '{note_ref}' was included in suggestions. "
+                f"Expected only non-journal notes."
+            )

@@ -1,5 +1,6 @@
 """Unit tests for recent_focus geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -45,8 +46,6 @@ def vault_with_recent_and_old_similar(tmp_path):
         path.write_text(f"# {topic}\n\nRecent content about {topic.lower()}.")
         path.touch()
         recent_time = (now - timedelta(days=i)).timestamp()
-        import os
-
         os.utime(path, (recent_time, recent_time))
 
     # Create old similar notes (>60 days old)
@@ -62,8 +61,6 @@ def vault_with_recent_and_old_similar(tmp_path):
         path.write_text(f"# {topic}\n\nOld content about {topic.lower()}.")
         path.touch()
         old_time = (old_date - timedelta(days=i * 5)).timestamp()
-        import os
-
         os.utime(path, (old_time, old_time))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -322,3 +319,73 @@ def test_recent_focus_connects_recent_to_old(vault_with_recent_and_old_similar):
         assert "recent" in text_lower or "work" in text_lower
         assert "older" in text_lower or "old" in text_lower
         assert "similar" in text_lower or "connect" in text_lower
+
+
+def test_recent_focus_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with session notes
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"""# Session {i}
+
+Recent focus on machine learning topics. Neural networks and deep learning.
+
+^g20240315-{i}"""
+        )
+
+    now = datetime.now()
+    old_date = now - timedelta(days=90)
+
+    # Create regular recent notes that should trigger suggestions
+    recent_topics = [
+        "Machine Learning",
+        "Neural Networks",
+        "Deep Learning",
+        "AI Ethics",
+        "Computer Vision",
+    ]
+    for i, topic in enumerate(recent_topics):
+        path = vault_path / f"recent_{topic.replace(' ', '_')}.md"
+        path.write_text(f"# {topic}\n\nRecent content about {topic.lower()}.")
+        recent_time = (now - timedelta(days=i)).timestamp()
+        os.utime(path, (recent_time, recent_time))
+
+    # Create old similar notes
+    old_topics = [
+        "Artificial Intelligence",
+        "Machine Learning History",
+        "Neural Net Theory",
+        "AI Safety",
+        "Image Recognition",
+    ]
+    for i, topic in enumerate(old_topics):
+        path = vault_path / f"old_{topic.replace(' ', '_')}.md"
+        path.write_text(f"# {topic}\n\nOld content about {topic.lower()}.")
+        old_time = (old_date - timedelta(days=i * 5)).timestamp()
+        os.utime(path, (old_time, old_time))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = recent_focus.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

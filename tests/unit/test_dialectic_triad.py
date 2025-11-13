@@ -310,3 +310,58 @@ def test_dialectic_triad_contains_dialectic_structure(vault_with_dialectic_pairs
         assert "thesis" in text_lower
         assert "antithesis" in text_lower
         assert "synthe" in text_lower  # "synthesize" or "synthesis"
+
+
+def test_dialectic_triad_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    from datetime import datetime
+
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with sessions
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
+        journal_note.write_text(
+            f"# Session {i}\n\n"
+            "## Suggestions\n\n"
+            "Consider how [[Optimism]] as thesis and [[Pessimism]] as antithesis "
+            "might synthesize.\n\n"
+            "The dialectic tension reveals new understanding."
+        )
+
+    # Create thesis notes
+    thesis_topics = ["Optimism", "Freedom", "Rationalism", "Individualism", "Progress"]
+    for topic in thesis_topics:
+        path = vault_path / f"thesis_{topic}.md"
+        path.write_text(f"# {topic}\n\nContent about {topic.lower()}.")
+
+    # Create antithesis notes
+    antithesis_topics = ["Pessimism", "Determinism", "Empiricism", "Collectivism", "Tradition"]
+    for topic in antithesis_topics:
+        path = vault_path / f"antithesis_{topic}.md"
+        path.write_text(f"# {topic}\n\nContent about {topic.lower()}.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = dialectic_triad.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern

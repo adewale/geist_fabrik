@@ -293,3 +293,54 @@ def test_concept_drift_tracks_semantic_migration(tmp_path):
     # Should return list (may or may not find drift depending on embeddings)
     assert isinstance(suggestions, list)
     assert len(suggestions) <= 2
+
+
+def test_concept_drift_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\nJournal content that evolves over time."
+        )
+
+    # Create note that will show drift
+    (vault_path / "drifting.md").write_text("# Drifting\n\nOriginal content.")
+
+    # Create stable notes
+    for i in range(30):
+        (vault_path / f"stable_{i}.md").write_text(f"# Stable {i}\n\nStable content {i}.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Create 5 sessions
+    now = datetime.now()
+    for i in range(5):
+        session_date = now - timedelta(days=(5 - i) * 30)
+        session = Session(session_date, vault.db)
+        session.compute_embeddings(vault.all_notes())
+
+    # Get most recent session
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = concept_drift.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

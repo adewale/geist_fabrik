@@ -1,5 +1,6 @@
 """Unit tests for hermeneutic_instability geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -46,8 +47,6 @@ def vault_with_multiple_sessions(tmp_path):
 
     # Touch some files to make them old
     old_date = now - timedelta(days=90)
-    import os
-
     for i in range(10):
         path = vault_path / f"note_{i}.md"
         old_time = old_date.timestamp()
@@ -355,3 +354,67 @@ def test_hermeneutic_instability_handles_missing_embeddings(tmp_path):
 
     # Should not crash with missing embeddings
     assert isinstance(suggestions, list)
+
+
+def test_hermeneutic_instability_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with sessions
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
+        journal_note.write_text(
+            f"# Session {i}\n\n"
+            "## Suggestions\n\n"
+            "[[note_5]] has been interpreted differently across sessions "
+            "despite not being edited.\n\n"
+            "The hermeneutic instability suggests evolving understanding."
+        )
+
+    # Create regular notes
+    for i in range(20):
+        path = vault_path / f"note_{i}.md"
+        path.write_text(f"# Note {i}\n\nStable content {i}.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Create multiple sessions with embeddings
+    now = datetime.now()
+    for i in range(5):
+        session_date = now - timedelta(days=i * 10)
+        session = Session(session_date, vault.db)
+        session.compute_embeddings(vault.all_notes())
+
+    # Touch some files to make them old
+    old_date = now - timedelta(days=90)
+    for i in range(10):
+        path = vault_path / f"note_{i}.md"
+        old_time = old_date.timestamp()
+        os.utime(path, (old_time, old_time))
+
+    # Re-sync to update modification times
+    vault.sync()
+
+    # Create current session
+    current_session = Session(now, vault.db)
+    current_session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=current_session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = hermeneutic_instability.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern

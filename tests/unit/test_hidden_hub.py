@@ -272,3 +272,88 @@ def test_hidden_hub_deterministic_with_seed(vault_with_hidden_hubs):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_hidden_hub_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with semantically central content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n"
+            "Machine learning, neural networks, deep learning, algorithms, "
+            "cognition, reasoning, and intelligent systems."
+        )
+
+    # Create a semantically central note with few links (hidden hub candidate)
+    (vault_path / "artificial_intelligence.md").write_text(
+        "# Artificial Intelligence\n\nMachine learning, neural networks, deep learning, "
+        "algorithms, cognition, reasoning, and intelligent systems."
+    )
+
+    # Create many semantically related notes
+    topics = [
+        "machine_learning",
+        "neural_networks",
+        "deep_learning",
+        "algorithms",
+        "cognition",
+        "reasoning",
+        "intelligent_systems",
+        "pattern_recognition",
+        "data_science",
+        "computational_intelligence",
+        "artificial_neural_networks",
+        "supervised_learning",
+        "unsupervised_learning",
+        "reinforcement_learning",
+        "computer_vision",
+        "natural_language_processing",
+        "expert_systems",
+        "knowledge_representation",
+        "automated_reasoning",
+        "cognitive_computing",
+    ]
+
+    for topic in topics:
+        (vault_path / f"{topic}.md").write_text(
+            f"# {topic.replace('_', ' ').title()}\n\n"
+            f"Content about {topic.replace('_', ' ')} and artificial intelligence."
+        )
+
+    # Add some unrelated notes to reach minimum threshold
+    for i in range(10):
+        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content {i}.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = hidden_hub.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    # Build title-to-path mapping to check note paths
+    cursor = vault.db.execute("SELECT title, path FROM notes")
+    title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            # Look up path by title or use note_ref as path
+            note_path = title_to_path.get(note_ref, note_ref)
+            assert "geist journal" not in note_path.lower(), (
+                f"Geist journal note '{note_path}' was included in suggestions"
+            )

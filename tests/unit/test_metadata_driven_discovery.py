@@ -291,3 +291,81 @@ def test_metadata_driven_discovery_deterministic_with_seed(vault_with_metadata_p
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_metadata_driven_discovery_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    now = datetime.now()
+    old_date = now - timedelta(days=120)
+
+    # Create journal notes with metadata patterns (complex, old, with tasks)
+    for i in range(5):
+        content = f"""# Session {i}
+
+Exceptional vocabulary, remarkable insights, extraordinary perspectives,
+phenomenal analysis, outstanding clarity, magnificent structure.
+
+- [ ] Incomplete task 1
+- [ ] Incomplete task 2
+- [x] Completed task 1
+"""
+        path = journal_dir / f"2024-03-{15 + i:02d}.md"
+        path.write_text(content)
+        import os
+
+        old_time = (old_date - timedelta(days=i * 10)).timestamp()
+        os.utime(path, (old_time, old_time))
+
+    # Create regular notes with metadata patterns
+    # Complex but isolated notes
+    for i in range(5):
+        content = f"""# Complex Isolated {i}
+
+This note contains sophisticated terminology, elaborate explanations,
+multifaceted perspectives, comprehensive analysis, nuanced distinctions."""
+        (vault_path / f"complex_{i}.md").write_text(content)
+
+    # Buried gems (high diversity, old)
+    for i in range(5):
+        content = f"""# Buried Gem {i}
+
+Exceptional vocabulary, remarkable insights, extraordinary perspectives."""
+        path = vault_path / f"buried_{i}.md"
+        path.write_text(content)
+        import os
+
+        old_time = (old_date - timedelta(days=i * 5)).timestamp()
+        os.utime(path, (old_time, old_time))
+
+    # Regular notes to reach minimum
+    for i in range(10):
+        (vault_path / f"regular_{i}.md").write_text(f"# Regular {i}\n\nRegular content.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault, session=session, seed=20240315, function_registry=FunctionRegistry()
+    )
+
+    suggestions = metadata_driven_discovery.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    journal_notes = [note for note in vault.all_notes() if "geist journal" in note.path.lower()]
+    journal_titles = {note.title.lower() for note in journal_notes}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert note_ref.lower() not in journal_titles, (
+                f"Found journal note reference: {note_ref}"
+            )

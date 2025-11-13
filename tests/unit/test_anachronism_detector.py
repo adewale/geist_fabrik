@@ -1,5 +1,6 @@
 """Unit tests for anachronism_detector geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -40,8 +41,6 @@ def vault_with_temporal_notes(tmp_path):
         path.touch()
         # Set mtime to simulate old creation
         old_time = (old_date - timedelta(days=i * 10)).timestamp()
-        import os
-
         os.utime(path, (old_time, old_time))
 
     # Create recent notes (last 90 days)
@@ -50,8 +49,6 @@ def vault_with_temporal_notes(tmp_path):
         path.write_text(f"# Recent Note {i}\n\nContent about modern topic {i}.")
         path.touch()
         recent_time = (recent_date + timedelta(days=i)).timestamp()
-        import os
-
         os.utime(path, (recent_time, recent_time))
 
     # Create middle-aged notes (6 months ago) to get >30 total
@@ -61,8 +58,6 @@ def vault_with_temporal_notes(tmp_path):
         path.write_text(f"# Middle Note {i}\n\nContent about intermediate topic {i}.")
         path.touch()
         mid_time = (mid_date + timedelta(days=i * 5)).timestamp()
-        import os
-
         os.utime(path, (mid_time, mid_time))
 
     vault = Vault(str(vault_path), ":memory:")
@@ -299,3 +294,73 @@ def test_anachronism_detector_deterministic_with_seed(vault_with_temporal_notes)
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_anachronism_detector_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with old-looking content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    now = datetime.now()
+    old_date = now - timedelta(days=400)
+
+    for i in range(5):
+        path = journal_dir / f"2024-03-{15 + i:02d}.md"
+        path.write_text(
+            f"# Session {i}\n\n"
+            f"Old journal content from the past. "
+            f"This should not be detected as anachronism."
+        )
+        path.touch()
+        os.utime(path, (old_date.timestamp(), old_date.timestamp()))
+
+    # Create regular old notes
+    for i in range(10):
+        path = vault_path / f"old_{i}.md"
+        path.write_text(f"# Old Note {i}\n\nContent about vintage topic {i}.")
+        path.touch()
+        old_time = (old_date - timedelta(days=i * 10)).timestamp()
+        os.utime(path, (old_time, old_time))
+
+    # Create regular recent notes
+    recent_date = now - timedelta(days=30)
+    for i in range(10):
+        path = vault_path / f"recent_{i}.md"
+        path.write_text(f"# Recent Note {i}\n\nContent about modern topic {i}.")
+        path.touch()
+        recent_time = (recent_date + timedelta(days=i)).timestamp()
+        os.utime(path, (recent_time, recent_time))
+
+    # Create middle-aged notes to reach minimum
+    mid_date = now - timedelta(days=180)
+    for i in range(12):
+        path = vault_path / f"middle_{i}.md"
+        path.write_text(f"# Middle Note {i}\n\nContent about intermediate topic {i}.")
+        path.touch()
+        mid_time = (mid_date + timedelta(days=i * 5)).timestamp()
+        os.utime(path, (mid_time, mid_time))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = anachronism_detector.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()

@@ -282,3 +282,74 @@ def test_bridge_builder_deterministic_with_seed(vault_with_hubs):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_bridge_builder_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with hub-like structure
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\n[[ai_topic]] [[ml_topic]] [[dl_topic]]"
+        )
+
+    # Create hub A (index note) with several links
+    (vault_path / "ai_hub.md").write_text(
+        """# AI Hub
+
+This is a hub for AI topics.
+
+[[neural_networks]]
+[[machine_learning]]
+[[algorithms]]
+"""
+    )
+
+    # Create notes linked to hub A
+    (vault_path / "neural_networks.md").write_text(
+        "# Neural Networks\n\nDeep learning with neural networks."
+    )
+    (vault_path / "machine_learning.md").write_text("# Machine Learning\n\nLearning from data.")
+    (vault_path / "algorithms.md").write_text("# Algorithms\n\nComputational algorithms.")
+
+    # Create a semantically related note to hub A but not linked
+    (vault_path / "deep_learning.md").write_text(
+        "# Deep Learning\n\nNeural networks, machine learning, and artificial intelligence."
+    )
+
+    # Add some unrelated notes
+    for i in range(10):
+        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content {i}.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = bridge_builder.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    # Build title-to-path mapping to check note paths
+    cursor = vault.db.execute("SELECT title, path FROM notes")
+    title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            # Look up path by title or use note_ref as path
+            note_path = title_to_path.get(note_ref, note_ref)
+            assert "geist journal" not in note_path.lower(), (
+                f"Geist journal note '{note_path}' was included in suggestions"
+            )

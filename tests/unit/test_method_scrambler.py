@@ -346,3 +346,64 @@ def test_method_scrambler_deterministic_with_seed(vault_with_linked_notes):
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_method_scrambler_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with linked content
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"""# Session {i}
+
+Links to [[target{i}]] and [[target{(i + 1) % 3}]].
+
+^g20240315-{i}"""
+        )
+
+    # Create target notes
+    (vault_path / "target1.md").write_text("# Target 1\n\nContent.")
+    (vault_path / "target2.md").write_text("# Target 2\n\nContent.")
+    (vault_path / "target3.md").write_text("# Target 3\n\nContent.")
+
+    # Create source notes with links
+    (vault_path / "source1.md").write_text("# Source 1\n\nLinks to [[target1]] and [[target2]].")
+    (vault_path / "source2.md").write_text("# Source 2\n\nLinks to [[target3]] and [[target1]].")
+
+    # Add more notes to reach minimum
+    for i in range(8):
+        (vault_path / f"filler_{i}.md").write_text(f"# Filler {i}\n\nContent.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = method_scrambler.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    # Note: This test reveals that method_scrambler does NOT currently
+    # filter geist journal notes, which is a bug that should be fixed.
+    all_notes = vault.all_notes()
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            # Check that the referenced note is not from geist journal
+            # The note_ref is an obsidian_link (title), so we need to find
+            # the actual note to check its path
+            matching_notes = [n for n in all_notes if n.obsidian_link == note_ref]
+            for note in matching_notes:
+                assert not note.path.startswith("geist journal/"), (
+                    f"geist should exclude geist journal notes, but found: {note.path}"
+                )

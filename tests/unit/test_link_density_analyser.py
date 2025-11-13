@@ -307,3 +307,54 @@ def test_link_density_analyser_deterministic_with_seed(vault_with_link_density_i
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+@pytest.mark.xfail(reason="Geist needs to be updated to exclude journal notes - see #TBD")
+def test_link_density_analyser_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    # Create journal notes with link density issues (too many links)
+    for i in range(5):
+        words = " ".join([f"word{j}" for j in range(100)])
+        links = " ".join([f"[[link_{j}]]" for j in range(10)])
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(f"# Session {i}\n\n{words} {links}")
+
+    # Create regular notes with link density issues
+    # Too many links
+    for i in range(5):
+        words = " ".join([f"word{j}" for j in range(100)])
+        links = " ".join([f"[[link_{j}]]" for j in range(10)])
+        (vault_path / f"dense_{i}.md").write_text(f"# Dense Note {i}\n\n{words} {links}")
+
+    # Too few links
+    for i in range(5):
+        words = " ".join([f"word{j}" for j in range(300)])
+        (vault_path / f"sparse_{i}.md").write_text(f"# Sparse Note {i}\n\n{words} [[single_link]]")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault, session=session, seed=20240315, function_registry=FunctionRegistry()
+    )
+
+    suggestions = link_density_analyser.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    journal_notes = [note for note in vault.all_notes() if "geist journal" in note.path.lower()]
+    journal_titles = {note.title.lower() for note in journal_notes}
+
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert note_ref.lower() not in journal_titles, (
+                f"Found journal note reference: {note_ref}"
+            )

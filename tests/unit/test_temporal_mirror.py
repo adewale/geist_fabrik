@@ -1,5 +1,6 @@
 """Unit tests for temporal_mirror geist."""
 
+import os
 from datetime import datetime, timedelta
 
 import pytest
@@ -37,47 +38,6 @@ def vault_with_temporal_notes(tmp_path):
         path = vault_path / f"note_{i}.md"
         path.write_text(f"# Note {i}\n\nContent from period {i}.")
         # Set file times to distribute across time
-        timestamp = date.timestamp()
-        import os
-
-        os.utime(path, (timestamp, timestamp))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_with_geist_journal(tmp_path):
-    """Create a vault with geist journal notes that should be excluded."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    now = datetime.now()
-
-    # Create regular notes
-    for i in range(25):
-        date = now - timedelta(days=i * 10)
-        path = vault_path / f"note_{i}.md"
-        path.write_text(f"# Note {i}\n\nContent.")
-        timestamp = date.timestamp()
-        import os
-
-        os.utime(path, (timestamp, timestamp))
-
-    # Create geist journal notes (should be excluded)
-    for i in range(10):
-        date = now - timedelta(days=i)
-        path = journal_dir / f"{date.strftime('%Y-%m-%d')}.md"
-        path.write_text(f"# Geist Journal {i}\n\nSuggestions.")
         timestamp = date.timestamp()
         os.utime(path, (timestamp, timestamp))
 
@@ -236,9 +196,40 @@ def test_temporal_mirror_insufficient_notes(vault_insufficient_notes):
     assert len(suggestions) == 0
 
 
-def test_temporal_mirror_excludes_geist_journal(vault_with_geist_journal):
-    """Test that temporal_mirror excludes geist journal notes."""
-    vault, session = vault_with_geist_journal
+def test_temporal_mirror_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    now = datetime.now()
+
+    for i in range(5):
+        date = now - timedelta(days=i)
+        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
+            f"# Session {i}\n\nTemporal mirroring patterns across different periods."
+        )
+        # Set file times
+        timestamp = (now - timedelta(days=i * 75)).timestamp()
+        os.utime(journal_dir / f"2024-03-{15 + i:02d}.md", (timestamp, timestamp))
+
+    # Create regular notes spread across time periods (2 years)
+    for i in range(50):
+        date = now - timedelta(days=i * 15)  # Every 15 days
+        path = vault_path / f"note_{i}.md"
+        path.write_text(f"# Note {i}\n\nContent from period {i}.")
+        # Set file times to distribute across time
+        timestamp = date.timestamp()
+        os.utime(path, (timestamp, timestamp))
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(now, vault.db)
+    session.compute_embeddings(vault.all_notes())
 
     context = VaultContext(
         vault=vault,
@@ -249,13 +240,11 @@ def test_temporal_mirror_excludes_geist_journal(vault_with_geist_journal):
 
     suggestions = temporal_mirror.suggest(context)
 
-    # Should return suggestions
-    assert isinstance(suggestions, list)
-
+    # Verify no suggestions reference geist journal notes
     for suggestion in suggestions:
-        # Check that no geist journal notes are referenced
         for note_ref in suggestion.notes:
             assert "geist journal" not in note_ref.lower()
+            assert "session" not in note_ref.lower()
 
 
 def test_temporal_mirror_deterministic_with_seed(vault_with_temporal_notes):

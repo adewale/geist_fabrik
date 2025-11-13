@@ -308,3 +308,60 @@ def test_question_generator_deterministic_with_seed(vault_with_declarative_notes
         texts1 = [s.text for s in suggestions1]
         texts2 = [s.text for s in suggestions2]
         assert texts1 == texts2
+
+
+def test_question_generator_excludes_geist_journal(tmp_path):
+    """Test that geist journal notes are excluded from suggestions."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create geist journal directory with sessions
+    journal_dir = vault_path / "geist journal"
+    journal_dir.mkdir()
+
+    for i in range(5):
+        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
+        # Give journal notes substantial declarative content
+        declarative_content = "This is a declarative statement about the session. " * 15
+        journal_note.write_text(
+            f"# Session {i}\n\n"
+            f"{declarative_content}\n\n"
+            "## Suggestions\n\n"
+            "What if [[Technology Adoption]] asked different questions?\n\n"
+            "Reframing as questions reveals new perspectives."
+        )
+
+    # Create declarative notes with substantial content (>50 words)
+    declarative_content = "This is a declarative statement about a topic. " * 10  # ~80 words
+
+    declarative_notes = [
+        "Technology Adoption",
+        "Market Dynamics",
+        "Learning Process",
+        "Innovation Patterns",
+        "Social Behavior",
+    ]
+
+    for title in declarative_notes:
+        (vault_path / f"{title}.md").write_text(f"# {title}\n\n{declarative_content}")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime.now(), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = question_generator.suggest(context)
+
+    # Verify no suggestions reference geist journal notes
+    for suggestion in suggestions:
+        for note_ref in suggestion.notes:
+            assert "geist journal" not in note_ref.lower()
+            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern
