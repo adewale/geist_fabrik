@@ -81,7 +81,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_complexity_mismatch_returns_suggestions(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch returns suggestions with mismatches."""
+    """Test that complexity_mismatch returns suggestions with mismatches.
+
+    Setup:
+        Vault with varying note complexity levels.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_complexity_mismatches
 
     context = VaultContext(
@@ -99,7 +105,14 @@ def test_complexity_mismatch_returns_suggestions(vault_with_complexity_mismatche
 
 
 def test_complexity_mismatch_suggestion_structure(vault_with_complexity_mismatches):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with simple and complex notes.
+
+    Verifies:
+        - Has required fields
+        - References 2 notes with complexity mismatch"""
     vault, session = vault_with_complexity_mismatches
 
     context = VaultContext(
@@ -138,7 +151,13 @@ def test_complexity_mismatch_suggestion_structure(vault_with_complexity_mismatch
 
 
 def test_complexity_mismatch_uses_obsidian_link(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch uses obsidian_link for note references."""
+    """Test that complexity_mismatch uses obsidian_link for note references.
+
+    Setup:
+        Vault with varying complexity.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_complexity_mismatches
 
     context = VaultContext(
@@ -166,7 +185,13 @@ def test_complexity_mismatch_uses_obsidian_link(vault_with_complexity_mismatches
 
 
 def test_complexity_mismatch_empty_vault(tmp_path):
-    """Test that complexity_mismatch handles empty vault gracefully."""
+    """Test that complexity_mismatch handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -221,7 +246,13 @@ def test_complexity_mismatch_balanced_vault(tmp_path):
 
 
 def test_complexity_mismatch_max_suggestions(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch never returns more than 3 suggestions."""
+    """Test that complexity_mismatch never returns more than 3 suggestions.
+
+    Setup:
+        Vault with varying complexity.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_complexity_mismatches
 
     context = VaultContext(
@@ -238,7 +269,13 @@ def test_complexity_mismatch_max_suggestions(vault_with_complexity_mismatches):
 
 
 def test_complexity_mismatch_deterministic_with_seed(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch returns same results with same seed."""
+    """Test that complexity_mismatch returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_complexity_mismatches
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -273,7 +310,13 @@ def test_complexity_mismatch_deterministic_with_seed(vault_with_complexity_misma
 
 @pytest.mark.xfail(reason="Geist needs to be updated to exclude journal notes - see #TBD")
 def test_complexity_mismatch_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

@@ -112,7 +112,14 @@ def vault_insufficient_hubs(tmp_path):
 
 
 def test_bridge_builder_returns_suggestions(vault_with_hubs):
-    """Test that bridge_builder returns suggestions with hub structure."""
+    """Test that bridge_builder returns suggestions with hub structure.
+
+    Setup:
+        Vault with hub structure (AI Hub, Cognitive Hub).
+
+    Verifies:
+        - Returns suggestions (max 3)
+        - Involves hub notes"""
     vault, session = vault_with_hubs
 
     context = VaultContext(
@@ -141,7 +148,16 @@ def test_bridge_builder_returns_suggestions(vault_with_hubs):
 
 
 def test_bridge_builder_suggestion_structure(vault_with_hubs):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with hubs and potential bridges.
+
+    Verifies:
+        - Has required fields
+        - References 2 notes (hub + potential bridge)
+        - Notes have >0.6 similarity
+        - Notes are NOT linked"""
     vault, session = vault_with_hubs
 
     context = VaultContext(
@@ -196,7 +212,13 @@ def test_bridge_builder_suggestion_structure(vault_with_hubs):
 
 
 def test_bridge_builder_uses_obsidian_link(vault_with_hubs):
-    """Test that bridge_builder uses obsidian_link for note references."""
+    """Test that bridge_builder uses obsidian_link for note references.
+
+    Setup:
+        Vault with hub structure.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_hubs
 
     context = VaultContext(
@@ -226,7 +248,13 @@ def test_bridge_builder_suggests_semantically_related_notes(vault_with_hubs):
     - cognition.md: Semantically similar to cognitive_hub but NOT linked
 
     This test verifies the geist detects these semantic relationships.
-    """
+
+
+    Setup:
+        Vault with Deep Learning + Cognition (unlinked but similar).
+
+    Verifies:
+        - Detects semantic pairs from fixture"""
     vault, session = vault_with_hubs
 
     context = VaultContext(
@@ -267,7 +295,13 @@ def test_bridge_builder_suggests_semantically_related_notes(vault_with_hubs):
 
 
 def test_bridge_builder_empty_vault(tmp_path):
-    """Test that bridge_builder handles empty vault gracefully."""
+    """Test that bridge_builder handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -292,7 +326,13 @@ def test_bridge_builder_empty_vault(tmp_path):
 
 
 def test_bridge_builder_insufficient_hubs(vault_insufficient_hubs):
-    """Test that bridge_builder handles vaults without clear hub structure."""
+    """Test that bridge_builder handles vaults without clear hub structure.
+
+    Setup:
+        Vault without clear hub structure.
+
+    Verifies:
+        - Returns few/no suggestions"""
     vault, session = vault_insufficient_hubs
 
     context = VaultContext(
@@ -310,7 +350,13 @@ def test_bridge_builder_insufficient_hubs(vault_insufficient_hubs):
 
 
 def test_bridge_builder_max_suggestions(vault_with_hubs):
-    """Test that bridge_builder never returns more than 3 suggestions."""
+    """Test that bridge_builder never returns more than 3 suggestions.
+
+    Setup:
+        Vault with hub structure.
+
+    Verifies:
+        - Returns at most 3"""
     vault, session = vault_with_hubs
 
     context = VaultContext(
@@ -327,7 +373,13 @@ def test_bridge_builder_max_suggestions(vault_with_hubs):
 
 
 def test_bridge_builder_deterministic_with_seed(vault_with_hubs):
-    """Test that bridge_builder returns same results with same seed."""
+    """Test that bridge_builder returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_hubs
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -361,7 +413,13 @@ def test_bridge_builder_deterministic_with_seed(vault_with_hubs):
 
 
 def test_bridge_builder_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

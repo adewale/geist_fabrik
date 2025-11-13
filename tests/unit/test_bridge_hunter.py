@@ -100,7 +100,13 @@ def vault_insufficient_pairs(tmp_path):
 
 
 def test_bridge_hunter_returns_suggestions(vault_with_unlinked_pairs):
-    """Test that bridge_hunter returns suggestions with unlinked pairs."""
+    """Test that bridge_hunter returns suggestions with unlinked pairs.
+
+    Setup:
+        Vault with connected note clusters.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_unlinked_pairs
 
     context = VaultContext(
@@ -118,7 +124,14 @@ def test_bridge_hunter_returns_suggestions(vault_with_unlinked_pairs):
 
 
 def test_bridge_hunter_suggestion_structure(vault_with_unlinked_pairs):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with note clusters.
+
+    Verifies:
+        - Has required fields
+        - References 3+ notes (bridge path)"""
     vault, session = vault_with_unlinked_pairs
 
     context = VaultContext(
@@ -151,7 +164,13 @@ def test_bridge_hunter_suggestion_structure(vault_with_unlinked_pairs):
 
 
 def test_bridge_hunter_uses_obsidian_link(vault_with_unlinked_pairs):
-    """Test that bridge_hunter uses obsidian_link for note references."""
+    """Test that bridge_hunter uses obsidian_link for note references.
+
+    Setup:
+        Vault with note clusters.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_unlinked_pairs
 
     context = VaultContext(
@@ -179,7 +198,13 @@ def test_bridge_hunter_uses_obsidian_link(vault_with_unlinked_pairs):
 
 
 def test_bridge_hunter_empty_vault(tmp_path):
-    """Test that bridge_hunter handles empty vault gracefully."""
+    """Test that bridge_hunter handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -221,7 +246,13 @@ def test_bridge_hunter_insufficient_pairs(vault_insufficient_pairs):
 
 
 def test_bridge_hunter_max_suggestions(vault_with_unlinked_pairs):
-    """Test that bridge_hunter never returns more than 2 suggestions."""
+    """Test that bridge_hunter never returns more than 2 suggestions.
+
+    Setup:
+        Vault with multiple clusters.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_unlinked_pairs
 
     context = VaultContext(
@@ -238,7 +269,13 @@ def test_bridge_hunter_max_suggestions(vault_with_unlinked_pairs):
 
 
 def test_bridge_hunter_deterministic_with_seed(vault_with_unlinked_pairs):
-    """Test that bridge_hunter returns same results with same seed."""
+    """Test that bridge_hunter returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_unlinked_pairs
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -272,7 +309,13 @@ def test_bridge_hunter_deterministic_with_seed(vault_with_unlinked_pairs):
 
 
 def test_bridge_hunter_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

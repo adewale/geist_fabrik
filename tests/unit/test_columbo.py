@@ -102,7 +102,13 @@ def vault_without_contradictions(tmp_path):
 
 
 def test_columbo_returns_suggestions(vault_with_contradictions):
-    """Test that columbo returns suggestions when contradictions exist."""
+    """Test that columbo returns suggestions when contradictions exist.
+
+    Setup:
+        Vault with isolated notes (low link density).
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_contradictions
 
     context = VaultContext(
@@ -120,7 +126,14 @@ def test_columbo_returns_suggestions(vault_with_contradictions):
 
 
 def test_columbo_suggestion_structure(vault_with_contradictions):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with isolated notes.
+
+    Verifies:
+        - Has required fields
+        - References 1 isolated note"""
     vault, session = vault_with_contradictions
 
     context = VaultContext(
@@ -156,7 +169,13 @@ def test_columbo_suggestion_structure(vault_with_contradictions):
 
 
 def test_columbo_uses_obsidian_link(vault_with_contradictions):
-    """Test that columbo uses obsidian_link for note references."""
+    """Test that columbo uses obsidian_link for note references.
+
+    Setup:
+        Vault with isolated notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_contradictions
 
     context = VaultContext(
@@ -185,7 +204,13 @@ def test_columbo_uses_obsidian_link(vault_with_contradictions):
 
 
 def test_columbo_empty_vault(tmp_path):
-    """Test that columbo handles empty vault gracefully."""
+    """Test that columbo handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -210,7 +235,13 @@ def test_columbo_empty_vault(tmp_path):
 
 
 def test_columbo_insufficient_notes(tmp_path):
-    """Test that columbo handles insufficient notes gracefully."""
+    """Test that columbo handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 10 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -339,7 +370,13 @@ Testing is essential for every project.
 
 
 def test_columbo_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from analysis."""
+    """Test that geist journal notes are excluded from analysis.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -406,7 +443,13 @@ def test_columbo_max_three_suggestions(vault_with_contradictions):
 
 
 def test_columbo_deterministic_with_seed(vault_with_contradictions):
-    """Test that columbo returns same results with same seed."""
+    """Test that columbo returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_contradictions
 
     # Reuse same FunctionRegistry to avoid duplicate registration

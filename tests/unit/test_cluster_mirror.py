@@ -87,7 +87,13 @@ def vault_insufficient_clusters(tmp_path):
 
 
 def test_cluster_mirror_returns_suggestions(vault_with_clusters):
-    """Test that cluster_mirror returns suggestions with clusterable notes."""
+    """Test that cluster_mirror returns suggestions with clusterable notes.
+
+    Setup:
+        Vault with semantic note clusters.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_clusters
 
     context = VaultContext(
@@ -105,7 +111,14 @@ def test_cluster_mirror_returns_suggestions(vault_with_clusters):
 
 
 def test_cluster_mirror_suggestion_structure(vault_with_clusters):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with note clusters.
+
+    Verifies:
+        - Has required fields
+        - References 3+ clustered notes"""
     vault, session = vault_with_clusters
 
     context = VaultContext(
@@ -141,7 +154,13 @@ def test_cluster_mirror_suggestion_structure(vault_with_clusters):
 
 
 def test_cluster_mirror_uses_obsidian_link(vault_with_clusters):
-    """Test that cluster_mirror uses obsidian_link for note references."""
+    """Test that cluster_mirror uses obsidian_link for note references.
+
+    Setup:
+        Vault with note clusters.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_clusters
 
     context = VaultContext(
@@ -194,7 +213,13 @@ def test_cluster_mirror_shows_multiple_clusters(vault_with_clusters):
 
 
 def test_cluster_mirror_empty_vault(tmp_path):
-    """Test that cluster_mirror handles empty vault gracefully."""
+    """Test that cluster_mirror handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -236,7 +261,13 @@ def test_cluster_mirror_insufficient_clusters(vault_insufficient_clusters):
 
 
 def test_cluster_mirror_deterministic_with_seed(vault_with_clusters):
-    """Test that cluster_mirror returns same results with same seed."""
+    """Test that cluster_mirror returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_clusters
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -270,7 +301,13 @@ def test_cluster_mirror_deterministic_with_seed(vault_with_clusters):
 
 
 def test_cluster_mirror_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

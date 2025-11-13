@@ -128,7 +128,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_assumption_challenger_returns_suggestions(vault_with_assumptions):
-    """Test that assumption_challenger returns suggestions with assumption notes."""
+    """Test that assumption_challenger returns suggestions with assumption notes.
+
+    Setup:
+        Vault with notes containing assumption indicators.
+
+    Verifies:
+        - Returns list of suggestions (max 2)"""
     vault, session = vault_with_assumptions
 
     context = VaultContext(
@@ -146,7 +152,14 @@ def test_assumption_challenger_returns_suggestions(vault_with_assumptions):
 
 
 def test_assumption_challenger_suggestion_structure(vault_with_assumptions):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with notes containing assumption indicators.
+
+    Verifies:
+        - Suggestion has required fields
+        - References exactly 1 note with assumptions"""
     vault, session = vault_with_assumptions
 
     context = VaultContext(
@@ -179,7 +192,14 @@ def test_assumption_challenger_suggestion_structure(vault_with_assumptions):
 
 
 def test_assumption_challenger_uses_obsidian_link(vault_with_assumptions):
-    """Test that assumption_challenger uses obsidian_link for note references."""
+    """Test that assumption_challenger uses obsidian_link for note references.
+
+    Setup:
+        Vault with notes containing assumption indicators.
+
+    Verifies:
+        - Uses [[wiki-link]] format in text
+        - References use obsidian_link property"""
     vault, session = vault_with_assumptions
 
     context = VaultContext(
@@ -202,7 +222,14 @@ def test_assumption_challenger_uses_obsidian_link(vault_with_assumptions):
 
 
 def test_assumption_challenger_detects_causal_claims(vault_with_causal_claims):
-    """Test that assumption_challenger detects causal claims without evidence."""
+    """Test that assumption_challenger detects causal claims without evidence.
+
+    Setup:
+        Vault with notes containing causal claim indicators.
+
+    Verifies:
+        - Detects 'because', 'therefore', 'causes' patterns
+        - Suggests questioning causal relationships"""
     vault, session = vault_with_causal_claims
 
     context = VaultContext(
@@ -224,7 +251,13 @@ def test_assumption_challenger_detects_causal_claims(vault_with_causal_claims):
 
 
 def test_assumption_challenger_empty_vault(tmp_path):
-    """Test that assumption_challenger handles empty vault gracefully."""
+    """Test that assumption_challenger handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list without crashing"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -249,7 +282,13 @@ def test_assumption_challenger_empty_vault(tmp_path):
 
 
 def test_assumption_challenger_insufficient_notes(vault_insufficient_notes):
-    """Test that assumption_challenger handles insufficient notes gracefully."""
+    """Test that assumption_challenger handles insufficient notes gracefully.
+
+    Setup:
+        Vault with only 5 notes (minimum is 10).
+
+    Verifies:
+        - Returns empty list when too few notes"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -266,7 +305,13 @@ def test_assumption_challenger_insufficient_notes(vault_insufficient_notes):
 
 
 def test_assumption_challenger_no_assumptions(tmp_path):
-    """Test that assumption_challenger handles vault without assumption indicators."""
+    """Test that assumption_challenger handles vault without assumption indicators.
+
+    Setup:
+        Vault with 15 notes but no assumption indicators.
+
+    Verifies:
+        - Returns empty list when no assumptions detected"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -296,7 +341,13 @@ def test_assumption_challenger_no_assumptions(tmp_path):
 
 
 def test_assumption_challenger_max_suggestions(vault_with_assumptions):
-    """Test that assumption_challenger never returns more than 3 suggestions."""
+    """Test that assumption_challenger never returns more than 3 suggestions.
+
+    Setup:
+        Vault with assumption-heavy notes.
+
+    Verifies:
+        - Returns at most 2 suggestions"""
     vault, session = vault_with_assumptions
 
     context = VaultContext(
@@ -313,7 +364,13 @@ def test_assumption_challenger_max_suggestions(vault_with_assumptions):
 
 
 def test_assumption_challenger_deterministic_with_seed(vault_with_assumptions):
-    """Test that assumption_challenger returns same results with same seed."""
+    """Test that assumption_challenger returns same results with same seed.
+
+    Setup:
+        Vault tested with identical seed twice.
+
+    Verifies:
+        - Same seed produces identical output"""
     vault, session = vault_with_assumptions
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -347,7 +404,13 @@ def test_assumption_challenger_deterministic_with_seed(vault_with_assumptions):
 
 
 def test_assumption_challenger_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal notes in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

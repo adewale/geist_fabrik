@@ -118,7 +118,13 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_antithesis_generator_returns_suggestions(vault_with_claims):
-    """Test that antithesis_generator returns suggestions with claim notes."""
+    """Test that antithesis_generator returns suggestions with claim notes.
+
+    Setup:
+        Vault with 3 claim notes + 8 regular notes.
+
+    Verifies:
+        - Returns list of suggestions (max 2)"""
     vault, session = vault_with_claims
 
     context = VaultContext(
@@ -136,7 +142,15 @@ def test_antithesis_generator_returns_suggestions(vault_with_claims):
 
 
 def test_antithesis_generator_suggestion_structure(vault_with_claims):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with 3 claim notes + 8 regular notes.
+
+    Verifies:
+        - Suggestion has required fields (text, notes, geist_id, title)
+        - References exactly 1 note (thesis)
+        - Suggests new antithesis note title"""
     vault, session = vault_with_claims
 
     context = VaultContext(
@@ -169,7 +183,14 @@ def test_antithesis_generator_suggestion_structure(vault_with_claims):
 
 
 def test_antithesis_generator_uses_obsidian_link(vault_with_claims):
-    """Test that antithesis_generator uses obsidian_link for note references."""
+    """Test that antithesis_generator uses obsidian_link for note references.
+
+    Setup:
+        Vault with 3 claim notes + 8 regular notes.
+
+    Verifies:
+        - Suggestion text uses [[wiki-link]] format
+        - Note references use obsidian_link property"""
     vault, session = vault_with_claims
 
     context = VaultContext(
@@ -192,7 +213,14 @@ def test_antithesis_generator_uses_obsidian_link(vault_with_claims):
 
 
 def test_antithesis_generator_suggests_titles(vault_with_claims):
-    """Test that antithesis_generator suggests titles for new antithesis notes."""
+    """Test that antithesis_generator suggests titles for new antithesis notes.
+
+    Setup:
+        Vault with 3 claim notes + 8 regular notes.
+
+    Verifies:
+        - Suggestion includes suggested_title field
+        - Title indicates antithesis nature"""
     vault, session = vault_with_claims
 
     context = VaultContext(
@@ -219,7 +247,13 @@ def test_antithesis_generator_suggests_titles(vault_with_claims):
 
 
 def test_antithesis_generator_empty_vault(tmp_path):
-    """Test that antithesis_generator handles empty vault gracefully."""
+    """Test that antithesis_generator handles empty vault gracefully.
+
+    Setup:
+        Empty vault with no notes.
+
+    Verifies:
+        - Returns empty list without crashing"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -244,7 +278,13 @@ def test_antithesis_generator_empty_vault(tmp_path):
 
 
 def test_antithesis_generator_insufficient_notes(vault_insufficient_notes):
-    """Test that antithesis_generator handles insufficient notes gracefully."""
+    """Test that antithesis_generator handles insufficient notes gracefully.
+
+    Setup:
+        Vault with only 5 notes (minimum is 10).
+
+    Verifies:
+        - Returns empty list when note count too low"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -261,7 +301,13 @@ def test_antithesis_generator_insufficient_notes(vault_insufficient_notes):
 
 
 def test_antithesis_generator_no_strong_claims(tmp_path):
-    """Test that antithesis_generator handles vault without strong claims."""
+    """Test that antithesis_generator handles vault without strong claims.
+
+    Setup:
+        Vault with 15 notes but no strong claims.
+
+    Verifies:
+        - Returns empty list when no claims detected"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -291,7 +337,13 @@ def test_antithesis_generator_no_strong_claims(tmp_path):
 
 
 def test_antithesis_generator_max_suggestions(vault_with_claims):
-    """Test that antithesis_generator never returns more than 2 suggestions."""
+    """Test that antithesis_generator never returns more than 2 suggestions.
+
+    Setup:
+        Vault with 3 claim notes + 8 regular notes.
+
+    Verifies:
+        - Returns at most 2 suggestions (output limit)"""
     vault, session = vault_with_claims
 
     context = VaultContext(
@@ -308,7 +360,14 @@ def test_antithesis_generator_max_suggestions(vault_with_claims):
 
 
 def test_antithesis_generator_deterministic_with_seed(vault_with_claims):
-    """Test that antithesis_generator returns same results with same seed."""
+    """Test that antithesis_generator returns same results with same seed.
+
+    Setup:
+        Vault with 11 notes, tested with identical seed twice.
+
+    Verifies:
+        - Same seed produces identical suggestions
+        - Suggestion count and text match exactly"""
     vault, session = vault_with_claims
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -342,7 +401,14 @@ def test_antithesis_generator_deterministic_with_seed(vault_with_claims):
 
 
 def test_antithesis_generator_recognizes_existing_antithesis(vault_with_antithesis_pairs):
-    """Test that antithesis_generator recognizes existing antithesis notes."""
+    """Test that antithesis_generator recognizes existing antithesis notes.
+
+    Setup:
+        Vault with thesis/antithesis pair already present.
+
+    Verifies:
+        - Recognizes existing antithesis relationships
+        - May return fewer suggestions when pairs exist"""
     vault, session = vault_with_antithesis_pairs
 
     context = VaultContext(
@@ -359,7 +425,14 @@ def test_antithesis_generator_recognizes_existing_antithesis(vault_with_antithes
 
 
 def test_antithesis_generator_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal notes + regular claim notes.
+
+    Verifies:
+        - No journal notes appear in suggestions
+        - Only regular notes are suggested"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

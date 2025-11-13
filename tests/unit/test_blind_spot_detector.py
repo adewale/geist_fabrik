@@ -89,7 +89,13 @@ def vault_insufficient_recent_notes(tmp_path):
 
 
 def test_blind_spot_detector_returns_suggestions(vault_with_contrarian_notes):
-    """Test that blind_spot_detector returns suggestions."""
+    """Test that blind_spot_detector returns suggestions.
+
+    Setup:
+        Vault with unlinked similar notes.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_contrarian_notes
 
     context = VaultContext(
@@ -107,7 +113,14 @@ def test_blind_spot_detector_returns_suggestions(vault_with_contrarian_notes):
 
 
 def test_blind_spot_detector_suggestion_structure(vault_with_contrarian_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with unlinked similar notes.
+
+    Verifies:
+        - Has required fields
+        - References 2 similar unlinked notes"""
     vault, session = vault_with_contrarian_notes
 
     context = VaultContext(
@@ -140,7 +153,13 @@ def test_blind_spot_detector_suggestion_structure(vault_with_contrarian_notes):
 
 
 def test_blind_spot_detector_uses_obsidian_link(vault_with_contrarian_notes):
-    """Test that blind_spot_detector uses obsidian_link for note references."""
+    """Test that blind_spot_detector uses obsidian_link for note references.
+
+    Setup:
+        Vault with unlinked similar notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_contrarian_notes
 
     context = VaultContext(
@@ -168,7 +187,13 @@ def test_blind_spot_detector_uses_obsidian_link(vault_with_contrarian_notes):
 
 
 def test_blind_spot_detector_empty_vault(tmp_path):
-    """Test that blind_spot_detector handles empty vault gracefully."""
+    """Test that blind_spot_detector handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -241,7 +266,13 @@ def test_blind_spot_detector_no_contrarian_notes(tmp_path):
 
 
 def test_blind_spot_detector_max_suggestions(vault_with_contrarian_notes):
-    """Test that blind_spot_detector never returns more than 2 suggestions."""
+    """Test that blind_spot_detector never returns more than 2 suggestions.
+
+    Setup:
+        Vault with many unlinked pairs.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_contrarian_notes
 
     context = VaultContext(
@@ -258,7 +289,13 @@ def test_blind_spot_detector_max_suggestions(vault_with_contrarian_notes):
 
 
 def test_blind_spot_detector_deterministic_with_seed(vault_with_contrarian_notes):
-    """Test that blind_spot_detector returns same results with same seed."""
+    """Test that blind_spot_detector returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_contrarian_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -310,7 +347,13 @@ def test_blind_spot_detector_checks_old_contrarians(vault_with_contrarian_notes)
 
 
 def test_blind_spot_detector_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

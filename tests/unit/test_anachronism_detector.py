@@ -94,7 +94,14 @@ def vault_insufficient_notes(tmp_path):
 
 
 def test_anachronism_detector_returns_suggestions(vault_with_temporal_notes):
-    """Test that anachronism_detector returns suggestions with temporal notes."""
+    """Test that anachronism_detector returns suggestions with temporal notes.
+
+    Setup:
+        Vault with 32 notes across 3 time periods (old, middle, recent).
+
+    Verifies:
+        - Returns list of suggestions (max 2)
+    """
     vault, session = vault_with_temporal_notes
 
     context = VaultContext(
@@ -112,7 +119,16 @@ def test_anachronism_detector_returns_suggestions(vault_with_temporal_notes):
 
 
 def test_anachronism_detector_suggestion_structure(vault_with_temporal_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with 32 notes across 3 time periods.
+
+    Verifies:
+        - Suggestion has required fields (text, notes, geist_id)
+        - References exactly 2 notes (old and recent pair)
+        - All note references are strings
+    """
     vault, session = vault_with_temporal_notes
 
     context = VaultContext(
@@ -145,7 +161,15 @@ def test_anachronism_detector_suggestion_structure(vault_with_temporal_notes):
 
 
 def test_anachronism_detector_uses_obsidian_link(vault_with_temporal_notes):
-    """Test that anachronism_detector uses obsidian_link for note references."""
+    """Test that anachronism_detector uses obsidian_link for note references.
+
+    Setup:
+        Vault with 32 notes across 3 time periods.
+
+    Verifies:
+        - Suggestion text uses [[wiki-link]] format
+        - Note references use obsidian_link property
+    """
     vault, session = vault_with_temporal_notes
 
     context = VaultContext(
@@ -173,7 +197,14 @@ def test_anachronism_detector_uses_obsidian_link(vault_with_temporal_notes):
 
 
 def test_anachronism_detector_empty_vault(tmp_path):
-    """Test that anachronism_detector handles empty vault gracefully."""
+    """Test that anachronism_detector handles empty vault gracefully.
+
+    Setup:
+        Empty vault with no notes.
+
+    Verifies:
+        - Returns empty list without crashing
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -198,7 +229,14 @@ def test_anachronism_detector_empty_vault(tmp_path):
 
 
 def test_anachronism_detector_insufficient_notes(vault_insufficient_notes):
-    """Test that anachronism_detector handles insufficient notes gracefully."""
+    """Test that anachronism_detector handles insufficient notes gracefully.
+
+    Setup:
+        Vault with only 10 notes (minimum is 30).
+
+    Verifies:
+        - Returns empty list when note count too low
+    """
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -215,7 +253,14 @@ def test_anachronism_detector_insufficient_notes(vault_insufficient_notes):
 
 
 def test_anachronism_detector_no_old_notes(tmp_path):
-    """Test that anachronism_detector handles vault with only recent notes."""
+    """Test that anachronism_detector handles vault with only recent notes.
+
+    Setup:
+        Vault with 35 recent notes (all within last month).
+
+    Verifies:
+        - Returns empty list when no old notes exist
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -246,7 +291,14 @@ def test_anachronism_detector_no_old_notes(tmp_path):
 
 
 def test_anachronism_detector_max_suggestions(vault_with_temporal_notes):
-    """Test that anachronism_detector never returns more than 2 suggestions."""
+    """Test that anachronism_detector never returns more than 2 suggestions.
+
+    Setup:
+        Vault with 32 notes across 3 time periods.
+
+    Verifies:
+        - Returns at most 2 suggestions (output limit)
+    """
     vault, session = vault_with_temporal_notes
 
     context = VaultContext(
@@ -263,7 +315,15 @@ def test_anachronism_detector_max_suggestions(vault_with_temporal_notes):
 
 
 def test_anachronism_detector_deterministic_with_seed(vault_with_temporal_notes):
-    """Test that anachronism_detector returns same results with same seed."""
+    """Test that anachronism_detector returns same results with same seed.
+
+    Setup:
+        Vault with 32 notes, tested with identical seed twice.
+
+    Verifies:
+        - Same seed produces identical suggestions
+        - Suggestion count and text match exactly
+    """
     vault, session = vault_with_temporal_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -297,7 +357,15 @@ def test_anachronism_detector_deterministic_with_seed(vault_with_temporal_notes)
 
 
 def test_anachronism_detector_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal notes (old) + regular old/recent notes (32 total).
+
+    Verifies:
+        - No journal notes appear in suggestions
+        - Only regular notes are suggested
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
