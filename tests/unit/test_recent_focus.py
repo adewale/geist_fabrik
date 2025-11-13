@@ -98,7 +98,13 @@ def vault_insufficient_recent_notes(tmp_path):
 
 
 def test_recent_focus_returns_suggestions(vault_with_recent_and_old_similar):
-    """Test that recent_focus returns suggestions."""
+    """Test that recent_focus returns suggestions.
+
+    Setup:
+        Vault with recently modified notes.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_recent_and_old_similar
 
     context = VaultContext(
@@ -116,7 +122,14 @@ def test_recent_focus_returns_suggestions(vault_with_recent_and_old_similar):
 
 
 def test_recent_focus_suggestion_structure(vault_with_recent_and_old_similar):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with recent activity.
+
+    Verifies:
+        - Has required fields
+        - References recently modified notes"""
     vault, session = vault_with_recent_and_old_similar
 
     context = VaultContext(
@@ -149,7 +162,13 @@ def test_recent_focus_suggestion_structure(vault_with_recent_and_old_similar):
 
 
 def test_recent_focus_uses_obsidian_link(vault_with_recent_and_old_similar):
-    """Test that recent_focus uses obsidian_link for note references."""
+    """Test that recent_focus uses obsidian_link for note references.
+
+    Setup:
+        Vault with recent notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_recent_and_old_similar
 
     context = VaultContext(
@@ -177,7 +196,13 @@ def test_recent_focus_uses_obsidian_link(vault_with_recent_and_old_similar):
 
 
 def test_recent_focus_empty_vault(tmp_path):
-    """Test that recent_focus handles empty vault gracefully."""
+    """Test that recent_focus handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -250,7 +275,13 @@ def test_recent_focus_no_old_similar_notes(tmp_path):
 
 
 def test_recent_focus_max_suggestions(vault_with_recent_and_old_similar):
-    """Test that recent_focus never returns more than 3 suggestions."""
+    """Test that recent_focus never returns more than 3 suggestions.
+
+    Setup:
+        Vault with many recent notes.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_recent_and_old_similar
 
     context = VaultContext(
@@ -267,7 +298,13 @@ def test_recent_focus_max_suggestions(vault_with_recent_and_old_similar):
 
 
 def test_recent_focus_deterministic_with_seed(vault_with_recent_and_old_similar):
-    """Test that recent_focus returns same results with same seed."""
+    """Test that recent_focus returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_recent_and_old_similar
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -322,7 +359,13 @@ def test_recent_focus_connects_recent_to_old(vault_with_recent_and_old_similar):
 
 
 def test_recent_focus_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

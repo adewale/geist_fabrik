@@ -106,7 +106,14 @@ def _set_note_dates(vault, title, created, modified):
 
 
 def test_temporal_drift_returns_suggestions(vault_with_stale_notes):
-    """Test that temporal_drift returns suggestions for stale notes."""
+    """Test that temporal_drift returns suggestions for stale notes.
+
+    Setup:
+        Vault with stale, well-connected notes.
+
+    Verifies:
+        - Returns suggestions (max 3)
+        - Notes have staleness >0.7"""
     vault, session = vault_with_stale_notes
 
     context = VaultContext(
@@ -138,7 +145,16 @@ def test_temporal_drift_returns_suggestions(vault_with_stale_notes):
 
 
 def test_temporal_drift_suggestion_structure(vault_with_stale_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with stale notes.
+
+    Verifies:
+        - Has required fields
+        - References exactly 1 note
+        - Note has >=3 links
+        - Mentions days and links"""
     vault, session = vault_with_stale_notes
 
     context = VaultContext(
@@ -186,7 +202,13 @@ def test_temporal_drift_suggestion_structure(vault_with_stale_notes):
 
 
 def test_temporal_drift_uses_obsidian_link(vault_with_stale_notes):
-    """Test that temporal_drift uses obsidian_link for note references."""
+    """Test that temporal_drift uses obsidian_link for note references.
+
+    Setup:
+        Vault with stale notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_stale_notes
 
     context = VaultContext(
@@ -209,7 +231,15 @@ def test_temporal_drift_uses_obsidian_link(vault_with_stale_notes):
 
 
 def test_temporal_drift_mentions_days_and_links(vault_with_stale_notes):
-    """Test that suggestions mention days since modified and link count."""
+    """Test that suggestions mention days since modified and link count.
+
+    Setup:
+        Vault with stale notes.
+
+    Verifies:
+        - Mentions days since modified
+        - Mentions link count
+        - Numbers match metadata exactly"""
     vault, session = vault_with_stale_notes
 
     context = VaultContext(
@@ -264,7 +294,13 @@ def test_temporal_drift_mentions_days_and_links(vault_with_stale_notes):
 
 
 def test_temporal_drift_empty_vault(tmp_path):
-    """Test that temporal_drift handles empty vault gracefully."""
+    """Test that temporal_drift handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -333,7 +369,13 @@ def test_temporal_drift_no_stale_notes(tmp_path):
 
 
 def test_temporal_drift_insufficient_links(tmp_path):
-    """Test that notes with few links are not suggested."""
+    """Test that notes with few links are not suggested.
+
+    Setup:
+        Vault with stale note with < 3 links.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -373,7 +415,13 @@ Links: [[note1]]
 
 
 def test_temporal_drift_requires_high_staleness(tmp_path):
-    """Test that only notes with staleness > 0.7 are suggested."""
+    """Test that only notes with staleness > 0.7 are suggested.
+
+    Setup:
+        Vault with moderately old note (not stale enough).
+
+    Verifies:
+        - May return empty if staleness <= 0.7"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -420,7 +468,13 @@ Links: [[note1]], [[note2]], [[note3]]
 
 
 def test_temporal_drift_max_three_suggestions(vault_with_stale_notes):
-    """Test that temporal_drift returns at most 3 suggestions."""
+    """Test that temporal_drift returns at most 3 suggestions.
+
+    Setup:
+        Vault with many stale notes.
+
+    Verifies:
+        - Returns at most 3"""
     vault, session = vault_with_stale_notes
 
     context = VaultContext(
@@ -437,7 +491,13 @@ def test_temporal_drift_max_three_suggestions(vault_with_stale_notes):
 
 
 def test_temporal_drift_deterministic_with_seed(vault_with_stale_notes):
-    """Test that temporal_drift returns same results with same seed."""
+    """Test that temporal_drift returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_stale_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -476,7 +536,14 @@ def test_temporal_drift_deterministic_with_seed(vault_with_stale_notes):
 
 
 def test_temporal_drift_uses_metadata(vault_with_stale_notes):
-    """Test that temporal_drift uses metadata (staleness, link_count)."""
+    """Test that temporal_drift uses metadata (staleness, link_count).
+
+    Setup:
+        Vault with stale notes.
+
+    Verifies:
+        - Uses staleness and link_count metadata
+        - Both thresholds met (staleness >0.7, links >=3)"""
     vault, session = vault_with_stale_notes
 
     context = VaultContext(
@@ -517,7 +584,13 @@ def test_temporal_drift_uses_metadata(vault_with_stale_notes):
 
 
 def test_temporal_drift_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded."""
+    """Test that geist journal notes are excluded.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

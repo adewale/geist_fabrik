@@ -113,7 +113,13 @@ def vault_with_insufficient_notes_per_session(tmp_path):
 
 
 def test_vocabulary_expansion_returns_suggestions(vault_with_session_history):
-    """Test that vocabulary_expansion returns suggestions with session history."""
+    """Test that vocabulary_expansion returns suggestions with session history.
+
+    Setup:
+        Vault with rich vocabulary.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_session_history
 
     context = VaultContext(
@@ -131,7 +137,14 @@ def test_vocabulary_expansion_returns_suggestions(vault_with_session_history):
 
 
 def test_vocabulary_expansion_suggestion_structure(vault_with_session_history):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with varied vocabulary.
+
+    Verifies:
+        - Has required fields
+        - References notes with vocabulary patterns"""
     vault, session = vault_with_session_history
 
     context = VaultContext(
@@ -187,7 +200,13 @@ def test_vocabulary_expansion_mentions_timeframes(vault_with_session_history):
 
 
 def test_vocabulary_expansion_empty_vault(tmp_path):
-    """Test that vocabulary_expansion handles empty vault gracefully."""
+    """Test that vocabulary_expansion handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -283,7 +302,13 @@ def test_vocabulary_expansion_no_significant_change(tmp_path):
 
 
 def test_vocabulary_expansion_max_suggestions(vault_with_session_history):
-    """Test that vocabulary_expansion never returns more than 1 suggestion."""
+    """Test that vocabulary_expansion never returns more than 1 suggestion.
+
+    Setup:
+        Vault with varied vocabulary.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_session_history
 
     context = VaultContext(
@@ -300,7 +325,13 @@ def test_vocabulary_expansion_max_suggestions(vault_with_session_history):
 
 
 def test_vocabulary_expansion_deterministic_with_seed(vault_with_session_history):
-    """Test that vocabulary_expansion returns same results with same seed."""
+    """Test that vocabulary_expansion returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_session_history
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -360,7 +391,13 @@ def test_vocabulary_expansion_handles_database_errors(tmp_path):
 
 
 def test_vocabulary_expansion_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

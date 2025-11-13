@@ -121,7 +121,13 @@ Regular content without tasks."""
 
 
 def test_task_archaeology_returns_suggestions(vault_with_old_tasks):
-    """Test that task_archaeology returns suggestions with old incomplete tasks."""
+    """Test that task_archaeology returns suggestions with old incomplete tasks.
+
+    Setup:
+        Vault with task-bearing notes.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_old_tasks
 
     context = VaultContext(
@@ -139,7 +145,14 @@ def test_task_archaeology_returns_suggestions(vault_with_old_tasks):
 
 
 def test_task_archaeology_suggestion_structure(vault_with_old_tasks):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with tasks.
+
+    Verifies:
+        - Has required fields
+        - References notes with unfinished tasks"""
     vault, session = vault_with_old_tasks
 
     context = VaultContext(
@@ -172,7 +185,13 @@ def test_task_archaeology_suggestion_structure(vault_with_old_tasks):
 
 
 def test_task_archaeology_uses_obsidian_link(vault_with_old_tasks):
-    """Test that task_archaeology uses obsidian_link for note references."""
+    """Test that task_archaeology uses obsidian_link for note references.
+
+    Setup:
+        Vault with tasks.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_old_tasks
 
     context = VaultContext(
@@ -200,7 +219,13 @@ def test_task_archaeology_uses_obsidian_link(vault_with_old_tasks):
 
 
 def test_task_archaeology_empty_vault(tmp_path):
-    """Test that task_archaeology handles empty vault gracefully."""
+    """Test that task_archaeology handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -280,7 +305,13 @@ def test_task_archaeology_recent_tasks_excluded(tmp_path):
 
 
 def test_task_archaeology_max_suggestions(vault_with_old_tasks):
-    """Test that task_archaeology never returns more than 3 suggestions."""
+    """Test that task_archaeology never returns more than 3 suggestions.
+
+    Setup:
+        Vault with many tasks.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_old_tasks
 
     context = VaultContext(
@@ -297,7 +328,13 @@ def test_task_archaeology_max_suggestions(vault_with_old_tasks):
 
 
 def test_task_archaeology_deterministic_with_seed(vault_with_old_tasks):
-    """Test that task_archaeology returns same results with same seed."""
+    """Test that task_archaeology returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_old_tasks
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -331,7 +368,13 @@ def test_task_archaeology_deterministic_with_seed(vault_with_old_tasks):
 
 
 def test_task_archaeology_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

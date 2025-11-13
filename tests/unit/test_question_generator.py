@@ -101,7 +101,13 @@ def vault_with_short_notes(tmp_path):
 
 
 def test_question_generator_returns_suggestions(vault_with_declarative_notes):
-    """Test that question_generator returns suggestions with declarative notes."""
+    """Test that question_generator returns suggestions with declarative notes.
+
+    Setup:
+        Vault with various notes.
+
+    Verifies:
+        - Returns suggestions (max 3)"""
     vault, session = vault_with_declarative_notes
 
     context = VaultContext(
@@ -119,7 +125,14 @@ def test_question_generator_returns_suggestions(vault_with_declarative_notes):
 
 
 def test_question_generator_suggestion_structure(vault_with_declarative_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with notes.
+
+    Verifies:
+        - Has required fields
+        - References 1 note to question"""
     vault, session = vault_with_declarative_notes
 
     context = VaultContext(
@@ -152,7 +165,13 @@ def test_question_generator_suggestion_structure(vault_with_declarative_notes):
 
 
 def test_question_generator_uses_obsidian_link(vault_with_declarative_notes):
-    """Test that question_generator uses obsidian_link for note references."""
+    """Test that question_generator uses obsidian_link for note references.
+
+    Setup:
+        Vault with notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_declarative_notes
 
     context = VaultContext(
@@ -201,7 +220,13 @@ def test_question_generator_suggests_question_titles(vault_with_declarative_note
 
 
 def test_question_generator_empty_vault(tmp_path):
-    """Test that question_generator handles empty vault gracefully."""
+    """Test that question_generator handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -260,7 +285,13 @@ def test_question_generator_skips_short_notes(vault_with_short_notes):
 
 
 def test_question_generator_max_suggestions(vault_with_declarative_notes):
-    """Test that question_generator never returns more than 3 suggestions."""
+    """Test that question_generator never returns more than 3 suggestions.
+
+    Setup:
+        Vault with many notes.
+
+    Verifies:
+        - Returns at most 3"""
     vault, session = vault_with_declarative_notes
 
     context = VaultContext(
@@ -277,7 +308,13 @@ def test_question_generator_max_suggestions(vault_with_declarative_notes):
 
 
 def test_question_generator_deterministic_with_seed(vault_with_declarative_notes):
-    """Test that question_generator returns same results with same seed."""
+    """Test that question_generator returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_declarative_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -311,7 +348,13 @@ def test_question_generator_deterministic_with_seed(vault_with_declarative_notes
 
 
 def test_question_generator_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

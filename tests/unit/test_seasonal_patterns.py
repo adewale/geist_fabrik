@@ -114,7 +114,13 @@ def vault_insufficient_seasonal_notes(tmp_path):
 
 
 def test_seasonal_patterns_returns_suggestions(vault_with_seasonal_notes):
-    """Test that seasonal_patterns returns suggestions with seasonal notes."""
+    """Test that seasonal_patterns returns suggestions with seasonal notes.
+
+    Setup:
+        Vault with seasonal note patterns.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_seasonal_notes
 
     context = VaultContext(
@@ -132,7 +138,14 @@ def test_seasonal_patterns_returns_suggestions(vault_with_seasonal_notes):
 
 
 def test_seasonal_patterns_suggestion_structure(vault_with_seasonal_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with seasonal data.
+
+    Verifies:
+        - Has required fields
+        - References notes showing seasonal patterns"""
     vault, session = vault_with_seasonal_notes
 
     context = VaultContext(
@@ -165,7 +178,13 @@ def test_seasonal_patterns_suggestion_structure(vault_with_seasonal_notes):
 
 
 def test_seasonal_patterns_uses_obsidian_link(vault_with_seasonal_notes):
-    """Test that seasonal_patterns uses obsidian_link for note references."""
+    """Test that seasonal_patterns uses obsidian_link for note references.
+
+    Setup:
+        Vault with seasonal notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_seasonal_notes
 
     context = VaultContext(
@@ -193,7 +212,13 @@ def test_seasonal_patterns_uses_obsidian_link(vault_with_seasonal_notes):
 
 
 def test_seasonal_patterns_empty_vault(tmp_path):
-    """Test that seasonal_patterns handles empty vault gracefully."""
+    """Test that seasonal_patterns handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -218,7 +243,13 @@ def test_seasonal_patterns_empty_vault(tmp_path):
 
 
 def test_seasonal_patterns_insufficient_notes(vault_insufficient_seasonal_notes):
-    """Test that seasonal_patterns handles insufficient notes gracefully."""
+    """Test that seasonal_patterns handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 30 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_seasonal_notes
 
     context = VaultContext(
@@ -270,7 +301,13 @@ def test_seasonal_patterns_no_recurrence(tmp_path):
 
 
 def test_seasonal_patterns_max_suggestions(vault_with_seasonal_notes):
-    """Test that seasonal_patterns never returns more than 2 suggestions."""
+    """Test that seasonal_patterns never returns more than 2 suggestions.
+
+    Setup:
+        Vault with seasonal patterns.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_seasonal_notes
 
     context = VaultContext(
@@ -287,7 +324,13 @@ def test_seasonal_patterns_max_suggestions(vault_with_seasonal_notes):
 
 
 def test_seasonal_patterns_deterministic_with_seed(vault_with_seasonal_notes):
-    """Test that seasonal_patterns returns same results with same seed."""
+    """Test that seasonal_patterns returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_seasonal_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -321,7 +364,13 @@ def test_seasonal_patterns_deterministic_with_seed(vault_with_seasonal_notes):
 
 
 def test_seasonal_patterns_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 

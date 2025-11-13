@@ -91,7 +91,14 @@ def test_temporal_mirror_returns_suggestion(vault_with_temporal_notes):
 
 
 def test_temporal_mirror_suggestion_structure(vault_with_temporal_notes):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with temporal patterns.
+
+    Verifies:
+        - Has required fields
+        - References temporally related notes"""
     vault, session = vault_with_temporal_notes
 
     context = VaultContext(
@@ -124,7 +131,13 @@ def test_temporal_mirror_suggestion_structure(vault_with_temporal_notes):
 
 
 def test_temporal_mirror_uses_obsidian_link(vault_with_temporal_notes):
-    """Test that temporal_mirror uses obsidian_link for note references."""
+    """Test that temporal_mirror uses obsidian_link for note references.
+
+    Setup:
+        Vault with temporal patterns.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_temporal_notes
 
     context = VaultContext(
@@ -155,7 +168,13 @@ def test_temporal_mirror_uses_obsidian_link(vault_with_temporal_notes):
 
 
 def test_temporal_mirror_empty_vault(tmp_path):
-    """Test that temporal_mirror handles empty vault gracefully."""
+    """Test that temporal_mirror handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -180,7 +199,13 @@ def test_temporal_mirror_empty_vault(tmp_path):
 
 
 def test_temporal_mirror_insufficient_notes(vault_insufficient_notes):
-    """Test that temporal_mirror handles insufficient notes gracefully."""
+    """Test that temporal_mirror handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 20 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault, session = vault_insufficient_notes
 
     context = VaultContext(
@@ -197,7 +222,13 @@ def test_temporal_mirror_insufficient_notes(vault_insufficient_notes):
 
 
 def test_temporal_mirror_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -248,7 +279,13 @@ def test_temporal_mirror_excludes_geist_journal(tmp_path):
 
 
 def test_temporal_mirror_deterministic_with_seed(vault_with_temporal_notes):
-    """Test that temporal_mirror returns same results with same seed."""
+    """Test that temporal_mirror returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_temporal_notes
 
     # Reuse same FunctionRegistry to avoid duplicate registration

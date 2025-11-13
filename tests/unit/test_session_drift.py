@@ -82,7 +82,13 @@ def vault_single_session(tmp_path):
 
 
 def test_session_drift_returns_suggestions(vault_with_session_history):
-    """Test that session_drift returns suggestions with session history."""
+    """Test that session_drift returns suggestions with session history.
+
+    Setup:
+        Vault with notes showing embedding drift across sessions.
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_session_history
 
     context = VaultContext(
@@ -100,7 +106,14 @@ def test_session_drift_returns_suggestions(vault_with_session_history):
 
 
 def test_session_drift_suggestion_structure(vault_with_session_history):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with drifting notes.
+
+    Verifies:
+        - Has required fields
+        - References notes with session-to-session drift"""
     vault, session = vault_with_session_history
 
     context = VaultContext(
@@ -133,7 +146,13 @@ def test_session_drift_suggestion_structure(vault_with_session_history):
 
 
 def test_session_drift_uses_obsidian_link(vault_with_session_history):
-    """Test that session_drift uses obsidian_link for note references."""
+    """Test that session_drift uses obsidian_link for note references.
+
+    Setup:
+        Vault with drift.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_session_history
 
     context = VaultContext(
@@ -161,7 +180,13 @@ def test_session_drift_uses_obsidian_link(vault_with_session_history):
 
 
 def test_session_drift_empty_vault(tmp_path):
-    """Test that session_drift handles empty vault gracefully."""
+    """Test that session_drift handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -203,7 +228,13 @@ def test_session_drift_single_session(vault_single_session):
 
 
 def test_session_drift_max_suggestions(vault_with_session_history):
-    """Test that session_drift never returns more than 3 suggestions."""
+    """Test that session_drift never returns more than 3 suggestions.
+
+    Setup:
+        Vault with drifting notes.
+
+    Verifies:
+        - Returns at most 2"""
     vault, session = vault_with_session_history
 
     context = VaultContext(
@@ -220,7 +251,13 @@ def test_session_drift_max_suggestions(vault_with_session_history):
 
 
 def test_session_drift_deterministic_with_seed(vault_with_session_history):
-    """Test that session_drift returns same results with same seed."""
+    """Test that session_drift returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_session_history
 
     # Reuse same FunctionRegistry to avoid duplicate registration
@@ -254,7 +291,13 @@ def test_session_drift_deterministic_with_seed(vault_with_session_history):
 
 
 def test_session_drift_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions."""
+    """Test that geist journal notes are excluded from suggestions.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
