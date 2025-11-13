@@ -123,6 +123,8 @@ def test_on_this_day_suggestion_structure(mock_datetime, vault_with_anniversary_
 
     suggestions = on_this_day.suggest(context)
 
+    # BEHAVIORAL: Verify geist follows output constraints
+    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
     for suggestion in suggestions:
         # Required fields
         assert hasattr(suggestion, "text")

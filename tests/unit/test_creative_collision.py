@@ -143,6 +143,8 @@ def test_creative_collision_suggestion_structure(vault_with_diverse_notes):
 
     suggestions = creative_collision.suggest(context)
 
+    # BEHAVIORAL: Verify geist follows output constraints
+    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
     for suggestion in suggestions:
         # Required fields
         assert hasattr(suggestion, "text")

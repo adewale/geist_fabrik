@@ -101,6 +101,8 @@ def test_creation_burst_detects_burst_day(vault_with_bursts):
 
     suggestions = creation_burst.suggest(context)
 
+    # BEHAVIORAL: Verify geist follows output constraints
+    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
     # Should return exactly 1 suggestion
     assert len(suggestions) == 1
 

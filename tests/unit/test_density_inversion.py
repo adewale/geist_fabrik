@@ -179,6 +179,8 @@ def test_density_inversion_suggestion_structure(vault_with_dense_links_sparse_me
 
     suggestions = density_inversion.suggest(context)
 
+    # BEHAVIORAL: Verify geist follows output constraints
+    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
     for suggestion in suggestions:
         # Required fields
         assert hasattr(suggestion, "text")
