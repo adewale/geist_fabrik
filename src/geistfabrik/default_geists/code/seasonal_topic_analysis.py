@@ -32,11 +32,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     tsq = TemporalSemanticQuery(vault)
 
     # Define seasons (Northern Hemisphere)
-    # Use current year for all seasons, wrapping winter across year boundary
     current_date = vault.session.date
     current_year = current_date.year
 
-    # Determine which year's winter to check based on current month
+    # Winter wraps across year boundary: determine which year's winter based on current month
     winter_year = current_year if current_date.month >= 3 else current_year - 1
 
     seasons = {
@@ -52,9 +51,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for season_name, (start_date, end_date) in seasons.items():
         # Get notes created in this season (excluding geist journal)
         seasonal_notes = [
-            n
-            for n in notes
-            if start_date <= n.created <= end_date
+            n for n in notes if start_date <= n.created <= end_date
         ]
 
         if len(seasonal_notes) < 3:
@@ -71,7 +68,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             min_similarity=0.60,
         )
 
-        # Filter out geist journal from results
+        # Filter out geist journal from results (query uses all vault notes)
         similar_in_season = [
             n for n in similar_in_season if not n.path.startswith("geist journal/")
         ]
@@ -81,13 +78,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             note_titles = [f"[[{n.obsidian_link}]]" for n in similar_in_season[:3]]
             pattern_text = ", ".join(note_titles)
 
-            # Use the actual year from the season dates for display
-            display_year = start_date.year if season_name != "winter" else winter_year
-
             suggestions.append(
                 Suggestion(
                     text=(
-                        f"In {season_name} {display_year}, you explored "
+                        f"In {season_name} {start_date.year}, you explored "
                         f"related ideas: {pattern_text}. "
                         f"What seasonal pattern might this reflect?"
                     ),
