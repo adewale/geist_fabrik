@@ -639,3 +639,167 @@ def test_vault_context_with_date_seed(test_vault_with_notes):
 
     # Should produce same samples since same date
     assert sample1 == sample2
+
+
+# Cache Integration Tests for batch_similarity
+
+
+def test_batch_similarity_uses_cache(test_vault_with_notes):
+    """Verify batch_similarity integrates with session cache."""
+    vault, session = test_vault_with_notes
+    ctx = VaultContext(vault, session)
+    notes = ctx.notes()[:5]
+
+    # First call: cold cache
+    result1 = ctx.batch_similarity(notes[:3], notes[2:])
+
+    # Verify cache was populated
+    cache_size_before = len(ctx._similarity_cache)
+    assert cache_size_before > 0, "Cache should be populated after batch_similarity"
+
+    # Second call: should hit cache
+    result2 = ctx.batch_similarity(notes[:3], notes[2:])
+
+    # Results should be identical
+    import numpy as np
+
+    np.testing.assert_array_almost_equal(result1, result2)
+
+    # Cache size shouldn't change (all hits)
+    assert len(ctx._similarity_cache) == cache_size_before
+
+
+def test_batch_similarity_populates_cache(test_vault_with_notes):
+    """Verify batch_similarity populates cache for all computed pairs."""
+    vault, session = test_vault_with_notes
+    ctx = VaultContext(vault, session)
+    notes = ctx.notes()[:4]
+
+    # Clear cache
+    ctx._similarity_cache.clear()
+
+    # Compute 4×4 matrix = 16 pairs (but 4×3 / 2 = 6 unique pairs since symmetric)
+    # Actually 4×4 = 16 total pairs in the matrix
+    result = ctx.batch_similarity(notes[:2], notes[2:])
+
+    # Should have cached 2×2 = 4 pairs
+    cache_size = len(ctx._similarity_cache)
+    assert cache_size == 4, f"Expected 4 cached pairs, got {cache_size}"
+
+    # Verify each pair is cached
+    for i, note_a in enumerate(notes[:2]):
+        for j, note_b in enumerate(notes[2:]):
+            sorted_paths = sorted([note_a.path, note_b.path])
+            cache_key = (sorted_paths[0], sorted_paths[1])
+            assert cache_key in ctx._similarity_cache
+            import numpy as np
+
+            np.testing.assert_almost_equal(
+                ctx._similarity_cache[cache_key], result[i, j], decimal=6
+            )
+
+
+def test_batch_similarity_cache_consistency_with_individual(test_vault_with_notes):
+    """Verify batch_similarity and similarity() use same cache."""
+    vault, session = test_vault_with_notes
+    ctx = VaultContext(vault, session)
+    notes = ctx.notes()[:4]
+
+    # Compute some pairs individually
+    ctx.similarity(notes[0], notes[1])
+    ctx.similarity(notes[2], notes[3])
+
+    cache_size_after_individual = len(ctx._similarity_cache)
+
+    # Batch compute matrix including some cached pairs
+    result = ctx.batch_similarity(notes[:2], notes[2:])
+
+    # The batch call should have added 2 more pairs (0,2), (0,3), (1,2), (1,3)
+    # We already had (0,1) and (2,3) from individual calls
+    # But (0,1) and (2,3) are not in the batch matrix [:2] × [2:]
+    # So batch should add 4 new pairs
+    assert len(ctx._similarity_cache) > cache_size_after_individual
+
+    # Now compute one of the batch pairs individually - should hit cache
+    sim_02_individual = ctx.similarity(notes[0], notes[2])
+    import numpy as np
+
+    np.testing.assert_almost_equal(sim_02_individual, result[0, 0], decimal=6)
+
+    # Cache shouldn't grow (was already cached by batch call)
+    cache_size_after = len(ctx._similarity_cache)
+    ctx.similarity(notes[0], notes[2])  # Same pair again
+    assert len(ctx._similarity_cache) == cache_size_after
+
+
+def test_batch_similarity_100_percent_cache_hit(test_vault_with_notes):
+    """Verify fast path when all pairs cached."""
+    from unittest.mock import patch
+
+    vault, session = test_vault_with_notes
+    ctx = VaultContext(vault, session)
+    notes = ctx.notes()[:3]
+
+    # Warm cache with individual calls
+    for i in range(len(notes)):
+        for j in range(len(notes)):
+            ctx.similarity(notes[i], notes[j])
+
+    # Batch call should be instant (no backend calls)
+    with patch.object(ctx._backend, "get_embedding") as mock_get:
+        result = ctx.batch_similarity(notes, notes)
+        mock_get.assert_not_called()  # No embeddings fetched!
+
+    # Results should still be correct
+    assert result.shape == (3, 3)
+    # Diagonal should be 1.0 (note similar to itself)
+    for i in range(3):
+        diagonal_val = result[i, i]
+        assert diagonal_val > 0.95, f"Diagonal element [{i},{i}] should be ~1.0, got {diagonal_val}"
+
+
+def test_batch_similarity_partial_cache_hit(test_vault_with_notes):
+    """Verify behavior when some pairs cached, some not."""
+    vault, session = test_vault_with_notes
+    ctx = VaultContext(vault, session)
+    notes = ctx.notes()[:4]
+
+    # Warm cache with some individual calls
+    ctx.similarity(notes[0], notes[2])  # Cache this pair
+    ctx.similarity(notes[1], notes[3])  # Cache this pair
+
+    cache_size_before = len(ctx._similarity_cache)
+
+    # Batch compute 2×2 matrix (4 pairs total, 2 already cached)
+    result = ctx.batch_similarity(notes[:2], notes[2:])
+
+    # Should have added 2 more pairs to cache
+    assert len(ctx._similarity_cache) == cache_size_before + 2
+
+    # Verify cached pairs match
+    import numpy as np
+
+    cached_sim_02 = ctx.similarity(notes[0], notes[2])
+    np.testing.assert_almost_equal(cached_sim_02, result[0, 0], decimal=6)
+
+    cached_sim_13 = ctx.similarity(notes[1], notes[3])
+    np.testing.assert_almost_equal(cached_sim_13, result[1, 1], decimal=6)
+
+
+def test_batch_similarity_empty_input(test_vault_with_notes):
+    """Verify batch_similarity handles empty inputs gracefully."""
+    vault, session = test_vault_with_notes
+    ctx = VaultContext(vault, session)
+    notes = ctx.notes()
+
+    # Empty first set
+    result = ctx.batch_similarity([], notes[:3])
+    assert result.shape == (0, 0)
+
+    # Empty second set
+    result = ctx.batch_similarity(notes[:3], [])
+    assert result.shape == (0, 0)
+
+    # Both empty
+    result = ctx.batch_similarity([], [])
+    assert result.shape == (0, 0)
