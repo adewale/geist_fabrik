@@ -17,6 +17,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         List of suggestions for potential bridge notes
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
 
@@ -24,7 +25,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     hubs = vault.hubs(k=10)
 
     for hub in hubs:
-        # Find notes similar to this hub but not linked (OP-9: get scores)
+        # Find notes similar to this hub but not linked
         neighbours_with_scores = vault.neighbours(hub, k=10, return_scores=True)
 
         for neighbour, similarity in neighbours_with_scores:
@@ -33,9 +34,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             # This neighbour is similar to the hub but unlinked
             # Check if linking them would bridge different areas
-            # (already have similarity from neighbours)
 
-            if similarity > 0.6:  # Strong similarity but no link
+            if similarity > SimilarityLevel.HIGH:  # Strong similarity but no link
                 text = (
                     f"What if [[{hub.obsidian_link}]] and "
                     f"[[{neighbour.obsidian_link}]] were connected? "

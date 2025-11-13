@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+from geistfabrik.similarity_analysis import SimilarityLevel
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -104,7 +105,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         cluster = [seed]
         to_remove = []
         for note in list(unclustered_set):
-            if vault.similarity(seed, note) > 0.7:  # Very similar
+            if vault.similarity(seed, note) > SimilarityLevel.VERY_HIGH:  # Very similar
                 cluster.append(note)
                 to_remove.append(note)
 

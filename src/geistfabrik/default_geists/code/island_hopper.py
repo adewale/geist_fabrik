@@ -17,6 +17,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         List of suggestions for potential bridge notes
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
 
@@ -40,20 +41,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Find notes semantically near cluster but not in it
         boundary_notes = []
 
-        # OPTIMISATION #5: Batch compute similarities between all notes and cluster
         cluster_set = set(n.path for n in cluster)
         candidate_notes = [note for note in all_notes if note.path not in cluster_set]
 
         if candidate_notes and cluster:
-            # Single batch call: N×M matrix instead of N×M individual calls
-            sim_matrix = vault.batch_similarity(candidate_notes, cluster)
-
-            for i, note in enumerate(candidate_notes):
-                # Calculate average similarity to cluster members from matrix
-                avg_sim = sim_matrix[i, :].mean()
+            # Compute similarities using individual calls to benefit from cache
+            for note in candidate_notes:
+                # Calculate average similarity to cluster members
+                sims = [vault.similarity(note, cluster_member) for cluster_member in cluster]
+                avg_sim = sum(sims) / len(sims) if sims else 0
 
                 # Close enough to bridge, not so close it should be in cluster
-                if 0.4 < avg_sim < 0.7:
+                if SimilarityLevel.MODERATE < avg_sim < SimilarityLevel.HIGH:
                     boundary_notes.append((note, avg_sim))
 
         if boundary_notes:

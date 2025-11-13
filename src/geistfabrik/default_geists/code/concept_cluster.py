@@ -17,6 +17,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         List of suggestions for concept clusters
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
 
@@ -39,22 +40,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # (indicating a cluster, not just a hub-and-spoke)
         cluster_notes = [seed] + neighbours[:3]
 
-        # Calculate average pairwise similarity within cluster (OPTIMISATION #5: batch_similarity)
-        # Using batch_similarity for vectorized computation instead of individual calls
-        if len(cluster_notes) > 1:
-            sim_matrix = vault.batch_similarity(cluster_notes, cluster_notes)
-            # Extract upper triangle (avoid diagonal and duplicates)
-            similarities = []
-            for i in range(len(cluster_notes)):
-                for j in range(i + 1, len(cluster_notes)):
-                    similarities.append(sim_matrix[i, j])
-        else:
-            similarities = []
+        # Calculate average pairwise similarity within cluster
+        # Use individual similarity() calls to benefit from session cache
+        similarities = []
+        for i in range(len(cluster_notes)):
+            for j in range(i + 1, len(cluster_notes)):
+                sim = vault.similarity(cluster_notes[i], cluster_notes[j])
+                similarities.append(sim)
 
         avg_similarity = sum(similarities) / len(similarities) if similarities else 0
 
         # If average similarity is high, this is a real cluster
-        if avg_similarity > 0.6:
+        if avg_similarity > SimilarityLevel.HIGH:
             note_titles = [n.obsidian_link for n in cluster_notes]
             formatted_titles = "]], [[".join(note_titles)
 
