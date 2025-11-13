@@ -369,6 +369,31 @@ class TemporalPatternFinder:
 
         return converging
 
+    def find_diverging_pairs(
+        self,
+        candidate_pairs: List[Tuple["Note", "Note"]],
+        threshold: float = 0.15,
+    ) -> List[Tuple["Note", "Note"]]:
+        """Find pairs whose embeddings are diverging across sessions.
+
+        Args:
+            candidate_pairs: List of (note_a, note_b) pairs to check
+            threshold: Minimum similarity decrease to be considered diverging
+
+        Returns:
+            List of diverging pairs
+        """
+        diverging = []
+
+        for note_a, note_b in candidate_pairs:
+            calc_a = EmbeddingTrajectoryCalculator(self.vault, note_a)
+            calc_b = EmbeddingTrajectoryCalculator(self.vault, note_b)
+
+            if calc_a.is_diverging_from(calc_b, threshold):
+                diverging.append((note_a, note_b))
+
+        return diverging
+
     def find_high_drift_notes(
         self, notes: List["Note"], min_drift: float = 0.2
     ) -> List[Tuple["Note", np.ndarray]]:

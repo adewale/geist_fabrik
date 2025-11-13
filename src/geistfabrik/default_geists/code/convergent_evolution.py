@@ -6,8 +6,6 @@ suggesting ideas that are independently developing in the same direction.
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
@@ -15,107 +13,67 @@ if TYPE_CHECKING:
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find notes whose understanding is converging across sessions.
 
+    Uses TemporalPatternFinder to identify converging pairs, then filters
+    for unlinked notes that are developing in the same direction.
+
     Returns:
         List of suggestions showing convergent development
     """
     from geistfabrik import Suggestion
+    from geistfabrik.temporal_analysis import (
+        EmbeddingTrajectoryCalculator,
+        TemporalPatternFinder,
+    )
+
+    notes = vault.notes()
+
+    if len(notes) < 10:
+        return []
+
+    # Generate candidate pairs from sampled notes
+    sample_notes = vault.sample(notes, min(30, len(notes)))
+    pairs = []
+    for i, note_a in enumerate(sample_notes):
+        for note_b in sample_notes[i + 1 :]:
+            pairs.append((note_a, note_b))
+
+    # Sample pairs to check (limit to 100 as original did)
+    sampled_pairs = vault.sample(pairs, min(100, len(pairs)))
+
+    # Find converging pairs using TemporalPatternFinder
+    finder = TemporalPatternFinder(vault)
+    converging = finder.find_converging_pairs(sampled_pairs, threshold=0.15)
+
+    if not converging:
+        return []
 
     suggestions = []
+    for note_a, note_b in converging:
+        # Check if they're currently similar but not linked
+        if vault.links_between(note_a, note_b):
+            continue
 
-    try:
-        # Get session history (need at least 3 sessions)
-        cursor = vault.db.execute(
-            """
-            SELECT session_id FROM sessions
-            ORDER BY session_date ASC
-            """
+        # Get session count for context
+        calc = EmbeddingTrajectoryCalculator(vault, note_a)
+        session_count = len(calc.snapshots())
+
+        if session_count < 3:
+            continue
+
+        text = (
+            f"[[{note_a.obsidian_link}]] and "
+            f"[[{note_b.obsidian_link}]] have been converging "
+            f"semantically across your last {session_count} sessions. "
+            f"Two ideas independently developing in the same direction—"
+            f"time to link them?"
         )
-        sessions = [row[0] for row in cursor.fetchall()]
 
-        if len(sessions) < 3:
-            return []
-
-        # Sample note pairs and check if they're converging
-        notes = vault.notes()
-
-        if len(notes) < 10:
-            return []
-
-        pairs = []
-        sample_notes = vault.sample(notes, min(30, len(notes)))
-
-        for i, note_a in enumerate(sample_notes):
-            for note_b in sample_notes[i + 1 :]:
-                pairs.append((note_a, note_b))
-
-        # Check convergence for each pair
-        for note_a, note_b in vault.sample(pairs, min(100, len(pairs))):
-            # Get embedding history for both notes
-            embeddings_a = []
-            embeddings_b = []
-
-            for session_id in sessions:
-                cursor_a = vault.db.execute(
-                    """
-                    SELECT embedding FROM session_embeddings
-                    WHERE session_id = ? AND note_path = ?
-                    """,
-                    (session_id, note_a.path),
-                )
-                cursor_b = vault.db.execute(
-                    """
-                    SELECT embedding FROM session_embeddings
-                    WHERE session_id = ? AND note_path = ?
-                    """,
-                    (session_id, note_b.path),
-                )
-
-                row_a = cursor_a.fetchone()
-                row_b = cursor_b.fetchone()
-
-                if row_a and row_b:
-                    emb_a = np.frombuffer(row_a[0], dtype=np.float32)
-                    emb_b = np.frombuffer(row_b[0], dtype=np.float32)
-                    embeddings_a.append(emb_a)
-                    embeddings_b.append(emb_b)
-
-            if len(embeddings_a) < 3:
-                continue
-
-            # Calculate similarity trajectory using sklearn
-            from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-                cosine_similarity as sklearn_cosine,
+        suggestions.append(
+            Suggestion(
+                text=text,
+                notes=[note_a.obsidian_link, note_b.obsidian_link],
+                geist_id="convergent_evolution",
             )
-
-            similarities = []
-            for emb_a, emb_b in zip(embeddings_a, embeddings_b):
-                sim = float(sklearn_cosine(emb_a.reshape(1, -1), emb_b.reshape(1, -1))[0, 0])
-                similarities.append(sim)
-
-            # Check if similarity is increasing (convergence)
-            early_sim = np.mean(similarities[: len(similarities) // 2])
-            recent_sim = np.mean(similarities[len(similarities) // 2 :])
-
-            if recent_sim > early_sim + 0.15:  # Significant convergence
-                # Check if they're currently similar but not linked
-                if not vault.links_between(note_a, note_b):
-                    text = (
-                        f"[[{note_a.obsidian_link}]] and "
-                        f"[[{note_b.obsidian_link}]] have been converging "
-                        f"semantically across your last {len(similarities)} sessions. "
-                        f"Two ideas independently developing in the same direction—"
-                        f"time to link them?"
-                    )
-
-                    suggestions.append(
-                        Suggestion(
-                            text=text,
-                            notes=[note_a.obsidian_link, note_b.obsidian_link],
-                            geist_id="convergent_evolution",
-                        )
-                    )
-
-    except Exception:
-        return []
+        )
 
     return vault.sample(suggestions, k=2)
