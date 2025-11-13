@@ -21,7 +21,7 @@ def clear_global_registry():
 
 
 @pytest.fixture
-def test_vault_with_notes():
+def vault_with_notes():
     """Create a test vault with sample notes."""
     with TemporaryDirectory() as tmpdir:
         vault_path = Path(tmpdir)
@@ -55,9 +55,9 @@ def test_vault_with_notes():
         vault.close()
 
 
-def test_vault_context_initialization(test_vault_with_notes):
+def test_vault_context_initialization(vault_with_notes):
     """Test VaultContext initialisation."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
 
     ctx = VaultContext(vault, session)
 
@@ -67,9 +67,9 @@ def test_vault_context_initialization(test_vault_with_notes):
     assert ctx.rng is not None
 
 
-def test_vault_context_deterministic_seed(test_vault_with_notes):
+def test_vault_context_deterministic_seed(vault_with_notes):
     """Test that same seed produces same random results."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
 
     ctx1 = VaultContext(vault, session, seed=42)
     ctx2 = VaultContext(vault, session, seed=42)
@@ -81,9 +81,9 @@ def test_vault_context_deterministic_seed(test_vault_with_notes):
     assert sample1 == sample2
 
 
-def test_notes_access(test_vault_with_notes):
+def test_notes_access(vault_with_notes):
     """Test accessing all notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     notes = ctx.notes()
@@ -92,9 +92,9 @@ def test_notes_access(test_vault_with_notes):
     assert all(isinstance(n, Note) for n in notes)
 
 
-def test_get_note(test_vault_with_notes):
+def test_get_note(vault_with_notes):
     """Test getting specific note."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     note = ctx.get_note("ai.md")
@@ -104,9 +104,9 @@ def test_get_note(test_vault_with_notes):
     assert "artificial intelligence" in note.content
 
 
-def test_read_note(test_vault_with_notes):
+def test_read_note(vault_with_notes):
     """Test reading note content."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     note = ctx.get_note("ai.md")
@@ -116,9 +116,9 @@ def test_read_note(test_vault_with_notes):
     assert "artificial intelligence" in content
 
 
-def test_neighbors_semantic_search(test_vault_with_notes):
+def test_neighbors_semantic_search(vault_with_notes):
     """Test finding semantically similar notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
@@ -129,9 +129,9 @@ def test_neighbors_semantic_search(test_vault_with_notes):
     assert any(n.path == "ml.md" for n in neighbours)
 
 
-def test_similarity(test_vault_with_notes):
+def test_similarity(vault_with_notes):
     """Test computing similarity between notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
@@ -147,9 +147,9 @@ def test_similarity(test_vault_with_notes):
     assert 0 <= sim_ai_cooking <= 1
 
 
-def test_backlinks(test_vault_with_notes):
+def test_backlinks(vault_with_notes):
     """Test finding notes that link to a note."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
@@ -159,9 +159,9 @@ def test_backlinks(test_vault_with_notes):
     assert any(n.path == "ml.md" for n in backlinks)
 
 
-def test_orphans(test_vault_with_notes):
+def test_orphans(vault_with_notes):
     """Test finding orphan notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     orphans = ctx.orphans()
@@ -236,9 +236,9 @@ def test_orphans_detects_exactly_two_orphans():
         vault.close()
 
 
-def test_hubs(test_vault_with_notes):
+def test_hubs(vault_with_notes):
     """Test finding hub notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     hubs = ctx.hubs(k=2)
@@ -484,9 +484,9 @@ def test_vault_functions_adapter_layer():
         vault.close()
 
 
-def test_unlinked_pairs(test_vault_with_notes):
+def test_unlinked_pairs(vault_with_notes):
     """Test finding similar but unlinked note pairs."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     pairs = ctx.unlinked_pairs(k=3)
@@ -499,9 +499,9 @@ def test_unlinked_pairs(test_vault_with_notes):
         assert len(ctx.links_between(a, b)) == 0
 
 
-def test_links_between(test_vault_with_notes):
+def test_links_between(vault_with_notes):
     """Test finding links between notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     ml_note = ctx.get_note("ml.md")
@@ -513,9 +513,9 @@ def test_links_between(test_vault_with_notes):
     assert len(links) > 0
 
 
-def test_old_notes(test_vault_with_notes):
+def test_old_notes(vault_with_notes):
     """Test finding oldest notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     old = ctx.old_notes(k=2)
@@ -526,9 +526,9 @@ def test_old_notes(test_vault_with_notes):
         assert old[0].modified <= old[1].modified
 
 
-def test_recent_notes(test_vault_with_notes):
+def test_recent_notes(vault_with_notes):
     """Test finding most recent notes."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     recent = ctx.recent_notes(k=2)
@@ -539,9 +539,9 @@ def test_recent_notes(test_vault_with_notes):
         assert recent[0].modified >= recent[1].modified
 
 
-def test_metadata(test_vault_with_notes):
+def test_metadata(vault_with_notes):
     """Test metadata access."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
@@ -557,9 +557,9 @@ def test_metadata(test_vault_with_notes):
     assert metadata["tag_count"] == 0  # ai.md has no tags
 
 
-def test_metadata_caching(test_vault_with_notes):
+def test_metadata_caching(vault_with_notes):
     """Test that metadata is cached."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
@@ -571,9 +571,9 @@ def test_metadata_caching(test_vault_with_notes):
     assert metadata1 is metadata2
 
 
-def test_sample(test_vault_with_notes):
+def test_sample(vault_with_notes):
     """Test deterministic sampling."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session, seed=42)
 
     items = list(range(10))
@@ -586,9 +586,9 @@ def test_sample(test_vault_with_notes):
     assert len(sample2) == 5
 
 
-def test_random_notes(test_vault_with_notes):
+def test_random_notes(vault_with_notes):
     """Test random note sampling."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session, seed=42)
 
     random_notes = ctx.random_notes(k=3)
@@ -597,9 +597,9 @@ def test_random_notes(test_vault_with_notes):
     assert all(isinstance(n, Note) for n in random_notes)
 
 
-def test_function_registry(test_vault_with_notes):
+def test_function_registry(vault_with_notes):
     """Test function registration and calling."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     # Register a test function
@@ -616,18 +616,18 @@ def test_function_registry(test_vault_with_notes):
     assert result == 15  # 5 notes * 3
 
 
-def test_call_nonexistent_function(test_vault_with_notes):
+def test_call_nonexistent_function(vault_with_notes):
     """Test that calling nonexistent function raises KeyError."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     with pytest.raises(KeyError, match="not registered"):
         ctx.call_function("nonexistent")
 
 
-def test_vault_context_with_date_seed(test_vault_with_notes):
+def test_vault_context_with_date_seed(vault_with_notes):
     """Test that date is used as default seed."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
 
     # Create two contexts for same date
     ctx1 = VaultContext(vault, session)  # Uses session date as seed

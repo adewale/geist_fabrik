@@ -19,7 +19,7 @@ def clear_global_registry():
 
 
 @pytest.fixture
-def test_vault_with_sessions(tmp_path):
+def vault_with_sessions(tmp_path):
     """Create a test vault with burst days and multiple sessions."""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -65,9 +65,9 @@ def test_vault_with_sessions(tmp_path):
     return vault, session1, session2
 
 
-def test_burst_evolution_detects_burst_with_history(test_vault_with_sessions):
+def test_burst_evolution_detects_burst_with_history(vault_with_sessions):
     """Test that burst evolution works with session history."""
-    vault, session1, session2 = test_vault_with_sessions
+    vault, session1, session2 = vault_with_sessions
 
     function_registry = FunctionRegistry()
     context = VaultContext(
@@ -160,9 +160,9 @@ def test_burst_evolution_no_bursts(tmp_path):
     assert len(suggestions) == 0
 
 
-def test_burst_evolution_insufficient_drift_data(test_vault_with_sessions):
+def test_burst_evolution_insufficient_drift_data(vault_with_sessions):
     """Test fallback when <3 notes have drift data."""
-    vault, session1, session2 = test_vault_with_sessions
+    vault, session1, session2 = vault_with_sessions
 
     # Delete session_embeddings for most notes, keeping only 2
     paths = [note.path for note in vault.all_notes()]
@@ -242,9 +242,9 @@ def test_burst_evolution_drift_label():
     assert _drift_label(0.50) == "major evolution"
 
 
-def test_burst_evolution_includes_note_titles(test_vault_with_sessions):
+def test_burst_evolution_includes_note_titles(vault_with_sessions):
     """Test that suggestion includes note titles in notes list."""
-    vault, session1, session2 = test_vault_with_sessions
+    vault, session1, session2 = vault_with_sessions
 
     context = VaultContext(
         vault=vault,
@@ -263,9 +263,9 @@ def test_burst_evolution_includes_note_titles(test_vault_with_sessions):
             assert isinstance(note_title, str)
 
 
-def test_burst_evolution_single_suggestion(test_vault_with_sessions):
+def test_burst_evolution_single_suggestion(vault_with_sessions):
     """Test that geist returns at most 1 suggestion."""
-    vault, session1, session2 = test_vault_with_sessions
+    vault, session1, session2 = vault_with_sessions
 
     context = VaultContext(
         vault=vault,
