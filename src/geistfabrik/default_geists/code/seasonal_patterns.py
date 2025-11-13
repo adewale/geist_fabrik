@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+from geistfabrik.similarity_analysis import SimilarityLevel
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -59,6 +60,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         sample = vault.sample(month_notes, min(10, len(month_notes)))
 
         # OPTIMISATION #5: Use batch_similarity for pairwise comparisons
+        # Note: batch_similarity() is cache-aware (v0.9+), optimal for matrix operations
         if len(sample) > 1:
             sim_matrix = vault.batch_similarity(sample, sample)
             # Extract upper triangle (avoid diagonal and duplicates)
@@ -94,6 +96,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if len(year_samples) >= 3:
                 # Check if notes from different years but same month are similar
                 # OPTIMISATION #5: Collect cross-year pairs, then batch compute similarities
+                # Note: batch_similarity() is cache-aware (v0.9+), optimal for matrix operations
                 cross_year_pairs = []
                 for i, (year1, note1) in enumerate(year_samples):
                     for year2, note2 in year_samples[i + 1 :]:
@@ -115,7 +118,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     best_match = cross_year_sims[0]
                     note1, note2, similarity = best_match
 
-                    if similarity > 0.6:
+                    if similarity > SimilarityLevel.HIGH:
                         month_name = month_names[top_month_num - 1]
                         year1 = note1.created.year
                         year2 = note2.created.year

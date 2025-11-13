@@ -194,7 +194,7 @@ New geist patterns become trivial:
 # BEFORE (concept_drift.py - ~65 lines)
 def suggest(vault: VaultContext) -> list[Suggestion]:
     # Get session history (8 lines)
-    cursor = vault.db.execute("SELECT session_id, session_date FROM sessions...")
+    cursor = vault.db.execute("SELECT session_id, date FROM sessions...")
     sessions = cursor.fetchall()
 
     # For each note (40+ lines)
@@ -1242,7 +1242,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
 **Before** (65 lines):
 ```python
 def suggest(vault: VaultContext) -> list[Suggestion]:
-    cursor = vault.db.execute("SELECT session_id, session_date FROM sessions ORDER BY session_date ASC")
+    cursor = vault.db.execute("SELECT session_id, date FROM sessions ORDER BY date ASC")
     sessions = cursor.fetchall()
     if len(sessions) < 3:
         return []
