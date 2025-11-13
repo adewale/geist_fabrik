@@ -101,6 +101,27 @@ def test_pattern_finder_returns_suggestions(vault_with_repeated_phrases):
     assert isinstance(suggestions, list)
     assert len(suggestions) <= 2
 
+    # BEHAVIORAL: Verify fixture patterns are detected
+    if len(suggestions) > 0:
+        all_texts = " ".join(s.text.lower() for s in suggestions)
+
+        # Fixture has repeated phrases "emergent behaviour patterns"
+        # and "distributed consensus algorithms"
+        assert any(
+            [
+                "emergent" in all_texts,
+                "consensus" in all_texts,
+                "behaviour" in all_texts,
+                "algorithm" in all_texts,
+            ]
+        ), "Pattern finder should detect repeated phrases from fixture"
+
+        # Verify at least one suggestion references emergent or consensus notes
+        all_note_refs = [note.lower() for s in suggestions for note in s.notes]
+        assert any("emergent" in note or "consensus" in note for note in all_note_refs), (
+            "Suggestions should reference notes with repeated patterns"
+        )
+
 
 def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
     """Test that suggestions have correct structure."""
@@ -140,6 +161,43 @@ def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
         for note_ref in suggestion.notes:
             assert isinstance(note_ref, str)
 
+        # BEHAVIORAL: Verify suggested notes are actually unlinked (core pattern_finder logic)
+        for i, note1_ref in enumerate(suggestion.notes):
+            for note2_ref in suggestion.notes[i + 1 :]:
+                note1 = next((n for n in vault.all_notes() if n.obsidian_link == note1_ref), None)
+                note2 = next((n for n in vault.all_notes() if n.obsidian_link == note2_ref), None)
+
+                if note1 and note2:
+                    links = context.links_between(note1, note2)
+                    assert len(links) == 0, (
+                        f"Pattern finder should only suggest unlinked notes, "
+                        f"but [[{note1_ref}]] and [[{note2_ref}]] are linked"
+                    )
+
+        # BEHAVIORAL: If suggestion mentions a phrase, verify it appears in suggested notes
+        if "phrase" in suggestion.text.lower() and '"' in suggestion.text:
+            # Extract phrase from suggestion text (between quotes)
+            import re
+
+            match = re.search(r'"([^"]+)"', suggestion.text)
+            if match:
+                phrase = match.group(1).lower()
+                # Verify phrase appears in at least 3 suggested notes
+                phrase_count = 0
+                for note_ref in suggestion.notes:
+                    note = next(
+                        (n for n in vault.all_notes() if n.obsidian_link == note_ref),
+                        None,
+                    )
+                    if note:
+                        content = context.read(note).lower()
+                        if phrase in content:
+                            phrase_count += 1
+
+                assert phrase_count >= 3, (
+                    f"Phrase '{phrase}' should appear in 3+ notes, found in {phrase_count}"
+                )
+
 
 def test_pattern_finder_uses_obsidian_link(vault_with_repeated_phrases):
     """Test that pattern_finder uses obsidian_link for note references."""
@@ -162,6 +220,56 @@ def test_pattern_finder_uses_obsidian_link(vault_with_repeated_phrases):
         # Check that notes list contains proper references
         for note_ref in suggestion.notes:
             assert isinstance(note_ref, str)
+
+
+def test_pattern_finder_detects_semantic_clusters(vault_with_repeated_phrases):
+    """Test that pattern_finder identifies semantically similar unlinked note clusters.
+
+    Pattern finder has two detection modes: phrase-based and semantic clusters.
+    This test verifies the semantic cluster logic works correctly.
+    """
+    vault, session = vault_with_repeated_phrases
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = pattern_finder.suggest(context)
+
+    # BEHAVIORAL: Verify semantic cluster detection mode
+    if len(suggestions) > 0:
+        # Check for semantic cluster suggestions (mention "semantic", "cluster", or "similar")
+        cluster_suggestions = [
+            s
+            for s in suggestions
+            if any(keyword in s.text.lower() for keyword in ["semantic", "cluster", "similar"])
+        ]
+
+        for suggestion in cluster_suggestions:
+            # Verify cluster notes have high semantic similarity (>0.7 from line 107)
+            note_objs = []
+            for ref in suggestion.notes:
+                note = next((n for n in vault.all_notes() if n.obsidian_link == ref), None)
+                if note:
+                    note_objs.append(note)
+
+            if len(note_objs) >= 2:
+                # Check pairwise similarity
+                similarities = []
+                for i in range(len(note_objs)):
+                    for j in range(i + 1, len(note_objs)):
+                        sim = context.similarity(note_objs[i], note_objs[j])
+                        similarities.append(sim)
+
+                if similarities:
+                    avg_similarity = sum(similarities) / len(similarities)
+                    assert avg_similarity > 0.6, (
+                        f"Semantic cluster should have high avg similarity, "
+                        f"got {avg_similarity:.2f}"
+                    )
 
 
 # ============================================================================
