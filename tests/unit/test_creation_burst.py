@@ -125,6 +125,92 @@ def test_creation_burst_small_burst_question(vault_context):
         assert "Does today feel generative?" in suggestions[0].text
 
 
+def test_creation_burst_large_burst_guaranteed_question(tmp_path):
+    """Test that large bursts (6+ notes) always use 'What was special about that day?' question.
+
+    Creates vault with ONLY one large burst day (6 notes), ensuring it gets selected.
+    Verifies question text matches expected template for large bursts.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create burst day with exactly 6 notes (large burst threshold)
+    burst_date = datetime(2024, 3, 15, 10, 0, 0)
+    for i in range(6):
+        note_path = vault_path / f"burst_note_{i}.md"
+        note_path.write_text(f"# Burst Note {i}\n\nContent from the burst day.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Set created dates
+    for i in range(6):
+        vault.db.execute(
+            "UPDATE notes SET created = ? WHERE title = ?",
+            (burst_date.isoformat(), f"Burst Note {i}"),
+        )
+    vault.db.commit()
+
+    session = Session(burst_date, vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
+
+    assert len(suggestions) == 1
+    assert len(suggestions[0].notes) == 6
+    # Large burst (6+ notes) should use this specific question
+    assert "What was special about that day?" in suggestions[0].text
+
+
+def test_creation_burst_small_burst_guaranteed_question(tmp_path):
+    """Test that small bursts (3-5 notes) always use 'Does today feel generative?' question.
+
+    Creates vault with ONLY one small burst day (4 notes), ensuring it gets selected.
+    Verifies question text matches expected template for small bursts.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create burst day with exactly 4 notes (small burst: 3-5 notes)
+    burst_date = datetime(2024, 3, 16, 10, 0, 0)
+    for i in range(4):
+        note_path = vault_path / f"burst_note_{i}.md"
+        note_path.write_text(f"# Burst Note {i}\n\nContent from the burst day.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Set created dates
+    for i in range(4):
+        vault.db.execute(
+            "UPDATE notes SET created = ? WHERE title = ?",
+            (burst_date.isoformat(), f"Burst Note {i}"),
+        )
+    vault.db.commit()
+
+    session = Session(burst_date, vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240316,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
+
+    assert len(suggestions) == 1
+    assert len(suggestions[0].notes) == 4
+    # Small burst (3-5 notes) should use this specific question
+    assert "Does today feel generative?" in suggestions[0].text
+
+
 def test_creation_burst_excludes_geist_journal(tmp_path):
     """Test that geist journal notes are excluded from burst detection."""
     vault_path = tmp_path / "vault"
