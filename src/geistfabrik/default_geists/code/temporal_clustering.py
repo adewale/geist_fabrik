@@ -17,6 +17,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         List of suggestions highlighting temporal thinking patterns
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
 
@@ -59,22 +60,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # Calculate intra-cluster similarity (how similar are notes within this quarter)
             sample = vault.sample(quarter_notes, min(10, len(quarter_notes)))
 
-            # OPTIMISATION #5: Use batch_similarity for pairwise comparisons
-            if len(sample) > 1:
-                sim_matrix = vault.batch_similarity(sample, sample)
-                # Extract upper triangle (avoid diagonal and duplicates)
-                similarities = []
-                for i in range(len(sample)):
-                    for j in range(i + 1, len(sample)):
-                        similarities.append(sim_matrix[i, j])
-            else:
-                similarities = []
+            # Calculate pairwise similarities using individual calls to benefit from cache
+            similarities = []
+            for i in range(len(sample)):
+                for j in range(i + 1, len(sample)):
+                    sim = vault.similarity(sample[i], sample[j])
+                    similarities.append(sim)
 
             if similarities:
                 avg_similarity = sum(similarities) / len(similarities)
 
                 # High intra-cluster similarity suggests a coherent intellectual period
-                if avg_similarity > 0.5:
+                if avg_similarity > SimilarityLevel.MODERATE:
                     significant_clusters.append((label, quarter_notes, avg_similarity))
 
         # Report on significant temporal clusters

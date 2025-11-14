@@ -17,6 +17,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         List of suggestions highlighting potential hidden hubs
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
 
@@ -31,11 +32,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         incoming = len(vault.backlinks(note))
         total_links = outgoing + incoming
 
-        # Find semantic neighbours with scores (OP-9: avoid recomputing similarities)
+        # Find semantic neighbours with scores
         neighbors_with_scores = vault.neighbours(note, k=30, return_scores=True)
 
         # Filter to only high-similarity neighbours
-        high_similarity_count = sum(1 for n, sim in neighbors_with_scores if sim > 0.6)
+        high_similarity_count = sum(
+            1 for n, sim in neighbors_with_scores if sim > SimilarityLevel.HIGH
+        )
 
         # High semantic centrality, low graph centrality = hidden hub
         if high_similarity_count > 10 and total_links < 5:

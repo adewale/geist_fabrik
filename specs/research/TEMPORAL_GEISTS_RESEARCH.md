@@ -699,9 +699,16 @@ def test_all_temporal_geists_on_real_vault():
 ### Regression Tests
 
 Prevent Phase 3B-style regressions:
+
+> **UPDATE (2025-01-13)**: As of commit 8ce5c8c, `batch_similarity()` is cache-aware and no longer bypasses the session cache. The original test below is now outdated. Both `similarity()` and `batch_similarity()` integrate with the session cache. Temporal geists can safely use either method based on their use case (matrix vs sequential loop).
+
 ```python
+# OUTDATED TEST (kept for historical reference)
+# This test was valid when batch_similarity() bypassed cache (pre-v0.9)
 def test_no_batch_similarity_in_temporal_geists():
-    """Ensure temporal geists use cache-aware similarity()."""
+    """[OUTDATED] Ensure temporal geists use cache-aware similarity()."""
+    # NOTE: As of v0.9+, both methods are cache-aware.
+    # Geists should choose based on use case, not cache optimization.
     temporal_geists = [
         "stability_anomaly.py",
         "polysemy_evolution.py",
@@ -710,6 +717,7 @@ def test_no_batch_similarity_in_temporal_geists():
 
     for geist_file in temporal_geists:
         source = Path(f"src/geistfabrik/default_geists/{geist_file}").read_text()
+        # This assertion is no longer relevant
         assert "batch_similarity" not in source, \
             f"{geist_file} uses batch_similarity, which bypasses cache"
 ```

@@ -194,7 +194,7 @@ New geist patterns become trivial:
 # BEFORE (concept_drift.py - ~65 lines)
 def suggest(vault: VaultContext) -> list[Suggestion]:
     # Get session history (8 lines)
-    cursor = vault.db.execute("SELECT session_id, session_date FROM sessions...")
+    cursor = vault.db.execute("SELECT session_id, date FROM sessions...")
     sessions = cursor.fetchall()
 
     # For each note (40+ lines)
@@ -1157,6 +1157,47 @@ All abstractions use constructor DI for VaultContext. No static methods with vau
 ### Principle 8: Minimal State
 Abstractions hold only VaultContext references. Computational state (caching) only when valuable.
 
+### Principle 9: Filter Geist Journal for Historical Analysis
+Geists analyzing vault history must exclude geist journal notes to avoid circular references and statistical skew.
+
+**Pattern**: Use `vault.notes_excluding_journal()` instead of `vault.notes()` when:
+- Analyzing vault history or temporal patterns
+- Computing statistical distributions
+- Tracking note evolution over time
+- Building cohort analysis
+
+**Why**: Geist journal notes are ephemeral session output, not persistent user knowledge. Including them causes:
+- **Circular references**: Analyzing system output as user notes
+- **Statistical skew**: Journal notes have predictable structure and metadata
+- **False patterns**: Session output creates misleading temporal patterns
+
+**Implementation**:
+```python
+# ✅ Correct - excludes geist journal for historical analysis
+def suggest(vault: VaultContext) -> list[Suggestion]:
+    notes = vault.notes_excluding_journal()
+    # ... analyze history, compute statistics, track evolution ...
+
+# ❌ Wrong - includes journal in historical analysis
+def suggest(vault: VaultContext) -> list[Suggestion]:
+    notes = vault.notes()
+    # ... risk of circular references and skewed statistics ...
+```
+
+**When NOT to filter**:
+- Point-in-time content analysis (pattern extraction, question harvesting)
+- Semantic similarity queries (no risk of circular reference)
+- Single-note operations
+- Computing vault-wide statistics where journal inclusion is intentional
+
+**Examples**:
+- **Filter**: creation_burst (tracks user-created burst days, not session creation)
+- **Filter**: temporal_mirror (compares user notes across time periods)
+- **Filter**: cluster_evolution_tracker (tracks semantic drift of user notes)
+- **Don't filter**: question_harvester (extracts questions from any note)
+- **Don't filter**: pattern_finder (finds text patterns anywhere in vault)
+- **Mixed**: metadata_outlier_detector (computes statistics on all notes, filters results)
+
 ---
 
 ## VII. Success Metrics
@@ -1201,7 +1242,7 @@ Abstractions hold only VaultContext references. Computational state (caching) on
 **Before** (65 lines):
 ```python
 def suggest(vault: VaultContext) -> list[Suggestion]:
-    cursor = vault.db.execute("SELECT session_id, session_date FROM sessions ORDER BY session_date ASC")
+    cursor = vault.db.execute("SELECT session_id, date FROM sessions ORDER BY date ASC")
     sessions = cursor.fetchall()
     if len(sessions) < 3:
         return []

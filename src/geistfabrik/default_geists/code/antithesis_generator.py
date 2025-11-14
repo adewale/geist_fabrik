@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+from geistfabrik.similarity_analysis import SimilarityLevel
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -133,7 +134,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         for other, similarity in similar_with_scores:
             # Check if they seem opposed (already have similarity from neighbours)
-            if similarity > 0.5:  # Related but not too similar
+            if similarity > SimilarityLevel.MODERATE:  # Related but not too similar
                 note_content = vault.read(note).lower()
                 other_content = vault.read(other).lower()
 

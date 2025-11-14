@@ -151,6 +151,32 @@ class VaultContext:
             self._notes_cache = self.vault.all_notes()
         return self._notes_cache
 
+    def notes_excluding_journal(self) -> List[Note]:
+        """Get all notes except geist journal entries.
+
+        Convenience method for geists that analyze vault history.
+        Geist journal notes are ephemeral session output and should
+        typically be excluded from historical analysis to avoid:
+        - Circular references (analyzing system output as user notes)
+        - Statistical skew (session notes have different characteristics)
+        - False patterns (journal structure is predictable)
+
+        When to use:
+        - Analyzing vault history or temporal patterns
+        - Computing statistical distributions
+        - Tracking note evolution over time
+        - Building cohort analysis
+
+        When NOT to use:
+        - Point-in-time content analysis (pattern extraction)
+        - Semantic similarity queries (no risk of circular reference)
+        - Single-note operations
+
+        Returns:
+            List of notes excluding those in "geist journal/" directory
+        """
+        return [n for n in self.notes() if not n.path.startswith("geist journal/")]
+
     def get_note(self, path: str) -> Optional[Note]:
         """Get specific note by path.
 
@@ -311,10 +337,16 @@ class VaultContext:
         return similarity_score
 
     def batch_similarity(self, notes_a: List[Note], notes_b: List[Note]) -> np.ndarray:
-        """Calculate semantic similarity between two sets of notes (vectorised).
+        """Calculate semantic similarity between two sets of notes (cache-aware).
 
         Computes all pairwise similarities between notes_a and notes_b using
-        vectorised matrix operations for 10-100× speedup compared to nested loops.
+        vectorised matrix operations. Now integrates with the session-scoped
+        similarity cache for best performance in all scenarios.
+
+        Performance characteristics:
+        - 100% cache hits: O(N×M) dict lookups (~1-2ms for 100 pairs)
+        - 0% cache hits: Same as before (vectorized batch computation)
+        - Mixed hits: Batch compute all, then cache for subsequent calls
 
         OPTIMISATION #3: Use this instead of nested similarity() calls:
 
@@ -323,7 +355,7 @@ class VaultContext:
                 for b in notes_b:
                     sim = vault.similarity(a, b)
 
-        After (O(1) batch operation):
+        After (O(1) batch operation, cache-aware):
             similarities = vault.batch_similarity(notes_a, notes_b)
             # similarities[i, j] = similarity between notes_a[i] and notes_b[j]
 
@@ -338,7 +370,27 @@ class VaultContext:
         if not notes_a or not notes_b:
             return np.array([]).reshape(0, 0)
 
-        # Get embeddings for all notes
+        # Phase 1: Check cache for all pairs
+        result = np.zeros((len(notes_a), len(notes_b)))
+        needs_computation = np.ones((len(notes_a), len(notes_b)), dtype=bool)
+
+        for i, note_a in enumerate(notes_a):
+            for j, note_b in enumerate(notes_b):
+                # Create order-independent cache key (same as similarity())
+                sorted_paths = sorted([note_a.path, note_b.path])
+                cache_key: tuple[str, str] = (sorted_paths[0], sorted_paths[1])
+
+                if cache_key in self._similarity_cache:
+                    result[i, j] = self._similarity_cache[cache_key]
+                    needs_computation[i, j] = False
+
+        # If fully cached, return immediately (fast path)
+        if not needs_computation.any():
+            return result
+
+        # Phase 2: Batch compute all pairs (existing implementation)
+        # Note: We compute ALL pairs even if some cached, because vectorized
+        # matrix operations are most efficient when done as single operation
         embeddings_a = []
         embeddings_b = []
 
@@ -379,9 +431,20 @@ class VaultContext:
         similarity_matrix = matrix_a_normalised @ matrix_b_normalised.T
 
         # Clip to [0, 1] range (numerical errors can cause slight overshoot)
-        clipped: np.ndarray = np.clip(similarity_matrix, 0.0, 1.0)
+        similarity_matrix = np.clip(similarity_matrix, 0.0, 1.0)
 
-        return clipped
+        # Phase 3: Populate cache for newly computed pairs
+        for i in range(len(notes_a)):
+            for j in range(len(notes_b)):
+                if needs_computation[i, j]:
+                    result[i, j] = similarity_matrix[i, j]
+
+                    # Cache this pair for future use
+                    sorted_paths = sorted([notes_a[i].path, notes_b[j].path])
+                    cache_key_store: tuple[str, str] = (sorted_paths[0], sorted_paths[1])
+                    self._similarity_cache[cache_key_store] = similarity_matrix[i, j]
+
+        return result
 
     # Graph operations
 
@@ -534,6 +597,55 @@ class VaultContext:
             note = notes_map.get(path)
             if note is not None:
                 result.append(note)
+
+        return result
+
+    def notes_grouped_by_creation_date(
+        self, min_per_day: int = 1, exclude_journal: bool = True
+    ) -> Dict[str, List[Note]]:
+        """Group notes by creation date.
+
+        Provides temporal aggregation without exposing SQL implementation.
+        Use this instead of direct database queries for grouping notes by date.
+
+        Args:
+            min_per_day: Minimum notes per day to include in results
+            exclude_journal: If True, exclude "geist journal/" notes (default)
+
+        Returns:
+            Dictionary mapping date strings (YYYY-MM-DD) to lists of notes
+            created on that date, sorted by note count descending
+        """
+        journal_filter = "WHERE NOT path LIKE 'geist journal/%'" if exclude_journal else ""
+
+        cursor = self.db.execute(
+            f"""
+            SELECT DATE(created) as creation_date,
+                   GROUP_CONCAT(path, '|') as note_paths
+            FROM notes
+            {journal_filter}
+            GROUP BY DATE(created)
+            HAVING COUNT(*) >= ?
+            ORDER BY COUNT(*) DESC
+            """,
+            (min_per_day,),
+        )
+
+        result: Dict[str, List[Note]] = {}
+        for row in cursor.fetchall():
+            date_str, paths_str = row
+            if paths_str:
+                paths = paths_str.split("|")
+                # Batch load notes for efficiency
+                notes_map = self.vault.get_notes_batch(paths)
+                # Preserve order and filter out None
+                notes: List[Note] = []
+                for p in paths:
+                    note = notes_map.get(p)
+                    if note is not None:
+                        notes.append(note)
+                if notes:
+                    result[date_str] = notes
 
         return result
 

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+from geistfabrik.similarity_analysis import SimilarityLevel
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -71,7 +72,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # High semantic similarity but opposite linguistic patterns suggests contradiction
             # (already have similarity from neighbours)
 
-            if similarity > 0.6 and (
+            if similarity > SimilarityLevel.HIGH and (
                 (note_positive_words > 2 and other_negative_words > 2)
                 or (note_negative_words > 2 and other_positive_words > 2)
             ):

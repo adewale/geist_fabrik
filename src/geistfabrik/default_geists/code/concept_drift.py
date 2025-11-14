@@ -15,118 +15,88 @@ if TYPE_CHECKING:
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Track embedding trajectory of concept notes across sessions.
 
+    Uses TemporalPatternFinder to identify high-drift notes, then analyzes
+    which current neighbors are most aligned with the drift direction.
+
     Returns:
         List of suggestions showing how concepts evolve
     """
     from geistfabrik import Suggestion
+    from geistfabrik.temporal_analysis import (
+        EmbeddingTrajectoryCalculator,
+        TemporalPatternFinder,
+    )
+
+    # Find notes with significant drift (>0.2)
+    notes = vault.notes()
+    finder = TemporalPatternFinder(vault)
+    drifting = finder.find_high_drift_notes(notes, min_drift=0.2)
+
+    if not drifting:
+        return []
+
+    # Sample up to 30 drifting notes (as original did)
+    sampled_drifting = vault.sample(drifting, k=min(30, len(drifting)))
 
     suggestions = []
+    for note, drift_vector in sampled_drifting:
+        # Try to characterize the drift by finding what it's moving toward
+        current_neighbors = vault.neighbours(note, k=5)
 
-    try:
-        # Get session history
-        cursor = vault.db.execute(
-            """
-            SELECT session_id, session_date FROM sessions
-            ORDER BY session_date ASC
-            """
-        )
-        sessions = cursor.fetchall()
+        if not current_neighbors:
+            continue
 
-        if len(sessions) < 3:
-            return []
-
-        # Find notes that appear in multiple sessions
-        notes = vault.notes()
-
-        for note in vault.sample(notes, min(30, len(notes))):
-            # Get embedding trajectory for this note
-            trajectory = []
-
-            for session_id, session_date in sessions:
-                cursor = vault.db.execute(
-                    """
-                    SELECT embedding FROM session_embeddings
-                    WHERE session_id = ? AND note_path = ?
-                    """,
-                    (session_id, note.path),
-                )
-                row = cursor.fetchone()
-                if row:
-                    emb = np.frombuffer(row[0], dtype=np.float32)
-                    trajectory.append((session_date, emb))
-
-            if len(trajectory) < 3:
+        # Find which neighbors are most aligned with the drift direction
+        neighbor_alignments = []
+        for neighbour in current_neighbors:
+            if neighbour.path == note.path:
                 continue
 
-            # Analyze trajectory: has the note's meaning migrated?
-            first_emb = trajectory[0][1]
-            last_emb = trajectory[-1][1]
+            # Get neighbor's current embedding from their trajectory
+            neighbor_calc = EmbeddingTrajectoryCalculator(vault, neighbour)
+            neighbor_snapshots = neighbor_calc.snapshots()
 
-            # Calculate drift from first to last using sklearn
-            from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-                cosine_similarity as sklearn_cosine,
+            if not neighbor_snapshots:
+                continue
+
+            # Use most recent embedding
+            neighbor_emb = neighbor_snapshots[-1][1]
+
+            # How aligned is neighbor with drift direction?
+            # drift_vector is already a unit vector from TemporalPatternFinder
+            alignment = np.dot(drift_vector, neighbor_emb) / np.linalg.norm(
+                neighbor_emb
             )
+            neighbor_alignments.append((neighbour, alignment))
 
-            similarity = sklearn_cosine(first_emb.reshape(1, -1), last_emb.reshape(1, -1))
-            drift = 1.0 - float(similarity[0, 0])
+        if not neighbor_alignments:
+            continue
 
-            if drift > 0.2:  # Significant migration
-                # Try to characterise the drift by finding what it's moving toward
-                current_neighbors = vault.neighbours(note, k=5)
+        neighbor_alignments.sort(key=lambda x: x[1], reverse=True)
+        top_neighbor = neighbor_alignments[0][0]
 
-                # Find which neighbours are most aligned with the drift direction
-                drift_vector = last_emb - first_emb
-                # Cache drift_vector norm to avoid redundant computation (5 times in loop)
-                drift_vector_norm = np.linalg.norm(drift_vector)
+        # Get trajectory dates for context
+        calc = EmbeddingTrajectoryCalculator(vault, note)
+        snapshots = calc.snapshots()
 
-                neighbor_alignments = []
-                for neighbour in current_neighbors:
-                    if neighbour.path == note.path:
-                        continue
+        if len(snapshots) < 2:
+            continue
 
-                    # Get neighbour embedding from database
-                    cursor = vault.db.execute(
-                        """
-                        SELECT embedding FROM session_embeddings
-                        WHERE session_id = ? AND note_path = ?
-                        """,
-                        (sessions[-1][0], neighbour.path),
-                    )
-                    row = cursor.fetchone()
-                    if row is None:
-                        continue
+        first_date = snapshots[0][0].strftime("%Y-%m")
+        last_date = snapshots[-1][0].strftime("%Y-%m")
 
-                    neighbor_emb = np.frombuffer(row[0], dtype=np.float32)
+        text = (
+            f"[[{note.obsidian_link}]] has semantically migrated since {first_date}. "
+            f"It's now drifting toward [[{top_neighbor.obsidian_link}]]—"
+            f"concept evolving from {first_date} to {last_date}?"
+        )
 
-                    # How aligned is neighbour with drift direction?
-                    # Use cached drift_vector_norm instead of recomputing
-                    alignment = np.dot(drift_vector, neighbor_emb) / (
-                        drift_vector_norm * np.linalg.norm(neighbor_emb)
-                    )
-                    neighbor_alignments.append((neighbour, alignment))
-
-                if neighbor_alignments:
-                    neighbor_alignments.sort(key=lambda x: x[1], reverse=True)
-                    top_neighbor = neighbor_alignments[0][0]
-
-                    first_date = trajectory[0][0].strftime("%Y-%m")
-                    last_date = trajectory[-1][0].strftime("%Y-%m")
-
-                    text = (
-                        f"[[{note.obsidian_link}]] has semantically migrated since {first_date}. "
-                        f"It's now drifting toward [[{top_neighbor.obsidian_link}]]—"
-                        f"concept evolving from {first_date} to {last_date}?"
-                    )
-
-                    suggestions.append(
-                        Suggestion(
-                            text=text,
-                            notes=[note.obsidian_link, top_neighbor.obsidian_link],
-                            geist_id="concept_drift",
-                        )
-                    )
-
-    except Exception:
-        return []
+        suggestions.append(
+            Suggestion(
+                text=text,
+                notes=[note.obsidian_link, top_neighbor.obsidian_link],
+                geist_id="concept_drift",
+            )
+        )
 
     return vault.sample(suggestions, k=2)

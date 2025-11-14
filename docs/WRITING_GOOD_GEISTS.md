@@ -489,23 +489,32 @@ except Exception:
     return []  # Graceful degradation
 ```
 
-### 6. **Respect Session Cache**
-Use `similarity()` not `batch_similarity()` when cache might be warm.
+### 6. **Respect Session Cache (Updated)**
+Both similarity() and batch_similarity() are cache-aware.
 
 ```python
-# ❌ BAD: Bypasses session cache
-sim_matrix = vault.batch_similarity([note], candidates)
-
-# ✅ GOOD: Benefits from session-scoped cache
+# Example: Sequential comparison with early termination
 for candidate in candidates:
-    sim = vault.similarity(note, candidate)  # Cache hit if computed before
+    sim = vault.similarity(note, candidate)  # Cache-aware
     if sim > threshold:
-        # ...
+        break  # Early termination benefits from individual calls
+
+# Example: N×M matrix computation
+sim_matrix = vault.batch_similarity(notes_a, notes_b)  # Cache-aware
+for i in range(len(notes_a)):
+    for j in range(len(notes_b)):
+        similarity = sim_matrix[i, j]
 ```
 
-**Context**: Other geists may have already computed these similarities in the same session. Individual calls leverage the cache; batch operations don't.
+**When to use each:**
+- Use `similarity()` for sequential loops with conditional logic/early termination
+- Use `batch_similarity()` for N×M matrices where you need all pairwise similarities
 
-**Exception**: Use `batch_similarity()` for pairwise matrices where you need all N×M combinations.
+**Cache behavior (as of v0.9+)**:
+- Both methods check session cache before computation (fast path at 100% cache hit)
+- Both methods populate cache for newly computed pairs
+- At partial cache hits, batch_similarity() computes full matrix; individual calls skip cached pairs
+- In practice, choose based on use case (matrix vs loop), not cache optimization
 
 ### 7. **Match Threshold to Complexity**
 Different operations need different minimum data.
@@ -708,19 +717,24 @@ if metadata.get("word_count", 0) < 50:
     # Short note
 ```
 
-### 4. `vault.similarity()` vs `vault.batch_similarity()`
+### 4. `vault.similarity()` vs `vault.batch_similarity()` (Updated v0.9+)
 
-**Use `similarity()` for individual comparisons** (cache-aware):
+Both methods are now cache-aware (check cache, populate cache).
+
+**Use `similarity()` for sequential comparisons:**
 ```python
+# Good for: loops with conditional logic, early termination
 for candidate in candidates:
     sim = vault.similarity(seed, candidate)  # Benefits from session cache
     if sim > threshold:
-        # ...
+        matches.append(candidate)
+        if len(matches) >= max_matches:
+            break  # Early termination
 ```
 
-**Use `batch_similarity()` for pairwise matrices** (when you need all N×M):
+**Use `batch_similarity()` for N×M matrices:**
 ```python
-# Computing full similarity matrix
+# Good for: computing all pairwise similarities
 candidates1 = vault.neighbours(start, k=10)
 candidates2 = vault.neighbours(end, k=10)
 sim_matrix = vault.batch_similarity(candidates1, candidates2)
@@ -728,8 +742,14 @@ sim_matrix = vault.batch_similarity(candidates1, candidates2)
 for i, mid1 in enumerate(candidates1):
     for j, mid2 in enumerate(candidates2):
         similarity = sim_matrix[i, j]
-        # ...
+        # Process all pairs
 ```
+
+**Performance notes:**
+- At 100% cache hit: Both methods return immediately (fast path)
+- At 0% cache hit: batch_similarity() wins via vectorized matrix operations
+- At partial cache hits: Individual calls slightly faster (skip cached pairs), but difference rarely matters
+- **Practical advice**: Choose based on use case (matrix vs loop), not micro-optimization
 
 ---
 
@@ -1106,16 +1126,23 @@ if len(notes) < 1:
 note = vault.sample(notes, k=1)[0]
 ```
 
-### Anti-Pattern 5: Using batch_similarity When Cache is Warm
+### Anti-Pattern 5: Matrix Computation in Sequential Loop (UPDATED)
 
 ```python
-# ❌ BAD: Bypasses session cache
-similarities = vault.batch_similarity([note], candidates)
+# ❌ BAD: Computing matrix via loop (slower and less clear)
+similarities = []
+for note_a in set_a:
+    row = []
+    for note_b in set_b:
+        row.append(vault.similarity(note_a, note_b))
+    similarities.append(row)
 
-# ✅ GOOD: Benefits from cache
-for candidate in candidates:
-    sim = vault.similarity(note, candidate)
+# ✅ GOOD: Use batch_similarity for matrices
+sim_matrix = vault.batch_similarity(set_a, set_b)
+# sim_matrix[i, j] = similarity between set_a[i] and set_b[j]
 ```
+
+**Note**: This anti-pattern was previously about "bypassing cache," but as of v0.9+, batch_similarity() is cache-aware. The real issue is clarity—batch_similarity() makes matrix computation intent explicit.
 
 ---
 
@@ -1145,10 +1172,12 @@ Geists run within a 30-second timeout (default) and must complete efficiently.
    - Reality: Phrase extraction was the bottleneck, not corpus iteration
    - Lesson: Measure before optimising; intuition misleads
 
-2. **Respect the session cache**
-   - `batch_similarity()` bypassed session-scoped similarity cache
-   - Other geists had already computed those similarities
-   - Lesson: Individual `similarity()` calls > batch calls when cache is warm
+2. **Respect the session cache (UPDATED v0.9+)**
+   - Both similarity() and batch_similarity() now integrate with session-scoped cache
+   - batch_similarity() checks cache (Phase 1), computes full matrix on any miss (Phase 2), populates cache (Phase 3)
+   - Individual similarity() calls skip computation for cache hits
+   - At partial cache hits, individual calls slightly faster, but difference rarely significant
+   - **Modern guidance**: Choose based on use case (matrix vs loop), not cache micro-optimization
 
 3. **Quality > Speed**
    - pattern_finder sampling saved ~20s but lost 95% pattern coverage
@@ -1336,6 +1365,266 @@ def _divide_into_periods(notes, num_periods=10):
 
     return [p for p in periods if len(p) > 0]
 ```
+
+---
+
+## Reuse Abstractions (GeistFabrik 0.9+)
+
+**New in v0.9**: GeistFabrik now provides 6 core abstraction modules that eliminate 70% of boilerplate code and enable rapid geist development through composition.
+
+### Overview
+
+Instead of manually implementing recurring patterns (similarity thresholds, temporal analysis, content extraction), use the provided abstractions:
+
+1. **`similarity_analysis`** - Named thresholds and declarative filtering
+2. **`content_extraction`** - Generalizable extraction pipeline
+3. **`temporal_analysis`** - Embedding trajectory and drift patterns
+4. **`cluster_labeling`** - Shared labeling with MMR
+5. **`clustering_analysis`** - Session-scoped clustering
+6. **`graph_analysis`** - Unified graph pattern detection
+
+**Metadata extensions**:
+- **`TemporalSemanticQuery`** (in `temporal_analysis`) - Fuse time + semantics
+- **`MetadataAnalyser`** (in `metadata_system`) - Statistical metadata operations
+
+### Abstraction 1: Similarity Analysis
+
+**Before** (manual threshold handling):
+```python
+def suggest(vault):
+    for note_a in notes:
+        for note_b in notes:
+            sim = vault.similarity(note_a, note_b)
+            if sim >= 0.65 and sim < 0.80:  # Magic numbers!
+                # ... bridge detection logic ...
+```
+
+**After** (named thresholds):
+```python
+from geistfabrik.similarity_analysis import SimilarityLevel, SimilarityFilter
+
+def suggest(vault):
+    filter = SimilarityFilter(vault)
+    # Find notes similar to topic anchors
+    candidates = filter.filter_similar_to_all(
+        anchors=[topic_a, topic_b],
+        candidates=vault.notes(),
+        threshold=SimilarityLevel.HIGH  # Clear, semantic naming!
+    )
+```
+
+**Available Classes**:
+- `SimilarityLevel`: Named constants (VERY_HIGH=0.80, HIGH=0.65, MODERATE=0.50, etc.)
+- `SimilarityProfile`: Analyze note's similarity distribution (hub detection, percentiles)
+- `SimilarityFilter`: Declarative operations (filter_similar_to_any, filter_dissimilar_to_all)
+
+### Abstraction 2: Content Extraction
+
+**Before** (bespoke extraction logic):
+```python
+def suggest(vault):
+    # 80 lines of regex patterns, validation, deduplication...
+    questions = []
+    for pattern in patterns:
+        matches = re.findall(pattern, content)
+        # ... validation ...
+        # ... deduplication ...
+```
+
+**After** (reusable pipeline):
+```python
+from geistfabrik.content_extraction import (
+    ExtractionPipeline,
+    DefinitionExtractor,
+    LengthFilter,
+    AlphaFilter
+)
+
+def suggest(vault):
+    pipeline = ExtractionPipeline(
+        strategies=[DefinitionExtractor()],
+        filters=[LengthFilter(min_len=15, max_len=300), AlphaFilter()]
+    )
+    definitions = pipeline.extract(note.content)
+```
+
+**Built-in Extractors**:
+- `QuestionExtractor` - Sentence and list questions
+- `DefinitionExtractor` - "X is Y", "X: Y", "X means Y" patterns
+- `ClaimExtractor` - Assertive statements ("shows", "proves", "demonstrates")
+- `HypothesisExtractor` - If/then, may/might, conditionals
+
+**Example Geist**: See `definition_harvester.py` for full example (~75 lines → ~25 lines)
+
+### Abstraction 3: Temporal Analysis
+
+**Before** (manual session queries):
+```python
+def suggest(vault):
+    # Get session history (8 lines)
+    cursor = vault.db.execute("SELECT session_id, session_date FROM sessions...")
+    sessions = cursor.fetchall()
+
+    # For each note (40+ lines)
+    for note in notes:
+        trajectory = []
+        for session_id, session_date in sessions:
+            cursor = vault.db.execute(
+                "SELECT embedding FROM session_embeddings WHERE..."
+            )
+            # ... manual drift computation ...
+```
+
+**After** (trajectory calculator):
+```python
+from geistfabrik.temporal_analysis import (
+    EmbeddingTrajectoryCalculator,
+    TemporalPatternFinder
+)
+
+def suggest(vault):
+    finder = TemporalPatternFinder(vault)
+    drifting = finder.find_high_drift_notes(vault.notes(), min_drift=0.2)
+
+    for note, drift_vector in drifting:
+        calc = EmbeddingTrajectoryCalculator(vault, note)
+        if calc.is_accelerating(threshold=0.1):
+            # Found accelerating drift!
+```
+
+**Available Classes**:
+- `EmbeddingTrajectoryCalculator`: Track note evolution (drift, alignment, convergence)
+- `TemporalPatternFinder`: Find patterns (converging pairs, cycling notes, aligned drift)
+- `TemporalSemanticQuery`: Fuse time + semantics (seasonal patterns, time-bounded similarity)
+
+**Example Geists**:
+- `drift_velocity_anomaly.py` - Detects accelerating drift (~30 lines vs 60+)
+- `cyclical_thinking.py` - Finds cyclical patterns (~25 lines)
+
+### Abstraction 4: Graph Analysis
+
+**Before** (manual graph traversal):
+```python
+def suggest(vault):
+    # Hub detection (20 lines)
+    for note in notes:
+        backlinks = vault.backlinks(note)
+        if len(backlinks) >= 10:
+            hubs.append(note)
+
+    # Bridge detection (30+ lines)
+    for bridge in candidates:
+        connected = set(vault.outgoing_links(bridge))
+        connected.update(vault.backlinks(bridge))
+        # ... unlinked pair checking ...
+```
+
+**After** (unified pattern finder):
+```python
+from geistfabrik.graph_analysis import GraphPatternFinder
+
+def suggest(vault):
+    finder = GraphPatternFinder(vault)
+    hubs = finder.find_hubs(min_backlinks=10)
+    bridges = finder.find_bridges(min_similarity=0.6)
+    structural_holes = finder.detect_structural_holes(min_similarity=0.6)
+```
+
+**Available Methods**:
+- `find_hubs()`, `find_orphans()`, `find_bridges()`
+- `shortest_path()`, `k_hop_neighborhood()`
+- `find_connected_components()`, `detect_structural_holes()`
+
+### Abstraction 5: Clustering Analysis
+
+**Before** (duplicate HDBSCAN calls):
+```python
+def suggest(vault):
+    # Every geist runs HDBSCAN independently (expensive!)
+    clusterer = HDBSCAN(min_cluster_size=5)
+    labels = clusterer.fit_predict(embeddings)
+    # ... labelling ...
+```
+
+**After** (session-scoped caching):
+```python
+from geistfabrik.clustering_analysis import ClusterAnalyser
+
+def suggest(vault):
+    # Clustering computed once per session, cached for all geists
+    analyser = ClusterAnalyser(vault, strategy="hdbscan", min_size=5)
+    clusters = analyser.get_clusters()
+
+    for cluster_id, cluster in clusters.items():
+        reps = analyser.get_representatives(cluster_id, k=3)
+        # cluster.formatted_label already available!
+```
+
+### Abstraction 6: Metadata Analysis
+
+**Before** (manual aggregation):
+```python
+def suggest(vault):
+    # Manual percentile computation
+    values = [vault.metadata(n).get("word_count", 0) for n in notes]
+    p75 = np.percentile(values, 75)
+    outliers = [n for n in notes if vault.metadata(n).get("word_count") > p75 * 2]
+```
+
+**After** (statistical operations):
+```python
+from geistfabrik.metadata_system import MetadataAnalyser
+
+def suggest(vault):
+    analyser = MetadataAnalyser(vault)
+    outliers = analyser.outliers("word_count", threshold=2.0)  # Z-score based
+    profile = analyser.profile(note)  # {'word_count': 'high', 'link_density': 'low'}
+```
+
+### Best Practices for Using Abstractions
+
+1. **Import at function level** (not module level) to avoid circular dependencies
+2. **Combine abstractions** for complex patterns:
+   ```python
+   # Temporal + Similarity + Graph
+   from geistfabrik.temporal_analysis import TemporalPatternFinder
+   from geistfabrik.similarity_analysis import SimilarityLevel
+   from geistfabrik.graph_analysis import GraphPatternFinder
+   ```
+
+3. **Use named constants** over magic numbers:
+   ```python
+   # ✅ Good
+   filter.filter_by_range(note, candidates,
+                          SimilarityLevel.MODERATE, SimilarityLevel.HIGH)
+
+   # ❌ Bad
+   filter.filter_by_range(note, candidates, 0.5, 0.65)
+   ```
+
+4. **Leverage caching** - ClusterAnalyser caches per session for all geists
+5. **Compose abstractions** - Power comes from combining primitives
+
+### Migration Guide
+
+To refactor existing geists:
+
+1. **Identify patterns**: Look for similarity thresholds, session queries, graph traversal
+2. **Import abstractions**: Add imports at function level
+3. **Replace logic**: Swap manual implementation for abstraction calls
+4. **Test equivalence**: Ensure output matches original behavior
+5. **Simplify**: Remove now-redundant helper functions
+
+**Example**: See how `concept_drift.py` could be refactored from 65 lines to 15 lines using `TemporalPatternFinder`.
+
+### Reference Documentation
+
+- **Specification**: `specs/reuse_abstractions_spec.md` - Complete API reference
+- **Example Geists**:
+  - `definition_harvester.py` - Content extraction
+  - `drift_velocity_anomaly.py` - Temporal analysis
+  - `cyclical_thinking.py` - Pattern finding
+- **Source Modules**: `src/geistfabrik/{similarity,temporal,clustering,graph}_analysis.py`
 
 ---
 

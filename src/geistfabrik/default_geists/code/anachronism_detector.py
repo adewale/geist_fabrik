@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+from geistfabrik.similarity_analysis import SimilarityLevel
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -94,7 +95,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             best_match = max(recent_matches, key=lambda x: x[1])
             recent_note, similarity = best_match
 
-            if similarity > 0.7:  # Very high similarity across time
+            if similarity > SimilarityLevel.VERY_HIGH:  # Very high similarity across time
                 years_apart = recent_note.created.year - old_note.created.year
 
                 text = (

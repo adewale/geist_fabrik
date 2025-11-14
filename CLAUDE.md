@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 51 bundled geists (42 code, 9 Tracery) - automatically available
+  - **default_geists/**: 57 bundled geists (48 code, 9 Tracery) - automatically available
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
@@ -30,7 +30,7 @@ The system is fully functional and operational. All phases of the specification 
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 51 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 57 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns
@@ -149,14 +149,37 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 - ✅ All 51 geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
-- Use `similarity()` not `batch_similarity()` for cache benefits
+
+### Similarity Computation: batch_similarity() vs similarity()
+
+**Summary**: Both methods are now cache-aware (check cache, populate cache). Choose based on use case, not cache optimization.
+
+**Use batch_similarity() when:**
+- Computing N×M similarity matrices where you need multiple pairs
+- All-pairs within a cluster: `vault.batch_similarity(cluster, cluster)`
+- Cross-product comparisons: `vault.batch_similarity(set_a, set_b)`
+- Example use case: `seasonal_patterns.py` computing intra-month similarity matrices
+
+**Use individual similarity() calls when:**
+- Sequential comparisons with early termination (stop when threshold met)
+- Small number of comparisons (<10 pairs)
+- Iterating with conditional logic between similarity checks
+
+**Key insight**: Both methods now integrate with session-scoped cache:
+- **100% cache hit**: Both return immediately (fast path)
+- **Partial cache hits**: batch_similarity() computes full matrix; individual calls skip cached pairs
+- **0% cache hit**: batch_similarity() wins via vectorized operations
+
+**Practical guidance**: Don't overthink it. Use batch_similarity() for matrix operations, individual calls for loops with logic. The performance difference is rarely significant enough to matter.
+
+**Other optimizations:**
 - Build lookup structures (sets, dicts) instead of O(N) repeated searches
 - Profile with `cProfile` before optimising—don't guess bottlenecks
 - Adaptive sampling: `min(N, max(50, len(notes)//10))` not fixed sizes
-- See `docs/POST_MORTEM_PHASE3B.md` for detailed salvage analysis
+- See `docs/POST_MORTEM_PHASE3B.md` for detailed analysis (Note: POST_MORTEM describes pre-cache-aware batch_similarity())
 
 **Regression Prevention**:
-- Regression tests: `tests/integration/test_phase3b_regression.py`
+- Regression tests: `tests/integration/test_phase3b_regression.py` (Note: Some assertions outdated post-cache implementation)
 - Performance guidance: `docs/WRITING_GOOD_GEISTS.md` (Performance Guidance section)
 - Static checks: Tests verify no `batch_similarity` in cache-sensitive geists
 
@@ -297,6 +320,84 @@ origin: "#seed# shares space with #neighbours#"
 - Commit d080f66: Breaking change implementing consistent API
 - `specs/tracery_research.md`: Updated technical documentation
 - `tests/unit/test_tracery_geists.py`: Regression tests to prevent similar bugs
+
+### Architectural Layering: Geists Must Use VaultContext, Not Direct SQL (November 2025)
+
+**Context**: During implementation review, we discovered that some geists (creation_burst, burst_evolution) were directly calling `vault.db.execute()` to run SQL queries, bypassing VaultContext abstraction. The specs themselves showed this pattern as the "correct" implementation.
+
+**The Problem**:
+- **Architectural violation**: Geists accessing database directly breaks the two-layer architecture
+- **Tight coupling**: Geists depend on database schema implementation details
+- **Fragile code**: Schema changes break geists
+- **Inconsistent patterns**: Some operations use VaultContext methods (`vault.hubs()`, `vault.orphans()`), others use raw SQL
+- **Documented in specs**: Specs perpetuated the anti-pattern by showing direct SQL as the implementation approach
+
+**The Two-Layer Architecture**:
+```
+Layer 1: Vault (Raw Data)
+  ↓ provides data access
+Layer 2: VaultContext (Rich API) ← Geists work at THIS level
+  ↓ provides abstractions
+Geists (Suggestion Generation)
+```
+
+**The Rule**:
+- **VaultContext methods** CAN use SQL (they ARE the abstraction layer)
+- **Geists** MUST use VaultContext methods, NEVER direct SQL
+
+**The Fix**:
+1. Added `VaultContext.notes_grouped_by_creation_date()` method
+2. Updated geists to use the abstraction:
+```python
+# ❌ WRONG - Direct SQL in geist
+cursor = vault.db.execute("""
+    SELECT DATE(created), COUNT(*), GROUP_CONCAT(path, '|')
+    FROM notes
+    WHERE NOT path LIKE 'geist journal/%'
+    GROUP BY DATE(created)
+    HAVING COUNT(*) >= 3
+""")
+
+# ✅ CORRECT - Use VaultContext method
+burst_days = vault.notes_grouped_by_creation_date(
+    min_per_day=3,
+    exclude_journal=True
+)
+```
+3. Updated specs to show proper layering
+
+**Why This Matters**:
+- ✅ **Maintainability**: Database schema changes only affect VaultContext, not 48 geists
+- ✅ **Testability**: Can mock VaultContext methods without mocking SQL
+- ✅ **Clarity**: Geist code expresses intent (`notes_grouped_by_creation_date()`) not implementation (SQL)
+- ✅ **Consistency**: All geists use same abstraction level
+
+**What Changed**:
+- **Fixed geists**: creation_burst.py, burst_evolution.py (commit d80a93e)
+- **New VaultContext method**: `notes_grouped_by_creation_date()` in vault_context.py:566
+- **Updated spec**: CREATION_BURST_GEIST_SPEC.md now shows VaultContext usage
+- **Added lesson**: This section in CLAUDE.md
+
+**When to Add VaultContext Methods**:
+If you find yourself writing SQL in a geist, STOP. Ask:
+1. Is this a common operation other geists might need?
+2. Does this hide implementation details?
+3. Would this make geist code clearer?
+
+If yes to any → Add a VaultContext method instead.
+
+**Examples of Good Abstractions**:
+- `vault.hubs(k)` - Hides complex JOIN query for finding hub notes
+- `vault.orphans(k)` - Hides LEFT JOIN logic for finding orphaned notes
+- `vault.notes_grouped_by_creation_date()` - Hides GROUP BY aggregation logic
+- `vault.similarity()` - Hides embedding lookup and cosine distance computation
+
+**Key Lesson**: Specs can contain architectural mistakes. When you spot a violation of core principles (like layering), fix both the code AND the specs. Document the lesson so we don't repeat it.
+
+**See Also**:
+- Commit d80a93e: Fix architectural violation in burst geists
+- `src/geistfabrik/vault_context.py:566`: Implementation of aggregation method
+- `docs/ARCHITECTURE.md`: Two-layer architecture documentation
 
 ## Three-Dimensional Extensibility
 

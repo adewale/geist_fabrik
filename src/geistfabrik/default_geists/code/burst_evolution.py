@@ -7,8 +7,6 @@ revealing which ideas crystallized vs. evolved.
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
@@ -18,9 +16,8 @@ from geistfabrik.models import Suggestion
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Show how burst-day notes have evolved since creation.
 
-    Finds burst days (3+ notes), calculates drift for each note from
-    creation to current session, and generates observations about
-    evolution patterns.
+    Uses EmbeddingTrajectoryCalculator to track drift from creation
+    to current session for notes created together on burst days.
 
     Args:
         vault: The vault context with database access and session info
@@ -28,139 +25,37 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         Single suggestion showing drift scores (or empty list if no data)
     """
-    # Find burst days
-    burst_days = _get_burst_days(vault)
-    if not burst_days:
+    from geistfabrik.temporal_analysis import EmbeddingTrajectoryCalculator
+
+    # Find burst days (uses VaultContext aggregation method)
+    burst_days_dict = vault.notes_grouped_by_creation_date(
+        min_per_day=3, exclude_journal=True
+    )
+
+    if not burst_days_dict:
         return []
 
     # Try burst days until we find one with enough embedding history
-    for day_date, note_paths in vault.sample(burst_days, k=len(burst_days)):
-        # Find earliest session with these notes
-        creation_session = _find_earliest_session_with_notes(vault, note_paths, day_date)
-        if not creation_session:
-            continue
-
-        # Calculate drift for each note
+    burst_days_list = list(burst_days_dict.items())
+    for day_date, notes in vault.sample(burst_days_list, k=len(burst_days_list)):
+        # Calculate drift for each note using EmbeddingTrajectoryCalculator
         drifts = []
-        for path in note_paths:
-            creation_emb = _get_embedding_from_session(vault, path, creation_session)
-            current_emb = _get_current_embedding(vault, path)
+        for note in notes:
+            calc = EmbeddingTrajectoryCalculator(vault, note)
+            snapshots = calc.snapshots()
 
-            if creation_emb is not None and current_emb is not None:
-                drift = _calculate_drift(creation_emb, current_emb)
-                drifts.append((path, drift))
+            # Need at least 2 snapshots to calculate drift
+            if len(snapshots) < 2:
+                continue
+
+            drift = calc.total_drift()
+            drifts.append((note.path, drift))
 
         # Need at least 3 notes with drift data
         if len(drifts) >= 3:
             return [_generate_drift_observation(vault, day_date, drifts)]
 
     return []
-
-
-def _get_burst_days(vault: "VaultContext") -> list[tuple[str, list[str]]]:
-    """Get burst days with 3+ notes created."""
-    cursor = vault.db.execute(
-        """
-        SELECT DATE(created) as creation_date,
-               GROUP_CONCAT(path, '|') as note_paths
-        FROM notes
-        WHERE NOT path LIKE 'geist journal/%'
-        GROUP BY DATE(created)
-        HAVING COUNT(*) >= 3
-        ORDER BY COUNT(*) DESC
-        """
-    )
-
-    results = []
-    for row in cursor.fetchall():
-        date_str, paths_str = row
-        paths = paths_str.split("|") if paths_str else []
-        results.append((date_str, paths))
-
-    return results
-
-
-def _find_earliest_session_with_notes(
-    vault: "VaultContext", note_paths: list[str], burst_date: str
-) -> int | None:
-    """Find earliest session that has embeddings for burst notes.
-
-    Looks for session closest to (but not before) burst_date.
-    """
-    # Get all sessions on or after burst date
-    cursor = vault.db.execute(
-        """
-        SELECT session_id, date
-        FROM sessions
-        WHERE date >= ?
-        ORDER BY date ASC
-        """,
-        (burst_date,),
-    )
-
-    sessions = cursor.fetchall()
-    if not sessions:
-        return None
-
-    # Find first session that has embeddings for most notes
-    for session_id, _ in sessions:
-        # Count how many notes have embeddings in this session
-        cursor = vault.db.execute(
-            """
-            SELECT COUNT(DISTINCT note_path)
-            FROM session_embeddings
-            WHERE session_id = ? AND note_path IN ({})
-            """.format(",".join("?" * len(note_paths))),
-            [session_id] + note_paths,
-        )
-
-        count = cursor.fetchone()[0]
-
-        # If at least 50% of notes have embeddings, use this session
-        if count >= len(note_paths) * 0.5:
-            return int(session_id)
-
-    return None
-
-
-def _get_embedding_from_session(
-    vault: "VaultContext", note_path: str, session_id: int
-) -> np.ndarray | None:
-    """Get note embedding from specific session."""
-    cursor = vault.db.execute(
-        """
-        SELECT embedding
-        FROM session_embeddings
-        WHERE session_id = ? AND note_path = ?
-        """,
-        (session_id, note_path),
-    )
-
-    row = cursor.fetchone()
-    if row:
-        return np.frombuffer(row[0], dtype=np.float32)
-    return None
-
-
-def _get_current_embedding(vault: "VaultContext", note_path: str) -> np.ndarray | None:
-    """Get current embedding for note."""
-    try:
-        return vault._backend.get_embedding(note_path)
-    except Exception:
-        return None
-
-
-def _calculate_drift(creation_emb: np.ndarray, current_emb: np.ndarray) -> float:
-    """Calculate drift between two embeddings.
-
-    Drift = 1 - cosine_similarity
-    """
-    from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-        cosine_similarity as sklearn_cosine,
-    )
-
-    similarity = sklearn_cosine(creation_emb.reshape(1, -1), current_emb.reshape(1, -1))
-    return 1.0 - float(similarity[0, 0])
 
 
 def _drift_label(drift: float) -> str:

@@ -419,6 +419,62 @@ All geists have comprehensive tests that:
 
 ---
 
+## Implementation Patterns
+
+### Geist Journal Filtering
+
+**Pattern**: Historical analysis geists must exclude geist journal notes to avoid circular references and statistical skew.
+
+**The Problem**: Geist journal notes are ephemeral session output, not persistent user knowledge. Including them when analyzing vault history causes:
+- **Circular references**: Analyzing system output as user input
+- **Statistical skew**: Journal notes have predictable structure (generated text, consistent metadata)
+- **False patterns**: Session creation dates create misleading temporal clusters
+
+**The Solution**: Use `vault.notes_excluding_journal()` instead of `vault.notes()` when analyzing history.
+
+**When to Filter** (6 geists currently implement this):
+
+| Geist | Why Filter? |
+|-------|------------|
+| **creation_burst** | Tracks user-created burst days, not session generation |
+| **burst_evolution** | Tracks how user notes evolved, not system output |
+| **temporal_mirror** | Compares user thinking across time periods |
+| **seasonal_topic_analysis** | Finds seasonal patterns in user writing |
+| **cluster_evolution_tracker** | Tracks semantic drift of user notes |
+| **metadata_outlier_detector** | Computes statistics then filters results |
+
+**When NOT to Filter** (42 geists correctly include journal):
+
+- **Content analysis**: question_harvester, pattern_finder (no circular reference risk)
+- **Semantic queries**: creative_collision, bridge_builder (point-in-time analysis)
+- **Single-note ops**: stub_expander, task_archaeology (metadata-driven)
+- **Intentional inclusion**: Computing vault-wide statistics where journal is relevant
+
+**Implementation**:
+```python
+# ✅ Correct - excludes geist journal for historical analysis
+def suggest(vault: VaultContext) -> list[Suggestion]:
+    notes = vault.notes_excluding_journal()
+    # ... analyze creation dates, track evolution, compute statistics ...
+
+# ✅ Also correct - filter SQL results
+cursor = vault.db.execute("""
+    SELECT DATE(created), COUNT(*)
+    FROM notes
+    WHERE NOT path LIKE 'geist journal/%'
+    GROUP BY DATE(created)
+""")
+
+# ❌ Wrong - includes journal in historical analysis
+def suggest(vault: VaultContext) -> list[Suggestion]:
+    notes = vault.notes()
+    # ... risk of analyzing system output as user notes ...
+```
+
+**The Rule**: If your geist analyzes creation dates, modification times, or tracks notes over multiple sessions, filter geist journal. If it analyzes content or performs point-in-time semantic queries, don't filter.
+
+---
+
 ## Conclusion
 
 When designing new geists:
