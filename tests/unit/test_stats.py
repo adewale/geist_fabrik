@@ -53,6 +53,40 @@ def vault_with_embeddings(sample_notes, mock_embedding_computer, temp_dir):
     vault.close()
 
 
+def _create_vault_with_sessions(vault_path, notes, session_dates, embedding_computer):
+    """Helper to create vault with multiple sessions for testing.
+
+    Args:
+        vault_path: Path where vault should be created
+        notes: List of Note objects to add to vault
+        session_dates: List of datetime objects for sessions to create
+        embedding_computer: EmbeddingComputer instance to use
+
+    Returns:
+        Initialized Vault with embeddings computed for all sessions
+    """
+    # Create vault directory structure
+    vault_path.mkdir(exist_ok=True)
+    (vault_path / ".obsidian").mkdir(exist_ok=True)
+
+    # Create note files
+    for note in notes:
+        (vault_path / note.path).write_text(note.content)
+
+    # Initialize vault
+    db_path = vault_path / "_geistfabrik" / "vault.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    vault = Vault(vault_path, db_path)
+    vault.sync()
+
+    # Compute embeddings for all sessions
+    for session_date in session_dates:
+        session = Session(session_date, vault.db, computer=embedding_computer)
+        session.compute_embeddings(notes)
+
+    return vault
+
+
 # ========== StatsCollector Tests ==========
 
 
@@ -348,12 +382,6 @@ def test_temporal_drift_no_past_session(vault_with_embeddings):
 
 def test_temporal_drift_with_past_session(temp_dir, mock_embedding_computer):
     """Test temporal drift analysis with a past session."""
-    # This test is complex due to date matching and session creation
-    # Simplified to just verify the method handles the case gracefully
-    vault_path = temp_dir / "drift_test_vault"
-    vault_path.mkdir()
-    (vault_path / ".obsidian").mkdir()
-
     # Create test notes
     notes = [
         Note(
@@ -367,23 +395,14 @@ def test_temporal_drift_with_past_session(temp_dir, mock_embedding_computer):
         ),
     ]
 
-    # Create note files
-    for note in notes:
-        (vault_path / note.path).write_text(note.content)
-
-    # Initialise vault
-    db_path = vault_path / "_geistfabrik" / "vault.db"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    vault = Vault(vault_path, db_path)
-    vault.sync()
-
-    # Compute embeddings for past session
-    past_session = Session(datetime(2024, 12, 16), vault.db, computer=mock_embedding_computer)
-    past_session.compute_embeddings(notes)
-
-    # Compute embeddings for current session
-    current_session = Session(datetime(2025, 1, 15), vault.db, computer=mock_embedding_computer)
-    current_session.compute_embeddings(notes)
+    # Create vault with past and current sessions
+    vault_path = temp_dir / "drift_test_vault"
+    vault = _create_vault_with_sessions(
+        vault_path,
+        notes,
+        session_dates=[datetime(2024, 12, 16), datetime(2025, 1, 15)],
+        embedding_computer=mock_embedding_computer,
+    )
 
     # Test drift analysis - the method should either return valid drift or None
     collector = StatsCollector(vault, GeistFabrikConfig())

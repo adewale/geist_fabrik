@@ -19,7 +19,7 @@ def clear_global_registry():
 
 
 @pytest.fixture
-def test_vault_with_sessions(tmp_path):
+def vault_with_sessions(tmp_path):
     """Create a test vault with burst days and multiple sessions."""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -65,9 +65,13 @@ def test_vault_with_sessions(tmp_path):
     return vault, session1, session2
 
 
-def test_burst_evolution_detects_burst_with_history(test_vault_with_sessions):
-    """Test that burst evolution works with session history."""
-    vault, session1, session2 = test_vault_with_sessions
+def test_burst_evolution_detects_burst_with_history(vault_with_sessions):
+    """Test that burst_evolution detects semantic drift in burst day notes.
+
+    Uses vault with 5-note burst day (2024-03-15) and two sessions 3 months apart.
+    Verifies geist returns at most 1 suggestion with burst date and "drift" language.
+    """
+    vault, session1, session2 = vault_with_sessions
 
     function_registry = FunctionRegistry()
     context = VaultContext(
@@ -92,7 +96,11 @@ def test_burst_evolution_detects_burst_with_history(test_vault_with_sessions):
 
 
 def test_burst_evolution_no_sessions(tmp_path):
-    """Test that geist returns empty list when no session history."""
+    """Test that burst_evolution returns empty when no historical embeddings exist.
+
+    Creates vault with 5-note burst day but deletes session_embeddings table.
+    Verifies geist returns [] since drift detection requires embedding history.
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -132,7 +140,11 @@ def test_burst_evolution_no_sessions(tmp_path):
 
 
 def test_burst_evolution_no_bursts(tmp_path):
-    """Test that geist returns empty list when no burst days."""
+    """Test that burst_evolution returns empty when vault has no burst days.
+
+    Creates vault with only 2 notes (below 3-note burst threshold).
+    Verifies geist returns [] since no burst days exist to analyze for drift.
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -160,9 +172,13 @@ def test_burst_evolution_no_bursts(tmp_path):
     assert len(suggestions) == 0
 
 
-def test_burst_evolution_insufficient_drift_data(test_vault_with_sessions):
-    """Test fallback when <3 notes have drift data."""
-    vault, session1, session2 = test_vault_with_sessions
+def test_burst_evolution_insufficient_drift_data(vault_with_sessions):
+    """Test that burst_evolution returns empty when insufficient notes have drift history.
+
+    Uses vault with 5-note burst but deletes session_embeddings for 3 notes (keeps 2).
+    Verifies geist returns [] since drift detection requires at least 3 notes with history.
+    """
+    vault, session1, session2 = vault_with_sessions
 
     # Delete session_embeddings for most notes, keeping only 2
     paths = [note.path for note in vault.all_notes()]
@@ -191,7 +207,11 @@ def test_burst_evolution_insufficient_drift_data(test_vault_with_sessions):
 
 
 def test_burst_evolution_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded."""
+    """Test that burst_evolution excludes geist journal notes from analysis.
+
+    Creates vault with 10 journal notes + 2 regular notes (all on same day).
+    Verifies geist returns [] since journal notes are excluded and only 2 regular notes remain.
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -233,7 +253,11 @@ def test_burst_evolution_excludes_geist_journal(tmp_path):
 
 
 def test_burst_evolution_drift_label():
-    """Test drift label classification."""
+    """Test that _drift_label() classifies drift magnitudes correctly.
+
+    Tests internal helper function with known drift values (0.05, 0.15, 0.30, 0.50).
+    Verifies each magnitude maps to correct label (stable/moderate/significant/major).
+    """
     from geistfabrik.default_geists.code.burst_evolution import _drift_label
 
     assert _drift_label(0.05) == "mostly stable"
@@ -242,9 +266,13 @@ def test_burst_evolution_drift_label():
     assert _drift_label(0.50) == "major evolution"
 
 
-def test_burst_evolution_includes_note_titles(test_vault_with_sessions):
-    """Test that suggestion includes note titles in notes list."""
-    vault, session1, session2 = test_vault_with_sessions
+def test_burst_evolution_includes_note_titles(vault_with_sessions):
+    """Test that burst_evolution includes note titles in suggestion.notes field.
+
+    Uses vault with 5-note burst day and two sessions.
+    Verifies suggestion (if generated) includes at least 3 note titles as strings.
+    """
+    vault, session1, session2 = vault_with_sessions
 
     context = VaultContext(
         vault=vault,
@@ -263,9 +291,13 @@ def test_burst_evolution_includes_note_titles(test_vault_with_sessions):
             assert isinstance(note_title, str)
 
 
-def test_burst_evolution_single_suggestion(test_vault_with_sessions):
-    """Test that geist returns at most 1 suggestion."""
-    vault, session1, session2 = test_vault_with_sessions
+def test_burst_evolution_single_suggestion(vault_with_sessions):
+    """Test that burst_evolution never returns more than 1 suggestion.
+
+    Uses vault with 5-note burst day and two sessions.
+    Verifies geist returns 0 or 1 suggestions (never 2+), respecting output limit.
+    """
+    vault, session1, session2 = vault_with_sessions
 
     context = VaultContext(
         vault=vault,

@@ -523,6 +523,62 @@ neighbours: ["#cluster.split_neighbours#"]
 
 ---
 
+### VaultContext API Enhancements
+
+**Context**: Several geists need to filter journal notes from VaultContext results. Currently, this filtering happens in two ways:
+
+1. **Initial corpus filtering**: `vault.notes_excluding_journal()` before processing
+2. **Result filtering**: Manual `startswith("geist journal/")` checks after calling methods like `neighbours()`, `get_clusters()`, etc.
+
+**Current Pattern Issues**:
+- Result filtering logic duplicated across multiple geists
+- Some methods (like `get_clusters()`) always return journal notes, requiring post-processing
+- Filtering after clustering is inefficient (notes filtered, clusters recalculated)
+
+**Proposed Enhancement**: Add `exclude_journal` parameter to VaultContext methods:
+
+```python
+# Current approach (manual filtering required)
+all_clusters = vault.get_clusters(min_size=5)
+clusters = {}
+for cluster_id, cluster_info in all_clusters.items():
+    non_journal_notes = [
+        n for n in cluster_info["notes"]
+        if not n.path.startswith("geist journal/")
+    ]
+    if len(non_journal_notes) >= min_size:
+        clusters[cluster_id] = {"notes": non_journal_notes, ...}
+
+# Proposed approach (centralized filtering)
+clusters = vault.get_clusters(min_size=5, exclude_journal=True)
+```
+
+**Methods That Would Benefit**:
+1. `get_clusters(min_size, exclude_journal=False)` - Filter journal notes before clustering
+2. `neighbours(note, k, exclude_journal=False)` - Exclude journal from semantic neighbours
+3. `unlinked_pairs(k, exclude_journal=False)` - Exclude journal from candidate pairs
+
+**Benefits**:
+- **Single source of truth**: Filtering logic lives in VaultContext, not scattered across geists
+- **Better performance**: Filter before expensive operations (clustering, similarity)
+- **Cleaner geist code**: Removes 5-10 lines of filtering boilerplate per geist
+- **Consistent behavior**: All geists filter journal notes the same way
+
+**Backward Compatibility**:
+- Default `exclude_journal=False` preserves existing behavior
+- Geists can opt-in to exclusion explicitly
+- No breaking changes to existing code
+
+**Geists That Would Simplify**:
+- `cluster_mirror.py` - Remove 12 lines of post-clustering filtering
+- `bridge_hunter.py` - Could use `unlinked_pairs(..., exclude_journal=True)`
+- `hidden_hub.py` - Could exclude journal from centrality calculations
+- `pattern_finder.py`, `scale_shifter.py`, etc. - Already use `notes_excluding_journal()`, unaffected
+
+**Implementation Priority**: Post-1.0 (quality-of-life improvement, not blocking)
+
+---
+
 ## Closing Thoughts
 
 v1.0 GeistFabrik has **excellent range**—from pure oracular provocations to practical vault maintenance. This makes it useful and accessible.

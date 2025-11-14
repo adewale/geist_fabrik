@@ -19,8 +19,17 @@ def clear_global_registry():
 
 
 @pytest.fixture
-def test_vault(tmp_path):
-    """Create a test vault with burst days."""
+def vault_with_bursts(tmp_path):
+    """Create a vault with 2 burst days (6 notes + 4 notes) and 1 normal day (2 notes).
+
+    Structure:
+    - Burst day 2024-03-15: 6 notes (large burst)
+    - Burst day 2024-03-16: 4 notes (small burst)
+    - Normal day 2024-03-17: 2 notes (below threshold)
+
+    Returns:
+        tuple[Vault, Session]: Initialized vault with embeddings for session 2024-03-20
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -64,32 +73,36 @@ def test_vault(tmp_path):
         )
     vault.db.commit()
 
-    return vault
-
-
-@pytest.fixture
-def vault_context(test_vault):
-    """Create VaultContext for geist execution."""
+    # Compute embeddings for session
     session_date = datetime(2024, 3, 20)
-    session = Session(session_date, test_vault.db)
+    session = Session(session_date, vault.db)
+    session.compute_embeddings(vault.all_notes())
 
-    # Compute embeddings
-    notes = test_vault.all_notes()
-    session.compute_embeddings(notes)
+    return vault, session
 
-    function_registry = FunctionRegistry()
-    return VaultContext(
-        vault=test_vault,
+
+def test_creation_burst_detects_burst_day(vault_with_bursts):
+    """Test that burst days with 3+ notes are detected.
+
+    Setup:
+        Vault with 5-note burst on 2024-03-15.
+
+    Verifies:
+        - Returns 1 suggestion
+        - References burst date 2024-03-15"""
+    vault, session = vault_with_bursts
+
+    context = VaultContext(
+        vault=vault,
         session=session,
-        seed=20240320,  # Deterministic seed
-        function_registry=function_registry,
+        seed=20240320,
+        function_registry=FunctionRegistry(),
     )
 
+    suggestions = creation_burst.suggest(context)
 
-def test_creation_burst_detects_burst_day(vault_context):
-    """Test that burst days with 3+ notes are detected."""
-    suggestions = creation_burst.suggest(vault_context)
-
+    # BEHAVIORAL: Verify geist follows output constraints
+    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
     # Should return exactly 1 suggestion
     assert len(suggestions) == 1
 
@@ -99,34 +112,162 @@ def test_creation_burst_detects_burst_day(vault_context):
     assert len(suggestion.notes) >= 3  # At least 3 notes (burst threshold)
 
 
-def test_creation_burst_large_burst_question(vault_context):
-    """Test that 6+ notes use 'What was special about that day?' question."""
-    # Set seed to select the larger burst (6 notes)
-    vault_context._rng = None  # Reset RNG
-    vault_context.seed = 1  # Try different seed
+def test_creation_burst_large_burst_question(vault_with_bursts):
+    """Test that 6+ notes use 'What was special about that day?' question.
 
-    suggestions = creation_burst.suggest(vault_context)
+    Setup:
+        Vault with 5-note burst.
+
+    Verifies:
+        - Suggestion asks about large burst (5+ notes)"""
+    vault, session = vault_with_bursts
+
+    # Set seed to select the larger burst (6 notes)
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=1,  # Try different seed
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
 
     if suggestions and len(suggestions[0].notes) >= 6:
         # If we got the large burst, check question
         assert "What was special about that day?" in suggestions[0].text
 
 
-def test_creation_burst_small_burst_question(vault_context):
-    """Test that 3-5 notes use 'Does today feel generative?' question."""
-    # Set seed to select the smaller burst (4 notes)
-    vault_context._rng = None
-    vault_context.seed = 2
+def test_creation_burst_small_burst_question(vault_with_bursts):
+    """Test that 3-5 notes use 'Does today feel generative?' question.
 
-    suggestions = creation_burst.suggest(vault_context)
+    Setup:
+        Vault with 3-note burst.
+
+    Verifies:
+        - Suggestion asks about small burst (3-5 notes)"""
+    vault, session = vault_with_bursts
+
+    # Set seed to select the smaller burst (4 notes)
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=2,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
 
     if suggestions and 3 <= len(suggestions[0].notes) <= 5:
         # If we got the small burst, check question
         assert "Does today feel generative?" in suggestions[0].text
 
 
+def test_creation_burst_large_burst_guaranteed_question(tmp_path):
+    """Test that large bursts (6+ notes) always use 'What was special about that day?' question.
+
+    Creates vault with ONLY one large burst day (6 notes), ensuring it gets selected.
+    Verifies question text matches expected template for large bursts.
+
+
+    Setup:
+        Vault with 6-note burst (threshold=5).
+
+    Verifies:
+        - Always returns question for 6+ notes"""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create burst day with exactly 6 notes (large burst threshold)
+    burst_date = datetime(2024, 3, 15, 10, 0, 0)
+    for i in range(6):
+        note_path = vault_path / f"burst_note_{i}.md"
+        note_path.write_text(f"# Burst Note {i}\n\nContent from the burst day.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Set created dates
+    for i in range(6):
+        vault.db.execute(
+            "UPDATE notes SET created = ? WHERE title = ?",
+            (burst_date.isoformat(), f"Burst Note {i}"),
+        )
+    vault.db.commit()
+
+    session = Session(burst_date, vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
+
+    assert len(suggestions) == 1
+    assert len(suggestions[0].notes) == 6
+    # Large burst (6+ notes) should use this specific question
+    assert "What was special about that day?" in suggestions[0].text
+
+
+def test_creation_burst_small_burst_guaranteed_question(tmp_path):
+    """Test that small bursts (3-5 notes) always use 'Does today feel generative?' question.
+
+    Creates vault with ONLY one small burst day (4 notes), ensuring it gets selected.
+    Verifies question text matches expected template for small bursts.
+
+
+    Setup:
+        Vault with 3-note burst.
+
+    Verifies:
+        - Returns question for 3-note burst"""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Create burst day with exactly 4 notes (small burst: 3-5 notes)
+    burst_date = datetime(2024, 3, 16, 10, 0, 0)
+    for i in range(4):
+        note_path = vault_path / f"burst_note_{i}.md"
+        note_path.write_text(f"# Burst Note {i}\n\nContent from the burst day.")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    # Set created dates
+    for i in range(4):
+        vault.db.execute(
+            "UPDATE notes SET created = ? WHERE title = ?",
+            (burst_date.isoformat(), f"Burst Note {i}"),
+        )
+    vault.db.commit()
+
+    session = Session(burst_date, vault.db)
+    session.compute_embeddings(vault.all_notes())
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240316,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
+
+    assert len(suggestions) == 1
+    assert len(suggestions[0].notes) == 4
+    # Small burst (3-5 notes) should use this specific question
+    assert "Does today feel generative?" in suggestions[0].text
+
+
 def test_creation_burst_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from burst detection."""
+    """Test that geist journal notes are excluded from burst detection.
+
+    Setup:
+        Vault with journal + regular burst notes.
+
+    Verifies:
+        - No journal notes in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -168,7 +309,13 @@ def test_creation_burst_excludes_geist_journal(tmp_path):
 
 
 def test_creation_burst_no_bursts(tmp_path):
-    """Test that geist returns empty list when no burst days exist."""
+    """Test that geist returns empty list when no burst days exist.
+
+    Setup:
+        Vault with scattered notes (no burst days).
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -208,7 +355,13 @@ def test_creation_burst_no_bursts(tmp_path):
 
 
 def test_creation_burst_limits_display_titles(tmp_path):
-    """Test that only first 8 titles are shown in suggestion text."""
+    """Test that only first 8 titles are shown in suggestion text.
+
+    Setup:
+        Vault with 20-note burst.
+
+    Verifies:
+        - Limits displayed titles to 10 max"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -242,18 +395,48 @@ def test_creation_burst_limits_display_titles(tmp_path):
     assert len(suggestions[0].notes) == 15
 
 
-def test_creation_burst_includes_date(vault_context):
-    """Test that suggestion includes the burst day date."""
-    suggestions = creation_burst.suggest(vault_context)
+def test_creation_burst_includes_date(vault_with_bursts):
+    """Test that suggestion includes the burst day date.
+
+    Setup:
+        Vault with burst day.
+
+    Verifies:
+        - Suggestion includes burst date"""
+    vault, session = vault_with_bursts
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240320,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
 
     assert len(suggestions) == 1
     # Date should be in YYYY-MM-DD format
     assert "2024-03-" in suggestions[0].text
 
 
-def test_creation_burst_returns_single_suggestion(vault_context):
-    """Test that geist returns exactly 1 suggestion."""
-    suggestions = creation_burst.suggest(vault_context)
+def test_creation_burst_returns_single_suggestion(vault_with_bursts):
+    """Test that geist returns exactly 1 suggestion.
+
+    Setup:
+        Vault with burst day.
+
+    Verifies:
+        - Returns exactly 1 suggestion"""
+    vault, session = vault_with_bursts
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240320,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = creation_burst.suggest(context)
 
     # Should return exactly 1, not a list of many
     assert len(suggestions) == 1

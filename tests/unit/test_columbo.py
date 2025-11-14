@@ -102,7 +102,13 @@ def vault_without_contradictions(tmp_path):
 
 
 def test_columbo_returns_suggestions(vault_with_contradictions):
-    """Test that columbo returns suggestions when contradictions exist."""
+    """Test that columbo returns suggestions when contradictions exist.
+
+    Setup:
+        Vault with isolated notes (low link density).
+
+    Verifies:
+        - Returns suggestions (max 2)"""
     vault, session = vault_with_contradictions
 
     context = VaultContext(
@@ -120,7 +126,14 @@ def test_columbo_returns_suggestions(vault_with_contradictions):
 
 
 def test_columbo_suggestion_structure(vault_with_contradictions):
-    """Test that suggestions have correct structure."""
+    """Test that suggestions have correct structure.
+
+    Setup:
+        Vault with isolated notes.
+
+    Verifies:
+        - Has required fields
+        - References 1 isolated note"""
     vault, session = vault_with_contradictions
 
     context = VaultContext(
@@ -132,6 +145,8 @@ def test_columbo_suggestion_structure(vault_with_contradictions):
 
     suggestions = columbo.suggest(context)
 
+    # BEHAVIORAL: Verify geist follows output constraints
+    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
     for suggestion in suggestions:
         # Required fields
         assert hasattr(suggestion, "text")
@@ -156,7 +171,13 @@ def test_columbo_suggestion_structure(vault_with_contradictions):
 
 
 def test_columbo_uses_obsidian_link(vault_with_contradictions):
-    """Test that columbo uses obsidian_link for note references."""
+    """Test that columbo uses obsidian_link for note references.
+
+    Setup:
+        Vault with isolated notes.
+
+    Verifies:
+        - Uses [[wiki-link]] format"""
     vault, session = vault_with_contradictions
 
     context = VaultContext(
@@ -185,7 +206,13 @@ def test_columbo_uses_obsidian_link(vault_with_contradictions):
 
 
 def test_columbo_empty_vault(tmp_path):
-    """Test that columbo handles empty vault gracefully."""
+    """Test that columbo handles empty vault gracefully.
+
+    Setup:
+        Empty vault.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -210,7 +237,13 @@ def test_columbo_empty_vault(tmp_path):
 
 
 def test_columbo_insufficient_notes(tmp_path):
-    """Test that columbo handles insufficient notes gracefully."""
+    """Test that columbo handles insufficient notes gracefully.
+
+    Setup:
+        Vault with < 10 notes.
+
+    Verifies:
+        - Returns empty list"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -237,43 +270,29 @@ def test_columbo_insufficient_notes(tmp_path):
     assert len(suggestions) == 0
 
 
-def test_columbo_no_claim_language(vault_without_contradictions):
-    """Test that columbo returns empty when no strong claims exist."""
-    vault, session = vault_without_contradictions
+def test_columbo_requires_claim_language(tmp_path):
+    """Test that columbo returns empty when notes lack strong claim language.
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # Should return empty when no claim language found
-    # (or very few suggestions)
-    assert len(suggestions) <= 1
-
-
-def test_columbo_no_contradictions(tmp_path):
-    """Test that columbo returns empty when no contradictions exist."""
+    Creates vault with descriptive notes (no 'always', 'never', 'must', etc.).
+    Verifies geist returns [] since no claim language exists to analyze.
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
-    # Notes with claims but no contradictions
+    # Notes without strong claim indicators - just descriptive content
     (vault_path / "note1.md").write_text("""# Note 1
 
-All software must be tested. Testing is always important.
+Software testing is useful. It helps find bugs.
 """)
 
     (vault_path / "note2.md").write_text("""# Note 2
 
-Testing should be comprehensive. We must write good tests.
+Code reviews can be helpful. They sometimes catch issues.
 """)
 
     (vault_path / "note3.md").write_text("""# Note 3
 
-Quality is always important. All code should be reviewed.
+Documentation is beneficial. It makes code easier to understand.
 """)
 
     vault = Vault(str(vault_path), ":memory:")
@@ -291,9 +310,60 @@ Quality is always important. All code should be reviewed.
 
     suggestions = columbo.suggest(context)
 
-    # May return empty if no linguistic contradictions detected
-    # (positive claims without contradictory negative claims)
-    assert isinstance(suggestions, list)
+    # Should return empty when no claim language exists
+    assert len(suggestions) == 0
+
+
+def test_columbo_requires_contradictions(tmp_path):
+    """Test that columbo returns empty when claims agree (no contradictions).
+
+    Creates vault with multiple notes containing only positive, aligned claims:
+    - All about testing being important
+    - No negations or opposing views
+    - All claims support each other
+
+    Verifies geist returns [] since no linguistic contradictions exist.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    # Notes with ONLY positive aligned claims (no negations at all)
+    (vault_path / "note1.md").write_text("""# Note 1
+
+All software must be tested thoroughly. Testing is always crucial.
+Quality should be our top priority.
+""")
+
+    (vault_path / "note2.md").write_text("""# Note 2
+
+Testing should always be comprehensive. We must write excellent tests.
+Quality must be maintained at all times.
+""")
+
+    (vault_path / "note3.md").write_text("""# Note 3
+
+Quality is always important. All code must be reviewed carefully.
+Testing is essential for every project.
+""")
+
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+
+    session = Session(datetime(2024, 3, 15), vault.db)
+    session.compute_embeddings(vault.all_notes())
+
+    context = VaultContext(
+        vault=vault,
+        session=session,
+        seed=20240315,
+        function_registry=FunctionRegistry(),
+    )
+
+    suggestions = columbo.suggest(context)
+
+    # Should return empty when claims exist but don't contradict
+    # All notes agree that testing/quality is important (no opposing claims)
+    assert len(suggestions) == 0
 
 
 # ============================================================================
@@ -302,7 +372,13 @@ Quality is always important. All code should be reviewed.
 
 
 def test_columbo_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from analysis."""
+    """Test that geist journal notes are excluded from analysis.
+
+    Setup:
+        Vault with journal + regular notes.
+
+    Verifies:
+        - No journal in suggestions"""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
@@ -369,7 +445,13 @@ def test_columbo_max_three_suggestions(vault_with_contradictions):
 
 
 def test_columbo_deterministic_with_seed(vault_with_contradictions):
-    """Test that columbo returns same results with same seed."""
+    """Test that columbo returns same results with same seed.
+
+    Setup:
+        Vault tested twice with same seed.
+
+    Verifies:
+        - Identical output"""
     vault, session = vault_with_contradictions
 
     # Reuse same FunctionRegistry to avoid duplicate registration
