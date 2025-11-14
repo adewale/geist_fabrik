@@ -65,6 +65,22 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return vault.sample(suggestions, k=2)
 
 
+def _filter_journal_notes(
+    candidates_with_scores: list[tuple["Note", float]],
+) -> list[tuple["Note", float]]:
+    """Filter out geist journal notes from candidate list.
+
+    Args:
+        candidates_with_scores: List of (note, score) tuples
+
+    Returns:
+        Filtered list excluding journal notes
+    """
+    return [
+        (n, score) for n, score in candidates_with_scores if not n.path.startswith("geist journal/")
+    ]
+
+
 def _find_semantic_path(
     vault: "VaultContext",
     start: "Note",
@@ -83,11 +99,7 @@ def _find_semantic_path(
         all_candidates_with_scores = vault.neighbours(start, k=10, return_scores=True)
 
         # Filter out geist journal notes
-        candidates_with_scores = [
-            (n, score)
-            for n, score in all_candidates_with_scores
-            if not n.path.startswith("geist journal/")
-        ]
+        candidates_with_scores = _filter_journal_notes(all_candidates_with_scores)
 
         best_path = None
         best_score = 0.0
@@ -114,16 +126,8 @@ def _find_semantic_path(
         all_candidates2_with_scores = vault.neighbours(end, k=10, return_scores=True)
 
         # Filter out geist journal notes
-        candidates1_with_scores = [
-            (n, score)
-            for n, score in all_candidates1_with_scores
-            if not n.path.startswith("geist journal/")
-        ]
-        candidates2_with_scores = [
-            (n, score)
-            for n, score in all_candidates2_with_scores
-            if not n.path.startswith("geist journal/")
-        ]
+        candidates1_with_scores = _filter_journal_notes(all_candidates1_with_scores)
+        candidates2_with_scores = _filter_journal_notes(all_candidates2_with_scores)
 
         best_path = None
         best_score = 0.0

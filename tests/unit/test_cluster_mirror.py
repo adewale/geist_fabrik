@@ -106,13 +106,10 @@ def test_cluster_mirror_returns_suggestions(vault_with_clusters):
     suggestions = cluster_mirror.suggest(context)
 
     # Should return at most 1 suggestion showing clusters
-    # Note: HDBSCAN can be non-deterministic in edge cases, so we check <= 1
+    # Note: HDBSCAN can be non-deterministic in edge cases, so we check for 0 or 1
     # The fixture has clear clusters, so we should get 1, but allow 0 in rare cases
     assert isinstance(suggestions, list)
-    assert len(suggestions) <= 1
-    # If suggestions are returned, verify they're well-formed
-    if suggestions:
-        assert len(suggestions) == 1
+    assert len(suggestions) in [0, 1], f"Expected 0 or 1 suggestions, got {len(suggestions)}"
 
 
 def test_cluster_mirror_suggestion_structure(vault_with_clusters):
