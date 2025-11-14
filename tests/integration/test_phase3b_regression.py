@@ -5,6 +5,12 @@ Phase 3B introduced two harmful optimisations:
 2. scale_shifter batch_similarity() that bypassed session cache
 
 These tests ensure those regressions don't reoccur.
+
+UPDATE (v0.9+): As of commit 8ce5c8c, batch_similarity() is cache-aware.
+The scale_shifter tests remain valid, but the reasoning has changed:
+- OLD: batch_similarity() bypasses cache (use individual calls for cache benefit)
+- NEW: Both methods cache-aware; scale_shifter uses individual calls because
+  it does sequential comparisons with conditional logic, not matrix operations
 """
 
 from datetime import datetime
@@ -191,11 +197,15 @@ class TestScaleShifterCacheUsage:
 
         Phase 3B Issue (commit 482f38c):
         - Introduced: batch_similarity() call for "vectorized operations"
-        - Problem: batch_similarity() bypasses session-scoped similarity cache
+        - Problem: batch_similarity() bypassed session-scoped similarity cache (pre-v0.9)
         - Impact: Recomputed similarities already cached by previous geists
 
-        This test verifies scale_shifter calls vault.similarity() (cached)
-        rather than vault.batch_similarity() (uncached).
+        UPDATE (v0.9+): batch_similarity() is now cache-aware, but scale_shifter
+        should still use individual calls because it does sequential comparisons
+        with conditional logic, not N×M matrix operations.
+
+        This test verifies scale_shifter uses individual similarity() calls,
+        which is appropriate for its use case (sequential loop with logic).
 
         Note: This is a behavioural test, not a mock test. We verify that
         scale_shifter completes efficiently on a vault with warm cache.
