@@ -348,7 +348,6 @@ def test_link_density_analyser_deterministic_with_seed(vault_with_link_density_i
         assert texts1 == texts2
 
 
-@pytest.mark.xfail(reason="Geist needs to be updated to exclude journal notes - see #TBD")
 def test_link_density_analyser_excludes_geist_journal(tmp_path):
     """Test that geist journal notes are excluded from suggestions.
 
