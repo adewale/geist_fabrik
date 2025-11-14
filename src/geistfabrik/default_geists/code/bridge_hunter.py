@@ -22,7 +22,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get unlinked pairs
-    pairs = vault.unlinked_pairs(k=20)
+    all_pairs = vault.unlinked_pairs(k=20)
+
+    # Filter out pairs involving geist journal notes
+    pairs = [
+        (a, b)
+        for a, b in all_pairs
+        if not a.path.startswith("geist journal/") and not b.path.startswith("geist journal/")
+    ]
 
     if len(pairs) < 2:
         return []
@@ -73,7 +80,14 @@ def _find_semantic_path(
     # For 2-hop path: start -> intermediate -> end
     if max_hops == 2:
         # Find notes similar to start (get scores to avoid recomputation)
-        candidates_with_scores = vault.neighbours(start, k=10, return_scores=True)
+        all_candidates_with_scores = vault.neighbours(start, k=10, return_scores=True)
+
+        # Filter out geist journal notes
+        candidates_with_scores = [
+            (n, score)
+            for n, score in all_candidates_with_scores
+            if not n.path.startswith("geist journal/")
+        ]
 
         best_path = None
         best_score = 0.0
@@ -96,8 +110,20 @@ def _find_semantic_path(
     # For 3-hop path: start -> mid1 -> mid2 -> end
     if max_hops == 3:
         # Get scores to avoid recomputing start->mid1 and end->mid2
-        candidates1_with_scores = vault.neighbours(start, k=10, return_scores=True)
-        candidates2_with_scores = vault.neighbours(end, k=10, return_scores=True)
+        all_candidates1_with_scores = vault.neighbours(start, k=10, return_scores=True)
+        all_candidates2_with_scores = vault.neighbours(end, k=10, return_scores=True)
+
+        # Filter out geist journal notes
+        candidates1_with_scores = [
+            (n, score)
+            for n, score in all_candidates1_with_scores
+            if not n.path.startswith("geist journal/")
+        ]
+        candidates2_with_scores = [
+            (n, score)
+            for n, score in all_candidates2_with_scores
+            if not n.path.startswith("geist journal/")
+        ]
 
         best_path = None
         best_score = 0.0

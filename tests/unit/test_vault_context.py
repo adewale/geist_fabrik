@@ -644,9 +644,9 @@ def test_vault_context_with_date_seed(vault_with_notes):
 # Cache Integration Tests for batch_similarity
 
 
-def test_batch_similarity_uses_cache(test_vault_with_notes):
+def test_batch_similarity_uses_cache(vault_with_notes):
     """Verify batch_similarity integrates with session cache."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
     notes = ctx.notes()[:5]
 
@@ -669,9 +669,9 @@ def test_batch_similarity_uses_cache(test_vault_with_notes):
     assert len(ctx._similarity_cache) == cache_size_before
 
 
-def test_batch_similarity_populates_cache(test_vault_with_notes):
+def test_batch_similarity_populates_cache(vault_with_notes):
     """Verify batch_similarity populates cache for all computed pairs."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
     notes = ctx.notes()[:4]
 
@@ -699,9 +699,9 @@ def test_batch_similarity_populates_cache(test_vault_with_notes):
             )
 
 
-def test_batch_similarity_cache_consistency_with_individual(test_vault_with_notes):
+def test_batch_similarity_cache_consistency_with_individual(vault_with_notes):
     """Verify batch_similarity and similarity() use same cache."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
     notes = ctx.notes()[:4]
 
@@ -732,11 +732,11 @@ def test_batch_similarity_cache_consistency_with_individual(test_vault_with_note
     assert len(ctx._similarity_cache) == cache_size_after
 
 
-def test_batch_similarity_100_percent_cache_hit(test_vault_with_notes):
+def test_batch_similarity_100_percent_cache_hit(vault_with_notes):
     """Verify fast path when all pairs cached."""
     from unittest.mock import patch
 
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
     notes = ctx.notes()[:3]
 
@@ -758,9 +758,9 @@ def test_batch_similarity_100_percent_cache_hit(test_vault_with_notes):
         assert diagonal_val > 0.95, f"Diagonal element [{i},{i}] should be ~1.0, got {diagonal_val}"
 
 
-def test_batch_similarity_partial_cache_hit(test_vault_with_notes):
+def test_batch_similarity_partial_cache_hit(vault_with_notes):
     """Verify behavior when some pairs cached, some not."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
     notes = ctx.notes()[:4]
 
@@ -786,9 +786,9 @@ def test_batch_similarity_partial_cache_hit(test_vault_with_notes):
     np.testing.assert_almost_equal(cached_sim_13, result[1, 1], decimal=6)
 
 
-def test_batch_similarity_empty_input(test_vault_with_notes):
+def test_batch_similarity_empty_input(vault_with_notes):
     """Verify batch_similarity handles empty inputs gracefully."""
-    vault, session = test_vault_with_notes
+    vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
     notes = ctx.notes()
 

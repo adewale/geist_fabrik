@@ -22,7 +22,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes()
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 15:
         return []
