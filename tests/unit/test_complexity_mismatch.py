@@ -310,7 +310,6 @@ def test_complexity_mismatch_deterministic_with_seed(vault_with_complexity_misma
         assert texts1 == texts2
 
 
-@pytest.mark.xfail(reason="Geist needs to be updated to exclude journal notes - see #TBD")
 def test_complexity_mismatch_excludes_geist_journal(tmp_path):
     """Test that geist journal notes are excluded from suggestions.
 
