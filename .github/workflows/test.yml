@@ -37,6 +37,7 @@ jobs:
 
       - name: Cache sentence-transformers models
         uses: actions/cache@v4
+        continue-on-error: ${{ matrix.os == 'macos-latest' }}
         with:
           path: ~/.cache/torch/sentence_transformers
           key: ${{ runner.os }}-sentence-transformers-${{ hashFiles('**/pyproject.toml') }}
