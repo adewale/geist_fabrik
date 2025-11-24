@@ -109,13 +109,18 @@ Recommended: 2000 characters
 # ------------------------------
 # These constants control how geists are executed and managed.
 
-DEFAULT_GEIST_TIMEOUT = 5
+DEFAULT_GEIST_TIMEOUT = 30
 """int: Maximum execution time for a single geist in seconds.
 
 Geists that exceed this timeout are terminated to prevent hangs.
 Applies to both code geists and Tracery geists.
+
+This default is set to 30 seconds based on production usage with large vaults
+(10k+ notes). For smaller vaults or more conservative timeout behavior, 5-10
+seconds may be sufficient.
+
 Range: [1, 60] seconds
-Recommended: 5 seconds
+Recommended: 30 seconds (production), 5 seconds (conservative)
 """
 
 DEFAULT_MAX_GEIST_FAILURES = 3

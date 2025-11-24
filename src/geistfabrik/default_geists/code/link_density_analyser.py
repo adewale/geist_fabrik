@@ -20,7 +20,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes()
+    notes = vault.notes_excluding_journal()
 
     for note in notes:
         metadata = vault.metadata(note)
