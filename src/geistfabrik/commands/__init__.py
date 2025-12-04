@@ -9,12 +9,12 @@ like vault validation, config loading, and error handling through BaseCommand.
 """
 
 from .base import BaseCommand, CommandContext, ExecutionContext, find_vault_root
-from .init_cmd import InitCommand
-from .invoke_cmd import InvokeCommand
-from .stats_cmd import StatsCommand
-from .test_all_cmd import TestAllCommand
-from .test_cmd import TestCommand
-from .validate_cmd import ValidateCommand
+from .initialize import InitCommand
+from .invoke import InvokeCommand
+from .stats import StatsCommand
+from .test_all_geists import TestAllCommand
+from .test_geist import TestCommand
+from .validate import ValidateCommand
 
 __all__ = [
     "BaseCommand",
