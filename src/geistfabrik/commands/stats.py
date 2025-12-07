@@ -1,7 +1,5 @@
 """Stats command for showing vault statistics and health metrics."""
 
-from pathlib import Path
-
 from ..config_loader import GeistFabrikConfig, load_config
 from ..stats import (
     EmbeddingMetricsComputer,
@@ -27,7 +25,7 @@ class StatsCommand(BaseCommand):
             Exit code (0 for success, 1 for error)
         """
         # Find vault path (supports auto-detection)
-        vault_path = self._get_vault_path()
+        vault_path = self.get_vault_path(auto_detect=True)
         if vault_path is None:
             return 1
 
@@ -68,26 +66,6 @@ class StatsCommand(BaseCommand):
         print(output)
 
         return 0
-
-    def _get_vault_path(self) -> Path | None:
-        """Get vault path from args or auto-detect.
-
-        Returns:
-            Vault path, or None if not found
-        """
-        if hasattr(self.args, "vault") and self.args.vault:
-            vault_path = Path(self.args.vault).resolve()
-            if not self.validate_vault_path(vault_path):
-                return None
-            return vault_path
-
-        # Auto-detect vault
-        detected_path = self.find_vault_root()
-        if detected_path is None:
-            self.print_error("No vault specified and could not auto-detect vault.")
-            print("Either run from within a vault or specify vault path.")
-            return None
-        return detected_path
 
     def _compute_embedding_metrics(
         self,

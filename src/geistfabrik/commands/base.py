@@ -6,7 +6,6 @@ from argparse import Namespace
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from ..config_loader import GeistFabrikConfig, load_config
 from ..embeddings import Session
@@ -16,7 +15,7 @@ from ..vault import Vault
 from ..vault_context import VaultContext
 
 
-def find_vault_root(start_path: Optional[Path] = None) -> Optional[Path]:
+def find_vault_root(start_path: Path | None = None) -> Path | None:
     """Find vault root by looking for .obsidian directory.
 
     This is the canonical implementation used by both CLI and BaseCommand.
@@ -51,7 +50,7 @@ class CommandContext:
 
     vault_path: Path
     vault: Vault
-    config: Optional[GeistFabrikConfig]
+    config: GeistFabrikConfig | None
     config_path: Path
     geistfabrik_dir: Path
     db_path: Path
@@ -66,7 +65,7 @@ class ExecutionContext(CommandContext):
 
     session: Session
     vault_context: VaultContext
-    metadata_loader: Optional[MetadataLoader]
+    metadata_loader: MetadataLoader | None
     function_registry: FunctionRegistry
 
 
@@ -91,7 +90,7 @@ class BaseCommand(ABC):
             args: Parsed command-line arguments from argparse
         """
         self.args = args
-        self._vault: Optional[Vault] = None
+        self._vault: Vault | None = None
 
     @property
     def verbose(self) -> bool:
@@ -208,18 +207,38 @@ class BaseCommand(ABC):
             return False
         return True
 
-    def get_vault_path(self) -> Optional[Path]:
+    def get_vault_path(self, auto_detect: bool = False) -> Path | None:
         """Get and validate the vault path from arguments.
 
-        Returns:
-            Resolved vault path, or None if invalid
-        """
-        vault_path = Path(self.args.vault).resolve()
-        if not self.validate_vault_path(vault_path):
-            return None
-        return vault_path
+        Args:
+            auto_detect: If True and no vault arg provided, try to auto-detect
+                        from current directory by walking up to find .obsidian
 
-    def find_vault_root(self, start_path: Optional[Path] = None) -> Optional[Path]:
+        Returns:
+            Resolved vault path, or None if invalid/not found
+        """
+        # Check if vault argument was provided
+        if hasattr(self.args, "vault") and self.args.vault:
+            vault_path = Path(self.args.vault).resolve()
+            if not self.validate_vault_path(vault_path):
+                return None
+            return vault_path
+
+        # If no vault arg and auto_detect enabled, try to find vault root
+        if auto_detect:
+            detected_path = find_vault_root()
+            if detected_path is None:
+                self.print_error("No vault specified and could not auto-detect vault.")
+                print("Either run from within a vault or specify vault path.")
+                return None
+            return detected_path
+
+        # No vault arg and no auto-detect - this shouldn't happen for required args
+        # but handle gracefully
+        self.print_error("No vault path specified.")
+        return None
+
+    def find_vault_root(self, start_path: Path | None = None) -> Path | None:
         """Find vault root by looking for .obsidian directory.
 
         Args:
@@ -234,7 +253,7 @@ class BaseCommand(ABC):
     # Config and Context Setup
     # -------------------------------------------------------------------------
 
-    def setup_command_context(self, vault_path: Path) -> Optional[CommandContext]:
+    def setup_command_context(self, vault_path: Path) -> CommandContext | None:
         """Set up the basic command context with vault and config.
 
         Args:
@@ -343,7 +362,7 @@ class BaseCommand(ABC):
     # Date Parsing
     # -------------------------------------------------------------------------
 
-    def parse_session_date(self, date_str: Optional[str] = None) -> Optional[datetime]:
+    def parse_session_date(self, date_str: str | None = None) -> datetime | None:
         """Parse a session date from string or return current datetime.
 
         Args:

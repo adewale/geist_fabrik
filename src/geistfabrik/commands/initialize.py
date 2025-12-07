@@ -20,10 +20,9 @@ class InitCommand(BaseCommand):
         Returns:
             Exit code (0 for success, 1 for error)
         """
-        vault_path = Path(self.args.vault).resolve()
-
-        # Validate vault path
-        if not self.validate_vault_path(vault_path):
+        # Get and validate vault path
+        vault_path = self.get_vault_path()
+        if vault_path is None:
             return 1
 
         # Check if it's an Obsidian vault
