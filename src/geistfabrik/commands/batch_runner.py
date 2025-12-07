@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from ..geist_executor import GeistExecutor
 from .base import BaseCommand, ExecutionContext
@@ -14,7 +13,7 @@ class TestResult:
 
     status: str
     count: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class TestAllCommand(BaseCommand):
@@ -59,16 +58,18 @@ class TestAllCommand(BaseCommand):
         # Set up execution context
         exec_ctx = self.setup_execution_context(cmd_ctx, session_date)
 
-        # Load geists
+        # Load geists (both custom and default)
         geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
-        if not geists_dir.exists():
-            self.print_error(f"No geists directory found at {geists_dir}")
-            return 1
+
+        # Get default geists directory
+        package_dir = Path(__file__).parent.parent
+        default_geists_dir = package_dir / "default_geists" / "code"
 
         executor = GeistExecutor(
             geists_dir,
             timeout=self.args.timeout,
             max_failures=3,
+            default_geists_dir=default_geists_dir,
             debug=getattr(self.args, "debug", False),
         )
         executor.load_geists()

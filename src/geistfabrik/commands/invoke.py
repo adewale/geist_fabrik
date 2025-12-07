@@ -4,7 +4,6 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from ..config_loader import GeistFabrikConfig, save_config
 from ..embeddings import EmbeddingComputer
@@ -278,7 +277,7 @@ class InvokeCommand(BaseCommand):
         geist_word = "geist" if actual_count == 1 else "geists"
         self.print(f"Executing {actual_count} {geist_word}...")
 
-    def _get_geists_to_run(self) -> Optional[list[str]]:
+    def _get_geists_to_run(self) -> list[str] | None:
         """Get list of specific geists to run, or None for all."""
         if self.args.geist:
             return [self.args.geist]
@@ -291,7 +290,7 @@ class InvokeCommand(BaseCommand):
         exec_ctx: ExecutionContext,
         code_executor: GeistExecutor,
         tracery_geists: list[TraceryGeist],
-    ) -> Optional[GeistResults]:
+    ) -> GeistResults | None:
         """Execute geists and collect results.
 
         Args:
@@ -359,7 +358,7 @@ class InvokeCommand(BaseCommand):
         self,
         code_results: dict[str, list[Suggestion]],
         tracery_results: dict[str, list[Suggestion]],
-        config: Optional[GeistFabrikConfig],
+        config: GeistFabrikConfig | None,
     ) -> list[Suggestion]:
         """Collect suggestions respecting config order.
 

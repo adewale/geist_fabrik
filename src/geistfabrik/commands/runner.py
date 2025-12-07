@@ -1,5 +1,7 @@
 """Test command for testing a single geist in isolation."""
 
+from pathlib import Path
+
 from ..geist_executor import GeistExecutor
 from ..models import Suggestion
 from .base import BaseCommand
@@ -48,23 +50,25 @@ class TestCommand(BaseCommand):
         # Set up execution context
         exec_ctx = self.setup_execution_context(cmd_ctx, session_date)
 
-        # Load geists
+        # Load geists (both custom and default)
         geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
-        if not geists_dir.exists():
-            self.print_error(f"No geists directory found at {geists_dir}")
-            return 1
+
+        # Get default geists directory
+        package_dir = Path(__file__).parent.parent
+        default_geists_dir = package_dir / "default_geists" / "code"
 
         executor = GeistExecutor(
             geists_dir,
             timeout=self.args.timeout,
             max_failures=3,
+            default_geists_dir=default_geists_dir,
             debug=getattr(self.args, "debug", False),
         )
         executor.load_geists()
 
         # Check if geist exists
         if geist_id not in executor.geists:
-            self.print_error(f"Geist '{geist_id}' not found in {geists_dir}")
+            self.print_error(f"Geist '{geist_id}' not found")
             print("\nAvailable geists:")
             for gid in sorted(executor.geists.keys()):
                 print(f"  - {gid}")
