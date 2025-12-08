@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..geist_executor import GeistExecutor
+from ..tracery import TraceryGeist, TraceryGeistLoader
 from .base import BaseCommand, ExecutionContext
 
 
@@ -58,38 +59,51 @@ class TestAllCommand(BaseCommand):
         # Set up execution context
         exec_ctx = self.setup_execution_context(cmd_ctx, session_date)
 
-        # Load geists (both custom and default)
-        geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
-
-        # Get default geists directory
+        # Get default geists directories
         package_dir = Path(__file__).parent.parent
-        default_geists_dir = package_dir / "default_geists" / "code"
+        default_code_geists_dir = package_dir / "default_geists" / "code"
+        default_tracery_geists_dir = package_dir / "default_geists" / "tracery"
 
+        # Load code geists
+        code_geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
         executor = GeistExecutor(
-            geists_dir,
+            code_geists_dir,
             timeout=self.args.timeout,
             max_failures=3,
-            default_geists_dir=default_geists_dir,
+            default_geists_dir=default_code_geists_dir,
             debug=getattr(self.args, "debug", False),
         )
         executor.load_geists()
 
-        if not executor.geists:
-            print("\nNo code geists found to test")
+        # Load Tracery geists
+        tracery_geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "tracery"
+        seed = int(session_date.timestamp())
+        tracery_loader = TraceryGeistLoader(
+            tracery_geists_dir,
+            seed=seed,
+            default_geists_dir=default_tracery_geists_dir,
+        )
+        tracery_geists, _ = tracery_loader.load_all()
+
+        total_geists = len(executor.geists) + len(tracery_geists)
+        if total_geists == 0:
+            print("\nNo geists found to test")
             return 0
 
         # Test all geists
-        results = self._test_all_geists(executor, exec_ctx)
+        results = self._test_all_code_geists(executor, exec_ctx)
+        tracery_results = self._test_all_tracery_geists(tracery_geists, exec_ctx)
+        results.update(tracery_results)
 
         # Print summary
         return self._print_summary(results, exec_ctx.vault_path)
 
-    def _test_all_geists(
+    def _test_all_code_geists(
         self,
         executor: GeistExecutor,
         exec_ctx: ExecutionContext,
     ) -> dict[str, TestResult]:
-        """Test all geists and collect results.
+        """Test all code geists and collect results.
 
         Args:
             executor: The geist executor
@@ -98,8 +112,11 @@ class TestAllCommand(BaseCommand):
         Returns:
             Dictionary mapping geist ID to test result
         """
+        if not executor.geists:
+            return {}
+
         print(f"\n{'=' * 60}")
-        print(f"Testing {len(executor.geists)} geists")
+        print(f"Testing {len(executor.geists)} code geists")
         print(f"{'=' * 60}\n")
 
         results: dict[str, TestResult] = {}
@@ -137,6 +154,50 @@ class TestAllCommand(BaseCommand):
             else:
                 print("? Unknown status")
                 results[geist_id] = TestResult(status="unknown")
+
+        return results
+
+    def _test_all_tracery_geists(
+        self,
+        tracery_geists: list[TraceryGeist],
+        exec_ctx: ExecutionContext,
+    ) -> dict[str, TestResult]:
+        """Test all Tracery geists and collect results.
+
+        Args:
+            tracery_geists: List of Tracery geists to test
+            exec_ctx: Execution context
+
+        Returns:
+            Dictionary mapping geist ID to test result
+        """
+        if not tracery_geists:
+            return {}
+
+        print(f"\n{'=' * 60}")
+        print(f"Testing {len(tracery_geists)} Tracery geists")
+        print(f"{'=' * 60}\n")
+
+        results: dict[str, TestResult] = {}
+
+        for tracery_geist in sorted(tracery_geists, key=lambda g: g.geist_id):
+            geist_id = tracery_geist.geist_id
+            print(f"Testing {geist_id}...", end=" ")
+
+            try:
+                suggestions = tracery_geist.suggest(exec_ctx.vault_context)
+                print(f"v ({len(suggestions)} suggestions)")
+                results[geist_id] = TestResult(
+                    status="success",
+                    count=len(suggestions),
+                )
+            except Exception as e:
+                error_msg = str(e)
+                print(f"x {error_msg}")
+                results[geist_id] = TestResult(
+                    status="error",
+                    error=error_msg,
+                )
 
         return results
 

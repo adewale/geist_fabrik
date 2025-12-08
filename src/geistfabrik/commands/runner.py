@@ -4,7 +4,8 @@ from pathlib import Path
 
 from ..geist_executor import GeistExecutor
 from ..models import Suggestion
-from .base import BaseCommand
+from ..tracery import TraceryGeist, TraceryGeistLoader
+from .base import BaseCommand, ExecutionContext
 
 
 class TestCommand(BaseCommand):
@@ -50,39 +51,64 @@ class TestCommand(BaseCommand):
         # Set up execution context
         exec_ctx = self.setup_execution_context(cmd_ctx, session_date)
 
-        # Load geists (both custom and default)
-        geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
-
-        # Get default geists directory
+        # Get default geists directories
         package_dir = Path(__file__).parent.parent
-        default_geists_dir = package_dir / "default_geists" / "code"
+        default_code_geists_dir = package_dir / "default_geists" / "code"
+        default_tracery_geists_dir = package_dir / "default_geists" / "tracery"
 
+        # Load code geists
+        code_geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
         executor = GeistExecutor(
-            geists_dir,
+            code_geists_dir,
             timeout=self.args.timeout,
             max_failures=3,
-            default_geists_dir=default_geists_dir,
+            default_geists_dir=default_code_geists_dir,
             debug=getattr(self.args, "debug", False),
         )
         executor.load_geists()
 
-        # Check if geist exists
-        if geist_id not in executor.geists:
+        # Load Tracery geists
+        tracery_geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "tracery"
+        seed = int(session_date.timestamp())
+        tracery_loader = TraceryGeistLoader(
+            tracery_geists_dir,
+            seed=seed,
+            default_geists_dir=default_tracery_geists_dir,
+        )
+        tracery_geists, _ = tracery_loader.load_all()
+        tracery_geists_map = {g.geist_id: g for g in tracery_geists}
+
+        # Check if geist exists in either code or Tracery
+        is_code_geist = geist_id in executor.geists
+        is_tracery_geist = geist_id in tracery_geists_map
+
+        if not is_code_geist and not is_tracery_geist:
             self.print_error(f"Geist '{geist_id}' not found")
             print("\nAvailable geists:")
+            print("  Code geists:")
             for gid in sorted(executor.geists.keys()):
-                print(f"  - {gid}")
+                print(f"    - {gid}")
+            print("  Tracery geists:")
+            for gid in sorted(tracery_geists_map.keys()):
+                print(f"    - {gid}")
             return 1
 
         # Execute the geist
         self._print_execution_header(geist_id)
-        suggestions = executor.execute_geist(geist_id, exec_ctx.vault_context)
 
-        # Display results
-        self._display_results(suggestions)
-
-        # Display execution summary
-        self._display_summary(executor, geist_id)
+        if is_code_geist:
+            suggestions = executor.execute_geist(geist_id, exec_ctx.vault_context)
+            # Display results
+            self._display_results(suggestions)
+            # Display execution summary (code geists only have profiling)
+            self._display_code_summary(executor, geist_id)
+        else:
+            tracery_geist = tracery_geists_map[geist_id]
+            suggestions = self._execute_tracery_geist(tracery_geist, exec_ctx)
+            # Display results
+            self._display_results(suggestions)
+            # Display Tracery-specific summary
+            self._display_tracery_summary(geist_id, suggestions)
 
         return 0
 
@@ -115,8 +141,28 @@ class TestCommand(BaseCommand):
                     print(f"   Suggested title: {suggestion.title}")
                 print()
 
-    def _display_summary(self, executor: GeistExecutor, geist_id: str) -> None:
-        """Display execution summary with timing and status.
+    def _execute_tracery_geist(
+        self,
+        tracery_geist: TraceryGeist,
+        exec_ctx: ExecutionContext,
+    ) -> list[Suggestion]:
+        """Execute a Tracery geist and return suggestions.
+
+        Args:
+            tracery_geist: The Tracery geist to execute
+            exec_ctx: Execution context
+
+        Returns:
+            List of suggestions from the geist
+        """
+        try:
+            return tracery_geist.suggest(exec_ctx.vault_context)
+        except Exception as e:
+            self.print_error(f"Error executing Tracery geist: {e}")
+            return []
+
+    def _display_code_summary(self, executor: GeistExecutor, geist_id: str) -> None:
+        """Display execution summary with timing and status for code geists.
 
         Args:
             executor: The geist executor
@@ -148,4 +194,20 @@ class TestCommand(BaseCommand):
                             print(f"  Error: {entry['error']}")
                             break
 
+        print(f"\n{'=' * 60}\n")
+
+    def _display_tracery_summary(
+        self,
+        geist_id: str,
+        suggestions: list[Suggestion],
+    ) -> None:
+        """Display execution summary for Tracery geists.
+
+        Args:
+            geist_id: ID of the tested geist
+            suggestions: Suggestions generated by the geist
+        """
+        print("Status: Success")
+        print("  Type: Tracery geist")
+        print(f"  Suggestions: {len(suggestions)}")
         print(f"\n{'=' * 60}\n")
