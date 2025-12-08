@@ -1,5 +1,7 @@
 """Stats command for showing vault statistics and health metrics."""
 
+import sys
+
 from ..config_loader import GeistFabrikConfig, load_config
 from ..stats import (
     EmbeddingMetricsComputer,
@@ -29,11 +31,11 @@ class StatsCommand(BaseCommand):
         if vault_path is None:
             return 1
 
-        # Check if vault is initialised
+        # Check if vault is initialised (need database for stats)
         db_path = vault_path / "_geistfabrik" / "vault.db"
         if not db_path.exists():
-            self.print_error("GeistFabrik not initialised in this vault.")
-            print(f"Run: geistfabrik init {vault_path}")
+            self.print_error(f"GeistFabrik not initialised in {vault_path}")
+            print(f"Run: geistfabrik init {vault_path}", file=sys.stderr)
             return 1
 
         # Load vault and config

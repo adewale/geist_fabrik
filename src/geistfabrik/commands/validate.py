@@ -26,11 +26,10 @@ class ValidateCommand(BaseCommand):
             return 1
 
         # Check if vault is initialised
-        geistfabrik_dir = vault_path / "_geistfabrik"
-        if not geistfabrik_dir.exists():
-            self.print_error(f"GeistFabrik not initialised in {vault_path}")
-            print(f"Run: geistfabrik init {vault_path}")
+        if not self.validate_geistfabrik_initialised(vault_path):
             return 1
+
+        geistfabrik_dir = vault_path / "_geistfabrik"
 
         # Set up directories
         code_dir = geistfabrik_dir / "geists" / "code"
