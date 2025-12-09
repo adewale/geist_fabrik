@@ -158,7 +158,7 @@ class TestCommand(BaseCommand):
         try:
             return tracery_geist.suggest(exec_ctx.vault_context)
         except Exception as e:
-            self.print_error(f"Error executing Tracery geist: {e}")
+            self.print_error(f"Executing Tracery geist {tracery_geist.geist_id}: {e}")
             return []
 
     def _display_code_summary(self, executor: GeistExecutor, geist_id: str) -> None:

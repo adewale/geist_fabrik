@@ -1,6 +1,5 @@
 """Invoke command for running geists and generating suggestions."""
 
-import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -319,10 +318,7 @@ class InvokeCommand(BaseCommand):
                         suggestions = tracery_geist.suggest(context)
                         tracery_results[geist_id] = suggestions
                     except Exception as e:
-                        print(
-                            f"Error executing Tracery geist {geist_id}: {e}",
-                            file=sys.stderr,
-                        )
+                        self.print_error(f"Executing Tracery geist {geist_id}: {e}")
                         tracery_results[geist_id] = []
                 else:
                     self.print_error(f"Geist '{geist_id}' not found")
@@ -337,9 +333,8 @@ class InvokeCommand(BaseCommand):
                     suggestions = tracery_geist.suggest(context)
                     tracery_results[tracery_geist.geist_id] = suggestions
                 except Exception as e:
-                    print(
-                        f"Error executing Tracery geist {tracery_geist.geist_id}: {e}",
-                        file=sys.stderr,
+                    self.print_error(
+                        f"Executing Tracery geist {tracery_geist.geist_id}: {e}"
                     )
                     tracery_results[tracery_geist.geist_id] = []
 
