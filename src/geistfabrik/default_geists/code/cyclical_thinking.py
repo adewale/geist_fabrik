@@ -24,10 +24,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik.temporal_analysis import TemporalPatternFinder
 
     # Need multiple sessions for cycle detection
-    cursor = vault.db.execute("SELECT COUNT(*) FROM sessions")
-    session_count = cursor.fetchone()[0]
-
-    if session_count < 6:  # Need at least 6 sessions for 2 cycles
+    if vault.session_count() < 6:  # Need at least 6 sessions for 2 cycles
         return []
 
     notes = vault.notes()
@@ -44,21 +41,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Create suggestions for cycling notes
     for note in cycling_notes[:5]:  # Limit to 5 for sampling
         # Get session dates for context
-        cursor = vault.db.execute(
-            """
-            SELECT s.date
-            FROM session_embeddings se
-            JOIN sessions s ON se.session_id = s.session_id
-            WHERE se.note_path = ?
-            ORDER BY s.date ASC
-            """,
-            (note.path,),
-        )
-        sessions = cursor.fetchall()
+        session_dates = vault.session_dates_for_note(note)
 
-        if len(sessions) >= 3:
-            first_date = sessions[0][0].strftime("%Y-%m")
-            last_date = sessions[-1][0].strftime("%Y-%m")
+        if len(session_dates) >= 3:
+            first_date = session_dates[0][:7]
+            last_date = session_dates[-1][:7]
 
             text = (
                 f"[[{note.obsidian_link}]] shows cyclical thinking—"

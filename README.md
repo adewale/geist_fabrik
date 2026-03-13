@@ -12,7 +12,7 @@ Inspired by Gordon Brander's work on tools for thought.
 
 **Version**: 0.9.0 (Beta)
 **Default Geists**: 57 (48 code + 9 Tracery) _[programmatically verified]_
-**Tests**: 611 passing (100%)
+**Tests**: 1119 passing (100%)
 **Progress**: ~99% (Feature-complete, approaching 1.0)
 
 See [STATUS.md](STATUS.md) for detailed implementation status and test results, and [examples/README.md](examples/README.md) for comprehensive examples.
@@ -113,7 +113,7 @@ rm -rf testdata/kepano-obsidian-main/"geist journal"
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
 
-**Note**: 51 default geists work immediately - no installation needed!
+**Note**: 57 default geists work immediately - no installation needed!
 
 ## Privacy & Data Safety
 
@@ -267,7 +267,7 @@ default_geists:
 
 **Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
 
-**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 51 default geists with descriptions and configuration tips.
+**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 57 default geists with descriptions and configuration tips.
 
 ### Cluster Labelling
 
@@ -509,29 +509,18 @@ Vault Files → Vault.sync() → SQLite Database
 - `sqlite-vec` - For large vaults (5000+ notes) using SQLite-Vec backend
 - `numpy`, `scipy`, `scikit-learn` - For advanced stats metrics (auto-detected)
 
-## Example Geists
+## Examples
 
-The examples/ directory includes 38 example geists demonstrating various patterns (for learning, not installation):
+The examples/ directory contains 5 learning materials demonstrating extension patterns (NOT for installation):
 
-### Code Geists (29)
-Including patterns for:
-- **Temporal analysis** - temporal_drift, session_drift, hermeneutic_instability, temporal_clustering, seasonal_patterns, anachronism_detector, convergent_evolution, divergent_evolution, concept_drift
-- **Creative connections** - creative_collision, bridge_builder, bridge_hunter, island_hopper, hidden_hub
-- **Analysis & critique** - columbo, assumption_challenger, antithesis_generator, density_inversion, complexity_mismatch
-- **Pattern discovery** - pattern_finder, concept_cluster, question_generator, method_scrambler, scale_shifter
-- **Vault health** - link_density_analyser, task_archaeology, stub_expander, recent_focus, vocabulary_expansion
+### Metadata Inference Modules (3)
+- **complexity.py** - Add complexity metrics to notes
+- **structure.py** - Analyze note structure patterns
+- **temporal.py** - Compute temporal metadata properties
 
-### Tracery Geists (9)
-- **random_prompts.yaml** - Creative writing prompts
-- **note_combinations.yaml** - Random note pairings
-- **what_if.yaml** - "What if" question generator
-- **hub_explorer.yaml** - Explore highly connected notes
-- **orphan_connector.yaml** - Connect isolated notes
-- **semantic_neighbours.yaml** - Find semantically similar notes
-- **temporal_mirror.yaml** - Compare notes across time periods
-- **transformation_suggester.yaml** - Suggest note transformations
-- **dialectic.yaml** - Find thesis-antithesis pairs
-- **scale_shift.yaml** - Connect notes at different abstraction levels
+### Vault Functions (2)
+- **contrarian.py** - Find contrarian perspectives
+- **questions.py** - Find notes containing questions
 
 See [examples/README.md](examples/README.md) for detailed documentation.
 
@@ -539,7 +528,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
-- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 51 default geists
+- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 57 default geists
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
 
 ### Deep Dives
@@ -671,7 +660,7 @@ uv run mypy src/ --strict
 
 ```
 geist_fabrik/
-├── src/geistfabrik/          # Core library (15 modules)
+├── src/geistfabrik/          # Core library (26 modules)
 │   ├── models.py             # Data structures (Note, Suggestion, Link)
 │   ├── schema.py             # SQLite database schema
 │   ├── vault.py              # Vault management and sync
@@ -688,7 +677,7 @@ geist_fabrik/
 │   ├── cli.py                # Command-line interface
 │   └── __init__.py           # Package exports
 ├── tests/                    # Test suite (see STATUS.md for details)
-├── examples/                 # Example geists and extensions (39 geists)
+├── examples/                 # Extension examples (3 metadata + 2 vault functions)
 ├── testdata/                 # Sample vault for testing
 └── specs/                    # Design specifications
 ```

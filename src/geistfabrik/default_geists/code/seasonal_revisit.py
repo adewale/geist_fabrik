@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from geistfabrik import VaultContext
 
 from geistfabrik import Suggestion
+from geistfabrik.temporal_analysis import get_season
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -27,14 +28,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Determine current season
     today = datetime.now()
-    current_season = _get_season(today)
+    current_season = get_season(today)
     current_year = today.year
 
     # Find notes from same season in previous years
     seasonal_notes = []
     all_notes = vault.notes()
     for note in all_notes:
-        note_season = _get_season(note.created)
+        note_season = get_season(note.created)
         note_year = note.created.year
 
         # Same season, but not current year (looking back)
@@ -70,24 +71,3 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Sample to avoid too many suggestions
     return vault.sample(suggestions, min(2, len(suggestions)))
-
-
-def _get_season(date: datetime) -> str:
-    """Determine the season for a given date (Northern Hemisphere).
-
-    Args:
-        date: Date to check
-
-    Returns:
-        Season name: "Spring", "Summer", "Autumn", or "Winter"
-    """
-    month = date.month
-
-    if month in (3, 4, 5):
-        return "Spring"
-    elif month in (6, 7, 8):
-        return "Summer"
-    elif month in (9, 10, 11):
-        return "Autumn"
-    else:  # 12, 1, 2
-        return "Winter"

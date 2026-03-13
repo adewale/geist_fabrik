@@ -24,8 +24,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik.temporal_analysis import EmbeddingTrajectoryCalculator
 
     # Need multiple sessions for acceleration detection
-    cursor = vault.db.execute("SELECT COUNT(*) FROM sessions")
-    session_count = cursor.fetchone()[0]
+    session_count = vault.session_count()
 
     if session_count < 5:  # Need at least 5 sessions for windowed analysis
         return []

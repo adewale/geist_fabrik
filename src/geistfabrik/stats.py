@@ -9,6 +9,7 @@ This module provides comprehensive vault statistics including:
 """
 
 import json
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -42,6 +43,8 @@ try:
     HAS_VENDI = True
 except ImportError:
     HAS_VENDI = False
+
+logger = logging.getLogger(__name__)
 
 
 class StatsCollector:
@@ -543,6 +546,10 @@ class StatsCollector:
                 datetime.fromisoformat(curr_date) - timedelta(days=days_back)
             ).isoformat()[:10]
         except Exception:
+            logger.debug(
+                "Failed to parse date for drift comparison",
+                exc_info=True,
+            )
             return None
 
         # Get closest past session
@@ -599,6 +606,7 @@ class StatsCollector:
             past_rotated = past_aligned @ rotation_matrix
         except Exception:
             # Procrustes can fail
+            logger.debug("Procrustes alignment failed", exc_info=True)
             past_rotated = past_aligned
 
         # Compute drift per note (1 - cosine similarity)
@@ -641,7 +649,7 @@ class StatsCollector:
                 # Full implementation would compute drift for past period too
                 drift_trend = "accelerating" if avg_drift > 0.2 else "stable"
         except Exception:
-            pass
+            logger.debug("Failed to compute drift trend", exc_info=True)
 
         return {
             "current_date": curr_date,
@@ -831,7 +839,7 @@ class EmbeddingMetricsComputer:
                 metrics["intrinsic_dim"] = round(float(intrinsic_dim), 1)
             except Exception:
                 # TwoNN can fail on some data distributions
-                pass
+                logger.debug("TwoNN estimation failed", exc_info=True)
 
         # Vendi Score (if available)
         if HAS_VENDI and HAS_SKLEARN and len(embeddings) >= 2:
@@ -842,7 +850,7 @@ class EmbeddingMetricsComputer:
                 metrics["vendi_score"] = round(float(vendi_score_value), 1)
             except Exception:
                 # Vendi computation can fail
-                pass
+                logger.debug("Vendi score computation failed", exc_info=True)
 
         # IsoScore: measure of embedding space uniformity
         # Based on variance in the eigenvalues of the covariance matrix
@@ -862,7 +870,7 @@ class EmbeddingMetricsComputer:
                     metrics["isoscore"] = round(float(isoscore), 2)
             except Exception:
                 # Eigenvalue computation can fail
-                pass
+                logger.debug("IsoScore computation failed", exc_info=True)
 
         # Basic similarity statistics
         from geistfabrik.embeddings import cosine_similarity
@@ -1021,6 +1029,10 @@ class EmbeddingMetricsComputer:
 
         except Exception:
             # If MMR fails, fall back to top-k by TF-IDF score
+            logger.debug(
+                "MMR filtering failed, falling back to top-k",
+                exc_info=True,
+            )
             indices = np.argsort(tfidf_scores)[-k:][::-1]
             return [terms[i] for i in indices]
 
@@ -1091,6 +1103,10 @@ class EmbeddingMetricsComputer:
                 cluster_labels[cluster_id] = ", ".join(diverse_terms)
         except Exception:
             # If TF-IDF fails, use simple fallback
+            logger.debug(
+                "TF-IDF cluster labeling failed",
+                exc_info=True,
+            )
             for cluster_id in clusters.keys():
                 cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 
@@ -1144,6 +1160,10 @@ class EmbeddingMetricsComputer:
             computer = EmbeddingComputer()
         except Exception:
             # If model loading fails, fall back to simple labels for all clusters
+            logger.debug(
+                "Model loading failed for KeyBERT labeling",
+                exc_info=True,
+            )
             return {cid: f"Cluster {cid}" for cid in clusters.keys()}
 
         # Get cluster embeddings to compute centroids
@@ -1155,6 +1175,11 @@ class EmbeddingMetricsComputer:
                 cluster_embeddings[cluster_id] = list(embeddings)
             except Exception:
                 # If embedding fails for this cluster, skip to simple label
+                logger.debug(
+                    "Embedding failed for cluster %d",
+                    cluster_id,
+                    exc_info=True,
+                )
                 cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 
         # Process each cluster
@@ -1202,6 +1227,11 @@ class EmbeddingMetricsComputer:
 
             except Exception:
                 # If KeyBERT approach fails, use simple fallback
+                logger.debug(
+                    "KeyBERT labeling failed for cluster %d",
+                    cluster_id,
+                    exc_info=True,
+                )
                 cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 
         return cluster_labels

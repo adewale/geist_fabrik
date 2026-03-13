@@ -27,17 +27,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 15:
         return []
 
-    # Get previous sessions from database
-    cursor = vault.db.execute(
-        """
-        SELECT session_id FROM sessions
-        ORDER BY date DESC
-        LIMIT 3
-        """,
-    )
-    session_rows = cursor.fetchall()
+    # Get previous sessions via VaultContext abstraction
+    session_ids = vault.recent_session_ids(limit=3)
 
-    if len(session_rows) < 2:
+    if len(session_ids) < 2:
         return []
 
     # Initialize cluster analyser (benefits from session-scoped cache)
@@ -66,19 +59,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         current_label = current_assignments[note.path]
 
         # Check previous session assignments
-        prev_session_id = session_rows[1][0]  # Second most recent
-        prev_clusters = vault.db.execute(
-            """
-            SELECT cluster_id, cluster_label
-            FROM session_embeddings
-            WHERE session_id = ? AND note_path = ?
-            """,
-            (prev_session_id, note.path),
-        ).fetchone()
+        prev_session_id = session_ids[1]  # Second most recent
+        prev_label = vault.previous_cluster_label_for_note(
+            note, prev_session_id
+        )
 
-        if prev_clusters and prev_clusters[1]:
-            prev_label = prev_clusters[1]
-
+        if prev_label:
             # Note migrated to a different cluster
             if prev_label != current_label and prev_label != "Noise":
                 suggestions.append(

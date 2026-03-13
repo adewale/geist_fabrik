@@ -13,7 +13,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 **Version**: 0.9.0 (Beta)
 **Status**: Feature-complete, approaching 1.0 release
 **Tests**: All passing ✅ (100%)
-**Code**: ~10,500 lines across 15 source modules
+**Code**: ~11,900 lines across 26 source modules
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
@@ -117,7 +117,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
 **Lesson from PR #30**: Skipping validate.sh causes CI failures that waste hours of debugging time. The validation script exists specifically to prevent this. Use it.
 
-**See**: `docs/CI_VALIDATION_GUIDE.md` and `docs/POST_MORTEM_PR30.md` for detailed explanation.
+**See**: `docs/CI_VALIDATION_GUIDE.md` for detailed explanation.
 
 ### Optimisation Lessons (Phase 3B Rollback)
 
@@ -146,7 +146,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 **Current Performance Status** (post-rollback):
 - ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
 - ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 51 geists: Pass timeout thresholds on production vaults
+- ✅ All 57 geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
 
@@ -176,7 +176,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 - Build lookup structures (sets, dicts) instead of O(N) repeated searches
 - Profile with `cProfile` before optimising—don't guess bottlenecks
 - Adaptive sampling: `min(N, max(50, len(notes)//10))` not fixed sizes
-- See `docs/POST_MORTEM_PHASE3B.md` for detailed analysis (Note: POST_MORTEM describes pre-cache-aware batch_similarity())
+- See `docs/WRITING_GOOD_GEISTS.md` for detailed analysis
 
 **Regression Prevention**:
 - Regression tests: `tests/integration/test_phase3b_regression.py` (Note: Some assertions outdated post-cache implementation)
@@ -374,7 +374,7 @@ burst_days = vault.notes_grouped_by_creation_date(
 
 **What Changed**:
 - **Fixed geists**: creation_burst.py, burst_evolution.py (commit d80a93e)
-- **New VaultContext method**: `notes_grouped_by_creation_date()` in vault_context.py:566
+- **New VaultContext method**: `notes_grouped_by_creation_date()` in vault_context.py:603
 - **Updated spec**: CREATION_BURST_GEIST_SPEC.md now shows VaultContext usage
 - **Added lesson**: This section in CLAUDE.md
 
@@ -396,7 +396,7 @@ If yes to any → Add a VaultContext method instead.
 
 **See Also**:
 - Commit d80a93e: Fix architectural violation in burst geists
-- `src/geistfabrik/vault_context.py:566`: Implementation of aggregation method
+- `src/geistfabrik/vault_context.py:603`: Implementation of aggregation method
 - `docs/ARCHITECTURE.md`: Two-layer architecture documentation
 
 ## Three-Dimensional Extensibility
@@ -447,7 +447,7 @@ class Note:
     entry_date: date | None = None  # Date from heading for virtual entries
 ```
 
-**Virtual Entries**: Notes with `is_virtual=True` are split from journal files with date headings. They have synthetic paths like `Journal.md/2025-01-15` and can be linked, queried, and referenced like regular notes. See `docs/JOURNAL_FILES.md` for details.
+**Virtual Entries**: Notes with `is_virtual=True` are split from journal files with date headings. They have synthetic paths like `Journal.md/2025-01-15` and can be linked, queried, and referenced like regular notes.
 
 ### Suggestion
 ```python

@@ -2,6 +2,7 @@
 
 import fnmatch
 import logging
+import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -52,7 +53,11 @@ class Vault:
         if db_path is None:
             self.db = init_db(None)
         else:
-            self.db = init_db(Path(db_path))
+            db_path_obj = Path(db_path)
+            is_new_db = not db_path_obj.exists()
+            self.db = init_db(db_path_obj)
+            if is_new_db and db_path_obj.exists():
+                os.chmod(db_path_obj, 0o600)
 
         # Migrate schema if needed
         migrate_schema(self.db)
@@ -86,8 +91,11 @@ class Vault:
             # Get relative path from vault root
             rel_path = str(md_file.relative_to(self.vault_path))
 
-            # Get file modification time
-            file_mtime = md_file.stat().st_mtime
+            # Get file modification time (file may have been deleted since rglob)
+            try:
+                file_mtime = md_file.stat().st_mtime
+            except FileNotFoundError:
+                continue
 
             # Check if file needs to be processed
             # For regular notes, check by path; for journals (virtual entries), check by source_file
@@ -106,6 +114,8 @@ class Vault:
             # File is new or modified, process it
             try:
                 content = md_file.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                continue
             except UnicodeDecodeError as e:
                 logger.warning(f"Skipping file {rel_path} due to encoding error: {e}")
                 continue
@@ -113,8 +123,11 @@ class Vault:
                 logger.warning(f"Skipping file {rel_path} due to permission denied: {e}")
                 continue
 
-            # Get file timestamps
-            stat = md_file.stat()
+            # Get file timestamps (file may have been deleted after read_text)
+            try:
+                stat = md_file.stat()
+            except FileNotFoundError:
+                continue
             created = datetime.fromtimestamp(stat.st_ctime)
             modified = datetime.fromtimestamp(stat.st_mtime)
 

@@ -3,11 +3,14 @@
 This module handles loading and saving vault configuration from config.yaml.
 """
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 # List of all default geists (for reference and validation)
 DEFAULT_CODE_GEISTS = [
@@ -17,21 +20,28 @@ DEFAULT_CODE_GEISTS = [
     "blind_spot_detector",
     "bridge_builder",
     "bridge_hunter",
+    "burst_evolution",
+    "cluster_evolution_tracker",
     "cluster_mirror",
     "columbo",
     "complexity_mismatch",
     "concept_cluster",
     "concept_drift",
     "convergent_evolution",
+    "creation_burst",
     "creative_collision",
+    "cyclical_thinking",
+    "definition_harvester",
     "density_inversion",
     "dialectic_triad",
     "divergent_evolution",
+    "drift_velocity_anomaly",
     "hermeneutic_instability",
     "hidden_hub",
     "island_hopper",
     "link_density_analyser",
     "metadata_driven_discovery",
+    "metadata_outlier_detector",
     "method_scrambler",
     "on_this_day",
     "pattern_finder",
@@ -42,6 +52,7 @@ DEFAULT_CODE_GEISTS = [
     "scale_shifter",
     "seasonal_patterns",
     "seasonal_revisit",
+    "seasonal_topic_analysis",
     "session_drift",
     "structure_diversity_checker",
     "stub_expander",
@@ -232,8 +243,9 @@ def load_config(config_path: Path) -> GeistFabrikConfig:
             if data is None:
                 return GeistFabrikConfig()
             return GeistFabrikConfig.from_dict(data)
-    except Exception:
+    except Exception as e:
         # If loading fails, return default config
+        logger.warning(f"Failed to load config: {e}")
         return GeistFabrikConfig()
 
 

@@ -8,6 +8,7 @@ and stats.py, avoiding circular dependencies while maintaining single source
 of truth for labeling logic.
 """
 
+import logging
 import sqlite3
 from typing import Dict, List
 
@@ -18,6 +19,8 @@ from sklearn.feature_extraction.text import (  # type: ignore[import-untyped]
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def apply_mmr(
@@ -94,6 +97,10 @@ def apply_mmr(
 
     except Exception:
         # If MMR fails, fall back to top-k by score
+        logger.debug(
+            "MMR filtering failed, falling back to top-k by score",
+            exc_info=True,
+        )
         indices = np.argsort(scores)[-k:][::-1]
         return [terms[int(i)] for i in indices]
 
@@ -171,6 +178,10 @@ def label_tfidf(
             cluster_labels[cluster_id] = ", ".join(diverse_terms)
     except Exception:
         # If TF-IDF fails, use simple fallback
+        logger.debug(
+            "TF-IDF labeling failed, using simple fallback",
+            exc_info=True,
+        )
         for cluster_id in clusters.keys():
             cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 
@@ -229,6 +240,10 @@ def label_keybert(
         computer = EmbeddingComputer()
     except Exception:
         # If model loading fails, fall back to simple labels for all clusters
+        logger.debug(
+            "Model loading failed for KeyBERT labeling",
+            exc_info=True,
+        )
         return {cid: f"Cluster {cid}" for cid in clusters.keys()}
 
     # Get cluster embeddings to compute centroids
@@ -240,6 +255,11 @@ def label_keybert(
             cluster_embeddings[cluster_id] = list(embeddings)
         except Exception:
             # If embedding fails for this cluster, skip to simple label
+            logger.debug(
+                "Embedding failed for cluster %d",
+                cluster_id,
+                exc_info=True,
+            )
             cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 
     # Process each cluster
@@ -290,6 +310,11 @@ def label_keybert(
 
         except Exception:
             # If KeyBERT approach fails, use simple fallback
+            logger.debug(
+                "KeyBERT labeling failed for cluster %d",
+                cluster_id,
+                exc_info=True,
+            )
             cluster_labels[cluster_id] = f"Cluster {cluster_id}"
 
     return cluster_labels

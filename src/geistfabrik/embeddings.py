@@ -46,7 +46,6 @@ logger = logging.getLogger(__name__)
 # the optimal configuration is opt1+2:
 #   - assume_finite: Disables sklearn input validation (safe for trusted embeddings)
 #   - fast_path: Uses np.dot() for L2-normalised vectors
-#   - vectorize: Disabled (adds overhead for typical batch sizes)
 #
 # Performance improvement: 21.5% speedup on large vaults (10k+ notes)
 # Key improvements:
@@ -58,7 +57,6 @@ logger = logging.getLogger(__name__)
 SKLEARN_OPTIMIZATIONS = {
     "assume_finite": True,
     "fast_path": True,
-    "vectorize": False,
 }
 
 # Apply sklearn configuration
@@ -496,7 +494,7 @@ class Session:
         cached = len(cached_notes)
         computed = len(uncached_notes)
         cache_hit_rate = (cached / total * 100) if total > 0 else 0
-        print(
+        logger.info(
             f"Embedding cache: {cached}/{total} cached ({cache_hit_rate:.1f}% hit rate), "
             f"{computed} computed"
         )
@@ -618,28 +616,8 @@ def find_similar_notes(
     # Vectorized computation: compute all similarities at once
     embedding_matrix = np.vstack([embeddings[p] for p in filtered_paths])
 
-    # Optimisation: use np.dot for normalised vectors
-    if SKLEARN_OPTIMIZATIONS["vectorize"]:
-        # For L2-normalised vectors, cosine_similarity(query, matrix) = matrix @ query
-        # This is much faster than sklearn_cosine for batch operations
-        query_norm = np.linalg.norm(query_embedding)
-        if query_norm > 0 and abs(query_norm - 1.0) < 1e-6:
-            # Query is normalised, check if matrix rows are normalised
-            row_norms = np.linalg.norm(embedding_matrix, axis=1)
-            if np.all(np.abs(row_norms - 1.0) < 1e-6):
-                # All normalised, use fast dot product
-                similarity_scores = embedding_matrix @ query_embedding
-            else:
-                # Fall back to sklearn
-                query_reshaped = query_embedding.reshape(1, -1)
-                similarity_scores = sklearn_cosine(query_reshaped, embedding_matrix)[0]
-        else:
-            # Fall back to sklearn
-            query_reshaped = query_embedding.reshape(1, -1)
-            similarity_scores = sklearn_cosine(query_reshaped, embedding_matrix)[0]
-    else:
-        query_reshaped = query_embedding.reshape(1, -1)
-        similarity_scores = sklearn_cosine(query_reshaped, embedding_matrix)[0]
+    query_reshaped = query_embedding.reshape(1, -1)
+    similarity_scores = sklearn_cosine(query_reshaped, embedding_matrix)[0]
 
     # Create (path, similarity) tuples
     similarities = [

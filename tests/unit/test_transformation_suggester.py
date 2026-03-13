@@ -275,10 +275,9 @@ def test_transformation_suggester_capitalize_all_modifier(tmp_path: Path) -> Non
             vault.close()
             return
 
-    # If we get here, we should at least check that some capitalization happened
-    # Even if not the exact multi-word patterns
+    # If we exhausted all seeds without finding capitalizeAll usage, fail
     vault.close()
-    assert True  # The geist loaded and ran successfully
+    assert False, "No capitalizeAll modifier usage found across 100 seeds"
 
 
 def test_transformation_suggester_modifier_chaining(tmp_path: Path) -> None:
@@ -313,8 +312,8 @@ def test_transformation_suggester_modifier_chaining(tmp_path: Path) -> None:
             return
 
     vault.close()
-    # Even if we don't hit the exact pattern, the test passes if geist runs
-    assert True
+    # If we exhausted all seeds without finding chained modifier usage, fail
+    assert False, "No chained modifier (.s.capitalize) usage found across 100 seeds"
 
 
 def test_transformation_suggester_irregular_plurals(tmp_path: Path) -> None:

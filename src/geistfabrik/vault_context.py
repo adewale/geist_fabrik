@@ -621,7 +621,7 @@ class VaultContext:
         cursor = self.db.execute(
             f"""
             SELECT DATE(created) as creation_date,
-                   GROUP_CONCAT(path, '|') as note_paths
+                   GROUP_CONCAT(path, char(31)) as note_paths
             FROM notes
             {journal_filter}
             GROUP BY DATE(created)
@@ -635,7 +635,7 @@ class VaultContext:
         for row in cursor.fetchall():
             date_str, paths_str = row
             if paths_str:
-                paths = paths_str.split("|")
+                paths = paths_str.split("\x1f")
                 # Batch load notes for efficiency
                 notes_map = self.vault.get_notes_batch(paths)
                 # Preserve order and filter out None
@@ -648,6 +648,124 @@ class VaultContext:
                     result[date_str] = notes
 
         return result
+
+    def session_count(self) -> int:
+        """Get the number of sessions recorded for this vault.
+
+        Returns:
+            Number of sessions
+        """
+        cursor = self.db.execute("SELECT COUNT(*) FROM sessions")
+        result = cursor.fetchone()
+        return result[0] if result else 0
+
+    def session_dates_for_note(self, note: Note) -> List[str]:
+        """Get session dates when a note had embeddings computed.
+
+        Args:
+            note: Note to look up
+
+        Returns:
+            List of date strings (YYYY-MM-DD) in ascending order
+        """
+        cursor = self.db.execute(
+            """
+            SELECT s.date
+            FROM session_embeddings se
+            JOIN sessions s ON se.session_id = s.session_id
+            WHERE se.note_path = ?
+            ORDER BY s.date ASC
+            """,
+            (note.path,),
+        )
+        dates: List[str] = []
+        for row in cursor.fetchall():
+            val = row[0]
+            if hasattr(val, "strftime"):
+                dates.append(val.strftime("%Y-%m-%d"))
+            else:
+                dates.append(str(val))
+        return dates
+
+    def session_embeddings_by_session(
+        self,
+    ) -> List[Tuple[int, str, List[Any]]]:
+        """Get embeddings grouped by session for temporal analysis.
+
+        Returns:
+            List of (session_id, date_str, embeddings) tuples
+            ordered by date DESC, limited to 5 most recent sessions.
+        """
+        cursor = self.db.execute(
+            """
+            SELECT session_id, date FROM sessions
+            ORDER BY date DESC
+            LIMIT 5
+            """
+        )
+        sessions = cursor.fetchall()
+
+        result_list: List[Tuple[int, str, List[Any]]] = []
+        for session_id, session_date in sessions:
+            emb_cursor = self.db.execute(
+                """
+                SELECT embedding FROM session_embeddings
+                WHERE session_id = ?
+                """,
+                (session_id,),
+            )
+            embeddings = [
+                np.frombuffer(row[0], dtype=np.float32)
+                for row in emb_cursor.fetchall()
+            ]
+            if hasattr(session_date, "strftime"):
+                date_str = session_date.strftime("%Y-%m")
+            else:
+                date_str = str(session_date)
+            result_list.append((session_id, date_str, embeddings))
+
+        return result_list
+
+    def previous_cluster_label_for_note(
+        self, note: Note, session_id: int
+    ) -> Optional[str]:
+        """Get the cluster label for a note in a previous session.
+
+        Args:
+            note: Note to look up
+            session_id: The session ID to check
+
+        Returns:
+            Cluster label string or None if not found
+        """
+        row = self.db.execute(
+            """
+            SELECT cluster_label
+            FROM session_embeddings
+            WHERE session_id = ? AND note_path = ?
+            """,
+            (session_id, note.path),
+        ).fetchone()
+        return row[0] if row and row[0] else None
+
+    def recent_session_ids(self, limit: int = 3) -> List[int]:
+        """Get the most recent session IDs.
+
+        Args:
+            limit: Maximum number of session IDs to return
+
+        Returns:
+            List of session IDs ordered by date descending
+        """
+        cursor = self.db.execute(
+            """
+            SELECT session_id FROM sessions
+            ORDER BY date DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        return [row[0] for row in cursor.fetchall()]
 
     def get_clusters(self, min_size: int = 5) -> Dict[int, Dict[str, Any]]:
         """Get cluster assignments and labels for current session.

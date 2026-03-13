@@ -112,8 +112,8 @@ def test_generate_default_config():
 
 def test_default_geist_lists():
     """Test that default geist lists are complete."""
-    # Should have 40 code geists (congruence_mirror removed due to scalability)
-    assert len(DEFAULT_CODE_GEISTS) == 40
+    # Should have 48 code geists matching actual geist files
+    assert len(DEFAULT_CODE_GEISTS) == 48
     # Spot check a few key geists
     assert "blind_spot_detector" in DEFAULT_CODE_GEISTS
     assert "temporal_drift" in DEFAULT_CODE_GEISTS

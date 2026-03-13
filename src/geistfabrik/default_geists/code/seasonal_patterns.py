@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 from geistfabrik.similarity_analysis import SimilarityLevel
+from geistfabrik.temporal_analysis import get_season
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -142,8 +143,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Also check for seasonal tag patterns
     season_tags = defaultdict(list)
     for note in notes:
-        month = note.created.month
-        season = _get_season(month)
+        season = get_season(note.created)
         season_tags[season].append(note)
 
     # Find tags that appear predominantly in one season
@@ -183,15 +183,3 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
 
     return vault.sample(suggestions, k=2)
-
-
-def _get_season(month: int) -> str:
-    """Map month number to season."""
-    if month in [12, 1, 2]:
-        return "Winter"
-    elif month in [3, 4, 5]:
-        return "Spring"
-    elif month in [6, 7, 8]:
-        return "Summer"
-    else:
-        return "Autumn"

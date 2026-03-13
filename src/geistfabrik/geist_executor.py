@@ -3,6 +3,7 @@
 import cProfile
 import importlib.util
 import io
+import logging
 import pstats
 import signal
 import sys
@@ -14,6 +15,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from .models import Suggestion
 from .vault_context import VaultContext
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -204,7 +207,8 @@ class GeistExecutor:
             )
 
         module = importlib.util.module_from_spec(spec)
-        sys.modules[geist_id] = module
+        module_key = f"geistfabrik.user_geists.{geist_id}"
+        sys.modules[module_key] = module
         spec.loader.exec_module(module)
 
         # Get suggest function
@@ -258,7 +262,7 @@ class GeistExecutor:
                 profiler.enable()
             except Exception as e:
                 # Profiling failed - log warning but continue execution
-                print(f"Warning: Failed to enable profiling for {geist_id}: {e}")
+                logger.warning("Failed to enable profiling for %s: %s", geist_id, e)
                 profiler = None
 
         try:
@@ -311,7 +315,10 @@ class GeistExecutor:
                         profile_stats = self._extract_profile_stats(profiler)
                     except Exception as e:
                         # Profile extraction failed - log warning
-                        print(f"Warning: Failed to extract profile stats for {geist_id}: {e}")
+                        logger.warning(
+                            "Failed to extract profile stats for %s: %s",
+                            geist_id, e,
+                        )
 
                 profile = GeistExecutionProfile(
                     geist_id=geist_id,
@@ -349,7 +356,10 @@ class GeistExecutor:
                     profile_stats = self._extract_profile_stats(profiler)
                 except Exception as e:
                     # Profile extraction failed - log warning
-                    print(f"Warning: Failed to extract profile stats for {geist_id}: {e}")
+                    logger.warning(
+                        "Failed to extract profile stats for %s: %s",
+                        geist_id, e,
+                    )
 
             profile = GeistExecutionProfile(
                 geist_id=geist_id,
@@ -548,9 +558,12 @@ class GeistExecutor:
             execution_time: Execution time in seconds
         """
         pct = (execution_time / self.timeout) * 100
-        print(f"  ⚠  {geist_id} completed in {execution_time:.3f}s ({pct:.0f}% of timeout)")
+        logger.warning(
+            "%s completed in %.3fs (%.0f%% of timeout)",
+            geist_id, execution_time, pct,
+        )
         if not self.debug:
-            print("     → Run with --debug for detailed performance breakdown")
+            logger.info("Run with --debug for detailed performance breakdown")
 
     def _show_timeout_diagnostic(
         self, geist_id: str, profile: GeistExecutionProfile, geist_path: Path
@@ -562,11 +575,11 @@ class GeistExecutor:
             profile: Execution profile with timing data
             geist_path: Path to geist file
         """
-        print(f"\n  ✗ {geist_id} timed out after {self.timeout:.3f}s\n")
+        logger.warning("%s timed out after %.3fs", geist_id, self.timeout)
 
         if profile.function_stats:
             # Show top time-consuming functions
-            print("  Top expensive operations:")
+            logger.info("Top expensive operations:")
             total_accounted = 0.0
             for i, stats in enumerate(profile.function_stats[:10], 1):
                 pct = (stats.total_time / self.timeout) * 100
@@ -583,19 +596,23 @@ class GeistExecutor:
                         module_func = parts[-1]
                         name = module_func
 
-                print(
-                    f"    {i}. {name} - {stats.total_time:.3f}s ({pct:.1f}%) - {stats.calls} calls"
+                logger.info(
+                    "  %d. %s - %.3fs (%.1f%%) - %d calls",
+                    i, name, stats.total_time, pct, stats.calls,
                 )
 
             # Show percentage accounted for
             pct_accounted = (total_accounted / self.timeout) * 100
-            print(f"\n  Total accounted: {total_accounted:.3f}s ({pct_accounted:.1f}%)")
+            logger.info(
+                "Total accounted: %.3fs (%.1f%%)",
+                total_accounted, pct_accounted,
+            )
 
         # Generate and show smart suggestions
-        print("\n  Suggestions:")
+        logger.info("Suggestions:")
         suggestions = self._generate_suggestions(geist_id, profile)
         for suggestion in suggestions:
-            print(f"    → {suggestion}")
+            logger.info("  -> %s", suggestion)
 
     def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -> List[str]:
         """Generate actionable suggestions based on execution profile.

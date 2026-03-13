@@ -23,34 +23,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     try:
-        # Get recent session history
-        cursor = vault.db.execute(
-            """
-            SELECT session_id, date FROM sessions
-            ORDER BY date DESC
-            LIMIT 5
-            """
-        )
-        sessions = cursor.fetchall()
+        # Get recent session history via VaultContext abstraction
+        session_data = vault.session_embeddings_by_session()
 
-        if len(sessions) < 3:
+        if len(session_data) < 3:
             return []
 
-        # For each session, calculate semantic coverage (dispersion from centroid)
+        # For each session, calculate semantic coverage (dispersion)
         coverage_by_session = []
 
-        for session_id, session_date in sessions:
-            # Get all embeddings for this session
-            cursor = vault.db.execute(
-                """
-                SELECT embedding FROM session_embeddings
-                WHERE session_id = ?
-                """,
-                (session_id,),
-            )
-
-            embeddings = [np.frombuffer(row[0], dtype=np.float32) for row in cursor.fetchall()]
-
+        for _session_id, session_date_str, embeddings in session_data:
             if len(embeddings) < 10:
                 continue
 
@@ -64,7 +46,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             distances = [euclidean(emb, centroid) for emb in embeddings_array]
             coverage = np.std(distances)
 
-            coverage_by_session.append((session_date, coverage))
+            coverage_by_session.append((session_date_str, coverage))
 
         if len(coverage_by_session) < 3:
             return []
@@ -79,8 +61,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Convergence (focusing on fewer topics)
         if recent_coverage < older_coverage * 0.8:
-            recent_date = coverage_by_session[-1][0].strftime("%Y-%m")
-            older_date = coverage_by_session[0][0].strftime("%Y-%m")
+            recent_date = coverage_by_session[-1][0]
+            older_date = coverage_by_session[0][0]
 
             text = (
                 f"Your recent notes (since {recent_date}) explore less semantic territory "
@@ -98,8 +80,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Divergence (exploring more diverse topics)
         elif recent_coverage > older_coverage * 1.2:
-            recent_date = coverage_by_session[-1][0].strftime("%Y-%m")
-            older_date = coverage_by_session[0][0].strftime("%Y-%m")
+            recent_date = coverage_by_session[-1][0]
+            older_date = coverage_by_session[0][0]
 
             text = (
                 f"Your recent notes (since {recent_date}) cover more semantic ground "
