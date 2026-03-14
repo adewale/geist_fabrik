@@ -660,7 +660,7 @@ uv run mypy src/ --strict
 
 ```
 geist_fabrik/
-├── src/geistfabrik/          # Core library (26 modules)
+├── src/geistfabrik/          # Core library (32 modules)
 │   ├── models.py             # Data structures (Note, Suggestion, Link)
 │   ├── schema.py             # SQLite database schema
 │   ├── vault.py              # Vault management and sync

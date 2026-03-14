@@ -3,7 +3,7 @@
 **Date**: 2026-03-12
 **Version Audited**: 0.9.0 (Beta)
 **Auditor**: Claude Opus 4.6 (8 parallel sub-agents)
-**Scope**: Full codebase (~11,900 lines across 26 source modules + 48 code geists + 9 Tracery geists)
+**Scope**: Full codebase (~14,100 lines across 32 source modules + 48 code geists + 9 Tracery geists)
 
 ---
 

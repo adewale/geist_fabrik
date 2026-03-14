@@ -13,7 +13,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 **Version**: 0.9.0 (Beta)
 **Status**: Feature-complete, approaching 1.0 release
 **Tests**: All passing ✅ (100%)
-**Code**: ~11,900 lines across 26 source modules
+**Code**: ~14,100 lines across 32 source modules
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
