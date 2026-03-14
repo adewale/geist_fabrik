@@ -6,10 +6,6 @@ This module provides comprehensive vault statistics including:
 - Semantic metrics (clusters, diversity, intrinsic dimensionality)
 - Temporal analysis (drift rates, evolving concepts)
 - Configuration status
-
-EmbeddingMetricsComputer, StatsFormatter, and generate_recommendations
-have been extracted to dedicated modules. They are re-exported here for
-backward compatibility.
 """
 
 import logging
@@ -18,11 +14,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-
-# Re-export extracted classes for backward compatibility
-from .embedding_metrics import EmbeddingMetricsComputer as EmbeddingMetricsComputer
-from .stats_formatter import StatsFormatter as StatsFormatter
-from .stats_formatter import generate_recommendations as generate_recommendations
 
 logger = logging.getLogger(__name__)
 
@@ -317,7 +308,7 @@ class StatsCollector:
     def _collect_geist_stats(self) -> Dict[str, Any]:
         """Collect geist configuration statistics."""
         # Count default geists
-        from geistfabrik.config_loader import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
+        from geistfabrik.default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
         default_code_count = len(DEFAULT_CODE_GEISTS)
         default_tracery_count = len(DEFAULT_TRACERY_GEISTS)

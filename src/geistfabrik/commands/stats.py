@@ -3,12 +3,9 @@
 import sys
 
 from ..config_loader import GeistFabrikConfig, load_config
-from ..stats import (
-    EmbeddingMetricsComputer,
-    StatsCollector,
-    StatsFormatter,
-    generate_recommendations,
-)
+from ..embedding_metrics import EmbeddingMetricsComputer
+from ..stats import StatsCollector
+from ..stats_formatter import StatsFormatter, generate_recommendations
 from ..vault import Vault
 from .base import BaseCommand
 

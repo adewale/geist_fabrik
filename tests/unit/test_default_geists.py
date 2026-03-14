@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from geistfabrik import GeistFabrikConfig, generate_default_config, load_config, save_config
-from geistfabrik.config_loader import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
+from geistfabrik.default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
 
 def test_config_default_values():

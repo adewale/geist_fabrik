@@ -7,15 +7,12 @@ import numpy as np
 import pytest
 
 from geistfabrik.config_loader import GeistFabrikConfig
+from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 from geistfabrik.embeddings import Session
 from geistfabrik.models import Note
 from geistfabrik.schema import init_db
-from geistfabrik.stats import (
-    EmbeddingMetricsComputer,
-    StatsCollector,
-    StatsFormatter,
-    generate_recommendations,
-)
+from geistfabrik.stats import StatsCollector
+from geistfabrik.stats_formatter import StatsFormatter, generate_recommendations
 from geistfabrik.vault import Vault
 
 # Add 5 second timeout to ALL tests to prevent hangs

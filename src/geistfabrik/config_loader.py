@@ -10,8 +10,7 @@ from typing import Any, Dict, List
 
 import yaml
 
-from .default_geists import DEFAULT_CODE_GEISTS as DEFAULT_CODE_GEISTS
-from .default_geists import DEFAULT_TRACERY_GEISTS as DEFAULT_TRACERY_GEISTS
+from .default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
 logger = logging.getLogger(__name__)
 

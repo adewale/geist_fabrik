@@ -14,7 +14,7 @@ import numpy as np
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from geistfabrik.stats import EmbeddingMetricsComputer  # noqa: E402
+from geistfabrik.embedding_metrics import EmbeddingMetricsComputer  # noqa: E402
 
 
 def create_synthetic_cluster(cluster_size: int) -> tuple[list[str], np.ndarray]:

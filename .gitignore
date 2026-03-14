@@ -53,3 +53,4 @@ Thumbs.db
 geist journal/
 _geistfabrik/
 .mypy_cache/
+.hypothesis/

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from geistfabrik.cli import find_vault_root
+from geistfabrik.commands import find_vault_root
 
 
 def test_find_vault_root_with_obsidian_dir(tmp_path: Path) -> None:
