@@ -19,8 +19,8 @@
 | **Type Checking** | Mypy strict ✅ |
 | **Linting** | Ruff ✅ |
 | **Database Schema** | v6 (with composite indexing) |
-| **Default Geists** | 45 (36 code + 9 Tracery) - bundled |
-| **Example Geists** | 39 (29 code + 10 Tracery) - examples/ |
+| **Default Geists** | 57 (48 code + 9 Tracery) - bundled |
+| **Example Modules** | 5 (3 metadata + 2 vault functions) - examples/ |
 | **Example Metadata Modules** | 3 |
 | **Example Vault Functions** | 2 + 12 built-in |
 
@@ -312,7 +312,7 @@
 
 ### Phase 11: Polish & Optimisation ⭐ (95% COMPLETE)
 - [x] Documentation (examples/ directory with comprehensive README)
-- [x] Example geists (39 examples: 29 code + 10 Tracery)
+- [x] Example modules (5 examples: 3 metadata + 2 vault functions)
 - [x] Example metadata modules (3)
 - [x] Example vault functions (2 + 12 built-in)
 - [x] All tests passing (247/247)
@@ -651,7 +651,7 @@ uv run python scripts/check_phase_completion.py
   - Full Tracery integration via $vault.function_name(args)
   - 2 example function modules (contrarian, questions)
 - **Extensive example collection** (Phase 11)
-  - 38 example geists in examples/ directory (29 code + 9 Tracery, for learning)
+  - 5 example modules in examples/ directory (3 metadata + 2 vault functions, for learning)
   - Comprehensive examples/ directory with README
   - Geists demonstrate metadata, functions, and Tracery
   - Covers diverse use cases: temporal drift, creative collisions, bridge building, task archaeology, concept clusters, etc.
@@ -668,7 +668,7 @@ uv run python scripts/check_phase_completion.py
 
 **Tests**: 112 → 247 passing (+135, all pass!)
 **Modules**: 11 → 14 (+3 major systems)
-**Examples**: 5 → 39 geists, 3 metadata modules, 2 vault functions
+**Examples**: 3 metadata modules, 2 vault functions
 **System**: Three-dimensional extensibility complete! Users can now extend via metadata, functions, and geists.
 
 ---
@@ -680,7 +680,7 @@ uv run python scripts/check_phase_completion.py
 - Journal writer for session notes with block IDs (Phase 5)
 - Tracery grammar engine for declarative geists (Phase 6)
 - Full CLI with invoke command, filtering, and journal writing (Phase 10)
-- 5 example geists (unlinked_pairs, old_notes, orphans, hubs, semantic_neighbors)
+- 5 example modules (3 metadata inference + 2 vault functions)
 - Integration of all components into working end-to-end system
 
 **New Modules**:
@@ -704,7 +704,7 @@ uv run python scripts/check_phase_completion.py
 ### Immediate (Week 1)
 1. **Documentation**: User guide and API reference documentation
 2. **Testing**: Add more edge case tests for large vaults
-3. **Examples**: Document all 39 geists with use cases
+3. **Examples**: Document all example modules with use cases
 
 ### Short-term (Month 1)
 4. **Phase 7**: Multi-session temporal analysis and drift tracking

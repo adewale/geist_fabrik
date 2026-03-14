@@ -379,7 +379,6 @@ This allows the system to gracefully handle new defaults added in future version
 - `src/geistfabrik/default_geists/tracery/*.yaml` - 9 Tracery geists
 - `tests/unit/test_default_geists.py` - Configuration tests
 - `docs/CI_VALIDATION_GUIDE.md` - Development workflow
-- `docs/POST_MORTEM_PR30.md` - Lessons learned
 - `scripts/README.md` - Scripts documentation
 
 **Modified Files:**

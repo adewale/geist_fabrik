@@ -317,7 +317,7 @@ date_collection:
   exclude_files: []      # Patterns to exclude (e.g., 'Templates/*')
 ```
 
-**See**: [docs/JOURNAL_FILES.md](docs/JOURNAL_FILES.md) for complete documentation, usage guide, and examples.
+**See**: [specs/JOURNAL_FILES.md](specs/JOURNAL_FILES.md) for complete documentation, usage guide, and examples.
 
 ### Vector Search Backends
 

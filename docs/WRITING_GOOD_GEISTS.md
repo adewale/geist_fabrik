@@ -1165,7 +1165,7 @@ Geists run within a 30-second timeout (default) and must complete efficiently.
 
 ### Phase 3B Lessons Learned
 
-**Three key lessons from the Phase 3B rollback** (see `docs/POST_MORTEM_PHASE3B.md`):
+**Three key lessons from the Phase 3B rollback** (see `specs/research/POST_MORTEM_PHASE3B.md`):
 
 1. **Profile first, optimise second**
    - Sampling introduced to "improve performance" without profiling
@@ -1674,7 +1674,7 @@ To refactor existing geists:
 
 ### Documentation
 
-- `docs/POST_MORTEM_PHASE3B.md` - Optimisation lessons learned
+- `specs/research/POST_MORTEM_PHASE3B.md` - Optimisation lessons learned
 - `tests/integration/test_phase3b_regression.py` - Anti-regression tests
 - `specs/geistfabrik_spec.md` - Complete technical specification
 - `specs/geistfabrik_vision.md` - Core principles
