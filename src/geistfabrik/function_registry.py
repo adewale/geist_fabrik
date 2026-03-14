@@ -217,8 +217,8 @@ class FunctionRegistry:
             if note is None:
                 return []
 
-            # Get query note embedding
-            query_embedding = vault._embeddings.get(note.path)
+            # Get query note embedding via public accessor
+            query_embedding = vault.get_embedding(note.path)
             if query_embedding is None:
                 return []
 
@@ -232,7 +232,7 @@ class FunctionRegistry:
                 if n.path == note.path:
                     continue  # Skip self
 
-                embedding = vault._embeddings.get(n.path)
+                embedding = vault.get_embedding(n.path)
                 if embedding is not None:
                     candidate_notes.append(n)
                     candidate_embeddings.append(embedding)

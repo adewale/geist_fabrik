@@ -221,8 +221,8 @@ def test_compute_metrics_with_optional_dependencies(vault_with_embeddings, has_s
     embeddings = np.random.rand(50, 387).astype(np.float32)
 
     with (
-        patch("geistfabrik.stats.HAS_SKDIM", has_skdim),
-        patch("geistfabrik.stats.HAS_VENDI", has_vendi),
+        patch("geistfabrik.embedding_metrics.HAS_SKDIM", has_skdim),
+        patch("geistfabrik.embedding_metrics.HAS_VENDI", has_vendi),
     ):
         metrics = computer._compute_basic_metrics(embeddings)
 
@@ -329,7 +329,7 @@ def test_metrics_caching_with_clustering(vault_with_embeddings):
     db.commit()
 
     # Compute metrics with clustering enabled
-    with patch("geistfabrik.stats.HAS_SKLEARN", True):
+    with patch("geistfabrik.embedding_metrics.HAS_SKLEARN", True):
         metrics1 = computer.compute_metrics(
             "2025-01-20", embeddings_array, test_notes, force_recompute=True
         )

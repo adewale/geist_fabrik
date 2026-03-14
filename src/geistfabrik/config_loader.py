@@ -10,71 +10,10 @@ from typing import Any, Dict, List
 
 import yaml
 
+from .default_geists import DEFAULT_CODE_GEISTS as DEFAULT_CODE_GEISTS
+from .default_geists import DEFAULT_TRACERY_GEISTS as DEFAULT_TRACERY_GEISTS
+
 logger = logging.getLogger(__name__)
-
-# List of all default geists (for reference and validation)
-DEFAULT_CODE_GEISTS = [
-    "anachronism_detector",
-    "antithesis_generator",
-    "assumption_challenger",
-    "blind_spot_detector",
-    "bridge_builder",
-    "bridge_hunter",
-    "burst_evolution",
-    "cluster_evolution_tracker",
-    "cluster_mirror",
-    "columbo",
-    "complexity_mismatch",
-    "concept_cluster",
-    "concept_drift",
-    "convergent_evolution",
-    "creation_burst",
-    "creative_collision",
-    "cyclical_thinking",
-    "definition_harvester",
-    "density_inversion",
-    "dialectic_triad",
-    "divergent_evolution",
-    "drift_velocity_anomaly",
-    "hermeneutic_instability",
-    "hidden_hub",
-    "island_hopper",
-    "link_density_analyser",
-    "metadata_driven_discovery",
-    "metadata_outlier_detector",
-    "method_scrambler",
-    "on_this_day",
-    "pattern_finder",
-    "question_generator",
-    "question_harvester",
-    "quote_harvester",
-    "recent_focus",
-    "scale_shifter",
-    "seasonal_patterns",
-    "seasonal_revisit",
-    "seasonal_topic_analysis",
-    "session_drift",
-    "structure_diversity_checker",
-    "stub_expander",
-    "task_archaeology",
-    "todo_harvester",
-    "temporal_clustering",
-    "temporal_drift",
-    "temporal_mirror",
-    "vocabulary_expansion",
-]
-
-DEFAULT_TRACERY_GEISTS = [
-    "contradictor",
-    "hub_explorer",
-    "note_combinations",
-    "orphan_connector",
-    "perspective_shifter",
-    "random_prompts",
-    "semantic_neighbours",
-    "transformation_suggester",
-    "what_if",
-]
 
 
 @dataclass
