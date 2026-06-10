@@ -8,7 +8,8 @@ from pathlib import Path
 # Version 4: Added support for date-collection notes (virtual entries)
 # Version 5: Added embedding_metrics table for stats command caching
 # Version 6: Added composite index for orphans query performance
-SCHEMA_VERSION = 6
+# Version 7: Added session_embeddings.cluster_label (per-session cluster assignments)
+SCHEMA_VERSION = 7
 
 SCHEMA_SQL = """
 -- Notes table
@@ -73,10 +74,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
 
 -- Session embeddings table (temporal embeddings)
+-- cluster_label records which semantic cluster the note belonged to in that
+-- session (written when clusters are computed; NULL for noise/unclustered).
+-- It is what lets cluster_evolution_tracker compare assignments across time.
 CREATE TABLE IF NOT EXISTS session_embeddings (
     session_id INTEGER NOT NULL,
     note_path TEXT NOT NULL,
     embedding BLOB NOT NULL,
+    cluster_label TEXT,
     FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
     FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE,
     PRIMARY KEY (session_id, note_path)
@@ -222,4 +227,18 @@ def migrate_schema(conn: sqlite3.Connection) -> None:
 
         # Update version
         conn.execute("PRAGMA user_version = 6")
+        conn.commit()
+
+    # Migration from version 6 to 7: Add cluster_label to session_embeddings.
+    # Fixes cluster_evolution_tracker, which reads this column but the column
+    # was never created (the query raised OperationalError on every run).
+    if current_version < 7:
+        cursor = conn.execute("PRAGMA table_info(session_embeddings)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        if "cluster_label" not in columns:
+            conn.execute("ALTER TABLE session_embeddings ADD COLUMN cluster_label TEXT")
+
+        # Update version
+        conn.execute("PRAGMA user_version = 7")
         conn.commit()

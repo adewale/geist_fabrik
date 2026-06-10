@@ -227,6 +227,16 @@ class ClusterAnalyser:
                 centroid=centroid,
             )
 
+        # Persist this session's assignments so future sessions can compare
+        # cluster membership over time (cluster_evolution_tracker).
+        self.vault.persist_cluster_labels(
+            {
+                path: result[cluster_id].label
+                for cluster_id in result
+                for path in cluster_paths[cluster_id]
+            }
+        )
+
         return result
 
     def get_cluster_for_note(self, note: "Note") -> int | None:

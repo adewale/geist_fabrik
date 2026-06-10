@@ -737,6 +737,33 @@ class VaultContext:
 
         return result_list
 
+    def persist_cluster_labels(self, assignments: dict[str, str]) -> None:
+        """Record this session's cluster assignment for each note.
+
+        Stores the label on the note's session_embeddings row so future
+        sessions can compare assignments over time (the data that
+        previous_cluster_label_for_note() reads and cluster_evolution_tracker
+        builds on). Notes not present in `assignments` (noise/unclustered)
+        keep a NULL label. Called automatically when clusters are computed.
+
+        Args:
+            assignments: Mapping of note path -> cluster label for the
+                current session
+        """
+        if not assignments:
+            return
+        self.db.executemany(
+            """
+            UPDATE session_embeddings SET cluster_label = ?
+            WHERE session_id = ? AND note_path = ?
+            """,
+            [
+                (label, self.session.session_id, path)
+                for path, label in assignments.items()
+            ],
+        )
+        self.db.commit()
+
     def previous_cluster_label_for_note(self, note: Note, session_id: int) -> str | None:
         """Get the cluster label for a note in a previous session.
 
@@ -888,6 +915,16 @@ class VaultContext:
                 "size": len(notes),
                 "centroid": centroid,
             }
+
+        # Persist this session's assignments so future sessions can compare
+        # cluster membership over time (cluster_evolution_tracker).
+        self.persist_cluster_labels(
+            {
+                path: str(result[cluster_id]["label"])
+                for cluster_id in result
+                for path in cluster_paths[cluster_id]
+            }
+        )
 
         # Cache result for this session
         self._clusters_cache[min_size] = result
