@@ -22,13 +22,6 @@ from geistfabrik.vault_context import VaultContext
 SESSION_DATE = datetime(2024, 3, 15, 10, 0)
 
 
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
-
 def _build_context(notes: dict[str, str], backdate_days: int) -> VaultContext:
     """Vault whose notes were all created/modified backdate_days before the session."""
     # Builtins register into the module-level _GLOBAL_REGISTRY; clear it so a

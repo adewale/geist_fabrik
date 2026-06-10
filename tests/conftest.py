@@ -185,3 +185,19 @@ def test_db() -> Generator[sqlite3.Connection, None, None]:
     db = init_db()
     yield db
     db.close()
+
+
+@pytest.fixture(autouse=True)
+def clear_global_registry() -> Generator[None, None, None]:
+    """Reset the module-level function registry around every test.
+
+    FunctionRegistry registers builtins into a process-global registry
+    (function_registry._GLOBAL_REGISTRY), so any test that constructs a
+    registry would otherwise poison the next one with DuplicateFunctionError.
+    Hoisted here from ~49 per-file copies of this same fixture.
+    """
+    from geistfabrik.function_registry import _GLOBAL_REGISTRY
+
+    _GLOBAL_REGISTRY.clear()
+    yield
+    _GLOBAL_REGISTRY.clear()

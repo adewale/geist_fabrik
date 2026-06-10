@@ -14,16 +14,6 @@ from geistfabrik import (
 )
 
 
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    from geistfabrik.function_registry import _GLOBAL_REGISTRY
-
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
-
 def test_function_registry_initialization() -> None:
     """Test FunctionRegistry initialisation."""
     registry = FunctionRegistry()

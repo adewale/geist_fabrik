@@ -7,16 +7,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import blind_spot_detector
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures

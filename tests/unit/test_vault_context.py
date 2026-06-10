@@ -7,17 +7,8 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from geistfabrik import Session, Vault
-from geistfabrik.function_registry import _GLOBAL_REGISTRY
 from geistfabrik.models import Note
 from geistfabrik.vault_context import VaultContext
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 @pytest.fixture

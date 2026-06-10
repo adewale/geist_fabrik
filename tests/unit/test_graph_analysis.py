@@ -15,19 +15,11 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from geistfabrik import Session, Vault
-from geistfabrik.function_registry import _GLOBAL_REGISTRY
 from geistfabrik.graph_analysis import GraphPatternFinder, _are_linked
 from geistfabrik.models import link_target_forms
 from geistfabrik.vault_context import VaultContext
 
 SESSION_DATE = datetime(2024, 3, 15)
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 def _build_context(notes: dict[str, str]) -> VaultContext:
