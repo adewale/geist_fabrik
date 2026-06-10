@@ -18,7 +18,6 @@ from .embeddings import cosine_similarity
 # Optional dependencies for advanced metrics
 try:
     from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
-    from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
     from sklearn.metrics import silhouette_score  # type: ignore[import-untyped]
     from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
         cosine_similarity as sklearn_cosine,
@@ -339,65 +338,11 @@ class EmbeddingMetricsComputer:
         Returns:
             Dictionary mapping cluster_id to label string
         """
-        cluster_labels: dict[int, str] = {}
+        # Single source of truth: delegate to the shared cluster_labeling
+        # module (previously this was a line-for-line copy of label_tfidf).
+        from .cluster_labeling import label_tfidf
 
-        # Load note titles/content for each cluster
-        clusters: dict[int, list[str]] = {}
-        for i, label in enumerate(labels):
-            if label == -1:
-                continue
-            if label not in clusters:
-                clusters[label] = []
-
-            # Get note title from path
-            path = paths[i]
-            cursor = self.db.execute("SELECT title, content FROM notes WHERE path = ?", (path,))
-            row = cursor.fetchone()
-            if row:
-                title, content = row
-                # Use title + first 200 chars of content
-                text = f"{title} {content[:200]}"
-                clusters[label].append(text)
-
-        if not clusters:
-            return {}
-
-        # Concatenate all text per cluster
-        cluster_texts = {cid: " ".join(texts) for cid, texts in clusters.items()}
-
-        # Compute TF-IDF
-        vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 2))
-
-        try:
-            tfidf_matrix = vectorizer.fit_transform(cluster_texts.values())
-            feature_names = vectorizer.get_feature_names_out()
-
-            # Extract top terms per cluster with MMR filtering
-            for i, cluster_id in enumerate(cluster_texts.keys()):
-                cluster_vector = tfidf_matrix[i].toarray()[0]
-
-                # Extract top 8 candidates before MMR filtering
-                n_candidates = min(8, len(feature_names))
-                top_indices = cluster_vector.argsort()[-n_candidates:][::-1]
-                candidate_terms = [feature_names[idx] for idx in top_indices]
-                candidate_scores = cluster_vector[top_indices]
-
-                # Apply MMR to select diverse subset
-                diverse_terms = self._apply_mmr_filtering(
-                    candidate_terms, candidate_scores, lambda_param=0.5, k=n_terms
-                )
-
-                cluster_labels[cluster_id] = ", ".join(diverse_terms)
-        except Exception:
-            # If TF-IDF fails, use simple fallback
-            logger.debug(
-                "TF-IDF cluster labeling failed",
-                exc_info=True,
-            )
-            for cluster_id in clusters.keys():
-                cluster_labels[cluster_id] = f"Cluster {cluster_id}"
-
-        return cluster_labels
+        return label_tfidf(paths, labels, self.db, n_terms=n_terms)
 
     def _label_clusters_keybert(
         self, paths: list[str], labels: np.ndarray, n_terms: int = 4
@@ -412,108 +357,8 @@ class EmbeddingMetricsComputer:
         Returns:
             Dictionary mapping cluster_id to label string
         """
-        from .embeddings import EmbeddingComputer
+        # Single source of truth: delegate to the shared cluster_labeling
+        # module (previously this was a line-for-line copy of label_keybert).
+        from .cluster_labeling import label_keybert
 
-        cluster_labels: dict[int, str] = {}
-
-        # Load note titles/content for each cluster
-        clusters: dict[int, list[str]] = {}
-        for i, label in enumerate(labels):
-            if label == -1:
-                continue
-            if label not in clusters:
-                clusters[label] = []
-
-            # Get note title and content
-            path = paths[i]
-            cursor = self.db.execute("SELECT title, content FROM notes WHERE path = ?", (path,))
-            row = cursor.fetchone()
-            if row:
-                title, content = row
-                # Use title + first 200 chars of content
-                text = f"{title} {content[:200]}"
-                clusters[label].append(text)
-
-        if not clusters:
-            return {}
-
-        # Get embedding computer (lazy-load model)
-        try:
-            computer = EmbeddingComputer()
-        except Exception:
-            # If model loading fails, fall back to simple labels for all clusters
-            logger.debug(
-                "Model loading failed for KeyBERT labeling",
-                exc_info=True,
-            )
-            return {cid: f"Cluster {cid}" for cid in clusters.keys()}
-
-        # Get cluster embeddings to compute centroids
-        cluster_embeddings: dict[int, list[np.ndarray]] = {}
-        for cluster_id, texts in clusters.items():
-            try:
-                # Embed all texts in this cluster
-                embeddings = computer.compute_batch_semantic(texts)
-                cluster_embeddings[cluster_id] = list(embeddings)
-            except Exception:
-                # If embedding fails for this cluster, skip to simple label
-                logger.debug(
-                    "Embedding failed for cluster %d",
-                    cluster_id,
-                    exc_info=True,
-                )
-                cluster_labels[cluster_id] = f"Cluster {cluster_id}"
-
-        # Process each cluster
-        for cluster_id, texts in clusters.items():
-            # Skip if embedding failed earlier
-            if cluster_id in cluster_labels:
-                continue
-            # Concatenate all text for n-gram extraction
-            cluster_text = " ".join(texts)
-
-            # Compute cluster centroid
-            centroid = np.mean(cluster_embeddings[cluster_id], axis=0)
-
-            # Extract candidate phrases using TF-IDF to get good candidates
-            vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 3))
-            try:
-                # Fit on this cluster's text only
-                tfidf_matrix = vectorizer.fit_transform([cluster_text])
-                feature_names = vectorizer.get_feature_names_out()
-                cluster_vector = tfidf_matrix[0].toarray()[0]
-
-                # Get top 16 candidates by TF-IDF
-                n_candidates = min(16, len(feature_names))
-                top_indices = cluster_vector.argsort()[-n_candidates:][::-1]
-                candidate_terms = [feature_names[idx] for idx in top_indices]
-
-                # Skip if no candidates
-                if not candidate_terms:
-                    cluster_labels[cluster_id] = f"Cluster {cluster_id}"
-                    continue
-
-                # Embed candidate phrases
-                candidate_embs = computer.compute_batch_semantic(candidate_terms)
-
-                # Compute semantic similarity to cluster centroid
-                centroid_2d = centroid.reshape(1, -1)
-                similarities = sklearn_cosine(centroid_2d, candidate_embs)[0]
-
-                # Apply MMR with semantic scores
-                diverse_terms = self._apply_mmr_filtering(
-                    candidate_terms, similarities, lambda_param=0.5, k=n_terms
-                )
-
-                cluster_labels[cluster_id] = ", ".join(diverse_terms)
-
-            except Exception:
-                # If KeyBERT approach fails, use simple fallback
-                logger.debug(
-                    "KeyBERT labeling failed for cluster %d",
-                    cluster_id,
-                    exc_info=True,
-                )
-                cluster_labels[cluster_id] = f"Cluster {cluster_id}"
-
-        return cluster_labels
+        return label_keybert(paths, labels, self.db, n_terms=n_terms)
