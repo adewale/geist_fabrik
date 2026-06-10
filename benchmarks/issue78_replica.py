@@ -16,9 +16,17 @@ Vault/Session/VaultContext construction and geist.suggest() are used.
 
 import hashlib
 import importlib
+import os
 import random
 import sys
 import time
+
+# Cluster labeling (keybert default) lazily constructs a real model; force the
+# offline path so both runs fall back to fast deterministic labels instead of
+# attempting a HuggingFace download. Identical effect on both commits.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("GEISTFABRIK_OFFLINE", "1")
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -38,7 +46,6 @@ GEISTS = [
     "hidden_hub",
     "island_hopper",
     "method_scrambler",
-    "pattern_finder",
     "cluster_evolution_tracker",
     "temporal_drift",
     "task_archaeology",
@@ -129,7 +136,7 @@ def main() -> None:
             vault, session, seed=20240315, function_registry=FunctionRegistry()
         )
         n = len(context.notes())
-        print(f"vault: {n} notes | embedding phase: {embed_s:.1f}s (stub model)")
+        print(f"vault: {n} notes | embedding phase: {embed_s:.1f}s (stub model)", flush=True)
         print(f"{'geist':<28} {'time (s)':>9} {'suggestions':>12}")
         print("-" * 53)
 
@@ -145,11 +152,11 @@ def main() -> None:
                 suggestions = mod.suggest(context)
                 elapsed = time.perf_counter() - t0
                 total += elapsed
-                print(f"{gid:<28} {elapsed:>9.3f} {len(suggestions):>12}")
+                print(f"{gid:<28} {elapsed:>9.3f} {len(suggestions):>12}", flush=True)
             except Exception as e:  # the issue-era cluster_evolution_tracker crashes
                 elapsed = time.perf_counter() - t0
                 total += elapsed
-                print(f"{gid:<28} {elapsed:>9.3f}  ERROR: {type(e).__name__}")
+                print(f"{gid:<28} {elapsed:>9.3f}  ERROR: {type(e).__name__}", flush=True)
         print("-" * 53)
         print(f"{'total (these geists)':<28} {total:>9.3f}")
         vault.close()
