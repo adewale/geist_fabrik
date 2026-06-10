@@ -75,8 +75,10 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 | `claim_harvester` / `hypothesis_harvester` geists | reuse_abstractions_spec.md (items 12-13) | BUILT (bundled default geists) |
 | Betweenness-centrality bridge stat; "most productive day" temporal pattern | STATS_COMMAND_SPEC.md:217 | NOT-BUILT — defer; mark in spec |
 | `geistfabrik sync` / `query` commands; `--session-id` | JOURNAL_FILES.md:746,797 | NOT-BUILT — amend docs (sync is implicit; `--date` covers query) |
-| docs/CONFIGURATION.md, docs/TROUBLESHOOTING.md (+ other named docs) | several | NOT-BUILT — write before 1.0 / fix dead links |
-| bandit security scan; mkdocs build (acceptance criteria) | acceptance_criteria.md:495,498 | NOT-BUILT — bandit cheap to add; mkdocs amend |
+| docs/CONFIGURATION.md | several | BUILT |
+| docs/TROUBLESHOOTING.md (+ other named docs) | several | NOT-BUILT — write before 1.0 |
+| bandit security scan | acceptance_criteria.md:498 | BUILT (CI + validate.sh, B608 skipped w/ rationale) |
+| mkdocs build | acceptance_criteria.md:495 | NOT-BUILT — plain-markdown docs; amend AC |
 | Unlocked-geist list items 1,2,5-10,15-21,23,24,30 | reuse_abstractions_spec.md:1088 | DEFERRED — list is "possible", not promised; mark aspirational |
 | Cluster functions (contrarian/temporal/bridge/tag_clusters) | tracery_research.md:845 | DEFERRED — post-1.0 |
 | HDBSCAN cosine metric | TODO.md | DEFERRED — needs real-vault evaluation |

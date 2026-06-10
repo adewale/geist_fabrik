@@ -48,6 +48,9 @@ run_check "Mypy type checking" uv run mypy src/ --strict || FAILED=1
 # 3. Unused database tables check
 run_check "Unused database tables check" uv run python scripts/detect_unused_tables.py || FAILED=1
 
+# 3b. Security scan (bandit, medium+ severity)
+run_check "Bandit security scan" uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q || FAILED=1
+
 # 4. Unit tests (with mocked models)
 # Marker filter matches CI (.github/workflows/test.yml): exclude slow tests
 # (real model download) and benchmark tests (perf-only, not run by default).

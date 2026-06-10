@@ -77,3 +77,6 @@ jobs:
 
       - name: Check for unused database tables
         run: uv run python scripts/detect_unused_tables.py
+
+      - name: Security scan (bandit)
+        run: uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q

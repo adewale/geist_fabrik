@@ -824,6 +824,11 @@ $ geistfabrik invoke --date 2025-01-15
 
 ### Configuration
 
+> **STATUS:** This config schema is partly aspirational. The authoritative
+> record of which keys are implemented (and how they diverge) is
+> [SPEC_STATUS.md](SPEC_STATUS.md); `tests/unit/test_spec_config_sync.py`
+> keeps it honest. Do not assume a key here is wired - check the ledger.
+
 ```yaml
 # <vault>/_geistfabrik/config.yaml
 
