@@ -10,7 +10,16 @@ from typing import Any
 
 import yaml
 
-from .config import DEFAULT_MAX_GEIST_FAILURES, DEFAULT_SESSION_EMBEDDING_RETENTION
+from .config import (
+    DEFAULT_GEIST_TIMEOUT,
+    DEFAULT_MAX_GEIST_FAILURES,
+    DEFAULT_MAX_SUGGESTION_LENGTH,
+    DEFAULT_MIN_SUGGESTION_LENGTH,
+    DEFAULT_NOVELTY_WINDOW_DAYS,
+    DEFAULT_SESSION_EMBEDDING_RETENTION,
+    DEFAULT_SIMILARITY_THRESHOLD,
+    get_default_filter_config,
+)
 from .default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
 logger = logging.getLogger(__name__)
@@ -108,6 +117,101 @@ class VectorSearchConfig:
 
 
 @dataclass
+class GeistExecutionConfig:
+    """Configuration for geist execution (spec: geist_execution section)."""
+
+    timeout: int = DEFAULT_GEIST_TIMEOUT
+    max_failures: int = DEFAULT_MAX_GEIST_FAILURES
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "GeistExecutionConfig":
+        """Create config from dictionary."""
+        return cls(
+            timeout=data.get("timeout", DEFAULT_GEIST_TIMEOUT),
+            max_failures=data.get("max_failures", DEFAULT_MAX_GEIST_FAILURES),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert config to dictionary."""
+        return {"timeout": self.timeout, "max_failures": self.max_failures}
+
+
+@dataclass
+class FilteringConfig:
+    """Configuration for the suggestion filtering pipeline.
+
+    Mirrors the spec's filtering schema. exclude_paths lists folder prefixes
+    (e.g. "Private/") whose notes must never be referenced by suggestions -
+    the boundary filter drops any suggestion that mentions them.
+    """
+
+    exclude_paths: list[str] = field(default_factory=list)
+    novelty_window_days: int = DEFAULT_NOVELTY_WINDOW_DAYS
+    novelty_threshold: float = DEFAULT_SIMILARITY_THRESHOLD
+    diversity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD
+    quality_min_length: int = DEFAULT_MIN_SUGGESTION_LENGTH
+    quality_max_length: int = DEFAULT_MAX_SUGGESTION_LENGTH
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "FilteringConfig":
+        """Create config from the nested YAML shape."""
+        boundary = data.get("boundary", {})
+        novelty = data.get("novelty", {})
+        diversity = data.get("diversity", {})
+        quality = data.get("quality", {})
+        return cls(
+            exclude_paths=boundary.get("exclude_paths", []),
+            novelty_window_days=novelty.get("window_days", DEFAULT_NOVELTY_WINDOW_DAYS),
+            novelty_threshold=novelty.get("threshold", DEFAULT_SIMILARITY_THRESHOLD),
+            diversity_threshold=diversity.get("threshold", DEFAULT_SIMILARITY_THRESHOLD),
+            quality_min_length=quality.get("min_length", DEFAULT_MIN_SUGGESTION_LENGTH),
+            quality_max_length=quality.get("max_length", DEFAULT_MAX_SUGGESTION_LENGTH),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert config to the nested YAML shape."""
+        return {
+            "boundary": {"exclude_paths": self.exclude_paths},
+            "novelty": {
+                "window_days": self.novelty_window_days,
+                "threshold": self.novelty_threshold,
+            },
+            "diversity": {"threshold": self.diversity_threshold},
+            "quality": {
+                "min_length": self.quality_min_length,
+                "max_length": self.quality_max_length,
+            },
+        }
+
+    def to_filter_config(self) -> dict[str, Any]:
+        """Produce the SuggestionFilter config dict (defaults overlaid)."""
+        cfg = get_default_filter_config()
+        cfg["boundary"]["exclude_paths"] = list(self.exclude_paths)
+        cfg["novelty"]["window_days"] = self.novelty_window_days
+        cfg["novelty"]["threshold"] = self.novelty_threshold
+        cfg["diversity"]["threshold"] = self.diversity_threshold
+        cfg["quality"]["min_length"] = self.quality_min_length
+        cfg["quality"]["max_length"] = self.quality_max_length
+        return cfg
+
+
+@dataclass
+class SessionConfig:
+    """Configuration for session output (spec: session section)."""
+
+    default_suggestions: int = 5
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SessionConfig":
+        """Create config from dictionary."""
+        return cls(default_suggestions=data.get("default_suggestions", 5))
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert config to dictionary."""
+        return {"default_suggestions": self.default_suggestions}
+
+
+@dataclass
 class GeistFabrikConfig:
     """GeistFabrik configuration."""
 
@@ -117,7 +221,9 @@ class GeistFabrikConfig:
     vector_search: VectorSearchConfig = field(default_factory=VectorSearchConfig)
     clustering: ClusterConfig = field(default_factory=ClusterConfig)
     session_embedding_retention: int = DEFAULT_SESSION_EMBEDDING_RETENTION
-    geist_max_failures: int = DEFAULT_MAX_GEIST_FAILURES
+    geist_execution: GeistExecutionConfig = field(default_factory=GeistExecutionConfig)
+    filtering: FilteringConfig = field(default_factory=FilteringConfig)
+    session: SessionConfig = field(default_factory=SessionConfig)
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.
@@ -152,7 +258,9 @@ class GeistFabrikConfig:
             session_embedding_retention=data.get(
                 "session_embedding_retention", DEFAULT_SESSION_EMBEDDING_RETENTION
             ),
-            geist_max_failures=data.get("geist_max_failures", DEFAULT_MAX_GEIST_FAILURES),
+            geist_execution=GeistExecutionConfig.from_dict(data.get("geist_execution", {})),
+            filtering=FilteringConfig.from_dict(data.get("filtering", {})),
+            session=SessionConfig.from_dict(data.get("session", {})),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -168,8 +276,41 @@ class GeistFabrikConfig:
             "vector_search": self.vector_search.to_dict(),
             "clustering": self.clustering.to_dict(),
             "session_embedding_retention": self.session_embedding_retention,
-            "geist_max_failures": self.geist_max_failures,
+            "geist_execution": self.geist_execution.to_dict(),
+            "filtering": self.filtering.to_dict(),
+            "session": self.session.to_dict(),
         }
+
+
+# Top-level config.yaml keys GeistFabrikConfig understands. A typo or a
+# spec'd-but-unwired key surfaces as a warning instead of silently doing
+# nothing (the failure mode behind several "specified but not built" gaps).
+KNOWN_CONFIG_KEYS = frozenset(
+    {
+        "enabled_modules",
+        "default_geists",
+        "date_collection",
+        "vector_search",
+        "clustering",
+        "session_embedding_retention",
+        "geist_execution",
+        "filtering",
+        "session",
+    }
+)
+
+
+def _warn_unknown_keys(data: dict[str, Any], config_path: Path) -> None:
+    """Warn about top-level config keys that GeistFabrik does not consume."""
+    if not isinstance(data, dict):
+        return
+    unknown = sorted(set(data) - KNOWN_CONFIG_KEYS)
+    if unknown:
+        logger.warning(
+            "Ignoring unknown config key(s) in %s: %s",
+            config_path,
+            ", ".join(unknown),
+        )
 
 
 def load_config(config_path: Path) -> GeistFabrikConfig:
@@ -189,6 +330,7 @@ def load_config(config_path: Path) -> GeistFabrikConfig:
             data = yaml.safe_load(f)
             if data is None:
                 return GeistFabrikConfig()
+            _warn_unknown_keys(data, config_path)
             return GeistFabrikConfig.from_dict(data)
     except Exception as e:
         # If loading fails, return default config

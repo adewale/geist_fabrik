@@ -99,7 +99,8 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     invoke_parser.add_argument(
         "vault",
         type=str,
-        help="Path to Obsidian vault",
+        nargs="?",
+        help="Path to Obsidian vault (optional, auto-detects from current directory)",
     )
     invoke_parser.add_argument(
         "--geist",
@@ -119,8 +120,8 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     invoke_parser.add_argument(
         "--timeout",
         type=int,
-        default=30,
-        help="Geist execution timeout in seconds (default: 30)",
+        default=None,
+        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
     )
     invoke_parser.add_argument(
         "--full",
@@ -136,8 +137,8 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     invoke_parser.add_argument(
         "--count",
         type=int,
-        default=5,
-        help="Number of suggestions to select in default mode (default: 5)",
+        default=None,
+        help="Suggestions in default mode (default: config session.default_suggestions, 5)",
     )
     invoke_parser.add_argument(
         "--write",
@@ -198,8 +199,8 @@ def _add_test_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
     test_parser.add_argument(
         "--timeout",
         type=int,
-        default=30,
-        help="Geist execution timeout in seconds (default: 30)",
+        default=None,
+        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
     )
     test_parser.add_argument(
         "--verbose",
@@ -232,8 +233,8 @@ def _add_test_all_parser(subparsers: argparse._SubParsersAction) -> None:  # typ
     test_all_parser.add_argument(
         "--timeout",
         type=int,
-        default=30,
-        help="Geist execution timeout in seconds (default: 30)",
+        default=None,
+        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
     )
     test_all_parser.add_argument(
         "--verbose",

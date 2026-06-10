@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from ..config import DEFAULT_MAX_GEIST_FAILURES
 from ..config_loader import GeistFabrikConfig, save_config
 from ..embeddings import EmbeddingComputer
 from ..filtering import SuggestionFilter, select_suggestions
@@ -48,7 +47,7 @@ class InvokeCommand(BaseCommand):
             return 1
 
         # Get and validate vault path
-        vault_path = self.get_vault_path()
+        vault_path = self.get_vault_path(auto_detect=True)
         if vault_path is None:
             return 1
 
@@ -76,6 +75,9 @@ class InvokeCommand(BaseCommand):
 
         # Set up execution context (session, VaultContext)
         exec_ctx = self.setup_execution_context(cmd_ctx, session_date)
+
+        # Stash config for filter/count resolution in later phases
+        self._config = exec_ctx.config
 
         # Load geists
         code_executor, tracery_geists, newly_discovered = self._load_geists(exec_ctx, session_date)
@@ -172,8 +174,8 @@ class InvokeCommand(BaseCommand):
         code_geists_dir = vault_path / "_geistfabrik" / "geists" / "code"
         code_executor = GeistExecutor(
             code_geists_dir,
-            timeout=self.args.timeout,
-            max_failures=config.geist_max_failures if config else DEFAULT_MAX_GEIST_FAILURES,
+            timeout=self.resolve_timeout(config),
+            max_failures=self.resolve_max_failures(config),
             default_geists_dir=default_code_geists_dir,
             enabled_defaults=config.default_geists if config else {},
             debug=self.args.debug,
@@ -255,11 +257,14 @@ class InvokeCommand(BaseCommand):
         )
         print(f"Filtering: {filtering_status}")
 
-        sampling_status = (
-            "DISABLED (--full or --no-filter)"
-            if (self.args.full or self.args.no_filter)
-            else f"ENABLED (count={self.args.count})"
-        )
+        if self.args.full or self.args.no_filter:
+            sampling_status = "DISABLED (--full or --no-filter)"
+        else:
+            resolved_count = self.args.count
+            if resolved_count is None:
+                cfg = getattr(self, "_config", None)
+                resolved_count = cfg.session.default_suggestions if cfg else 5
+            sampling_status = f"ENABLED (count={resolved_count})"
         print(f"Sampling: {sampling_status}")
 
         if self.args.no_filter:
@@ -425,7 +430,11 @@ class InvokeCommand(BaseCommand):
 
         assert self._vault is not None  # Set in execute()
         embedding_computer = EmbeddingComputer()
-        suggestion_filter = SuggestionFilter(self._vault.db, embedding_computer)
+        config = getattr(self, "_config", None)
+        filter_config = config.filtering.to_filter_config() if config else None
+        suggestion_filter = SuggestionFilter(
+            self._vault.db, embedding_computer, config=filter_config
+        )
         filtered = suggestion_filter.filter_all(suggestions, session_date)
         self.print(f"Filtered to {len(filtered)} suggestions")
         return filtered
@@ -445,7 +454,10 @@ class InvokeCommand(BaseCommand):
             Final selected suggestions
         """
         mode = "full" if (self.args.full or self.args.no_filter) else "default"
-        count = getattr(self.args, "count", 5)
+        config = getattr(self, "_config", None)
+        count = getattr(self.args, "count", None)
+        if count is None:
+            count = config.session.default_suggestions if config else 5
         seed = int(session_date.timestamp())
         final = select_suggestions(filtered, mode, count, seed)
         self.print(f"Selected {len(final)} final suggestions\n")

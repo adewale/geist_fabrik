@@ -131,6 +131,10 @@ class SuggestionFilter:
         if not self.config.get("boundary", {}).get("enabled", True):
             return suggestions
 
+        # Folder prefixes whose notes must never surface in suggestions
+        # (e.g. "Private/", "People/"). Spec: filtering.boundary.exclude_paths.
+        exclude_paths = tuple(self.config.get("boundary", {}).get("exclude_paths", []) or [])
+
         # Build the set of every valid way a suggestion may reference a note:
         # its path, its title, and - for virtual journal entries - the
         # "filename#heading" deeplink form produced by Note.link_text.
@@ -138,16 +142,25 @@ class SuggestionFilter:
         # (on_this_day, seasonal_revisit, ...) would be silently dropped here.
         cursor = self.db.execute("SELECT path, title, is_virtual, source_file FROM notes")
         valid_refs: set[str] = set()
+        excluded_refs: set[str] = set()
         for path, title, is_virtual, source_file in cursor.fetchall():
-            valid_refs.add(path)
-            valid_refs.add(title)
+            # A note is excluded if its real path - or, for virtual entries, the
+            # source journal file - lives under an excluded folder prefix.
+            owning_path = source_file if (is_virtual and source_file) else path
+            is_excluded = bool(exclude_paths) and owning_path.startswith(exclude_paths)
+            forms = {path, title}
             if is_virtual and source_file:
-                filename = source_file.replace(".md", "")
-                valid_refs.add(f"{filename}#{title}")
+                forms.add(f"{source_file.replace('.md', '')}#{title}")
+            if is_excluded:
+                excluded_refs |= forms
+            else:
+                valid_refs |= forms
 
         filtered = []
         for suggestion in suggestions:
-            # Keep the suggestion only if every referenced note exists.
+            # Keep only if every referenced note exists AND none is excluded.
+            if any(note_ref in excluded_refs for note_ref in suggestion.notes):
+                continue
             if all(note_ref in valid_refs for note_ref in suggestion.notes):
                 filtered.append(suggestion)
 

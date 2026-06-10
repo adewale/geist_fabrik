@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..config import DEFAULT_MAX_GEIST_FAILURES
 from ..geist_executor import GeistExecutor
 from ..geist_status import GeistStatusStore
 from ..tracery import TraceryGeist, TraceryGeistLoader
@@ -68,13 +67,10 @@ class TestAllCommand(BaseCommand):
 
         # Load code geists
         code_geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
-        max_failures = (
-            exec_ctx.config.geist_max_failures if exec_ctx.config else DEFAULT_MAX_GEIST_FAILURES
-        )
         executor = GeistExecutor(
             code_geists_dir,
-            timeout=self.args.timeout,
-            max_failures=max_failures,
+            timeout=self.resolve_timeout(exec_ctx.config),
+            max_failures=self.resolve_max_failures(exec_ctx.config),
             default_geists_dir=default_code_geists_dir,
             debug=getattr(self.args, "debug", False),
             status_store=GeistStatusStore(exec_ctx.vault.db),
