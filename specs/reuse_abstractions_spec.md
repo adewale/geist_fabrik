@@ -10,13 +10,13 @@
 
 Analysis of the GeistFabrik codebase reveals **seven core conceptual abstractions** that recur across geists but are currently implemented ad-hoc. These abstractions represent 60-70% of geist implementation logic. Elevating them into first-class, composable operations would unlock significant capability expansion while dramatically simplifying geist authorship.
 
-**Current State**: 51 geists (42 code, 9 Tracery) spanning ~4,450 lines. ~70% of code deals with recurring patterns.
+**Current State**: 57 geists (48 code, 9 Tracery) spanning ~4,450 lines. ~70% of code deals with recurring patterns.
 
 **Key Finding**: GeistFabrik's power isn't in individual geists—it's in **combinations of primitives**. Formalizing these primitives enables exponential capability expansion through composition.
 
 **Impact Projections**:
 - Average geist size: 50-65 lines → 10-20 lines (70% reduction)
-- Enabled geists: 51 → 100+ (96% increase)
+- Enabled geists: 57 → 100+ (75% increase)
 - Code dealing with patterns: 70% → 20% (71% reduction)
 
 ---

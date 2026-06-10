@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -10,9 +9,9 @@ class Link:
     """A link from one note to another."""
 
     target: str  # Target note path or title
-    display_text: Optional[str] = None  # Optional display text
+    display_text: str | None = None  # Optional display text
     is_embed: bool = False  # True if transclusion (![[note]])
-    block_ref: Optional[str] = None  # Block reference ID if present
+    block_ref: str | None = None  # Block reference ID if present
 
 
 @dataclass(frozen=True)
@@ -26,15 +25,15 @@ class Note:
     path: str  # Relative path in vault (or virtual path for entries)
     title: str  # Note title
     content: str  # Full markdown content
-    links: List[Link]  # Outgoing [[links]]
-    tags: List[str]  # #tags found in note
+    links: list[Link]  # Outgoing [[links]]
+    tags: list[str]  # #tags found in note
     created: datetime  # File creation time (or entry date for virtuals)
     modified: datetime  # Last modification time
 
     # Virtual entry fields (for date-collection notes)
     is_virtual: bool = False  # True for entries split from journal files
-    source_file: Optional[str] = None  # Original file path (e.g., "Daily Journal.md")
-    entry_date: Optional[date] = None  # Date extracted from heading
+    source_file: str | None = None  # Original file path (e.g., "Daily Journal.md")
+    entry_date: date | None = None  # Date extracted from heading
 
     def __hash__(self) -> int:
         """Hash based on path (the unique identifier).
@@ -93,6 +92,6 @@ class Suggestion:
     """
 
     text: str  # 1-2 sentence suggestion
-    notes: List[str]  # Referenced note titles
+    notes: list[str]  # Referenced note titles
     geist_id: str  # Identifier of creating geist
-    title: Optional[str] = None  # Optional suggested note title
+    title: str | None = None  # Optional suggested note title

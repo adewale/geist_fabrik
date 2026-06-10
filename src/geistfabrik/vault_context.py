@@ -122,8 +122,7 @@ class VaultContext:
         # Vector search backend (delegated from session)
         self._backend = session.get_backend()
 
-        # Keep backward-compatible embeddings dict for compatibility
-        # (Some code may still access self._embeddings directly)
+        # Session embeddings loaded once and cached for the session
         cursor = vault.db.execute(
             """
             SELECT note_path, embedding FROM session_embeddings
@@ -131,7 +130,7 @@ class VaultContext:
             """,
             (session.session_id,),
         )
-        self._embeddings = {}
+        self._embeddings: Dict[str, np.ndarray] = {}
         for row in cursor.fetchall():
             note_path, embedding_bytes = row
             self._embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
@@ -187,6 +186,25 @@ class VaultContext:
             Note or None if not found
         """
         return self.vault.get_note(path)
+
+    def get_embedding(self, path: str) -> Optional[np.ndarray]:
+        """Get the embedding vector for a note by path.
+
+        Args:
+            path: Note path
+
+        Returns:
+            Embedding array or None if not found
+        """
+        return self._embeddings.get(path)
+
+    def get_all_embeddings(self) -> Dict[str, np.ndarray]:
+        """Get all session embeddings as a path-to-embedding dictionary.
+
+        Returns:
+            Dictionary mapping note paths to embedding arrays
+        """
+        return self._embeddings
 
     def resolve_link_target(self, target: str) -> Optional[Note]:
         """Resolve a wiki-link target to a Note.
@@ -621,7 +639,7 @@ class VaultContext:
         cursor = self.db.execute(
             f"""
             SELECT DATE(created) as creation_date,
-                   GROUP_CONCAT(path, '|') as note_paths
+                   GROUP_CONCAT(path, char(31)) as note_paths
             FROM notes
             {journal_filter}
             GROUP BY DATE(created)
@@ -635,7 +653,7 @@ class VaultContext:
         for row in cursor.fetchall():
             date_str, paths_str = row
             if paths_str:
-                paths = paths_str.split("|")
+                paths = paths_str.split("\x1f")
                 # Batch load notes for efficiency
                 notes_map = self.vault.get_notes_batch(paths)
                 # Preserve order and filter out None
@@ -648,6 +666,124 @@ class VaultContext:
                     result[date_str] = notes
 
         return result
+
+    def session_count(self) -> int:
+        """Get the number of sessions recorded for this vault.
+
+        Returns:
+            Number of sessions
+        """
+        cursor = self.db.execute("SELECT COUNT(*) FROM sessions")
+        result = cursor.fetchone()
+        return result[0] if result else 0
+
+    def session_dates_for_note(self, note: Note) -> List[str]:
+        """Get session dates when a note had embeddings computed.
+
+        Args:
+            note: Note to look up
+
+        Returns:
+            List of date strings (YYYY-MM-DD) in ascending order
+        """
+        cursor = self.db.execute(
+            """
+            SELECT s.date
+            FROM session_embeddings se
+            JOIN sessions s ON se.session_id = s.session_id
+            WHERE se.note_path = ?
+            ORDER BY s.date ASC
+            """,
+            (note.path,),
+        )
+        dates: List[str] = []
+        for row in cursor.fetchall():
+            val = row[0]
+            if hasattr(val, "strftime"):
+                dates.append(val.strftime("%Y-%m-%d"))
+            else:
+                dates.append(str(val))
+        return dates
+
+    def session_embeddings_by_session(
+        self,
+    ) -> List[Tuple[int, str, List[Any]]]:
+        """Get embeddings grouped by session for temporal analysis.
+
+        Returns:
+            List of (session_id, date_str, embeddings) tuples
+            ordered by date DESC, limited to 5 most recent sessions.
+        """
+        cursor = self.db.execute(
+            """
+            SELECT session_id, date FROM sessions
+            ORDER BY date DESC
+            LIMIT 5
+            """
+        )
+        sessions = cursor.fetchall()
+
+        result_list: List[Tuple[int, str, List[Any]]] = []
+        for session_id, session_date in sessions:
+            emb_cursor = self.db.execute(
+                """
+                SELECT embedding FROM session_embeddings
+                WHERE session_id = ?
+                """,
+                (session_id,),
+            )
+            embeddings = [
+                np.frombuffer(row[0], dtype=np.float32)
+                for row in emb_cursor.fetchall()
+            ]
+            if hasattr(session_date, "strftime"):
+                date_str = session_date.strftime("%Y-%m")
+            else:
+                date_str = str(session_date)
+            result_list.append((session_id, date_str, embeddings))
+
+        return result_list
+
+    def previous_cluster_label_for_note(
+        self, note: Note, session_id: int
+    ) -> Optional[str]:
+        """Get the cluster label for a note in a previous session.
+
+        Args:
+            note: Note to look up
+            session_id: The session ID to check
+
+        Returns:
+            Cluster label string or None if not found
+        """
+        row = self.db.execute(
+            """
+            SELECT cluster_label
+            FROM session_embeddings
+            WHERE session_id = ? AND note_path = ?
+            """,
+            (session_id, note.path),
+        ).fetchone()
+        return row[0] if row and row[0] else None
+
+    def recent_session_ids(self, limit: int = 3) -> List[int]:
+        """Get the most recent session IDs.
+
+        Args:
+            limit: Maximum number of session IDs to return
+
+        Returns:
+            List of session IDs ordered by date descending
+        """
+        cursor = self.db.execute(
+            """
+            SELECT session_id FROM sessions
+            ORDER BY date DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        return [row[0] for row in cursor.fetchall()]
 
     def get_clusters(self, min_size: int = 5) -> Dict[int, Dict[str, Any]]:
         """Get cluster assignments and labels for current session.
@@ -686,18 +822,11 @@ class VaultContext:
             self._clusters_cache[min_size] = empty_result
             return empty_result
 
-        # Get all embeddings and paths for current session
-        cursor = self.vault.db.execute(
-            """
-            SELECT note_path, embedding FROM session_embeddings
-            WHERE session_id = ?
-            """,
-            (self.session.session_id,),
-        )
-        embeddings_dict = {}
-        for row in cursor.fetchall():
-            note_path, embedding_bytes = row
-            embeddings_dict[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+        from . import cluster_labeling
+        from .clustering_analysis import format_cluster_label
+
+        # Use cached session embeddings instead of re-querying DB
+        embeddings_dict = self._embeddings
 
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
             empty_result_2: Dict[int, Dict[str, Any]] = {}
@@ -732,22 +861,17 @@ class VaultContext:
             self._clusters_cache[min_size] = empty_result_3
             return empty_result_3
 
-        # Generate labels using stats module
-        from .stats import EmbeddingMetricsComputer
-
-        metrics_computer = EmbeddingMetricsComputer(self.db, self.vault.config)
-
-        # Choose labelling method based on config
+        # Generate labels using cluster_labeling module (single source of truth)
         labeling_method = self.vault.config.clustering.labeling_method
         n_terms = self.vault.config.clustering.n_label_terms
 
         if labeling_method == "keybert":
-            cluster_labels_raw = metrics_computer._label_clusters_keybert(
-                paths, labels, n_terms=n_terms
+            cluster_labels_raw = cluster_labeling.label_keybert(
+                paths, labels, self.db, n_terms=n_terms
             )
         else:  # Default to tfidf
-            cluster_labels_raw = metrics_computer._label_clusters_tfidf(
-                paths, labels, n_terms=n_terms
+            cluster_labels_raw = cluster_labeling.label_tfidf(
+                paths, labels, self.db, n_terms=n_terms
             )
 
         # Build result with formatted labels and centroids
@@ -755,16 +879,16 @@ class VaultContext:
 
         for cluster_id, notes in clusters.items():
             # Get embeddings for this cluster
-            cluster_embeddings = np.array(
+            cluster_embeddings_arr = np.array(
                 [embeddings_dict[path] for path in cluster_paths[cluster_id]]
             )
 
             # Calculate centroid (mean of embeddings)
-            centroid = np.mean(cluster_embeddings, axis=0)
+            centroid = np.mean(cluster_embeddings_arr, axis=0)
 
             # Format label as phrase
             keyword_label = cluster_labels_raw.get(cluster_id, f"Cluster {cluster_id}")
-            formatted_label = self._format_cluster_label(keyword_label)
+            formatted_label = format_cluster_label(keyword_label)
 
             result[cluster_id] = {
                 "label": keyword_label,
@@ -778,25 +902,6 @@ class VaultContext:
         self._clusters_cache[min_size] = result
 
         return result
-
-    def _format_cluster_label(self, keyword_label: str) -> str:
-        """Format keyword list as readable phrase.
-
-        Args:
-            keyword_label: Comma-separated keywords
-
-        Returns:
-            Formatted phrase template
-        """
-        terms = [t.strip() for t in keyword_label.split(",")]
-
-        if len(terms) == 1:
-            return f"Notes about {terms[0]}"
-        elif len(terms) == 2:
-            return f"Notes about {terms[0]} and {terms[1]}"
-        else:
-            # Oxford comma for 3+ terms
-            return f"Notes about {', '.join(terms[:-1])}, and {terms[-1]}"
 
     def get_cluster_representatives(
         self,
@@ -829,23 +934,11 @@ class VaultContext:
         centroid = cluster["centroid"]
         notes = cluster["notes"]
 
-        # Calculate similarity to centroid for each note
-        cursor = self.vault.db.execute(
-            """
-            SELECT note_path, embedding FROM session_embeddings
-            WHERE session_id = ?
-            """,
-            (self.session.session_id,),
-        )
-        embeddings_dict = {}
-        for row in cursor.fetchall():
-            note_path, embedding_bytes = row
-            embeddings_dict[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
-
+        # Use cached session embeddings instead of re-querying DB
         similarities = []
 
         for note in notes:
-            note_embedding = embeddings_dict.get(note.path)
+            note_embedding = self._embeddings.get(note.path)
             if note_embedding is not None:
                 sim = cosine_similarity(centroid, note_embedding)
                 similarities.append((note, sim))

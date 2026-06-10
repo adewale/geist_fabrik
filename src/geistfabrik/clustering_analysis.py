@@ -6,7 +6,7 @@ duplication across geists and enabling cluster-based analysis.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 
@@ -54,25 +54,39 @@ class Cluster:
             cosine_similarity as sklearn_cosine,
         )
 
-        # Get note embedding from vault's current session
-        cursor = vault.db.execute(
-            """
-            SELECT embedding FROM session_embeddings
-            WHERE session_id = ? AND note_path = ?
-            """,
-            (vault.session.session_id, note.path),
-        )
-        row = cursor.fetchone()
-        if row is None:
+        # Get note embedding via public accessor
+        note_emb = vault.get_embedding(note.path)
+        if note_emb is None:
             return 0.0
-
-        note_emb = np.frombuffer(row[0], dtype=np.float32)
 
         # Compute similarity to centroid
         similarity = sklearn_cosine(
             note_emb.reshape(1, -1), self.centroid.reshape(1, -1)
         )
         return float(similarity[0, 0])
+
+
+def format_cluster_label(keyword_label: str) -> str:
+    """Format keyword list as readable phrase.
+
+    This is the single source of truth for cluster label formatting.
+    Used by both VaultContext.get_clusters() and ClusterAnalyser.
+
+    Args:
+        keyword_label: Comma-separated keywords
+
+    Returns:
+        Formatted phrase template
+    """
+    terms = [t.strip() for t in keyword_label.split(",")]
+
+    if len(terms) == 1:
+        return f"Notes about {terms[0]}"
+    elif len(terms) == 2:
+        return f"Notes about {terms[0]} and {terms[1]}"
+    else:
+        # Oxford comma for 3+ terms
+        return f"Notes about {', '.join(terms[:-1])}, and {terms[-1]}"
 
 
 class ClusterAnalyser:
@@ -145,20 +159,8 @@ class ClusterAnalyser:
         except ImportError:
             return {}
 
-        # Get all embeddings and paths for current session
-        cursor = self.vault.db.execute(
-            """
-            SELECT note_path, embedding FROM session_embeddings
-            WHERE session_id = ?
-            """,
-            (self.vault.session.session_id,),
-        )
-        embeddings_dict = {}
-        for row in cursor.fetchall():
-            note_path, embedding_bytes = row
-            embeddings_dict[note_path] = np.frombuffer(
-                embedding_bytes, dtype=np.float32
-            )
+        # Use cached session embeddings via public accessor
+        embeddings_dict = self.vault.get_all_embeddings()
 
         if (
             len(embeddings_dict) < self.min_size * 2
@@ -220,7 +222,7 @@ class ClusterAnalyser:
             keyword_label = cluster_labels_raw.get(
                 cluster_id, f"Cluster {cluster_id}"
             )
-            formatted_label = self._format_cluster_label(keyword_label)
+            formatted_label = format_cluster_label(keyword_label)
 
             result[cluster_id] = Cluster(
                 cluster_id=cluster_id,
@@ -232,25 +234,6 @@ class ClusterAnalyser:
             )
 
         return result
-
-    def _format_cluster_label(self, keyword_label: str) -> str:
-        """Format keyword list as readable phrase.
-
-        Args:
-            keyword_label: Comma-separated keywords
-
-        Returns:
-            Formatted phrase template
-        """
-        terms = [t.strip() for t in keyword_label.split(",")]
-
-        if len(terms) == 1:
-            return f"Notes about {terms[0]}"
-        elif len(terms) == 2:
-            return f"Notes about {terms[0]} and {terms[1]}"
-        else:
-            # Oxford comma for 3+ terms
-            return f"Notes about {', '.join(terms[:-1])}, and {terms[-1]}"
 
     def get_cluster_for_note(self, note: "Note") -> Optional[int]:
         """Get cluster ID for a note.
@@ -300,30 +283,3 @@ class ClusterAnalyser:
         # Return top k
         return [note for note, _ in note_similarities[:k]]
 
-    def compare_with_session(
-        self, other_session_id: int
-    ) -> Dict[str, Any]:
-        """Compare current clustering with another session.
-
-        This is a placeholder for future temporal cluster analysis.
-        Would track cluster births, deaths, merges, and splits.
-
-        Args:
-            other_session_id: Session ID to compare with
-
-        Returns:
-            Dictionary with comparison metrics
-        """
-        # Future implementation: track cluster evolution
-        # - New clusters (births)
-        # - Disappeared clusters (deaths)
-        # - Merged clusters
-        # - Split clusters
-        # - Migrated notes (changed cluster membership)
-        return {
-            "births": [],
-            "deaths": [],
-            "merges": [],
-            "splits": [],
-            "migrations": [],
-        }

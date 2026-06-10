@@ -17,12 +17,8 @@ from .commands import (
     TestAllCommand,
     TestCommand,
     ValidateCommand,
-    find_vault_root,
 )
 from .default_geists import TOTAL_GEIST_COUNT
-
-# Re-export for backward compatibility
-__all__ = ["find_vault_root", "main"]
 
 
 def create_parser() -> argparse.ArgumentParser:

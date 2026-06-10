@@ -3,67 +3,16 @@
 This module handles loading and saving vault configuration from config.yaml.
 """
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
 
-# List of all default geists (for reference and validation)
-DEFAULT_CODE_GEISTS = [
-    "anachronism_detector",
-    "antithesis_generator",
-    "assumption_challenger",
-    "blind_spot_detector",
-    "bridge_builder",
-    "bridge_hunter",
-    "cluster_mirror",
-    "columbo",
-    "complexity_mismatch",
-    "concept_cluster",
-    "concept_drift",
-    "convergent_evolution",
-    "creative_collision",
-    "density_inversion",
-    "dialectic_triad",
-    "divergent_evolution",
-    "hermeneutic_instability",
-    "hidden_hub",
-    "island_hopper",
-    "link_density_analyser",
-    "metadata_driven_discovery",
-    "method_scrambler",
-    "on_this_day",
-    "pattern_finder",
-    "question_generator",
-    "question_harvester",
-    "quote_harvester",
-    "recent_focus",
-    "scale_shifter",
-    "seasonal_patterns",
-    "seasonal_revisit",
-    "session_drift",
-    "structure_diversity_checker",
-    "stub_expander",
-    "task_archaeology",
-    "todo_harvester",
-    "temporal_clustering",
-    "temporal_drift",
-    "temporal_mirror",
-    "vocabulary_expansion",
-]
+from .default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
-DEFAULT_TRACERY_GEISTS = [
-    "contradictor",
-    "hub_explorer",
-    "note_combinations",
-    "orphan_connector",
-    "perspective_shifter",
-    "random_prompts",
-    "semantic_neighbours",
-    "transformation_suggester",
-    "what_if",
-]
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -232,8 +181,9 @@ def load_config(config_path: Path) -> GeistFabrikConfig:
             if data is None:
                 return GeistFabrikConfig()
             return GeistFabrikConfig.from_dict(data)
-    except Exception:
+    except Exception as e:
         # If loading fails, return default config
+        logger.warning(f"Failed to load config: {e}")
         return GeistFabrikConfig()
 
 

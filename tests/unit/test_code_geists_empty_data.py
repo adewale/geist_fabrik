@@ -447,7 +447,7 @@ class TestGeistsReturnValidSuggestions:
 
                 # Text should not have obvious errors
                 assert (
-                    "  " not in sugg.text or "  " in sugg.text
+                    "  " not in sugg.text
                 ), f"{geist_file.stem}: suspicious double spaces in text"
                 # Check for common empty placeholder patterns
                 assert not (

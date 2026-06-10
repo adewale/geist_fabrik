@@ -21,7 +21,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │                       SESSION ORCHESTRATOR                                │
 │                                                                           │
 │  1. Compute embeddings for this session (temporal + semantic)            │
-│  2. Execute ALL geists (parallel, 5s timeout each)                       │
+│  2. Execute ALL geists (parallel, 30s timeout each)                       │
 │  3. Apply filtering (boundary/novelty/diversity/quality)                 │
 │  4. Sample ~5 suggestions (deterministic, date-seeded)                   │
 │  5. Write to geist journal/YYYY-MM-DD.md                                 │

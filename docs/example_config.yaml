@@ -24,7 +24,7 @@
 
 default_geists:
   # ============================================================================
-  # Default Code Geists (36 total)
+  # Default Code Geists (48 total)
   # ============================================================================
   # These are bundled with GeistFabrik and execute in the order shown below.
   # Set to 'false' to disable a geist. Set to 'true' to enable it.
@@ -35,28 +35,39 @@ default_geists:
   blind_spot_detector: true       # Identifies potentially overlooked connections
   bridge_builder: true            # Connects distant but related notes
   bridge_hunter: true             # Finds notes that bridge different clusters
+  burst_evolution: true           # Tracks how burst-created notes evolve
+  cluster_evolution_tracker: true  # Tracks notes migrating between clusters
+  cluster_mirror: true            # Reveals hidden groupings via semantic clustering
   columbo: true                   # Asks probing "just one more thing" questions
   complexity_mismatch: true       # Pairs simple and complex treatments of same topic
   concept_cluster: true           # Groups notes by conceptual similarity
   concept_drift: true             # Tracks how note meanings shift over time
   convergent_evolution: true      # Finds notes that independently reached similar ideas
+  creation_burst: true            # Detects bursts of note creation activity
   creative_collision: true        # Juxtaposes unrelated notes for creative sparks
+  cyclical_thinking: true         # Detects notes cycling through semantic states
+  definition_harvester: true      # Harvests definitions from notes
   density_inversion: true         # Pairs hub notes with isolated notes
   dialectic_triad: true           # Creates thesis-antithesis-synthesis triads
   divergent_evolution: true       # Tracks how related notes diverged over time
+  drift_velocity_anomaly: true    # Detects notes whose drift is accelerating
   hermeneutic_instability: true   # Highlights notes whose interpretation has shifted
   hidden_hub: true                # Discovers implicit hubs (semantically central)
   island_hopper: true             # Connects isolated note clusters
   link_density_analyser: true     # Analyzes linking patterns across vault
   metadata_driven_discovery: true # Uses metadata to suggest connections
+  metadata_outlier_detector: true # Finds notes with unusual metadata values
   method_scrambler: true          # Suggests applying methods from one domain to another
   on_this_day: true               # Resurfaces notes from the same date in past years
   pattern_finder: true            # Identifies recurring patterns across notes
   question_generator: true        # Generates questions based on note content
+  question_harvester: true        # Surfaces questions buried in notes
+  quote_harvester: true           # Surfaces blockquotes worth revisiting
   recent_focus: true              # Highlights recently modified notes
   scale_shifter: true             # Suggests zooming in/out on topics
   seasonal_patterns: true         # Finds seasonal rhythms in note-taking
   seasonal_revisit: true          # Resurfaces notes from similar times of year
+  seasonal_topic_analysis: true   # Analyzes seasonal patterns in topic coverage
   session_drift: true             # Tracks how thinking evolved across sessions
   structure_diversity_checker: true # Analyzes diversity of note structures
   stub_expander: true             # Identifies stubs that could be expanded
@@ -64,6 +75,7 @@ default_geists:
   temporal_clustering: true       # Groups notes by temporal proximity
   temporal_drift: true            # Finds stale but important notes
   temporal_mirror: true           # Compares notes from different time periods
+  todo_harvester: true            # Surfaces forgotten TODO/FIXME/HACK markers
   vocabulary_expansion: true      # Tracks semantic space coverage over time
 
   # ============================================================================

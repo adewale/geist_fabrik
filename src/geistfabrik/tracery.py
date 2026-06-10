@@ -8,7 +8,7 @@ import logging
 import random
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Callable, Dict, List
 
 import yaml
 
@@ -451,73 +451,6 @@ class TraceryEngine:
 
         # Return as string
         return arg
-
-    def _expand_vault_functions(self, text: str) -> str:
-        """Expand $vault.* function calls.
-
-        Args:
-            text: Text potentially containing $vault.function() calls
-
-        Returns:
-            Text with function calls replaced by results
-        """
-        if not self.vault_context:
-            return text
-
-        # Pattern: $vault.function_name(arg1, arg2)
-        pattern = r"\$vault\.([a-z_]+)\(([^)]*)\)"
-
-        def replace_function(match: re.Match[str]) -> str:
-            func_name = match.group(1)
-            args_str = match.group(2).strip()
-
-            # Parse arguments (simple comma-separated for now)
-            args = []
-            if args_str:
-                raw_args = [arg.strip().strip("\"'") for arg in args_str.split(",")]
-                # Convert arguments to appropriate types
-                args = [self._convert_arg(arg) for arg in raw_args]
-
-            # Call the function
-            assert self.vault_context is not None  # Type narrowing for mypy
-            result = self.vault_context.call_function(func_name, *args)
-
-            # Format result for text
-            if isinstance(result, list):
-                # Join list items
-                return self._format_list(result)
-            else:
-                return str(result)
-
-        return re.sub(pattern, replace_function, text)
-
-    def _format_list(self, items: List[Any]) -> str:
-        """Format a list of primitive types for text output.
-
-        TraceryEngine is a template layer that only knows about strings and
-        numbers. Vault functions (adapter layer) convert domain objects to
-        strings before returning them.
-
-        Args:
-            items: List of strings or numbers
-
-        Returns:
-            Formatted string representation
-        """
-        if not items:
-            return ""
-
-        # Convert all items to strings
-        strings = [str(item) for item in items]
-
-        # Format nicely for natural language
-        if len(strings) == 1:
-            return strings[0]
-        elif len(strings) == 2:
-            return f"{strings[0]} and {strings[1]}"
-        else:
-            return ", ".join(strings[:-1]) + f", and {strings[-1]}"
-
 
 class TraceryGeist:
     """A geist defined via Tracery grammar."""

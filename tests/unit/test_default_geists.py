@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from geistfabrik import GeistFabrikConfig, generate_default_config, load_config, save_config
-from geistfabrik.config_loader import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
+from geistfabrik.default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
 
 def test_config_default_values():
@@ -111,9 +111,13 @@ def test_generate_default_config():
 
 
 def test_default_geist_lists():
-    """Test that default geist lists are complete."""
-    # Should have 40 code geists (congruence_mirror removed due to scalability)
-    assert len(DEFAULT_CODE_GEISTS) == 40
+    """Test that default geist lists are derived from filesystem and complete."""
+    from geistfabrik.default_geists import CODE_GEIST_COUNT, TRACERY_GEIST_COUNT
+
+    # Lists should match programmatic counts (both derived from filesystem)
+    assert len(DEFAULT_CODE_GEISTS) == CODE_GEIST_COUNT
+    assert len(DEFAULT_TRACERY_GEISTS) == TRACERY_GEIST_COUNT
+
     # Spot check a few key geists
     assert "blind_spot_detector" in DEFAULT_CODE_GEISTS
     assert "temporal_drift" in DEFAULT_CODE_GEISTS
@@ -121,12 +125,14 @@ def test_default_geist_lists():
     assert "columbo" in DEFAULT_CODE_GEISTS
     assert "on_this_day" in DEFAULT_CODE_GEISTS
 
-    # Should have 9 Tracery geists
-    assert len(DEFAULT_TRACERY_GEISTS) == 9
     assert "contradictor" in DEFAULT_TRACERY_GEISTS
     assert "hub_explorer" in DEFAULT_TRACERY_GEISTS
     assert "transformation_suggester" in DEFAULT_TRACERY_GEISTS
     assert "what_if" in DEFAULT_TRACERY_GEISTS
+
+    # Lists should be sorted (filesystem-derived, sorted by name)
+    assert DEFAULT_CODE_GEISTS == sorted(DEFAULT_CODE_GEISTS)
+    assert DEFAULT_TRACERY_GEISTS == sorted(DEFAULT_TRACERY_GEISTS)
 
 
 def test_default_geists_exist():

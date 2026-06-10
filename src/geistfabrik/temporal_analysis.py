@@ -22,6 +22,26 @@ if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
 
+def get_season(date: datetime) -> str:
+    """Determine the season for a given date (Northern Hemisphere).
+
+    Args:
+        date: Date to check
+
+    Returns:
+        Season name: "Spring", "Summer", "Autumn", or "Winter"
+    """
+    month = date.month
+    if month in (3, 4, 5):
+        return "Spring"
+    elif month in (6, 7, 8):
+        return "Summer"
+    elif month in (9, 10, 11):
+        return "Autumn"
+    else:
+        return "Winter"
+
+
 class EmbeddingTrajectoryCalculator:
     """Calculates how a note's embedding evolves across sessions.
 
@@ -572,21 +592,7 @@ class TemporalSemanticQuery:
         Returns:
             Dictionary mapping season name to note count
         """
-        from datetime import datetime
-
         notes = self.vault.notes()
-
-        # Define seasons (Northern Hemisphere)
-        def get_season(date: datetime) -> str:
-            month = date.month
-            if month in [3, 4, 5]:
-                return "spring"
-            elif month in [6, 7, 8]:
-                return "summer"
-            elif month in [9, 10, 11]:
-                return "autumn"
-            else:  # 12, 1, 2
-                return "winter"
 
         # Count notes by season
         season_counts = {"spring": 0, "summer": 0, "autumn": 0, "winter": 0}
@@ -602,7 +608,7 @@ class TemporalSemanticQuery:
             )
 
             if matches_topic:
-                season = get_season(note.created)
+                season = get_season(note.created).lower()
                 season_counts[season] += 1
 
         return season_counts
@@ -621,8 +627,6 @@ class TemporalSemanticQuery:
         Returns:
             Dictionary mapping period name to drift vector
         """
-        from datetime import datetime
-
         calc = EmbeddingTrajectoryCalculator(self.vault, note)
         snapshots = calc.snapshots()
 
@@ -630,17 +634,6 @@ class TemporalSemanticQuery:
             return {}
 
         # Group snapshots by season
-        def get_season(date: datetime) -> str:
-            month = date.month
-            if month in [3, 4, 5]:
-                return "spring"
-            elif month in [6, 7, 8]:
-                return "summer"
-            elif month in [9, 10, 11]:
-                return "autumn"
-            else:
-                return "winter"
-
         season_snapshots: Dict[str, List[Tuple[datetime, np.ndarray]]] = {
             "spring": [],
             "summer": [],
@@ -649,7 +642,7 @@ class TemporalSemanticQuery:
         }
 
         for date, emb in snapshots:
-            season = get_season(date)
+            season = get_season(date).lower()
             season_snapshots[season].append((date, emb))
 
         # Compute drift direction per season

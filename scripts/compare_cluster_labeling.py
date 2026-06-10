@@ -20,7 +20,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 from geistfabrik.embeddings import Session  # noqa: E402
-from geistfabrik.stats import EmbeddingMetricsComputer  # noqa: E402
+from geistfabrik.embedding_metrics import EmbeddingMetricsComputer  # noqa: E402
 from geistfabrik.vault import Vault  # noqa: E402
 
 

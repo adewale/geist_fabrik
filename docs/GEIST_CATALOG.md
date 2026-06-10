@@ -2,7 +2,7 @@
 
 **A comprehensive classification of GeistFabrik's default geists by pattern and implementation status**
 
-GeistFabrik ships with 51 default geists following distinct patterns. This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
+GeistFabrik ships with 57 default geists following distinct patterns. This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
 
 **Last Updated**: 2025-11-09
 
@@ -12,9 +12,9 @@ GeistFabrik ships with 51 default geists following distinct patterns. This docum
 
 | Category | Count | Status |
 |----------|-------|--------|
-| **Code Geists** | 42 (39 core + 3 harvesters) | ✅ All implemented |
+| **Code Geists** | 48 (45 core + 3 harvesters) | ✅ All implemented |
 | **Tracery Geists** | 9 | ✅ All implemented |
-| **Total Geists** | 51 | ✅ Production ready |
+| **Total Geists** | 57 | ✅ Production ready |
 
 **Quality**: 100% pass rate on validation spec audit (see Quality Standards below)
 
@@ -443,7 +443,7 @@ All geists have comprehensive tests that:
 | **cluster_evolution_tracker** | Tracks semantic drift of user notes |
 | **metadata_outlier_detector** | Computes statistics then filters results |
 
-**When NOT to Filter** (42 geists correctly include journal):
+**When NOT to Filter** (48 geists correctly include journal):
 
 - **Content analysis**: question_harvester, pattern_finder (no circular reference risk)
 - **Semantic queries**: creative_collision, bridge_builder (point-in-time analysis)
@@ -489,4 +489,4 @@ The catalogue reveals clear patterns that can be identified, extended, and combi
 
 **Version**: 2.0
 **Date**: 2025-11-06
-**Geists Catalogued**: 50 (41 code + 9 Tracery)
+**Geists Catalogued**: 57 (48 code + 9 Tracery)

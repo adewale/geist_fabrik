@@ -51,7 +51,7 @@ class TestClusterLabelingTFIDF:
         """Test that c-TF-IDF labelling produces keyword lists."""
         pytest.importorskip("sklearn")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -75,7 +75,7 @@ class TestClusterLabelingTFIDF:
         """Test c-TF-IDF with no clusters."""
         pytest.importorskip("sklearn")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -92,7 +92,7 @@ class TestClusterLabelingTFIDF:
         """Test c-TF-IDF with single cluster."""
         pytest.importorskip("sklearn")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -113,7 +113,7 @@ class TestClusterLabelingKeyBERT:
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -136,7 +136,7 @@ class TestClusterLabelingKeyBERT:
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -155,7 +155,7 @@ class TestClusterLabelingKeyBERT:
 
         from unittest.mock import patch
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -183,7 +183,7 @@ class TestClusterLabelingComparison:
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 
@@ -206,7 +206,7 @@ class TestClusterLabelingComparison:
         pytest.importorskip("sklearn")
         pytest.importorskip("sentence_transformers")
 
-        from geistfabrik.stats import EmbeddingMetricsComputer
+        from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
 

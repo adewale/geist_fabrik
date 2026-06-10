@@ -238,8 +238,9 @@ class SuggestionFilter:
         if not suggestions:
             return suggestions
 
-        # Compute embeddings for all suggestions
-        embeddings = [self.embedding_computer.compute_semantic(s.text) for s in suggestions]
+        # Batch compute embeddings for all suggestions at once
+        suggestion_texts = [s.text for s in suggestions]
+        embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
         # Keep track of which suggestions to include
         keep = [True] * len(suggestions)
