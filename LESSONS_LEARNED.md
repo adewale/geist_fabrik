@@ -235,6 +235,124 @@ origin: "#seed# connects to #neighbours#"     # Template uses as-is
 
 ---
 
+## A Test That Cannot Fail Is Worse Than No Test
+
+**Date:** 2026-06-10
+**Context:** Quality deep-dive found ~7 default geists shipping dead with green tests
+
+**The Problem:** Several geists gated on metadata keys (`staleness`,
+`has_tasks`, `days_since_modified`) that only an optional `examples/` module
+provided. In a default install the gates never opened and the geists silently
+produced nothing — for months. Their tests stayed green the whole time,
+because the testing template taught `for s in suggestions: assert ...`
+(vacuous on an empty list) and `assert len(x) >= 0` (always true). One geist
+(`cluster_evolution_tracker`) queried a database column that **never existed
+in any schema version**; its OperationalError was swallowed by the executor's
+fail-soft handling and its tests, asserting nothing about non-emptiness,
+never noticed.
+
+**The Insight:** Coverage measured execution, not verification. A test whose
+assertions all live inside a loop over possibly-empty output verifies only
+that the geist didn't crash — which the executor already guarantees. The
+failure mode wasn't missing tests; it was tests with no oracle.
+
+**The Principle:** Every geist's happy-path test runs on a fixture *designed
+to trigger* (with the trigger arithmetic stated in a comment) and asserts
+NON-EMPTY output. Exclusion tests verify both directions (planted good notes
+appear, banned notes don't). If you can't build a fixture that makes the
+geist fire, you don't understand the trigger condition yet.
+
+**Impact:** GEIST_TESTING_TEMPLATE.md rewritten around designed-to-trigger
+fixtures + `tests/fixtures/helpers.assert_valid_suggestions()`; built-in
+metadata now provides the keys geists gate on; revived geists carry
+non-empty regression tests.
+
+---
+
+## Determinism Dies By A Thousand Wall-Clocks
+
+**Date:** 2026-06-10
+**Context:** "Same date + vault = same output" (principle 6) was violated in five separate ways
+
+**The Problem:** Built-in metadata used `datetime.now()`; five geists used
+`datetime.now()` instead of the session date; `semantic_clusters` seeded with
+Python's `hash()` (randomised per process via PYTHONHASHSEED); the unit-test
+mock encoder also seeded with `hash()` (different mock embeddings every
+pytest run — latent flakes near similarity thresholds); and test fixtures
+built sessions at `datetime.now()` even though session-season is literally an
+embedding feature, so tests computed different embeddings depending on the
+calendar day they ran.
+
+**The Insight:** Determinism is not a property you declare once — every new
+call site re-decides it. `datetime.now()` and `hash()` both look innocent and
+both silently break replay. Nothing enforced the principle, so it eroded.
+
+**The Principle:** "Now" is always the session date (`vault.session.date`),
+never the wall clock. Seeds derive from the session date via `hashlib`, never
+`hash()`. Test fixtures pin both. When a principle matters, grep for its
+violations and consider lint-banning the offending calls.
+
+**Impact:** `--date` replays are reproducible again; the testing template
+mandates pinned dates/seeds.
+
+---
+
+## Specs Are Promises: Audit the Diff Between Spec and Ship
+
+**Date:** 2026-06-10
+**Context:** Three separate "the spec said X, the code does nothing" discoveries
+
+**The Problem:** (1) The spec specified a `geist_status` table persisting
+failure counts across sessions ("disable after 3 failures") — never built;
+the shipped in-memory counter can never reach 3, so the documented
+auto-disable feature is unreachable dead code. (2) The reuse-abstractions
+spec promised three geists showcasing `GraphPatternFinder` (structural holes,
+path-length anomaly, bridge redundancy) — the module shipped, documented as a
+public API, with zero consumers and zero tests, carrying latent O(N²) bombs.
+(3) `cluster_evolution_tracker` was written against a schema column that was
+specified but never created.
+
+**The Insight:** When implementation pauses partway through a spec, the
+gap is invisible: docs describe the spec, tests exercise the code, and
+nothing compares the two. "Documented" came to mean "specified", not
+"working".
+
+**The Principle:** A spec item is either implemented, explicitly deferred
+(tracked), or deleted from the docs. When adding an abstraction, ship at
+least one consumer and its tests in the same change — an API with zero
+consumers is a liability, not an investment.
+
+**Impact:** The three promised graph geists now exist as
+`examples/geists/code/`; graph_analysis is tested and de-bombed; the
+auto-disable gap is documented as a missing `geist_status` abstraction
+pending a decision.
+
+---
+
+## One Definition Per Concept (Link Resolution Edition)
+
+**Date:** 2026-06-10
+**Context:** Three code paths disagreed about "does this link point to this note"
+
+**The Problem:** `links_between`/`backlinks` matched `{path, path-no-ext,
+title}`; `graph_analysis` and `similarity_analysis.is_bridge` matched titles
+only (path-form links invisible to bridge detection); `orphans()` had an
+inline variant. Backlink and bridge detection silently disagreed depending on
+which API a geist called.
+
+**The Insight:** The same domain question implemented three times will drift
+three ways — and each copy looks locally correct in review.
+
+**The Principle:** Domain predicates get ONE canonical definition
+(`models.link_target_forms()`), every consumer calls it, and an agreement
+test locks the code paths together so the next copy-paste divergence fails
+CI.
+
+**Impact:** All link-resolution consumers unified; `tests/unit/
+test_graph_analysis.py::TestLinkResolutionAgreement` enforces agreement.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_
