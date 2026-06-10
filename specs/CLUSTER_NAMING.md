@@ -52,7 +52,7 @@ The difference: Users can immediately understand what each cluster represents wi
 
 ### 1. Core Method
 
-**Location**: `src/geistfabrik/stats.py:1086-1185`
+**Location**: `src/geistfabrik/embedding_metrics.py` (`_label_clusters_keybert`)
 
 **Method**: `EmbeddingMetricsComputer._label_clusters_keybert()`
 
@@ -122,7 +122,7 @@ clustering:
 
 **Integration points**:
 - `src/geistfabrik/vault_context.py:628-635` - cluster_mirror geist
-- `src/geistfabrik/stats.py:932-947` - stats command
+- `src/geistfabrik/commands/stats.py` - stats command
 - `src/geistfabrik/cli.py` - CLI instantiation
 
 ### 5. Fallback Behaviour
@@ -333,7 +333,7 @@ clustering:
 #### Testing the KeyBERT method
 
 ```python
-from geistfabrik.stats import EmbeddingMetricsComputer
+from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 from geistfabrik.vault import Vault
 
 # Load vault and compute embeddings
@@ -652,7 +652,7 @@ for cluster_id, cluster_info in clusters.items():
 # For geists that find semantically related notes
 def get_neighborhood_theme(notes: List[Note], n_terms: int = 3) -> str:
     """Get KeyBERT theme for a group of notes."""
-    from geistfabrik.stats import EmbeddingMetricsComputer
+    from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
     # Treat neighbours as mini-cluster
     paths = [n.path for n in notes]
@@ -690,7 +690,7 @@ def get_neighborhood_theme(self, notes: List[Note], n_terms: int = 3) -> str:
     Useful for characterizing semantic neighborhoods, hidden hubs,
     drift directions, etc.
     """
-    from .stats import EmbeddingMetricsComputer
+    from .embedding_metrics import EmbeddingMetricsComputer
 
     paths = [n.path for n in notes]
     labels = np.zeros(len(paths))
