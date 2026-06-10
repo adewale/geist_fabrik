@@ -433,3 +433,25 @@ def test_session_embedding_retention_zero_keeps_all(
         "SELECT COUNT(DISTINCT session_id) FROM session_embeddings"
     ).fetchone()[0]
     assert distinct == 4
+
+
+def test_is_offline_mode_respects_env_flags(monkeypatch):
+    """is_offline_mode honours GeistFabrik and HuggingFace offline flags."""
+    from geistfabrik.embeddings import is_offline_mode
+
+    for var in ("GEISTFABRIK_OFFLINE", "HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE"):
+        monkeypatch.delenv(var, raising=False)
+    assert is_offline_mode() is False
+
+    monkeypatch.setenv("GEISTFABRIK_OFFLINE", "1")
+    assert is_offline_mode() is True
+    monkeypatch.setenv("GEISTFABRIK_OFFLINE", "yes")
+    assert is_offline_mode() is True
+
+    monkeypatch.setenv("GEISTFABRIK_OFFLINE", "")
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    assert is_offline_mode() is True
+
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
+    assert is_offline_mode() is True

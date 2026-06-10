@@ -39,6 +39,25 @@ from .models import Note
 
 logger = logging.getLogger(__name__)
 
+
+def is_offline_mode() -> bool:
+    """Whether GeistFabrik must avoid any network access when loading the model.
+
+    Honours GEISTFABRIK_OFFLINE (any truthy value) as well as the standard
+    HuggingFace HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE flags. When enabled and no
+    local model is available, model loading fails loudly instead of silently
+    downloading from HuggingFace - preserving the "local-first, no network"
+    guarantee.
+    """
+    gf_flag = os.environ.get("GEISTFABRIK_OFFLINE", "").strip().lower()
+    if gf_flag in {"1", "true", "yes", "on"}:
+        return True
+    if os.environ.get("HF_HUB_OFFLINE", "") == "1":
+        return True
+    if os.environ.get("TRANSFORMERS_OFFLINE", "") == "1":
+        return True
+    return False
+
 # ============================================================================
 # sklearn Performance Optimisations
 # ============================================================================
@@ -138,9 +157,19 @@ class EmbeddingComputer:
                         f"falling back to HuggingFace download"
                     )
 
+            offline = is_offline_mode()
             if use_local_model:
                 # Use local bundled model (offline, faster, reproducible)
                 model_source = str(local_model_path)
+            elif offline:
+                # Offline mode requested but no usable local model: fail loudly
+                # rather than silently downloading from HuggingFace.
+                raise RuntimeError(
+                    f"Offline mode is enabled but no local model was found at "
+                    f"{local_model_path}. Pull the bundled model with 'git lfs pull', "
+                    f"or unset GEISTFABRIK_OFFLINE/HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE "
+                    f"to allow downloading '{self.model_name}' from HuggingFace."
+                )
             else:
                 # Fall back to HuggingFace (auto-download to cache)
                 model_source = self.model_name
@@ -148,6 +177,7 @@ class EmbeddingComputer:
             self._model = SentenceTransformer(
                 model_source,
                 device=self.device,  # Use detected device (cuda/mps/cpu)
+                local_files_only=offline,
             )
         return self._model
 
