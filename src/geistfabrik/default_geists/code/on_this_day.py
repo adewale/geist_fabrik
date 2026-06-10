@@ -6,7 +6,6 @@ history. It's a universal temporal pattern that works globally without
 hemisphere-specific seasonal assumptions.
 """
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -28,7 +27,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         List of suggestions highlighting notes from the same date in past years
     """
-    today = datetime.now()
+    # Session date, not wall-clock: keeps --date replays deterministic
+    today = vault.session.date
     same_date_notes = []
 
     all_notes = vault.notes()

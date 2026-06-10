@@ -17,7 +17,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         List of suggestions highlighting temporal outliers
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     from geistfabrik import Suggestion
 
@@ -28,7 +28,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 30:
         return []
 
-    now = datetime.now()
+    # Session date, not wall-clock: keeps --date replays deterministic
+    now = vault.session.date
 
     # Get recent notes (last 3 months)
     recent_cutoff = now - timedelta(days=90)

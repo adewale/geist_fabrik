@@ -803,3 +803,30 @@ def test_batch_similarity_empty_input(vault_with_notes):
     # Both empty
     result = ctx.batch_similarity([], [])
     assert result.shape == (0, 0)
+
+
+def test_call_function_local_fallback_passes_positional_args(vault_with_notes):
+    """Regression: the local-function fallback dropped *args entirely."""
+    vault, session = vault_with_notes
+    ctx = VaultContext(vault, session)  # no registry attached
+
+    ctx.register_function("combine", lambda vault, a, b=0: (a, b))
+
+    assert ctx.call_function("combine", 1, b=2) == (1, 2)
+    assert ctx.call_function("combine", 7) == (7, 0)
+
+
+def test_list_functions_includes_registry_builtins(vault_with_notes):
+    """Regression: list_functions() returned [] whenever a registry was
+    attached (it only consulted the local dict)."""
+    from geistfabrik.function_registry import FunctionRegistry
+
+    vault, session = vault_with_notes
+    ctx = VaultContext(vault, session, function_registry=FunctionRegistry())
+
+    names = ctx.list_functions()
+    assert "sample_notes" in names  # a builtin
+    assert "orphans" in names
+
+    ctx.register_function("my_local", lambda vault: [])
+    assert "my_local" in ctx.list_functions()

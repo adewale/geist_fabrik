@@ -101,7 +101,8 @@ class FunctionRegistry:
         and VaultContext (Note-based). They:
         - Accept strings from Tracery
         - Work with Note objects internally
-        - Return strings (note titles) back to Tracery
+        - Return bracketed Obsidian links (e.g. "[[Title]]") back to Tracery,
+          so templates use the result as-is without adding their own brackets
         """
 
         @vault_function("sample_notes")
@@ -274,11 +275,16 @@ class FunctionRegistry:
                 List of formatted strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
                 The ||| delimiter allows splitting in Tracery templates
             """
+            import hashlib
             import random
 
-            # Use a fixed sub-seed for deterministic sampling based on session date
+            # Stable sub-seed from the session date. Deliberately NOT Python's
+            # hash(): string hashing is randomised per process
+            # (PYTHONHASHSEED), which silently broke "same date + vault =
+            # same output" across runs.
             session_seed = int(vault.session.date.strftime("%Y%m%d"))
-            cluster_seed = hash(("cluster", session_seed)) % (2**31)
+            digest = hashlib.sha256(f"cluster:{session_seed}".encode()).digest()
+            cluster_seed = int.from_bytes(digest[:4], "big") % (2**31)
             cluster_rng = random.Random(cluster_seed)
 
             notes = vault.notes()

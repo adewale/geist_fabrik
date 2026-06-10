@@ -21,7 +21,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get recently modified notes
-    recent = vault.recent_notes(k=5)
+    # recent_notes() includes geist-journal output; exclude session notes.
+    recent = [n for n in vault.recent_notes(k=10) if not n.path.startswith("geist journal/")][:5]
 
     if len(recent) < 2:
         return []

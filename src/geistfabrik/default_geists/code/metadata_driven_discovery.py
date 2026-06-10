@@ -33,7 +33,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Sample a bounded candidate set once and reuse it across all three
     # patterns (also avoids three separate full-vault passes).
-    all_notes = vault.notes()
+    all_notes = vault.notes_excluding_journal()
     candidates = vault.sample(all_notes, min(len(all_notes), MAX_CANDIDATES))
 
     # Pattern 1: High complexity but low connectivity (understood but not connected)

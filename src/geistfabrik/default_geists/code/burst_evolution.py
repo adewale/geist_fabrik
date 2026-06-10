@@ -113,7 +113,8 @@ def _generate_drift_observation(
     # Calculate time elapsed
     try:
         burst_datetime = datetime.fromisoformat(date)
-        current_datetime = datetime.now()
+        # Session date, not wall-clock: keeps --date replays deterministic
+        current_datetime = vault.session.date
         days_ago = (current_datetime - burst_datetime).days
 
         if days_ago < 30:

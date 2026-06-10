@@ -2,8 +2,8 @@
 
 import logging
 import random
+import re
 from collections.abc import Callable
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -20,6 +20,10 @@ from .models import Link, Note
 from .vault import Vault
 
 logger = logging.getLogger(__name__)
+
+# Markdown checkbox tasks: "- [ ] open" / "- [x] done" (also * and + bullets)
+_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[ xX]\]", re.MULTILINE)
+_COMPLETED_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[xX]\]", re.MULTILINE)
 
 if TYPE_CHECKING:
     from .function_registry import FunctionRegistry
@@ -762,10 +766,7 @@ class VaultContext:
             UPDATE session_embeddings SET cluster_label = ?
             WHERE session_id = ? AND note_path = ?
             """,
-            [
-                (label, self.session.session_id, path)
-                for path, label in assignments.items()
-            ],
+            [(label, self.session.session_id, path) for path, label in assignments.items()],
         )
         self.db.commit()
 
@@ -1184,12 +1185,31 @@ class VaultContext:
         if note.path in self._metadata_cache:
             return self._metadata_cache[note.path]
 
-        # Start with basic built-in metadata
+        # Built-in metadata. "Now" is the session date, not wall-clock, so
+        # --date replays stay deterministic (same date + vault = same output).
+        session_now = self.session.date
+        words = note.content.split()
+        word_count = len(words)
+        days_since_modified = max(0, (session_now - note.modified).days)
+        task_count = len(_TASK_PATTERN.findall(note.content))
+        completed_task_count = len(_COMPLETED_TASK_PATTERN.findall(note.content))
         metadata = {
-            "word_count": len(note.content.split()),
+            "word_count": word_count,
             "link_count": len(note.links),
             "tag_count": len(note.tags),
-            "age_days": (datetime.now() - note.created).days,
+            "age_days": max(0, (session_now - note.created).days),
+            "days_since_modified": days_since_modified,
+            # 0 (fresh) -> 1 (stale); asymptotic: 30d=0.5, 90d=0.75, 365d~0.92.
+            # Same curve as examples/metadata_inference/temporal.py, which can
+            # still override these keys via enabled_modules.
+            "staleness": round(1 - (1 / (1 + days_since_modified / 30)), 3),
+            "has_tasks": task_count > 0,
+            "task_count": task_count,
+            "completed_task_count": completed_task_count,
+            "lexical_diversity": (
+                round(len({w.lower() for w in words}) / word_count, 3) if word_count else 0.0
+            ),
+            "reading_time": round(word_count / 200.0, 2),  # minutes at ~200 wpm
         }
 
         # Run metadata inference modules if available
@@ -1278,15 +1298,23 @@ class VaultContext:
         if name not in self._functions:
             raise KeyError(f"Function '{name}' not registered")
 
-        return self._functions[name](self, **kwargs)
+        return self._functions[name](self, *args, **kwargs)
 
     def list_functions(self) -> list[str]:
         """List all registered function names.
 
+        Includes functions from the attached FunctionRegistry (builtins and
+        user vault functions) as well as locally registered ones. Previously
+        only the local dict was consulted, so this returned [] whenever a
+        registry was attached - i.e. always, in production.
+
         Returns:
-            List of function names
+            Sorted list of function names
         """
-        return list(self._functions.keys())
+        names = set(self._functions.keys())
+        if self._function_registry is not None:
+            names.update(self._function_registry.functions.keys())
+        return sorted(names)
 
     def get_metadata_error_summary(self) -> dict[str, int]:
         """Get summary of metadata inference errors.

@@ -26,7 +26,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get recent notes to understand current focus
-    recent = vault.recent_notes(k=5)
+    # recent_notes() includes geist-journal output; session notes are not
+    # "current focus", so drop them before analysing.
+    recent = [n for n in vault.recent_notes(k=10) if not n.path.startswith("geist journal/")][:5]
     if len(recent) < 2:
         return []
 
@@ -40,9 +42,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Check if contrarian notes are sparse or old
         for contrarian_title in contrarian_titles[:1]:  # Take the most contrarian
-            # Resolve title back to Note object
-            contrarian = vault.get_note(contrarian_title)
-            if contrarian is None:
+            # contrarian_to returns bracketed links ("[[Title]]"); strip the
+            # brackets and resolve by title/path. (Passing the bracketed
+            # string to get_note() - an exact-path lookup - always returned
+            # None, which left this geist permanently inert.)
+            contrarian = vault.resolve_link_target(contrarian_title.strip("[]"))
+            if contrarian is None or contrarian.path.startswith("geist journal/"):
                 continue
 
             metadata = vault.metadata(contrarian)

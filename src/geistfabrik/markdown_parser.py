@@ -75,11 +75,13 @@ def extract_title(path: str, frontmatter: dict[str, Any] | None, content: str) -
     if frontmatter and "title" in frontmatter:
         return str(frontmatter["title"])
 
-    # Priority 2: First H1 heading
+    # Priority 2: First H1 heading (skip empty headings like "# ")
     lines = content.split("\n")
     for line in lines:
         if line.startswith("# "):
-            return line[2:].strip()
+            heading = line[2:].strip()
+            if heading:
+                return heading
 
     # Priority 3: Filename without extension
     return Path(path).stem

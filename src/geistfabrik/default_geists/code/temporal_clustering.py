@@ -31,9 +31,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             return []
 
         # Group notes by time periods (quarters)
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
-        now = datetime.now()
+        # Session date, not wall-clock: keeps --date replays deterministic
+        now = vault.session.date
 
         # Define time windows (quarters going back 2 years)
         quarters = []
