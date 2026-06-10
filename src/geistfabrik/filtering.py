@@ -13,10 +13,15 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Any
 
+import numpy as np
+from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+    cosine_similarity as sklearn_cosine,
+)
+
 from .config import (
     get_default_filter_config,
 )
-from .embeddings import EmbeddingComputer, cosine_similarity
+from .embeddings import EmbeddingComputer
 from .models import Suggestion
 
 
@@ -198,23 +203,15 @@ class SuggestionFilter:
             suggestion_texts = [s.text for s in suggestions]
             suggestion_embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
-            # Filter suggestions with early stopping
-            filtered = []
-            for i, suggestion in enumerate(suggestions):
-                suggestion_embedding = suggestion_embeddings[i]
+            # One S x R similarity matrix instead of a Python double loop of
+            # per-pair cosine calls (the loop dominated --full/firehose mode);
+            # a suggestion is novel iff no recent embedding meets the threshold.
+            suggestion_matrix = np.asarray(suggestion_embeddings, dtype=np.float32)
+            recent_matrix = np.vstack(list(recent_embeddings)).astype(np.float32)
+            sim_matrix = sklearn_cosine(suggestion_matrix, recent_matrix)
+            too_similar = (sim_matrix >= threshold).any(axis=1)
 
-                # Check if too similar to any recent suggestion (early stop on first match)
-                is_novel = True
-                for recent_embedding in recent_embeddings:
-                    similarity = cosine_similarity(suggestion_embedding, recent_embedding)
-                    if similarity >= threshold:
-                        is_novel = False
-                        break
-
-                if is_novel:
-                    filtered.append(suggestion)
-
-            return filtered
+            return [s for i, s in enumerate(suggestions) if not too_similar[i]]
 
     def filter_diversity(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Remove near-duplicate suggestions from current batch.
@@ -241,20 +238,18 @@ class SuggestionFilter:
         suggestion_texts = [s.text for s in suggestions]
         embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
-        # Keep track of which suggestions to include
-        keep = [True] * len(suggestions)
+        # One S x S similarity matrix, then the same greedy keep-first loop
+        # reading matrix cells (previously S^2/2 per-pair cosine calls - the
+        # dominant filter cost in --full mode at 50-200+ suggestions).
+        sim_matrix = sklearn_cosine(np.asarray(embeddings, dtype=np.float32))
 
-        # Compare each suggestion with all previous ones
+        keep = [True] * len(suggestions)
         for i in range(len(suggestions)):
             if not keep[i]:
                 continue
 
             for j in range(i + 1, len(suggestions)):
-                if not keep[j]:
-                    continue
-
-                similarity = cosine_similarity(embeddings[i], embeddings[j])
-                if similarity >= threshold:
+                if keep[j] and float(sim_matrix[i, j]) >= threshold:
                     # Mark later suggestion as duplicate
                     keep[j] = False
 
