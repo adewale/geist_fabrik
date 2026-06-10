@@ -72,7 +72,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 | GraphPatternFinder showcase geists (structural holes / path length / bridges) | reuse_abstractions_spec.md:1120 | BUILT (examples/geists/code/) |
 | `_geistfabrik/error.log` + file logging | geistfabrik_spec.md:1107 | NOT-BUILT — superseded by console hints + `geist_status.last_error`; amend spec |
 | Real connected-components stat | STATS_COMMAND_SPEC.md:181 | BUILT (uses GraphPatternFinder.find_connected_components) |
-| `claim_harvester` / `hypothesis_harvester` geists | reuse_abstractions_spec.md (items 12-13) | BUILT (examples/geists/code/) |
+| `claim_harvester` / `hypothesis_harvester` geists | reuse_abstractions_spec.md (items 12-13) | BUILT (bundled default geists) |
 | Betweenness-centrality bridge stat; "most productive day" temporal pattern | STATS_COMMAND_SPEC.md:217 | NOT-BUILT — defer; mark in spec |
 | `geistfabrik sync` / `query` commands; `--session-id` | JOURNAL_FILES.md:746,797 | NOT-BUILT — amend docs (sync is implicit; `--date` covers query) |
 | docs/CONFIGURATION.md, docs/TROUBLESHOOTING.md (+ other named docs) | several | NOT-BUILT — write before 1.0 / fix dead links |

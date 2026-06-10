@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from geistfabrik import function_registry
+from geistfabrik.default_geists import CODE_GEIST_COUNT
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.models import Suggestion
@@ -133,10 +134,11 @@ class TestAllCodeGeistsWithEmptyVault:
         # Filter out __init__.py
         geist_files = [f for f in geist_files if f.stem != "__init__"]
 
-        # 48 code geists: 42 original + 6 demonstration geists for reuse abstractions
-        # Phase 6: definition_harvester, drift_velocity_anomaly, cyclical_thinking
-        # Phase 7: seasonal_topic_analysis, metadata_outlier_detector, cluster_evolution_tracker
-        assert len(geist_files) == 48, f"Expected 48 code geists, found {len(geist_files)}"
+        # Sanity check against the programmatic single source of truth (never
+        # hardcode the count - it drifts; see test_geist_count_consistency.py).
+        assert len(geist_files) == CODE_GEIST_COUNT, (
+            f"Expected {CODE_GEIST_COUNT} code geists, found {len(geist_files)}"
+        )
 
         for geist_file in geist_files:
             geist_module = _load_code_geist(geist_file)

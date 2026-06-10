@@ -206,6 +206,52 @@ class StatsCollector:
             "bidirectional_pct": round(bidirectional_pct, 1),
         }
 
+    def _largest_connected_component(self) -> int:
+        """Size of the largest connected component of the link graph.
+
+        Union-find over notes, treating each resolved link as an undirected
+        edge. Link targets are resolved to note paths via the canonical forms
+        (path, path-without-extension, title), matching link_target_forms().
+        Returns 0 for an empty vault.
+        """
+        note_paths = [row[0] for row in self.db.execute("SELECT path FROM notes")]
+        if not note_paths:
+            return 0
+
+        # Resolve every target form to a note path for edge construction.
+        target_to_path: dict[str, str] = {}
+        for path, title in self.db.execute("SELECT path, title FROM notes"):
+            target_to_path[path] = path
+            target_to_path[title] = path
+            if path.endswith(".md"):
+                target_to_path[path[:-3]] = path
+
+        parent = {p: p for p in note_paths}
+
+        def find(x: str) -> str:
+            root = x
+            while parent[root] != root:
+                root = parent[root]
+            while parent[x] != root:  # path compression
+                parent[x], x = root, parent[x]
+            return root
+
+        def union(a: str, b: str) -> None:
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        for source_path, target in self.db.execute("SELECT source_path, target FROM links"):
+            resolved = target_to_path.get(target)
+            if resolved is not None and source_path in parent:
+                union(source_path, resolved)
+
+        sizes: dict[str, int] = {}
+        for p in note_paths:
+            root = find(p)
+            sizes[root] = sizes.get(root, 0) + 1
+        return max(sizes.values())
+
     def _collect_graph_stats(self) -> dict[str, Any]:
         """Collect graph structure statistics."""
         note_count = self.stats["notes"]["total"]
@@ -245,16 +291,9 @@ class StatsCollector:
         actual_links = self.stats["links"]["total"]
         density = actual_links / possible_links if possible_links > 0 else 0
 
-        # Largest connected component (simplified: notes with at least one link)
-        cursor = self.db.execute(
-            """
-            SELECT COUNT(DISTINCT path)
-            FROM notes
-            WHERE path IN (SELECT DISTINCT source_path FROM links)
-               OR path IN (SELECT DISTINCT target FROM links)
-            """
-        )
-        largest_component = cursor.fetchone()[0]
+        # Largest connected component: a true union-find over the link graph
+        # (links treated as undirected), not the old "notes with >=1 link" count.
+        largest_component = self._largest_connected_component()
         largest_component_pct = (largest_component / note_count * 100) if note_count > 0 else 0
 
         return {

@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from geistfabrik import GeistExecutor, Vault, VaultContext
+from geistfabrik.default_geists import CODE_GEIST_COUNT
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
@@ -689,12 +690,12 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # We have 48 code geists (42 existing + 6 demonstration geists)
+    # Programmatic single source of truth (never hardcode - it drifts).
     # New geists from reuse abstractions implementation:
     #   Phase 6: definition_harvester, drift_velocity_anomaly, cyclical_thinking
     #   Phase 7: seasonal_topic_analysis, metadata_outlier_detector, cluster_evolution_tracker
     # Note: congruence_mirror was removed from main
-    assert len(geist_executor.geists) == 48
+    assert len(geist_executor.geists) == CODE_GEIST_COUNT
 
 
 def test_all_geists_execute_without_crashing(
