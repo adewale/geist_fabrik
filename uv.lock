@@ -231,6 +231,7 @@ version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },
+    { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sentence-transformers" },
 ]
@@ -238,7 +239,6 @@ dependencies = [
 [package.optional-dependencies]
 stats = [
     { name = "scikit-dimension" },
-    { name = "scikit-learn" },
     { name = "vendi-score" },
 ]
 vector-search = [
@@ -261,7 +261,7 @@ dev = [
 requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scikit-dimension", marker = "extra == 'stats'", specifier = ">=0.3.0" },
-    { name = "scikit-learn", marker = "extra == 'stats'", specifier = ">=1.3.0" },
+    { name = "scikit-learn", specifier = ">=1.3.0" },
     { name = "scipy", specifier = ">=1.11.0" },
     { name = "sentence-transformers", specifier = ">=2.2.0" },
     { name = "sqlite-vec", marker = "extra == 'vector-search'", specifier = ">=0.1.0" },
