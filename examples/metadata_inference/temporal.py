@@ -4,13 +4,13 @@ Infers staleness, modification patterns, and other temporal properties.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from geistfabrik import Note, VaultContext
 
 
-def infer(note: "Note", vault: "VaultContext") -> Dict[str, Any]:
+def infer(note: "Note", vault: "VaultContext") -> dict[str, Any]:
     """Infer temporal metadata for a note.
 
     Args:

@@ -114,14 +114,14 @@ class SimilarityProfile:
         return float(np.percentile(similarities, p))
 
     def is_hub(self, threshold: float = SimilarityLevel.HIGH, min_count: int = 10) -> bool:
-        """Check if note has many high-similarity neighbors (hub pattern).
+        """Check if note has many high-similarity neighbours (hub pattern).
 
         A hub is a note that is highly similar to many other notes, indicating
         it's a central concept or synthesizer in the vault.
 
         Args:
-            threshold: Minimum similarity to be considered a neighbor
-            min_count: Minimum number of high-similarity neighbors to be a hub
+            threshold: Minimum similarity to be considered a neighbour
+            min_count: Minimum number of high-similarity neighbours to be a hub
 
         Returns:
             True if note is a hub

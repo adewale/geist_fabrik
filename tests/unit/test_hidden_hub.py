@@ -151,7 +151,7 @@ def test_hidden_hub_suggestion_structure(vault_with_hidden_hubs):
         assert isinstance(suggestion.notes, list)
         assert suggestion.geist_id == "hidden_hub"
 
-        # Should reference at least 4 notes (hidden hub + 3 sampled neighbors)
+        # Should reference at least 4 notes (hidden hub + 3 sampled neighbours)
         assert len(suggestion.notes) >= 4
 
         # Note references should be strings

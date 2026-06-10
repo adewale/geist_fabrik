@@ -190,10 +190,10 @@ class FunctionRegistry:
                 return []
 
             # Work with Note objects internally
-            neighbor_notes = vault.neighbours(note, k)
+            neighbour_notes = vault.neighbours(note, k)
 
             # Convert Note → string for Tracery
-            return [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
+            return [f"[[{n.obsidian_link}]]" for n in neighbour_notes]
 
         @vault_function("contrarian_to")
         def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> list[str]:
@@ -297,25 +297,25 @@ class FunctionRegistry:
             # Build formatted pairs
             results = []
             for seed_note in sampled_seeds:
-                neighbor_notes = vault.neighbours(seed_note, k)
+                neighbour_notes = vault.neighbours(seed_note, k)
 
-                if neighbor_notes:
+                if neighbour_notes:
                     # Format neighbours as bracketed Obsidian links
-                    neighbor_links = [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
-                    if len(neighbor_links) == 1:
-                        neighbors_str = neighbor_links[0]
-                    elif len(neighbor_links) == 2:
-                        neighbors_str = f"{neighbor_links[0]} and {neighbor_links[1]}"
+                    neighbour_links = [f"[[{n.obsidian_link}]]" for n in neighbour_notes]
+                    if len(neighbour_links) == 1:
+                        neighbours_str = neighbour_links[0]
+                    elif len(neighbour_links) == 2:
+                        neighbours_str = f"{neighbour_links[0]} and {neighbour_links[1]}"
                     else:
                         # Break long line for ruff compliance
-                        last_link = neighbor_links[-1]
-                        neighbors_str = ", ".join(neighbor_links[:-1]) + f", and {last_link}"
+                        last_link = neighbour_links[-1]
+                        neighbours_str = ", ".join(neighbour_links[:-1]) + f", and {last_link}"
                 else:
-                    neighbors_str = ""
+                    neighbours_str = ""
 
                 # Format as "SEED|||NEIGHBOURS" for Tracery extraction
                 # Add brackets to seed as well for consistency
-                formatted = f"[[{seed_note.obsidian_link}]]|||{neighbors_str}"
+                formatted = f"[[{seed_note.obsidian_link}]]|||{neighbours_str}"
                 results.append(formatted)
 
             return results

@@ -50,34 +50,34 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 final_rate = drift_rates[-1]
 
                 # Find what it's drifting toward
-                neighbors = vault.neighbours(note, k=5)
+                neighbours = vault.neighbours(note, k=5)
 
-                # Find most aligned neighbor by checking drift toward current neighbors
-                best_neighbor = None
+                # Find most aligned neighbour by checking drift toward current neighbours
+                best_neighbour = None
                 best_similarity = -1.0
 
-                # Simple heuristic: neighbor most similar to current embedding
+                # Simple heuristic: neighbour most similar to current embedding
                 # is likely in drift direction
-                for neighbor in neighbors:
-                    if neighbor.path == note.path:
+                for neighbour in neighbours:
+                    if neighbour.path == note.path:
                         continue
-                    sim = vault.similarity(note, neighbor)
+                    sim = vault.similarity(note, neighbour)
                     if sim > best_similarity:
                         best_similarity = sim
-                        best_neighbor = neighbor
+                        best_neighbour = neighbour
 
-                if best_neighbor and best_similarity > 0.5:
+                if best_neighbour and best_similarity > 0.5:
                     text = (
                         f"[[{note.obsidian_link}]] shows accelerating drift "
                         f"(velocity: {initial_rate:.2f} → {final_rate:.2f}). "
-                        f"Rapidly evolving toward [[{best_neighbor.obsidian_link}]]—"
+                        f"Rapidly evolving toward [[{best_neighbour.obsidian_link}]]—"
                         f"conceptual breakthrough?"
                     )
 
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[note.obsidian_link, best_neighbor.obsidian_link],
+                            notes=[note.obsidian_link, best_neighbour.obsidian_link],
                             geist_id="drift_velocity_anomaly",
                         )
                     )

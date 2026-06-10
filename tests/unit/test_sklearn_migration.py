@@ -135,22 +135,22 @@ class TestRedundantNormCaching:
         drift_vector = last_emb - first_emb
 
         # Simulate 5 neighbour embeddings
-        neighbor_embeddings = [np.random.rand(384) for _ in range(5)]
+        neighbour_embeddings = [np.random.rand(384) for _ in range(5)]
 
         # BEFORE: Redundant norm computation in loop (5 times)
         alignments_old = []
-        for neighbor_emb in neighbor_embeddings:
-            alignment = np.dot(drift_vector, neighbor_emb) / (
-                np.linalg.norm(drift_vector) * np.linalg.norm(neighbor_emb)
+        for neighbour_emb in neighbour_embeddings:
+            alignment = np.dot(drift_vector, neighbour_emb) / (
+                np.linalg.norm(drift_vector) * np.linalg.norm(neighbour_emb)
             )
             alignments_old.append(alignment)
 
         # AFTER: Cache norm outside loop (1 time)
         drift_vector_norm = np.linalg.norm(drift_vector)
         alignments_new = []
-        for neighbor_emb in neighbor_embeddings:
-            alignment = np.dot(drift_vector, neighbor_emb) / (
-                drift_vector_norm * np.linalg.norm(neighbor_emb)
+        for neighbour_emb in neighbour_embeddings:
+            alignment = np.dot(drift_vector, neighbour_emb) / (
+                drift_vector_norm * np.linalg.norm(neighbour_emb)
             )
             alignments_new.append(alignment)
 
@@ -160,28 +160,30 @@ class TestRedundantNormCaching:
     def test_norm_caching_with_zero_vector(self):
         """Test that cached norm handles zero vectors correctly."""
         drift_vector = np.zeros(384)
-        neighbor_embeddings = [np.random.rand(384) for _ in range(3)]
+        neighbour_embeddings = [np.random.rand(384) for _ in range(3)]
 
         # BEFORE: Redundant computation
         alignments_old = []
-        for neighbor_emb in neighbor_embeddings:
+        for neighbour_emb in neighbour_embeddings:
             norm_drift = np.linalg.norm(drift_vector)
-            norm_neighbor = np.linalg.norm(neighbor_emb)
-            if norm_drift == 0 or norm_neighbor == 0:
+            norm_neighbour = np.linalg.norm(neighbour_emb)
+            if norm_drift == 0 or norm_neighbour == 0:
                 alignment = 0.0
             else:
-                alignment = np.dot(drift_vector, neighbor_emb) / (norm_drift * norm_neighbor)
+                alignment = np.dot(drift_vector, neighbour_emb) / (norm_drift * norm_neighbour)
             alignments_old.append(alignment)
 
         # AFTER: Cached norm
         drift_vector_norm = np.linalg.norm(drift_vector)
         alignments_new = []
-        for neighbor_emb in neighbor_embeddings:
-            norm_neighbor = np.linalg.norm(neighbor_emb)
-            if drift_vector_norm == 0 or norm_neighbor == 0:
+        for neighbour_emb in neighbour_embeddings:
+            norm_neighbour = np.linalg.norm(neighbour_emb)
+            if drift_vector_norm == 0 or norm_neighbour == 0:
                 alignment = 0.0
             else:
-                alignment = np.dot(drift_vector, neighbor_emb) / (drift_vector_norm * norm_neighbor)
+                alignment = np.dot(drift_vector, neighbour_emb) / (
+                    drift_vector_norm * norm_neighbour
+                )
             alignments_new.append(alignment)
 
         # Should produce identical results

@@ -71,15 +71,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # Find more concrete similar notes
             similar = vault.neighbours(note, k=10)
 
-            concrete_neighbors = []
+            concrete_neighbours = []
             for other in similar:
                 other_content = vault.read(other).lower()
                 other_concrete = sum(1 for word in concrete_words if word in other_content)
                 if other_concrete >= 2:
-                    concrete_neighbors.append(other)
+                    concrete_neighbours.append(other)
 
-            if concrete_neighbors:
-                example = vault.sample(concrete_neighbors, k=1)[0]
+            if concrete_neighbours:
+                example = vault.sample(concrete_neighbours, k=1)[0]
 
                 text = (
                     f"[[{note.obsidian_link}]] operates at a high level of abstraction. "
@@ -100,15 +100,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # Find more abstract similar notes
             similar = vault.neighbours(note, k=10)
 
-            abstract_neighbors = []
+            abstract_neighbours = []
             for other in similar:
                 other_content = vault.read(other).lower()
                 other_abstract = sum(1 for word in abstract_words if word in other_content)
                 if other_abstract >= 2:
-                    abstract_neighbors.append(other)
+                    abstract_neighbours.append(other)
 
-            if abstract_neighbors:
-                framework = vault.sample(abstract_neighbors, k=1)[0]
+            if abstract_neighbours:
+                framework = vault.sample(abstract_neighbours, k=1)[0]
 
                 text = (
                     f"[[{note.obsidian_link}]] is very specific and concrete. "

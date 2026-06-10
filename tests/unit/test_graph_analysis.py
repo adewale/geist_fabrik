@@ -123,15 +123,15 @@ class TestGraphPatternFinder:
         path = finder.shortest_path(notes["a.md"], notes["a.md"])
         assert path is not None and [n.path for n in path] == ["a.md"]
 
-    def test_k_hop_neighborhood(self, linked_vault):
+    def test_k_hop_neighbourhood(self, linked_vault):
         notes = {n.path: n for n in linked_vault.notes()}
         finder = GraphPatternFinder(linked_vault)
 
-        assert finder.k_hop_neighborhood(notes["hub.md"], 0) == []
-        one_hop = {n.path for n in finder.k_hop_neighborhood(notes["hub.md"], 1)}
+        assert finder.k_hop_neighbourhood(notes["hub.md"], 0) == []
+        one_hop = {n.path for n in finder.k_hop_neighbourhood(notes["hub.md"], 1)}
         assert one_hop == {"a.md", "b.md", "c.md"}
         # Two hops adds nothing new (a -> b already reached).
-        two_hop = {n.path for n in finder.k_hop_neighborhood(notes["hub.md"], 2)}
+        two_hop = {n.path for n in finder.k_hop_neighbourhood(notes["hub.md"], 2)}
         assert two_hop == one_hop
 
     def test_connected_components(self, linked_vault):

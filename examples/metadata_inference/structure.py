@@ -4,13 +4,13 @@ Infers structural properties like headings, lists, code blocks, etc.
 """
 
 import re
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from geistfabrik import Note, VaultContext
 
 
-def infer(note: "Note", vault: "VaultContext") -> Dict[str, Any]:
+def infer(note: "Note", vault: "VaultContext") -> dict[str, Any]:
     """Infer structural metadata for a note.
 
     Args:

@@ -28,7 +28,7 @@ def vault_with_dense_links_sparse_meaning(tmp_path):
         hub_content += f"[[diverse_{i}]]\n"
     hub_path.write_text(hub_content)
 
-    # Create diverse neighbor notes that all link to each other (dense links)
+    # Create diverse neighbour notes that all link to each other (dense links)
     # but have very different content (sparse meaning)
     topics = [
         "quantum physics",
@@ -40,7 +40,7 @@ def vault_with_dense_links_sparse_meaning(tmp_path):
     for i, topic in enumerate(topics):
         path = vault_path / f"diverse_{i}.md"
         content = f"# Diverse {i}\n\nContent about {topic}.\n\n"
-        # Link back to hub and to all other neighbors (creating dense graph)
+        # Link back to hub and to all other neighbours (creating dense graph)
         content += "[[hub]]\n"
         for j in range(5):
             if j != i:
@@ -75,7 +75,7 @@ def vault_with_sparse_links_dense_meaning(tmp_path):
         hub_content += f"[[similar_{i}]]\n"
     hub_path.write_text(hub_content)
 
-    # Create similar neighbor notes that DON'T link to each other (sparse links)
+    # Create similar neighbour notes that DON'T link to each other (sparse links)
     # but have very similar content (dense meaning)
     for i in range(5):
         path = vault_path / f"similar_{i}.md"
@@ -83,7 +83,7 @@ def vault_with_sparse_links_dense_meaning(tmp_path):
         content = (
             f"# Similar {i}\n\nContent about machine learning and neural networks variant {i}.\n\n"
         )
-        # Only link back to hub, not to neighbors
+        # Only link back to hub, not to neighbours
         content += "[[hub]]\n"
         path.write_text(content)
 
@@ -184,7 +184,7 @@ def test_density_inversion_suggestion_structure(vault_with_dense_links_sparse_me
         assert isinstance(suggestion.notes, list)
         assert suggestion.geist_id == "density_inversion"
 
-        # Should reference at least 1 note (hub + sample of neighbors)
+        # Should reference at least 1 note (hub + sample of neighbours)
         assert len(suggestion.notes) >= 1
 
         # Note references should be strings
@@ -282,8 +282,8 @@ def test_density_inversion_insufficient_notes(vault_insufficient_notes):
     assert len(suggestions) == 0
 
 
-def test_density_inversion_notes_without_neighbors(tmp_path):
-    """Test that density_inversion handles notes with few neighbors."""
+def test_density_inversion_notes_without_neighbours(tmp_path):
+    """Test that density_inversion handles notes with few neighbours."""
     from datetime import datetime
 
     vault_path = tmp_path / "vault"
@@ -308,7 +308,7 @@ def test_density_inversion_notes_without_neighbors(tmp_path):
 
     suggestions = density_inversion.suggest(context)
 
-    # May return empty if no notes have sufficient neighbors
+    # May return empty if no notes have sufficient neighbours
     assert isinstance(suggestions, list)
 
 
@@ -425,7 +425,7 @@ def test_density_inversion_excludes_geist_journal(tmp_path):
         journal_note.write_text(
             f"# Session {i}\n\n"
             "## Suggestions\n\n"
-            "The hub note links densely to scattered neighbors.\n\n"
+            "The hub note links densely to scattered neighbours.\n\n"
             "[[hub]] connects to [[note_1]], [[note_2]], [[note_3]]"
         )
 
@@ -436,7 +436,7 @@ def test_density_inversion_excludes_geist_journal(tmp_path):
         hub_content += f"[[diverse_{i}]]\n"
     hub_path.write_text(hub_content)
 
-    # Create diverse neighbor notes
+    # Create diverse neighbour notes
     topics = [
         "quantum physics",
         "impressionist art",

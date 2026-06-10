@@ -33,23 +33,23 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         total_links = outgoing + incoming
 
         # Find semantic neighbours with scores
-        neighbors_with_scores = vault.neighbours(note, k=30, return_scores=True)
+        neighbours_with_scores = vault.neighbours(note, k=30, return_scores=True)
 
         # Filter to only high-similarity neighbours
         high_similarity_count = sum(
-            1 for n, sim in neighbors_with_scores if sim > SimilarityLevel.HIGH
+            1 for n, sim in neighbours_with_scores if sim > SimilarityLevel.HIGH
         )
 
         # High semantic centrality, low graph centrality = hidden hub
         if high_similarity_count > 10 and total_links < 5:
             # Sample some neighbours to mention (extract notes from tuples)
-            neighbor_notes = [n for n, sim in neighbors_with_scores[:10]]
-            neighbor_sample = vault.sample(neighbor_notes, k=3)
-            neighbor_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbor_sample])
+            neighbour_notes = [n for n, sim in neighbours_with_scores[:10]]
+            neighbour_sample = vault.sample(neighbour_notes, k=3)
+            neighbour_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbour_sample])
 
             text = (
                 f"[[{note.obsidian_link}]] is semantically related to "
-                f"{high_similarity_count} notes (including {neighbor_names}) but only "
+                f"{high_similarity_count} notes (including {neighbour_names}) but only "
                 f"has {total_links} links. Hidden hub? Maybe it's a concept that "
                 f"connects things implicitly."
             )
@@ -57,7 +57,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link] + [n.obsidian_link for n in neighbor_sample],
+                    notes=[note.obsidian_link] + [n.obsidian_link for n in neighbour_sample],
                     geist_id="hidden_hub",
                 )
             )

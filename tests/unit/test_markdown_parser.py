@@ -227,13 +227,7 @@ def test_parse_invalid_utf8() -> None:
 
 def test_extract_tags_ignores_fenced_code_blocks() -> None:
     """#words inside fenced code are not tags (e.g. #define, shebangs)."""
-    content = (
-        "Real tag #genuine here.\n"
-        "```c\n"
-        "#define MAX 10\n"
-        "#include <stdio.h>\n"
-        "```\n"
-    )
+    content = "Real tag #genuine here.\n```c\n#define MAX 10\n#include <stdio.h>\n```\n"
     tags = extract_tags(content)
     assert tags == ["genuine"]
 

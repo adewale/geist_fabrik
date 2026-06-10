@@ -1,7 +1,7 @@
 """Benchmark tests for Phase 1 performance optimisations.
 
 These tests measure actual performance improvements from:
-- Session-scoped caching (backlinks, outgoing_links, graph_neighbors)
+- Session-scoped caching (backlinks, outgoing_links, graph_neighbours)
 - Vectorized operations (contrarian_to, unlinked_pairs)
 
 Run benchmarks with:
@@ -113,7 +113,7 @@ def test_graph_operations_benchmark(benchmark_vault):
     for note in notes:
         _ = context.backlinks(note)
         _ = context.outgoing_links(note)
-        _ = context.graph_neighbors(note)
+        _ = context.graph_neighbours(note)
     elapsed = time.perf_counter() - start
 
     print(f"\n{'=' * 60}")
@@ -226,7 +226,7 @@ def test_phase1_integrated_benchmark(benchmark_vault):
     for note in notes:
         _ = context.backlinks(note)
         _ = context.outgoing_links(note)
-        _ = context.graph_neighbors(note)
+        _ = context.graph_neighbours(note)
 
     # Phase 2: Similarity operations (uses vectorization)
     test_note = notes[10]
@@ -236,7 +236,7 @@ def test_phase1_integrated_benchmark(benchmark_vault):
     # Phase 3: Repeat graph operations (should hit cache)
     for note in notes[:10]:
         _ = context.backlinks(note)
-        _ = context.graph_neighbors(note)
+        _ = context.graph_neighbours(note)
 
     elapsed = time.perf_counter() - start
 

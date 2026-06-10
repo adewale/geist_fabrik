@@ -100,9 +100,7 @@ class TestPersistAndRead:
 
         # ...and session 2 can read them back for comparison.
         ctx2 = VaultContext(vault, session2)
-        assert (
-            ctx2.previous_cluster_label_for_note(note, session1.session_id) == "ai, ml, agents"
-        )
+        assert ctx2.previous_cluster_label_for_note(note, session1.session_id) == "ai, ml, agents"
         # Unlabelled notes stay None (noise/unclustered).
         other = next(n for n in ctx2.notes() if n.path != note.path)
         assert ctx2.previous_cluster_label_for_note(other, session1.session_id) is None
@@ -116,9 +114,7 @@ class TestPersistAndRead:
 
         # Session 1's row for the same note is untouched.
         assert ctx2.previous_cluster_label_for_note(note, session1.session_id) is None
-        assert (
-            ctx2.previous_cluster_label_for_note(note, session2.session_id) == "later topics"
-        )
+        assert ctx2.previous_cluster_label_for_note(note, session2.session_id) == "later topics"
 
     def test_persist_empty_assignments_is_noop(self, context_with_two_sessions):
         vault, _session1, session2 = context_with_two_sessions

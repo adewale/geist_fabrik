@@ -96,7 +96,7 @@ class VaultContext:
         # Cache for similarity scores (performance optimisation - keyed by note path pair)
         self._similarity_cache: dict[tuple[str, str], float] = {}
 
-        # Cache for neighbours (performance optimisation - keyed by (note_path, k))
+        # Cache for neighbours (keyed by (note_path, count, return_scores))
         self._neighbours_cache: dict[
             tuple[str, int, bool], list[Note] | list[tuple[Note, float]]
         ] = {}
@@ -107,8 +107,8 @@ class VaultContext:
         # Cache for outgoing_links (performance optimisation - keyed by note_path)
         self._outgoing_links_cache: dict[str, list[Note]] = {}
 
-        # Cache for graph_neighbors (performance optimisation - keyed by note_path)
-        self._graph_neighbors_cache: dict[str, list[Note]] = {}
+        # Cache for graph_neighbours (performance optimisation - keyed by note_path)
+        self._graph_neighbours_cache: dict[str, list[Note]] = {}
 
         # Cache for read() content (OPTIMISATION #2 - session-scoped)
         self._read_cache: dict[str, str] = {}
@@ -1093,7 +1093,7 @@ class VaultContext:
         """
         return len(self.links_between(a, b)) > 0
 
-    def graph_neighbors(self, note: Note) -> list[Note]:
+    def graph_neighbours(self, note: Note) -> list[Note]:
         """Get all notes connected to this note by links (cached, bidirectional).
 
         Returns notes that:
@@ -1111,8 +1111,8 @@ class VaultContext:
             List of connected notes (no duplicates)
         """
         # Check cache first
-        if note.path in self._graph_neighbors_cache:
-            return self._graph_neighbors_cache[note.path]
+        if note.path in self._graph_neighbours_cache:
+            return self._graph_neighbours_cache[note.path]
 
         neighbours = set()
 
@@ -1127,7 +1127,7 @@ class VaultContext:
         result = list(neighbours)
 
         # Cache the result
-        self._graph_neighbors_cache[note.path] = result
+        self._graph_neighbours_cache[note.path] = result
         return result
 
     # Temporal queries

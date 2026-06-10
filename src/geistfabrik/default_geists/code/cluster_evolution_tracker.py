@@ -19,7 +19,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     Uses ClusterAnalyser with session-scoped caching to efficiently compute
     current clusters, then compares with historical session data to find
-    notes with shifting conceptual neighborhoods.
+    notes with shifting conceptual neighbourhoods.
     """
     # Exclude geist journal to avoid tracking session output migrations
     notes = vault.notes_excluding_journal()

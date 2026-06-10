@@ -107,7 +107,7 @@ def test_read_note(vault_with_notes):
     assert "artificial intelligence" in content
 
 
-def test_neighbors_semantic_search(vault_with_notes):
+def test_neighbours_semantic_search(vault_with_notes):
     """Test finding semantically similar notes."""
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)

@@ -125,8 +125,7 @@ class TestExecutorPersistence:
         assert ex.geists["boom"].is_enabled is False
         ex.execute_geist("boom", ctx)  # type: ignore[arg-type]
         assert any(
-            e.get("geist_id") == "boom" and e.get("status") == "skipped"
-            for e in ex.execution_log
+            e.get("geist_id") == "boom" and e.get("status") == "skipped" for e in ex.execution_log
         )
 
     def test_success_reenables_after_failures(self, tmp_path):

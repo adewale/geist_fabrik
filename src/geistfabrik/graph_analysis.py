@@ -185,7 +185,7 @@ class GraphPatternFinder:
 
         return None  # No path found
 
-    def k_hop_neighborhood(self, note: "Note", k: int) -> list["Note"]:
+    def k_hop_neighbourhood(self, note: "Note", k: int) -> list["Note"]:
         """Get all notes within k link hops.
 
         Uses breadth-first traversal to find all notes reachable

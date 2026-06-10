@@ -44,9 +44,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # candidate_limit keeps this bounded on large vaults (deterministic
     # sample per session - "sample, don't rank").
-    holes = finder.detect_structural_holes(
-        min_similarity=SimilarityLevel.HIGH, candidate_limit=200
-    )
+    holes = finder.detect_structural_holes(min_similarity=SimilarityLevel.HIGH, candidate_limit=200)
     if not holes:
         return []
 

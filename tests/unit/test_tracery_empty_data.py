@@ -171,7 +171,7 @@ class TestSemanticNeighboursEmptyData:
         vault_path.mkdir()
         (vault_path / ".obsidian").mkdir()
 
-        # Single note - can't have neighbors
+        # Single note - can't have neighbours
         (vault_path / "Only Note.md").write_text("# Only Note\nSolitary content")
 
         vault = Vault(vault_path)
