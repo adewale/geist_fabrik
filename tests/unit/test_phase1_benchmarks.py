@@ -182,7 +182,7 @@ def test_unlinked_pairs_vectorization_benchmark(benchmark_vault):
 
     # Measure vectorized implementation (current)
     start = time.perf_counter()
-    result = context.unlinked_pairs(count=10, candidate_count=100)
+    result = context.unlinked_pairs(count=10, candidate_limit=100)
     elapsed = time.perf_counter() - start
 
     print(f"\n{'=' * 60}")
@@ -231,7 +231,7 @@ def test_phase1_integrated_benchmark(benchmark_vault):
     # Phase 2: Similarity operations (uses vectorization)
     test_note = notes[10]
     _ = registry.call("contrarian_to", context, test_note.title, count=5)
-    _ = context.unlinked_pairs(count=10, candidate_count=50)
+    _ = context.unlinked_pairs(count=10, candidate_limit=50)
 
     # Phase 3: Repeat graph operations (should hit cache)
     for note in notes[:10]:
