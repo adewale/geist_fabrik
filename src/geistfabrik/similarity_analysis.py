@@ -157,15 +157,15 @@ class SimilarityProfile:
             return False  # Need at least 2 candidates to bridge
 
         if unlinked_only:
-            # Check if any pair of high-sim candidates are unlinked
+            # Check if any pair of high-sim candidates are unlinked, using
+            # the canonical link-target resolution (path/path-no-ext/title).
             for i, note_a in enumerate(high_sim_candidates):
+                a_forms = note_a.link_target_forms()
+                a_targets = {link.target for link in note_a.links}
                 for note_b in high_sim_candidates[i + 1 :]:
-                    # Check if note_a and note_b are linked
-                    a_links = {link.target for link in note_a.links}
-                    b_links = {link.target for link in note_b.links}
-
-                    # Not linked if neither links to the other
-                    if note_b.title not in a_links and note_a.title not in b_links:
+                    b_linked = any(t in note_b.link_target_forms() for t in a_targets)
+                    a_linked = any(link.target in a_forms for link in note_b.links)
+                    if not b_linked and not a_linked:
                         return True  # Found unlinked pair
             return False
         else:

@@ -16,7 +16,7 @@ import numpy as np
 
 from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
-from .models import Link, Note
+from .models import Link, Note, link_target_forms
 from .vault import Vault
 
 logger = logging.getLogger(__name__)
@@ -568,10 +568,10 @@ class VaultContext:
 
         result: list[Note] = []
         for path, title in cursor.fetchall():
-            if path in sources or path in targets or title in targets:
+            if path in sources:
                 continue
-            # Links usually omit the extension: [[note]] targets "note.md".
-            if path.endswith(".md") and path[:-3] in targets:
+            # Canonical link-target resolution (single source of truth)
+            if link_target_forms(path, title) & targets:
                 continue
             note = self.get_note(path)
             if note is not None:
@@ -1067,16 +1067,15 @@ class VaultContext:
             List of links between the notes
         """
 
-        # Helper to check if a link target matches a note
-        def link_matches_note(link_target: str, note: Note) -> bool:
-            path_without_ext = note.path.rsplit(".", 1)[0] if "." in note.path else note.path
-            return link_target in (note.path, path_without_ext, note.title)
+        # Canonical link-target resolution (single source of truth)
+        a_forms = a.link_target_forms()
+        b_forms = b.link_target_forms()
 
         # Check a -> b
-        links_ab = [link for link in a.links if link_matches_note(link.target, b)]
+        links_ab = [link for link in a.links if link.target in b_forms]
 
         # Check b -> a
-        links_ba = [link for link in b.links if link_matches_note(link.target, a)]
+        links_ba = [link for link in b.links if link.target in a_forms]
 
         return links_ab + links_ba
 
