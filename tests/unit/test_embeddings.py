@@ -377,3 +377,59 @@ def test_semantic_cache_hit(db_with_notes, mock_embedding_computer):
     cached_embedding = session2._get_cached_semantic_embedding(note)
     assert cached_embedding is not None
     assert cached_embedding.shape == (384,)
+
+
+def test_session_embedding_retention_prunes_old_sessions(
+    db_with_notes, mock_embedding_computer, sample_notes
+):
+    """Sessions beyond the retention window have their embeddings pruned."""
+    retention = 2
+    dates = [datetime(2023, 1, day) for day in range(1, 7)]  # 6 sessions
+    for session_date in dates:
+        session = Session(
+            session_date,
+            db_with_notes,
+            computer=mock_embedding_computer,
+            embedding_retention=retention,
+        )
+        session.compute_embeddings(sample_notes)
+
+    # At most `retention` recent sessions plus the current one keep embeddings.
+    distinct = db_with_notes.execute(
+        "SELECT COUNT(DISTINCT session_id) FROM session_embeddings"
+    ).fetchone()[0]
+    assert distinct <= retention + 1
+
+    retained = {
+        row[0]
+        for row in db_with_notes.execute(
+            """
+            SELECT s.date FROM sessions s
+            WHERE EXISTS (
+                SELECT 1 FROM session_embeddings se WHERE se.session_id = s.session_id
+            )
+            """
+        ).fetchall()
+    }
+    assert "2023-01-06" in retained  # newest kept
+    assert "2023-01-01" not in retained  # oldest pruned
+
+
+def test_session_embedding_retention_zero_keeps_all(
+    db_with_notes, mock_embedding_computer, sample_notes
+):
+    """A retention of 0 disables pruning (all sessions keep embeddings)."""
+    dates = [datetime(2023, 1, day) for day in range(1, 5)]  # 4 sessions
+    for session_date in dates:
+        session = Session(
+            session_date,
+            db_with_notes,
+            computer=mock_embedding_computer,
+            embedding_retention=0,
+        )
+        session.compute_embeddings(sample_notes)
+
+    distinct = db_with_notes.execute(
+        "SELECT COUNT(DISTINCT session_id) FROM session_embeddings"
+    ).fetchone()[0]
+    assert distinct == 4

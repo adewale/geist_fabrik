@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 
 import yaml
 
+from .config import DEFAULT_SESSION_EMBEDDING_RETENTION
 from .default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,7 @@ class GeistFabrikConfig:
     date_collection: DateCollectionConfig = field(default_factory=DateCollectionConfig)
     vector_search: VectorSearchConfig = field(default_factory=VectorSearchConfig)
     clustering: ClusterConfig = field(default_factory=ClusterConfig)
+    session_embedding_retention: int = DEFAULT_SESSION_EMBEDDING_RETENTION
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.
@@ -146,6 +148,9 @@ class GeistFabrikConfig:
             date_collection=DateCollectionConfig.from_dict(date_collection_data),
             vector_search=VectorSearchConfig.from_dict(vector_search_data),
             clustering=ClusterConfig.from_dict(clustering_data),
+            session_embedding_retention=data.get(
+                "session_embedding_retention", DEFAULT_SESSION_EMBEDDING_RETENTION
+            ),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -160,6 +165,7 @@ class GeistFabrikConfig:
             "date_collection": self.date_collection.to_dict(),
             "vector_search": self.vector_search.to_dict(),
             "clustering": self.clustering.to_dict(),
+            "session_embedding_retention": self.session_embedding_retention,
         }
 
 
@@ -251,6 +257,14 @@ def generate_default_config() -> str:
     lines.append("  # backends:             # Backend-specific settings (optional)")
     lines.append("  #   sqlite_vec:")
     lines.append("  #     cache_size_mb: 100")
+    lines.append("")
+    lines.append("# Storage")
+    lines.append("# -------")
+    lines.append("# Bound database growth by pruning temporal embeddings for old sessions.")
+    lines.append(
+        f"session_embedding_retention: {DEFAULT_SESSION_EMBEDDING_RETENTION}"
+        "  # Recent sessions to keep embeddings for; 0 = keep all"
+    )
     lines.append("")
 
     return "\n".join(lines)

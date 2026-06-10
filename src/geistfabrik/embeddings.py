@@ -274,6 +274,7 @@ class Session:
         db: sqlite3.Connection,
         computer: Optional[EmbeddingComputer] = None,
         backend: str = "in-memory",
+        embedding_retention: Optional[int] = None,
     ):
         """Initialise session.
 
@@ -282,6 +283,9 @@ class Session:
             db: Database connection
             computer: EmbeddingComputer instance (for testing/injection), if None will create new
             backend: Vector search backend to use ('in-memory' or 'sqlite-vec')
+            embedding_retention: Maximum number of recent sessions to retain temporal
+                embeddings for. Sessions older than this are pruned at the start of
+                each session to bound database growth. None or <= 0 retains all.
         """
         self.date = date
         self.db = db
@@ -289,6 +293,7 @@ class Session:
         self.computer = computer if computer is not None else EmbeddingComputer()
         self._backend_type = backend
         self._backend: Optional["VectorSearchBackend"] = None
+        self.embedding_retention = embedding_retention
 
     def _get_or_create_session(self) -> int:
         """Get existing session ID or create new session.
@@ -489,6 +494,10 @@ class Session:
             logger.error(f"Database commit failed saving embeddings: {e}")
             raise
 
+        # Bound database growth by pruning embeddings for sessions that fall
+        # outside the configured retention window.
+        self._prune_old_session_embeddings()
+
         # Log cache statistics
         total = len(notes)
         cached = len(cached_notes)
@@ -498,6 +507,46 @@ class Session:
             f"Embedding cache: {cached}/{total} cached ({cache_hit_rate:.1f}% hit rate), "
             f"{computed} computed"
         )
+
+    def _prune_old_session_embeddings(self) -> None:
+        """Delete temporal embeddings for sessions outside the retention window.
+
+        Keeps the most recent ``embedding_retention`` sessions (by date) plus the
+        current session, and deletes older sessions' rows from session_embeddings
+        to bound database growth. Session metadata rows (and tiny session
+        suggestions used for novelty history) are left intact - only the bulky
+        embedding BLOBs are removed. No-op when retention is None or <= 0.
+        """
+        retention = self.embedding_retention
+        if retention is None or retention <= 0:
+            return
+
+        # Prune embeddings for every session except the `retention` most recent
+        # (ranked by date, excluding the current session so a replayed historical
+        # session is never pruned immediately after being written).
+        cursor = self.db.execute(
+            """
+            DELETE FROM session_embeddings
+            WHERE session_id IN (
+                SELECT session_id FROM sessions
+                WHERE session_id != ?
+                ORDER BY date DESC
+                LIMIT -1 OFFSET ?
+            )
+            """,
+            (self.session_id, retention),
+        )
+        pruned = cursor.rowcount
+        try:
+            self.db.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database commit failed pruning old embeddings: {e}")
+            raise
+        if pruned > 0:
+            logger.info(
+                f"Pruned {pruned} session-embedding rows beyond retention "
+                f"window ({retention} sessions)"
+            )
 
     def get_embedding(self, note_path: str) -> Optional[np.ndarray]:
         """Get embedding for a note in this session.
