@@ -61,9 +61,14 @@ def mock_sentence_transformer():
 
         embeddings = []
         for text in texts:
-            # Create deterministic embedding based on text content
-            # Use hash of text to seed random generator for reproducibility
-            seed = hash(text) % (2**32)
+            # Create deterministic embedding based on text content.
+            # NOTE: must NOT use Python's hash() here - string hashing is
+            # randomised per process (PYTHONHASHSEED), which made these mock
+            # embeddings differ between pytest runs (a latent flake source
+            # whenever a test asserted near a similarity threshold).
+            import hashlib
+
+            seed = int.from_bytes(hashlib.sha256(str(text).encode()).digest()[:4], "big")
             rng = np.random.RandomState(seed)
             embedding = rng.randn(384).astype(np.float32)
             # Normalise to unit vector (like real sentence-transformers)
