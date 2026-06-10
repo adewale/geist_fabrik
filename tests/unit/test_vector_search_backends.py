@@ -1018,3 +1018,85 @@ class TestBackendIntegration:
 
             results_vec = backend_vec.find_similar(query, k=10)
             assert results_vec == []
+
+
+class TestInMemoryFindSimilarMatrix:
+    """Edge cases for the vectorised InMemoryVectorBackend.find_similar()."""
+
+    def test_find_similar_topk_sorted_descending(self, db, sample_embeddings):
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings(sample_embeddings["session_date"])
+        query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+        results = backend.find_similar(query, k=2)
+        assert len(results) == 2
+        # note1 (identical) then note2 (0.8 cosine) are the two closest.
+        assert results[0][0] == "note1.md"
+        assert results[1][0] == "note2.md"
+        # Scores must be non-increasing.
+        assert results[0][1] >= results[1][1]
+
+    def test_find_similar_scores_non_increasing(self, db, sample_embeddings):
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings(sample_embeddings["session_date"])
+        query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+        scores = [s for _, s in backend.find_similar(query, k=10)]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_find_similar_k_exceeds_n_returns_all(self, db, sample_embeddings):
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings(sample_embeddings["session_date"])
+        query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+        results = backend.find_similar(query, k=100)
+        assert len(results) == 4  # only 4 notes exist
+
+    def test_find_similar_empty_session_returns_empty(self, db):
+        now = datetime.now().isoformat()
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", ("2099-01-01", now))
+        db.commit()
+
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings("2099-01-01")
+        assert backend._matrix is None
+        assert backend.find_similar(np.array([1.0, 0.0, 0.0], dtype=np.float32), k=5) == []
+
+    def test_find_similar_rebuilds_matrix_after_mutation(self, db, sample_embeddings):
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings(sample_embeddings["session_date"])
+        query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        assert len(backend.find_similar(query, k=10)) == 4
+
+        # Mutating the embeddings dict must invalidate the cached matrix.
+        del backend.embeddings["note4.md"]
+        results = backend.find_similar(query, k=10)
+        assert len(results) == 3
+        assert all(path != "note4.md" for path, _ in results)
+
+    def test_find_similar_stable_tie_order(self, db):
+        now = datetime.now().isoformat()
+        for path in ["a.md", "b.md"]:
+            db.execute(
+                "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (path, path.replace(".md", ""), "content", now, now, 0.0),
+            )
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", ("2025-03-01", now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", ("2025-03-01",)
+        ).fetchone()[0]
+        emb = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        for path in ["a.md", "b.md"]:
+            db.execute(
+                "INSERT INTO session_embeddings (session_id, note_path, embedding) "
+                "VALUES (?, ?, ?)",
+                (session_id, path, emb.tobytes()),
+            )
+        db.commit()
+
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings("2025-03-01")
+        results = backend.find_similar(emb, k=2)
+        # Identical embeddings -> equal similarity -> stable sort keeps insertion order.
+        assert [path for path, _ in results] == ["a.md", "b.md"]
