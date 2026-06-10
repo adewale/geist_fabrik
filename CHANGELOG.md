@@ -8,13 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Breaking Changes
+- **Pre-1.0 API consistency pass** (geist-facing `VaultContext` API). Custom
+  geists must update; bundled geists, examples, and docs are already updated.
+  - `note.obsidian_link` → **`note.link_text`** (the property returns link
+    *text* without brackets; the old name implied it included them).
+  - Result-count parameters are now uniformly **`count`** (were `k`/`limit`):
+    `vault.sample(x, k=3)` → `vault.sample(x, count=3)`; likewise `neighbours`,
+    `hubs`, `orphans`, `old_notes`, `recent_notes`, `random_notes`,
+    `unlinked_pairs`, `recent_session_ids`, `get_cluster_representatives`, and
+    the vector backends' `find_similar`/`find_similar_notes`. Descriptive
+    params (`min_size`, `min_backlinks`, `candidate_limit`, `min_per_day`) are
+    unchanged. `semantic_clusters` keeps `count` (seeds) and adds
+    `neighbour_count` (per-seed neighbours).
+  - **British spelling**: `graph_neighbors` → `graph_neighbours`,
+    `k_hop_neighborhood` → `k_hop_neighbourhood`.
+  - **`VaultContext.get_clusters()`** now returns `dict[int, Cluster]` (the
+    typed dataclass) instead of `dict[int, dict[str, Any]]`; access fields as
+    `cluster.notes`, `cluster.formatted_label`, etc.
+  - **Action required**: update custom geists. No database rebuild needed.
+- **Schema v8 — `geist_status` table** (persistent per-geist failure tracking).
+  - **What changed**: a geist is now disabled after N *consecutive* failures
+    (config `geist_max_failures`, default 3), persisted across sessions; a
+    successful run resets the count. Previously the counter was in-memory and
+    could never reach the threshold.
+  - **Action required**: none — additive migration applied automatically.
+    Re-enable a disabled geist by fixing it (next successful run resets it),
+    running `geistfabrik test <geist> <vault>`, or deleting the database.
+- **Schema v7 — `session_embeddings.cluster_label`** column added (additive
+  migration; fixes `cluster_evolution_tracker`, which queried a column that
+  never existed). No rebuild required.
 - **Virtual note title format change**: Fixed virtual note titles to exclude filename prefix
   - **What changed**: Virtual note titles now store ONLY the heading text (e.g., "2024 February 18") instead of the deeplink format (e.g., "Exercise journal#2024 February 18")
   - **Why**: The old format stored "filename#heading" in the title field, causing suggestions to display as `[[Exercise journal#Exercise journal#2024 February 18]]` (double filename prefix)
   - **Correct behaviour**:
     - `note.title` = `"2024 February 18"` (just the heading text)
-    - `note.obsidian_link` = `"Exercise journal#2024 February 18"` (property combines them)
-    - Suggestions use `[[{note.obsidian_link}]]` = `[[Exercise journal#2024 February 18]]`
+    - `note.link_text` = `"Exercise journal#2024 February 18"` (property combines them)
+    - Suggestions use `[[{note.link_text}]]` = `[[Exercise journal#2024 February 18]]`
   - **Action required**: Users with existing databases showing doubled filenames in virtual note links must rebuild:
     ```bash
     rm -rf <vault>/_geistfabrik/vault.db*
