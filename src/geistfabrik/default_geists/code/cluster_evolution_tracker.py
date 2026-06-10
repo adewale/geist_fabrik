@@ -68,7 +68,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=(
-                            f"[[{note.obsidian_link}]] migrated from "
+                            f"[[{note.link_text}]] migrated from "
                             f"'{prev_label}' cluster to '{current_label}' cluster. "
                             f"What conceptual shift occurred?"
                         ),

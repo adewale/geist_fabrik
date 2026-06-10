@@ -140,8 +140,8 @@ def test_concept_drift_suggestion_structure(vault_with_session_history):
             assert isinstance(note_ref, str)
 
 
-def test_concept_drift_uses_obsidian_link(vault_with_session_history):
-    """Test that concept_drift uses obsidian_link for note references.
+def test_concept_drift_uses_link_text(vault_with_session_history):
+    """Test that concept_drift uses link_text for note references.
 
     Setup:
         Vault with note evolution.

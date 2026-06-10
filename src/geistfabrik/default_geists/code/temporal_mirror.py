@@ -82,14 +82,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     relationship = vault.sample(relationships, k=1)[0]
 
     suggestion_text = (
-        f"From period {period1_num}, [[{note1.obsidian_link}]] {relationship} "
-        f"period {period2_num}'s [[{note2.obsidian_link}]]."
+        f"From period {period1_num}, [[{note1.link_text}]] {relationship} "
+        f"period {period2_num}'s [[{note2.link_text}]]."
     )
 
     return [
         Suggestion(
             text=suggestion_text,
-            notes=[note1.obsidian_link, note2.obsidian_link],
+            notes=[note1.link_text, note2.link_text],
             geist_id="temporal_mirror",
         )
     ]

@@ -174,8 +174,8 @@ def test_divergent_evolution_suggestion_structure(vault_with_linked_notes):
             assert isinstance(note_ref, str)
 
 
-def test_divergent_evolution_uses_obsidian_link(vault_with_linked_notes):
-    """Test that divergent_evolution uses obsidian_link for note references.
+def test_divergent_evolution_uses_link_text(vault_with_linked_notes):
+    """Test that divergent_evolution uses link_text for note references.
 
     Setup:
         Vault with diverging notes.

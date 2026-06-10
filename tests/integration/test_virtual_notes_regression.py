@@ -1,6 +1,6 @@
 """Regression tests for virtual note handling across all geists.
 
-This test suite ensures that geists properly use the Note.obsidian_link
+This test suite ensures that geists properly use the Note.link_text
 property instead of bypassing the abstraction layer by querying raw
 database fields like 'title'.
 
@@ -8,7 +8,7 @@ The bug this prevents:
 - Virtual notes from journal files have identical titles in the database
   (e.g., multiple entries for "2024-03-15" from different journal files)
 - Geists that query raw titles will show duplicates: "[[2024-03-15]], [[2024-03-15]]"
-- Geists that use obsidian_link will show deeplinks:
+- Geists that use link_text will show deeplinks:
   "[[Work Journal#2024-03-15]], [[Personal Journal#2024-03-15]]"
 
 This test runs ALL code geists against a vault with virtual notes and
@@ -36,7 +36,7 @@ def vault_with_virtual_notes(tmp_path):
     - Multiple journal files (Work Journal, Personal Journal, Research Journal)
     - Each has entries for the same dates (2024-03-15 and 2024-03-20)
     - All entries for "2024-03-15" have identical title values in the database
-    - Proper handling requires using obsidian_link to get deeplinks
+    - Proper handling requires using link_text to get deeplinks
     """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -146,13 +146,13 @@ def discover_all_code_geists():
 
 
 @pytest.mark.parametrize("geist_name,geist_module", discover_all_code_geists())
-def test_geist_uses_obsidian_link_for_virtual_notes(geist_name, geist_module, vault_context):
-    """Test that each geist properly handles virtual notes using obsidian_link.
+def test_geist_uses_link_text_for_virtual_notes(geist_name, geist_module, vault_context):
+    """Test that each geist properly handles virtual notes using link_text.
 
     This test verifies that geists don't bypass the abstraction layer by:
     1. Querying raw 'title' values from the database
     2. Failing to load Note objects
-    3. Not using the obsidian_link property
+    3. Not using the link_text property
 
     The test detects abstraction layer bypass by checking for:
     - Duplicate titles (same title appearing multiple times) when virtual notes exist
@@ -210,7 +210,7 @@ def test_geist_uses_obsidian_link_for_virtual_notes(geist_name, geist_module, va
         assert not duplicates, (
             f"{geist_name}: Found duplicate note references {duplicates}. "
             f"This suggests the geist is querying raw 'title' values from the database "
-            f"instead of using Note.obsidian_link. All references: {suggestion.notes}"
+            f"instead of using Note.link_text. All references: {suggestion.notes}"
         )
 
         # Check 2: Verify virtual notes use deeplink format (filename#heading)
@@ -221,7 +221,7 @@ def test_geist_uses_obsidian_link_for_virtual_notes(geist_name, geist_module, va
                 assert False, (
                     f"{geist_name}: Found virtual note reference '{note_ref}' without deeplink. "
                     f"Virtual notes should use deeplink format (e.g., 'Work Journal#2024-03-15') "
-                    f"via Note.obsidian_link, not raw title values. "
+                    f"via Note.link_text, not raw title values. "
                     f"All references: {suggestion.notes}"
                 )
 

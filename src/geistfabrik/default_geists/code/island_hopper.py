@@ -65,16 +65,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             bridge, sim = boundary_notes[0]
 
             cluster_sample = vault.sample(cluster, k=2)
-            cluster_names = ", ".join([f"[[{n.obsidian_link}]]" for n in cluster_sample])
+            cluster_names = ", ".join([f"[[{n.link_text}]]" for n in cluster_sample])
 
             text = (
-                f"[[{bridge.obsidian_link}]] could bridge your cluster around "
-                f"[[{hub.obsidian_link}]] (which includes {cluster_names}). It's "
+                f"[[{bridge.link_text}]] could bridge your cluster around "
+                f"[[{hub.link_text}]] (which includes {cluster_names}). It's "
                 f"semantically related but not yet connected."
             )
 
-            notes_list = [bridge.obsidian_link, hub.obsidian_link]
-            notes_list.extend([n.obsidian_link for n in cluster_sample])
+            notes_list = [bridge.link_text, hub.link_text]
+            notes_list.extend([n.link_text for n in cluster_sample])
 
             suggestions.append(
                 Suggestion(

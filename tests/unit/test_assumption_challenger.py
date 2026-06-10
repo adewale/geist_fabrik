@@ -184,15 +184,15 @@ def test_assumption_challenger_suggestion_structure(vault_with_assumptions):
             assert isinstance(note_ref, str)
 
 
-def test_assumption_challenger_uses_obsidian_link(vault_with_assumptions):
-    """Test that assumption_challenger uses obsidian_link for note references.
+def test_assumption_challenger_uses_link_text(vault_with_assumptions):
+    """Test that assumption_challenger uses link_text for note references.
 
     Setup:
         Vault with notes containing assumption indicators.
 
     Verifies:
         - Uses [[wiki-link]] format in text
-        - References use obsidian_link property"""
+        - References use link_text property"""
     vault, session = vault_with_assumptions
 
     context = VaultContext(

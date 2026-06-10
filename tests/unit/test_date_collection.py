@@ -673,11 +673,11 @@ Single date section.
     assert is_date_collection_note(content, min_sections=1)
 
 
-def test_obsidian_link_for_year_month_day_heading():
-    """Test obsidian_link format for 'YYYY Month DD' heading in Journal.md.
+def test_link_text_for_year_month_day_heading():
+    """Test link_text format for 'YYYY Month DD' heading in Journal.md.
 
     A heading like "## 2024 July 10" in "Journal.md" should generate
-    an obsidian_link of "Journal#2024 July 10" which becomes a deeplink
+    an link_text of "Journal#2024 July 10" which becomes a deeplink
     [[Journal#2024 July 10]] when used in wiki-link syntax.
 
     Reference: https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note
@@ -705,19 +705,19 @@ Reviewed pull requests.
     assert note1.title == "2024 July 10"
     assert note1.path == "Journal.md/2024-07-10"
 
-    # Critical: obsidian_link should be "Journal#2024 July 10"
-    assert note1.obsidian_link == "Journal#2024 July 10", (
-        "Virtual note obsidian_link should use deeplink format 'filename#heading' "
-        "so [[{note.obsidian_link}]] becomes [[Journal#2024 July 10]] in geist output"
+    # Critical: link_text should be "Journal#2024 July 10"
+    assert note1.link_text == "Journal#2024 July 10", (
+        "Virtual note link_text should use deeplink format 'filename#heading' "
+        "so [[{note.link_text}]] becomes [[Journal#2024 July 10]] in geist output"
     )
 
     # Second virtual note
     note2 = notes[1]
-    assert note2.obsidian_link == "Journal#2024 July 11"
+    assert note2.link_text == "Journal#2024 July 11"
 
     # Verify when used in wiki-link format
-    wiki_link1 = f"[[{note1.obsidian_link}]]"
-    wiki_link2 = f"[[{note2.obsidian_link}]]"
+    wiki_link1 = f"[[{note1.link_text}]]"
+    wiki_link2 = f"[[{note2.link_text}]]"
 
     assert wiki_link1 == "[[Journal#2024 July 10]]"
     assert wiki_link2 == "[[Journal#2024 July 11]]"

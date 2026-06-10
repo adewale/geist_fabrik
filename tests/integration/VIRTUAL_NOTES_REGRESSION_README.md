@@ -26,11 +26,11 @@ Research Journal.md/2024-03-15   → title: "2024-03-15"
 
 ### The Correct Abstraction
 
-The `Note.obsidian_link` property handles this complexity:
+The `Note.link_text` property handles this complexity:
 
 ```python
 @property
-def obsidian_link(self) -> str:
+def link_text(self) -> str:
     if self.is_virtual and self.source_file:
         # Returns deeplink: "Work Journal#2024-03-15"
         filename = self.source_file.replace(".md", "")
@@ -42,7 +42,7 @@ def obsidian_link(self) -> str:
 
 ### The Bug Pattern: Abstraction Layer Bypass
 
-Geists that query raw database fields instead of using `Note.obsidian_link` will show duplicate titles:
+Geists that query raw database fields instead of using `Note.link_text` will show duplicate titles:
 
 ```python
 # ❌ WRONG: Bypasses abstraction, shows duplicates
@@ -52,15 +52,15 @@ cursor = vault.db.execute("""
 """)
 # Results in: ["2024-03-15", "2024-03-15", "2024-03-15"]
 
-# ✅ CORRECT: Uses Note.obsidian_link
+# ✅ CORRECT: Uses Note.link_text
 notes = [vault.get_note(path) for path in paths]
-links = [note.obsidian_link for note in notes]
+links = [note.link_text for note in notes]
 # Results in: ["Work Journal#2024-03-15", "Personal Journal#2024-03-15", "Research Journal#2024-03-15"]
 ```
 
 ## What The Tests Check
 
-### 1. `test_geist_uses_obsidian_link_for_virtual_notes` (Parametrized)
+### 1. `test_geist_uses_link_text_for_virtual_notes` (Parametrized)
 
 Runs **all current and future code geists** against a vault with virtual notes and verifies:
 
@@ -87,7 +87,7 @@ The test vault contains:
 - Each with entries for the same dates (2024-03-15, 2024-03-20)
 - This creates 6 virtual notes with duplicate titles
 
-If a geist bypasses `obsidian_link`:
+If a geist bypasses `link_text`:
 1. **Duplicate detection**: Same title appears multiple times in `suggestion.notes`
 2. **Missing deeplink detection**: Note reference matches virtual title exactly without `#`
 3. **Text analysis**: Suggestion text contains `[[2024-03-15]]` without deeplink format
@@ -99,7 +99,7 @@ If a geist bypasses `obsidian_link`:
 uv run pytest tests/integration/test_virtual_notes_regression.py -v
 
 # Run for specific geist
-uv run pytest tests/integration/test_virtual_notes_regression.py::test_geist_uses_obsidian_link_for_virtual_notes[creation_burst] -v
+uv run pytest tests/integration/test_virtual_notes_regression.py::test_geist_uses_link_text_for_virtual_notes[creation_burst] -v
 
 # Run just the creation_burst regression test
 uv run pytest tests/integration/test_virtual_notes_regression.py::test_regression_creation_burst_specific -v
@@ -133,10 +133,10 @@ Instead of:
 On 2023-05-21, you created 5 notes: [[Work Journal#2023 May 21]], [[Personal Journal#2023 May 21]]...
 ```
 
-The root cause was querying `GROUP_CONCAT(title, '|')` from the database instead of loading Note objects and using `obsidian_link`.
+The root cause was querying `GROUP_CONCAT(title, '|')` from the database instead of loading Note objects and using `link_text`.
 
 ## Related Files
 
 - **Fixed geist**: `src/geistfabrik/default_geists/code/creation_burst.py`
-- **Note model**: `src/geistfabrik/models.py` (defines `Note.obsidian_link`)
+- **Note model**: `src/geistfabrik/models.py` (defines `Note.link_text`)
 - **Original bug test**: `tests/unit/test_creation_burst.py::test_creation_burst_virtual_notes_use_deeplinks`

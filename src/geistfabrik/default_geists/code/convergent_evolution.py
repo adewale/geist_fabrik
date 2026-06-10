@@ -61,8 +61,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         text = (
-            f"[[{note_a.obsidian_link}]] and "
-            f"[[{note_b.obsidian_link}]] have been converging "
+            f"[[{note_a.link_text}]] and "
+            f"[[{note_b.link_text}]] have been converging "
             f"semantically across your last {session_count} sessions. "
             f"Two ideas independently developing in the same direction—"
             f"time to link them?"
@@ -71,7 +71,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note_a.obsidian_link, note_b.obsidian_link],
+                notes=[note_a.link_text, note_b.link_text],
                 geist_id="convergent_evolution",
             )
         )

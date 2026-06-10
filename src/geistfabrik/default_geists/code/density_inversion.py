@@ -56,10 +56,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Case 1: Dense links, sparse meaning (tightly linked but semantically scattered)
         if graph_density > 0.6 and semantic_density < 0.3:
             neighbour_sample = vault.sample(graph_neighbours, k=3)
-            neighbour_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbour_sample])
+            neighbour_names = ", ".join([f"[[{n.link_text}]]" for n in neighbour_sample])
 
             text = (
-                f"[[{note.obsidian_link}]]'s neighbours ({neighbour_names}) are tightly "
+                f"[[{note.link_text}]]'s neighbours ({neighbour_names}) are tightly "
                 f"linked to each other but semantically scattered. Is there a coherent "
                 f"topic here, or is this just organizational linking?"
             )
@@ -67,7 +67,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link] + [n.obsidian_link for n in neighbour_sample],
+                    notes=[note.link_text] + [n.link_text for n in neighbour_sample],
                     geist_id="density_inversion",
                 )
             )
@@ -75,10 +75,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Case 2: Sparse links, dense meaning (semantically similar but not linked)
         elif graph_density < 0.3 and semantic_density > 0.6:
             neighbour_sample = vault.sample(graph_neighbours, k=3)
-            neighbour_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbour_sample])
+            neighbour_names = ", ".join([f"[[{n.link_text}]]" for n in neighbour_sample])
 
             text = (
-                f"[[{note.obsidian_link}]]'s neighbours ({neighbour_names}) are "
+                f"[[{note.link_text}]]'s neighbours ({neighbour_names}) are "
                 f"semantically similar but aren't linked to each other. "
                 f"Missing connections in a coherent cluster?"
             )
@@ -86,7 +86,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link] + [n.obsidian_link for n in neighbour_sample],
+                    notes=[note.link_text] + [n.link_text for n in neighbour_sample],
                     geist_id="density_inversion",
                 )
             )

@@ -149,8 +149,8 @@ def test_scale_shifter_suggestion_structure(vault_with_scale_variety):
             assert isinstance(note_ref, str)
 
 
-def test_scale_shifter_uses_obsidian_link(vault_with_scale_variety):
-    """Test that scale_shifter uses obsidian_link for note references.
+def test_scale_shifter_uses_link_text(vault_with_scale_variety):
+    """Test that scale_shifter uses link_text for note references.
 
     Setup:
         Vault with scale variations.

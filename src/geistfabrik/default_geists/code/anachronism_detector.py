@@ -71,15 +71,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 years_apart = recent_note.created.year - old_note.created.year
 
                 text = (
-                    f"[[{recent_note.obsidian_link}]] (written recently) semantically resembles "
-                    f"[[{old_note.obsidian_link}]] from {years_apart} years ago more than it "
+                    f"[[{recent_note.link_text}]] (written recently) semantically resembles "
+                    f"[[{old_note.link_text}]] from {years_apart} years ago more than it "
                     f"resembles your current thinking. Circling back to old ideas?"
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[recent_note.obsidian_link, old_note.obsidian_link],
+                        notes=[recent_note.link_text, old_note.link_text],
                         geist_id="anachronism_detector",
                     )
                 )
@@ -100,15 +100,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 years_apart = recent_note.created.year - old_note.created.year
 
                 text = (
-                    f"[[{old_note.obsidian_link}]] from {years_apart} years ago feels "
+                    f"[[{old_note.link_text}]] from {years_apart} years ago feels "
                     f"remarkably contemporary—it's very similar to your recent "
-                    f"[[{recent_note.obsidian_link}]]. Some ideas are timeless?"
+                    f"[[{recent_note.link_text}]]. Some ideas are timeless?"
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[old_note.obsidian_link, recent_note.obsidian_link],
+                        notes=[old_note.link_text, recent_note.link_text],
                         geist_id="anachronism_detector",
                     )
                 )

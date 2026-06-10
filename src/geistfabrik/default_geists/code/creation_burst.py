@@ -43,7 +43,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Get obsidian link text for each note (handles both regular and virtual notes)
-    note_links = [note.obsidian_link for note in notes]
+    note_links = [note.link_text for note in notes]
 
     # Limit to showing first 8 notes to avoid overwhelming output
     display_links = note_links[:8]

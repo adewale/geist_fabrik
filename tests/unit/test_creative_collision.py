@@ -156,8 +156,8 @@ def test_creative_collision_suggestion_structure(vault_with_diverse_notes):
             assert isinstance(note_ref, str)
 
 
-def test_creative_collision_uses_obsidian_link(vault_with_diverse_notes):
-    """Test that creative_collision uses obsidian_link for note references.
+def test_creative_collision_uses_link_text(vault_with_diverse_notes):
+    """Test that creative_collision uses link_text for note references.
 
     Setup:
         Vault with cross-domain notes.

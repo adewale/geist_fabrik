@@ -68,16 +68,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 if best_neighbour and best_similarity > 0.5:
                     text = (
-                        f"[[{note.obsidian_link}]] shows accelerating drift "
+                        f"[[{note.link_text}]] shows accelerating drift "
                         f"(velocity: {initial_rate:.2f} → {final_rate:.2f}). "
-                        f"Rapidly evolving toward [[{best_neighbour.obsidian_link}]]—"
+                        f"Rapidly evolving toward [[{best_neighbour.link_text}]]—"
                         f"conceptual breakthrough?"
                     )
 
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[note.obsidian_link, best_neighbour.obsidian_link],
+                            notes=[note.link_text, best_neighbour.link_text],
                             geist_id="drift_velocity_anomaly",
                         )
                     )

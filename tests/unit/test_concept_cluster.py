@@ -145,8 +145,8 @@ def test_concept_cluster_suggestion_structure(vault_with_concept_clusters):
             assert isinstance(note_ref, str)
 
 
-def test_concept_cluster_uses_obsidian_link(vault_with_concept_clusters):
-    """Test that concept_cluster uses obsidian_link for note references.
+def test_concept_cluster_uses_link_text(vault_with_concept_clusters):
+    """Test that concept_cluster uses link_text for note references.
 
     Setup:
         Vault with note clusters.

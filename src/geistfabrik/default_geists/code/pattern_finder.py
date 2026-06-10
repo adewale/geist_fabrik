@@ -75,7 +75,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if len(unlinked_group) >= 3:
                 sample = vault.sample(unlinked_group, k=3)
-                note_names = ", ".join([f"[[{n.obsidian_link}]]" for n in sample])
+                note_names = ", ".join([f"[[{n.link_text}]]" for n in sample])
 
                 text = (
                     f'The phrase "{phrase}" appears in multiple unconnected notes: {note_names}. '
@@ -85,7 +85,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[n.obsidian_link for n in sample],
+                        notes=[n.link_text for n in sample],
                         geist_id="pattern_finder",
                     )
                 )
@@ -134,7 +134,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if link_count == 0:  # No internal links
             sample = vault.sample(cluster, k=3)
-            note_names = ", ".join([f"[[{n.obsidian_link}]]" for n in sample])
+            note_names = ", ".join([f"[[{n.link_text}]]" for n in sample])
 
             text = (
                 f"Found a semantic cluster of similar notes with no links between them: "
@@ -144,7 +144,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[n.obsidian_link for n in sample],
+                    notes=[n.link_text for n in sample],
                     geist_id="pattern_finder",
                 )
             )

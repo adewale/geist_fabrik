@@ -87,15 +87,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             antithesis = vault.sample(antithesis_candidates, k=1)[0]
 
             text = (
-                f"[[{note.obsidian_link}]] makes strong claims. "
-                f"[[{antithesis.obsidian_link}]] seems to challenge it—what if you "
+                f"[[{note.link_text}]] makes strong claims. "
+                f"[[{antithesis.link_text}]] seems to challenge it—what if you "
                 f"developed this into a full dialectical pair? Thesis vs. antithesis?"
             )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link, antithesis.obsidian_link],
+                    notes=[note.link_text, antithesis.link_text],
                     geist_id="antithesis_generator",
                 )
             )
@@ -103,7 +103,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         else:
             # Suggest creating an antithesis
             text = (
-                f"[[{note.obsidian_link}]] makes strong claims. "
+                f"[[{note.link_text}]] makes strong claims. "
                 f"What if you wrote its antithesis—a note that systematically "
                 f"challenges each claim? What would the opposite perspective argue?"
             )
@@ -117,7 +117,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="antithesis_generator",
                     title=antithesis_title,
                 )
@@ -147,7 +147,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 if note_positive >= 2 and other_negative >= 2:
                     # Potential thesis/antithesis pair - suggest synthesis
                     text = (
-                        f"[[{note.obsidian_link}]] and [[{other.obsidian_link}]] seem "
+                        f"[[{note.link_text}]] and [[{other.link_text}]] seem "
                         f"dialectically opposed. What would their synthesis be? What "
                         f"higher-level perspective reconciles them?"
                     )
@@ -157,7 +157,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[note.obsidian_link, other.obsidian_link],
+                            notes=[note.link_text, other.link_text],
                             geist_id="antithesis_generator",
                             title=synthesis_title,
                         )

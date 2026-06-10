@@ -114,7 +114,7 @@ class FunctionRegistry:
             """
             notes = vault.notes()
             sampled = vault.sample(notes, k)
-            return [f"[[{note.obsidian_link}]]" for note in sampled]
+            return [f"[[{note.link_text}]]" for note in sampled]
 
         @vault_function("old_notes")
         def old_notes(vault: "VaultContext", k: int = 5) -> list[str]:
@@ -124,7 +124,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.old_notes(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("recent_notes")
         def recent_notes(vault: "VaultContext", k: int = 5) -> list[str]:
@@ -134,7 +134,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.recent_notes(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("random_note_title")
         def random_note_title(vault: "VaultContext") -> str:
@@ -149,7 +149,7 @@ class FunctionRegistry:
             if not notes:
                 return ""
             sampled = vault.sample(notes, 1)
-            return f"[[{sampled[0].obsidian_link}]]" if sampled else ""
+            return f"[[{sampled[0].link_text}]]" if sampled else ""
 
         @vault_function("orphans")
         def orphans(vault: "VaultContext", k: int = 5) -> list[str]:
@@ -159,7 +159,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.orphans(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("hubs")
         def hubs(vault: "VaultContext", k: int = 5) -> list[str]:
@@ -169,7 +169,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.hubs(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("neighbours")
         def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> list[str]:
@@ -193,7 +193,7 @@ class FunctionRegistry:
             neighbour_notes = vault.neighbours(note, k)
 
             # Convert Note → string for Tracery
-            return [f"[[{n.obsidian_link}]]" for n in neighbour_notes]
+            return [f"[[{n.link_text}]]" for n in neighbour_notes]
 
         @vault_function("contrarian_to")
         def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> list[str]:
@@ -258,7 +258,7 @@ class FunctionRegistry:
             least_similar_indices = np.argsort(similarities)[:k]
 
             # Return bracketed obsidian links
-            return [f"[[{candidate_notes[i].obsidian_link}]]" for i in least_similar_indices]
+            return [f"[[{candidate_notes[i].link_text}]]" for i in least_similar_indices]
 
         @vault_function("semantic_clusters")
         def semantic_clusters(vault: "VaultContext", count: int = 2, k: int = 3) -> list[str]:
@@ -301,7 +301,7 @@ class FunctionRegistry:
 
                 if neighbour_notes:
                     # Format neighbours as bracketed Obsidian links
-                    neighbour_links = [f"[[{n.obsidian_link}]]" for n in neighbour_notes]
+                    neighbour_links = [f"[[{n.link_text}]]" for n in neighbour_notes]
                     if len(neighbour_links) == 1:
                         neighbours_str = neighbour_links[0]
                     elif len(neighbour_links) == 2:
@@ -315,7 +315,7 @@ class FunctionRegistry:
 
                 # Format as "SEED|||NEIGHBOURS" for Tracery extraction
                 # Add brackets to seed as well for consistency
-                formatted = f"[[{seed_note.obsidian_link}]]|||{neighbours_str}"
+                formatted = f"[[{seed_note.link_text}]]|||{neighbours_str}"
                 results.append(formatted)
 
             return results

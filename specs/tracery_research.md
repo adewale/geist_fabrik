@@ -354,7 +354,7 @@ Vault functions must return **lists of strings** containing bracketed wikilinks:
 def sample_notes(vault: VaultContext, k: int) -> List[str]:
     """Sample k random notes, return as bracketed wikilinks"""
     notes = vault.sample(k)
-    return [f"[[{note.obsidian_link}]]" for note in notes]  # Returns "[[Note Title]]"
+    return [f"[[{note.link_text}]]" for note in notes]  # Returns "[[Note Title]]"
 ```
 
 **Edge Cases**:
@@ -362,7 +362,7 @@ def sample_notes(vault: VaultContext, k: int) -> List[str]:
 - **Fewer than requested**: `$vault.orphans(10)` with only 3 orphans → Returns `["[[Orphan 1]]", "[[Orphan 2]]", "[[Orphan 3]]"]`
 - **Single result**: Still wrapped in list → `["[[Only Note]]"]`
 
-**Note**: The `obsidian_link` property returns link text. Vault functions wrap this in brackets before returning:
+**Note**: The `link_text` property returns link text. Vault functions wrap this in brackets before returning:
 ```yaml
 # Correct: Template uses function result as-is
 origin: "Check out #note#"
@@ -591,7 +591,7 @@ def complex_notes(vault: VaultContext, k: int) -> List[str]:
     sorted_notes = sorted(notes_with_meta,
                           key=lambda x: x[1] or 0,
                           reverse=True)
-    return [note.obsidian_link for note, _ in sorted_notes[:k]]
+    return [note.link_text for note, _ in sorted_notes[:k]]
 ```
 
 ```yaml
@@ -683,7 +683,7 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 
         if neighbor_notes:
             # Add brackets (consistent with all vault functions)
-            neighbor_links = [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
+            neighbor_links = [f"[[{n.link_text}]]" for n in neighbor_notes]
 
             # Format like Tracery does (with commas and "and")
             if len(neighbor_links) == 1:
@@ -697,7 +697,7 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
             neighbors_str = ""
 
         # Seed also gets brackets (consistent with all vault functions)
-        formatted = f"[[{seed_note.obsidian_link}]]|||{neighbors_str}"
+        formatted = f"[[{seed_note.link_text}]]|||{neighbors_str}"
         results.append(formatted)
 
     return results
@@ -787,7 +787,7 @@ def example_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[st
 
         if related_items:
             # Add [[...]] brackets (standard pattern for all vault functions)
-            related_links = [f"[[{item.obsidian_link}]]" for item in related_items]
+            related_links = [f"[[{item.link_text}]]" for item in related_items]
 
             # Format with commas and "and" (match Tracery style)
             if len(related_links) == 1:
@@ -801,7 +801,7 @@ def example_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[st
             related_str = ""
 
         # Add [[...]] brackets to seed (standard pattern for all vault functions)
-        formatted = f"[[{seed_item.obsidian_link}]]|||{related_str}"
+        formatted = f"[[{seed_item.link_text}]]|||{related_str}"
         results.append(formatted)
 
     return results
@@ -1192,7 +1192,7 @@ def old_notes_with_age(vault: VaultContext, k: int = 1) -> List[str]:
         else:
             age_str = f"{days // 365} years ago"
         # Bundle note and age using delimiter
-        results.append(f"{note.obsidian_link}|||{age_str}")
+        results.append(f"{note.link_text}|||{age_str}")
     return results
 ```
 

@@ -45,10 +45,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # Sample some neighbours to mention (extract notes from tuples)
             neighbour_notes = [n for n, sim in neighbours_with_scores[:10]]
             neighbour_sample = vault.sample(neighbour_notes, k=3)
-            neighbour_names = ", ".join([f"[[{n.obsidian_link}]]" for n in neighbour_sample])
+            neighbour_names = ", ".join([f"[[{n.link_text}]]" for n in neighbour_sample])
 
             text = (
-                f"[[{note.obsidian_link}]] is semantically related to "
+                f"[[{note.link_text}]] is semantically related to "
                 f"{high_similarity_count} notes (including {neighbour_names}) but only "
                 f"has {total_links} links. Hidden hub? Maybe it's a concept that "
                 f"connects things implicitly."
@@ -57,7 +57,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link] + [n.obsidian_link for n in neighbour_sample],
+                    notes=[note.link_text] + [n.link_text for n in neighbour_sample],
                     geist_id="hidden_hub",
                 )
             )

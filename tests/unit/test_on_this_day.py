@@ -129,8 +129,8 @@ def test_on_this_day_suggestion_structure(vault_with_anniversary_notes):
         assert isinstance(suggestion.notes[0], str)
 
 
-def test_on_this_day_uses_obsidian_link(vault_with_anniversary_notes):
-    """Test that on_this_day uses obsidian_link for note references.
+def test_on_this_day_uses_link_text(vault_with_anniversary_notes):
+    """Test that on_this_day uses link_text for note references.
 
     Setup:
         Vault with dated notes.

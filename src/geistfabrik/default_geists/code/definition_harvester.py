@@ -66,14 +66,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         definition_clean = " ".join(definition.split())
 
         text = (
-            f'From [[{note.obsidian_link}]]: "{definition_clean}" '
+            f'From [[{note.link_text}]]: "{definition_clean}" '
             f"What if you explored this definition further?"
         )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.obsidian_link],
+                notes=[note.link_text],
                 geist_id="definition_harvester",
             )
         )

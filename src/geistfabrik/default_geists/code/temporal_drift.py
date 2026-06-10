@@ -34,7 +34,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if staleness > 0.7 and link_count >= 3:
             days = metadata.get("days_since_modified", 0)
             text = (
-                f"What if [[{note.obsidian_link}]] needs updating? "
+                f"What if [[{note.link_text}]] needs updating? "
                 f"It's been {days} days since you modified it, "
                 f"but it has {link_count} links - might your thinking have evolved?"
             )
@@ -42,7 +42,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="temporal_drift",
                 )
             )

@@ -68,14 +68,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             distance_phrase = f"the shortest link path between them is {hops} hops long"
 
         text = (
-            f"[[{seed.obsidian_link}]] and [[{other.obsidian_link}]] sit one "
+            f"[[{seed.link_text}]] and [[{other.link_text}]] sit one "
             f"step apart in meaning, but {distance_phrase}. What is the "
             f"missing direct link you have never written down?"
         )
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[seed.obsidian_link, other.obsidian_link],
+                notes=[seed.link_text, other.link_text],
                 geist_id="path_length_anomaly",
             )
         )

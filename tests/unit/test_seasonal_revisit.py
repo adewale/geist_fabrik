@@ -167,8 +167,8 @@ def test_seasonal_revisit_suggestion_structure(vault_with_past_seasonal_notes):
             assert isinstance(note_ref, str)
 
 
-def test_seasonal_revisit_uses_obsidian_link(vault_with_past_seasonal_notes):
-    """Test that seasonal_revisit uses obsidian_link for note references.
+def test_seasonal_revisit_uses_link_text(vault_with_past_seasonal_notes):
+    """Test that seasonal_revisit uses link_text for note references.
 
     Setup:
         Vault with seasonal notes.

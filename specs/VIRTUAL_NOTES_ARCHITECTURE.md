@@ -2,7 +2,7 @@
 
 ## The Missing Abstraction
 
-During development, we discovered a fundamental design issue: **conflating title (what a note is called) with obsidian_link (how to reference it in Obsidian)**.
+During development, we discovered a fundamental design issue: **conflating title (what a note is called) with link_text (how to reference it in Obsidian)**.
 
 ### The Problem
 
@@ -21,7 +21,7 @@ Separate title from link syntax via a property:
 
 ```python
 @property
-def obsidian_link(self) -> str:
+def link_text(self) -> str:
     """Return the Obsidian wiki-link string for this note."""
     if self.is_virtual and self.source_file:
         filename = self.source_file.replace(".md", "")
@@ -33,26 +33,26 @@ def obsidian_link(self) -> str:
 **Regular notes:**
 - path: `"Project Ideas.md"`
 - title: `"Project Ideas"`
-- obsidian_link: `"Project Ideas"` (same as title)
+- link_text: `"Project Ideas"` (same as title)
 
 **Virtual notes:**
 - path: `"Journal.md/2025-01-15"` (internal identifier with ISO date)
 - title: `"2025-01-15"` (or `"January 15, 2025"` - original heading text)
-- obsidian_link: `"Journal#2025-01-15"` (deeplink format)
+- link_text: `"Journal#2025-01-15"` (deeplink format)
 - source_file: `"Journal.md"`
 - entry_date: `date(2025, 1, 15)`
 
 ### Geist Usage
 
-Geists use `note.obsidian_link` uniformly:
+Geists use `note.link_text` uniformly:
 
 ```python
 # Works for both regular and virtual notes
 def suggest(vault: VaultContext) -> List[Suggestion]:
     note = vault.sample_notes(1)[0]
     return [Suggestion(
-        text=f"Consider linking [[{note.obsidian_link}]] to your current work.",
-        notes=[note.obsidian_link],
+        text=f"Consider linking [[{note.link_text}]] to your current work.",
+        notes=[note.link_text],
         geist_id="example"
     )]
 ```
@@ -63,7 +63,7 @@ No conditional logic. No awareness of virtual vs regular notes.
 
 ### Infrastructure Layer (Should Know)
 
-1. **`Note.obsidian_link` property** (`models.py`)
+1. **`Note.link_text` property** (`models.py`)
    - Encapsulates deeplink construction logic
    - Only place that combines source_file + title for virtual notes
 
@@ -82,7 +82,7 @@ No conditional logic. No awareness of virtual vs regular notes.
 
 ### Application Layer (Should NOT Know)
 
-✅ **All 47 default geists** - Use `note.obsidian_link`, don't check `is_virtual`
+✅ **All 47 default geists** - Use `note.link_text`, don't check `is_virtual`
 ✅ **VaultContext** - No virtual-note-specific methods or logic
 ✅ **Filtering pipeline** - Operates on Suggestions, not notes directly
 ✅ **Session output** - Just writes suggestions with links as-is
@@ -95,9 +95,9 @@ The title field is **what the note is called**, not how to link to it:
 - Regular note: `"Project Ideas"` (from heading or filename)
 - Virtual note: `"2025-01-15"` or `"January 15, 2025"` (from heading text)
 
-### 2. obsidian_link Encapsulates Linking Logic
+### 2. link_text Encapsulates Linking Logic
 
-The `obsidian_link` property knows **how to reference this note in Obsidian**:
+The `link_text` property knows **how to reference this note in Obsidian**:
 - Regular note: Same as title
 - Virtual note: Constructs deeplink from source_file + title
 
@@ -174,12 +174,12 @@ Virtual notes are tested at multiple levels:
 
 3. **Property tests** (via test cases)
    - Virtual notes have `is_virtual=True`
-   - Virtual notes have `obsidian_link != title`
-   - Regular notes have `obsidian_link == title`
+   - Virtual notes have `link_text != title`
+   - Regular notes have `link_text == title`
 
 ## Migration Notes
 
-### From Title-Based Links to obsidian_link
+### From Title-Based Links to link_text
 
 If you have existing geists that use `note.title`:
 
@@ -188,7 +188,7 @@ If you have existing geists that use `note.title`:
 suggestion = f"Link to [[{note.title}]]"
 
 # New pattern - CORRECT for all notes
-suggestion = f"Link to [[{note.obsidian_link}]]"
+suggestion = f"Link to [[{note.link_text}]]"
 ```
 
 ### Accessing Note Names
@@ -199,8 +199,8 @@ If you need the human-readable name (not for linking):
 # For display/logging - use title
 print(f"Processing note: {note.title}")
 
-# For Obsidian links - use obsidian_link
-text = f"Consider [[{note.obsidian_link}]]"
+# For Obsidian links - use link_text
+text = f"Consider [[{note.link_text}]]"
 ```
 
 ## Future Considerations
@@ -213,7 +213,7 @@ The property pattern allows adding new formats:
 @property
 def obsidian_embed(self) -> str:
     """Return the embed syntax for this note."""
-    return f"![[{self.obsidian_link}]]"
+    return f"![[{self.link_text}]]"
 
 @property
 def markdown_link(self) -> str:
@@ -226,19 +226,19 @@ def markdown_link(self) -> str:
 
 ### What If Obsidian Changes Link Syntax?
 
-Only the `obsidian_link` property needs updating. All geists continue to work.
+Only the `link_text` property needs updating. All geists continue to work.
 
 ### What About Other Virtual Note Types?
 
 The pattern generalizes. If we add "virtual notes from sections" or "virtual notes from blocks":
 
 1. Add appropriate fields to Note dataclass
-2. Update `obsidian_link` property to handle new types
+2. Update `link_text` property to handle new types
 3. Geists remain unchanged
 
 ## Summary
 
-The `obsidian_link` property is the key abstraction that:
+The `link_text` property is the key abstraction that:
 - Separates concerns (naming vs linking)
 - Encapsulates virtual note complexity
 - Keeps geists simple and maintainable

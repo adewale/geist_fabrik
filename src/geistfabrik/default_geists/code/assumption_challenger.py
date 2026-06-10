@@ -84,8 +84,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 if contrast_count >= 2:
                     # High assumptions in one note, high uncertainty in similar note
                     text = (
-                        f"[[{note.obsidian_link}]] makes claims that seem certain, but "
-                        f"[[{other.obsidian_link}]] (semantically similar) expresses "
+                        f"[[{note.link_text}]] makes claims that seem certain, but "
+                        f"[[{other.link_text}]] (semantically similar) expresses "
                         f"uncertainty about related topics. What assumptions underlie the "
                         f"certainty?"
                     )
@@ -93,7 +93,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[note.obsidian_link, other.obsidian_link],
+                            notes=[note.link_text, other.link_text],
                             geist_id="assumption_challenger",
                         )
                     )
@@ -117,7 +117,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if causal_count >= 3 and len(note.links) < 2:
             # Makes causal claims but doesn't link to supporting evidence
             text = (
-                f"[[{note.obsidian_link}]] makes causal claims but has few links to "
+                f"[[{note.link_text}]] makes causal claims but has few links to "
                 f"supporting notes. What evidence or reasoning supports these "
                 f"cause-effect relationships?"
             )
@@ -125,7 +125,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="assumption_challenger",
                 )
             )

@@ -133,7 +133,7 @@ class SuggestionFilter:
 
         # Build the set of every valid way a suggestion may reference a note:
         # its path, its title, and - for virtual journal entries - the
-        # "filename#heading" deeplink form produced by Note.obsidian_link.
+        # "filename#heading" deeplink form produced by Note.link_text.
         # Without the deeplink form, suggestions from journal-aware geists
         # (on_this_day, seasonal_revisit, ...) would be silently dropped here.
         cursor = self.db.execute("SELECT path, title, is_virtual, source_file FROM notes")

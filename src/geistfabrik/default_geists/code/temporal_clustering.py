@@ -88,8 +88,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             sample1 = vault.sample(cluster1_notes, k=3)
             sample2 = vault.sample(cluster2_notes, k=3)
 
-            names1 = ", ".join([f"[[{n.obsidian_link}]]" for n in sample1])
-            names2 = ", ".join([f"[[{n.obsidian_link}]]" for n in sample2])
+            names1 = ", ".join([f"[[{n.link_text}]]" for n in sample1])
+            names2 = ", ".join([f"[[{n.link_text}]]" for n in sample2])
 
             text = (
                 f"Your {cluster1_label} notes form a distinct semantic cluster "
@@ -100,7 +100,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[n.obsidian_link for n in sample1 + sample2],
+                    notes=[n.link_text for n in sample1 + sample2],
                     geist_id="temporal_clustering",
                 )
             )

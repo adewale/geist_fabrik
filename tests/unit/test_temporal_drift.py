@@ -123,7 +123,7 @@ def test_temporal_drift_returns_suggestions(vault_with_stale_notes):
     # BEHAVIORAL: Verify suggested notes meet staleness threshold (>0.7 from line 32)
     for suggestion in suggestions:
         note_ref = suggestion.notes[0]
-        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+        note = next((n for n in vault.all_notes() if n.link_text == note_ref), None)
 
         if note:
             metadata = context.metadata(note)
@@ -180,7 +180,7 @@ def test_temporal_drift_suggestion_structure(vault_with_stale_notes):
 
         # BEHAVIORAL: Verify link_count threshold (>=3 from line 32)
         note_ref = suggestion.notes[0]
-        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+        note = next((n for n in vault.all_notes() if n.link_text == note_ref), None)
 
         if note:
             metadata = context.metadata(note)
@@ -192,8 +192,8 @@ def test_temporal_drift_suggestion_structure(vault_with_stale_notes):
             )
 
 
-def test_temporal_drift_uses_obsidian_link(vault_with_stale_notes):
-    """Test that temporal_drift uses obsidian_link for note references.
+def test_temporal_drift_uses_link_text(vault_with_stale_notes):
+    """Test that temporal_drift uses link_text for note references.
 
     Setup:
         Vault with stale notes.
@@ -255,7 +255,7 @@ def test_temporal_drift_mentions_days_and_links(vault_with_stale_notes):
         import re
 
         note_ref = suggestion.notes[0]
-        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+        note = next((n for n in vault.all_notes() if n.link_text == note_ref), None)
 
         if note:
             metadata = context.metadata(note)
@@ -555,7 +555,7 @@ def test_temporal_drift_uses_metadata(vault_with_stale_notes):
 
         # BEHAVIORAL: Verify both thresholds are met (staleness >0.7 AND link_count >=3)
         note_ref = suggestion.notes[0]
-        note = next((n for n in vault.all_notes() if n.obsidian_link == note_ref), None)
+        note = next((n for n in vault.all_notes() if n.link_text == note_ref), None)
 
         if note:
             metadata = context.metadata(note)

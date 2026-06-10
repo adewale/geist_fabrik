@@ -142,8 +142,8 @@ def _recurring_month_themes(vault: "VaultContext", notes: list["Note"]) -> list[
 
         text = (
             f"You consistently write about similar themes in {month_name}—"
-            f"[[{note1.obsidian_link}]] ({year1}) and "
-            f"[[{note2.obsidian_link}]] ({year2}) are semantically similar "
+            f"[[{note1.link_text}]] ({year1}) and "
+            f"[[{note2.link_text}]] ({year2}) are semantically similar "
             f"despite being {abs(year2 - year1)} years apart. Seasonal "
             f"thinking rhythm?"
         )
@@ -151,7 +151,7 @@ def _recurring_month_themes(vault: "VaultContext", notes: list["Note"]) -> list[
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note1.obsidian_link, note2.obsidian_link],
+                notes=[note1.link_text, note2.link_text],
                 geist_id="seasonal_patterns",
             )
         )
@@ -189,7 +189,7 @@ def _seasonal_tag_concentration(vault: "VaultContext", notes: list["Note"]) -> l
 
                 if season_ratio > 0.6:  # 60% of this tag appears in one season
                     sample_notes = vault.sample([n for n in season_notes if tag in n.tags], k=3)
-                    note_names = ", ".join([f"[[{n.obsidian_link}]]" for n in sample_notes])
+                    note_names = ", ".join([f"[[{n.link_text}]]" for n in sample_notes])
 
                     text = (
                         f"You write about #{tag} predominantly in {season.lower()} "
@@ -200,7 +200,7 @@ def _seasonal_tag_concentration(vault: "VaultContext", notes: list["Note"]) -> l
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[n.obsidian_link for n in sample_notes],
+                            notes=[n.link_text for n in sample_notes],
                             geist_id="seasonal_patterns",
                         )
                     )

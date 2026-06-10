@@ -10,16 +10,16 @@
 **The only thing you need to know**:
 
 ```python
-# ✅ ALWAYS use note.obsidian_link for wiki-links
-text = f"What if you revisited [[{note.obsidian_link}]]?"
-notes = [note.obsidian_link]  # In Suggestion.notes
+# ✅ ALWAYS use note.link_text for wiki-links
+text = f"What if you revisited [[{note.link_text}]]?"
+notes = [note.link_text]  # In Suggestion.notes
 
 # ❌ NEVER use raw title or manually construct links
 text = f"[[{note.title}]]"  # WRONG - breaks virtual notes
 text = f"[[{note.source_file}#{note.title}]]"  # WRONG - redundant
 ```
 
-**Why**: `obsidian_link` handles both regular and virtual notes correctly:
+**Why**: `link_text` handles both regular and virtual notes correctly:
 - Regular note: Returns `"Project Ideas"`
 - Virtual note: Returns `"Work Journal#2024-03-15"` (deeplink format)
 
@@ -54,11 +54,11 @@ Content here...
 
 ## Core Architecture
 
-### The obsidian_link Abstraction
+### The link_text Abstraction
 
 **Problem**: Virtual notes need special handling for Obsidian deeplinks, but we don't want every geist to know about them.
 
-**Solution**: The `Note.obsidian_link` property encapsulates all linking logic:
+**Solution**: The `Note.link_text` property encapsulates all linking logic:
 
 ```python
 @dataclass(frozen=True)
@@ -69,7 +69,7 @@ class Note:
     source_file: Optional[str] = None
 
     @property
-    def obsidian_link(self) -> str:
+    def link_text(self) -> str:
         """Return link text for Obsidian wiki-links (without [[brackets]])."""
         if self.is_virtual and self.source_file:
             # Virtual notes: Use deeplink format
@@ -82,7 +82,7 @@ class Note:
 
 **Examples**:
 
-| Note Type | path | title | obsidian_link |
+| Note Type | path | title | link_text |
 |-----------|------|-------|---------------|
 | Regular | `"Ideas.md"` | `"Project Ideas"` | `"Project Ideas"` |
 | Virtual | `"Journal.md/2024-03-15"` | `"2024-03-15"` | `"Journal#2024-03-15"` |
@@ -203,7 +203,7 @@ def test_my_geist(vault_with_virtual_notes):  # Fixture provides ready vault
 
 ### Abstraction Layer Bypass Detection
 
-**The bug pattern**: Querying raw database fields instead of using `Note.obsidian_link`
+**The bug pattern**: Querying raw database fields instead of using `Note.link_text`
 
 ```python
 # ❌ ABSTRACTION BYPASS - shows duplicate titles
@@ -218,7 +218,7 @@ cursor = vault.db.execute("""
 """)
 paths = [row[0] for row in cursor.fetchall()]
 notes = [vault.get_note(path) for path in paths]
-links = [note.obsidian_link for note in notes]
+links = [note.link_text for note in notes]
 # Returns: ["Work Journal#2024-03-15", "Personal#2024-03-15", ...]  # Distinct!
 ```
 
@@ -331,7 +331,7 @@ text = f"See [[{note.title}]]"
 # Virtual note: "[[2024-03-15]]" - doesn't link correctly in Obsidian
 
 # ✅ CORRECT - works for all notes
-text = f"See [[{note.obsidian_link}]]"
+text = f"See [[{note.link_text}]]"
 # Virtual note: "[[Work Journal#2024-03-15]]" - works!
 ```
 
@@ -381,8 +381,8 @@ titles = [row[0] for row in cursor]
 cursor = db.execute("SELECT path FROM notes WHERE ...")
 paths = [row[0] for row in cursor]
 notes = [vault.get_note(p) for p in paths if vault.get_note(p)]
-links = [n.obsidian_link for n in notes]
-# Solution: obsidian_link gives unique deeplinks
+links = [n.link_text for n in notes]
+# Solution: link_text gives unique deeplinks
 ```
 
 ---
@@ -396,9 +396,9 @@ links = [n.obsidian_link for n in notes]
 On 2024-03-15, you created 5 notes: [[2024-03-15]], [[2024-03-15]], [[2024-03-15]]...
 ```
 
-**Root cause**: `creation_burst` geist queried `GROUP_CONCAT(title, '|')` from database instead of using `Note.obsidian_link`.
+**Root cause**: `creation_burst` geist queried `GROUP_CONCAT(title, '|')` from database instead of using `Note.link_text`.
 
-**Fix**: Changed to `GROUP_CONCAT(path, '|')`, load Note objects, use `obsidian_link`:
+**Fix**: Changed to `GROUP_CONCAT(path, '|')`, load Note objects, use `link_text`:
 ```python
 # Query paths, not titles
 cursor = vault.db.execute("""
@@ -411,8 +411,8 @@ paths = paths_str.split("|")
 notes = [vault.get_note(path) for path in paths]
 notes = [n for n in notes if n is not None]
 
-# Use obsidian_link
-links = [note.obsidian_link for note in notes]
+# Use link_text
+links = [note.link_text for note in notes]
 ```
 
 **Lesson**: Abstraction exists for a reason - don't bypass it with raw database queries.
@@ -430,11 +430,11 @@ links = [note.obsidian_link for note in notes]
 title = f"{file_stem}#{entry_date.isoformat()}"
 ```
 
-**Fix**: Store only heading text in `title`, let `obsidian_link` construct deeplink:
+**Fix**: Store only heading text in `title`, let `link_text` construct deeplink:
 ```python
 # ✅ CORRECT
 title = original_heading_text.lstrip('#').strip()  # "2024 February 18"
-# obsidian_link property combines: "Exercise journal#2024 February 18"
+# link_text property combines: "Exercise journal#2024 February 18"
 ```
 
 **Migration**: Pre-v0.9.1 databases need rebuild (delete `vault.db`, re-sync).
@@ -490,11 +490,11 @@ def my_vault_function(vault: Vault) -> list[str]:
     # Filter/process notes...
     selected = notes[:5]
 
-    # ✅ Return obsidian_link for all notes (handles regular + virtual)
-    return [note.obsidian_link for note in selected]
+    # ✅ Return link_text for all notes (handles regular + virtual)
+    return [note.link_text for note in selected]
 ```
 
-**Rule**: Always return `obsidian_link`, never raw `title` or manually constructed links.
+**Rule**: Always return `link_text`, never raw `title` or manually constructed links.
 
 ### Filtering Virtual vs Regular Notes
 
@@ -527,7 +527,7 @@ ctx.recent_notes(k=10)      # Uses entry_date for virtuals
 ## References
 
 - **Implementation**: `src/geistfabrik/date_collection.py`
-- **Data model**: `src/geistfabrik/models.py` (Note.obsidian_link)
+- **Data model**: `src/geistfabrik/models.py` (Note.link_text)
 - **Link resolution**: `src/geistfabrik/vault.py` (resolve_link_target)
 - **Schema**: `src/geistfabrik/schema.py` (migrate_to_v4)
 - **Config**: `src/geistfabrik/config_loader.py` (DateCollectionConfig)

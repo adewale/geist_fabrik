@@ -154,8 +154,8 @@ def test_recent_focus_suggestion_structure(vault_with_recent_and_old_similar):
             assert isinstance(note_ref, str)
 
 
-def test_recent_focus_uses_obsidian_link(vault_with_recent_and_old_similar):
-    """Test that recent_focus uses obsidian_link for note references.
+def test_recent_focus_uses_link_text(vault_with_recent_and_old_similar):
+    """Test that recent_focus uses link_text for note references.
 
     Setup:
         Vault with recent notes.

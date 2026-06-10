@@ -51,7 +51,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
     for note_a, note_b in vault.sample(holes, min(2, len(holes))):
         text = (
-            f"[[{note_a.obsidian_link}]] and [[{note_b.obsidian_link}]] keep "
+            f"[[{note_a.link_text}]] and [[{note_b.link_text}]] keep "
             f"saying similar things, yet no chain of links connects them - "
             f"they live on different islands of your vault. What if they are "
             f"the same thought in two dialects? What note would close the "
@@ -60,7 +60,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note_a.obsidian_link, note_b.obsidian_link],
+                notes=[note_a.link_text, note_b.link_text],
                 geist_id="structural_hole_detector",
             )
         )

@@ -45,15 +45,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Look for moderately dissimilar notes (not too similar, not completely unrelated)
         if SimilarityLevel.NOISE < similarity < SimilarityLevel.MODERATE:
             text = (
-                f"What if you combined ideas from [[{note_a.obsidian_link}]] and "
-                f"[[{note_b.obsidian_link}]]? They're from different domains but "
+                f"What if you combined ideas from [[{note_a.link_text}]] and "
+                f"[[{note_b.link_text}]]? They're from different domains but "
                 f"might spark something unexpected."
             )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note_a.obsidian_link, note_b.obsidian_link],
+                    notes=[note_a.link_text, note_b.link_text],
                     geist_id="creative_collision",
                 )
             )

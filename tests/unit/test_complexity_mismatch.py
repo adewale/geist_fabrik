@@ -143,8 +143,8 @@ def test_complexity_mismatch_suggestion_structure(vault_with_complexity_mismatch
             assert isinstance(note_ref, str)
 
 
-def test_complexity_mismatch_uses_obsidian_link(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch uses obsidian_link for note references.
+def test_complexity_mismatch_uses_link_text(vault_with_complexity_mismatches):
+    """Test that complexity_mismatch uses link_text for note references.
 
     Setup:
         Vault with varying complexity.

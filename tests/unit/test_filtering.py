@@ -199,7 +199,7 @@ class TestBoundaryFilterVirtualNotes:
 
     def test_boundary_keeps_virtual_note_deeplink_reference(self, db, mock_embedding_computer):
         """A suggestion referencing a virtual note via its 'file#heading'
-        deeplink (what Note.obsidian_link returns) must not be dropped."""
+        deeplink (what Note.link_text returns) must not be dropped."""
         # Insert a virtual journal entry: path/title differ from the deeplink form.
         db.execute(
             "INSERT INTO notes (path, title, is_virtual, source_file) "
@@ -213,7 +213,7 @@ class TestBoundaryFilterVirtualNotes:
             config={"strategies": ["boundary"], "boundary": {"enabled": True}},
         )
 
-        # "Journal#2025-01-15" is the obsidian_link deeplink form for the entry.
+        # "Journal#2025-01-15" is the link_text deeplink form for the entry.
         kept = Suggestion(
             text="On this day you wrote something.",
             notes=["Journal#2025-01-15"],

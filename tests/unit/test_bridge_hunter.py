@@ -156,8 +156,8 @@ def test_bridge_hunter_suggestion_structure(vault_with_unlinked_pairs):
             assert isinstance(note_ref, str)
 
 
-def test_bridge_hunter_uses_obsidian_link(vault_with_unlinked_pairs):
-    """Test that bridge_hunter uses obsidian_link for note references.
+def test_bridge_hunter_uses_link_text(vault_with_unlinked_pairs):
+    """Test that bridge_hunter uses link_text for note references.
 
     Setup:
         Vault with note clusters.

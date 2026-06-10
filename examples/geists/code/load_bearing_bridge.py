@@ -49,7 +49,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     pair_notes = {}
     for note_a, bridge, note_b in bridges:
         key = tuple(sorted((note_a.path, note_b.path)))
-        pair_bridges[key].append(bridge.obsidian_link)
+        pair_bridges[key].append(bridge.link_text)
         pair_notes[key] = (note_a, note_b)
 
     suggestions = []
@@ -63,12 +63,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             Suggestion(
                 text=(
                     f"[[{bridge_link}]] is the only thing holding "
-                    f"[[{note_a.obsidian_link}]] and [[{note_b.obsidian_link}]] "
+                    f"[[{note_a.link_text}]] and [[{note_b.link_text}]] "
                     f"together - if you deleted it tomorrow, would those two "
                     f"ideas ever find each other again? What if they deserve "
                     f"a direct link of their own?"
                 ),
-                notes=[bridge_link, note_a.obsidian_link, note_b.obsidian_link],
+                notes=[bridge_link, note_a.link_text, note_b.link_text],
                 geist_id="load_bearing_bridge",
             )
         )
@@ -83,11 +83,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             Suggestion(
                 text=(
                     f"{len(set(bridge_links))} different notes ({named}, ...) all "
-                    f"bridge [[{note_a.obsidian_link}]] and "
-                    f"[[{note_b.obsidian_link}]]. What if that recurring "
+                    f"bridge [[{note_a.link_text}]] and "
+                    f"[[{note_b.link_text}]]. What if that recurring "
                     f"in-between is a concept asking for its own note?"
                 ),
-                notes=[note_a.obsidian_link, note_b.obsidian_link],
+                notes=[note_a.link_text, note_b.link_text],
                 geist_id="load_bearing_bridge",
             )
         )

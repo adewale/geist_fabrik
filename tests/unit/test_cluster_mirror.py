@@ -148,8 +148,8 @@ def test_cluster_mirror_suggestion_structure(vault_with_clusters):
             assert isinstance(note_ref, str)
 
 
-def test_cluster_mirror_uses_obsidian_link(vault_with_clusters):
-    """Test that cluster_mirror uses obsidian_link for note references.
+def test_cluster_mirror_uses_link_text(vault_with_clusters):
+    """Test that cluster_mirror uses link_text for note references.
 
     Setup:
         Vault with note clusters.

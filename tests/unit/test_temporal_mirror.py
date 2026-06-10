@@ -123,8 +123,8 @@ def test_temporal_mirror_suggestion_structure(vault_with_temporal_notes):
             assert isinstance(note_ref, str)
 
 
-def test_temporal_mirror_uses_obsidian_link(vault_with_temporal_notes):
-    """Test that temporal_mirror uses obsidian_link for note references.
+def test_temporal_mirror_uses_link_text(vault_with_temporal_notes):
+    """Test that temporal_mirror uses link_text for note references.
 
     Setup:
         Vault with temporal patterns.

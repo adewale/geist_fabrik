@@ -59,8 +59,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if days_old > 180 or backlink_count == 0:
                 # This is a potential blind spot
                 text = (
-                    f"You've been writing about [[{note.obsidian_link}]] lately. "
-                    f"[[{contrarian.obsidian_link}]] seems like the opposite perspective, "
+                    f"You've been writing about [[{note.link_text}]] lately. "
+                    f"[[{contrarian.link_text}]] seems like the opposite perspective, "
                     f"but it's been {days_old} days since you touched it. "
                     f"What perspectives are you missing?"
                 )
@@ -68,7 +68,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[note.obsidian_link, contrarian.obsidian_link],
+                        notes=[note.link_text, contrarian.link_text],
                         geist_id="blind_spot_detector",
                     )
                 )

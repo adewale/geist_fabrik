@@ -166,8 +166,8 @@ def test_convergent_evolution_suggestion_structure(vault_with_session_history):
             assert isinstance(note_ref, str)
 
 
-def test_convergent_evolution_uses_obsidian_link(vault_with_session_history):
-    """Test that convergent_evolution uses obsidian_link for note references.
+def test_convergent_evolution_uses_link_text(vault_with_session_history):
+    """Test that convergent_evolution uses link_text for note references.
 
     Setup:
         Vault with converging notes.

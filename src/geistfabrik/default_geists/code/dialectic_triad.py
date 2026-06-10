@@ -39,7 +39,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Create dialectic suggestion
         text = (
-            f"**Thesis**: [[{note.obsidian_link}]]\n"
+            f"**Thesis**: [[{note.link_text}]]\n"
             f"**Antithesis**: [[{antithesis_title}]]\n"
             f"\nWhat if you synthesized both into a new note? "
             f"What emerges when you hold these opposites together?"
@@ -48,7 +48,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.obsidian_link, antithesis_title],
+                notes=[note.link_text, antithesis_title],
                 geist_id="dialectic_triad",
             )
         )

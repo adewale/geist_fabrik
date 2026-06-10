@@ -153,15 +153,15 @@ def test_anachronism_detector_suggestion_structure(vault_with_temporal_notes):
             assert isinstance(note_ref, str)
 
 
-def test_anachronism_detector_uses_obsidian_link(vault_with_temporal_notes):
-    """Test that anachronism_detector uses obsidian_link for note references.
+def test_anachronism_detector_uses_link_text(vault_with_temporal_notes):
+    """Test that anachronism_detector uses link_text for note references.
 
     Setup:
         Vault with 32 notes across 3 time periods.
 
     Verifies:
         - Suggestion text uses [[wiki-link]] format
-        - Note references use obsidian_link property
+        - Note references use link_text property
     """
     vault, session = vault_with_temporal_notes
 

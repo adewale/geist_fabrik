@@ -170,8 +170,8 @@ def test_seasonal_patterns_suggestion_structure(vault_with_seasonal_notes):
             assert isinstance(note_ref, str)
 
 
-def test_seasonal_patterns_uses_obsidian_link(vault_with_seasonal_notes):
-    """Test that seasonal_patterns uses obsidian_link for note references.
+def test_seasonal_patterns_uses_link_text(vault_with_seasonal_notes):
+    """Test that seasonal_patterns uses link_text for note references.
 
     Setup:
         Vault with seasonal notes.
@@ -453,9 +453,9 @@ Miscellaneous content without strong seasonal pattern."""
     for suggestion in suggestions:
         for note_ref in suggestion.notes:
             # Check that the referenced note is not from geist journal
-            # The note_ref is an obsidian_link (title), so we need to find
+            # The note_ref is an link_text (title), so we need to find
             # the actual note to check its path
-            matching_notes = [n for n in all_notes if n.obsidian_link == note_ref]
+            matching_notes = [n for n in all_notes if n.link_text == note_ref]
             for note in matching_notes:
                 assert not note.path.startswith("geist journal/"), (
                     f"geist should exclude geist journal notes, but found: {note.path}"

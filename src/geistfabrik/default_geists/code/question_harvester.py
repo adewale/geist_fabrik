@@ -46,14 +46,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         question_clean = " ".join(question.split())
 
         text = (
-            f'From [[{note.obsidian_link}]]: "{question_clean}" '
+            f'From [[{note.link_text}]]: "{question_clean}" '
             f"What if you revisited this question now?"
         )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.obsidian_link],
+                notes=[note.link_text],
                 geist_id="question_harvester",
             )
         )

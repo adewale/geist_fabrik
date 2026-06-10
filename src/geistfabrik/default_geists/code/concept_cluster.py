@@ -52,11 +52,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # If average similarity is high, this is a real cluster
         if avg_similarity > SimilarityLevel.HIGH:
-            note_titles = [n.obsidian_link for n in cluster_notes]
+            note_titles = [n.link_text for n in cluster_notes]
             formatted_titles = "]], [[".join(note_titles)
 
             text = (
-                f"What if you recognised an emerging cluster around [[{seed.obsidian_link}]]? "
+                f"What if you recognised an emerging cluster around [[{seed.link_text}]]? "
                 f"These notes are tightly related: [[{formatted_titles}]]. "
                 f"Could they be organised under a shared theme?"
             )

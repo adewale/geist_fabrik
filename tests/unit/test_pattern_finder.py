@@ -170,8 +170,8 @@ def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
         # BEHAVIORAL: Verify suggested notes are actually unlinked (core pattern_finder logic)
         for i, note1_ref in enumerate(suggestion.notes):
             for note2_ref in suggestion.notes[i + 1 :]:
-                note1 = next((n for n in vault.all_notes() if n.obsidian_link == note1_ref), None)
-                note2 = next((n for n in vault.all_notes() if n.obsidian_link == note2_ref), None)
+                note1 = next((n for n in vault.all_notes() if n.link_text == note1_ref), None)
+                note2 = next((n for n in vault.all_notes() if n.link_text == note2_ref), None)
 
                 if note1 and note2:
                     links = context.links_between(note1, note2)
@@ -192,7 +192,7 @@ def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
                 phrase_count = 0
                 for note_ref in suggestion.notes:
                     note = next(
-                        (n for n in vault.all_notes() if n.obsidian_link == note_ref),
+                        (n for n in vault.all_notes() if n.link_text == note_ref),
                         None,
                     )
                     if note:
@@ -205,8 +205,8 @@ def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
                 )
 
 
-def test_pattern_finder_uses_obsidian_link(vault_with_repeated_phrases):
-    """Test that pattern_finder uses obsidian_link for note references.
+def test_pattern_finder_uses_link_text(vault_with_repeated_phrases):
+    """Test that pattern_finder uses link_text for note references.
 
     Setup:
         Vault with patterns.
@@ -270,7 +270,7 @@ def test_pattern_finder_detects_semantic_clusters(vault_with_repeated_phrases):
             # Verify cluster notes have high semantic similarity (>0.7 from line 107)
             note_objs = []
             for ref in suggestion.notes:
-                note = next((n for n in vault.all_notes() if n.obsidian_link == ref), None)
+                note = next((n for n in vault.all_notes() if n.link_text == ref), None)
                 if note:
                     note_objs.append(note)
 

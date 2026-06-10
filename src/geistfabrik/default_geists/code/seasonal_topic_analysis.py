@@ -72,7 +72,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if len(similar_in_season) >= 2:
             # Found a seasonal pattern!
-            note_titles = [f"[[{n.obsidian_link}]]" for n in similar_in_season[:3]]
+            note_titles = [f"[[{n.link_text}]]" for n in similar_in_season[:3]]
             pattern_text = ", ".join(note_titles)
 
             suggestions.append(

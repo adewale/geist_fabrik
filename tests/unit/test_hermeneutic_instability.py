@@ -150,8 +150,8 @@ def test_hermeneutic_instability_suggestion_structure(vault_with_multiple_sessio
             assert isinstance(note_ref, str)
 
 
-def test_hermeneutic_instability_uses_obsidian_link(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability uses obsidian_link for note references.
+def test_hermeneutic_instability_uses_link_text(vault_with_multiple_sessions):
+    """Test that hermeneutic_instability uses link_text for note references.
 
     Setup:
         Vault with interpretation changes.

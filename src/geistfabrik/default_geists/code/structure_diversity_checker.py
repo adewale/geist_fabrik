@@ -58,14 +58,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 text = (
                     f"Your last {len(recent)} notes are structurally similar "
                     f"({dominant_count} are {dominant_type}). "
-                    f"\n\n[[{different_example.obsidian_link}]] has a different structure "
+                    f"\n\n[[{different_example.link_text}]] has a different structure "
                     f"({different_structure}). What if you tried that style again?"
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[different_example.obsidian_link],
+                        notes=[different_example.link_text],
                         geist_id="structure_diversity_checker",
                     )
                 )

@@ -8,16 +8,16 @@ import re
 from pathlib import Path
 
 
-def test_geists_use_obsidian_link_not_title() -> None:
-    """Enforce that all code geists use note.obsidian_link instead of note.title in wikilinks.
+def test_geists_use_link_text_not_title() -> None:
+    """Enforce that all code geists use note.link_text instead of note.title in wikilinks.
 
     Architectural Principle:
-    All geists must use note.obsidian_link when generating Obsidian wikilinks.
+    All geists must use note.link_text when generating Obsidian wikilinks.
     This ensures virtual notes (journal entries) work correctly.
 
     Why:
-    - Regular notes: obsidian_link returns title (no change)
-    - Virtual notes: obsidian_link returns deeplink format "Journal#2025-01-15"
+    - Regular notes: link_text returns title (no change)
+    - Virtual notes: link_text returns deeplink format "Journal#2025-01-15"
     - Using .title directly breaks virtual notes by generating [[2025-01-15]]
       instead of [[Journal#2025-01-15]]
 
@@ -52,8 +52,8 @@ def test_geists_use_obsidian_link_not_title() -> None:
 
             # Check all patterns
             if pattern1.search(line) or pattern2.search(line) or pattern3.search(line):
-                # Check if this line actually has .obsidian_link (might be a false positive)
-                if ".obsidian_link" in line:
+                # Check if this line actually has .link_text (might be a false positive)
+                if ".link_text" in line:
                     continue
 
                 violations.append(
@@ -71,11 +71,11 @@ def test_geists_use_obsidian_link_not_title() -> None:
             "ARCHITECTURAL CONSTRAINT VIOLATION",
             "=" * 80,
             "",
-            "Found geists using .title instead of .obsidian_link in wikilinks.",
+            "Found geists using .title instead of .link_text in wikilinks.",
             "",
             "Why this matters:",
-            "  - Regular notes: obsidian_link returns title (works correctly)",
-            "  - Virtual notes: obsidian_link returns 'Journal#2025-01-15' (correct)",
+            "  - Regular notes: link_text returns title (works correctly)",
+            "  - Virtual notes: link_text returns 'Journal#2025-01-15' (correct)",
             "  - Using .title for virtual notes generates [[2025-01-15]] (broken)",
             "",
             "Violations found:",
@@ -90,15 +90,15 @@ def test_geists_use_obsidian_link_not_title() -> None:
         error_msg.extend(
             [
                 "How to fix:",
-                "  Replace all occurrences of .title in wikilinks with .obsidian_link",
+                "  Replace all occurrences of .title in wikilinks with .link_text",
                 "",
                 "  ❌ WRONG:",
                 '    f"[[{note.title}]]"',
                 "    notes=[note.title]",
                 "",
                 "  ✅ CORRECT:",
-                '    f"[[{note.obsidian_link}]]"',
-                "    notes=[note.obsidian_link]",
+                '    f"[[{note.link_text}]]"',
+                "    notes=[note.link_text]",
                 "",
                 "See specs/DATE_COLLECTION_NOTES_SPEC.md for architectural details.",
                 "=" * 80,

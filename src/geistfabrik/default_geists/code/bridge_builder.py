@@ -37,8 +37,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if similarity > SimilarityLevel.HIGH:  # Strong similarity but no link
                 text = (
-                    f"What if [[{hub.obsidian_link}]] and "
-                    f"[[{neighbour.obsidian_link}]] were connected? "
+                    f"What if [[{hub.link_text}]] and "
+                    f"[[{neighbour.link_text}]] were connected? "
                     f"They're semantically similar but in different parts of your vault. "
                     f"A link might bridge important concepts."
                 )
@@ -46,7 +46,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[hub.obsidian_link, neighbour.obsidian_link],
+                        notes=[hub.link_text, neighbour.link_text],
                         geist_id="bridge_builder",
                     )
                 )

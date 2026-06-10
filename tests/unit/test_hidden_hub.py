@@ -159,8 +159,8 @@ def test_hidden_hub_suggestion_structure(vault_with_hidden_hubs):
             assert isinstance(note_ref, str)
 
 
-def test_hidden_hub_uses_obsidian_link(vault_with_hidden_hubs):
-    """Test that hidden_hub uses obsidian_link for note references.
+def test_hidden_hub_uses_link_text(vault_with_hidden_hubs):
+    """Test that hidden_hub uses link_text for note references.
 
     Setup:
         Vault with hubs.

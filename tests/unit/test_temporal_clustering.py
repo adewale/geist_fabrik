@@ -132,8 +132,8 @@ def test_temporal_clustering_suggestion_structure(vault_with_temporal_notes):
             assert isinstance(note_ref, str)
 
 
-def test_temporal_clustering_uses_obsidian_link(vault_with_temporal_notes):
-    """Test that temporal_clustering uses obsidian_link for note references.
+def test_temporal_clustering_uses_link_text(vault_with_temporal_notes):
+    """Test that temporal_clustering uses link_text for note references.
 
     Setup:
         Vault with temporal clusters.

@@ -192,8 +192,8 @@ def test_density_inversion_suggestion_structure(vault_with_dense_links_sparse_me
             assert isinstance(note_ref, str)
 
 
-def test_density_inversion_uses_obsidian_link(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion uses obsidian_link for note references.
+def test_density_inversion_uses_link_text(vault_with_dense_links_sparse_meaning):
+    """Test that density_inversion uses link_text for note references.
 
     Setup:
         Vault with density variations.

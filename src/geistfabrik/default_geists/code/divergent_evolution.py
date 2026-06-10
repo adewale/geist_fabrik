@@ -56,7 +56,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         text = (
-            f"[[{note_a.obsidian_link}]] and [[{note_b.obsidian_link}]] are linked, "
+            f"[[{note_a.link_text}]] and [[{note_b.link_text}]] are linked, "
             f"but they've been semantically diverging across your last "
             f"{session_count} sessions. They were similar when connected "
             f"but have drifted apart—does the link still make sense?"
@@ -65,7 +65,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note_a.obsidian_link, note_b.obsidian_link],
+                notes=[note_a.link_text, note_b.link_text],
                 geist_id="divergent_evolution",
             )
         )

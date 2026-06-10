@@ -157,8 +157,8 @@ def test_question_generator_suggestion_structure(vault_with_declarative_notes):
             assert isinstance(note_ref, str)
 
 
-def test_question_generator_uses_obsidian_link(vault_with_declarative_notes):
-    """Test that question_generator uses obsidian_link for note references.
+def test_question_generator_uses_link_text(vault_with_declarative_notes):
+    """Test that question_generator uses link_text for note references.
 
     Setup:
         Vault with notes.

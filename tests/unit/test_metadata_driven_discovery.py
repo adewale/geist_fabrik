@@ -177,8 +177,8 @@ def test_metadata_driven_discovery_suggestion_structure(vault_with_metadata_patt
             assert isinstance(note_ref, str)
 
 
-def test_metadata_driven_discovery_uses_obsidian_link(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery uses obsidian_link for note references.
+def test_metadata_driven_discovery_uses_link_text(vault_with_metadata_patterns):
+    """Test that metadata_driven_discovery uses link_text for note references.
 
     Setup:
         Vault with metadata.
