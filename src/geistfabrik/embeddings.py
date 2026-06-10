@@ -2,15 +2,13 @@
 
 import os
 
-# CRITICAL: Limit thread/process spawning for ML libraries
-# These MUST be set before importing numpy, torch, or transformers
-# to prevent runaway process spawning during test execution and production use
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+# Cap tokenizers' fork-time threading only if the host hasn't expressed a
+# preference (it has no threadpoolctl-style runtime API, unlike BLAS/OpenMP).
+# Native BLAS/OpenMP thread pools are bounded at the point of use instead, via
+# threadpool_limits() around the heavy encode() calls - see EmbeddingComputer.
+# This avoids mutating global OMP_NUM_THREADS/etc. at import, which silently
+# single-threads any host application that embeds GeistFabrik.
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 import hashlib
 import logging
@@ -26,6 +24,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
 )
+from threadpoolctl import threadpool_limits  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from .vector_search import VectorSearchBackend
@@ -38,6 +37,12 @@ from .config import (
 from .models import Note
 
 logger = logging.getLogger(__name__)
+
+# Native BLAS/OpenMP thread cap applied only around model.encode() calls.
+# 1 keeps embedding deterministic and prevents the runaway thread-pool
+# spawning (one pool per core, per process) that hung CI under parallel geist
+# execution - without imposing that cap on the host process globally.
+_ENCODE_THREAD_LIMIT = 1
 
 
 def is_offline_mode() -> bool:
@@ -191,7 +196,8 @@ class EmbeddingComputer:
         Returns:
             384-dimensional semantic embedding
         """
-        embedding = self.model.encode(text, convert_to_numpy=True)
+        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+            embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding
 
     def compute_batch_semantic(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
@@ -210,12 +216,13 @@ class EmbeddingComputer:
         if not texts:
             return np.array([])
 
-        embeddings = self.model.encode(
-            texts,
-            convert_to_numpy=True,
-            show_progress_bar=False,
-            batch_size=batch_size,
-        )
+        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+            embeddings = self.model.encode(
+                texts,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+                batch_size=batch_size,
+            )
         return embeddings
 
     def compute_temporal_features(self, note: Note, session_date: datetime) -> np.ndarray:
@@ -474,12 +481,13 @@ class Session:
 
         if uncached_notes:
             texts = [note.content for note in uncached_notes]
-            computed_embeddings = self.computer.model.encode(
-                texts,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-                batch_size=DEFAULT_BATCH_SIZE,
-            )
+            with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+                computed_embeddings = self.computer.model.encode(
+                    texts,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                    batch_size=DEFAULT_BATCH_SIZE,
+                )
 
             # Cache newly computed embeddings
             for i, note in enumerate(uncached_notes):

@@ -234,6 +234,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sentence-transformers" },
+    { name = "threadpoolctl" },
 ]
 
 [package.optional-dependencies]
@@ -265,6 +266,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.11.0" },
     { name = "sentence-transformers", specifier = ">=2.2.0" },
     { name = "sqlite-vec", marker = "extra == 'vector-search'", specifier = ">=0.1.0" },
+    { name = "threadpoolctl", specifier = ">=3.0.0" },
     { name = "vendi-score", marker = "extra == 'stats'", specifier = ">=0.0.1" },
 ]
 provides-extras = ["vector-search", "stats"]

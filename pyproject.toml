@@ -24,6 +24,8 @@ dependencies = [
     # optional. It was previously only in the [stats] extra and happened to be
     # present as a transitive dep of sentence-transformers - a fragile fiction.
     "scikit-learn>=1.3.0",
+    # Bounds native BLAS/OpenMP threads around encode() (see embeddings.py)
+    "threadpoolctl>=3.0.0",
 ]
 
 [project.optional-dependencies]
