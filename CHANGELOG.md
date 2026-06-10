@@ -82,6 +82,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Specification and historical documentation preserved for reference
 
 ### Performance
+- **June 2026 perf pass** (before/after in `benchmarks/RESULTS_2026-06.md`,
+  reproducible via `benchmarks/perf_before_after.py`):
+  - `orphans()` O(N·M) → O(N+M) set-difference (the LEFT-JOIN `OR` was
+    non-sargable; ~179× on a 6k-note synthetic vault).
+  - `filter_diversity`/`filter_novelty` per-pair Python cosine loops →
+    single BLAS matrix (~1281× at S=200; dominant `--full`-mode filter cost).
+  - `find_similar` top-k via `argpartition` (13× on the sort step;
+    end-to-end is matmul-bound).
+  - `island_hopper`, graph `find_bridges`/`detect_structural_holes` batch
+    their similarity matrices; `detect_structural_holes` gains a candidate cap.
+  - Sync stale-note deletion uses a temp table instead of `NOT IN (?,…)`,
+    removing the SQLite variable-count hard cap (>32k notes).
+  - Encode threads bounded via `threadpoolctl` instead of global
+    `OMP_NUM_THREADS` env mutation at import.
+  - `session_embeddings` retention window bounds unbounded DB growth.
 - **BIG OPTIMISATION #1**: Fixed O(N²) algorithmic inefficiencies (6 locations)
   - **CRITICAL**: Fixed pattern_finder timeout on large vaults (10k+ notes)
     - Replaced O(N³) list.remove() in nested loops with O(N²) set.remove() (pattern_finder.py:88, 95)
