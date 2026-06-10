@@ -42,7 +42,13 @@ class ValidationResult:
 
 
 class GeistValidator:
-    """Validates geists without executing them."""
+    """Validates geist files (structure, signature, and that they load).
+
+    NOTE: validating a code geist *imports* its module to confirm it loads,
+    which runs the geist's import-time (module-level) code. It is therefore
+    not a safe way to inspect an untrusted geist - only run/validate geists
+    you trust. Tracery geists are parsed as YAML and not executed.
+    """
 
     def __init__(self, strict: bool = False):
         """Initialise validator.

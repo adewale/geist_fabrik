@@ -6,6 +6,7 @@ package.
 """
 
 import argparse
+import logging
 import sys
 
 from .commands import (
@@ -326,6 +327,26 @@ COMMANDS: dict[str, type[BaseCommand]] = {
 }
 
 
+def _configure_logging(args: argparse.Namespace) -> None:
+    """Map CLI verbosity flags to the root logging level.
+
+    The library itself never configures logging (it only ever gets a logger
+    and emits). Without this, Python's last-resort handler swallows everything
+    below WARNING - so the --debug per-geist timing diagnostics and --verbose
+    progress (all emitted via logger.info/debug) would be invisible, which is
+    exactly the bug this fixes.
+    """
+    if getattr(args, "debug", False):
+        level = logging.DEBUG
+    elif getattr(args, "verbose", False):
+        level = logging.INFO
+    elif getattr(args, "quiet", False):
+        level = logging.ERROR
+    else:
+        level = logging.WARNING
+    logging.basicConfig(level=level, format="%(levelname)s %(name)s: %(message)s")
+
+
 def main() -> int:
     """Main CLI entry point.
 
@@ -339,6 +360,9 @@ def main() -> int:
     if not args.command:
         parser.print_help()
         return 1
+
+    # Route logger output to the console at the requested verbosity.
+    _configure_logging(args)
 
     # Get command class from registry
     command_class = COMMANDS.get(args.command)
