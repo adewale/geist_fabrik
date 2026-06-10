@@ -656,8 +656,13 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     if norm_a == 0 or norm_b == 0:
         return 0.0
 
-    # Fast path: if vectors are L2-normalised, cosine_similarity = dot product
-    # sentence-transformers outputs normalised embeddings, so this is safe
+    # Fast path: for unit-norm vectors, cosine similarity is just the dot
+    # product. NOTE: production embeddings do NOT take this path - encode()
+    # is called without normalize_embeddings=True, and the stored 387-dim
+    # temporal embeddings (semantic*0.9 concatenated with temporal*0.1) have
+    # norms around 0.90-1.04. The branch only fires for vectors that happen
+    # to be unit-norm (e.g. the normalised test stubs). Do not rely on a
+    # unit-norm invariant anywhere in this codebase.
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
         # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:

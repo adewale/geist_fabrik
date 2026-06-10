@@ -166,12 +166,24 @@ class InMemoryVectorBackend(VectorSearchBackend):
         # Defensive: rebuild if embeddings were mutated since the last load.
         if self._matrix is None or len(self._paths) != len(self.embeddings):
             self._rebuild_matrix()
-        if self._matrix is None:
+        if self._matrix is None or k <= 0:
             return []
 
         scores = sklearn_cosine(query_embedding.reshape(1, -1), self._matrix)[0]
-        # argsort ascending on negated scores => descending; stable keeps tie order.
-        order = np.argsort(-scores, kind="stable")[:k]
+        n = scores.shape[0]
+        if k >= n:
+            # Full stable sort: descending by score, ties keep insertion order.
+            order = np.argsort(-scores, kind="stable")
+        else:
+            # O(N + k log k) top-k via argpartition instead of an O(N log N)
+            # full sort (this is the hottest path - every neighbours() call).
+            # To keep output byte-identical to a full stable argsort prefix,
+            # widen the candidate set to every score tied with the k-th
+            # largest, then stable-sort just that small set.
+            part = np.argpartition(-scores, k - 1)[:k]
+            kth_score = scores[part].min()
+            cand = np.flatnonzero(scores >= kth_score)
+            order = cand[np.argsort(-scores[cand], kind="stable")][:k]
         return [(self._paths[int(i)], float(scores[int(i)])) for i in order]
 
     def get_similarity(self, path_a: str, path_b: str) -> float:
@@ -205,7 +217,8 @@ class InMemoryVectorBackend(VectorSearchBackend):
             path: Note path
 
         Returns:
-            Embedding vector
+            Embedding vector. READ-ONLY (np.frombuffer view shared by all
+            callers) - mutation raises ValueError; .copy() first if needed.
 
         Raises:
             KeyError: If note path not found

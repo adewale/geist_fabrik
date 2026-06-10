@@ -1100,3 +1100,51 @@ class TestInMemoryFindSimilarMatrix:
         results = backend.find_similar(emb, k=2)
         # Identical embeddings -> equal similarity -> stable sort keeps insertion order.
         assert [path for path, _ in results] == ["a.md", "b.md"]
+
+    def test_find_similar_boundary_tie_with_k_less_than_n(self, db):
+        """When scores tie at the k-th position, insertion order wins -
+        identical to a full stable sort (exercises the argpartition path)."""
+        now = datetime.now().isoformat()
+        for path in ["top.md", "tie1.md", "tie2.md"]:
+            db.execute(
+                "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (path, path.replace(".md", ""), "content", now, now, 0.0),
+            )
+        db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", ("2025-04-01", now))
+        session_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", ("2025-04-01",)
+        ).fetchone()[0]
+        vectors = {
+            "top.md": np.array([1.0, 0.0, 0.0], dtype=np.float32),
+            "tie1.md": np.array([0.0, 1.0, 0.0], dtype=np.float32),
+            "tie2.md": np.array([0.0, 1.0, 0.0], dtype=np.float32),
+        }
+        for path, vec in vectors.items():
+            db.execute(
+                "INSERT INTO session_embeddings (session_id, note_path, embedding) "
+                "VALUES (?, ?, ?)",
+                (session_id, path, vec.tobytes()),
+            )
+        db.commit()
+
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings("2025-04-01")
+        # k=2 < n=3: top.md wins, then the tie resolves to tie1 (insertion order).
+        results = backend.find_similar(np.array([1.0, 0.0, 0.0], dtype=np.float32), k=2)
+        assert [p for p, _ in results] == ["top.md", "tie1.md"]
+
+    def test_get_embedding_is_read_only_view(self, db, sample_embeddings):
+        """Embeddings are shared read-only buffers (np.frombuffer): in-place
+        mutation must fail loudly rather than silently corrupting the cache
+        every other caller sees. Callers that need to mutate must .copy()."""
+        backend = InMemoryVectorBackend(db)
+        backend.load_embeddings(sample_embeddings["session_date"])
+
+        emb = backend.get_embedding("note1.md")
+        assert emb.flags.writeable is False
+        with pytest.raises(ValueError):
+            emb[0] = 99.0
+
+        writable = emb.copy()
+        writable[0] = 99.0  # copies are mutable

@@ -190,7 +190,10 @@ class VaultContext:
             path: Note path
 
         Returns:
-            Embedding array or None if not found
+            Embedding array or None if not found. The array is a READ-ONLY
+            view over the cached buffer (np.frombuffer) shared with every
+            other caller this session - in-place mutation raises ValueError
+            by design. Call .copy() if you need a writable array.
         """
         return self._embeddings.get(path)
 
@@ -198,7 +201,9 @@ class VaultContext:
         """Get all session embeddings as a path-to-embedding dictionary.
 
         Returns:
-            Dictionary mapping note paths to embedding arrays
+            Dictionary mapping note paths to embedding arrays. The arrays are
+            READ-ONLY views shared with every other caller this session (see
+            get_embedding); call .copy() before mutating.
         """
         return self._embeddings
 
