@@ -284,3 +284,37 @@ def test_geists_use_vault_sample_not_random() -> None:
         )
 
         raise AssertionError("\n".join(error_msg))
+
+
+def test_geists_do_not_use_direct_sql() -> None:
+    """Enforce that no code geist accesses the database directly via vault.db.
+
+    Architectural Principle (CLAUDE.md, "Two-Layer Architecture"):
+    Geists must work through VaultContext methods, never reach into the raw
+    SQLite connection. A geist that calls vault.db.execute(...) couples itself
+    to the database schema and bypasses the abstraction layer.
+
+    This guards the migration of cyclical_thinking, drift_velocity_anomaly,
+    vocabulary_expansion, and cluster_evolution_tracker onto VaultContext
+    methods (e.g. session_count(), session_embeddings_by_session()) - a
+    previously-reported architectural violation that must not regress.
+    """
+    geist_dir = Path("src/geistfabrik/default_geists/code")
+    violations = []
+
+    # Direct DB access: `vault.db`, or `.db.execute(`/`.db.cursor(` on any object.
+    pattern = re.compile(r"\bvault\.db\b|\.db\.(execute|executemany|executescript|cursor)\b")
+
+    for geist_file in sorted(geist_dir.glob("*.py")):
+        if geist_file.name == "__init__.py":
+            continue
+        for line_num, line in enumerate(geist_file.read_text().splitlines(), start=1):
+            if line.strip().startswith("#"):
+                continue
+            if pattern.search(line):
+                violations.append(f"{geist_file.name}:{line_num}: {line.strip()}")
+
+    assert not violations, (
+        "Geists must use VaultContext methods, not direct database access (vault.db). "
+        "Add a VaultContext method instead. Violations:\n" + "\n".join(violations)
+    )
