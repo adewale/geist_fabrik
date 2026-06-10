@@ -183,21 +183,33 @@ class Vault:
         # Build set of existing paths for efficient lookup
         existing_paths = {str(f.relative_to(self.vault_path)) for f in md_files}
 
-        # Delete regular notes (not virtual entries) that no longer exist
-        # Virtual entries are managed by their source_file, not their path
+        # Delete regular notes (not virtual entries) that no longer exist.
+        # Virtual entries are managed by their source_file, not their path.
         if existing_paths:
-            # Build placeholders string safely (no f-string for SQL)
-            placeholders = ",".join(["?"] * len(existing_paths))
-            # Only delete non-virtual notes whose paths don't exist
-            # Virtual entries will be cleaned up if their source_file doesn't exist
-            query = f"DELETE FROM notes WHERE is_virtual = 0 AND path NOT IN ({placeholders})"
-            self.db.execute(query, tuple(existing_paths))
-
-            # Also delete virtual entries whose source files no longer exist
-            query = (
-                f"DELETE FROM notes WHERE is_virtual = 1 AND source_file NOT IN ({placeholders})"
+            # Stage existing paths in a temp table instead of binding one SQL
+            # variable per file: a "NOT IN (?,?,...)" placeholder list hits
+            # SQLite's variable limit (SQLITE_MAX_VARIABLE_NUMBER, as low as
+            # 999 on older builds) - a hard failure for vaults beyond it.
+            self.db.execute(
+                "CREATE TEMP TABLE IF NOT EXISTS _existing_paths (path TEXT PRIMARY KEY)"
             )
-            self.db.execute(query, tuple(existing_paths))
+            self.db.execute("DELETE FROM _existing_paths")
+            self.db.executemany(
+                "INSERT OR IGNORE INTO _existing_paths (path) VALUES (?)",
+                ((p,) for p in existing_paths),
+            )
+
+            # Only delete non-virtual notes whose paths don't exist;
+            # virtual entries are cleaned up via their source_file.
+            self.db.execute(
+                "DELETE FROM notes WHERE is_virtual = 0 "
+                "AND path NOT IN (SELECT path FROM _existing_paths)"
+            )
+            self.db.execute(
+                "DELETE FROM notes WHERE is_virtual = 1 "
+                "AND source_file NOT IN (SELECT path FROM _existing_paths)"
+            )
+            self.db.execute("DELETE FROM _existing_paths")
         else:
             # No files exist, delete all notes
             self.db.execute("DELETE FROM notes")
