@@ -16,6 +16,12 @@ WIKILINK_PATTERN = re.compile(r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 # Pattern for inline tags: #tag, including nested tags like #parent/child
 TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
 
+# Code regions are stripped before tag extraction: Obsidian does not treat
+# #words inside fenced or inline code as tags (#define, #!/bin/bash, hex
+# colours like #fff in CSS, URL fragments in code samples, ...).
+FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
+INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
+
 
 def parse_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
     """Extract YAML frontmatter and remaining content.
@@ -159,10 +165,13 @@ def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> lis
             # List of tags
             tags.update(str(tag).strip() for tag in fm_tags)
 
+    # Strip code regions first so #words inside fenced/inline code are not
+    # misread as tags (matches Obsidian's behaviour).
+    content_no_code = FENCED_CODE_PATTERN.sub("", content)
+    content_no_code = INLINE_CODE_PATTERN.sub("", content_no_code)
+
     # Extract inline tags from content using pre-compiled pattern
-    # Match #tag but not inside code blocks
-    # Simple approach: match #word boundaries (not perfect but good enough)
-    for match in TAG_PATTERN.finditer(content):
+    for match in TAG_PATTERN.finditer(content_no_code):
         tag = match.group(1)
         tags.add(tag)
 
