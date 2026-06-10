@@ -56,14 +56,21 @@ Pre-commit hooks run automatically on `git commit`:
 ./scripts/validate.sh
 ```
 
-This script runs the **exact same checks as CI**:
+This script runs the **same checks as CI** (same tools, same marker filter):
 1. `ruff check src/ tests/` - Linting
 2. `mypy src/ --strict` - Type checking (STRICT MODE)
 3. `python scripts/detect_unused_tables.py` - Database validation
-4. `pytest tests/unit -v -m "not slow"` - Unit tests (with mocked models)
-5. `pytest tests/integration -v -m "not slow"` - Integration tests (with mocked models)
+4. `pytest tests/unit -v -m "not slow and not benchmark"` - Unit tests (with mocked models)
+5. `pytest tests/integration -v -m "not slow and not benchmark"` - Integration tests (with mocked models)
 
-**If validate.sh passes, CI will pass. If it fails, DO NOT PUSH.**
+**If validate.sh passes, CI will almost certainly pass. If it fails, DO NOT PUSH.**
+
+Caveat: validate.sh runs in your single local environment. CI *additionally*
+exercises Python 3.11 **and** 3.12, macOS, and the `[vector-search]` extra
+(sqlite-vec). A failure that is specific to those (a 3.12-only typing quirk, a
+macOS path issue, or the sqlite-vec backend) can still pass locally - so a
+green validate.sh is necessary but, for those environment-specific cases, not
+absolutely sufficient.
 
 **Note on model downloads**: The validation script uses mocked sentence-transformers models (via `SentenceTransformerStub` in `tests/conftest.py`) so it works in environments without Git LFS or network access (like Claude Code for Web). The `-m "not slow"` flag triggers automatic model mocking. Only 9 tests marked as "slow" require the real model (~90MB).
 
