@@ -320,78 +320,13 @@ class EmbeddingMetricsComputer:
     ) -> List[str]:
         """Apply Maximal Marginal Relevance to select diverse terms.
 
-        MMR balances relevance (TF-IDF score) with diversity (dissimilarity
-        to already-selected terms) to prevent redundant keywords.
-
-        Args:
-            terms: Candidate terms
-            tfidf_scores: TF-IDF scores for each term
-            lambda_param: Balance parameter (0.5 = equal weight)
-            k: Number of terms to select
-
-        Returns:
-            List of k diverse terms
+        Thin wrapper around the shared cluster_labeling.apply_mmr implementation
+        so the MMR algorithm lives in a single place (previously this logic was
+        duplicated here and in cluster_labeling). See apply_mmr for details.
         """
-        if len(terms) <= k:
-            return terms
+        from .cluster_labeling import apply_mmr
 
-        # Simplified MMR using string overlap as diversity metric
-        # This avoids needing to recompute embeddings for terms
-        try:
-            # Use dict for O(1) term index lookup instead of O(N) list.index()
-            term_to_idx = {t: i for i, t in enumerate(terms)}
-
-            # Use set for O(1) membership checks instead of O(N) list membership
-            selected_set: set[str] = set()
-            selected: List[str] = []
-
-            while len(selected) < k and len(selected) < len(terms):
-                remaining = [t for t in terms if t not in selected_set]
-                if not remaining:
-                    break
-
-                mmr_scores = []
-                for term in remaining:
-                    # Relevance: TF-IDF score (O(1) dict lookup)
-                    term_idx = term_to_idx[term]
-                    relevance = tfidf_scores[term_idx]
-
-                    # Diversity: string overlap with selected terms
-                    if selected:
-                        # Calculate word overlap with all selected terms
-                        term_words = set(term.lower().split())
-                        max_overlap = 0.0
-                        for sel_term in selected:
-                            sel_words = set(sel_term.lower().split())
-                            if term_words and sel_words:
-                                overlap = len(term_words & sel_words) / len(
-                                    term_words | sel_words
-                                )
-                                max_overlap = max(max_overlap, overlap)
-                        diversity_penalty = max_overlap
-                    else:
-                        diversity_penalty = 0.0
-
-                    # MMR formula: lambda * relevance - (1-lambda) * similarity
-                    mmr = lambda_param * relevance - (1 - lambda_param) * diversity_penalty
-                    mmr_scores.append(mmr)
-
-                # Select term with highest MMR
-                best_idx = np.argmax(mmr_scores)
-                best_term = remaining[best_idx]
-                selected.append(best_term)
-                selected_set.add(best_term)
-
-            return selected
-
-        except Exception:
-            # If MMR fails, fall back to top-k by TF-IDF score
-            logger.debug(
-                "MMR filtering failed, falling back to top-k",
-                exc_info=True,
-            )
-            indices = np.argsort(tfidf_scores)[-k:][::-1]
-            return [terms[i] for i in indices]
+        return apply_mmr(terms, tfidf_scores, lambda_param=lambda_param, k=k)
 
     def _label_clusters_tfidf(
         self, paths: List[str], labels: np.ndarray, n_terms: int = 4
