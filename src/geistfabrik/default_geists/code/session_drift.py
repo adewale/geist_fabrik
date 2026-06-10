@@ -43,9 +43,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         previous_emb = snapshots[-2][1]
 
         similarity = float(
-            sklearn_cosine(current_emb.reshape(1, -1), previous_emb.reshape(1, -1))[
-                0, 0
-            ]
+            sklearn_cosine(current_emb.reshape(1, -1), previous_emb.reshape(1, -1))[0, 0]
         )
         drift = 1.0 - similarity
 

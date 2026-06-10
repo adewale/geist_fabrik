@@ -90,7 +90,9 @@ target-version = "py311"
 "examples/geists/code/*.py" = ["E501"]  # Allow long lines in geist suggestion text
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W"]
+# UP (pyupgrade) enforces modern Python 3.11+ syntax, including PEP 585 builtin
+# generics (list[x] not List[x]) and PEP 604 unions (X | None not Optional[X]).
+select = ["E", "F", "I", "N", "UP", "W"]
 ignore = []
 
 [tool.mypy]

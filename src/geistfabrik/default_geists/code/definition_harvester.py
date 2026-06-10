@@ -66,7 +66,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         definition_clean = " ".join(definition.split())
 
         text = (
-            f"From [[{note.obsidian_link}]]: \"{definition_clean}\" "
+            f'From [[{note.obsidian_link}]]: "{definition_clean}" '
             f"What if you explored this definition further?"
         )
 

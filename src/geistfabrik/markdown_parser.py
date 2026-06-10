@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -17,7 +17,7 @@ WIKILINK_PATTERN = re.compile(r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
 
 
-def parse_frontmatter(content: str) -> Tuple[Optional[Dict[str, Any]], str]:
+def parse_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
     """Extract YAML frontmatter and remaining content.
 
     Args:
@@ -54,7 +54,7 @@ def parse_frontmatter(content: str) -> Tuple[Optional[Dict[str, Any]], str]:
         return None, content
 
 
-def extract_title(path: str, frontmatter: Optional[Dict[str, Any]], content: str) -> str:
+def extract_title(path: str, frontmatter: dict[str, Any] | None, content: str) -> str:
     """Extract note title from frontmatter, first heading, or filename.
 
     Args:
@@ -79,7 +79,7 @@ def extract_title(path: str, frontmatter: Optional[Dict[str, Any]], content: str
     return Path(path).stem
 
 
-def extract_links(content: str) -> List[Link]:
+def extract_links(content: str) -> list[Link]:
     """Extract wiki-style links from markdown content.
 
     Supports:
@@ -132,7 +132,7 @@ def extract_links(content: str) -> List[Link]:
     return links
 
 
-def extract_tags(content: str, frontmatter: Optional[Dict[str, Any]] = None) -> List[str]:
+def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> list[str]:
     """Extract tags from markdown content and frontmatter.
 
     Supports:
@@ -169,7 +169,7 @@ def extract_tags(content: str, frontmatter: Optional[Dict[str, Any]] = None) -> 
     return sorted(tags)
 
 
-def parse_markdown(path: str, content: str) -> Tuple[str, str, List[Link], List[str]]:
+def parse_markdown(path: str, content: str) -> tuple[str, str, list[Link], list[str]]:
     """Parse markdown file and extract structured data.
 
     Args:

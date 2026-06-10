@@ -76,9 +76,7 @@ class InvokeCommand(BaseCommand):
         exec_ctx = self.setup_execution_context(cmd_ctx, session_date)
 
         # Load geists
-        code_executor, tracery_geists, newly_discovered = self._load_geists(
-            exec_ctx, session_date
-        )
+        code_executor, tracery_geists, newly_discovered = self._load_geists(exec_ctx, session_date)
 
         # Handle newly discovered geists
         self._handle_new_geists(exec_ctx, newly_discovered)
@@ -333,15 +331,11 @@ class InvokeCommand(BaseCommand):
                     suggestions = tracery_geist.suggest(context)
                     tracery_results[tracery_geist.geist_id] = suggestions
                 except Exception as e:
-                    self.print_error(
-                        f"Executing Tracery geist {tracery_geist.geist_id}: {e}"
-                    )
+                    self.print_error(f"Executing Tracery geist {tracery_geist.geist_id}: {e}")
                     tracery_results[tracery_geist.geist_id] = []
 
         # Collect all suggestions in config order
-        all_suggestions = self._collect_suggestions_in_order(
-            code_results, tracery_results, config
-        )
+        all_suggestions = self._collect_suggestions_in_order(code_results, tracery_results, config)
 
         return GeistResults(
             code_results=code_results,

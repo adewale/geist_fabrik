@@ -3,8 +3,9 @@
 import hashlib
 import sqlite3
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator, List, Union, cast
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -33,7 +34,7 @@ class SentenceTransformerStub:
 
     def encode(
         self,
-        sentences: Union[str, List[str]],
+        sentences: str | list[str],
         convert_to_numpy: bool = True,
         show_progress_bar: bool = False,
         batch_size: int = 32,
@@ -53,11 +54,11 @@ class SentenceTransformerStub:
         """
         is_single = isinstance(sentences, str)
         if is_single:
-            texts: List[str] = [cast(str, sentences)]
+            texts: list[str] = [cast(str, sentences)]
         else:
-            texts = cast(List[str], sentences)
+            texts = cast(list[str], sentences)
 
-        embeddings: List[np.ndarray] = []
+        embeddings: list[np.ndarray] = []
         for text in texts:
             # Generate deterministic embedding from text hash
             # Use SHA256 to get bytes, then convert to float values

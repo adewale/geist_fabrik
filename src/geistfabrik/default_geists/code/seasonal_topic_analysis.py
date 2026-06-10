@@ -49,9 +49,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Try to find seasonal clusters for each season
     for season_name, (start_date, end_date) in seasons.items():
         # Get notes created in this season (excluding geist journal)
-        seasonal_notes = [
-            n for n in notes if start_date <= n.created <= end_date
-        ]
+        seasonal_notes = [n for n in notes if start_date <= n.created <= end_date]
 
         if len(seasonal_notes) < 3:
             continue

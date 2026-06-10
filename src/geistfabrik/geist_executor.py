@@ -9,9 +9,10 @@ import signal
 import sys
 import time
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from .models import Suggestion
 from .vault_context import VaultContext
@@ -25,7 +26,7 @@ class GeistMetadata:
 
     id: str
     path: Path
-    func: Callable[[VaultContext], List[Suggestion]]
+    func: Callable[[VaultContext], list[Suggestion]]
     failure_count: int = 0
     is_enabled: bool = True
 
@@ -51,8 +52,8 @@ class GeistExecutionProfile:
     suggestion_count: int = 0
 
     # Optional profiling data (only collected in verbose mode)
-    function_stats: Optional[List[ProfileStats]] = None
-    stack_trace: Optional[str] = None  # Stack at timeout
+    function_stats: list[ProfileStats] | None = None
+    stack_trace: str | None = None  # Stack at timeout
 
 
 class GeistTimeoutError(Exception):
@@ -74,8 +75,8 @@ class GeistExecutor:
         geists_dir: Path,
         timeout: int = 30,
         max_failures: int = 3,
-        default_geists_dir: Optional[Path] = None,
-        enabled_defaults: Optional[Dict[str, bool]] = None,
+        default_geists_dir: Path | None = None,
+        enabled_defaults: dict[str, bool] | None = None,
         debug: bool = False,
     ):
         """Initialise geist executor.
@@ -94,12 +95,12 @@ class GeistExecutor:
         self.default_geists_dir = default_geists_dir
         self.enabled_defaults = enabled_defaults or {}
         self.debug = debug
-        self.geists: Dict[str, GeistMetadata] = {}
-        self.execution_log: List[Dict[str, Any]] = []
-        self.execution_profiles: List[GeistExecutionProfile] = []
-        self.newly_discovered: List[str] = []
+        self.geists: dict[str, GeistMetadata] = {}
+        self.execution_log: list[dict[str, Any]] = []
+        self.execution_profiles: list[GeistExecutionProfile] = []
+        self.newly_discovered: list[str] = []
 
-    def load_geists(self) -> List[str]:
+    def load_geists(self) -> list[str]:
         """Discover and load all geists from the geists directories.
 
         Loads default geists first (if configured), then custom geists.
@@ -226,7 +227,7 @@ class GeistExecutor:
         # Store geist metadata
         self.geists[geist_id] = GeistMetadata(id=geist_id, path=geist_file, func=suggest_func)
 
-    def execute_geist(self, geist_id: str, context: VaultContext) -> List[Suggestion]:
+    def execute_geist(self, geist_id: str, context: VaultContext) -> list[Suggestion]:
         """Execute a single geist with timeout and error handling.
 
         When verbose mode is enabled, collects detailed profiling information
@@ -317,7 +318,8 @@ class GeistExecutor:
                         # Profile extraction failed - log warning
                         logger.warning(
                             "Failed to extract profile stats for %s: %s",
-                            geist_id, e,
+                            geist_id,
+                            e,
                         )
 
                 profile = GeistExecutionProfile(
@@ -358,7 +360,8 @@ class GeistExecutor:
                     # Profile extraction failed - log warning
                     logger.warning(
                         "Failed to extract profile stats for %s: %s",
-                        geist_id, e,
+                        geist_id,
+                        e,
                     )
 
             profile = GeistExecutionProfile(
@@ -414,7 +417,7 @@ class GeistExecutor:
             self._handle_failure(geist_id, "exception", error_msg, traceback.format_exc())
             return []
 
-    def execute_all(self, context: VaultContext) -> Dict[str, List[Suggestion]]:
+    def execute_all(self, context: VaultContext) -> dict[str, list[Suggestion]]:
         """Execute all enabled geists in load order.
 
         Geists execute in the order they were loaded:
@@ -441,7 +444,7 @@ class GeistExecutor:
         geist_id: str,
         error_type: str,
         error_msg: str,
-        tb: Optional[str] = None,
+        tb: str | None = None,
     ) -> None:
         """Handle geist execution failure.
 
@@ -455,7 +458,7 @@ class GeistExecutor:
         geist.failure_count += 1
 
         # Log failure
-        log_entry: Dict[str, Any] = {
+        log_entry: dict[str, Any] = {
             "geist_id": geist_id,
             "status": "error",
             "error_type": error_type,
@@ -478,7 +481,7 @@ class GeistExecutor:
                 }
             )
 
-    def get_enabled_geists(self) -> List[str]:
+    def get_enabled_geists(self) -> list[str]:
         """Get list of enabled geist IDs.
 
         Returns:
@@ -486,7 +489,7 @@ class GeistExecutor:
         """
         return [gid for gid, g in self.geists.items() if g.is_enabled]
 
-    def get_execution_log(self) -> List[Dict[str, Any]]:
+    def get_execution_log(self) -> list[dict[str, Any]]:
         """Get execution log.
 
         Returns:
@@ -494,7 +497,7 @@ class GeistExecutor:
         """
         return self.execution_log.copy()
 
-    def get_execution_profiles(self) -> List[GeistExecutionProfile]:
+    def get_execution_profiles(self) -> list[GeistExecutionProfile]:
         """Get execution profiles with timing data.
 
         Only populated when debug mode is enabled.
@@ -504,7 +507,7 @@ class GeistExecutor:
         """
         return self.execution_profiles.copy()
 
-    def _extract_profile_stats(self, profiler: Optional[cProfile.Profile]) -> List[ProfileStats]:
+    def _extract_profile_stats(self, profiler: cProfile.Profile | None) -> list[ProfileStats]:
         """Extract function-level statistics from profiler.
 
         Args:
@@ -560,7 +563,9 @@ class GeistExecutor:
         pct = (execution_time / self.timeout) * 100
         logger.warning(
             "%s completed in %.3fs (%.0f%% of timeout)",
-            geist_id, execution_time, pct,
+            geist_id,
+            execution_time,
+            pct,
         )
         if not self.debug:
             logger.info("Run with --debug for detailed performance breakdown")
@@ -598,14 +603,19 @@ class GeistExecutor:
 
                 logger.info(
                     "  %d. %s - %.3fs (%.1f%%) - %d calls",
-                    i, name, stats.total_time, pct, stats.calls,
+                    i,
+                    name,
+                    stats.total_time,
+                    pct,
+                    stats.calls,
                 )
 
             # Show percentage accounted for
             pct_accounted = (total_accounted / self.timeout) * 100
             logger.info(
                 "Total accounted: %.3fs (%.1f%%)",
-                total_accounted, pct_accounted,
+                total_accounted,
+                pct_accounted,
             )
 
         # Generate and show smart suggestions
@@ -614,7 +624,7 @@ class GeistExecutor:
         for suggestion in suggestions:
             logger.info("  -> %s", suggestion)
 
-    def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -> List[str]:
+    def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -> list[str]:
         """Generate actionable suggestions based on execution profile.
 
         Args:

@@ -5,7 +5,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 
@@ -28,7 +28,7 @@ class ValidationResult:
     file_path: Path
     geist_type: str  # "code" or "tracery"
     passed: bool
-    issues: List[ValidationIssue]
+    issues: list[ValidationIssue]
 
     @property
     def has_errors(self) -> bool:
@@ -62,7 +62,7 @@ class GeistValidator:
             Validation result with any issues found
         """
         geist_id = geist_file.stem
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
 
         # Check file is readable
         if not geist_file.exists():
@@ -211,7 +211,7 @@ class GeistValidator:
             Validation result with any issues found
         """
         geist_id = geist_file.stem
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
 
         # Check file is readable
         if not geist_file.exists():
@@ -231,7 +231,7 @@ class GeistValidator:
 
         # Try to parse YAML
         try:
-            with open(geist_file, "r") as f:
+            with open(geist_file) as f:
                 data = yaml.safe_load(f)
         except yaml.YAMLError as e:
             issues.append(
@@ -366,7 +366,7 @@ class GeistValidator:
         )
 
     def _check_undefined_symbols(
-        self, grammar: Dict[str, Any], issues: List[ValidationIssue]
+        self, grammar: dict[str, Any], issues: list[ValidationIssue]
     ) -> None:
         """Check for undefined symbol references in grammar.
 
@@ -401,7 +401,7 @@ class GeistValidator:
             )
 
     def _check_vault_functions(
-        self, grammar: Dict[str, Any], issues: List[ValidationIssue]
+        self, grammar: dict[str, Any], issues: list[ValidationIssue]
     ) -> None:
         """Check for vault function calls in grammar.
 
@@ -427,7 +427,7 @@ class GeistValidator:
                                 )
                             )
 
-    def has_blocking_issues(self, issues: List[ValidationIssue]) -> bool:
+    def has_blocking_issues(self, issues: list[ValidationIssue]) -> bool:
         """Check if issues list contains blocking problems.
 
         Args:
@@ -445,7 +445,7 @@ class GeistValidator:
 
     def validate_all(
         self, code_dir: Path | None, tracery_dir: Path | None
-    ) -> List[ValidationResult]:
+    ) -> list[ValidationResult]:
         """Validate all geists in the specified directories.
 
         Args:
@@ -455,7 +455,7 @@ class GeistValidator:
         Returns:
             List of validation results for all geists found
         """
-        results: List[ValidationResult] = []
+        results: list[ValidationResult] = []
 
         # Validate code geists
         if code_dir and code_dir.exists():

@@ -19,10 +19,10 @@ _float_elements = st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allo
 
 def _normalized_array() -> st.SearchStrategy[np.ndarray]:
     """Generate a normalised DIM-dimensional vector using hypothesis numpy arrays."""
-    return arrays(
-        dtype=np.float32, shape=(DIM,), elements=_float_elements
-    ).filter(lambda v: np.linalg.norm(v) > 0.01).map(
-        lambda v: v / np.linalg.norm(v)
+    return (
+        arrays(dtype=np.float32, shape=(DIM,), elements=_float_elements)
+        .filter(lambda v: np.linalg.norm(v) > 0.01)
+        .map(lambda v: v / np.linalg.norm(v))
     )
 
 
@@ -96,9 +96,7 @@ def test_opposite_vectors() -> None:
     t=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
 )
 @_pbt_settings
-def test_interpolation_similarity_to_b_increases(
-    a: np.ndarray, b: np.ndarray, t: float
-) -> None:
+def test_interpolation_similarity_to_b_increases(a: np.ndarray, b: np.ndarray, t: float) -> None:
     """Interpolating from a toward b should not decrease similarity to b."""
     mid = (1.0 - t) * a + t * b
     norm = np.linalg.norm(mid)

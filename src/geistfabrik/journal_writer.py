@@ -9,7 +9,6 @@ import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 from .models import Suggestion
 
@@ -31,7 +30,7 @@ class JournalWriter:
         self.journal_dir = vault_path / "geist journal"
 
     def write_session(
-        self, date: datetime, suggestions: List[Suggestion], mode: str = "default"
+        self, date: datetime, suggestions: list[Suggestion], mode: str = "default"
     ) -> Path:
         """Write session note with suggestions.
 
@@ -70,7 +69,7 @@ class JournalWriter:
 
         return session_path
 
-    def _format_session_note(self, date: datetime, suggestions: List[Suggestion], mode: str) -> str:
+    def _format_session_note(self, date: datetime, suggestions: list[Suggestion], mode: str) -> str:
         """Format session note content.
 
         Args:
@@ -125,7 +124,7 @@ class JournalWriter:
         date_str = date.strftime("%Y%m%d")
         return f"^g{date_str}-{index:03d}"
 
-    def _record_suggestions(self, date_str: str, suggestions: List[Suggestion]) -> None:
+    def _record_suggestions(self, date_str: str, suggestions: list[Suggestion]) -> None:
         """Record suggestions in database for novelty filtering.
 
         Args:
@@ -165,7 +164,7 @@ class JournalWriter:
         session_path = self.journal_dir / f"{date_str}.md"
         return session_path.exists()
 
-    def get_recent_suggestions(self, days: int = 60) -> List[str]:
+    def get_recent_suggestions(self, days: int = 60) -> list[str]:
         """Get suggestion texts from recent sessions.
 
         Args:

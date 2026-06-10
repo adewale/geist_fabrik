@@ -45,10 +45,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         todo_clean = " ".join(todo.split())
 
-        text = (
-            f"From [[{note.obsidian_link}]]: \"{todo_clean}\" "
-            f"What if you tackled this now?"
-        )
+        text = f'From [[{note.obsidian_link}]]: "{todo_clean}" What if you tackled this now?'
 
         suggestions.append(
             Suggestion(
@@ -74,14 +71,14 @@ def extract_todos(content: str) -> list[str]:
         List of TODO strings (formatted as "MARKER: text")
     """
     # Remove code blocks (those TODOs are for code, not notes)
-    content_no_code = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
-    content_no_code = re.sub(r'`[^`]+`', '', content_no_code)
+    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
+    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
 
     todos = []
 
     # Match TODO markers with their text
     # Captures: TODO: text until end of line or period
-    pattern = r'(TODO|FIXME|HACK|NOTE|XXX):\s*([^.\n]+(?:\.[^\n]+)?)'
+    pattern = r"(TODO|FIXME|HACK|NOTE|XXX):\s*([^.\n]+(?:\.[^\n]+)?)"
     matches = re.findall(pattern, content_no_code, re.IGNORECASE)
 
     seen = set()
@@ -121,12 +118,12 @@ def is_valid_todo(todo_text: str) -> bool:
         return False
 
     # Skip common placeholders
-    placeholders = ['add content', 'write this', 'fill in', 'update']
+    placeholders = ["add content", "write this", "fill in", "update"]
     if todo_text.lower() in placeholders:
         return False
 
     # Must contain at least one letter
-    if not re.search(r'[a-zA-Z]', todo_text):
+    if not re.search(r"[a-zA-Z]", todo_text):
         return False
 
     return True

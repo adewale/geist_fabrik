@@ -6,7 +6,7 @@ This module handles loading and saving vault configuration from config.yaml.
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 
@@ -21,12 +21,12 @@ class DateCollectionConfig:
     """Configuration for date-collection notes."""
 
     enabled: bool = True
-    exclude_files: List[str] = field(default_factory=list)
+    exclude_files: list[str] = field(default_factory=list)
     min_sections: int = 2
     date_threshold: float = 0.5
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DateCollectionConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "DateCollectionConfig":
         """Create config from dictionary."""
         return cls(
             enabled=data.get("enabled", True),
@@ -35,7 +35,7 @@ class DateCollectionConfig:
             date_threshold=data.get("date_threshold", 0.5),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
         return {
             "enabled": self.enabled,
@@ -54,7 +54,7 @@ class ClusterConfig:
     n_label_terms: int = 4
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ClusterConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "ClusterConfig":
         """Create config from dictionary.
 
         Args:
@@ -69,7 +69,7 @@ class ClusterConfig:
             n_label_terms=data.get("n_label_terms", 4),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary.
 
         Returns:
@@ -87,19 +87,19 @@ class VectorSearchConfig:
     """Configuration for vector search backend."""
 
     backend: str = "in-memory"
-    backend_settings: Dict[str, Any] = field(default_factory=dict)
+    backend_settings: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "VectorSearchConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "VectorSearchConfig":
         """Create config from dictionary."""
         return cls(
             backend=data.get("backend", "in-memory"),
             backend_settings=data.get("backends", {}),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "backend": self.backend,
         }
         if self.backend_settings:
@@ -111,8 +111,8 @@ class VectorSearchConfig:
 class GeistFabrikConfig:
     """GeistFabrik configuration."""
 
-    enabled_modules: List[str] = field(default_factory=list)
-    default_geists: Dict[str, bool] = field(default_factory=dict)
+    enabled_modules: list[str] = field(default_factory=list)
+    default_geists: dict[str, bool] = field(default_factory=dict)
     date_collection: DateCollectionConfig = field(default_factory=DateCollectionConfig)
     vector_search: VectorSearchConfig = field(default_factory=VectorSearchConfig)
     clustering: ClusterConfig = field(default_factory=ClusterConfig)
@@ -130,7 +130,7 @@ class GeistFabrikConfig:
         return self.default_geists.get(geist_id, True)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "GeistFabrikConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "GeistFabrikConfig":
         """Create config from dictionary.
 
         Args:
@@ -153,7 +153,7 @@ class GeistFabrikConfig:
             ),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary.
 
         Returns:
@@ -182,7 +182,7 @@ def load_config(config_path: Path) -> GeistFabrikConfig:
         return GeistFabrikConfig()
 
     try:
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             data = yaml.safe_load(f)
             if data is None:
                 return GeistFabrikConfig()

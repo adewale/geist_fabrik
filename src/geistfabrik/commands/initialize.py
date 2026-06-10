@@ -29,9 +29,7 @@ class InitCommand(BaseCommand):
         obsidian_dir = vault_path / ".obsidian"
         if not obsidian_dir.exists():
             print(f"Warning: No .obsidian directory found in {vault_path}")
-            print(
-                "This doesn't appear to be an Obsidian vault, but continuing anyway..."
-            )
+            print("This doesn't appear to be an Obsidian vault, but continuing anyway...")
             print()
 
         print(f"Initialising GeistFabrik in: {vault_path}\n")
@@ -43,9 +41,7 @@ class InitCommand(BaseCommand):
         geistfabrik_dir = vault_path / "_geistfabrik"
 
         if geistfabrik_dir.exists() and not self.args.force:
-            self.print_error(
-                f"_geistfabrik directory already exists at {geistfabrik_dir}"
-            )
+            self.print_error(f"_geistfabrik directory already exists at {geistfabrik_dir}")
             print("Use --force to reinitialize (this will overwrite existing configuration)")
             return 1
 

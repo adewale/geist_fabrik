@@ -64,9 +64,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             # How aligned is neighbor with drift direction?
             # drift_vector is already a unit vector from TemporalPatternFinder
-            alignment = np.dot(drift_vector, neighbor_emb) / np.linalg.norm(
-                neighbor_emb
-            )
+            alignment = np.dot(drift_vector, neighbor_emb) / np.linalg.norm(neighbor_emb)
             neighbor_alignments.append((neighbour, alignment))
 
         if not neighbor_alignments:

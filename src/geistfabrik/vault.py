@@ -6,7 +6,7 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
@@ -26,8 +26,8 @@ class Vault:
     def __init__(
         self,
         vault_path: Path | str,
-        db_path: Optional[Path | str] = None,
-        config: Optional[GeistFabrikConfig] = None,
+        db_path: Path | str | None = None,
+        config: GeistFabrikConfig | None = None,
     ):
         """Initialise vault.
 
@@ -190,14 +190,12 @@ class Vault:
             placeholders = ",".join(["?"] * len(existing_paths))
             # Only delete non-virtual notes whose paths don't exist
             # Virtual entries will be cleaned up if their source_file doesn't exist
-            query = "DELETE FROM notes WHERE is_virtual = 0 AND path NOT IN ({})".format(
-                placeholders
-            )
+            query = f"DELETE FROM notes WHERE is_virtual = 0 AND path NOT IN ({placeholders})"
             self.db.execute(query, tuple(existing_paths))
 
             # Also delete virtual entries whose source files no longer exist
-            query = "DELETE FROM notes WHERE is_virtual = 1 AND source_file NOT IN ({})".format(
-                placeholders
+            query = (
+                f"DELETE FROM notes WHERE is_virtual = 1 AND source_file NOT IN ({placeholders})"
             )
             self.db.execute(query, tuple(existing_paths))
         else:
@@ -219,8 +217,8 @@ class Vault:
         created: datetime,
         modified: datetime,
         file_mtime: float,
-        links: List[Link],
-        tags: List[str],
+        links: list[Link],
+        tags: list[str],
     ) -> None:
         """Update a note and its relationships in the database."""
         # Construct a Note object for regular (non-virtual) entries
@@ -302,9 +300,9 @@ class Vault:
 
     def _build_note_from_row(
         self,
-        row: tuple[str, str, str, str, str, int, Optional[str], Optional[str]],
-        links: List[Link],
-        tags: List[str],
+        row: tuple[str, str, str, str, str, int, str | None, str | None],
+        links: list[Link],
+        tags: list[str],
     ) -> Note:
         """Build a Note object from a database row.
 
@@ -346,7 +344,7 @@ class Vault:
             entry_date=entry_date,
         )
 
-    def all_notes(self) -> List[Note]:
+    def all_notes(self) -> list[Note]:
         """Load all notes from database.
 
         Returns:
@@ -366,7 +364,7 @@ class Vault:
         link_cursor = self.db.execute(
             "SELECT source_path, target, display_text, is_embed, block_ref FROM links"
         )
-        links_by_path: dict[str, List[Link]] = {}
+        links_by_path: dict[str, list[Link]] = {}
         for link_row in link_cursor.fetchall():
             source_path = link_row[0]
             if source_path not in links_by_path:
@@ -382,7 +380,7 @@ class Vault:
 
         # Batch load all tags and group by note_path
         tag_cursor = self.db.execute("SELECT note_path, tag FROM tags ORDER BY note_path, tag")
-        tags_by_path: dict[str, List[str]] = {}
+        tags_by_path: dict[str, list[str]] = {}
         for tag_row in tag_cursor.fetchall():
             note_path = tag_row[0]
             if note_path not in tags_by_path:
@@ -400,7 +398,7 @@ class Vault:
 
         return notes
 
-    def get_note(self, path: str) -> Optional[Note]:
+    def get_note(self, path: str) -> Note | None:
         """Retrieve specific note by path (including virtual entries).
 
         Args:
@@ -450,7 +448,7 @@ class Vault:
 
         return self._build_note_from_row(row, links, tags)
 
-    def get_notes_batch(self, paths: List[str]) -> Dict[str, Optional[Note]]:
+    def get_notes_batch(self, paths: list[str]) -> dict[str, Note | None]:
         """Load multiple notes efficiently in batched queries.
 
         Performance optimised (OP-6): Batches database queries to load N notes
@@ -475,7 +473,7 @@ class Vault:
             tuple(paths),
         )
 
-        notes_data: Dict[str, Dict[str, Any]] = {}
+        notes_data: dict[str, dict[str, Any]] = {}
         for row in cursor.fetchall():
             path = row[0]
             notes_data[path] = {
@@ -514,7 +512,7 @@ class Vault:
                 notes_data[note_path]["tags"].append(tag)
 
         # Build Note objects
-        result: Dict[str, Optional[Note]] = {}
+        result: dict[str, Note | None] = {}
         for path in paths:
             if path in notes_data:
                 data = notes_data[path]
@@ -524,7 +522,7 @@ class Vault:
 
         return result
 
-    def resolve_link_target(self, target: str, source_path: Optional[str] = None) -> Optional[Note]:
+    def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
         """Resolve a wiki-link target to a Note.
 
         Wiki-links in Obsidian can reference notes by:

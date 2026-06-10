@@ -4,7 +4,7 @@ Discovers semantic stepping-stone paths between unlinked notes, showing how
 ideas could connect even when direct graph paths don't exist.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Note, Suggestion, VaultContext
@@ -86,7 +86,7 @@ def _find_semantic_path(
     start: "Note",
     end: "Note",
     max_hops: int = 3,
-) -> Optional[List["Note"]]:
+) -> list["Note"] | None:
     """Find semantic path between two notes using greedy best-first search."""
     from geistfabrik.similarity_analysis import SimilarityLevel
 

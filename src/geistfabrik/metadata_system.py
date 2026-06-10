@@ -8,8 +8,9 @@ export an `infer(note, vault) -> Dict` function.
 import importlib.util
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from .models import Note
 
@@ -38,7 +39,7 @@ class MetadataLoader:
     an `infer(note, vault) -> Dict` function, and detects key conflicts.
     """
 
-    def __init__(self, module_dir: Optional[Path] = None):
+    def __init__(self, module_dir: Path | None = None):
         """Initialise metadata loader.
 
         Args:
@@ -46,10 +47,10 @@ class MetadataLoader:
                        If None, no modules are loaded.
         """
         self.module_dir = module_dir
-        self.modules: Dict[str, Callable[[Note, "VaultContext"], Dict[str, Any]]] = {}
-        self._key_to_module: Dict[str, str] = {}  # Track which module provides which key
+        self.modules: dict[str, Callable[[Note, VaultContext], dict[str, Any]]] = {}
+        self._key_to_module: dict[str, str] = {}  # Track which module provides which key
 
-    def load_modules(self, enabled_modules: Optional[List[str]] = None) -> None:
+    def load_modules(self, enabled_modules: list[str] | None = None) -> None:
         """Load metadata inference modules from directory.
 
         Args:
@@ -123,7 +124,7 @@ class MetadataLoader:
         self.modules[module_name] = infer_func
         logger.debug(f"Loaded metadata module: {module_name}")
 
-    def infer_all(self, note: Note, vault: "VaultContext") -> Tuple[Dict[str, Any], List[str]]:
+    def infer_all(self, note: Note, vault: "VaultContext") -> tuple[dict[str, Any], list[str]]:
         """Run all metadata inference modules on a note.
 
         Args:
@@ -136,8 +137,8 @@ class MetadataLoader:
         Raises:
             MetadataConflictError: If multiple modules return the same key
         """
-        metadata: Dict[str, Any] = {}
-        failed_modules: List[str] = []
+        metadata: dict[str, Any] = {}
+        failed_modules: list[str] = []
 
         for module_name, infer_func in self.modules.items():
             try:
@@ -203,7 +204,7 @@ class MetadataLoader:
             return all(isinstance(k, str) and self._is_valid_value(v) for k, v in value.items())
         return False
 
-    def get_module_keys(self, module_name: str) -> List[str]:
+    def get_module_keys(self, module_name: str) -> list[str]:
         """Get list of keys provided by a specific module.
 
         Args:
@@ -241,7 +242,7 @@ class MetadataAnalyser:
         """
         self.vault = vault
 
-    def distribution(self, metadata_key: str) -> Dict[str, float]:
+    def distribution(self, metadata_key: str) -> dict[str, float]:
         """Get percentiles (p10, p25, p50, p75, p90) for metadata.
 
         Args:
@@ -281,9 +282,7 @@ class MetadataAnalyser:
             "p90": float(np.percentile(values_array, 90)),
         }
 
-    def outliers(
-        self, metadata_key: str, threshold: float = 2.0
-    ) -> List[Note]:
+    def outliers(self, metadata_key: str, threshold: float = 2.0) -> list[Note]:
         """Find notes with metadata > threshold standard deviations from mean.
 
         Args:
@@ -297,7 +296,7 @@ class MetadataAnalyser:
 
         notes = self.vault.notes()
         values = []
-        note_value_map: Dict[str, float] = {}
+        note_value_map: dict[str, float] = {}
 
         for note in notes:
             metadata = self.vault.metadata(note)
@@ -328,9 +327,7 @@ class MetadataAnalyser:
 
         return outlier_notes
 
-    def compare_notes(
-        self, note_a: Note, note_b: Note, keys: List[str]
-    ) -> Dict[str, float]:
+    def compare_notes(self, note_a: Note, note_b: Note, keys: list[str]) -> dict[str, float]:
         """Compare metadata between two notes (ratios).
 
         Args:
@@ -344,7 +341,7 @@ class MetadataAnalyser:
         metadata_a = self.vault.metadata(note_a)
         metadata_b = self.vault.metadata(note_b)
 
-        ratios: Dict[str, float] = {}
+        ratios: dict[str, float] = {}
 
         for key in keys:
             value_a = metadata_a.get(key)
@@ -359,7 +356,7 @@ class MetadataAnalyser:
 
         return ratios
 
-    def profile(self, note: Note) -> Dict[str, str]:
+    def profile(self, note: Note) -> dict[str, str]:
         """Get metadata profile: {key: 'high'|'moderate'|'low'} based on percentiles.
 
         Args:
@@ -369,7 +366,7 @@ class MetadataAnalyser:
             Dictionary mapping metadata keys to qualitative levels
         """
         metadata = self.vault.metadata(note)
-        profile: Dict[str, str] = {}
+        profile: dict[str, str] = {}
 
         for key, value in metadata.items():
             if not isinstance(value, (int, float)):

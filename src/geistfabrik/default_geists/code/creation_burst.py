@@ -27,9 +27,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     # Use VaultContext aggregation method instead of direct SQL
     # This respects architectural layering and hides database implementation
-    burst_days_dict = vault.notes_grouped_by_creation_date(
-        min_per_day=3, exclude_journal=True
-    )
+    burst_days_dict = vault.notes_grouped_by_creation_date(min_per_day=3, exclude_journal=True)
 
     if not burst_days_dict:
         return []

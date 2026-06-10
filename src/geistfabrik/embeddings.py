@@ -18,7 +18,7 @@ import math
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import sklearn  # type: ignore[import-untyped]
@@ -58,6 +58,7 @@ def is_offline_mode() -> bool:
         return True
     return False
 
+
 # ============================================================================
 # sklearn Performance Optimisations
 # ============================================================================
@@ -89,7 +90,7 @@ class EmbeddingComputer:
     def __init__(
         self,
         model_name: str = MODEL_NAME,
-        model: Optional[SentenceTransformer] = None,
+        model: SentenceTransformer | None = None,
     ):
         """Initialise embedding computer.
 
@@ -98,8 +99,8 @@ class EmbeddingComputer:
             model: Pre-initialised model (for testing/injection), if None will lazy-load
         """
         self.model_name = model_name
-        self._model: Optional[SentenceTransformer] = model
-        self.device: Optional[str] = None  # Will be set on first model access
+        self._model: SentenceTransformer | None = model
+        self.device: str | None = None  # Will be set on first model access
 
     def _detect_device(self) -> str:
         """Detect best available device for model inference.
@@ -193,7 +194,7 @@ class EmbeddingComputer:
         embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding
 
-    def compute_batch_semantic(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
+    def compute_batch_semantic(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
         """Compute semantic embeddings for multiple texts in batch.
 
         This is significantly faster than calling compute_semantic() in a loop,
@@ -302,9 +303,9 @@ class Session:
         self,
         date: datetime,
         db: sqlite3.Connection,
-        computer: Optional[EmbeddingComputer] = None,
+        computer: EmbeddingComputer | None = None,
         backend: str = "in-memory",
-        embedding_retention: Optional[int] = None,
+        embedding_retention: int | None = None,
     ):
         """Initialise session.
 
@@ -322,7 +323,7 @@ class Session:
         self.session_id = self._get_or_create_session()
         self.computer = computer if computer is not None else EmbeddingComputer()
         self._backend_type = backend
-        self._backend: Optional["VectorSearchBackend"] = None
+        self._backend: VectorSearchBackend | None = None
         self.embedding_retention = embedding_retention
 
     def _get_or_create_session(self) -> int:
@@ -358,7 +359,7 @@ class Session:
             raise RuntimeError("Failed to create session")
         return session_id
 
-    def compute_vault_state_hash(self, notes: List[Note]) -> str:
+    def compute_vault_state_hash(self, notes: list[Note]) -> str:
         """Compute hash of vault state for change detection.
 
         Args:
@@ -384,7 +385,7 @@ class Session:
         """
         return hashlib.sha256(content.encode()).hexdigest()
 
-    def _get_cached_semantic_embedding(self, note: Note) -> Optional[np.ndarray]:
+    def _get_cached_semantic_embedding(self, note: Note) -> np.ndarray | None:
         """Get cached semantic embedding if available and valid.
 
         Args:
@@ -436,7 +437,7 @@ class Session:
             ),
         )
 
-    def compute_embeddings(self, notes: List[Note]) -> None:
+    def compute_embeddings(self, notes: list[Note]) -> None:
         """Compute and store session embeddings for all notes.
 
         Uses cached semantic embeddings when available (content unchanged),
@@ -458,8 +459,8 @@ class Session:
         self.db.execute("DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,))
 
         # Separate notes into cached and uncached
-        cached_notes: List[tuple[Note, np.ndarray]] = []
-        uncached_notes: List[Note] = []
+        cached_notes: list[tuple[Note, np.ndarray]] = []
+        uncached_notes: list[Note] = []
 
         for note in notes:
             cached_embedding = self._get_cached_semantic_embedding(note)
@@ -578,7 +579,7 @@ class Session:
                 f"window ({retention} sessions)"
             )
 
-    def get_embedding(self, note_path: str) -> Optional[np.ndarray]:
+    def get_embedding(self, note_path: str) -> np.ndarray | None:
         """Get embedding for a note in this session.
 
         Args:
@@ -670,8 +671,8 @@ def find_similar_notes(
     query_embedding: np.ndarray,
     embeddings: dict[str, np.ndarray],
     k: int = 10,
-    exclude_paths: Optional[set[str]] = None,
-) -> List[tuple[str, float]]:
+    exclude_paths: set[str] | None = None,
+) -> list[tuple[str, float]]:
     """Find k most similar notes to query embedding.
 
     Args:

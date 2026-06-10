@@ -28,9 +28,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik.temporal_analysis import EmbeddingTrajectoryCalculator
 
     # Find burst days (uses VaultContext aggregation method)
-    burst_days_dict = vault.notes_grouped_by_creation_date(
-        min_per_day=3, exclude_journal=True
-    )
+    burst_days_dict = vault.notes_grouped_by_creation_date(min_per_day=3, exclude_journal=True)
 
     if not burst_days_dict:
         return []

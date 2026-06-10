@@ -14,9 +14,9 @@ Example usage:
         assert len(virtual_notes) > 0
 """
 
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
@@ -241,19 +241,15 @@ def assert_virtual_notes_created(vault: Vault, expected_count: int = 6) -> None:
     all_notes = vault.all_notes()
     virtual_notes = [n for n in all_notes if n.is_virtual]
 
-    assert (
-        len(virtual_notes) == expected_count
-    ), f"Expected {expected_count} virtual notes, got {len(virtual_notes)}"
+    assert len(virtual_notes) == expected_count, (
+        f"Expected {expected_count} virtual notes, got {len(virtual_notes)}"
+    )
 
     # Verify all virtual notes have required fields
     for note in virtual_notes:
         assert note.is_virtual is True, f"Note {note.path} should have is_virtual=True"
-        assert (
-            note.source_file is not None
-        ), f"Note {note.path} should have source_file set"
-        assert (
-            note.entry_date is not None
-        ), f"Note {note.path} should have entry_date set"
+        assert note.source_file is not None, f"Note {note.path} should have source_file set"
+        assert note.entry_date is not None, f"Note {note.path} should have entry_date set"
         assert "#" in note.obsidian_link, (
             f"Note {note.path} obsidian_link should contain '#' for deeplink, "
             f"got: {note.obsidian_link}"

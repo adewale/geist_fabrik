@@ -46,8 +46,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         quote_clean = " ".join(quote.split())
 
         text = (
-            f'From [[{note.obsidian_link}]]: "{quote_clean}" '
-            f"What if you reflected on this again?"
+            f'From [[{note.obsidian_link}]]: "{quote_clean}" What if you reflected on this again?'
         )
 
         suggestions.append(

@@ -11,7 +11,7 @@ Each filter can be enabled/disabled via configuration.
 
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from .config import (
     get_default_filter_config,
@@ -27,7 +27,7 @@ class SuggestionFilter:
         self,
         db: sqlite3.Connection,
         embedding_computer: EmbeddingComputer,
-        config: Dict[str, Any] | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """Initialise filter with database and configuration.
 
@@ -43,7 +43,7 @@ class SuggestionFilter:
         self._recent_embeddings_cache: Any = None  # numpy array when populated
         self._cache_metadata: Any = None  # (session_date, window_days) tuple when populated
 
-    def _default_config(self) -> Dict[str, Any]:
+    def _default_config(self) -> dict[str, Any]:
         """Return default filtering configuration."""
         return get_default_filter_config()
 
@@ -90,7 +90,7 @@ class SuggestionFilter:
 
         return recent_embeddings
 
-    def filter_all(self, suggestions: List[Suggestion], session_date: datetime) -> List[Suggestion]:
+    def filter_all(self, suggestions: list[Suggestion], session_date: datetime) -> list[Suggestion]:
         """Apply all enabled filters in sequence.
 
         Args:
@@ -114,7 +114,7 @@ class SuggestionFilter:
 
         return filtered
 
-    def filter_boundary(self, suggestions: List[Suggestion]) -> List[Suggestion]:
+    def filter_boundary(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Remove suggestions referencing non-existent or excluded notes.
 
         Args:
@@ -149,8 +149,8 @@ class SuggestionFilter:
         return filtered
 
     def filter_novelty(
-        self, suggestions: List[Suggestion], session_date: datetime
-    ) -> List[Suggestion]:
+        self, suggestions: list[Suggestion], session_date: datetime
+    ) -> list[Suggestion]:
         """Remove suggestions similar to recent history.
 
         Uses lazy caching and batch embedding computation for optimal performance.
@@ -216,7 +216,7 @@ class SuggestionFilter:
 
             return filtered
 
-    def filter_diversity(self, suggestions: List[Suggestion]) -> List[Suggestion]:
+    def filter_diversity(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Remove near-duplicate suggestions from current batch.
 
         Uses embeddings to detect semantic similarity. Keeps first occurrence
@@ -260,7 +260,7 @@ class SuggestionFilter:
 
         return [s for i, s in enumerate(suggestions) if keep[i]]
 
-    def filter_quality(self, suggestions: List[Suggestion]) -> List[Suggestion]:
+    def filter_quality(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Apply basic quality checks.
 
         Checks:
@@ -283,7 +283,7 @@ class SuggestionFilter:
         check_repetition = quality_config.get("check_repetition", True)
 
         filtered = []
-        seen_texts: Set[str] = set()
+        seen_texts: set[str] = set()
 
         for suggestion in suggestions:
             text = suggestion.text.strip()
@@ -312,8 +312,8 @@ class SuggestionFilter:
 
 
 def select_suggestions(
-    filtered: List[Suggestion], mode: str, count: int, seed: int
-) -> List[Suggestion]:
+    filtered: list[Suggestion], mode: str, count: int, seed: int
+) -> list[Suggestion]:
     """Select final suggestions based on invocation mode.
 
     Args:

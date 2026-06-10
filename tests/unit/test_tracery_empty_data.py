@@ -79,17 +79,13 @@ def isolated_vault_context(isolated_vault: Vault) -> VaultContext:
     session.compute_embeddings(isolated_vault.all_notes())
 
     function_registry = FunctionRegistry()
-    return VaultContext(
-        isolated_vault, session, seed=42, function_registry=function_registry
-    )
+    return VaultContext(isolated_vault, session, seed=42, function_registry=function_registry)
 
 
 class TestHubExplorerEmptyData:
     """Test hub_explorer geist with no hub notes."""
 
-    def test_hub_explorer_returns_empty_with_no_hubs(
-        self, isolated_vault_context: VaultContext
-    ):
+    def test_hub_explorer_returns_empty_with_no_hubs(self, isolated_vault_context: VaultContext):
         """hub_explorer should return empty list when vault has no hubs."""
         geist_path = (
             Path(__file__).parent.parent.parent
@@ -105,13 +101,11 @@ class TestHubExplorerEmptyData:
 
         # Should return empty list, not suggestions with empty placeholders
         assert isinstance(suggestions, list)
-        assert (
-            len(suggestions) == 0
-        ), "hub_explorer should return no suggestions when there are no hubs"
+        assert len(suggestions) == 0, (
+            "hub_explorer should return no suggestions when there are no hubs"
+        )
 
-    def test_hub_explorer_returns_empty_with_empty_vault(
-        self, empty_vault_context: VaultContext
-    ):
+    def test_hub_explorer_returns_empty_with_empty_vault(self, empty_vault_context: VaultContext):
         """hub_explorer should return empty list when vault is completely empty."""
         geist_path = (
             Path(__file__).parent.parent.parent
@@ -132,9 +126,7 @@ class TestHubExplorerEmptyData:
 class TestOrphanConnectorEmptyData:
     """Test orphan_connector geist with no orphans."""
 
-    def test_orphan_connector_returns_empty_with_no_orphans(
-        self, tmp_path: Path
-    ):
+    def test_orphan_connector_returns_empty_with_no_orphans(self, tmp_path: Path):
         """orphan_connector should return empty when all notes are linked."""
         vault_path = tmp_path / "vault"
         vault_path.mkdir()
@@ -150,9 +142,7 @@ class TestOrphanConnectorEmptyData:
         session = Session(datetime(2025, 1, 20), vault.db)
         session.compute_embeddings(vault.all_notes())
 
-        context = VaultContext(
-            vault, session, seed=42, function_registry=FunctionRegistry()
-        )
+        context = VaultContext(vault, session, seed=42, function_registry=FunctionRegistry())
 
         geist_path = (
             Path(__file__).parent.parent.parent
@@ -167,17 +157,15 @@ class TestOrphanConnectorEmptyData:
         suggestions = geist.suggest(context)
 
         assert isinstance(suggestions, list)
-        assert (
-            len(suggestions) == 0
-        ), "orphan_connector should return no suggestions when there are no orphans"
+        assert len(suggestions) == 0, (
+            "orphan_connector should return no suggestions when there are no orphans"
+        )
 
 
 class TestSemanticNeighboursEmptyData:
     """Test semantic_neighbours geist with insufficient notes."""
 
-    def test_semantic_neighbours_returns_empty_with_one_note(
-        self, tmp_path: Path
-    ):
+    def test_semantic_neighbours_returns_empty_with_one_note(self, tmp_path: Path):
         """semantic_neighbours should return empty when only one note exists."""
         vault_path = tmp_path / "vault"
         vault_path.mkdir()
@@ -192,9 +180,7 @@ class TestSemanticNeighboursEmptyData:
         session = Session(datetime(2025, 1, 20), vault.db)
         session.compute_embeddings(vault.all_notes())
 
-        context = VaultContext(
-            vault, session, seed=42, function_registry=FunctionRegistry()
-        )
+        context = VaultContext(vault, session, seed=42, function_registry=FunctionRegistry())
 
         geist_path = (
             Path(__file__).parent.parent.parent
@@ -291,8 +277,6 @@ class TestTraceryEmptyPlaceholderDetection:
 
         # Valid text should pass
         assert (
-            geist._has_empty_placeholder(
-                "[[Note]] connects many ideas—what's the common thread?"
-            )
+            geist._has_empty_placeholder("[[Note]] connects many ideas—what's the common thread?")
             is False
         )

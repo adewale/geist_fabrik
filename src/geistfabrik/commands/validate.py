@@ -201,9 +201,7 @@ class ValidateCommand(BaseCommand):
                             print(f"   Line {issue.line_number}: {issue.message}")
                         else:
                             print(f"   {issue.message}")
-                        if issue.suggestion and (
-                            self.verbose or len(result.issues) <= 3
-                        ):
+                        if issue.suggestion and (self.verbose or len(result.issues) <= 3):
                             print(f"      -> {issue.suggestion}")
                     elif issue.severity == "warning":
                         print(f"   !  {issue.message}")

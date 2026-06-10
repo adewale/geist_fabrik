@@ -94,11 +94,11 @@ def test_geists_use_obsidian_link_not_title() -> None:
                 "",
                 "  ❌ WRONG:",
                 '    f"[[{note.title}]]"',
-                '    notes=[note.title]',
+                "    notes=[note.title]",
                 "",
                 "  ✅ CORRECT:",
                 '    f"[[{note.obsidian_link}]]"',
-                '    notes=[note.obsidian_link]',
+                "    notes=[note.obsidian_link]",
                 "",
                 "See specs/DATE_COLLECTION_NOTES_SPEC.md for architectural details.",
                 "=" * 80,
@@ -151,12 +151,11 @@ def test_geists_have_proper_type_hints() -> None:
                 # Enforce project standard: list["Suggestion"] (lowercase, quoted)
                 elif '-> list["Suggestion"]' not in line:
                     # Detect specific violations for better error messages
-                    if 'List[' in line:
+                    if "List[" in line:
                         issue = "Uses 'List' instead of 'list' (violates PEP 585 style)"
-                    elif '-> list[Suggestion]' in line:
+                    elif "-> list[Suggestion]" in line:
                         issue = (
-                            'Missing quotes around \'Suggestion\' '
-                            '(should be list["Suggestion"])'
+                            "Missing quotes around 'Suggestion' (should be list[\"Suggestion\"])"
                         )
                     else:
                         issue = "Missing or incorrect return type hint"

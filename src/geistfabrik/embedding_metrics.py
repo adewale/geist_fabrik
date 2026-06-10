@@ -9,7 +9,7 @@ import json
 import logging
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -62,9 +62,9 @@ class EmbeddingMetricsComputer:
         self,
         session_date: str,
         embeddings: np.ndarray,
-        paths: List[str],
+        paths: list[str],
         force_recompute: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compute and cache embedding metrics.
 
         Args:
@@ -88,7 +88,7 @@ class EmbeddingMetricsComputer:
                 return cached
 
         # Compute metrics
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "session_date": session_date,
             "n_notes": len(embeddings),
             "dimension": embeddings.shape[1],
@@ -108,7 +108,7 @@ class EmbeddingMetricsComputer:
 
         return metrics
 
-    def _load_cached_metrics(self, session_date: str) -> Optional[Dict[str, Any]]:
+    def _load_cached_metrics(self, session_date: str) -> dict[str, Any] | None:
         """Load cached metrics from database."""
         cursor = self.db.execute(
             "SELECT * FROM embedding_metrics WHERE session_date = ?", (session_date,)
@@ -146,7 +146,7 @@ class EmbeddingMetricsComputer:
 
         return cached
 
-    def _cache_metrics(self, session_date: str, metrics: Dict[str, Any]) -> None:
+    def _cache_metrics(self, session_date: str, metrics: dict[str, Any]) -> None:
         """Cache computed metrics to database."""
         # Serialise cluster_labels to JSON (keys already converted to Python int)
         cluster_labels_json = json.dumps(metrics.get("cluster_labels", {}))
@@ -182,9 +182,9 @@ class EmbeddingMetricsComputer:
         )
         self.db.commit()
 
-    def _compute_basic_metrics(self, embeddings: np.ndarray) -> Dict[str, Any]:
+    def _compute_basic_metrics(self, embeddings: np.ndarray) -> dict[str, Any]:
         """Compute basic metrics that don't require external libraries."""
-        metrics: Dict[str, Any] = {}
+        metrics: dict[str, Any] = {}
 
         # Intrinsic dimensionality (if available)
         if HAS_SKDIM and len(embeddings) >= 10:
@@ -240,9 +240,7 @@ class EmbeddingMetricsComputer:
             # Use sklearn's vectorized cosine_similarity (~100x faster)
             similarity_matrix_sim = sklearn_cosine(sample_embeddings)
             # Extract upper triangle (excluding diagonal)
-            similarities = similarity_matrix_sim[
-                np.triu_indices_from(similarity_matrix_sim, k=1)
-            ]
+            similarities = similarity_matrix_sim[np.triu_indices_from(similarity_matrix_sim, k=1)]
 
             metrics["avg_similarity"] = float(np.mean(similarities))
             metrics["std_similarity"] = float(np.std(similarities))
@@ -261,10 +259,10 @@ class EmbeddingMetricsComputer:
         return metrics
 
     def _compute_clustering_metrics(
-        self, embeddings: np.ndarray, paths: List[str]
-    ) -> Dict[str, Any]:
+        self, embeddings: np.ndarray, paths: list[str]
+    ) -> dict[str, Any]:
         """Compute clustering-based metrics (requires sklearn)."""
-        metrics: Dict[str, Any] = {}
+        metrics: dict[str, Any] = {}
 
         # Run HDBSCAN clustering
         clusterer = HDBSCAN(min_cluster_size=5, min_samples=3)
@@ -313,11 +311,11 @@ class EmbeddingMetricsComputer:
 
     def _apply_mmr_filtering(
         self,
-        terms: List[str],
+        terms: list[str],
         tfidf_scores: np.ndarray,
         lambda_param: float = 0.5,
         k: int = 4,
-    ) -> List[str]:
+    ) -> list[str]:
         """Apply Maximal Marginal Relevance to select diverse terms.
 
         Thin wrapper around the shared cluster_labeling.apply_mmr implementation
@@ -329,8 +327,8 @@ class EmbeddingMetricsComputer:
         return apply_mmr(terms, tfidf_scores, lambda_param=lambda_param, k=k)
 
     def _label_clusters_tfidf(
-        self, paths: List[str], labels: np.ndarray, n_terms: int = 4
-    ) -> Dict[int, str]:
+        self, paths: list[str], labels: np.ndarray, n_terms: int = 4
+    ) -> dict[int, str]:
         """Generate cluster labels using c-TF-IDF with MMR filtering.
 
         Args:
@@ -341,10 +339,10 @@ class EmbeddingMetricsComputer:
         Returns:
             Dictionary mapping cluster_id to label string
         """
-        cluster_labels: Dict[int, str] = {}
+        cluster_labels: dict[int, str] = {}
 
         # Load note titles/content for each cluster
-        clusters: Dict[int, List[str]] = {}
+        clusters: dict[int, list[str]] = {}
         for i, label in enumerate(labels):
             if label == -1:
                 continue
@@ -402,8 +400,8 @@ class EmbeddingMetricsComputer:
         return cluster_labels
 
     def _label_clusters_keybert(
-        self, paths: List[str], labels: np.ndarray, n_terms: int = 4
-    ) -> Dict[int, str]:
+        self, paths: list[str], labels: np.ndarray, n_terms: int = 4
+    ) -> dict[int, str]:
         """Generate cluster labels using KeyBERT approach with semantic embeddings.
 
         Args:
@@ -416,10 +414,10 @@ class EmbeddingMetricsComputer:
         """
         from .embeddings import EmbeddingComputer
 
-        cluster_labels: Dict[int, str] = {}
+        cluster_labels: dict[int, str] = {}
 
         # Load note titles/content for each cluster
-        clusters: Dict[int, List[str]] = {}
+        clusters: dict[int, list[str]] = {}
         for i, label in enumerate(labels):
             if label == -1:
                 continue
@@ -451,7 +449,7 @@ class EmbeddingMetricsComputer:
             return {cid: f"Cluster {cid}" for cid in clusters.keys()}
 
         # Get cluster embeddings to compute centroids
-        cluster_embeddings: Dict[int, List[np.ndarray]] = {}
+        cluster_embeddings: dict[int, list[np.ndarray]] = {}
         for cluster_id, texts in clusters.items():
             try:
                 # Embed all texts in this cluster
@@ -478,9 +476,7 @@ class EmbeddingMetricsComputer:
             centroid = np.mean(cluster_embeddings[cluster_id], axis=0)
 
             # Extract candidate phrases using TF-IDF to get good candidates
-            vectorizer = TfidfVectorizer(
-                max_features=100, stop_words="english", ngram_range=(1, 3)
-            )
+            vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 3))
             try:
                 # Fit on this cluster's text only
                 tfidf_matrix = vectorizer.fit_transform([cluster_text])

@@ -5,7 +5,7 @@ distinct "seasons" of thinking without manual tagging.
 """
 
 import logging
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Note, Suggestion, VaultContext
@@ -43,7 +43,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             quarters.append((start_date, end_date, f"Q{(i % 4) + 1}-{end_date.year}"))
 
         # Group notes by quarter and find if distinct semantic clusters emerge
-        quarter_groups: Dict[str, List["Note"]] = {}
+        quarter_groups: dict[str, list[Note]] = {}
 
         for note in notes:
             for start, end, label in quarters:

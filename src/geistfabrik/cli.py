@@ -7,7 +7,6 @@ package.
 
 import argparse
 import sys
-from typing import Type
 
 from .commands import (
     BaseCommand,
@@ -317,7 +316,7 @@ def _add_validate_parser(subparsers: argparse._SubParsersAction) -> None:  # typ
 
 # Command registry mapping command names to their classes
 # Using a concrete type for each command to avoid abstract instantiation issues
-COMMANDS: dict[str, Type[BaseCommand]] = {
+COMMANDS: dict[str, type[BaseCommand]] = {
     "init": InitCommand,
     "invoke": InvokeCommand,
     "test": TestCommand,

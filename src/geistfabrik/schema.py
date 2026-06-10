@@ -2,7 +2,6 @@
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 # Schema version for migrations
 # Version 3: Removed unused `suggestions` and `suggestion_notes` tables
@@ -117,7 +116,7 @@ CREATE TABLE IF NOT EXISTS embedding_metrics (
 """
 
 
-def init_db(db_path: Optional[Path] = None) -> sqlite3.Connection:
+def init_db(db_path: Path | None = None) -> sqlite3.Connection:
     """Initialise database with schema.
 
     Args:

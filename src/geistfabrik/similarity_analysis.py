@@ -5,7 +5,7 @@ filtering for note similarity operations. Replaces ad-hoc magic numbers
 (0.6, 0.5, 0.7) with named constants and reusable patterns.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -46,9 +46,7 @@ class SimilarityProfile:
         ...     print(f"{note.title} is a semantic hub")
     """
 
-    def __init__(
-        self, vault: "VaultContext", note: "Note", candidates: Optional[List["Note"]] = None
-    ):
+    def __init__(self, vault: "VaultContext", note: "Note", candidates: list["Note"] | None = None):
         """Initialize similarity profile for a note against candidates.
 
         Args:
@@ -59,9 +57,9 @@ class SimilarityProfile:
         self.vault = vault
         self.note = note
         self.candidates = candidates if candidates is not None else vault.notes()
-        self._similarities_cache: Optional[List[float]] = None
+        self._similarities_cache: list[float] | None = None
 
-    def _get_similarities(self) -> List[float]:
+    def _get_similarities(self) -> list[float]:
         """Compute similarities to all candidates (cached).
 
         Returns:
@@ -199,10 +197,10 @@ class SimilarityFilter:
     def filter_by_range(
         self,
         source: "Note",
-        candidates: List["Note"],
+        candidates: list["Note"],
         min_sim: float,
         max_sim: float,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Filter candidates by similarity range to source.
 
         Args:
@@ -225,10 +223,10 @@ class SimilarityFilter:
 
     def filter_similar_to_any(
         self,
-        anchors: List["Note"],
-        candidates: List["Note"],
+        anchors: list["Note"],
+        candidates: list["Note"],
         threshold: float = SimilarityLevel.MODERATE,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find candidates similar to ANY anchor (union).
 
         Returns candidates that are similar to at least one anchor note.
@@ -258,10 +256,10 @@ class SimilarityFilter:
 
     def filter_similar_to_all(
         self,
-        anchors: List["Note"],
-        candidates: List["Note"],
+        anchors: list["Note"],
+        candidates: list["Note"],
         threshold: float = SimilarityLevel.MODERATE,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find candidates similar to ALL anchors (intersection).
 
         Returns candidates that are similar to every anchor note. Useful for
@@ -299,10 +297,10 @@ class SimilarityFilter:
 
     def filter_dissimilar_to_all(
         self,
-        anchors: List["Note"],
-        candidates: List["Note"],
+        anchors: list["Note"],
+        candidates: list["Note"],
         max_sim: float = SimilarityLevel.WEAK,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find candidates dissimilar to ALL anchors.
 
         Returns candidates that are dissimilar to every anchor note. Useful

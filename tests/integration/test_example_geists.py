@@ -659,7 +659,8 @@ def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
 
         # Should reference seed note and neighbour notes with proper formatting
         import re
-        wikilinks = re.findall(r'\[\[([^\]]+)\]\]', suggestion.text)
+
+        wikilinks = re.findall(r"\[\[([^\]]+)\]\]", suggestion.text)
 
         # Should have at least 2 wikilinks (seed + neighbours)
         assert len(wikilinks) >= 2, (
@@ -668,8 +669,9 @@ def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
         )
 
         # All wikilinks should be properly formatted (no orphaned note references)
-        assert suggestion.text.count("[[") == suggestion.text.count("]]"), \
+        assert suggestion.text.count("[[") == suggestion.text.count("]]"), (
             f"Mismatched brackets in: {suggestion.text}"
+        )
 
         # Suggestion.notes should match extracted wikilinks
         assert len(suggestion.notes) == len(wikilinks), (

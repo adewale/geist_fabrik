@@ -6,7 +6,7 @@ duplication across geists and enabling cluster-based analysis.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -25,7 +25,7 @@ class Cluster:
     cluster_id: int
     label: str  # "keyword, list, here"
     formatted_label: str  # "Notes about keyword, list, and here"
-    notes: List["Note"]
+    notes: list["Note"]
     size: int
     centroid: np.ndarray
 
@@ -60,9 +60,7 @@ class Cluster:
             return 0.0
 
         # Compute similarity to centroid
-        similarity = sklearn_cosine(
-            note_emb.reshape(1, -1), self.centroid.reshape(1, -1)
-        )
+        similarity = sklearn_cosine(note_emb.reshape(1, -1), self.centroid.reshape(1, -1))
         return float(similarity[0, 0])
 
 
@@ -121,9 +119,9 @@ class ClusterAnalyser:
         self.vault = vault
         self.strategy = strategy
         self.min_size = min_size
-        self._clusters_cache: Optional[Dict[int, Cluster]] = None
+        self._clusters_cache: dict[int, Cluster] | None = None
 
-    def get_clusters(self) -> Dict[int, Cluster]:
+    def get_clusters(self) -> dict[int, Cluster]:
         """Get clusters (cached per session).
 
         Uses cluster_labeling module for labelling to avoid circular
@@ -145,7 +143,7 @@ class ClusterAnalyser:
         self._clusters_cache = clusters
         return clusters
 
-    def _cluster_hdbscan(self) -> Dict[int, Cluster]:
+    def _cluster_hdbscan(self) -> dict[int, Cluster]:
         """Run HDBSCAN clustering.
 
         Returns:
@@ -162,9 +160,7 @@ class ClusterAnalyser:
         # Use cached session embeddings via public accessor
         embeddings_dict = self.vault.get_all_embeddings()
 
-        if (
-            len(embeddings_dict) < self.min_size * 2
-        ):  # Need at least 2 clusters worth
+        if len(embeddings_dict) < self.min_size * 2:  # Need at least 2 clusters worth
             return {}
 
         paths = list(embeddings_dict.keys())
@@ -175,8 +171,8 @@ class ClusterAnalyser:
         labels = clusterer.fit_predict(embeddings_array)
 
         # Group notes by cluster
-        clusters_notes: Dict[int, List[Note]] = {}
-        cluster_paths: Dict[int, List[str]] = {}
+        clusters_notes: dict[int, list[Note]] = {}
+        cluster_paths: dict[int, list[str]] = {}
 
         for i, label in enumerate(labels):
             if label == -1:  # Noise points
@@ -207,7 +203,7 @@ class ClusterAnalyser:
             )
 
         # Build Cluster objects
-        result: Dict[int, Cluster] = {}
+        result: dict[int, Cluster] = {}
 
         for cluster_id, notes in clusters_notes.items():
             # Get embeddings for this cluster
@@ -219,9 +215,7 @@ class ClusterAnalyser:
             centroid = np.mean(cluster_embeddings, axis=0)
 
             # Format label as phrase
-            keyword_label = cluster_labels_raw.get(
-                cluster_id, f"Cluster {cluster_id}"
-            )
+            keyword_label = cluster_labels_raw.get(cluster_id, f"Cluster {cluster_id}")
             formatted_label = format_cluster_label(keyword_label)
 
             result[cluster_id] = Cluster(
@@ -235,7 +229,7 @@ class ClusterAnalyser:
 
         return result
 
-    def get_cluster_for_note(self, note: "Note") -> Optional[int]:
+    def get_cluster_for_note(self, note: "Note") -> int | None:
         """Get cluster ID for a note.
 
         Args:
@@ -252,7 +246,7 @@ class ClusterAnalyser:
 
         return None
 
-    def get_representatives(self, cluster_id: int, k: int = 3) -> List["Note"]:
+    def get_representatives(self, cluster_id: int, k: int = 3) -> list["Note"]:
         """Get k most representative notes for cluster.
 
         Representative notes are those closest to the cluster centroid.
@@ -282,4 +276,3 @@ class ClusterAnalyser:
 
         # Return top k
         return [note for note, _ in note_similarities[:k]]
-

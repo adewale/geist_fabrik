@@ -60,9 +60,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Check previous session assignments
         prev_session_id = session_ids[1]  # Second most recent
-        prev_label = vault.previous_cluster_label_for_note(
-            note, prev_session_id
-        )
+        prev_label = vault.previous_cluster_label_for_note(note, prev_session_id)
 
         if prev_label:
             # Note migrated to a different cluster

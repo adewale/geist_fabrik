@@ -8,7 +8,7 @@ island_hopper, hidden_hub, and other geists.
 """
 
 from collections import deque
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik.models import Note
@@ -36,7 +36,7 @@ class GraphPatternFinder:
         """
         self.vault = vault
 
-    def find_hubs(self, min_backlinks: int = 10) -> List["Note"]:
+    def find_hubs(self, min_backlinks: int = 10) -> list["Note"]:
         """Find notes with many incoming links.
 
         A hub is a note that many other notes link to, indicating it's
@@ -61,7 +61,7 @@ class GraphPatternFinder:
 
         return hubs
 
-    def find_orphans(self) -> List["Note"]:
+    def find_orphans(self) -> list["Note"]:
         """Find notes with no incoming or outgoing links.
 
         Orphans are isolated notes that aren't connected to the rest
@@ -82,9 +82,7 @@ class GraphPatternFinder:
 
         return orphans
 
-    def find_bridges(
-        self, min_similarity: float = 0.6
-    ) -> List[Tuple["Note", "Note", "Note"]]:
+    def find_bridges(self, min_similarity: float = 0.6) -> list[tuple["Note", "Note", "Note"]]:
         """Find (note_a, bridge, note_b) where bridge connects high-sim unlinked notes.
 
         A bridge is a note that links to (or is linked by) two other notes
@@ -132,9 +130,7 @@ class GraphPatternFinder:
 
         return bridges
 
-    def shortest_path(
-        self, source: "Note", target: "Note"
-    ) -> Optional[List["Note"]]:
+    def shortest_path(self, source: "Note", target: "Note") -> list["Note"] | None:
         """Find shortest path from source to target via links.
 
         Uses breadth-first search to find the shortest path through
@@ -152,8 +148,8 @@ class GraphPatternFinder:
             return [source]
 
         # BFS for shortest path
-        queue: deque[Tuple[Note, List[Note]]] = deque([(source, [source])])
-        visited: Set[str] = {source.path}
+        queue: deque[tuple[Note, list[Note]]] = deque([(source, [source])])
+        visited: set[str] = {source.path}
 
         while queue:
             current, path = queue.popleft()
@@ -171,7 +167,7 @@ class GraphPatternFinder:
 
         return None  # No path found
 
-    def k_hop_neighborhood(self, note: "Note", k: int) -> List["Note"]:
+    def k_hop_neighborhood(self, note: "Note", k: int) -> list["Note"]:
         """Get all notes within k link hops.
 
         Uses breadth-first traversal to find all notes reachable
@@ -187,11 +183,11 @@ class GraphPatternFinder:
         if k <= 0:
             return []
 
-        visited: Set[str] = {note.path}
+        visited: set[str] = {note.path}
         current_level = [note]
 
         for _ in range(k):
-            next_level: List[Note] = []
+            next_level: list[Note] = []
 
             for current in current_level:
                 outgoing = self.vault.outgoing_links(current)
@@ -207,7 +203,7 @@ class GraphPatternFinder:
         all_notes = self.vault.notes()
         return [n for n in all_notes if n.path in visited and n.path != note.path]
 
-    def find_connected_components(self) -> List[List["Note"]]:
+    def find_connected_components(self) -> list[list["Note"]]:
         """Find disconnected subgraphs (connected components).
 
         Uses undirected graph interpretation (links work both ways)
@@ -218,17 +214,17 @@ class GraphPatternFinder:
             List of connected components (each is a list of notes)
         """
         notes = self.vault.notes()
-        visited: Set[str] = set()
-        components: List[List[Note]] = []
+        visited: set[str] = set()
+        components: list[list[Note]] = []
 
         for note in notes:
             if note.path in visited:
                 continue
 
             # BFS to find all notes in this component
-            component: List[Note] = []
+            component: list[Note] = []
             queue: deque[Note] = deque([note])
-            component_visited: Set[str] = {note.path}
+            component_visited: set[str] = {note.path}
 
             while queue:
                 current = queue.popleft()
@@ -249,9 +245,7 @@ class GraphPatternFinder:
 
         return components
 
-    def detect_structural_holes(
-        self, min_similarity: float = 0.6
-    ) -> List[Tuple["Note", "Note"]]:
+    def detect_structural_holes(self, min_similarity: float = 0.6) -> list[tuple["Note", "Note"]]:
         """Find high-similarity pairs in different connected components.
 
         A structural hole exists when two notes are semantically similar
@@ -271,13 +265,13 @@ class GraphPatternFinder:
             return []  # Need at least 2 components
 
         # Build component membership lookup
-        note_to_component: Dict[str, int] = {}
+        note_to_component: dict[str, int] = {}
         for i, component in enumerate(components):
             for note in component:
                 note_to_component[note.path] = i
 
         # Find high-similarity pairs across components
-        structural_holes: List[Tuple[Note, Note]] = []
+        structural_holes: list[tuple[Note, Note]] = []
         all_notes = self.vault.notes()
 
         for i, note_a in enumerate(all_notes):

@@ -11,7 +11,7 @@ This module provides comprehensive vault statistics including:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -35,7 +35,7 @@ class StatsCollector:
         self.db = vault.db
 
         # Collected stats
-        self.stats: Dict[str, Any] = {}
+        self.stats: dict[str, Any] = {}
         self._collect_basic_stats()
 
     def _collect_basic_stats(self) -> None:
@@ -76,7 +76,7 @@ class StatsCollector:
             return datetime.fromtimestamp(row[0]).isoformat()
         return "Unknown"
 
-    def _collect_note_stats(self) -> Dict[str, Any]:
+    def _collect_note_stats(self) -> dict[str, Any]:
         """Collect note-level statistics."""
         # Total notes
         total = self.db.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
@@ -122,7 +122,7 @@ class StatsCollector:
             "oldest": oldest,
         }
 
-    def _collect_tag_stats(self) -> Dict[str, Any]:
+    def _collect_tag_stats(self) -> dict[str, Any]:
         """Collect tag statistics."""
         # Unique tags
         unique = self.db.execute("SELECT COUNT(DISTINCT tag) FROM tags").fetchone()[0]
@@ -153,7 +153,7 @@ class StatsCollector:
             "top_tags": top_tags,
         }
 
-    def _collect_link_stats(self) -> Dict[str, Any]:
+    def _collect_link_stats(self) -> dict[str, Any]:
         """Collect link statistics."""
         # Total links
         total = self.db.execute("SELECT COUNT(*) FROM links").fetchone()[0]
@@ -182,7 +182,7 @@ class StatsCollector:
             "bidirectional_pct": round(bidirectional_pct, 1),
         }
 
-    def _collect_graph_stats(self) -> Dict[str, Any]:
+    def _collect_graph_stats(self) -> dict[str, Any]:
         """Collect graph structure statistics."""
         note_count = self.stats["notes"]["total"]
 
@@ -242,7 +242,7 @@ class StatsCollector:
             "largest_component_pct": round(largest_component_pct, 1),
         }
 
-    def _collect_session_stats(self) -> Dict[str, Any]:
+    def _collect_session_stats(self) -> dict[str, Any]:
         """Collect session history statistics."""
         # Total sessions
         total = self.db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
@@ -305,7 +305,7 @@ class StatsCollector:
             "recent_sessions": recent_sessions,
         }
 
-    def _collect_geist_stats(self) -> Dict[str, Any]:
+    def _collect_geist_stats(self) -> dict[str, Any]:
         """Collect geist configuration statistics."""
         # Count default geists
         from geistfabrik.default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
@@ -345,7 +345,7 @@ class StatsCollector:
             "disabled_geists": disabled_geists,
         }
 
-    def get_top_linked_notes(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_top_linked_notes(self, limit: int = 10) -> list[dict[str, Any]]:
         """Get top linked notes with incoming and outgoing counts.
 
         Args:
@@ -396,7 +396,7 @@ class StatsCollector:
         all_notes.sort(key=lambda x: x["total"], reverse=True)
         return all_notes[:limit]
 
-    def get_orphan_notes(self) -> List[Dict[str, str]]:
+    def get_orphan_notes(self) -> list[dict[str, str]]:
         """Get list of orphan notes (no links in or out).
 
         Returns:
@@ -419,7 +419,7 @@ class StatsCollector:
         )
         return [{"path": row[0], "title": row[1]} for row in cursor.fetchall()]
 
-    def get_hub_notes(self, min_connections: int = 10) -> List[Dict[str, Any]]:
+    def get_hub_notes(self, min_connections: int = 10) -> list[dict[str, Any]]:
         """Get hub notes with high connection counts.
 
         Args:
@@ -437,7 +437,7 @@ class StatsCollector:
         row = cursor.fetchone()
         return row[0] > 0 if row else False
 
-    def get_latest_embeddings(self) -> Optional[Tuple[str, np.ndarray, List[str]]]:
+    def get_latest_embeddings(self) -> tuple[str, np.ndarray, list[str]] | None:
         """Get embeddings from most recent session.
 
         Returns:
@@ -488,9 +488,7 @@ class StatsCollector:
         embeddings = np.vstack(embeddings_list)
         return session_date, embeddings, paths
 
-    def get_temporal_drift(
-        self, current_date: str, days_back: int = 30
-    ) -> Optional[Dict[str, Any]]:
+    def get_temporal_drift(self, current_date: str, days_back: int = 30) -> dict[str, Any] | None:
         """Analyze temporal drift between current and historical embeddings.
 
         Args:
@@ -641,11 +639,11 @@ class StatsCollector:
             ],
         }
 
-    def add_embedding_metrics(self, metrics: Dict[str, Any]) -> None:
+    def add_embedding_metrics(self, metrics: dict[str, Any]) -> None:
         """Add computed embedding metrics to stats."""
         self.stats["embeddings"] = metrics
 
-    def add_temporal_analysis(self, temporal: Dict[str, Any]) -> None:
+    def add_temporal_analysis(self, temporal: dict[str, Any]) -> None:
         """Add temporal drift analysis to stats."""
         self.stats["temporal"] = temporal
 

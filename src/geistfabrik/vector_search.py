@@ -6,7 +6,6 @@ allowing users to choose between in-memory and sqlite-vec implementations.
 
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
@@ -29,7 +28,7 @@ class VectorSearchBackend(ABC):
         pass
 
     @abstractmethod
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
         """Find k most similar notes to query embedding.
 
         Args:
@@ -93,12 +92,12 @@ class InMemoryVectorBackend(VectorSearchBackend):
             db: SQLite database connection
         """
         self.db = db
-        self.embeddings: Dict[str, np.ndarray] = {}
+        self.embeddings: dict[str, np.ndarray] = {}
         self.session_id: int = 0
         # Cached stacked matrix + parallel path index for vectorised search.
         # Rebuilt whenever embeddings change (see _rebuild_matrix).
-        self._paths: List[str] = []
-        self._matrix: Optional[np.ndarray] = None
+        self._paths: list[str] = []
+        self._matrix: np.ndarray | None = None
 
     def _rebuild_matrix(self) -> None:
         """Rebuild the cached embedding matrix and path index from self.embeddings.
@@ -149,7 +148,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
 
         self._rebuild_matrix()
 
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
         """Find similar notes via vectorised in-memory cosine similarity.
 
         Computes all similarities in a single matrix operation (matching the
@@ -242,8 +241,8 @@ class SqliteVecBackend(VectorSearchBackend):
         self.dim = dim
         self.session_date: str = ""
         self.session_id: int = 0
-        self._path_to_id: Dict[str, int] = {}  # Cache for path -> vec_id mapping
-        self._id_to_path: Dict[int, str] = {}  # Cache for vec_id -> path mapping
+        self._path_to_id: dict[str, int] = {}  # Cache for path -> vec_id mapping
+        self._id_to_path: dict[int, str] = {}  # Cache for vec_id -> path mapping
         self._setup_vec_tables()
 
     def _setup_vec_tables(self) -> None:
@@ -389,7 +388,7 @@ class SqliteVecBackend(VectorSearchBackend):
 
         self.db.commit()
 
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
         """Find similar notes via sqlite-vec.
 
         Args:

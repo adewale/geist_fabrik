@@ -5,7 +5,7 @@ used throughout the application. These serve as default values that can
 be overridden by user configuration files or CLI arguments.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 # Embedding Configuration
 # -----------------------
@@ -154,7 +154,7 @@ Range: [0, unbounded]
 """
 
 
-def get_default_filter_config() -> Dict[str, Any]:
+def get_default_filter_config() -> dict[str, Any]:
     """Get default filtering configuration dictionary.
 
     Returns:

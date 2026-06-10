@@ -146,9 +146,7 @@ def discover_all_code_geists():
 
     for module_info in pkgutil.iter_modules([str(package_path)]):
         if not module_info.name.startswith("_"):
-            module = importlib.import_module(
-                f"geistfabrik.default_geists.code.{module_info.name}"
-            )
+            module = importlib.import_module(f"geistfabrik.default_geists.code.{module_info.name}")
             if hasattr(module, "suggest"):
                 geists.append((module_info.name, module))
 
@@ -156,9 +154,7 @@ def discover_all_code_geists():
 
 
 @pytest.mark.parametrize("geist_name,geist_module", discover_all_code_geists())
-def test_geist_uses_obsidian_link_for_virtual_notes(
-    geist_name, geist_module, vault_context
-):
+def test_geist_uses_obsidian_link_for_virtual_notes(geist_name, geist_module, vault_context):
     """Test that each geist properly handles virtual notes using obsidian_link.
 
     This test verifies that geists don't bypass the abstraction layer by:
@@ -197,9 +193,7 @@ def test_geist_uses_obsidian_link_for_virtual_notes(
 
     # Get all virtual note titles from the vault for comparison
     all_notes = vault_context.notes()
-    virtual_note_titles = {
-        note.title for note in all_notes if note.is_virtual
-    }
+    virtual_note_titles = {note.title for note in all_notes if note.is_virtual}
 
     if not virtual_note_titles:
         # No virtual notes in vault - skip
