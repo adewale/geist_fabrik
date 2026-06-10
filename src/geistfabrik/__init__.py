@@ -18,7 +18,7 @@ from .metadata_system import (
 )
 from .models import Link, Note, Suggestion
 from .vault import Vault
-from .vault_context import VaultContext
+from .vault_context import ChurnResult, VaultContext
 
 __version__ = "0.9.0"
 
@@ -29,6 +29,7 @@ __all__ = [
     "Suggestion",
     "Vault",
     "VaultContext",
+    "ChurnResult",
     "EmbeddingComputer",
     "Session",
     "cosine_similarity",

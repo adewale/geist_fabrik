@@ -1,0 +1,16 @@
+type: geist-tracery
+id: questioning_mind
+description: Surfaces notes full of questions
+count: 1
+
+tracery:
+  origin:
+    - "#provocation#"
+
+  provocation:
+    - "#note# is full of questions. Which one keeps you up at night?"
+    - "You asked a lot in #note#. Have any of those questions been answered?"
+    - "#note# questions everything. What would it look like to answer just one?"
+
+  note:
+    - "$vault.questioning_notes(1)"
