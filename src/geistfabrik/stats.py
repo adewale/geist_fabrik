@@ -11,11 +11,35 @@ This module provides comprehensive vault statistics including:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class VaultStats(TypedDict, total=False):
+    """Top-level sections of the collected vault statistics.
+
+    The collector fills these sections and StatsFormatter reads them; typing
+    the seam means a renamed/misspelled section key is a mypy error instead
+    of a KeyError at format time. (Sections marked total=False because the
+    embedding/temporal/top-notes sections are only collected on demand.)
+    Section internals remain dicts - this types the contract, not every leaf.
+    """
+
+    vault: dict[str, Any]
+    notes: dict[str, Any]
+    tags: dict[str, Any]
+    links: dict[str, Any]
+    graph: dict[str, Any]
+    sessions: dict[str, Any]
+    geists: dict[str, Any]
+    embeddings: dict[str, Any]
+    temporal: dict[str, Any]
+    top_linked_notes: list[dict[str, Any]]
+    orphan_notes: list[dict[str, Any]]
+    hub_notes: list[dict[str, Any]]
 
 
 class StatsCollector:
@@ -35,7 +59,7 @@ class StatsCollector:
         self.db = vault.db
 
         # Collected stats
-        self.stats: dict[str, Any] = {}
+        self.stats: VaultStats = {}
         self._collect_basic_stats()
 
     def _collect_basic_stats(self) -> None:

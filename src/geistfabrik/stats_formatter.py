@@ -9,12 +9,14 @@ from typing import Any
 
 import numpy as np
 
+from .stats import VaultStats
+
 
 class StatsFormatter:
     """Formats statistics for output."""
 
     def __init__(
-        self, stats: dict[str, Any], recommendations: list[dict[str, Any]], verbose: bool = False
+        self, stats: VaultStats, recommendations: list[dict[str, Any]], verbose: bool = False
     ):
         """Initialise formatter.
 
@@ -294,7 +296,7 @@ class StatsFormatter:
         return json.dumps(output, indent=2)
 
 
-def generate_recommendations(stats: dict[str, Any]) -> list[dict[str, Any]]:
+def generate_recommendations(stats: VaultStats) -> list[dict[str, Any]]:
     """Generate recommendations based on statistics.
 
     Args:
