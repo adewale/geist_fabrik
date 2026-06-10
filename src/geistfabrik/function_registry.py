@@ -47,9 +47,9 @@ def vault_function(name: str) -> Callable[..., Any]:
 
     Example:
         @vault_function("find_questions")
-        def find_question_notes(vault: VaultContext, k: int = 5):
+        def find_question_notes(vault: VaultContext, count: int = 5):
             questions = [n for n in vault.notes() if "?" in n.title]
-            return vault.sample(questions, k)
+            return vault.sample(questions, count)
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -106,34 +106,34 @@ class FunctionRegistry:
         """
 
         @vault_function("sample_notes")
-        def sample_notes(vault: "VaultContext", k: int = 5) -> list[str]:
-            """Sample k random notes from vault.
+        def sample_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count random notes from vault.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.notes()
-            sampled = vault.sample(notes, k)
+            sampled = vault.sample(notes, count)
             return [f"[[{note.link_text}]]" for note in sampled]
 
         @vault_function("old_notes")
-        def old_notes(vault: "VaultContext", k: int = 5) -> list[str]:
-            """Get k least recently modified notes.
+        def old_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count least recently modified notes.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.old_notes(k)
+            notes = vault.old_notes(count)
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("recent_notes")
-        def recent_notes(vault: "VaultContext", k: int = 5) -> list[str]:
-            """Get k most recently modified notes.
+        def recent_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count most recently modified notes.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.recent_notes(k)
+            notes = vault.recent_notes(count)
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("random_note_title")
@@ -152,34 +152,34 @@ class FunctionRegistry:
             return f"[[{sampled[0].link_text}]]" if sampled else ""
 
         @vault_function("orphans")
-        def orphans(vault: "VaultContext", k: int = 5) -> list[str]:
-            """Get k orphan notes (no incoming or outgoing links).
+        def orphans(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count orphan notes (no incoming or outgoing links).
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.orphans(k)
+            notes = vault.orphans(count)
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("hubs")
-        def hubs(vault: "VaultContext", k: int = 5) -> list[str]:
-            """Get k notes with most incoming links.
+        def hubs(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count notes with most incoming links.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.hubs(k)
+            notes = vault.hubs(count)
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("neighbours")
-        def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> list[str]:
-            """Get k semantically similar notes to given note.
+        def neighbours(vault: "VaultContext", note_title: str, count: int = 5) -> list[str]:
+            """Get count semantically similar notes to given note.
 
             Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
 
             Args:
                 note_title: Note link (string from Tracery)
-                k: Number of neighbours to return
+                count: Number of neighbours to return
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
@@ -190,13 +190,13 @@ class FunctionRegistry:
                 return []
 
             # Work with Note objects internally
-            neighbour_notes = vault.neighbours(note, k)
+            neighbour_notes = vault.neighbours(note, count)
 
             # Convert Note → string for Tracery
             return [f"[[{n.link_text}]]" for n in neighbour_notes]
 
         @vault_function("contrarian_to")
-        def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> list[str]:
+        def contrarian_to(vault: "VaultContext", note_title: str, count: int = 3) -> list[str]:
             """Find notes that are semantically dissimilar to given note.
 
             Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
@@ -207,7 +207,7 @@ class FunctionRegistry:
 
             Args:
                 note_title: Note link (string from Tracery)
-                k: Number of contrarian notes to return
+                count: Number of contrarian notes to return
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
@@ -254,14 +254,16 @@ class FunctionRegistry:
             candidate_norms = np.linalg.norm(candidates_matrix, axis=1)
             similarities = similarities / (candidate_norms * query_norm)
 
-            # Get indices of k least similar (ascending sort)
-            least_similar_indices = np.argsort(similarities)[:k]
+            # Get indices of count least similar (ascending sort)
+            least_similar_indices = np.argsort(similarities)[:count]
 
             # Return bracketed obsidian links
             return [f"[[{candidate_notes[i].link_text}]]" for i in least_similar_indices]
 
         @vault_function("semantic_clusters")
-        def semantic_clusters(vault: "VaultContext", count: int = 2, k: int = 3) -> list[str]:
+        def semantic_clusters(
+            vault: "VaultContext", count: int = 2, neighbour_count: int = 3
+        ) -> list[str]:
             """Sample seed notes and pair each with its semantic neighbours.
 
             Returns formatted strings using a delimiter to separate seed from neighbours.
@@ -269,7 +271,7 @@ class FunctionRegistry:
 
             Args:
                 count: Number of seed notes to sample
-                k: Number of neighbours per seed
+                neighbour_count: Number of neighbours per seed
 
             Returns:
                 List of formatted strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
@@ -297,7 +299,7 @@ class FunctionRegistry:
             # Build formatted pairs
             results = []
             for seed_note in sampled_seeds:
-                neighbour_notes = vault.neighbours(seed_note, k)
+                neighbour_notes = vault.neighbours(seed_note, neighbour_count)
 
                 if neighbour_notes:
                     # Format neighbours as bracketed Obsidian links

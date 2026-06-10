@@ -27,11 +27,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Sample some notes and find their neighbourhoods
-    seed_notes = vault.sample(notes, k=5)
+    seed_notes = vault.sample(notes, count=5)
 
     for seed in seed_notes:
         # Get neighbours of this note
-        neighbours = vault.neighbours(seed, k=5)
+        neighbours = vault.neighbours(seed, count=5)
 
         if len(neighbours) < 3:
             continue
@@ -69,4 +69,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

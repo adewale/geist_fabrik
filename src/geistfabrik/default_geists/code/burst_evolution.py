@@ -35,7 +35,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Try burst days until we find one with enough embedding history
     burst_days_list = list(burst_days_dict.items())
-    for day_date, notes in vault.sample(burst_days_list, k=len(burst_days_list)):
+    for day_date, notes in vault.sample(burst_days_list, count=len(burst_days_list)):
         # Calculate drift for each note using EmbeddingTrajectoryCalculator
         drifts = []
         for note in notes:

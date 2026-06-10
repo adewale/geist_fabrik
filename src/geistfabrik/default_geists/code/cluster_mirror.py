@@ -49,7 +49,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Sample 2-3 clusters to show
     cluster_ids = list(clusters.keys())
-    selected_ids = vault.sample(cluster_ids, k=min(3, len(cluster_ids)))
+    selected_ids = vault.sample(cluster_ids, count=min(3, len(cluster_ids)))
 
     cluster_descriptions = []
     all_sampled_notes = []
@@ -62,7 +62,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Get 3 representative notes (closest to centroid)
         # Pass clusters to avoid redundant clustering
-        representatives = vault.get_cluster_representatives(cluster_id, k=3, clusters=clusters)
+        representatives = vault.get_cluster_representatives(cluster_id, count=3, clusters=clusters)
         note_titles = [f"[[{n.link_text}]]" for n in representatives]
 
         cluster_descriptions.append(f"{label}\n→ {', '.join(note_titles)}")

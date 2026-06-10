@@ -29,7 +29,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Collect candidate pairs
     for _ in range(10):
-        pair = vault.sample(notes, k=2)
+        pair = vault.sample(notes, count=2)
         if len(pair) != 2:
             continue
 
@@ -58,4 +58,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

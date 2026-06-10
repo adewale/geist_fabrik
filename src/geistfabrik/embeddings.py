@@ -683,7 +683,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 def find_similar_notes(
     query_embedding: np.ndarray,
     embeddings: dict[str, np.ndarray],
-    k: int = 10,
+    count: int = 10,
     exclude_paths: set[str] | None = None,
 ) -> list[tuple[str, float]]:
     """Find k most similar notes to query embedding.
@@ -720,4 +720,4 @@ def find_similar_notes(
     # Sort by similarity descending
     similarities.sort(key=lambda x: x[1], reverse=True)
 
-    return similarities[:k]
+    return similarities[:count]

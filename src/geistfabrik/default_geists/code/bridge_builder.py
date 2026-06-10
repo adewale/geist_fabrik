@@ -22,11 +22,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get hub notes and check their neighbourhoods
-    hubs = vault.hubs(k=10)
+    hubs = vault.hubs(count=10)
 
     for hub in hubs:
         # Find notes similar to this hub but not linked
-        neighbours_with_scores = vault.neighbours(hub, k=10, return_scores=True)
+        neighbours_with_scores = vault.neighbours(hub, count=10, return_scores=True)
 
         for neighbour, similarity in neighbours_with_scores:
             if vault.links_between(hub, neighbour):
@@ -51,4 +51,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
                 )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

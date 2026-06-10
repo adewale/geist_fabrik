@@ -402,7 +402,7 @@ class TestInMemoryVectorBackend:
         backend.load_embeddings(sample_embeddings["session_date"])
 
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=2)
+        results = backend.find_similar(query, count=2)
 
         assert len(results) == 2
 
@@ -412,7 +412,7 @@ class TestInMemoryVectorBackend:
         backend.load_embeddings(sample_embeddings["session_date"])
 
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=4)
+        results = backend.find_similar(query, count=4)
 
         scores = [score for _, score in results]
         assert scores == sorted(scores, reverse=True)
@@ -424,7 +424,7 @@ class TestInMemoryVectorBackend:
 
         # Query with [1, 0, 0] should be most similar to note1, then note2
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=2)
+        results = backend.find_similar(query, count=2)
 
         assert results[0][0] == "note1.md"  # Most similar
         assert results[0][1] > 0.99  # Almost identical
@@ -503,7 +503,7 @@ class TestInMemoryVectorBackend:
 
         # find_similar should return empty list
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=10)
+        results = backend.find_similar(query, count=10)
         assert results == []
 
 
@@ -576,7 +576,7 @@ class TestSqliteVecBackend:
         backend.load_embeddings(sample_embeddings["session_date"])
 
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=2)
+        results = backend.find_similar(query, count=2)
 
         assert len(results) == 2
 
@@ -589,7 +589,7 @@ class TestSqliteVecBackend:
         backend.load_embeddings(sample_embeddings["session_date"])
 
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=4)
+        results = backend.find_similar(query, count=4)
 
         # Results should be sorted by similarity descending (distance ascending)
         scores = [score for _, score in results]
@@ -605,7 +605,7 @@ class TestSqliteVecBackend:
 
         # Query with [1, 0, 0] should be most similar to note1, then note2
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=2)
+        results = backend.find_similar(query, count=2)
 
         assert results[0][0] == "note1.md"  # Most similar
         assert results[0][1] > 0.99  # Almost identical
@@ -723,7 +723,7 @@ class TestSqliteVecBackend:
 
         # find_similar should return empty list
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results = backend.find_similar(query, k=10)
+        results = backend.find_similar(query, count=10)
         assert results == []
 
 
@@ -746,8 +746,8 @@ class TestBackendParity:
 
         query = np.array([1.0, 0.5, 0.0], dtype=np.float32)
 
-        results_mem = in_memory.find_similar(query, k=3)
-        results_vec = sqlite_vec.find_similar(query, k=3)
+        results_mem = in_memory.find_similar(query, count=3)
+        results_vec = sqlite_vec.find_similar(query, count=3)
 
         # Should return same paths (order should be identical)
         paths_mem = [path for path, _ in results_mem]
@@ -894,7 +894,7 @@ class TestBackendIntegration:
 
         # Should be able to find similar notes
         query = embeddings["Projects/AI Research.md"]
-        results = backend_mem.find_similar(query, k=3)
+        results = backend_mem.find_similar(query, count=3)
         assert len(results) == 3
         # First result should be the query itself
         assert results[0][0] == "Projects/AI Research.md"
@@ -910,7 +910,7 @@ class TestBackendIntegration:
             assert count == 4
 
             # Should get same results as InMemory
-            results_vec = backend_vec.find_similar(query, k=3)
+            results_vec = backend_vec.find_similar(query, count=3)
             assert len(results_vec) == 3
             # First result should be the query itself
             assert results_vec[0][0] == "Projects/AI Research.md"
@@ -1008,7 +1008,7 @@ class TestBackendIntegration:
         backend_mem.load_embeddings(session_date)
 
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        results_mem = backend_mem.find_similar(query, k=10)
+        results_mem = backend_mem.find_similar(query, count=10)
         assert results_mem == []
 
         # Test SqliteVecBackend (if available)
@@ -1016,7 +1016,7 @@ class TestBackendIntegration:
             backend_vec = SqliteVecBackend(db, dim=3)
             backend_vec.load_embeddings(session_date)
 
-            results_vec = backend_vec.find_similar(query, k=10)
+            results_vec = backend_vec.find_similar(query, count=10)
             assert results_vec == []
 
 
@@ -1028,7 +1028,7 @@ class TestInMemoryFindSimilarMatrix:
         backend.load_embeddings(sample_embeddings["session_date"])
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-        results = backend.find_similar(query, k=2)
+        results = backend.find_similar(query, count=2)
         assert len(results) == 2
         # note1 (identical) then note2 (0.8 cosine) are the two closest.
         assert results[0][0] == "note1.md"
@@ -1041,7 +1041,7 @@ class TestInMemoryFindSimilarMatrix:
         backend.load_embeddings(sample_embeddings["session_date"])
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-        scores = [s for _, s in backend.find_similar(query, k=10)]
+        scores = [s for _, s in backend.find_similar(query, count=10)]
         assert scores == sorted(scores, reverse=True)
 
     def test_find_similar_k_exceeds_n_returns_all(self, db, sample_embeddings):
@@ -1049,7 +1049,7 @@ class TestInMemoryFindSimilarMatrix:
         backend.load_embeddings(sample_embeddings["session_date"])
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-        results = backend.find_similar(query, k=100)
+        results = backend.find_similar(query, count=100)
         assert len(results) == 4  # only 4 notes exist
 
     def test_find_similar_empty_session_returns_empty(self, db):
@@ -1060,17 +1060,17 @@ class TestInMemoryFindSimilarMatrix:
         backend = InMemoryVectorBackend(db)
         backend.load_embeddings("2099-01-01")
         assert backend._matrix is None
-        assert backend.find_similar(np.array([1.0, 0.0, 0.0], dtype=np.float32), k=5) == []
+        assert backend.find_similar(np.array([1.0, 0.0, 0.0], dtype=np.float32), count=5) == []
 
     def test_find_similar_rebuilds_matrix_after_mutation(self, db, sample_embeddings):
         backend = InMemoryVectorBackend(db)
         backend.load_embeddings(sample_embeddings["session_date"])
         query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        assert len(backend.find_similar(query, k=10)) == 4
+        assert len(backend.find_similar(query, count=10)) == 4
 
         # Mutating the embeddings dict must invalidate the cached matrix.
         del backend.embeddings["note4.md"]
-        results = backend.find_similar(query, k=10)
+        results = backend.find_similar(query, count=10)
         assert len(results) == 3
         assert all(path != "note4.md" for path, _ in results)
 
@@ -1097,7 +1097,7 @@ class TestInMemoryFindSimilarMatrix:
 
         backend = InMemoryVectorBackend(db)
         backend.load_embeddings("2025-03-01")
-        results = backend.find_similar(emb, k=2)
+        results = backend.find_similar(emb, count=2)
         # Identical embeddings -> equal similarity -> stable sort keeps insertion order.
         assert [path for path, _ in results] == ["a.md", "b.md"]
 
@@ -1131,7 +1131,7 @@ class TestInMemoryFindSimilarMatrix:
         backend = InMemoryVectorBackend(db)
         backend.load_embeddings("2025-04-01")
         # k=2 < n=3: top.md wins, then the tie resolves to tie1 (insertion order).
-        results = backend.find_similar(np.array([1.0, 0.0, 0.0], dtype=np.float32), k=2)
+        results = backend.find_similar(np.array([1.0, 0.0, 0.0], dtype=np.float32), count=2)
         assert [p for p, _ in results] == ["top.md", "tie1.md"]
 
     def test_get_embedding_is_read_only_view(self, db, sample_embeddings):

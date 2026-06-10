@@ -250,16 +250,16 @@ class VaultContext:
 
     @overload
     def neighbours(
-        self, note: Note, k: int = 10, return_scores: Literal[False] = False
+        self, note: Note, count: int = 10, return_scores: Literal[False] = False
     ) -> list[Note]: ...
 
     @overload
     def neighbours(
-        self, note: Note, k: int = 10, *, return_scores: Literal[True]
+        self, note: Note, count: int = 10, *, return_scores: Literal[True]
     ) -> list[tuple[Note, float]]: ...
 
     def neighbours(
-        self, note: Note, k: int = 10, return_scores: bool = False
+        self, note: Note, count: int = 10, return_scores: bool = False
     ) -> list[Note] | list[tuple[Note, float]]:
         """Find k semantically similar notes, optionally with similarity scores.
 
@@ -280,7 +280,7 @@ class VaultContext:
             similarity descending
         """
         # Create cache key (note path + k parameter + return_scores flag)
-        cache_key = (note.path, k, return_scores)
+        cache_key = (note.path, count, return_scores)
 
         # Check cache first
         if cache_key in self._neighbours_cache:
@@ -293,7 +293,7 @@ class VaultContext:
             return [] if not return_scores else []
 
         # Find similar notes (request k+1 to exclude self)
-        similar = self._backend.find_similar(query_embedding, k=k + 1)
+        similar = self._backend.find_similar(query_embedding, count=count + 1)
 
         # Convert paths to notes using batch loading (OP-6)
         # Collect paths first (excluding self)
@@ -316,7 +316,7 @@ class VaultContext:
             if similar_note is not None:
                 result.append(similar_note)
                 result_with_scores.append((similar_note, path_score_map[path]))
-                if len(result) >= k:
+                if len(result) >= count:
                     break
 
         # Cache and return based on return_scores flag
@@ -545,7 +545,7 @@ class VaultContext:
         self._outgoing_links_cache[note.path] = result
         return result
 
-    def orphans(self, k: int | None = None) -> list[Note]:
+    def orphans(self, count: int | None = None) -> list[Note]:
         """Find notes with no outgoing or incoming links.
 
         Builds the linked-note sets once, then set-checks each note: O(N + M).
@@ -577,12 +577,12 @@ class VaultContext:
             note = self.get_note(path)
             if note is not None:
                 result.append(note)
-                if k is not None and len(result) >= k:
+                if count is not None and len(result) >= count:
                     break
 
         return result
 
-    def hubs(self, k: int = 10) -> list[Note]:
+    def hubs(self, count: int = 10) -> list[Note]:
         """Find most-linked-to notes using optimised SQL query.
 
         Performance optimised (OP-8): Uses JOIN to resolve link targets in SQL
@@ -608,7 +608,7 @@ class VaultContext:
             ORDER BY link_count DESC
             LIMIT ?
             """,
-            (k,),
+            (count,),
         )
 
         # Collect all paths, then batch load (OP-6)
@@ -791,7 +791,7 @@ class VaultContext:
         ).fetchone()
         return row[0] if row and row[0] else None
 
-    def recent_session_ids(self, limit: int = 3) -> list[int]:
+    def recent_session_ids(self, count: int = 3) -> list[int]:
         """Get the most recent session IDs.
 
         Args:
@@ -806,7 +806,7 @@ class VaultContext:
             ORDER BY date DESC
             LIMIT ?
             """,
-            (limit,),
+            (count,),
         )
         return [row[0] for row in cursor.fetchall()]
 
@@ -941,7 +941,7 @@ class VaultContext:
     def get_cluster_representatives(
         self,
         cluster_id: int,
-        k: int = 3,
+        count: int = 3,
         clusters: dict[int, Cluster] | None = None,
     ) -> list[Note]:
         """Get most representative notes for a cluster.
@@ -980,9 +980,11 @@ class VaultContext:
 
         # Sort by similarity descending, return top k
         similarities.sort(key=lambda x: x[1], reverse=True)
-        return [note for note, _ in similarities[:k]]
+        return [note for note, _ in similarities[:count]]
 
-    def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> list[tuple[Note, Note]]:
+    def unlinked_pairs(
+        self, count: int = 10, candidate_limit: int = 200
+    ) -> list[tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
 
         Performance optimised: Uses vectorised numpy matrix multiplication to compute
@@ -1001,7 +1003,7 @@ class VaultContext:
         # Optimise for large vaults by limiting candidate set
         if len(all_notes) > candidate_limit:
             # Sample a diverse set: recent notes + random notes
-            recent = self.recent_notes(k=candidate_limit // 2)
+            recent = self.recent_notes(count=candidate_limit // 2)
             # Use set for O(1) membership check instead of O(N) list membership
             recent_set = set(recent)
             remaining = [n for n in all_notes if n not in recent_set]
@@ -1055,7 +1057,7 @@ class VaultContext:
 
         # Sort by similarity descending, return top k
         pairs.sort(key=lambda x: x[2], reverse=True)
-        return [(a, b) for a, b, _ in pairs[:k]]
+        return [(a, b) for a, b, _ in pairs[:count]]
 
     def links_between(self, a: Note, b: Note) -> list[Link]:
         """Find all links between two notes (bidirectional).
@@ -1133,7 +1135,7 @@ class VaultContext:
 
     # Temporal queries
 
-    def old_notes(self, k: int = 10) -> list[Note]:
+    def old_notes(self, count: int = 10) -> list[Note]:
         """Find least recently modified notes.
 
         Args:
@@ -1142,7 +1144,7 @@ class VaultContext:
         Returns:
             List of old notes, sorted by modification time ascending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified ASC LIMIT ?", (k,))
+        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified ASC LIMIT ?", (count,))
 
         result = []
         for row in cursor.fetchall():
@@ -1152,7 +1154,7 @@ class VaultContext:
 
         return result
 
-    def recent_notes(self, k: int = 10) -> list[Note]:
+    def recent_notes(self, count: int = 10) -> list[Note]:
         """Find most recently modified notes.
 
         Args:
@@ -1161,7 +1163,7 @@ class VaultContext:
         Returns:
             List of recent notes, sorted by modification time descending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified DESC LIMIT ?", (k,))
+        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified DESC LIMIT ?", (count,))
 
         result = []
         for row in cursor.fetchall():
@@ -1234,7 +1236,7 @@ class VaultContext:
 
     # Deterministic sampling
 
-    def sample(self, items: list[Any], k: int) -> list[Any]:
+    def sample(self, items: list[Any], count: int) -> list[Any]:
         """Deterministically sample k items.
 
         Args:
@@ -1244,12 +1246,12 @@ class VaultContext:
         Returns:
             Sample of k items (or fewer if list is smaller)
         """
-        if k >= len(items):
+        if count >= len(items):
             return list(items)
 
-        return self.rng.sample(items, k)
+        return self.rng.sample(items, count)
 
-    def random_notes(self, k: int = 1) -> list[Note]:
+    def random_notes(self, count: int = 1) -> list[Note]:
         """Sample k random notes.
 
         Args:
@@ -1259,7 +1261,7 @@ class VaultContext:
             Random sample of notes
         """
         notes = self.notes()
-        return self.sample(notes, k)
+        return self.sample(notes, count)
 
     # Function registry
 

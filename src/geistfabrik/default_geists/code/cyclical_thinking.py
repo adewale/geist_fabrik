@@ -63,4 +63,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
 
     # Return top 2 cyclical patterns
-    return vault.sample(suggestions, k=min(2, len(suggestions)))
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

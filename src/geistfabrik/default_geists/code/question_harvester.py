@@ -29,7 +29,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not notes:
         return []
 
-    note = vault.random_notes(k=1)[0]
+    note = vault.random_notes(count=1)[0]
     content = vault.read(note)
 
     # Extract questions
@@ -59,7 +59,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         )
 
     # Sample 1-3 questions to avoid overwhelming
-    return vault.sample(suggestions, k=min(3, len(suggestions)))
+    return vault.sample(suggestions, count=min(3, len(suggestions)))
 
 
 def extract_questions(content: str) -> list[str]:

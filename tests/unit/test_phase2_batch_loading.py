@@ -148,7 +148,7 @@ class TestBatchLoadingInVaultContext:
         assert note is not None
 
         # This should use batch loading internally
-        neighbours = context.neighbours(note, k=5)
+        neighbours = context.neighbours(note, count=5)
 
         # Verify we got results
         assert isinstance(neighbours, list)
@@ -190,7 +190,7 @@ class TestBatchLoadingInVaultContext:
         context = VaultContext(vault_with_notes, session)
 
         # This should use batch loading internally
-        hubs = context.hubs(k=3)
+        hubs = context.hubs(count=3)
 
         # Verify we got results
         assert isinstance(hubs, list)

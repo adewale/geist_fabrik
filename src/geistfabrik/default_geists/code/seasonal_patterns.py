@@ -47,7 +47,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = _recurring_month_themes(vault, notes)
     suggestions.extend(_seasonal_tag_concentration(vault, notes))
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)
 
 
 def _recurring_month_themes(vault: "VaultContext", notes: list["Note"]) -> list["Suggestion"]:
@@ -188,7 +188,7 @@ def _seasonal_tag_concentration(vault: "VaultContext", notes: list["Note"]) -> l
                 season_ratio = count / total_with_tag if total_with_tag > 0 else 0
 
                 if season_ratio > 0.6:  # 60% of this tag appears in one season
-                    sample_notes = vault.sample([n for n in season_notes if tag in n.tags], k=3)
+                    sample_notes = vault.sample([n for n in season_notes if tag in n.tags], count=3)
                     note_names = ", ".join([f"[[{n.link_text}]]" for n in sample_notes])
 
                     text = (

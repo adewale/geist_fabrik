@@ -85,8 +85,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             cluster1_label, cluster1_notes, cluster1_sim = significant_clusters[0]
             cluster2_label, cluster2_notes, cluster2_sim = significant_clusters[1]
 
-            sample1 = vault.sample(cluster1_notes, k=3)
-            sample2 = vault.sample(cluster2_notes, k=3)
+            sample1 = vault.sample(cluster1_notes, count=3)
+            sample2 = vault.sample(cluster2_notes, count=3)
 
             names1 = ", ".join([f"[[{n.link_text}]]" for n in sample1])
             names2 = ", ".join([f"[[{n.link_text}]]" for n in sample2])
@@ -109,4 +109,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         logger.debug("temporal_clustering geist failed", exc_info=True)
         return []
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

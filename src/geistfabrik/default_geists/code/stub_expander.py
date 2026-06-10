@@ -47,4 +47,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

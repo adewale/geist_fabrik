@@ -274,10 +274,10 @@ def test_geists_use_vault_sample_not_random() -> None:
                 "How to fix:",
                 "  ❌ WRONG:",
                 "    import random",
-                "    sample = random.sample(notes, k=5)",
+                "    sample = random.sample(notes, count=5)",
                 "",
                 "  ✅ CORRECT:",
-                "    sample = vault.sample(notes, k=5)",
+                "    sample = vault.sample(notes, count=5)",
                 "",
                 "=" * 80,
             ]

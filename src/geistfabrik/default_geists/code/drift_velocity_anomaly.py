@@ -50,7 +50,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 final_rate = drift_rates[-1]
 
                 # Find what it's drifting toward
-                neighbours = vault.neighbours(note, k=5)
+                neighbours = vault.neighbours(note, count=5)
 
                 # Find most aligned neighbour by checking drift toward current neighbours
                 best_neighbour = None
@@ -83,4 +83,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
 
     # Return top 2 anomalies
-    return vault.sample(suggestions, k=min(2, len(suggestions)))
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

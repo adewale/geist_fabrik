@@ -36,12 +36,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Sample up to 30 drifting notes (as original did)
-    sampled_drifting = vault.sample(drifting, k=min(30, len(drifting)))
+    sampled_drifting = vault.sample(drifting, count=min(30, len(drifting)))
 
     suggestions = []
     for note, drift_vector in sampled_drifting:
         # Try to characterize the drift by finding what it's moving toward
-        current_neighbours = vault.neighbours(note, k=5)
+        current_neighbours = vault.neighbours(note, count=5)
 
         if not current_neighbours:
             continue
@@ -97,4 +97,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
         )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

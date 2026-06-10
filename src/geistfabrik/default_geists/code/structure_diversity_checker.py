@@ -30,7 +30,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get recent notes
-    recent = vault.recent_notes(k=8)
+    recent = vault.recent_notes(count=8)
     if len(recent) < 5:
         return []
 

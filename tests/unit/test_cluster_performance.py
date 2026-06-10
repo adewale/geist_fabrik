@@ -120,7 +120,7 @@ class TestClusterCaching:
 
                 # Call get_cluster_representatives WITH clusters parameter
                 # Should NOT trigger new clustering
-                _ = vault.get_cluster_representatives(cluster_id, k=3, clusters=clusters)
+                _ = vault.get_cluster_representatives(cluster_id, count=3, clusters=clusters)
 
                 # Verify no additional clustering occurred
                 assert mock_clusterer.fit_predict.call_count == 0
@@ -153,7 +153,7 @@ class TestClusterCaching:
 
             # Get representatives for each cluster
             for cluster_id in cluster_ids:
-                vault.get_cluster_representatives(cluster_id, k=3, clusters=clusters)
+                vault.get_cluster_representatives(cluster_id, count=3, clusters=clusters)
 
             # Verify HDBSCAN was called only ONCE (not 4 times)
             # This 4x reduction in operations yields 3-30x wall-clock speedup

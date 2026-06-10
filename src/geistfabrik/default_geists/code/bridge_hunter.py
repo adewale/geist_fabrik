@@ -22,7 +22,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get unlinked pairs
-    all_pairs = vault.unlinked_pairs(k=20)
+    all_pairs = vault.unlinked_pairs(count=20)
 
     # Filter out pairs involving geist journal notes
     pairs = [
@@ -62,7 +62,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
                 )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)
 
 
 def _filter_journal_notes(
@@ -96,7 +96,7 @@ def _find_semantic_path(
     # For 2-hop path: start -> intermediate -> end
     if max_hops == 2:
         # Find notes similar to start (get scores to avoid recomputation)
-        all_candidates_with_scores = vault.neighbours(start, k=10, return_scores=True)
+        all_candidates_with_scores = vault.neighbours(start, count=10, return_scores=True)
 
         # Filter out geist journal notes
         candidates_with_scores = _filter_journal_notes(all_candidates_with_scores)
@@ -122,8 +122,8 @@ def _find_semantic_path(
     # For 3-hop path: start -> mid1 -> mid2 -> end
     if max_hops == 3:
         # Get scores to avoid recomputing start->mid1 and end->mid2
-        all_candidates1_with_scores = vault.neighbours(start, k=10, return_scores=True)
-        all_candidates2_with_scores = vault.neighbours(end, k=10, return_scores=True)
+        all_candidates1_with_scores = vault.neighbours(start, count=10, return_scores=True)
+        all_candidates2_with_scores = vault.neighbours(end, count=10, return_scores=True)
 
         # Filter out geist journal notes
         candidates1_with_scores = _filter_journal_notes(all_candidates1_with_scores)

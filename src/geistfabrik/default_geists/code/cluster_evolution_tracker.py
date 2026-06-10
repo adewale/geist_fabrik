@@ -28,7 +28,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Get previous sessions via VaultContext abstraction
-    session_ids = vault.recent_session_ids(limit=3)
+    session_ids = vault.recent_session_ids(count=3)
 
     if len(session_ids) < 2:
         return []
@@ -81,4 +81,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 break
 
     # Return up to 2 suggestions
-    return vault.sample(suggestions, k=min(2, len(suggestions)))
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

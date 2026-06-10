@@ -66,7 +66,7 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbours = context_with_embeddings.neighbours(note, k=3, return_scores=False)
+        neighbours = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Should return list of Note objects
         assert isinstance(neighbours, list)
@@ -81,7 +81,9 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbours_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Should return list of tuples
         assert isinstance(neighbours_with_scores, list)
@@ -100,7 +102,7 @@ class TestReturnScoresParameter:
         assert note is not None
 
         # Call without specifying return_scores
-        neighbours = context_with_embeddings.neighbours(note, k=3)
+        neighbours = context_with_embeddings.neighbours(note, count=3)
 
         # Should return list of Note objects (not tuples)
         assert isinstance(neighbours, list)
@@ -113,7 +115,9 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbours_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Verify scores match vault.similarity()
         for neighbour, returned_score in neighbours_with_scores:
@@ -129,7 +133,9 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbours_with_scores = context_with_embeddings.neighbours(note, k=4, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=4, return_scores=True
+        )
 
         # Extract scores
         scores = [score for _, score in neighbours_with_scores]
@@ -145,10 +151,12 @@ class TestReturnScoresParameter:
         assert note is not None
 
         # Get neighbours without scores
-        neighbours = context_with_embeddings.neighbours(note, k=3, return_scores=False)
+        neighbours = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Get neighbours with scores
-        neighbours_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Extract notes from tuples
         neighbours_from_tuples = [n for n, _ in neighbours_with_scores]
@@ -168,10 +176,10 @@ class TestReturnScoresCaching:
         assert note is not None
 
         # Call with return_scores=False
-        neighbours1 = context_with_embeddings.neighbours(note, k=3, return_scores=False)
+        neighbours1 = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Call with return_scores=True
-        neighbours2 = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours2 = context_with_embeddings.neighbours(note, count=3, return_scores=True)
 
         # Both should be cached independently
         assert isinstance(neighbours1, list)
@@ -254,7 +262,9 @@ class TestReturnScoresPerformance:
         context_with_embeddings._similarity_cache.clear()
 
         # Get neighbours with scores
-        neighbours_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Extract neighbours and scores
         neighbours = [n for n, _ in neighbours_with_scores]
@@ -300,7 +310,7 @@ class TestReturnScoresBenchmark:
             context_with_embeddings._similarity_cache.clear()
 
             start = time.perf_counter()
-            neighbours = context_with_embeddings.neighbours(note, k=5, return_scores=False)
+            neighbours = context_with_embeddings.neighbours(note, count=5, return_scores=False)
             _ = [context_with_embeddings.similarity(note, n) for n in neighbours]
             times_without_return_scores.append(time.perf_counter() - start)
 
@@ -312,7 +322,7 @@ class TestReturnScoresBenchmark:
             context_with_embeddings._similarity_cache.clear()
 
             start = time.perf_counter()
-            _ = context_with_embeddings.neighbours(note, k=5, return_scores=True)
+            _ = context_with_embeddings.neighbours(note, count=5, return_scores=True)
             times_with_return_scores.append(time.perf_counter() - start)
 
         avg_without = sum(times_without_return_scores) / trials

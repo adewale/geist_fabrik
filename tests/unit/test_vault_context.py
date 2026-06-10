@@ -113,7 +113,7 @@ def test_neighbours_semantic_search(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
-    neighbours = ctx.neighbours(ai_note, k=2)
+    neighbours = ctx.neighbours(ai_note, count=2)
 
     # ml.md should be most similar to ai.md
     assert len(neighbours) >= 1
@@ -232,7 +232,7 @@ def test_hubs(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    hubs = ctx.hubs(k=2)
+    hubs = ctx.hubs(count=2)
 
     # Should find notes that are linked to
     assert len(hubs) <= 2
@@ -267,7 +267,7 @@ def test_hubs_returns_actual_notes_not_empty():
         ctx = VaultContext(vault, session)
 
         # Get hubs - should find the hub note
-        hubs = ctx.hubs(k=5)
+        hubs = ctx.hubs(count=5)
 
         # Verify we got actual notes back
         assert len(hubs) > 0, "hubs() should find linked-to notes"
@@ -315,7 +315,7 @@ def test_hubs_resolves_title_based_links():
         ctx = VaultContext(vault, session)
 
         # Get top hubs
-        hubs = ctx.hubs(k=5)
+        hubs = ctx.hubs(count=5)
 
         # Verify we found the hubs
         assert len(hubs) >= 2, f"Expected at least 2 hubs, got {len(hubs)}"
@@ -480,7 +480,7 @@ def test_unlinked_pairs(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    pairs = ctx.unlinked_pairs(k=3)
+    pairs = ctx.unlinked_pairs(count=3)
 
     assert len(pairs) <= 3
     for a, b in pairs:
@@ -509,7 +509,7 @@ def test_old_notes(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    old = ctx.old_notes(k=2)
+    old = ctx.old_notes(count=2)
 
     assert len(old) <= 2
     # Should be sorted by modification time ascending
@@ -522,7 +522,7 @@ def test_recent_notes(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    recent = ctx.recent_notes(k=2)
+    recent = ctx.recent_notes(count=2)
 
     assert len(recent) <= 2
     # Should be sorted by modification time descending
@@ -582,7 +582,7 @@ def test_random_notes(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session, seed=42)
 
-    random_notes = ctx.random_notes(k=3)
+    random_notes = ctx.random_notes(count=3)
 
     assert len(random_notes) == 3
     assert all(isinstance(n, Note) for n in random_notes)

@@ -45,7 +45,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             ]
 
             # Pick one question frame
-            question = vault.sample(question_frames, k=1)[0]
+            question = vault.sample(question_frames, count=1)[0]
 
             text = (
                 f'What if you reframed [[{title}]] as a question: "{question}"? '
@@ -61,4 +61,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

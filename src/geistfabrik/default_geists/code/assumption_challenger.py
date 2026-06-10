@@ -59,7 +59,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if assumption_count >= 2:
             # Find related notes that might challenge these assumptions
-            similar = vault.neighbours(note, k=10)
+            similar = vault.neighbours(note, count=10)
 
             # Look for notes with contrasting language (hedging, uncertainty)
             contrast_phrases = [
@@ -131,4 +131,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
             suggestion_count += 1
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

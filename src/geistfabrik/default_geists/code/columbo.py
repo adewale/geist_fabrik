@@ -41,7 +41,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         # Find semantically similar notes (OP-9: get scores to avoid recomputation)
-        similar_with_scores = vault.neighbours(note, k=5, return_scores=True)
+        similar_with_scores = vault.neighbours(note, count=5, return_scores=True)
 
         for other, similarity in similar_with_scores:
             if other.path == note.path:
@@ -109,4 +109,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
                 )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

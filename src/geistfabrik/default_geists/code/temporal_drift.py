@@ -23,7 +23,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Get old notes that have high link density (important but stale)
     # Filter out geist journal output - session notes are system artefacts,
     # not thinking that "drifted".
-    old = [n for n in vault.old_notes(k=30) if not n.path.startswith("geist journal/")][:20]
+    old = [n for n in vault.old_notes(count=30) if not n.path.startswith("geist journal/")][:20]
 
     for note in old:
         metadata = vault.metadata(note)
@@ -47,4 +47,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

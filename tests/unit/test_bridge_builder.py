@@ -128,7 +128,7 @@ def test_bridge_builder_returns_suggestions(vault_with_hubs):
 
     # BEHAVIORAL: Verify suggestions involve hubs (bridge_builder works with hubs)
     if len(suggestions) > 0:
-        all_hubs = context.hubs(k=10)
+        all_hubs = context.hubs(count=10)
         hub_links = {h.link_text for h in all_hubs}
 
         for suggestion in suggestions:

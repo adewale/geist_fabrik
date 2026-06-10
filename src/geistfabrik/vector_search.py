@@ -28,7 +28,7 @@ class VectorSearchBackend(ABC):
         pass
 
     @abstractmethod
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
         """Find k most similar notes to query embedding.
 
         Args:
@@ -148,7 +148,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
 
         self._rebuild_matrix()
 
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
         """Find similar notes via vectorised in-memory cosine similarity.
 
         Computes all similarities in a single matrix operation (matching the
@@ -166,12 +166,12 @@ class InMemoryVectorBackend(VectorSearchBackend):
         # Defensive: rebuild if embeddings were mutated since the last load.
         if self._matrix is None or len(self._paths) != len(self.embeddings):
             self._rebuild_matrix()
-        if self._matrix is None or k <= 0:
+        if self._matrix is None or count <= 0:
             return []
 
         scores = sklearn_cosine(query_embedding.reshape(1, -1), self._matrix)[0]
         n = scores.shape[0]
-        if k >= n:
+        if count >= n:
             # Full stable sort: descending by score, ties keep insertion order.
             order = np.argsort(-scores, kind="stable")
         else:
@@ -180,10 +180,10 @@ class InMemoryVectorBackend(VectorSearchBackend):
             # To keep output byte-identical to a full stable argsort prefix,
             # widen the candidate set to every score tied with the k-th
             # largest, then stable-sort just that small set.
-            part = np.argpartition(-scores, k - 1)[:k]
+            part = np.argpartition(-scores, count - 1)[:count]
             kth_score = scores[part].min()
             cand = np.flatnonzero(scores >= kth_score)
-            order = cand[np.argsort(-scores[cand], kind="stable")][:k]
+            order = cand[np.argsort(-scores[cand], kind="stable")][:count]
         return [(self._paths[int(i)], float(scores[int(i)])) for i in order]
 
     def get_similarity(self, path_a: str, path_b: str) -> float:
@@ -401,7 +401,7 @@ class SqliteVecBackend(VectorSearchBackend):
 
         self.db.commit()
 
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
         """Find similar notes via sqlite-vec.
 
         Args:
@@ -420,7 +420,7 @@ class SqliteVecBackend(VectorSearchBackend):
             ORDER BY distance
             LIMIT ?
             """,
-            (query_embedding.astype(np.float32).tobytes(), k),
+            (query_embedding.astype(np.float32).tobytes(), count),
         )
 
         results = []

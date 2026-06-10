@@ -65,7 +65,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Check if an antithesis note already exists
         # Look for semantically opposite notes
-        similar = vault.neighbours(note, k=20)
+        similar = vault.neighbours(note, count=20)
 
         # Look for negation words in similar notes
         negation_words = ["not", "no", "never", "contra", "anti", "against", "opposite", "reverse"]
@@ -84,7 +84,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if antithesis_candidates:
             # Suggest strengthening the existing antithesis
-            antithesis = vault.sample(antithesis_candidates, k=1)[0]
+            antithesis = vault.sample(antithesis_candidates, count=1)[0]
 
             text = (
                 f"[[{note.link_text}]] makes strong claims. "
@@ -130,7 +130,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if suggestion_count >= max_suggestions:
             break
         # Find potential antithesis (OP-9: get scores to avoid recomputation)
-        similar_with_scores = vault.neighbours(note, k=10, return_scores=True)
+        similar_with_scores = vault.neighbours(note, count=10, return_scores=True)
 
         for other, similarity in similar_with_scores:
             # Check if they seem opposed (already have similarity from neighbours)
@@ -164,4 +164,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
                     suggestion_count += 1
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

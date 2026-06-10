@@ -55,7 +55,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         # Pick a representative note from the season
-        anchor = vault.sample(seasonal_notes, k=1)[0]
+        anchor = vault.sample(seasonal_notes, count=1)[0]
 
         # Find other notes in the same season that are similar to the anchor
         similar_in_season = tsq.notes_created_similar_to(
@@ -88,4 +88,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
 
     # Limit to 2 suggestions to avoid overwhelming
-    return vault.sample(suggestions, k=min(2, len(suggestions)))
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

@@ -28,7 +28,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Get recent notes to understand current focus
     # recent_notes() includes geist-journal output; session notes are not
     # "current focus", so drop them before analysing.
-    recent = [n for n in vault.recent_notes(k=10) if not n.path.startswith("geist journal/")][:5]
+    recent = [n for n in vault.recent_notes(count=10) if not n.path.startswith("geist journal/")][
+        :5
+    ]
     if len(recent) < 2:
         return []
 

@@ -51,7 +51,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for note in sample_notes:
         # Find related notes (both linked and semantically similar)
         linked_notes = vault.outgoing_links(note)[:3]
-        similar = vault.neighbours(note, k=5)
+        similar = vault.neighbours(note, count=5)
 
         # Deduplicate by combining into a set
         all_candidates = list(set(linked_notes + similar))
@@ -63,8 +63,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         # Pick a random other note and SCAMPER operation
-        other = vault.sample(candidates, k=1)[0]
-        operation, template = vault.sample(scamper_operations, k=1)[0]
+        other = vault.sample(candidates, count=1)[0]
+        operation, template = vault.sample(scamper_operations, count=1)[0]
 
         text = template.format(note=note.link_text, other=other.link_text)
 
@@ -77,10 +77,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         )
 
     # Also generate SCAMPER questions for unlinked but similar pairs
-    pairs = vault.unlinked_pairs(k=10)
+    pairs = vault.unlinked_pairs(count=10)
 
     for note_a, note_b in pairs:
-        operation, template = vault.sample(scamper_operations, k=1)[0]
+        operation, template = vault.sample(scamper_operations, count=1)[0]
 
         # Adjust template for unlinked pairs
         if operation in ["substitute", "combine", "adapt"]:
@@ -94,4 +94,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

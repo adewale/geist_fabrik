@@ -104,4 +104,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         logger.debug("vocabulary_expansion geist failed", exc_info=True)
         return []
 
-    return vault.sample(suggestions, k=1)
+    return vault.sample(suggestions, count=1)

@@ -49,7 +49,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
     for seed in seeds:
-        neighbours = vault.neighbours(seed, k=1, return_scores=True)
+        neighbours = vault.neighbours(seed, count=1, return_scores=True)
         if not neighbours:
             continue
         other, similarity = neighbours[0]

@@ -55,7 +55,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Case 1: Dense links, sparse meaning (tightly linked but semantically scattered)
         if graph_density > 0.6 and semantic_density < 0.3:
-            neighbour_sample = vault.sample(graph_neighbours, k=3)
+            neighbour_sample = vault.sample(graph_neighbours, count=3)
             neighbour_names = ", ".join([f"[[{n.link_text}]]" for n in neighbour_sample])
 
             text = (
@@ -74,7 +74,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Case 2: Sparse links, dense meaning (semantically similar but not linked)
         elif graph_density < 0.3 and semantic_density > 0.6:
-            neighbour_sample = vault.sample(graph_neighbours, k=3)
+            neighbour_sample = vault.sample(graph_neighbours, count=3)
             neighbour_names = ", ".join([f"[[{n.link_text}]]" for n in neighbour_sample])
 
             text = (
@@ -91,4 +91,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

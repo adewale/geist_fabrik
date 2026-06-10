@@ -33,7 +33,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         total_links = outgoing + incoming
 
         # Find semantic neighbours with scores
-        neighbours_with_scores = vault.neighbours(note, k=30, return_scores=True)
+        neighbours_with_scores = vault.neighbours(note, count=30, return_scores=True)
 
         # Filter to only high-similarity neighbours
         high_similarity_count = sum(
@@ -44,7 +44,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if high_similarity_count > 10 and total_links < 5:
             # Sample some neighbours to mention (extract notes from tuples)
             neighbour_notes = [n for n, sim in neighbours_with_scores[:10]]
-            neighbour_sample = vault.sample(neighbour_notes, k=3)
+            neighbour_sample = vault.sample(neighbour_notes, count=3)
             neighbour_names = ", ".join([f"[[{n.link_text}]]" for n in neighbour_sample])
 
             text = (
@@ -62,4 +62,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

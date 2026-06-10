@@ -195,14 +195,14 @@ def test_find_similar_notes(fixed_embeddings):
     query = np.array([1.0, 0.0, 0.0])
 
     # Find 2 most similar notes
-    results = find_similar_notes(query, fixed_embeddings, k=2)
+    results = find_similar_notes(query, fixed_embeddings, count=2)
 
     assert len(results) == 2
     assert results[0][0] == "note1.md"  # Exact match
     assert results[1][0] == "note2.md"  # Close match
 
     # Test with exclusion
-    results = find_similar_notes(query, fixed_embeddings, k=2, exclude_paths={"note1.md"})
+    results = find_similar_notes(query, fixed_embeddings, count=2, exclude_paths={"note1.md"})
 
     assert len(results) == 2
     assert results[0][0] == "note2.md"

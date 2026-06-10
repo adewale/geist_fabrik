@@ -28,7 +28,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Build simple clusters using hub notes as cluster centers
-    hubs = vault.hubs(k=5)
+    hubs = vault.hubs(count=5)
 
     for hub in hubs:
         # A cluster is the hub + notes that link to it
@@ -64,7 +64,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             boundary_notes.sort(key=lambda x: x[1], reverse=True)
             bridge, sim = boundary_notes[0]
 
-            cluster_sample = vault.sample(cluster, k=2)
+            cluster_sample = vault.sample(cluster, count=2)
             cluster_names = ", ".join([f"[[{n.link_text}]]" for n in cluster_sample])
 
             text = (
@@ -84,4 +84,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

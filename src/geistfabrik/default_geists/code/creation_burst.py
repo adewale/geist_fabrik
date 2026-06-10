@@ -36,7 +36,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     burst_days = list(burst_days_dict.items())
 
     # Randomly select one burst day (deterministic via vault's RNG)
-    day_date, notes = vault.sample(burst_days, k=1)[0]
+    day_date, notes = vault.sample(burst_days, count=1)[0]
     count = len(notes)
 
     if not notes:

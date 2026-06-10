@@ -69,7 +69,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Highly abstract note - suggest zooming in
         if abstract_score >= 3 and concrete_score <= 1:
             # Find more concrete similar notes
-            similar = vault.neighbours(note, k=10)
+            similar = vault.neighbours(note, count=10)
 
             concrete_neighbours = []
             for other in similar:
@@ -79,7 +79,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     concrete_neighbours.append(other)
 
             if concrete_neighbours:
-                example = vault.sample(concrete_neighbours, k=1)[0]
+                example = vault.sample(concrete_neighbours, count=1)[0]
 
                 text = (
                     f"[[{note.link_text}]] operates at a high level of abstraction. "
@@ -98,7 +98,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Highly concrete note - suggest zooming out
         elif concrete_score >= 3 and abstract_score <= 1:
             # Find more abstract similar notes
-            similar = vault.neighbours(note, k=10)
+            similar = vault.neighbours(note, count=10)
 
             abstract_neighbours = []
             for other in similar:
@@ -108,7 +108,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     abstract_neighbours.append(other)
 
             if abstract_neighbours:
-                framework = vault.sample(abstract_neighbours, k=1)[0]
+                framework = vault.sample(abstract_neighbours, count=1)[0]
 
                 text = (
                     f"[[{note.link_text}]] is very specific and concrete. "
@@ -158,4 +158,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         )
                     )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)
