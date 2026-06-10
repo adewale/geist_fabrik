@@ -1,8 +1,9 @@
 # Reflective Lenses Specification
 
-*Version: 1.0*
+*Version: 1.1*
 *Date: June 2026*
 *Supersedes: specs/sentiment_geists_spec.md (withdrawn)*
+*v1.1: Added performance characteristics, vectorised algorithms for surprisal/attention-drift, and a comprehensive testing strategy based on adewale/testing-best-practices*
 
 ---
 
@@ -286,29 +287,74 @@ def questioning_notes(vault: VaultContext, k: int = 5) -> list[str]:
     return [f"[[{n.title}]]" for n in vault.sample(candidates, k)]
 ```
 
-#### Information-Theoretic Surprisal
+#### New VaultContext Methods (Required Infrastructure)
+
+Per the architectural rule (geists use VaultContext, never raw loops over the
+whole vault doing per-note similarity searches), the two expensive
+computations live in VaultContext, are computed **once per session in a
+single vectorised pass**, and are cached so every geist and vault function
+shares the result.
+
+```python
+# vault_context.py additions
+
+def surprisal_scores(self, k_neighbors: int = 10) -> dict[str, float]:
+    """Surprisal = 1 - cosine(note, centroid of its k nearest neighbours).
+
+    How unexpected is each note given its own semantic neighbourhood?
+    Values lie in [0, 2] (cosine ∈ [-1, 1]); in practice [0, 1].
+
+    Computed for ALL notes in one vectorised pass, session-cached.
+
+    Algorithm (O(N²·d) flops, but as blocked BLAS matmuls, NOT a Python loop):
+    1. E = row-normalised embedding matrix (N × d), already in memory
+    2. For each 1024-row block B: S_B = E[B] @ E.T   (~40 MB per block at N=10k)
+    3. Top-k neighbour indices per row via np.argpartition  (O(N) per row)
+    4. centroid_i = mean(E[topk_i]); surprisal_i = 1 - E[i] · normalise(centroid_i)
+
+    Notes with fewer than k_neighbors // 2 neighbours above noise
+    threshold are excluded (surprisal is meaningless in a near-empty vault).
+    """
+
+
+@dataclass
+class ChurnResult:
+    churn: float                  # 1 - Jaccard(old neighbours, new neighbours), in [0, 1]
+    departed: list[str]           # neighbour paths present then, absent now
+    arrived: list[str]            # neighbour paths absent then, present now
+
+
+def neighbor_churn(self, since_days: int = 180, k: int = 10) -> dict[str, ChurnResult]:
+    """Jaccard churn between each note's current semantic neighbours and its
+    neighbours as of the nearest session at or before (today - since_days).
+
+    Graceful degradation:
+    - No session that old → falls back to the OLDEST available session if it
+      is at least 30 days old; otherwise returns {} (geists then return []).
+    - Notes created after the historical session are skipped.
+
+    Implementation:
+    1. ONE bulk SELECT loads the historical session's embeddings
+       (~15 MB for 10k notes × 387 dims × float32) — never per-note queries
+    2. Two blocked top-k passes (as in surprisal_scores), one per epoch
+    3. Set-based Jaccard per note (O(k) each)
+
+    Session-cached per (since_days, k).
+    """
+```
+
+#### Information-Theoretic Surprisal (Vault Function)
 
 ```python
 @vault_function("surprising_notes")
 def surprising_notes(vault: VaultContext, k: int = 5) -> list[str]:
     """Sample notes with high information-theoretic surprisal.
-    
-    Surprisal = how unexpected a note is given its semantic neighborhood.
-    Computed as: 1 - similarity to centroid of nearest neighbors.
+
+    Thin wrapper over the session-cached VaultContext.surprisal_scores().
     """
-    surprisals = []
-    for note in vault.notes():
-        neighbors = vault.semantic_neighbors(note, k=10)
-        if len(neighbors) < 3:
-            continue
-        neighbor_embeddings = [vault.embedding(n) for n in neighbors]
-        centroid = np.mean(neighbor_embeddings, axis=0)
-        surprisal = 1 - cosine_similarity(vault.embedding(note), centroid)
-        surprisals.append((note, surprisal))
-    
-    surprisals.sort(key=lambda x: x[1], reverse=True)
-    top_k = surprisals[:k]
-    return [f"[[{n.title}]]" for n, _ in top_k]
+    scores = vault.surprisal_scores()
+    top = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)[:k]
+    return [f"[[{vault.note(path).title}]]" for path, _ in top]
 ```
 
 #### Attention Drift Queries
@@ -316,37 +362,19 @@ def surprising_notes(vault: VaultContext, k: int = 5) -> list[str]:
 ```python
 @vault_function("attention_shifted_notes")
 def attention_shifted_notes(
-    vault: VaultContext, 
-    months_ago: int = 6, 
+    vault: VaultContext,
+    months_ago: int = 6,
     min_churn: float = 0.7,
     k: int = 5
 ) -> list[str]:
     """Find notes whose semantic neighborhood has churned significantly.
-    
-    Compares neighbors from `months_ago` to current neighbors.
-    High churn = the notes you associate with this topic have changed.
+
+    Thin wrapper over the session-cached VaultContext.neighbor_churn().
     """
-    shifted = []
-    cutoff = vault.session_date - timedelta(days=months_ago * 30)
-    
-    for note in vault.notes():
-        old_neighbors = vault.neighbors_at_date(note, cutoff, k=10)
-        new_neighbors = vault.semantic_neighbors(note, k=10)
-        
-        if not old_neighbors:
-            continue
-            
-        old_set = {n.path for n in old_neighbors}
-        new_set = {n.path for n in new_neighbors}
-        
-        jaccard = len(old_set & new_set) / len(old_set | new_set) if old_set | new_set else 1
-        churn = 1 - jaccard
-        
-        if churn >= min_churn:
-            shifted.append((note, churn, old_neighbors, new_neighbors))
-    
-    shifted.sort(key=lambda x: x[1], reverse=True)
-    return [f"[[{n.title}]]" for n, _, _, _ in shifted[:k]]
+    churn = vault.neighbor_churn(since_days=months_ago * 30)
+    shifted = [(p, r) for p, r in churn.items() if r.churn >= min_churn]
+    shifted.sort(key=lambda x: x[1].churn, reverse=True)
+    return [f"[[{vault.note(p).title}]]" for p, _ in shifted[:k]]
 ```
 
 ---
@@ -375,9 +403,13 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
     if not past_notes or not future_notes:
         return []
     
-    # Find a semantically related pair with opposite temporal voice
+    # Find a semantically related pair with opposite temporal voice.
+    # Bounded search: 5 × 20 = at most 100 individual similarity() calls
+    # (cache-aware, early-terminating — the right tool for loops with logic,
+    # per the batch_similarity vs similarity() guidance in CLAUDE.md).
+    future_candidates = vault.sample(future_notes, min(20, len(future_notes)))
     for past_note in vault.sample(past_notes, 5):
-        for future_note in future_notes:
+        for future_note in future_candidates:
             if vault.similarity(past_note, future_note) > 0.5:
                 return [Suggestion(
                     text=f"[[{past_note.title}]] looks backward. "
@@ -487,34 +519,21 @@ Surfaces informationally unexpected notes using embedding distance.
 
 ```python
 def suggest(vault: VaultContext) -> list[Suggestion]:
-    """Find notes that don't fit their semantic neighborhood."""
-    surprisals = []
-    
-    for note in vault.notes():
-        neighbors = vault.semantic_neighbors(note, k=10)
-        if len(neighbors) < 5:
-            continue
-        
-        neighbor_embeddings = [vault.embedding(n) for n in neighbors]
-        centroid = np.mean(neighbor_embeddings, axis=0)
-        note_embedding = vault.embedding(note)
-        
-        similarity_to_centroid = cosine_similarity(
-            note_embedding.reshape(1, -1),
-            centroid.reshape(1, -1)
-        )[0][0]
-        
-        surprisal = 1 - similarity_to_centroid
-        surprisals.append((note, surprisal, neighbors[:3]))
-    
-    if not surprisals:
+    """Find notes that don't fit their semantic neighborhood.
+
+    Uses the session-cached, vectorised VaultContext.surprisal_scores() —
+    NEVER a per-note semantic_neighbors() loop (O(N²) slow path, see
+    Performance Characteristics).
+    """
+    scores = vault.surprisal_scores()
+    if not scores:
         return []
-    
-    surprisals.sort(key=lambda x: x[1], reverse=True)
-    note, score, neighbors = surprisals[0]
-    
+
+    path = max(scores, key=scores.get)
+    note = vault.note(path)
+    neighbors = vault.semantic_neighbors(note, k=3)  # single cached query
     neighbor_titles = ", ".join(f"[[{n.title}]]" for n in neighbors)
-    
+
     return [Suggestion(
         text=f"[[{note.title}]] doesn't quite fit. "
              f"Its neighbors are {neighbor_titles}, but it says something different. "
@@ -533,49 +552,34 @@ Detects notes whose semantic neighborhood has churned over time.
 
 ```python
 def suggest(vault: VaultContext) -> list[Suggestion]:
-    """Find notes whose context has changed dramatically."""
-    from datetime import timedelta
-    
-    shifts = []
-    cutoff = vault.session_date - timedelta(days=180)  # 6 months ago
-    
-    for note in vault.notes():
-        if note.created > cutoff:
-            continue  # Note didn't exist 6 months ago
-            
-        old_neighbors = vault.neighbors_at_date(note, cutoff, k=10)
-        new_neighbors = vault.semantic_neighbors(note, k=10)
-        
-        if not old_neighbors or not new_neighbors:
-            continue
-        
-        old_set = {n.path for n in old_neighbors}
-        new_set = {n.path for n in new_neighbors}
-        
-        overlap = len(old_set & new_set)
-        union = len(old_set | new_set)
-        churn = 1 - (overlap / union) if union else 0
-        
-        if churn > 0.6:  # >60% of neighbors changed
-            departed = [n for n in old_neighbors if n.path not in new_set][:3]
-            arrived = [n for n in new_neighbors if n.path not in old_set][:3]
-            shifts.append((note, churn, departed, arrived))
-    
-    if not shifts:
+    """Find notes whose semantic context has changed dramatically.
+
+    Uses the session-cached, vectorised VaultContext.neighbor_churn() —
+    one bulk historical-embedding load + two blocked top-k passes,
+    NEVER per-note DB queries or similarity loops.
+    """
+    churn_map = vault.neighbor_churn(since_days=180)
+    if not churn_map:
+        return []  # No session history old enough — degrade gracefully
+
+    candidates = [(p, r) for p, r in churn_map.items() if r.churn > 0.6]
+    if not candidates:
         return []
-    
-    shifts.sort(key=lambda x: x[1], reverse=True)
-    note, churn, departed, arrived = shifts[0]
-    
-    old_titles = ", ".join(f"[[{n.title}]]" for n in departed)
-    new_titles = ", ".join(f"[[{n.title}]]" for n in arrived)
-    
+
+    path, result = max(candidates, key=lambda x: x[1].churn)
+    note = vault.note(path)
+    departed = [vault.note(p).title for p in result.departed[:3]]
+    arrived = [vault.note(p).title for p in result.arrived[:3]]
+
+    old_titles = ", ".join(f"[[{t}]]" for t in departed)
+    new_titles = ", ".join(f"[[{t}]]" for t in arrived)
+
     return [Suggestion(
         text=f"Your thinking around [[{note.title}]] has shifted. "
              f"Old neighbors: {old_titles}. "
              f"New neighbors: {new_titles}. "
              f"What changed in how you see this?",
-        notes=[note.title] + [n.title for n in departed + arrived],
+        notes=[note.title] + departed + arrived,
         geist_id="attention_shift"
     )]
 ```
@@ -809,61 +813,369 @@ tracery:
 
 ### Phase 1: Core Metadata (1 week)
 1. Implement `voice.py` metadata module
-   - Verb tense detection (regex-based)
-   - Pronoun counting
-   - Hedge word detection
-   - Sentence structure analysis
+   - Single-pass tokenisation; precompiled patterns; irregular-verb set
+   - Verb tense detection, pronoun counting, hedge detection, sentence stats
+   - Strip code blocks and URLs before analysis
 2. Wire into metadata loading system
-3. Unit tests for each feature
+3. Tests: known-answer units, sad paths, Hypothesis property/fuzz suite,
+   `make_note`/`make_voice_vault` builders
 
-### Phase 2: Vault Functions (3 days)
-1. Implement 8 vault functions
-2. Add `neighbors_at_date()` to VaultContext (may require temporal infrastructure)
-3. Integration tests
+### Phase 2: VaultContext Methods + Vault Functions (1 week)
+1. Implement `surprisal_scores()` — naive reference first, then blocked
+   vectorised version, with the **differential test written before the
+   optimisation** (red-green-refactor)
+2. Implement `neighbor_churn()` — bulk historical-embedding load, graceful
+   degradation when session history is shallow
+3. Implement 8 thin vault functions (bracket-conformance tests included)
+4. Benchmarks on synthetic 10k vault (budget assertions, memory bound)
 
 ### Phase 3: Geists (1 week)
-1. Implement 8 code geists
-2. Implement 3 Tracery geists
-3. Per-geist unit tests following GEIST_TESTING_TEMPLATE.md
+1. Implement 8 code geists + 3 Tracery geists
+2. Parametrised conformance suite across all 11
+3. Static architectural regression test (no similarity loops in geists)
+4. Golden-file session tests on the voice fixture vault
 
 ### Phase 4: Validation (3 days)
-1. Create test fixtures with varied linguistic patterns
-2. Validate geist output quality
-3. Documentation
+1. Voice fixture vault (`tests/fixtures/voice_vault/`) with controlled
+   tense/pronoun/hedging mixes
+2. spaCy calibration test for tense detection (marked `slow`)
+3. Characterization run against kepano testdata; e2e invoke test
+4. Mutation-testing pass on `voice.py` (manual); documentation
 
-**Total: ~3 weeks**
+**Total: ~3.5 weeks**
+
+---
+
+## Performance Characteristics
+
+### Per-Component Cost Model
+
+Estimates assume a 10k-note vault (~5M words), 384-dim embeddings already in
+memory, warm session caches. The per-geist timeout is 30s.
+
+| Component | Complexity | 1k notes | 10k notes | Memory | Notes |
+|-----------|-----------|----------|-----------|--------|-------|
+| `voice.py` metadata (all notes) | O(total words) | <0.5s | 1–3s | negligible | Single-pass tokenisation; runs once per session, shared by all geists via metadata cache |
+| `surprisal_scores()` | O(N²·d) as blocked BLAS | <0.1s | 2–5s | ~40 MB/block | One-time per session, cached; argpartition top-k |
+| `neighbor_churn()` | 2 × O(N²·d) + bulk DB read | <0.2s | 5–10s | ~15 MB hist. embeddings + blocks | One-time per session, cached |
+| `temporal_voice` geist | ≤100 cached `similarity()` calls | <0.1s | <1s | — | Bounded search, early termination |
+| `this_time_last_year` geist | O(N) date scan | <1ms | ~10ms | — | |
+| All metadata-scan geists (`self_and_other`, `uncertainty_mapper`, `sentence_variance`, `voice_absence`) | O(N) dict reads | <5ms | ~50ms | — | Metadata already cached |
+
+**Whole-session budget**: the 11 new geists together add roughly **10–20s on a
+10k-note vault**, dominated by the two one-time vectorised passes
+(`surprisal_scores`, `neighbor_churn`). Every individual geist stays well
+under the 30s timeout because the heavy work is session-cached in
+VaultContext, not repeated per geist.
+
+### The Two Performance Cliffs (and how this spec avoids them)
+
+1. **Per-note neighbour loops.** The naive implementation of surprisal —
+   `for note in vault.notes(): vault.semantic_neighbors(note, k=10)` — is
+   10k Python-level top-k searches ≈ 20–50s, at or over the timeout. This is
+   exactly the Phase 3B failure mode documented in CLAUDE.md. The spec
+   therefore mandates **one blocked matrix pass in VaultContext**
+   (`E_block @ E.T`, `np.argpartition`), which is the same flop count but
+   runs in multi-threaded BLAS: ~2–5s. A static regression test enforces
+   that no reflective-lens geist calls `semantic_neighbors` inside a loop
+   (precedent: `test_phase3b_regression.py`).
+
+2. **Per-note DB queries for history.** `neighbor_churn` must load the
+   historical session's embeddings with **one bulk SELECT** (~15 MB), never
+   a query per note (10k round-trips).
+
+### Optimisation Decisions
+
+- **Single-pass tokenisation**: `voice.py` tokenises each note once and
+  derives all features (tense counts, pronouns, hedges, sentence stats) from
+  that one token stream — not 10+ separate regex scans (a ~5× constant-factor
+  saving). Patterns are precompiled at module level; word lookups use
+  `frozenset`s. Multi-word hedges ("sort of", "I think") are matched with a
+  single compiled alternation over the raw text.
+- **Session-scoped caching in VaultContext**: `surprisal_scores()` and
+  `neighbor_churn()` are computed once and shared — if three geists or
+  Tracery functions need them, the cost is paid once. This respects the
+  "respect session-scoped caches" lesson from the Phase 3B rollback.
+- **Blocked matmuls bound memory**: a full 10k×10k float32 similarity matrix
+  is 400 MB; 1024-row blocks keep peak usage ≈ 40 MB.
+- **No blind sampling**: per the Phase 3B lesson (pattern_finder lost 95%
+  coverage), we keep full-vault coverage and win speed via vectorisation,
+  not sampling. The only sampling is in cheap candidate selection
+  (`temporal_voice`), where it bounds work without losing pattern coverage.
+- **Graceful degradation gates**: geists return `[]` early when the vault is
+  too small (<20 notes), session history is too shallow (`neighbor_churn`
+  needs a session ≥30 days old), or no candidates pass thresholds. Early
+  gates cost O(1)–O(N) and prevent wasted computation.
+- **Known non-problem**: voice metadata is recomputed each session rather
+  than persisted (metadata is in-memory by design, and there is no metadata
+  table). At 1–3s per session for 10k notes this does not justify a breaking
+  DB change pre-1.0. **Future work (post-1.0)**: content-hash keyed
+  persistence alongside the planned migration framework.
+
+### Known Quality Caveats (accepted trade-offs)
+
+- Regex tense detection mislabels some irregular verbs; a ~180-entry
+  irregular-past-form set is included (negligible cost). Accuracy is
+  calibrated, not assumed — see Differential Testing below.
+- Type-token ratio (lexical diversity) is length-biased: longer notes score
+  lower. Acceptable for provocations; flagged so nobody treats it as a
+  measurement.
 
 ---
 
 ## Testing Strategy
 
-### Metadata Module Tests
+Mapped against the full technique catalogue in
+[adewale/testing-best-practices](https://github.com/adewale/testing-best-practices)
+(16 techniques in three tiers). Core principles applied throughout:
+**3+ assertions per test, real objects over mocks, sad paths and boundary
+values, test data builders.**
+
+### Tier 1 — Always
+
+#### Unit Testing
+Per-feature tests for `voice.py` with known-answer inputs (the CLAUDE.md
+"known-answer test" lesson — these catch wrong-algorithm bugs that fuzzy
+tests miss):
+
 ```python
 def test_past_tense_detection():
-    note = Note(content="I walked to the store. I bought milk. I returned home.")
+    note = make_note("I walked to the store. I bought milk. I returned home.")
     meta = infer_voice(note, vault)
     assert meta["past_tense_ratio"] > 0.8
     assert meta["temporal_orientation"] == "past"
+    assert meta["future_tense_ratio"] < 0.1
+
+def test_irregular_past_tense():
+    """Irregular verbs (no -ed suffix) must still register as past."""
+    note = make_note("I went home. I saw the error. I thought about it.")
+    meta = infer_voice(note, vault)
+    assert meta["temporal_orientation"] == "past"
 
 def test_hedging_detection():
-    note = Note(content="Maybe this works. Perhaps it doesn't. I think it might be okay.")
+    note = make_note("Maybe this works. Perhaps it doesn't. I think it might be okay.")
     meta = infer_voice(note, vault)
     assert meta["hedging_ratio"] > 0.5
+    assert meta["modal_density"] > 0
 
 def test_pronoun_patterns():
-    note = Note(content="We built this together. Our team succeeded. We celebrated.")
+    note = make_note("We built this together. Our team succeeded. We celebrated.")
     meta = infer_voice(note, vault)
-    assert meta["first_person_plural"] > 3.0  # per 100 words
+    assert meta["first_person_plural"] > 3.0
     assert meta["self_focus_ratio"] < 0.3
+    assert meta["first_person_singular"] == 0.0
 ```
 
-### Geist Tests
-Follow existing GEIST_TESTING_TEMPLATE.md:
-- `test_returns_suggestions` — non-empty on suitable vault
-- `test_suggestion_structure` — valid Suggestion objects
-- `test_obsidian_link` — proper `[[...]]` formatting
-- `test_empty_vault` — graceful handling
-- `test_insufficient_data` — graceful handling
+Sad paths and boundary values: empty note, whitespace-only note, single
+word, no verbs at all (ratios must not divide by zero), a note that is one
+giant sentence, a note of only questions.
+
+Test data builder (`tests/fixtures/voice_notes.py`):
+
+```python
+def make_note(content: str, *, title: str = "Test", created: datetime = ...) -> Note: ...
+def make_voice_vault(past: int = 5, future: int = 5, hedgy: int = 3, ...) -> Vault:
+    """Builds a vault with a controlled mix of linguistic voices."""
+```
+
+#### Smoke Testing
+`geistfabrik test <geist_id> <fixture-vault>` for each of the 11 geists in
+CI — each must execute without error and return a list (possibly empty).
+
+#### Regression Testing
+- Every bug found gets a pinned test with the reproducing input.
+- **Static architectural regression** (precedent: `test_phase3b_regression.py`):
+  assert via AST/source inspection that no reflective-lens geist calls
+  `semantic_neighbors` or `similarity` inside a `for note in vault.notes()`
+  loop, and that `surprisal`/`attention_shift` geists use the cached
+  VaultContext methods.
+
+### Tier 2 — Triggered (and which triggers fire here)
+
+#### Property-Based Testing (Hypothesis — already a dev dependency)
+Triggered: the voice features have genuine mathematical properties.
+
+```python
+@given(st.text(max_size=5000))
+def test_voice_metadata_total_function(content):
+    """Never crashes, all ranges hold, on ARBITRARY text."""
+    meta = infer_voice(make_note(content), vault)
+    assert 0.0 <= meta["past_tense_ratio"] <= 1.0
+    assert 0.0 <= meta["self_focus_ratio"] <= 1.0
+    assert meta["hedging_ratio"] >= 0.0
+    assert abs(meta["past_tense_ratio"] + meta["present_tense_ratio"]
+               + meta["future_tense_ratio"] - 1.0) < 1e-9 or no_verbs(content)
+
+@given(st.text(max_size=2000))
+def test_case_invariance(content):
+    """Voice features are invariant under case changes."""
+    assert infer_voice(make_note(content.lower()), vault) == \
+           infer_voice(make_note(content.upper().lower()), vault)
+
+@given(st.text(max_size=2000), st.text(max_size=2000))
+def test_pronoun_counts_additive(a, b):
+    """Metamorphic: raw counts are additive under concatenation."""
+    combined = raw_counts(a + "\n\n" + b)
+    assert combined == add_counts(raw_counts(a), raw_counts(b))
+
+@given(st.text(max_size=2000))
+def test_appending_hedge_never_decreases_hedging(content):
+    """Metamorphic: adding 'Maybe.' can only increase hedge count."""
+    before = raw_hedge_count(content)
+    after = raw_hedge_count(content + " Maybe it is.")
+    assert after >= before + 1
+
+@given(embedding_matrices())  # strategy generating small random (N, d) arrays
+def test_surprisal_properties(E):
+    scores = compute_surprisal(E, k=3)
+    assert all(0.0 <= s <= 2.0 for s in scores.values())
+    # A note identical to its neighbours has ~zero surprisal
+    # (constructed case appended to E)
+
+@given(neighbour_sets())
+def test_churn_properties(old, new):
+    assert 0.0 <= jaccard_churn(old, new) <= 1.0
+    assert jaccard_churn(old, old) == 0.0
+    assert jaccard_churn(old, new) == jaccard_churn(new, old)  # symmetry
+```
+
+#### Differential Testing
+Triggered twice — this is the highest-value technique for this feature:
+
+1. **Vectorised vs. reference implementation.** The blocked-BLAS
+   `surprisal_scores()` must agree with a 20-line naive reference
+   implementation to within 1e-5 on Hypothesis-generated random embedding
+   matrices. Same for `neighbor_churn` top-k sets. This is the classic
+   guard when optimising: the fast path is only trusted because the slow
+   path defines correctness.
+
+   ```python
+   @given(embedding_matrices(min_n=10, max_n=200))
+   def test_vectorised_surprisal_matches_naive(E):
+       fast = compute_surprisal_blocked(E, k=5)
+       slow = compute_surprisal_naive(E, k=5)   # readable reference
+       assert fast.keys() == slow.keys()
+       assert all(abs(fast[p] - slow[p]) < 1e-5 for p in fast)
+   ```
+
+2. **Regex tense detector vs. spaCy POS tagging** (calibration, marked
+   `slow`, dev-only dependency): on a 200-sentence fixture corpus, regex
+   orientation must agree with spaCy-derived orientation on ≥85% of
+   sentences. This converts "regex is probably fine" into a measured,
+   regression-guarded number.
+
+#### Golden File Testing
+Triggered: deterministic randomness (same date + vault = same output) is a
+core GeistFabrik design principle, which makes session output a perfect
+golden-file candidate.
+
+- Fixture vault `tests/fixtures/voice_vault/` (notes with controlled tense /
+  pronoun / hedging mixes) + pinned date `--date 2025-01-15` → golden
+  journal markdown checked into `tests/goldens/`.
+- Promotion workflow: `UPDATE_GOLDENS=1 pytest tests/integration/test_reflective_goldens.py`
+  regenerates; diffs are reviewed in PR like any code change.
+- Catches: template wording regressions, bracket-formatting bugs, ordering
+  instability, accidental nondeterminism.
+
+#### Pirate/Conformance Testing
+Triggered: 11 new geists must all satisfy the same contracts. One
+parametrised suite runs the full GEIST_TESTING_TEMPLATE battery against
+every reflective-lens geist:
+
+```python
+@pytest.mark.parametrize("geist_id", REFLECTIVE_LENS_GEISTS)
+class TestReflectiveLensConformance:
+    def test_returns_list_of_suggestions(self, geist_id, voice_vault): ...
+    def test_handles_empty_vault(self, geist_id, empty_vault): ...
+    def test_handles_tiny_vault(self, geist_id, three_note_vault): ...
+    def test_all_note_references_bracketed(self, geist_id, voice_vault): ...
+    def test_referenced_notes_exist(self, geist_id, voice_vault): ...
+    def test_deterministic_for_same_date(self, geist_id, voice_vault): ...
+```
+
+Plus the existing vault-function contract: all new vault functions return
+`[[bracketed]]` links (the consistent-API rule from CLAUDE.md) — added to
+the existing bracket-conformance tests.
+
+#### Documentation-Code Sync Testing
+Triggered: adding geists changes counts. The existing
+`test_geist_count_consistency.py` will fail automatically if README/CLAUDE.md
+drift — no action needed beyond running it. Additionally: a test asserting
+every geist ID listed in this spec's config example exists on disk, and
+every `$vault.*` function named in the Tracery YAML is registered.
+
+#### End-to-End Testing
+One e2e test: full `geistfabrik invoke` on the voice fixture vault produces
+a journal note containing at least one reflective-lens suggestion with a
+valid block ID (`^gYYYYMMDD-NNN`), exercising metadata inference → vault
+functions → geists → filtering → journal writing as one pipeline.
+
+#### Characterization Testing
+Light use: run all 11 geists against the existing kepano testdata vault and
+pin which ones produce suggestions vs. return `[]` (the kepano vault is
+factual/technical — most voice geists *should* still fire since technical
+notes have tenses and pronouns; surprisal always fires). This pins behaviour
+on realistic-but-unfavourable data before any refactor.
+
+#### Contract / VCR Cassette Testing
+**Not applicable** — no external APIs, no network, no multi-language SDK.
+Local-first design removes these trust boundaries entirely. (This is worth
+stating so nobody adds them ritually.)
+
+### Tier 3 — With Caution
+
+#### Performance Testing
+Uses the existing `benchmark` pytest marker (not run by default):
+
+```python
+@pytest.mark.benchmark
+def test_voice_inference_10k_budget(synthetic_10k_vault):
+    elapsed = timed(lambda: infer_all_voice(synthetic_10k_vault))
+    assert elapsed < 5.0   # budget from Performance Characteristics table
+
+@pytest.mark.benchmark
+def test_surprisal_scores_10k_budget(synthetic_10k_vault): ...   # < 8s
+
+@pytest.mark.benchmark
+def test_neighbor_churn_memory_bounded(synthetic_10k_vault):
+    """Peak RSS delta < 150 MB — blocked matmul, not full N×N matrix."""
+```
+
+Synthetic vault generator: N notes of Markov-ish text with random embeddings
+(no model needed — works with the `SentenceTransformerStub`). Budgets have
+~2× headroom over the estimates so CI noise doesn't flake.
+
+#### Mutation Testing
+Targeted, not blanket: run `mutmut` (or `cosmic-ray`) on `voice.py` only —
+it is pure, fast, and threshold-dense (`>` vs `>=`, ratio denominators,
+orientation cut-points are exactly what mutation testing catches and what
+Hypothesis range checks may survive). Run manually / nightly, not in PR CI.
+Goal: >85% mutants killed on `voice.py`.
+
+#### Fuzz Testing
+Folded into Hypothesis with hostile-input strategies rather than a separate
+harness: emoji, CJK text (no whitespace tokenisation!), RTL text, zero-width
+joiners, 100k-character single lines, markdown edge cases (nested code
+blocks, frontmatter-in-body). Assertions: no exceptions, all range
+invariants hold, runtime per note stays bounded. Code blocks and URLs should
+be stripped before voice analysis — fuzz cases pin that behaviour.
+
+#### Visual/Screenshot Testing
+**Not applicable** — output is markdown text; golden files cover it.
+
+### What This Catches That the Old Plan Missed
+
+| Risk | Technique that catches it |
+|------|--------------------------|
+| Vectorised surprisal silently wrong (the L2-vs-cosine class of bug) | Differential vs. naive reference + known-answer tests |
+| Regex tense detection quietly inaccurate | Differential calibration vs. spaCy (measured ≥85%) |
+| Division by zero on verb-free/empty notes | Property-based total-function test + sad-path units |
+| O(N²) Python-loop regression reintroduced | Static architectural regression test + benchmarks |
+| Template/format drift in suggestions | Golden files with promotion workflow |
+| A geist crashing on tiny/empty vaults | Conformance suite (parametrised across all 11) |
+| Docs drifting from geist counts | Existing doc-sync test fires automatically |
+| Threshold off-by-one (`>` vs `>=`) surviving the suite | Mutation testing on voice.py |
+| Unicode/CJK input crashing tokeniser | Hypothesis fuzz strategies |
 
 ---
 
