@@ -76,7 +76,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 | Betweenness-centrality bridge stat; "most productive day" temporal pattern | STATS_COMMAND_SPEC.md:217 | NOT-BUILT — defer; mark in spec |
 | `geistfabrik sync` / `query` commands; `--session-id` | JOURNAL_FILES.md:746,797 | NOT-BUILT — amend docs (sync is implicit; `--date` covers query) |
 | docs/CONFIGURATION.md | several | BUILT |
-| docs/TROUBLESHOOTING.md (+ other named docs) | several | NOT-BUILT — write before 1.0 |
+| docs/TROUBLESHOOTING.md | several | BUILT |
 | bandit security scan | acceptance_criteria.md:498 | BUILT (CI + validate.sh, B608 skipped w/ rationale) |
 | mkdocs build | acceptance_criteria.md:495 | NOT-BUILT — plain-markdown docs; amend AC |
 | Unlocked-geist list items 1,2,5-10,15-21,23,24,30 | reuse_abstractions_spec.md:1088 | DEFERRED — list is "possible", not promised; mark aspirational |
