@@ -52,6 +52,25 @@ clusters.
   "code runs, assertions absent" (how the dead geists shipped green).
 - **Property tests** for the markdown/Tracery/filtering trust boundaries.
 
+
+## Specified-but-not-built — remaining (see specs/SPEC_STATUS.md for full ledger)
+
+Fixed this round: exclude_paths + filtering/timeout/session config wiring,
+enabled_modules allowlist, real connected-component stat, claim/hypothesis
+harvesters, docs/CONFIGURATION.md, bandit in CI, spec-sync + dead-link guards.
+
+Remaining, lower-value:
+- **Amend the spec** (not bugs - reconcile the doc): embeddings.*, tracery.*,
+  logging.* config keys; geist_execution.execution_mode; 5s->30s timeout;
+  invoke preview-by-default. SPEC_STATUS.md records each; edit the spec text.
+- **docs/TROUBLESHOOTING.md** - write before 1.0 (CONFIGURATION.md done).
+- **Wire check_phase_completion.py into CI and make it RUN acceptance checks**
+  (today it skips items the spec marks done - the root cause of the drift).
+- **`geistfabrik sync`/`query` commands, `--session-id`** - amend docs (sync is
+  implicit; --date covers query) or add trivial aliases.
+- Betweenness-centrality bridge stat; "most productive day" temporal pattern -
+  defer; mark in STATS_COMMAND_SPEC.md.
+
 ## Notes
 
 - Pre-1.0 API consistency pass: **done** (neighbours spelling, `count`

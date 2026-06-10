@@ -353,6 +353,55 @@ test_graph_analysis.py::TestLinkResolutionAgreement` enforces agreement.
 
 ---
 
+## Specified But Never Built: Self-Attesting Status Is Not Verification
+
+**Date:** 2026-06-10
+**Context:** ~20 spec promises had no implementation — the largest being most of
+the config.yaml schema (exclude_paths, filtering thresholds, timeout, logging…).
+
+**The Problem:** The spec described features that were never wired, and nothing
+caught it. The worst case: `filtering.boundary.exclude_paths` (a privacy
+control — keep `Private/` notes out of suggestions) was *documented as
+implemented* (`geist_validation_spec.md:186`) but did nothing, for months.
+
+**How it happened (commit evidence, shallow history from 2025-11-01):**
+1. **Self-attesting verification.** `scripts/check_phase_completion.py` skips
+   any acceptance criterion the spec marks `✅` (`if status == "✅": passed += 1;
+   continue`) — it counts an item done because the *document says so*, never
+   running the verification command. The spec attests its own completion.
+2. **The checker wasn't even in CI** (no reference in `.github/` or
+   `validate.sh`) — a manual script that, even if run, trusted the ✅ marks.
+3. **Config-by-demand + silent ignore.** Config sections were added only when a
+   feature PR needed one (`ClusterConfig` with cluster-labeling, `VectorSearch`/
+   `DateCollection` later). Spec keys nothing needed never got wired, and
+   `data.get(key, default)` *silently ignores* unparsed keys — no signal.
+4. **No mechanical spec→code link.** No test parsed the spec schema; the spec
+   was a write-once aspirational doc with zero tie to the code.
+
+**The Principle:** Status must be *verified*, not *asserted*. A document
+claiming "implemented" is worth nothing unless a test re-derives it from the
+code. Unrecognised config keys must warn, not vanish. "Phase complete" must run
+the acceptance check, not read a checkbox.
+
+**What we built to prevent recurrence:**
+- `specs/SPEC_STATUS.md` — one reviewed ledger of every spec config key's true
+  status, enforced by `tests/unit/test_spec_config_sync.py`: a spec edit that
+  adds a key fails CI until its status is recorded (the
+  test_geist_count_consistency pattern, applied to the spec).
+- `load_config()` warns on unknown top-level keys (a typo or unwired spec key
+  is now visible).
+- `tests/unit/test_doc_links.py` fails on dead internal doc links (the failure
+  mode behind never-written referenced docs).
+- bandit in CI/validate.sh (a real security-scan AC, made true).
+- Replaced two hardcoded geist counts in tests with the programmatic constant.
+
+**Still recommended (process, not yet mechanised):** wire
+`check_phase_completion.py` into CI and make it *run* every AC's verification
+(stop skipping ✅); a PR-template "spec touched? update SPEC_STATUS" checkbox;
+"no abstraction without a consumer + its test" as review policy.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_
