@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
+from ..config import DEFAULT_MAX_GEIST_FAILURES
 from ..geist_executor import GeistExecutor
+from ..geist_status import GeistStatusStore
 from ..models import Suggestion
 from ..tracery import TraceryGeist, TraceryGeistLoader
 from .base import BaseCommand, ExecutionContext
@@ -58,12 +60,16 @@ class TestCommand(BaseCommand):
 
         # Load code geists
         code_geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "code"
+        max_failures = (
+            exec_ctx.config.geist_max_failures if exec_ctx.config else DEFAULT_MAX_GEIST_FAILURES
+        )
         executor = GeistExecutor(
             code_geists_dir,
             timeout=self.args.timeout,
-            max_failures=3,
+            max_failures=max_failures,
             default_geists_dir=default_code_geists_dir,
             debug=getattr(self.args, "debug", False),
+            status_store=GeistStatusStore(exec_ctx.vault.db),
         )
         executor.load_geists()
 

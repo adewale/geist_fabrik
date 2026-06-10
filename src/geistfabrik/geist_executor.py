@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .geist_status import GeistStatusStore
 from .models import Suggestion
 from .vault_context import VaultContext
 
@@ -78,6 +79,7 @@ class GeistExecutor:
         default_geists_dir: Path | None = None,
         enabled_defaults: dict[str, bool] | None = None,
         debug: bool = False,
+        status_store: GeistStatusStore | None = None,
     ):
         """Initialise geist executor.
 
@@ -95,6 +97,9 @@ class GeistExecutor:
         self.default_geists_dir = default_geists_dir
         self.enabled_defaults = enabled_defaults or {}
         self.debug = debug
+        # Persistent failure tracking (cross-session disable); None in tests
+        # falls back to the in-memory counter.
+        self.status_store = status_store
         self.geists: dict[str, GeistMetadata] = {}
         self.execution_log: list[dict[str, Any]] = []
         self.execution_profiles: list[GeistExecutionProfile] = []
@@ -118,6 +123,17 @@ class GeistExecutor:
         # Load custom geists
         if self.geists_dir.exists():
             self._load_geists_from_directory(self.geists_dir, is_default=False)
+
+        # Seed failure counts / disabled state from persistent storage so a
+        # geist disabled in an earlier session stays disabled this session.
+        if self.status_store is not None:
+            statuses = self.status_store.load()
+            for geist_id, status in statuses.items():
+                geist = self.geists.get(geist_id)
+                if geist is not None:
+                    geist.failure_count = status.failure_count
+                    if status.disabled:
+                        geist.is_enabled = False
 
         return self.newly_discovered
 
@@ -245,10 +261,17 @@ class GeistExecutor:
 
         geist = self.geists[geist_id]
 
-        # Skip if disabled
+        # Skip if disabled (e.g. auto-disabled after repeated failures)
         if not geist.is_enabled:
             self.execution_log.append(
-                {"geist_id": geist_id, "status": "skipped", "reason": "disabled"}
+                {
+                    "geist_id": geist_id,
+                    "status": "skipped",
+                    "reason": (
+                        f"disabled after {geist.failure_count} consecutive failures - "
+                        f"run 'geistfabrik test {geist_id} <vault>' to debug and re-enable"
+                    ),
+                }
             )
             return []
 
@@ -293,6 +316,12 @@ class GeistExecutor:
                 # Calculate execution time
                 end_time = time.perf_counter()
                 execution_time = end_time - start_time
+
+                # A successful run clears any accumulated consecutive-failure
+                # count (transient failures should not permanently penalise).
+                if self.status_store is not None and geist.failure_count > 0:
+                    self.status_store.record_success(geist_id)
+                    geist.failure_count = 0
 
                 # Log success
                 self.execution_log.append(
@@ -411,7 +440,16 @@ class GeistExecutor:
             tb: Optional traceback
         """
         geist = self.geists[geist_id]
-        geist.failure_count += 1
+
+        # Persist the failure (cross-session consecutive-failure count) when a
+        # store is attached; otherwise fall back to the in-memory counter.
+        if self.status_store is not None:
+            status = self.status_store.record_failure(geist_id, error_msg, self.max_failures)
+            geist.failure_count = status.failure_count
+            disabled = status.disabled
+        else:
+            geist.failure_count += 1
+            disabled = geist.failure_count >= self.max_failures
 
         # Log failure
         log_entry: dict[str, Any] = {
@@ -426,14 +464,14 @@ class GeistExecutor:
 
         self.execution_log.append(log_entry)
 
-        # Disable if too many failures
-        if geist.failure_count >= self.max_failures:
+        # Disable if too many consecutive failures
+        if disabled:
             geist.is_enabled = False
             self.execution_log.append(
                 {
                     "geist_id": geist_id,
                     "status": "disabled",
-                    "reason": f"exceeded {self.max_failures} failures",
+                    "reason": f"exceeded {self.max_failures} consecutive failures",
                 }
             )
 

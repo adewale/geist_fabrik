@@ -4,10 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from ..config import DEFAULT_MAX_GEIST_FAILURES
 from ..config_loader import GeistFabrikConfig, save_config
 from ..embeddings import EmbeddingComputer
 from ..filtering import SuggestionFilter, select_suggestions
 from ..geist_executor import GeistExecutor
+from ..geist_status import GeistStatusStore
 from ..journal_writer import JournalWriter
 from ..models import Suggestion
 from ..tracery import TraceryGeist, TraceryGeistLoader
@@ -171,10 +173,11 @@ class InvokeCommand(BaseCommand):
         code_executor = GeistExecutor(
             code_geists_dir,
             timeout=self.args.timeout,
-            max_failures=3,
+            max_failures=config.geist_max_failures if config else DEFAULT_MAX_GEIST_FAILURES,
             default_geists_dir=default_code_geists_dir,
             enabled_defaults=config.default_geists if config else {},
             debug=self.args.debug,
+            status_store=GeistStatusStore(exec_ctx.vault.db),
         )
         newly_discovered_code = code_executor.load_geists()
 

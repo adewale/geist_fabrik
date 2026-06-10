@@ -10,7 +10,7 @@ from typing import Any
 
 import yaml
 
-from .config import DEFAULT_SESSION_EMBEDDING_RETENTION
+from .config import DEFAULT_MAX_GEIST_FAILURES, DEFAULT_SESSION_EMBEDDING_RETENTION
 from .default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
 logger = logging.getLogger(__name__)
@@ -117,6 +117,7 @@ class GeistFabrikConfig:
     vector_search: VectorSearchConfig = field(default_factory=VectorSearchConfig)
     clustering: ClusterConfig = field(default_factory=ClusterConfig)
     session_embedding_retention: int = DEFAULT_SESSION_EMBEDDING_RETENTION
+    geist_max_failures: int = DEFAULT_MAX_GEIST_FAILURES
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.
@@ -151,6 +152,7 @@ class GeistFabrikConfig:
             session_embedding_retention=data.get(
                 "session_embedding_retention", DEFAULT_SESSION_EMBEDDING_RETENTION
             ),
+            geist_max_failures=data.get("geist_max_failures", DEFAULT_MAX_GEIST_FAILURES),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -166,6 +168,7 @@ class GeistFabrikConfig:
             "vector_search": self.vector_search.to_dict(),
             "clustering": self.clustering.to_dict(),
             "session_embedding_retention": self.session_embedding_retention,
+            "geist_max_failures": self.geist_max_failures,
         }
 
 
