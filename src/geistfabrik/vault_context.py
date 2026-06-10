@@ -543,33 +543,33 @@ class VaultContext:
     def orphans(self, k: int | None = None) -> list[Note]:
         """Find notes with no outgoing or incoming links.
 
-        Performance optimised with LEFT JOINs instead of NOT IN subqueries.
+        Builds the linked-note sets once, then set-checks each note: O(N + M).
+        (The previous LEFT-JOIN formulation was O(N x M) - its OR-join on
+        l2.target is not sargable, so SQLite scanned the full links index for
+        every note, and the composite index added for it went unused.)
 
         Args:
             k: Maximum number to return. If None, return all.
 
         Returns:
-            List of orphan notes
+            List of orphan notes, most recently modified first
         """
-        cursor = self.db.execute(
-            """
-            SELECT n.path
-            FROM notes n
-            LEFT JOIN links l1 ON l1.source_path = n.path
-            LEFT JOIN links l2 ON (
-                l2.target = n.path
-                OR l2.target = n.title
-                OR l2.target || '.md' = n.path
-            )
-            WHERE l1.source_path IS NULL
-              AND l2.target IS NULL
-            ORDER BY n.modified DESC
-            """
-        )
+        # One pass over links: notes with outgoing links, and every link
+        # target in the forms links may use (exact path, bare title, or
+        # path without the .md extension - checked per-note below).
+        sources = {row[0] for row in self.db.execute("SELECT DISTINCT source_path FROM links")}
+        targets = {row[0] for row in self.db.execute("SELECT DISTINCT target FROM links")}
 
-        result = []
-        for row in cursor.fetchall():
-            note = self.get_note(row[0])
+        cursor = self.db.execute("SELECT path, title FROM notes ORDER BY modified DESC")
+
+        result: list[Note] = []
+        for path, title in cursor.fetchall():
+            if path in sources or path in targets or title in targets:
+                continue
+            # Links usually omit the extension: [[note]] targets "note.md".
+            if path.endswith(".md") and path[:-3] in targets:
+                continue
+            note = self.get_note(path)
             if note is not None:
                 result.append(note)
                 if k is not None and len(result) >= k:
