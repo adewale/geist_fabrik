@@ -233,11 +233,16 @@ def migrate_schema(conn: sqlite3.Connection) -> None:
     # Fixes cluster_evolution_tracker, which reads this column but the column
     # was never created (the query raised OperationalError on every run).
     if current_version < 7:
-        cursor = conn.execute("PRAGMA table_info(session_embeddings)")
-        columns = {row[1] for row in cursor.fetchall()}
+        # Check table exists first (defensive: partial schemas in tests)
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='session_embeddings'"
+        )
+        if cursor.fetchone() is not None:
+            cursor = conn.execute("PRAGMA table_info(session_embeddings)")
+            columns = {row[1] for row in cursor.fetchall()}
 
-        if "cluster_label" not in columns:
-            conn.execute("ALTER TABLE session_embeddings ADD COLUMN cluster_label TEXT")
+            if "cluster_label" not in columns:
+                conn.execute("ALTER TABLE session_embeddings ADD COLUMN cluster_label TEXT")
 
         # Update version
         conn.execute("PRAGMA user_version = 7")
