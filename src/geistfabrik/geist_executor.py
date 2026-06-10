@@ -288,13 +288,7 @@ class GeistExecutor:
                             f"expected Suggestion"
                         )
 
-                # Stop profiling
-                if profiler:
-                    try:
-                        profiler.disable()
-                    except Exception:
-                        # Profiler disable failed - ignore and continue
-                        pass
+                profile_stats = self._finalize_profiler(profiler, geist_id)
 
                 # Calculate execution time
                 end_time = time.perf_counter()
@@ -308,19 +302,6 @@ class GeistExecutor:
                         "suggestion_count": len(suggestions),
                     }
                 )
-
-                # Create execution profile
-                profile_stats = None
-                if profiler:
-                    try:
-                        profile_stats = self._extract_profile_stats(profiler)
-                    except Exception as e:
-                        # Profile extraction failed - log warning
-                        logger.warning(
-                            "Failed to extract profile stats for %s: %s",
-                            geist_id,
-                            e,
-                        )
 
                 profile = GeistExecutionProfile(
                     geist_id=geist_id,
@@ -343,26 +324,7 @@ class GeistExecutor:
                     signal.alarm(0)
 
         except GeistTimeoutError:
-            # Stop profiling
-            if profiler:
-                try:
-                    profiler.disable()
-                except Exception:
-                    # Profiler disable failed - ignore and continue
-                    pass
-
-            # Create timeout profile
-            profile_stats = None
-            if profiler:
-                try:
-                    profile_stats = self._extract_profile_stats(profiler)
-                except Exception as e:
-                    # Profile extraction failed - log warning
-                    logger.warning(
-                        "Failed to extract profile stats for %s: %s",
-                        geist_id,
-                        e,
-                    )
+            profile_stats = self._finalize_profiler(profiler, geist_id)
 
             profile = GeistExecutionProfile(
                 geist_id=geist_id,
@@ -387,13 +349,7 @@ class GeistExecutor:
             return []
 
         except Exception as e:
-            # Stop profiling
-            if profiler:
-                try:
-                    profiler.disable()
-                except Exception:
-                    # Profiler disable failed - ignore and continue
-                    pass
+            self._finalize_profiler(profiler, geist_id, extract_stats=False)
 
             # Calculate execution time
             end_time = time.perf_counter()
@@ -506,6 +462,41 @@ class GeistExecutor:
             List of execution profiles (empty if debug=False)
         """
         return self.execution_profiles.copy()
+
+    def _finalize_profiler(
+        self,
+        profiler: cProfile.Profile | None,
+        geist_id: str,
+        extract_stats: bool = True,
+    ) -> list[ProfileStats] | None:
+        """Stop the profiler and (optionally) extract its stats, best-effort.
+
+        Shared teardown for the success/timeout/error paths (previously
+        copy-pasted three times). Profiler failures must never mask the
+        geist's own outcome, so everything here swallows-and-logs.
+
+        Args:
+            profiler: Active profiler, or None when not in debug mode
+            geist_id: Geist being executed (for log messages)
+            extract_stats: Whether to extract function-level stats
+
+        Returns:
+            ProfileStats list, or None if no profiler/extraction failed/skipped
+        """
+        if profiler is None:
+            return None
+        try:
+            profiler.disable()
+        except Exception:
+            # Profiler disable failed - ignore and continue
+            pass
+        if not extract_stats:
+            return None
+        try:
+            return self._extract_profile_stats(profiler)
+        except Exception as e:
+            logger.warning("Failed to extract profile stats for %s: %s", geist_id, e)
+            return None
 
     def _extract_profile_stats(self, profiler: cProfile.Profile | None) -> list[ProfileStats]:
         """Extract function-level statistics from profiler.
