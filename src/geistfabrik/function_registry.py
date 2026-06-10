@@ -331,9 +331,7 @@ class FunctionRegistry:
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            candidates = [
-                n for n in vault.notes() if vault.metadata(n).get("temporal_orientation") == "past"
-            ]
+            candidates = [n for n in vault.notes() if vault.voice(n).temporal_orientation == "past"]
             return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("future_focused_notes")
@@ -344,9 +342,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             candidates = [
-                n
-                for n in vault.notes()
-                if vault.metadata(n).get("temporal_orientation") == "future"
+                n for n in vault.notes() if vault.voice(n).temporal_orientation == "future"
             ]
             return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
 
@@ -364,11 +360,8 @@ class FunctionRegistry:
             """
             candidates = []
             for n in vault.notes():
-                meta = vault.metadata(n)
-                if (
-                    meta.get("self_focus_ratio", 0.5) > 0.8
-                    and meta.get("first_person_singular", 0.0) > 0
-                ):
+                voice = vault.voice(n)
+                if voice.self_focus_ratio > 0.8 and voice.first_person_singular > 0:
                     candidates.append(n)
             return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
 
@@ -382,9 +375,7 @@ class FunctionRegistry:
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            candidates = [
-                n for n in vault.notes() if vault.metadata(n).get("first_person_plural", 0.0) > 2.0
-            ]
+            candidates = [n for n in vault.notes() if vault.voice(n).first_person_plural > 2.0]
             return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("uncertain_notes")
@@ -394,9 +385,7 @@ class FunctionRegistry:
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            candidates = [
-                n for n in vault.notes() if vault.metadata(n).get("hedging_ratio", 0.0) > 0.5
-            ]
+            candidates = [n for n in vault.notes() if vault.voice(n).hedging_ratio > 0.5]
             return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("questioning_notes")
@@ -406,9 +395,7 @@ class FunctionRegistry:
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            candidates = [
-                n for n in vault.notes() if vault.metadata(n).get("question_density", 0.0) > 1.0
-            ]
+            candidates = [n for n in vault.notes() if vault.voice(n).question_density > 1.0]
             return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("surprising_notes")

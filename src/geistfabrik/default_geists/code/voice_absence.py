@@ -33,18 +33,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     total = 0
 
     for note in vault.notes_excluding_journal():
-        meta = vault.metadata(note)
+        voice = vault.voice(note)
         total += 1
 
-        orientation = str(meta.get("temporal_orientation", "mixed"))
-        if orientation not in orientations:
-            orientation = "mixed"
+        orientation = voice.temporal_orientation
         orientations[orientation] += 1
 
-        if meta.get("first_person_plural", 0) > 1.0:
+        if voice.first_person_plural > 1.0:
             has_we += 1
 
-        if meta.get("question_density", 0) > 0.5:
+        if voice.question_density > 0.5:
             has_questions += 1
 
     if total < 20:

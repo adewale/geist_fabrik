@@ -21,7 +21,7 @@ from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
 from .models import Link, Note, link_target_forms
 from .vault import Vault
-from .voice_analysis import compute_voice_metadata
+from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -319,6 +319,9 @@ class VaultContext:
 
         # Cache for neighbour churn (session-scoped - keyed by (since_days, k))
         self._churn_cache: dict[tuple[int, int], dict[str, ChurnResult]] = {}
+
+        # Cache for typed voice metadata (session-scoped - keyed by note path)
+        self._voice_cache: dict[str, VoiceMetadata] = {}
 
         # Metadata loader for extensible metadata inference
         self._metadata_loader = metadata_loader
@@ -1598,6 +1601,29 @@ class VaultContext:
 
         self._metadata_cache[note.path] = metadata
         return metadata
+
+    def voice(self, note: Note) -> VoiceMetadata:
+        """Get typed linguistic voice properties for a note.
+
+        Returns a VoiceMetadata dataclass with typed fields for temporal
+        orientation, pronoun patterns, hedging, and structural features.
+        Session-cached for performance.
+
+        Use this instead of metadata()["temporal_orientation"] etc. for
+        type-safe access with IDE autocompletion and mypy checking.
+
+        Args:
+            note: Note to analyse
+
+        Returns:
+            VoiceMetadata dataclass with all voice properties
+        """
+        if note.path in self._voice_cache:
+            return self._voice_cache[note.path]
+
+        voice = compute_voice(note.content)
+        self._voice_cache[note.path] = voice
+        return voice
 
     # Deterministic sampling
 

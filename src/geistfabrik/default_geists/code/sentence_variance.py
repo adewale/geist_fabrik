@@ -31,9 +31,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     note_variances = []
 
     for note in vault.notes_excluding_journal():
-        meta = vault.metadata(note)
-        variance = float(meta.get("sentence_length_variance", 0))
-        mean_len = float(meta.get("mean_sentence_length", 0))
+        voice = vault.voice(note)
+        variance = voice.sentence_length_variance
+        mean_len = voice.mean_sentence_length
 
         if mean_len > 5:  # Ignore very short notes
             note_variances.append((note, variance))

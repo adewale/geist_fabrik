@@ -15,7 +15,65 @@ guards every division by zero.
 """
 
 import re
-from typing import Any
+from dataclasses import asdict, dataclass
+from typing import Any, Literal
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceMetadata:
+    """Typed linguistic voice properties for a note.
+
+    All fields are guaranteed non-NaN; ratios are in [0.0, 1.0] or [0.0, 2.0]
+    as documented; rates are per 100 words.
+
+    Use VaultContext.voice(note) to get this for a note with caching.
+    """
+
+    # Temporal orientation
+    past_tense_ratio: float
+    """Fraction of detected verbs in past tense (0.0–1.0)."""
+
+    future_tense_ratio: float
+    """Fraction of detected verbs in future tense (0.0–1.0)."""
+
+    present_tense_ratio: float
+    """Fraction of detected verbs in present tense (0.0–1.0)."""
+
+    temporal_orientation: Literal["past", "future", "present", "mixed"]
+    """Dominant temporal orientation based on tense ratios."""
+
+    # Pronouns (rates per 100 words)
+    first_person_singular: float
+    """'I', 'me', 'my', etc. per 100 words."""
+
+    first_person_plural: float
+    """'we', 'us', 'our', etc. per 100 words."""
+
+    second_person: float
+    """'you', 'your', etc. per 100 words."""
+
+    self_focus_ratio: float
+    """first_person_singular / (singular + plural); 0.5 when no pronouns."""
+
+    # Uncertainty markers
+    hedging_ratio: float
+    """Hedge phrases per sentence (0.0+)."""
+
+    question_density: float
+    """Question marks per 100 words."""
+
+    modal_density: float
+    """Modal verbs (might, could, may, etc.) per 100 words."""
+
+    # Structural features
+    mean_sentence_length: float
+    """Average sentence length in word tokens."""
+
+    sentence_length_variance: float
+    """Variance of sentence lengths (high = choppy/exploratory)."""
+
+    lexical_diversity: float
+    """Unique tokens / total tokens (type-token ratio)."""
 
 # ---------------------------------------------------------------------------
 # Precompiled patterns (module level — compiled once)
@@ -378,8 +436,8 @@ def count_hedges(text: str) -> int:
     return len(_HEDGE_RE.findall(strip_for_analysis(text).lower()))
 
 
-def compute_voice_metadata(content: str) -> dict[str, Any]:
-    """Compute linguistic voice metadata for note content.
+def compute_voice(content: str) -> VoiceMetadata:
+    """Compute typed linguistic voice properties for note content.
 
     Performs a single pass over the token stream, deriving all token-level
     features (tense counts, pronouns, modals, lexical diversity) from that
@@ -402,15 +460,7 @@ def compute_voice_metadata(content: str) -> dict[str, Any]:
         content: Raw note content
 
     Returns:
-        Dictionary with exactly these keys:
-        past_tense_ratio, future_tense_ratio, present_tense_ratio (floats
-        summing to 1.0 when verbs are present, all 0.0 otherwise),
-        temporal_orientation ("past" | "future" | "present" | "mixed"),
-        first_person_singular, first_person_plural, second_person (per
-        100 words), self_focus_ratio, hedging_ratio (hedges per sentence),
-        question_density (per 100 words), modal_density (per 100 words),
-        mean_sentence_length, sentence_length_variance (in word tokens),
-        lexical_diversity (unique/total tokens)
+        VoiceMetadata dataclass with typed fields for all voice properties
     """
     text = strip_for_analysis(content)
     lowered = text.lower()
@@ -500,19 +550,34 @@ def compute_voice_metadata(content: str) -> dict[str, Any]:
 
     lexical_diversity = len(unique_tokens) / word_count if word_count > 0 else 0.0
 
-    return {
-        "past_tense_ratio": past_ratio,
-        "future_tense_ratio": future_ratio,
-        "present_tense_ratio": present_ratio,
-        "temporal_orientation": orientation,
-        "first_person_singular": fps_rate,
-        "first_person_plural": fpp_rate,
-        "second_person": sp_rate,
-        "self_focus_ratio": self_focus,
-        "hedging_ratio": hedging_ratio,
-        "question_density": question_density,
-        "modal_density": modal_density,
-        "mean_sentence_length": float(mean_length),
-        "sentence_length_variance": float(variance),
-        "lexical_diversity": lexical_diversity,
-    }
+    return VoiceMetadata(
+        past_tense_ratio=past_ratio,
+        future_tense_ratio=future_ratio,
+        present_tense_ratio=present_ratio,
+        temporal_orientation=orientation,  # type: ignore[arg-type]
+        first_person_singular=fps_rate,
+        first_person_plural=fpp_rate,
+        second_person=sp_rate,
+        self_focus_ratio=self_focus,
+        hedging_ratio=hedging_ratio,
+        question_density=question_density,
+        modal_density=modal_density,
+        mean_sentence_length=float(mean_length),
+        sentence_length_variance=float(variance),
+        lexical_diversity=lexical_diversity,
+    )
+
+
+def compute_voice_metadata(content: str) -> dict[str, Any]:
+    """Compute linguistic voice metadata as a dictionary.
+
+    Thin wrapper over compute_voice() for backwards compatibility with
+    VaultContext.metadata() integration.
+
+    Args:
+        content: Raw note content
+
+    Returns:
+        Dictionary with voice property keys and values
+    """
+    return asdict(compute_voice(content))
