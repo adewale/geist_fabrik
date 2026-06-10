@@ -123,13 +123,29 @@ This is the **safest way** for early adopters to explore GeistFabrik without tou
 - Generated suggestions → Session notes in `geist journal/`
 
 **What GeistFabrik NEVER does:**
-- ❌ Modify your original notes (read-only access)
+- ❌ Modify your original notes (the engine has read-only access to your notes)
 - ❌ Send data to external servers (100% local processing)
 - ❌ Track usage or analytics
-- ❌ Require internet connection (after installation)
-- ❌ Delete any files
+- ❌ Require an internet connection once the embedding model is present
+- ❌ Delete any files (writes only to `_geistfabrik/` and `geist journal/`)
 
 **Your vault remains yours.** All processing happens locally using sentence-transformers for embeddings.
+
+**Extensibility & trust.** GeistFabrik's power comes from running *your* Python:
+custom geists, metadata-inference modules, and vault functions you place under
+`_geistfabrik/`. GeistFabrik executes that code with your normal user
+permissions. The engine itself never modifies your source notes, but a plugin
+you install is ordinary Python and can do anything your account can - so **only
+run a vault whose `_geistfabrik/` code you trust** (treat opening someone
+else's vault like running their script). `geistfabrik validate` also *executes*
+a geist's import-time code to check it loads, so it is not a safe way to
+inspect untrusted code.
+
+**Enforcing offline mode.** By default, if the bundled embedding model is
+missing (e.g. an LFS-less clone) GeistFabrik downloads it from HuggingFace on
+first run. Set `GEISTFABRIK_OFFLINE=1` (or the standard `HF_HUB_OFFLINE=1` /
+`TRANSFORMERS_OFFLINE=1`) to forbid any network access: GeistFabrik then uses
+the local model and fails loudly instead of downloading.
 
 ## Uninstalling GeistFabrik
 

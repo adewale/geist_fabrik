@@ -231,10 +231,16 @@ GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 2. **Questions, not answers** - "What if...?" not "Here's how"
 3. **Sample, don't rank** - Random sampling to avoid preferential attachment
 4. **Intermittent invocation** - User-initiated, not continuous background
-5. **Local-first** - No network required, embeddings computed locally
+5. **Local-first** - Embeddings computed locally; no network required once the
+   model is present (set `GEISTFABRIK_OFFLINE=1` to enforce strictly - otherwise
+   a missing bundled model is downloaded from HuggingFace on first run)
 6. **Deterministic randomness** - Same date + vault = same output
-7. **Never destructive** - Read-only vault access, only writes session notes
-8. **Extensible at every layer** - Metadata, functions, and geists are all user-extensible
+7. **Never destructive** - The engine has read-only access to source notes and
+   writes only to `_geistfabrik/` and `geist journal/`. (User plugins under
+   `_geistfabrik/` are arbitrary Python the engine executes - the read-only
+   guarantee covers the engine, not the code you choose to run.)
+8. **Extensible at every layer** - Metadata, functions, and geists are all
+   user-extensible (and therefore a trust boundary: only run vaults you trust)
 
 ## Key Architectural Decisions
 
