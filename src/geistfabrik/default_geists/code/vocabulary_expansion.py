@@ -4,12 +4,15 @@ Measures how much semantic territory your notes explore across sessions,
 detecting periods of convergence (focusing) or divergence (exploring).
 """
 
+import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+
+logger = logging.getLogger(__name__)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -98,6 +101,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
 
     except Exception:
+        logger.debug("vocabulary_expansion geist failed", exc_info=True)
         return []
 
     return vault.sample(suggestions, k=1)

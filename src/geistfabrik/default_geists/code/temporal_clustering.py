@@ -4,10 +4,13 @@ Uses temporal embeddings to find notes that naturally cluster by era, revealing
 distinct "seasons" of thinking without manual tagging.
 """
 
+import logging
 from typing import TYPE_CHECKING, Dict, List
 
 if TYPE_CHECKING:
     from geistfabrik import Note, Suggestion, VaultContext
+
+logger = logging.getLogger(__name__)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -102,6 +105,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
 
     except Exception:
+        logger.debug("temporal_clustering geist failed", exc_info=True)
         return []
 
     return vault.sample(suggestions, k=2)
