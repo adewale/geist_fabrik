@@ -45,11 +45,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         candidate_notes = [note for note in all_notes if note.path not in cluster_set]
 
         if candidate_notes and cluster:
-            # Compute similarities using individual calls to benefit from cache
-            for note in candidate_notes:
-                # Calculate average similarity to cluster members
-                sims = [vault.similarity(note, cluster_member) for cluster_member in cluster]
-                avg_sim = sum(sims) / len(sims) if sims else 0
+            # Compute the candidate×cluster similarity matrix in one vectorised,
+            # cache-aware operation rather than an O(candidates×cluster) loop of
+            # individual similarity() calls (the matrix use-case batch_similarity()
+            # is designed for - see CLAUDE.md). Average each candidate's similarity
+            # across the cluster members.
+            sim_matrix = vault.batch_similarity(candidate_notes, cluster)
+            avg_sims = sim_matrix.mean(axis=1)
+            for note, avg in zip(candidate_notes, avg_sims):
+                avg_sim = float(avg)
 
                 # Close enough to bridge, not so close it should be in cluster
                 if SimilarityLevel.MODERATE < avg_sim < SimilarityLevel.HIGH:

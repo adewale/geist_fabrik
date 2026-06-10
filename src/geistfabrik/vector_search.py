@@ -6,9 +6,12 @@ allowing users to choose between in-memory and sqlite-vec implementations.
 
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+    cosine_similarity as sklearn_cosine,
+)
 
 from .config import TOTAL_DIM
 
@@ -92,6 +95,23 @@ class InMemoryVectorBackend(VectorSearchBackend):
         self.db = db
         self.embeddings: Dict[str, np.ndarray] = {}
         self.session_id: int = 0
+        # Cached stacked matrix + parallel path index for vectorised search.
+        # Rebuilt whenever embeddings change (see _rebuild_matrix).
+        self._paths: List[str] = []
+        self._matrix: Optional[np.ndarray] = None
+
+    def _rebuild_matrix(self) -> None:
+        """Rebuild the cached embedding matrix and path index from self.embeddings.
+
+        Stacking all embeddings into a single (N, dim) matrix once lets
+        find_similar() compute every cosine similarity in a single vectorised
+        operation instead of an O(N) Python loop of per-pair calls.
+        """
+        self._paths = list(self.embeddings.keys())
+        if self._paths:
+            self._matrix = np.vstack([self.embeddings[p] for p in self._paths])
+        else:
+            self._matrix = None
 
     def load_embeddings(self, session_date: str) -> None:
         """Load all embeddings for session into memory.
@@ -106,6 +126,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
             # No session found, embeddings will be empty
             self.embeddings = {}
             self.session_id = 0
+            self._rebuild_matrix()
             return
 
         self.session_id = int(row[0])
@@ -126,8 +147,15 @@ class InMemoryVectorBackend(VectorSearchBackend):
             embedding = np.frombuffer(blob, dtype=np.float32)
             self.embeddings[path] = embedding
 
+        self._rebuild_matrix()
+
     def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
-        """Find similar notes via in-memory cosine similarity.
+        """Find similar notes via vectorised in-memory cosine similarity.
+
+        Computes all similarities in a single matrix operation (matching the
+        semantics of embeddings.find_similar_notes), rather than looping over
+        every embedding in Python. Results are sorted descending; ties preserve
+        insertion order (stable sort) to keep output deterministic.
 
         Args:
             query_embedding: Query vector
@@ -136,14 +164,16 @@ class InMemoryVectorBackend(VectorSearchBackend):
         Returns:
             List of (note_path, similarity_score) tuples, sorted descending
         """
-        from .embeddings import cosine_similarity
+        # Defensive: rebuild if embeddings were mutated since the last load.
+        if self._matrix is None or len(self._paths) != len(self.embeddings):
+            self._rebuild_matrix()
+        if self._matrix is None:
+            return []
 
-        similarities = [
-            (path, cosine_similarity(query_embedding, emb)) for path, emb in self.embeddings.items()
-        ]
-
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        return similarities[:k]
+        scores = sklearn_cosine(query_embedding.reshape(1, -1), self._matrix)[0]
+        # argsort ascending on negated scores => descending; stable keeps tie order.
+        order = np.argsort(-scores, kind="stable")[:k]
+        return [(self._paths[int(i)], float(scores[int(i)])) for i in order]
 
     def get_similarity(self, path_a: str, path_b: str) -> float:
         """Compute similarity between two notes.
