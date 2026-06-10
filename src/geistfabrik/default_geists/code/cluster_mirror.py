@@ -7,6 +7,7 @@ Pure pattern presentation without interpretation - a mirror that reflects
 the unconscious organizational structure of your vault back to you.
 """
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -34,14 +35,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for cluster_id, cluster_info in all_clusters.items():
         # Remove journal notes from cluster
         non_journal_notes = [
-            n for n in cluster_info["notes"] if not n.path.startswith("geist journal/")
+            n for n in cluster_info.notes if not n.path.startswith("geist journal/")
         ]
         if len(non_journal_notes) >= 5:  # Still meets min_size requirement
-            # Update cluster info with filtered notes
-            cluster_info_copy = cluster_info.copy()
-            cluster_info_copy["notes"] = non_journal_notes
-            cluster_info_copy["size"] = len(non_journal_notes)
-            clusters[cluster_id] = cluster_info_copy
+            # Cluster with the journal notes filtered out
+            clusters[cluster_id] = replace(
+                cluster_info, notes=non_journal_notes, size=len(non_journal_notes)
+            )
 
     # Need at least 2 clusters to show patterns
     if len(clusters) < 2:
@@ -58,7 +58,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         cluster = clusters[cluster_id]
 
         # Use formatted phrase label
-        label = cluster["formatted_label"]
+        label = cluster.formatted_label
 
         # Get 3 representative notes (closest to centroid)
         # Pass clusters to avoid redundant clustering

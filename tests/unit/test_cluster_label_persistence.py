@@ -133,7 +133,7 @@ class TestPersistAndRead:
             "WHERE session_id = ? AND cluster_label IS NOT NULL",
             (session2.session_id,),
         ).fetchone()[0]
-        clustered_note_count = sum(len(c["notes"]) for c in clusters.values())
+        clustered_note_count = sum(len(c.notes) for c in clusters.values())
         assert stored == clustered_note_count
 
     def test_cluster_evolution_tracker_runs_without_error(self, context_with_two_sessions):

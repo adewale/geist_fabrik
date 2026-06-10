@@ -71,8 +71,8 @@ class TestClusterLabelingIntegration:
             for cluster_id, cluster_info in clusters.items():
                 assert "label" in cluster_info
                 assert "formatted_label" in cluster_info
-                assert isinstance(cluster_info["label"], str)
-                assert len(cluster_info["label"]) > 0
+                assert isinstance(cluster_info.label, str)
+                assert len(cluster_info.label) > 0
 
     def test_get_clusters_with_tfidf_config(self, vault_with_config):
         """Test get_clusters uses c-TF-IDF when configured."""
@@ -102,8 +102,8 @@ class TestClusterLabelingIntegration:
             for cluster_id, cluster_info in clusters.items():
                 assert "label" in cluster_info
                 assert "formatted_label" in cluster_info
-                assert isinstance(cluster_info["label"], str)
-                assert len(cluster_info["label"]) > 0
+                assert isinstance(cluster_info.label, str)
+                assert len(cluster_info.label) > 0
 
     def test_switching_labeling_methods(self, vault_with_config):
         """Test that changing config affects labelling method."""
@@ -141,8 +141,8 @@ class TestClusterLabelingIntegration:
             # But may have different labels (different labelling methods)
             # This is hard to assert definitively, but at least verify both produced labels
             for cluster_id in clusters_keybert:
-                assert len(clusters_keybert[cluster_id]["label"]) > 0
-                assert len(clusters_tfidf[cluster_id]["label"]) > 0
+                assert len(clusters_keybert[cluster_id].label) > 0
+                assert len(clusters_tfidf[cluster_id].label) > 0
 
     def test_n_label_terms_config(self, vault_with_config):
         """Test that n_label_terms config is respected."""
@@ -171,7 +171,7 @@ class TestClusterLabelingIntegration:
         # (May be fewer if there aren't enough diverse terms)
         if len(clusters) > 0:
             for cluster_id, cluster_info in clusters.items():
-                label = cluster_info["label"]
+                label = cluster_info.label
                 term_count = len(label.split(","))
                 # Should be <= n_label_terms (may be less due to filtering)
                 assert term_count <= 2

@@ -14,6 +14,7 @@ from typing import (
 
 import numpy as np
 
+from .clustering_analysis import Cluster, format_cluster_label
 from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
 from .models import Link, Note, link_target_forms
@@ -91,7 +92,7 @@ class VaultContext:
         self._metadata_cache: dict[str, dict[str, Any]] = {}
 
         # Cache for clusters (performance optimisation - keyed by min_size)
-        self._clusters_cache: dict[int, dict[int, dict[str, Any]]] = {}
+        self._clusters_cache: dict[int, dict[int, Cluster]] = {}
 
         # Cache for similarity scores (performance optimisation - keyed by note path pair)
         self._similarity_cache: dict[tuple[str, str], float] = {}
@@ -809,7 +810,7 @@ class VaultContext:
         )
         return [row[0] for row in cursor.fetchall()]
 
-    def get_clusters(self, min_size: int = 5) -> dict[int, dict[str, Any]]:
+    def get_clusters(self, min_size: int = 5) -> dict[int, Cluster]:
         """Get cluster assignments and labels for current session.
 
         Uses HDBSCAN clustering on embeddings, then generates labels via
@@ -842,18 +843,17 @@ class VaultContext:
             from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
         except ImportError:
             logger.warning("sklearn not available, clustering disabled")
-            empty_result: dict[int, dict[str, Any]] = {}
+            empty_result: dict[int, Cluster] = {}
             self._clusters_cache[min_size] = empty_result
             return empty_result
 
         from . import cluster_labeling
-        from .clustering_analysis import format_cluster_label
 
         # Use cached session embeddings instead of re-querying DB
         embeddings_dict = self._embeddings
 
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
-            empty_result_2: dict[int, dict[str, Any]] = {}
+            empty_result_2: dict[int, Cluster] = {}
             self._clusters_cache[min_size] = empty_result_2
             return empty_result_2
 
@@ -881,7 +881,7 @@ class VaultContext:
                 cluster_paths[label].append(paths[i])
 
         if not clusters:
-            empty_result_3: dict[int, dict[str, Any]] = {}
+            empty_result_3: dict[int, Cluster] = {}
             self._clusters_cache[min_size] = empty_result_3
             return empty_result_3
 
@@ -899,7 +899,7 @@ class VaultContext:
             )
 
         # Build result with formatted labels and centroids
-        result: dict[int, dict[str, Any]] = {}
+        result: dict[int, Cluster] = {}
 
         for cluster_id, notes in clusters.items():
             # Get embeddings for this cluster
@@ -914,19 +914,20 @@ class VaultContext:
             keyword_label = cluster_labels_raw.get(cluster_id, f"Cluster {cluster_id}")
             formatted_label = format_cluster_label(keyword_label)
 
-            result[cluster_id] = {
-                "label": keyword_label,
-                "formatted_label": formatted_label,
-                "notes": notes,
-                "size": len(notes),
-                "centroid": centroid,
-            }
+            result[cluster_id] = Cluster(
+                cluster_id=cluster_id,
+                label=keyword_label,
+                formatted_label=formatted_label,
+                notes=notes,
+                size=len(notes),
+                centroid=centroid,
+            )
 
         # Persist this session's assignments so future sessions can compare
         # cluster membership over time (cluster_evolution_tracker).
         self.persist_cluster_labels(
             {
-                path: str(result[cluster_id]["label"])
+                path: result[cluster_id].label
                 for cluster_id in result
                 for path in cluster_paths[cluster_id]
             }
@@ -941,7 +942,7 @@ class VaultContext:
         self,
         cluster_id: int,
         k: int = 3,
-        clusters: dict[int, dict[str, Any]] | None = None,
+        clusters: dict[int, Cluster] | None = None,
     ) -> list[Note]:
         """Get most representative notes for a cluster.
 
@@ -965,8 +966,8 @@ class VaultContext:
             return []
 
         cluster = clusters[cluster_id]
-        centroid = cluster["centroid"]
-        notes = cluster["notes"]
+        centroid = cluster.centroid
+        notes = cluster.notes
 
         # Use cached session embeddings instead of re-querying DB
         similarities = []
