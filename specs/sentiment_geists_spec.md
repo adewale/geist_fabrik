@@ -1,6 +1,21 @@
 # Sentiment Geists Specification
 
-*Version: 2.0 (Research-Informed)*
+> **STATUS: WITHDRAWN**
+>
+> This specification was withdrawn after audit in June 2026. See `specs/reflective_lenses_spec.md` for the replacement.
+>
+> **Reasons for withdrawal:**
+> 1. **Licensing barriers**: LIWC is proprietary; NRC EmoLex is research-only
+> 2. **Accuracy limitations**: Best GoEmotions models achieve macro-F1 ~0.45–0.55; the cited "96.77%" was from a different dataset
+> 3. **No temporal mechanism**: Sentiment is a pure function of text — cannot "drift" for unedited notes
+> 4. **Arousal gap**: Neither proposed lexicon provides arousal scores
+> 5. **Overstated research claims**: Several citations were inaccurate or misattributed
+>
+> The replacement spec uses **observable linguistic signals** (verb tense, pronouns, hedging, sentence structure) and **information-theoretic surprisal** instead of sentiment classification.
+
+---
+
+*Version: 2.0 (Research-Informed) — WITHDRAWN*
 *Updated: November 2025*
 *Research basis: specs/research/SENTIMENT_ANALYSIS_RESEARCH.md*
 
