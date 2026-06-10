@@ -126,25 +126,24 @@ class SuggestionFilter:
         if not self.config.get("boundary", {}).get("enabled", True):
             return suggestions
 
-        # Get all valid note paths from database
-        cursor = self.db.execute("SELECT path FROM notes")
-        valid_paths = {row[0] for row in cursor.fetchall()}
-
-        # Get note titles for lookup
-        cursor = self.db.execute("SELECT title, path FROM notes")
-        title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
+        # Build the set of every valid way a suggestion may reference a note:
+        # its path, its title, and - for virtual journal entries - the
+        # "filename#heading" deeplink form produced by Note.obsidian_link.
+        # Without the deeplink form, suggestions from journal-aware geists
+        # (on_this_day, seasonal_revisit, ...) would be silently dropped here.
+        cursor = self.db.execute("SELECT path, title, is_virtual, source_file FROM notes")
+        valid_refs: set[str] = set()
+        for path, title, is_virtual, source_file in cursor.fetchall():
+            valid_refs.add(path)
+            valid_refs.add(title)
+            if is_virtual and source_file:
+                filename = source_file.replace(".md", "")
+                valid_refs.add(f"{filename}#{title}")
 
         filtered = []
         for suggestion in suggestions:
-            # Check if all referenced notes exist
-            all_exist = True
-            for note_ref in suggestion.notes:
-                # Try both as title and as path
-                if note_ref not in valid_paths and note_ref not in title_to_path:
-                    all_exist = False
-                    break
-
-            if all_exist:
+            # Keep the suggestion only if every referenced note exists.
+            if all(note_ref in valid_refs for note_ref in suggestion.notes):
                 filtered.append(suggestion)
 
         return filtered
