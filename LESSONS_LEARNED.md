@@ -395,10 +395,39 @@ the acceptance check, not read a checkbox.
 - bandit in CI/validate.sh (a real security-scan AC, made true).
 - Replaced two hardcoded geist counts in tests with the programmatic constant.
 
-**Still recommended (process, not yet mechanised):** wire
-`check_phase_completion.py` into CI and make it *run* every AC's verification
-(stop skipping ✅); a PR-template "spec touched? update SPEC_STATUS" checkbox;
-"no abstraction without a consumer + its test" as review policy.
+**What we built next — the checker now verifies, never trusts** (2026-06-11):
+`scripts/check_phase_completion.py` was rewritten and wired into both
+`scripts/validate.sh` and CI, so the spec table can no longer drift from the
+code without turning CI red.
+
+- **The silent drop was bigger than the ✅-skip.** Auditing the old checker, the
+  `if status == "✅"` shortcut never even fired — every row was `⬜`. The real
+  leak was its rigid regex, which **silently dropped 95 of 231 criteria** (41%)
+  whose verification cell had a trailing annotation or was prose. "All criteria
+  pass" was true while two-fifths were never looked at. *Lesson: a parser that
+  skips what it can't match is worse than one that errors — make unparseable a
+  hard failure.* The new checker parses every row, classifies each as **AUTO**
+  (runs a real command) or **MANUAL** (prose, reported but not gating), and
+  fails on any unparseable row or any command smuggled into prose.
+- **Reconciling 231 criteria surfaced the drift.** ~120 commands referenced
+  test nodes that had been renamed/removed. Dead `::node`s were coarsened to
+  their (drift-resistant) test file; behaviours with no surviving test became
+  honest MANUAL entries; the count of MANUAL criteria *is* the visible ledger of
+  what we don't pinpoint-test.
+- **A verification gate must be non-destructive and deterministic.** Several ACs
+  "verified" setup by *running* it — `uv sync --only-dev`, `uv pip install -e .`,
+  `pre-commit run --all-files`. Executed by the gate they mutated the dev's
+  environment (one left torch half-installed; `pre-commit` auto-reformatted 12
+  unrelated files). *Lesson: a check that changes the thing it checks isn't a
+  check.* Those became non-mutating import probes or MANUAL.
+- **One process, not N.** `conftest.py` imports the embedding stack (~5s) per
+  process, so spawning a pytest per criterion took ~5 min; batching all targets
+  into one run (like validate.sh) brought it to ~30s while still catching a
+  renamed target (pytest exits non-zero on an unmatched node).
+
+**Still recommended (process, not mechanised):** a PR-template "spec touched?
+update SPEC_STATUS" checkbox; "no abstraction without a consumer + its test" as
+review policy.
 
 ---
 

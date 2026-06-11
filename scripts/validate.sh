@@ -59,6 +59,12 @@ run_check "Unit tests" uv run pytest tests/unit -v -m "not slow and not benchmar
 # 5. Integration tests (excluding slow tests)
 run_check "Integration tests" uv run pytest tests/integration -v -m "not slow and not benchmark" --timeout=300 || FAILED=1
 
+# 6. Acceptance-criteria verification (spec <-> code drift gate)
+# RUNS every machine-verifiable criterion in specs/acceptance_criteria.md
+# (it does not trust the status column). Catches renamed/removed tests and
+# unwired features that would otherwise let the spec drift from the code.
+run_check "Acceptance criteria" uv run python scripts/check_phase_completion.py || FAILED=1
+
 # Summary
 echo "=================================================="
 if [ $FAILED -eq 0 ]; then

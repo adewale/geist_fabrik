@@ -63,8 +63,6 @@ Remaining, lower-value:
 - **Amend the spec** (not bugs - reconcile the doc): embeddings.*, tracery.*,
   logging.* config keys; geist_execution.execution_mode; 5s->30s timeout;
   invoke preview-by-default. SPEC_STATUS.md records each; edit the spec text.
-- **Wire check_phase_completion.py into CI and make it RUN acceptance checks**
-  (today it skips items the spec marks done - the root cause of the drift).
 - **`geistfabrik sync`/`query` commands, `--session-id`** - amend docs (sync is
   implicit; --date covers query) or add trivial aliases.
 - Betweenness-centrality bridge stat; "most productive day" temporal pattern -
@@ -77,3 +75,9 @@ Remaining, lower-value:
   CHANGELOG breaking-changes.
 - Auto-disable after N failures: **done** via the `geist_status` table +
   `GeistStatusStore` (persistent, consecutive-failure semantics).
+- Acceptance-criteria drift gate: **done**. `scripts/check_phase_completion.py`
+  now *runs* every machine-verifiable criterion (no ✅-trust, no silent drop),
+  is wired into `validate.sh` and CI, and `specs/acceptance_criteria.md` is
+  reconciled (151 AUTO / 80 MANUAL). The 80 MANUAL entries are the honest ledger
+  of criteria without a dedicated automated test - a standing backlog if anyone
+  wants to convert perf/journal-writer/session-date items into real tests.

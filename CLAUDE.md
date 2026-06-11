@@ -60,8 +60,14 @@ This script runs the **same checks as CI** (same tools, same marker filter):
 1. `ruff check src/ tests/` - Linting
 2. `mypy src/ --strict` - Type checking (STRICT MODE)
 3. `python scripts/detect_unused_tables.py` - Database validation
-4. `pytest tests/unit -v -m "not slow and not benchmark"` - Unit tests (with mocked models)
-5. `pytest tests/integration -v -m "not slow and not benchmark"` - Integration tests (with mocked models)
+4. `bandit -c pyproject.toml -r src/geistfabrik -ll -q` - Security scan
+5. `pytest tests/unit -v -m "not slow and not benchmark"` - Unit tests (with mocked models)
+6. `pytest tests/integration -v -m "not slow and not benchmark"` - Integration tests (with mocked models)
+7. `python scripts/check_phase_completion.py` - Acceptance-criteria gate: *runs*
+   every machine-verifiable criterion in `specs/acceptance_criteria.md` (it does
+   not trust the status column) so the spec cannot silently drift from the code.
+   Each criterion is AUTO (a real command is executed) or MANUAL (prose,
+   reported but non-gating). See that file's header for the contract.
 
 **If validate.sh passes, CI will almost certainly pass. If it fails, DO NOT PUSH.**
 
