@@ -322,6 +322,127 @@ class FunctionRegistry:
 
             return results
 
+        # --- Reflective lens functions (voice metadata + embedding drift) ---
+
+        @vault_function("past_focused_notes")
+        def past_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count notes with past-tense temporal orientation.
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            candidates = [n for n in vault.notes() if vault.voice(n).temporal_orientation == "past"]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+
+        @vault_function("future_focused_notes")
+        def future_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count notes with future-tense temporal orientation.
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            candidates = [
+                n for n in vault.notes() if vault.voice(n).temporal_orientation == "future"
+            ]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+
+        @vault_function("self_focused_notes")
+        def self_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count notes with high first-person singular usage.
+
+            Candidates need self_focus_ratio > 0.8 AND at least some
+            first-person singular pronouns (the 0.5 default for pronoun-free
+            notes would otherwise never qualify, but the explicit check
+            guards against pure-"I" microclassification of empty notes).
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            candidates = []
+            for n in vault.notes():
+                voice = vault.voice(n)
+                if voice.self_focus_ratio > 0.8 and voice.first_person_singular > 0:
+                    candidates.append(n)
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+
+        @vault_function("we_notes")
+        def we_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count notes with high first-person plural usage.
+
+            Candidates have more than 2 first-person plural pronouns per
+            100 words.
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            candidates = [n for n in vault.notes() if vault.voice(n).first_person_plural > 2.0]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+
+        @vault_function("uncertain_notes")
+        def uncertain_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count notes with high hedging density (>0.5 hedges/sentence).
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            candidates = [n for n in vault.notes() if vault.voice(n).hedging_ratio > 0.5]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+
+        @vault_function("questioning_notes")
+        def questioning_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count notes with high question density (>1 per 100 words).
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            candidates = [n for n in vault.notes() if vault.voice(n).question_density > 1.0]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+
+        @vault_function("surprising_notes")
+        def surprising_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get the count notes with highest information-theoretic surprisal.
+
+            Thin wrapper over the session-cached VaultContext.surprisal_scores().
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            scores = vault.surprisal_scores()
+            top = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)[:count]
+
+            results = []
+            for path, _ in top:
+                note = vault.get_note(path)
+                if note is not None:
+                    results.append(f"[[{note.link_text}]]")
+            return results
+
+        @vault_function("attention_shifted_notes")
+        def attention_shifted_notes(
+            vault: "VaultContext",
+            months_ago: int = 6,
+            min_churn: float = 0.7,
+            count: int = 5,
+        ) -> list[str]:
+            """Get count notes whose semantic neighbourhood has churned significantly.
+
+            Thin wrapper over the session-cached VaultContext.neighbour_churn().
+            Returns [] when no sufficiently old session history exists.
+
+            Returns:
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+            """
+            churn_map = vault.neighbour_churn(since_days=months_ago * 30)
+            shifted = [(p, r) for p, r in churn_map.items() if r.churn >= min_churn]
+            shifted.sort(key=lambda item: item[1].churn, reverse=True)
+
+            results = []
+            for path, _ in shifted[:count]:
+                note = vault.get_note(path)
+                if note is not None:
+                    results.append(f"[[{note.link_text}]]")
+            return results
+
         # Transfer built-in functions from global registry to instance
         self.functions.update(_GLOBAL_REGISTRY)
 

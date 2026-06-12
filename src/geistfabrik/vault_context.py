@@ -4,11 +4,12 @@ import logging
 import random
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
-    Optional,
     overload,
 )
 
@@ -19,6 +20,7 @@ from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
 from .models import Link, Note, link_target_forms
 from .vault import Vault
+from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,203 @@ def _clip_similarity(score: float) -> float:
     return max(0.0, min(1.0, score))
 
 
+@dataclass
+class ChurnResult:
+    """Result of neighbour churn analysis for a single note.
+
+    Attributes:
+        churn: 1 - Jaccard(old neighbours, new neighbours), in [0, 1]
+        departed: Neighbour paths present then, absent now (sorted)
+        arrived: Neighbour paths absent then, present now (sorted)
+    """
+
+    churn: float
+    departed: list[str]
+    arrived: list[str]
+
+
+def _normalise_rows(matrix: np.ndarray) -> np.ndarray:
+    """Row-normalise a matrix to unit vectors, leaving zero rows as zeros.
+
+    Args:
+        matrix: (N, d) array
+
+    Returns:
+        (N, d) array with each non-zero row scaled to unit norm
+    """
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    norms = np.where(norms == 0, 1.0, norms)
+    result: np.ndarray = matrix / norms
+    return result
+
+
+def _jaccard_churn(old: set[str], new: set[str]) -> float:
+    """Compute Jaccard churn between two neighbour sets.
+
+    churn = 1 - |old ∩ new| / |old ∪ new|, defined as 0.0 when both
+    sets are empty. Symmetric, and always in [0, 1].
+
+    Args:
+        old: Historical neighbour paths
+        new: Current neighbour paths
+
+    Returns:
+        Churn value in [0.0, 1.0]
+    """
+    union = old | new
+    if not union:
+        return 0.0
+    return 1.0 - len(old & new) / len(union)
+
+
+def _topk_neighbour_sets(
+    matrix: np.ndarray, paths: list[str], k: int, block_size: int = 1024
+) -> dict[str, set[str]]:
+    """Compute top-k cosine neighbour path sets for every row of a matrix.
+
+    Uses blocked matrix multiplication (block_size rows at a time) so peak
+    memory stays bounded at roughly block_size × N floats, followed by
+    np.argpartition for O(N) top-k selection per row. Self-similarity is
+    masked out, and k is capped at N - 1.
+
+    Args:
+        matrix: (N, d) embedding matrix; row i corresponds to paths[i]
+        paths: Note paths, one per matrix row
+        k: Number of neighbours per note
+        block_size: Rows per block (memory/speed trade-off)
+
+    Returns:
+        Dictionary mapping each path to the set of its top-k neighbour paths
+    """
+    n = matrix.shape[0]
+    if n == 0 or k <= 0:
+        return {path: set() for path in paths}
+
+    k_eff = min(k, n - 1)
+    if k_eff <= 0:
+        return {path: set() for path in paths}
+
+    normalised = _normalise_rows(matrix.astype(np.float64))
+
+    result: dict[str, set[str]] = {}
+    for start in range(0, n, block_size):
+        end = min(start + block_size, n)
+        sims = normalised[start:end] @ normalised.T
+        # Mask self-similarity so a note is never its own neighbour
+        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
+        topk_idx = np.argpartition(sims, -k_eff, axis=1)[:, -k_eff:]
+        for offset in range(end - start):
+            result[paths[start + offset]] = {paths[j] for j in topk_idx[offset]}
+
+    return result
+
+
+def _surprisal_blocked(
+    embeddings: dict[str, np.ndarray], k_neighbours: int, block_size: int = 1024
+) -> dict[str, float]:
+    """Compute surprisal for all notes using blocked matrix operations.
+
+    Surprisal = 1 - cosine(note, centroid of its k nearest neighbours).
+    Same flop count as the naive version but runs as blocked BLAS matmuls
+    rather than Python loops:
+
+    1. E = row-normalised embedding matrix (paths in fixed sorted order)
+    2. For each block of rows: S = E_block @ E.T (peak ~block_size × N)
+    3. Mask self-similarity to -inf; top-k indices via np.argpartition
+    4. centroid = mean of top-k rows, normalised (zero-norm guarded)
+    5. surprisal = 1 - row · centroid, clipped to [0.0, 2.0]
+
+    Args:
+        embeddings: Mapping of note path to embedding vector
+        k_neighbours: Number of nearest neighbours forming the centroid
+        block_size: Rows per block (memory/speed trade-off)
+
+    Returns:
+        Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
+        fewer than k_neighbours + 1 notes are available
+    """
+    paths = sorted(embeddings)
+    n = len(paths)
+    if k_neighbours < 1 or n < k_neighbours + 1:
+        return {}
+
+    matrix = np.stack([np.asarray(embeddings[p], dtype=np.float64) for p in paths])
+    normalised = _normalise_rows(matrix)
+
+    scores: dict[str, float] = {}
+    for start in range(0, n, block_size):
+        end = min(start + block_size, n)
+        block = normalised[start:end]
+        sims = block @ normalised.T
+        # Mask self-similarity so a note is never its own neighbour
+        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
+        topk_idx = np.argpartition(sims, -k_neighbours, axis=1)[:, -k_neighbours:]
+
+        # Centroids of top-k neighbours: (b, k, d) -> (b, d), then normalise
+        centroids = normalised[topk_idx].mean(axis=1)
+        centroid_norms = np.linalg.norm(centroids, axis=1, keepdims=True)
+        centroid_norms = np.where(centroid_norms == 0, 1.0, centroid_norms)
+        centroids = centroids / centroid_norms
+
+        surprisal = 1.0 - np.einsum("ij,ij->i", block, centroids)
+        surprisal = np.clip(surprisal, 0.0, 2.0)
+
+        for offset in range(end - start):
+            scores[paths[start + offset]] = float(surprisal[offset])
+
+    return scores
+
+
+def _surprisal_naive(embeddings: dict[str, np.ndarray], k_neighbours: int) -> dict[str, float]:
+    """Readable reference implementation of surprisal (plain Python loops).
+
+    Used by the differential test to define correctness for the blocked
+    implementation (_surprisal_blocked). O(N²) Python-level work — do NOT
+    use in production code.
+
+    Args:
+        embeddings: Mapping of note path to embedding vector
+        k_neighbours: Number of nearest neighbours forming the centroid
+
+    Returns:
+        Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
+        fewer than k_neighbours + 1 notes are available
+    """
+    paths = sorted(embeddings)
+    n = len(paths)
+    if k_neighbours < 1 or n < k_neighbours + 1:
+        return {}
+
+    # Normalise each vector (zero vectors stay zero)
+    normed: dict[str, np.ndarray] = {}
+    for path in paths:
+        vector = np.asarray(embeddings[path], dtype=np.float64)
+        norm = float(np.linalg.norm(vector))
+        normed[path] = vector / norm if norm > 0 else vector
+
+    scores: dict[str, float] = {}
+    for path in paths:
+        # Rank all other notes by cosine similarity
+        sims = []
+        for other in paths:
+            if other == path:
+                continue
+            sims.append((float(np.dot(normed[path], normed[other])), other))
+        sims.sort(key=lambda pair: pair[0], reverse=True)
+        top_paths = [other for _, other in sims[:k_neighbours]]
+
+        # Centroid of the top-k neighbours, normalised (zero-norm guarded)
+        centroid = np.mean([normed[other] for other in top_paths], axis=0)
+        norm = float(np.linalg.norm(centroid))
+        if norm > 0:
+            centroid = centroid / norm
+
+        surprisal = 1.0 - float(np.dot(normed[path], centroid))
+        scores[path] = float(min(max(surprisal, 0.0), 2.0))
+
+    return scores
+
+
 class VaultContext:
     """Rich execution context for geists.
 
@@ -59,8 +258,8 @@ class VaultContext:
         vault: Vault,
         session: Session,
         seed: int | None = None,
-        metadata_loader: Optional["MetadataLoader"] = None,
-        function_registry: Optional["FunctionRegistry"] = None,
+        metadata_loader: "MetadataLoader | None" = None,
+        function_registry: "FunctionRegistry | None" = None,
     ):
         """Initialise vault context.
 
@@ -113,6 +312,15 @@ class VaultContext:
 
         # Cache for read() content (OPTIMISATION #2 - session-scoped)
         self._read_cache: dict[str, str] = {}
+
+        # Cache for surprisal scores (session-scoped - keyed by k_neighbours)
+        self._surprisal_cache: dict[int, dict[str, float]] = {}
+
+        # Cache for neighbour churn (session-scoped - keyed by (since_days, k))
+        self._churn_cache: dict[tuple[int, int], dict[str, ChurnResult]] = {}
+
+        # Cache for typed voice metadata (session-scoped - keyed by note path)
+        self._voice_cache: dict[str, VoiceMetadata] = {}
 
         # Metadata loader for extensible metadata inference
         self._metadata_loader = metadata_loader
@@ -1173,6 +1381,158 @@ class VaultContext:
 
         return result
 
+    # Reflective lens analysis
+
+    def surprisal_scores(self, k_neighbours: int = 10) -> dict[str, float]:
+        """Surprisal = 1 - cosine(note, centroid of its k nearest neighbours).
+
+        How unexpected is each note given its own semantic neighbourhood?
+        Values lie in [0, 2] (cosine ∈ [-1, 1]); in practice [0, 1].
+
+        Computed for ALL notes in one vectorised pass and session-cached,
+        so every geist and vault function shares the result.
+
+        Algorithm (O(N²·d) flops, but as blocked BLAS matmuls, NOT a
+        Python loop):
+
+        1. E = row-normalised embedding matrix (paths in sorted order)
+        2. For each 1024-row block B: S_B = E[B] @ E.T
+        3. Top-k neighbour indices per row via np.argpartition
+        4. centroid_i = normalise(mean(E[topk_i]));
+           surprisal_i = 1 - E[i] · centroid_i, clipped to [0.0, 2.0]
+
+        Args:
+            k_neighbours: Number of nearest neighbours forming the centroid
+
+        Returns:
+            Mapping of note path to surprisal score; empty dict when the
+            vault has fewer than k_neighbours + 1 embedded notes (surprisal
+            is meaningless in a near-empty vault)
+        """
+        if k_neighbours in self._surprisal_cache:
+            return self._surprisal_cache[k_neighbours]
+
+        scores = _surprisal_blocked(self._embeddings, k_neighbours)
+        self._surprisal_cache[k_neighbours] = scores
+        return scores
+
+    def neighbour_churn(self, since_days: int = 180, k: int = 10) -> dict[str, ChurnResult]:
+        """Jaccard churn between each note's current semantic neighbours and
+        its neighbours as of the nearest session at or before
+        (session date - since_days).
+
+        Graceful degradation:
+
+        - No session that old → falls back to the OLDEST available session,
+          but only if it is at least 30 days older than the current session;
+          otherwise returns {} (geists then return []).
+        - The historical session is never the current session itself.
+        - Only notes embedded in BOTH epochs receive a ChurnResult.
+
+        Implementation:
+
+        1. ONE bulk SELECT loads the historical session's embeddings —
+           never per-note queries
+        2. Two blocked top-k passes (shared helper with surprisal_scores),
+           one per epoch
+        3. Set-based Jaccard per note (O(k) each):
+           churn = 1 - |old ∩ new| / |old ∪ new| (0.0 if both empty)
+
+        Session-cached per (since_days, k).
+
+        Args:
+            since_days: How far back to look for the historical session
+            k: Number of neighbours per note in each epoch
+
+        Returns:
+            Mapping of note path to ChurnResult for notes present in both
+            epochs; empty dict when no suitable historical session exists
+        """
+        cache_key = (since_days, k)
+        if cache_key in self._churn_cache:
+            return self._churn_cache[cache_key]
+
+        result = self._compute_neighbour_churn(since_days, k)
+        self._churn_cache[cache_key] = result
+        return result
+
+    def _compute_neighbour_churn(self, since_days: int, k: int) -> dict[str, ChurnResult]:
+        """Compute neighbour churn against a historical session (uncached).
+
+        Args:
+            since_days: How far back to look for the historical session
+            k: Number of neighbours per note in each epoch
+
+        Returns:
+            Mapping of note path to ChurnResult (see neighbour_churn)
+        """
+        current_date = self.session.date
+        cutoff = (current_date - timedelta(days=since_days)).strftime("%Y-%m-%d")
+
+        row = self.db.execute(
+            """
+            SELECT session_id, date FROM sessions
+            WHERE date <= ?
+            ORDER BY date DESC
+            LIMIT 1
+            """,
+            (cutoff,),
+        ).fetchone()
+
+        if row is None:
+            # Fallback: oldest session, but only if >= 30 days older than
+            # the current session date
+            row = self.db.execute(
+                "SELECT session_id, date FROM sessions ORDER BY date ASC LIMIT 1"
+            ).fetchone()
+            if row is None:
+                return {}
+            min_age_cutoff = (current_date - timedelta(days=30)).strftime("%Y-%m-%d")
+            if str(row[1]) > min_age_cutoff:
+                return {}
+
+        historical_session_id = int(row[0])
+        # Never compare the current session against itself
+        if historical_session_id == self.session.session_id:
+            return {}
+
+        # ONE bulk SELECT of the historical session's embeddings
+        cursor = self.db.execute(
+            """
+            SELECT note_path, embedding FROM session_embeddings
+            WHERE session_id = ?
+            """,
+            (historical_session_id,),
+        )
+        historical: dict[str, np.ndarray] = {}
+        for note_path, embedding_bytes in cursor.fetchall():
+            historical[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+
+        if not historical or not self._embeddings:
+            return {}
+
+        # Top-k neighbour path sets per epoch (same blocked helper)
+        old_paths = sorted(historical)
+        old_matrix = np.stack([historical[p] for p in old_paths])
+        old_sets = _topk_neighbour_sets(old_matrix, old_paths, k)
+
+        new_paths = sorted(self._embeddings)
+        new_matrix = np.stack([self._embeddings[p] for p in new_paths])
+        new_sets = _topk_neighbour_sets(new_matrix, new_paths, k)
+
+        # Jaccard churn for notes present in BOTH epochs
+        result: dict[str, ChurnResult] = {}
+        for path in sorted(old_sets.keys() & new_sets.keys()):
+            old_neighbours = old_sets[path]
+            new_neighbours = new_sets[path]
+            result[path] = ChurnResult(
+                churn=_jaccard_churn(old_neighbours, new_neighbours),
+                departed=sorted(old_neighbours - new_neighbours),
+                arrived=sorted(new_neighbours - old_neighbours),
+            )
+
+        return result
+
     # Metadata access
 
     def metadata(self, note: Note) -> dict[str, Any]:
@@ -1214,6 +1574,13 @@ class VaultContext:
             "reading_time": round(word_count / 200.0, 2),  # minutes at ~200 wpm
         }
 
+        # Merge in linguistic voice metadata (computed lazily per note,
+        # cached via the same session-scoped metadata cache). Built-in keys
+        # take precedence: both layers compute a lexical_diversity, and
+        # metadata_driven_discovery's thresholds are tuned to the built-in.
+        for key, value in compute_voice_metadata(note.content).items():
+            metadata.setdefault(key, value)
+
         # Run metadata inference modules if available
         if self._metadata_loader is not None:
             try:
@@ -1233,6 +1600,29 @@ class VaultContext:
 
         self._metadata_cache[note.path] = metadata
         return metadata
+
+    def voice(self, note: Note) -> VoiceMetadata:
+        """Get typed linguistic voice properties for a note.
+
+        Returns a VoiceMetadata dataclass with typed fields for temporal
+        orientation, pronoun patterns, hedging, and structural features.
+        Session-cached for performance.
+
+        Use this instead of metadata()["temporal_orientation"] etc. for
+        type-safe access with IDE autocompletion and mypy checking.
+
+        Args:
+            note: Note to analyse
+
+        Returns:
+            VoiceMetadata dataclass with all voice properties
+        """
+        if note.path in self._voice_cache:
+            return self._voice_cache[note.path]
+
+        voice = compute_voice(note.content)
+        self._voice_cache[note.path] = voice
+        return voice
 
     # Deterministic sampling
 

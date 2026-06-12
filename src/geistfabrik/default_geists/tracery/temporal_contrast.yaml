@@ -1,0 +1,19 @@
+type: geist-tracery
+id: temporal_contrast
+description: Contrasts past-focused and future-focused notes
+count: 1
+
+tracery:
+  origin:
+    - "#provocation#"
+
+  provocation:
+    - "#past_note# looks backward. #future_note# looks forward. What connects memory and anticipation here?"
+    - "You reflected in #past_note# and planned in #future_note#. Are they about the same thing?"
+    - "#past_note# is in past tense. What would it say if you rewrote it looking forward?"
+
+  past_note:
+    - "$vault.past_focused_notes(1)"
+
+  future_note:
+    - "$vault.future_focused_notes(1)"

@@ -1,0 +1,16 @@
+type: geist-tracery
+id: unexpected_neighbour
+description: Surfaces surprising notes via information-theoretic surprisal
+count: 1
+
+tracery:
+  origin:
+    - "#provocation#"
+
+  provocation:
+    - "#note# doesn't fit anywhere obvious. Is it a seed or a stray?"
+    - "#note# surprised me — it's unlike your typical thinking. What's it doing in your vault?"
+    - "Your most unexpected note right now is #note#. What does it know that the others don't?"
+
+  note:
+    - "$vault.surprising_notes(1)"

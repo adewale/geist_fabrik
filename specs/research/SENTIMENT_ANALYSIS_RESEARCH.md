@@ -1,5 +1,13 @@
 # Research Summary: Sentiment Analysis and Emotional Modeling for GeistFabrik
 
+> **NOTE**: This research informed `specs/sentiment_geists_spec.md`, which was **withdrawn** after audit in June 2026. See `specs/reflective_lenses_spec.md` for the approach that was actually adopted.
+>
+> Key audit findings: the 96.77% accuracy claim was from a 6-class Twitter dataset (not GoEmotions); LIWC is proprietary; NRC EmoLex is research-only; neither provides arousal; several psychology claims were overstated.
+>
+> This document is retained for reference but should not be used as implementation basis.
+
+---
+
 *Compiled: November 16, 2025*
 
 This document synthesizes recent academic literature on sentiment analysis and emotional modeling to inform the development of more sophisticated and provocative emotional geists for GeistFabrik. The focus is on frameworks, concepts, and approaches that align with the "muses not therapists" philosophy.

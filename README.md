@@ -11,7 +11,7 @@ Inspired by Gordon Brander's work on tools for thought.
 ## Status
 
 **Version**: 0.9.0 (Beta)
-**Default Geists**: 59 (50 code + 9 Tracery) _[programmatically verified]_
+**Default Geists**: 70 (58 code + 12 Tracery) _[programmatically verified]_
 **Tests**: 1119 passing (100%)
 **Progress**: ~99% (Feature-complete, approaching 1.0)
 

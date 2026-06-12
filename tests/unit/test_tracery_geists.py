@@ -53,6 +53,17 @@ def create_test_vault_context(tmp_path: Path, num_notes: int = 10) -> VaultConte
     # Create orphan note (no links)
     (vault_path / "orphan.md").write_text("# Orphan Note\nNo links here.")
 
+    # Create notes with distinctive voice for reflective lens geists
+    (vault_path / "past_note.md").write_text(
+        "# Past Reflection\nI walked to the store. I bought groceries. I returned home."
+    )
+    (vault_path / "future_note.md").write_text(
+        "# Future Plans\nI will build this. I shall succeed. It will work."
+    )
+    (vault_path / "questions.md").write_text(
+        "# Questions\nWhat is this? How does it work? Why does it matter? When will it end?"
+    )
+
     vault = Vault(vault_path)
     vault.sync()
 
@@ -761,8 +772,8 @@ class TestAllTraceryGeists:
         """Test that all Tracery geists can be loaded."""
         geist_files = list(GEISTS_DIR.glob("*.yaml"))
 
-        # Should have 9 Tracery geists
-        assert len(geist_files) == 9
+        # Should have 12 Tracery geists
+        assert len(geist_files) == 12
 
         for geist_file in geist_files:
             geist = TraceryGeist.from_yaml(geist_file, seed=42)

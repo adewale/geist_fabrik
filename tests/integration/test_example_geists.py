@@ -690,11 +690,7 @@ def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
     geist_executor.load_geists()
 
-    # Programmatic single source of truth (never hardcode - it drifts).
-    # New geists from reuse abstractions implementation:
-    #   Phase 6: definition_harvester, drift_velocity_anomaly, cyclical_thinking
-    #   Phase 7: seasonal_topic_analysis, metadata_outlier_detector, cluster_evolution_tracker
-    # Note: congruence_mirror was removed from main
+    # Use programmatic count from default_geists/__init__.py (single source of truth)
     assert len(geist_executor.geists) == CODE_GEIST_COUNT
 
 

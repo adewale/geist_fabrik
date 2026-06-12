@@ -220,7 +220,7 @@ class TestAllTraceryGeistsWithEmptyVault:
         )
 
         geist_files = list(geists_dir.glob("*.yaml"))
-        assert len(geist_files) == 9, "Expected 9 Tracery geists"
+        assert len(geist_files) == 12, "Expected 12 Tracery geists"
 
         for geist_file in geist_files:
             geist = TraceryGeist.from_yaml(geist_file, seed=12345)
