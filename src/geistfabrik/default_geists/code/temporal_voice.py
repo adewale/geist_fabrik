@@ -44,12 +44,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 return [
                     Suggestion(
                         text=(
-                            f"[[{past_note.obsidian_link}]] looks backward. "
-                            f"[[{future_note.obsidian_link}]] looks forward. "
+                            f"[[{past_note.link_text}]] looks backward. "
+                            f"[[{future_note.link_text}]] looks forward. "
                             f"They're semantically close — what bridges "
                             f"reflection and anticipation here?"
                         ),
-                        notes=[past_note.obsidian_link, future_note.obsidian_link],
+                        notes=[past_note.link_text, future_note.link_text],
                         geist_id="temporal_voice",
                     )
                 ]
@@ -60,11 +60,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return [
         Suggestion(
             text=(
-                f"[[{past.obsidian_link}]] dwells in the past. "
-                f"[[{future.obsidian_link}]] reaches toward the future. "
+                f"[[{past.link_text}]] dwells in the past. "
+                f"[[{future.link_text}]] reaches toward the future. "
                 f"What would a present-tense note about these topics say?"
             ),
-            notes=[past.obsidian_link, future.obsidian_link],
+            notes=[past.link_text, future.link_text],
             geist_id="temporal_voice",
         )
     ]

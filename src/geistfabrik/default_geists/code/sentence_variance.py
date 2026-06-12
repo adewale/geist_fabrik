@@ -55,11 +55,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return [
         Suggestion(
             text=(
-                f"[[{note.obsidian_link}]] has unusually choppy sentences — "
+                f"[[{note.link_text}]] has unusually choppy sentences — "
                 f"short bursts mixed with long stretches. "
                 f"Were you working something out when you wrote this?"
             ),
-            notes=[note.obsidian_link],
+            notes=[note.link_text],
             geist_id="sentence_variance",
         )
     ]

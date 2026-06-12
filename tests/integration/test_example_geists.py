@@ -688,8 +688,6 @@ def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
 
 def test_all_geists_are_loadable(geist_executor: GeistExecutor):
     """Test that all bundled default code geists can be loaded without errors."""
-    from geistfabrik.default_geists import CODE_GEIST_COUNT
-
     geist_executor.load_geists()
 
     # Use programmatic count from default_geists/__init__.py (single source of truth)

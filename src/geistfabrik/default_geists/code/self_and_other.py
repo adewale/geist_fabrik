@@ -31,11 +31,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     i_sample = vault.sample(i_notes, min(3, len(i_notes)))
-    i_titles = ", ".join(f"[[{n.obsidian_link}]]" for n in i_sample)
+    i_titles = ", ".join(f"[[{n.link_text}]]" for n in i_sample)
 
     if we_notes:
         we_sample = vault.sample(we_notes, min(2, len(we_notes)))
-        we_titles = ", ".join(f"[[{n.obsidian_link}]]" for n in we_sample)
+        we_titles = ", ".join(f"[[{n.link_text}]]" for n in we_sample)
         return [
             Suggestion(
                 text=(
@@ -43,7 +43,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     f"These notes say 'we': {we_titles}. "
                     f"When do you think alone, and when do you think with others?"
                 ),
-                notes=[n.obsidian_link for n in i_sample + we_sample],
+                notes=[n.link_text for n in i_sample + we_sample],
                 geist_id="self_and_other",
             )
         ]
@@ -54,7 +54,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 f"These notes are all 'I': {i_titles}. "
                 f"You have no 'we' notes. Who could you be thinking with?"
             ),
-            notes=[n.obsidian_link for n in i_sample],
+            notes=[n.link_text for n in i_sample],
             geist_id="self_and_other",
         )
     ]

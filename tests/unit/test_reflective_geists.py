@@ -327,12 +327,12 @@ def test_temporal_voice_pairs_past_and_future(voice_vault):
     context = _make_context(vault, session)
 
     past_pool = {
-        n.obsidian_link
+        n.link_text
         for n in context.notes_excluding_journal()
         if context.metadata(n)["temporal_orientation"] == "past"
     }
     future_pool = {
-        n.obsidian_link
+        n.link_text
         for n in context.notes_excluding_journal()
         if context.metadata(n)["temporal_orientation"] == "future"
     }
@@ -411,7 +411,7 @@ def test_surprisal_references_existing_notes(voice_vault):
     vault, session = voice_vault
     context = _make_context(vault, session)
 
-    all_links = {n.obsidian_link for n in vault.all_notes()}
+    all_links = {n.link_text for n in vault.all_notes()}
     suggestions = surprisal.suggest(context)
 
     assert len(suggestions) <= 1
@@ -439,7 +439,7 @@ def test_surprisal_picks_max_score_note(voice_vault):
     suggestions = surprisal.suggest(context)
 
     assert len(suggestions) == 1
-    assert suggestions[0].notes[0] == top_note.obsidian_link
+    assert suggestions[0].notes[0] == top_note.link_text
 
 
 # ============================================================================

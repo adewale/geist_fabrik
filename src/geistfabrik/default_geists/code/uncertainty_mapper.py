@@ -42,10 +42,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return [
         Suggestion(
             text=(
-                f"[[{note.obsidian_link}]] hedges {hedge_count} times "
+                f"[[{note.link_text}]] hedges {hedge_count} times "
                 f"in {word_count} words. What are you not ready to commit to?"
             ),
-            notes=[note.obsidian_link],
+            notes=[note.link_text],
             geist_id="uncertainty_mapper",
         )
     ]

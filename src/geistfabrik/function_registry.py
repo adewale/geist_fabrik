@@ -332,7 +332,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             candidates = [n for n in vault.notes() if vault.voice(n).temporal_orientation == "past"]
-            return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("future_focused_notes")
         def future_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
@@ -344,7 +344,7 @@ class FunctionRegistry:
             candidates = [
                 n for n in vault.notes() if vault.voice(n).temporal_orientation == "future"
             ]
-            return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("self_focused_notes")
         def self_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
@@ -363,7 +363,7 @@ class FunctionRegistry:
                 voice = vault.voice(n)
                 if voice.self_focus_ratio > 0.8 and voice.first_person_singular > 0:
                     candidates.append(n)
-            return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("we_notes")
         def we_notes(vault: "VaultContext", count: int = 5) -> list[str]:
@@ -376,7 +376,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             candidates = [n for n in vault.notes() if vault.voice(n).first_person_plural > 2.0]
-            return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("uncertain_notes")
         def uncertain_notes(vault: "VaultContext", count: int = 5) -> list[str]:
@@ -386,7 +386,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             candidates = [n for n in vault.notes() if vault.voice(n).hedging_ratio > 0.5]
-            return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("questioning_notes")
         def questioning_notes(vault: "VaultContext", count: int = 5) -> list[str]:
@@ -396,7 +396,7 @@ class FunctionRegistry:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             candidates = [n for n in vault.notes() if vault.voice(n).question_density > 1.0]
-            return [f"[[{note.obsidian_link}]]" for note in vault.sample(candidates, count)]
+            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
 
         @vault_function("surprising_notes")
         def surprising_notes(vault: "VaultContext", count: int = 5) -> list[str]:
@@ -414,7 +414,7 @@ class FunctionRegistry:
             for path, _ in top:
                 note = vault.get_note(path)
                 if note is not None:
-                    results.append(f"[[{note.obsidian_link}]]")
+                    results.append(f"[[{note.link_text}]]")
             return results
 
         @vault_function("attention_shifted_notes")
@@ -440,7 +440,7 @@ class FunctionRegistry:
             for path, _ in shifted[:count]:
                 note = vault.get_note(path)
                 if note is not None:
-                    results.append(f"[[{note.obsidian_link}]]")
+                    results.append(f"[[{note.link_text}]]")
             return results
 
         # Transfer built-in functions from global registry to instance

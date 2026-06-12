@@ -55,10 +55,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return [
         Suggestion(
             text=(
-                f"Around this time {period} ago, you wrote [[{note.obsidian_link}]]. "
+                f"Around this time {period} ago, you wrote [[{note.link_text}]]. "
                 f"What's different now? What's the same?"
             ),
-            notes=[note.obsidian_link],
+            notes=[note.link_text],
             geist_id="this_time_last_year",
         )
     ]

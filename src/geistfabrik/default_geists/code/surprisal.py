@@ -40,16 +40,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not neighbours:
         return []
 
-    neighbour_titles = ", ".join(f"[[{n.obsidian_link}]]" for n in neighbours)
+    neighbour_titles = ", ".join(f"[[{n.link_text}]]" for n in neighbours)
 
     return [
         Suggestion(
             text=(
-                f"[[{note.obsidian_link}]] doesn't quite fit. "
+                f"[[{note.link_text}]] doesn't quite fit. "
                 f"Its neighbours are {neighbour_titles}, but it says something different. "
                 f"Is it a seed of new thinking, or a stray thought?"
             ),
-            notes=[note.obsidian_link] + [n.obsidian_link for n in neighbours],
+            notes=[note.link_text] + [n.link_text for n in neighbours],
             geist_id="surprisal",
         )
     ]

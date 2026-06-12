@@ -42,8 +42,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     departed_notes = [vault.get_note(p) for p in result.departed[:3]]
     arrived_notes = [vault.get_note(p) for p in result.arrived[:3]]
-    departed = [n.obsidian_link for n in departed_notes if n is not None]
-    arrived = [n.obsidian_link for n in arrived_notes if n is not None]
+    departed = [n.link_text for n in departed_notes if n is not None]
+    arrived = [n.link_text for n in arrived_notes if n is not None]
 
     if not departed or not arrived:
         return []  # Need both sides of the shift to tell the story
@@ -54,12 +54,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return [
         Suggestion(
             text=(
-                f"Your thinking around [[{note.obsidian_link}]] has shifted. "
+                f"Your thinking around [[{note.link_text}]] has shifted. "
                 f"Old neighbours: {old_titles}. "
                 f"New neighbours: {new_titles}. "
                 f"What changed in how you see this?"
             ),
-            notes=[note.obsidian_link] + departed + arrived,
+            notes=[note.link_text] + departed + arrived,
             geist_id="attention_shift",
         )
     ]

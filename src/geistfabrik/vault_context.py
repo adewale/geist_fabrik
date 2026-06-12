@@ -5,12 +5,11 @@ import random
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
-    Optional,
     overload,
 )
 
