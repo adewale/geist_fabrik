@@ -7,16 +7,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import island_hopper
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -169,8 +160,8 @@ def test_island_hopper_suggestion_structure(vault_with_clusters):
             assert isinstance(note_ref, str)
 
 
-def test_island_hopper_uses_obsidian_link(vault_with_clusters):
-    """Test that island_hopper uses obsidian_link for note references.
+def test_island_hopper_uses_link_text(vault_with_clusters):
+    """Test that island_hopper uses link_text for note references.
 
     Setup:
         Vault with isolated clusters.

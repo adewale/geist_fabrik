@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -16,8 +16,14 @@ WIKILINK_PATTERN = re.compile(r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 # Pattern for inline tags: #tag, including nested tags like #parent/child
 TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
 
+# Code regions are stripped before tag extraction: Obsidian does not treat
+# #words inside fenced or inline code as tags (#define, #!/bin/bash, hex
+# colours like #fff in CSS, URL fragments in code samples, ...).
+FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
+INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
 
-def parse_frontmatter(content: str) -> Tuple[Optional[Dict[str, Any]], str]:
+
+def parse_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
     """Extract YAML frontmatter and remaining content.
 
     Args:
@@ -54,7 +60,7 @@ def parse_frontmatter(content: str) -> Tuple[Optional[Dict[str, Any]], str]:
         return None, content
 
 
-def extract_title(path: str, frontmatter: Optional[Dict[str, Any]], content: str) -> str:
+def extract_title(path: str, frontmatter: dict[str, Any] | None, content: str) -> str:
     """Extract note title from frontmatter, first heading, or filename.
 
     Args:
@@ -69,17 +75,19 @@ def extract_title(path: str, frontmatter: Optional[Dict[str, Any]], content: str
     if frontmatter and "title" in frontmatter:
         return str(frontmatter["title"])
 
-    # Priority 2: First H1 heading
+    # Priority 2: First H1 heading (skip empty headings like "# ")
     lines = content.split("\n")
     for line in lines:
         if line.startswith("# "):
-            return line[2:].strip()
+            heading = line[2:].strip()
+            if heading:
+                return heading
 
     # Priority 3: Filename without extension
     return Path(path).stem
 
 
-def extract_links(content: str) -> List[Link]:
+def extract_links(content: str) -> list[Link]:
     """Extract wiki-style links from markdown content.
 
     Supports:
@@ -132,7 +140,7 @@ def extract_links(content: str) -> List[Link]:
     return links
 
 
-def extract_tags(content: str, frontmatter: Optional[Dict[str, Any]] = None) -> List[str]:
+def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> list[str]:
     """Extract tags from markdown content and frontmatter.
 
     Supports:
@@ -159,17 +167,20 @@ def extract_tags(content: str, frontmatter: Optional[Dict[str, Any]] = None) -> 
             # List of tags
             tags.update(str(tag).strip() for tag in fm_tags)
 
+    # Strip code regions first so #words inside fenced/inline code are not
+    # misread as tags (matches Obsidian's behaviour).
+    content_no_code = FENCED_CODE_PATTERN.sub("", content)
+    content_no_code = INLINE_CODE_PATTERN.sub("", content_no_code)
+
     # Extract inline tags from content using pre-compiled pattern
-    # Match #tag but not inside code blocks
-    # Simple approach: match #word boundaries (not perfect but good enough)
-    for match in TAG_PATTERN.finditer(content):
+    for match in TAG_PATTERN.finditer(content_no_code):
         tag = match.group(1)
         tags.add(tag)
 
     return sorted(tags)
 
 
-def parse_markdown(path: str, content: str) -> Tuple[str, str, List[Link], List[str]]:
+def parse_markdown(path: str, content: str) -> tuple[str, str, list[Link], list[str]]:
     """Parse markdown file and extract structured data.
 
     Args:

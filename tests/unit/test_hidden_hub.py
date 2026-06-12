@@ -7,16 +7,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import hidden_hub
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -160,7 +151,7 @@ def test_hidden_hub_suggestion_structure(vault_with_hidden_hubs):
         assert isinstance(suggestion.notes, list)
         assert suggestion.geist_id == "hidden_hub"
 
-        # Should reference at least 4 notes (hidden hub + 3 sampled neighbors)
+        # Should reference at least 4 notes (hidden hub + 3 sampled neighbours)
         assert len(suggestion.notes) >= 4
 
         # Note references should be strings
@@ -168,8 +159,8 @@ def test_hidden_hub_suggestion_structure(vault_with_hidden_hubs):
             assert isinstance(note_ref, str)
 
 
-def test_hidden_hub_uses_obsidian_link(vault_with_hidden_hubs):
-    """Test that hidden_hub uses obsidian_link for note references.
+def test_hidden_hub_uses_link_text(vault_with_hidden_hubs):
+    """Test that hidden_hub uses link_text for note references.
 
     Setup:
         Vault with hubs.

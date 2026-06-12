@@ -8,16 +8,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import task_archaeology
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -186,8 +177,8 @@ def test_task_archaeology_suggestion_structure(vault_with_old_tasks):
             assert isinstance(note_ref, str)
 
 
-def test_task_archaeology_uses_obsidian_link(vault_with_old_tasks):
-    """Test that task_archaeology uses obsidian_link for note references.
+def test_task_archaeology_uses_link_text(vault_with_old_tasks):
+    """Test that task_archaeology uses link_text for note references.
 
     Setup:
         Vault with tasks.

@@ -51,7 +51,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=(
-                        f"[[{note.obsidian_link}]] is unusually detailed "
+                        f"[[{note.link_text}]] is unusually detailed "
                         f"({int(wc)} words vs median {int(median)}). "
                         f"Does this depth signal importance?"
                     ),
@@ -63,7 +63,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=(
-                        f"[[{note.obsidian_link}]] is unusually brief "
+                        f"[[{note.link_text}]] is unusually brief "
                         f"({int(wc)} words vs median {int(median)}). "
                         f"Does this note need development?"
                     ),
@@ -91,7 +91,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=(
-                            f"[[{note.obsidian_link}]] has exceptionally high "
+                            f"[[{note.link_text}]] has exceptionally high "
                             f"link density ({density:.2f}). "
                             f"Is this a hub or an over-connected note?"
                         ),
@@ -103,7 +103,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=(
-                            f"[[{note.obsidian_link}]] has exceptionally low "
+                            f"[[{note.link_text}]] has exceptionally low "
                             f"link density ({density:.2f}). "
                             f"Could this isolated note connect to others?"
                         ),

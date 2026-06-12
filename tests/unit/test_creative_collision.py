@@ -5,16 +5,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import creative_collision
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -165,8 +156,8 @@ def test_creative_collision_suggestion_structure(vault_with_diverse_notes):
             assert isinstance(note_ref, str)
 
 
-def test_creative_collision_uses_obsidian_link(vault_with_diverse_notes):
-    """Test that creative_collision uses obsidian_link for note references.
+def test_creative_collision_uses_link_text(vault_with_diverse_notes):
+    """Test that creative_collision uses link_text for note references.
 
     Setup:
         Vault with cross-domain notes.

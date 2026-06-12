@@ -6,7 +6,6 @@ history. It's a universal temporal pattern that works globally without
 hemisphere-specific seasonal assumptions.
 """
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -28,7 +27,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         List of suggestions highlighting notes from the same date in past years
     """
-    today = datetime.now()
+    # Session date, not wall-clock: keeps --date replays deterministic
+    today = vault.session.date
     same_date_notes = []
 
     all_notes = vault.notes()
@@ -49,10 +49,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         else:
             time_phrase = f"{years_ago} years ago today"
 
-        text = f"{time_phrase}, you wrote [[{note.obsidian_link}]]. What's changed since then?"
-        suggestions.append(
-            Suggestion(text=text, notes=[note.obsidian_link], geist_id="on_this_day")
-        )
+        text = f"{time_phrase}, you wrote [[{note.link_text}]]. What's changed since then?"
+        suggestions.append(Suggestion(text=text, notes=[note.link_text], geist_id="on_this_day"))
 
     # Sample up to 2 suggestions
     return vault.sample(suggestions, min(2, len(suggestions)))

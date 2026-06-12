@@ -9,10 +9,12 @@ import signal
 import sys
 import time
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
+from .geist_status import GeistStatusStore
 from .models import Suggestion
 from .vault_context import VaultContext
 
@@ -25,7 +27,7 @@ class GeistMetadata:
 
     id: str
     path: Path
-    func: Callable[[VaultContext], List[Suggestion]]
+    func: Callable[[VaultContext], list[Suggestion]]
     failure_count: int = 0
     is_enabled: bool = True
 
@@ -51,8 +53,8 @@ class GeistExecutionProfile:
     suggestion_count: int = 0
 
     # Optional profiling data (only collected in verbose mode)
-    function_stats: Optional[List[ProfileStats]] = None
-    stack_trace: Optional[str] = None  # Stack at timeout
+    function_stats: list[ProfileStats] | None = None
+    stack_trace: str | None = None  # Stack at timeout
 
 
 class GeistTimeoutError(Exception):
@@ -74,9 +76,10 @@ class GeistExecutor:
         geists_dir: Path,
         timeout: int = 30,
         max_failures: int = 3,
-        default_geists_dir: Optional[Path] = None,
-        enabled_defaults: Optional[Dict[str, bool]] = None,
+        default_geists_dir: Path | None = None,
+        enabled_defaults: dict[str, bool] | None = None,
         debug: bool = False,
+        status_store: GeistStatusStore | None = None,
     ):
         """Initialise geist executor.
 
@@ -94,12 +97,15 @@ class GeistExecutor:
         self.default_geists_dir = default_geists_dir
         self.enabled_defaults = enabled_defaults or {}
         self.debug = debug
-        self.geists: Dict[str, GeistMetadata] = {}
-        self.execution_log: List[Dict[str, Any]] = []
-        self.execution_profiles: List[GeistExecutionProfile] = []
-        self.newly_discovered: List[str] = []
+        # Persistent failure tracking (cross-session disable); None in tests
+        # falls back to the in-memory counter.
+        self.status_store = status_store
+        self.geists: dict[str, GeistMetadata] = {}
+        self.execution_log: list[dict[str, Any]] = []
+        self.execution_profiles: list[GeistExecutionProfile] = []
+        self.newly_discovered: list[str] = []
 
-    def load_geists(self) -> List[str]:
+    def load_geists(self) -> list[str]:
         """Discover and load all geists from the geists directories.
 
         Loads default geists first (if configured), then custom geists.
@@ -117,6 +123,17 @@ class GeistExecutor:
         # Load custom geists
         if self.geists_dir.exists():
             self._load_geists_from_directory(self.geists_dir, is_default=False)
+
+        # Seed failure counts / disabled state from persistent storage so a
+        # geist disabled in an earlier session stays disabled this session.
+        if self.status_store is not None:
+            statuses = self.status_store.load()
+            for geist_id, status in statuses.items():
+                geist = self.geists.get(geist_id)
+                if geist is not None:
+                    geist.failure_count = status.failure_count
+                    if status.disabled:
+                        geist.is_enabled = False
 
         return self.newly_discovered
 
@@ -226,7 +243,7 @@ class GeistExecutor:
         # Store geist metadata
         self.geists[geist_id] = GeistMetadata(id=geist_id, path=geist_file, func=suggest_func)
 
-    def execute_geist(self, geist_id: str, context: VaultContext) -> List[Suggestion]:
+    def execute_geist(self, geist_id: str, context: VaultContext) -> list[Suggestion]:
         """Execute a single geist with timeout and error handling.
 
         When verbose mode is enabled, collects detailed profiling information
@@ -244,10 +261,17 @@ class GeistExecutor:
 
         geist = self.geists[geist_id]
 
-        # Skip if disabled
+        # Skip if disabled (e.g. auto-disabled after repeated failures)
         if not geist.is_enabled:
             self.execution_log.append(
-                {"geist_id": geist_id, "status": "skipped", "reason": "disabled"}
+                {
+                    "geist_id": geist_id,
+                    "status": "skipped",
+                    "reason": (
+                        f"disabled after {geist.failure_count} consecutive failures - "
+                        f"run 'geistfabrik test {geist_id} <vault>' to debug and re-enable"
+                    ),
+                }
             )
             return []
 
@@ -287,17 +311,17 @@ class GeistExecutor:
                             f"expected Suggestion"
                         )
 
-                # Stop profiling
-                if profiler:
-                    try:
-                        profiler.disable()
-                    except Exception:
-                        # Profiler disable failed - ignore and continue
-                        pass
+                profile_stats = self._finalize_profiler(profiler, geist_id)
 
                 # Calculate execution time
                 end_time = time.perf_counter()
                 execution_time = end_time - start_time
+
+                # A successful run clears any accumulated consecutive-failure
+                # count (transient failures should not permanently penalise).
+                if self.status_store is not None and geist.failure_count > 0:
+                    self.status_store.record_success(geist_id)
+                    geist.failure_count = 0
 
                 # Log success
                 self.execution_log.append(
@@ -307,18 +331,6 @@ class GeistExecutor:
                         "suggestion_count": len(suggestions),
                     }
                 )
-
-                # Create execution profile
-                profile_stats = None
-                if profiler:
-                    try:
-                        profile_stats = self._extract_profile_stats(profiler)
-                    except Exception as e:
-                        # Profile extraction failed - log warning
-                        logger.warning(
-                            "Failed to extract profile stats for %s: %s",
-                            geist_id, e,
-                        )
 
                 profile = GeistExecutionProfile(
                     geist_id=geist_id,
@@ -341,25 +353,7 @@ class GeistExecutor:
                     signal.alarm(0)
 
         except GeistTimeoutError:
-            # Stop profiling
-            if profiler:
-                try:
-                    profiler.disable()
-                except Exception:
-                    # Profiler disable failed - ignore and continue
-                    pass
-
-            # Create timeout profile
-            profile_stats = None
-            if profiler:
-                try:
-                    profile_stats = self._extract_profile_stats(profiler)
-                except Exception as e:
-                    # Profile extraction failed - log warning
-                    logger.warning(
-                        "Failed to extract profile stats for %s: %s",
-                        geist_id, e,
-                    )
+            profile_stats = self._finalize_profiler(profiler, geist_id)
 
             profile = GeistExecutionProfile(
                 geist_id=geist_id,
@@ -384,13 +378,7 @@ class GeistExecutor:
             return []
 
         except Exception as e:
-            # Stop profiling
-            if profiler:
-                try:
-                    profiler.disable()
-                except Exception:
-                    # Profiler disable failed - ignore and continue
-                    pass
+            self._finalize_profiler(profiler, geist_id, extract_stats=False)
 
             # Calculate execution time
             end_time = time.perf_counter()
@@ -414,7 +402,7 @@ class GeistExecutor:
             self._handle_failure(geist_id, "exception", error_msg, traceback.format_exc())
             return []
 
-    def execute_all(self, context: VaultContext) -> Dict[str, List[Suggestion]]:
+    def execute_all(self, context: VaultContext) -> dict[str, list[Suggestion]]:
         """Execute all enabled geists in load order.
 
         Geists execute in the order they were loaded:
@@ -441,7 +429,7 @@ class GeistExecutor:
         geist_id: str,
         error_type: str,
         error_msg: str,
-        tb: Optional[str] = None,
+        tb: str | None = None,
     ) -> None:
         """Handle geist execution failure.
 
@@ -452,10 +440,19 @@ class GeistExecutor:
             tb: Optional traceback
         """
         geist = self.geists[geist_id]
-        geist.failure_count += 1
+
+        # Persist the failure (cross-session consecutive-failure count) when a
+        # store is attached; otherwise fall back to the in-memory counter.
+        if self.status_store is not None:
+            status = self.status_store.record_failure(geist_id, error_msg, self.max_failures)
+            geist.failure_count = status.failure_count
+            disabled = status.disabled
+        else:
+            geist.failure_count += 1
+            disabled = geist.failure_count >= self.max_failures
 
         # Log failure
-        log_entry: Dict[str, Any] = {
+        log_entry: dict[str, Any] = {
             "geist_id": geist_id,
             "status": "error",
             "error_type": error_type,
@@ -467,18 +464,18 @@ class GeistExecutor:
 
         self.execution_log.append(log_entry)
 
-        # Disable if too many failures
-        if geist.failure_count >= self.max_failures:
+        # Disable if too many consecutive failures
+        if disabled:
             geist.is_enabled = False
             self.execution_log.append(
                 {
                     "geist_id": geist_id,
                     "status": "disabled",
-                    "reason": f"exceeded {self.max_failures} failures",
+                    "reason": f"exceeded {self.max_failures} consecutive failures",
                 }
             )
 
-    def get_enabled_geists(self) -> List[str]:
+    def get_enabled_geists(self) -> list[str]:
         """Get list of enabled geist IDs.
 
         Returns:
@@ -486,7 +483,7 @@ class GeistExecutor:
         """
         return [gid for gid, g in self.geists.items() if g.is_enabled]
 
-    def get_execution_log(self) -> List[Dict[str, Any]]:
+    def get_execution_log(self) -> list[dict[str, Any]]:
         """Get execution log.
 
         Returns:
@@ -494,7 +491,7 @@ class GeistExecutor:
         """
         return self.execution_log.copy()
 
-    def get_execution_profiles(self) -> List[GeistExecutionProfile]:
+    def get_execution_profiles(self) -> list[GeistExecutionProfile]:
         """Get execution profiles with timing data.
 
         Only populated when debug mode is enabled.
@@ -504,7 +501,42 @@ class GeistExecutor:
         """
         return self.execution_profiles.copy()
 
-    def _extract_profile_stats(self, profiler: Optional[cProfile.Profile]) -> List[ProfileStats]:
+    def _finalize_profiler(
+        self,
+        profiler: cProfile.Profile | None,
+        geist_id: str,
+        extract_stats: bool = True,
+    ) -> list[ProfileStats] | None:
+        """Stop the profiler and (optionally) extract its stats, best-effort.
+
+        Shared teardown for the success/timeout/error paths (previously
+        copy-pasted three times). Profiler failures must never mask the
+        geist's own outcome, so everything here swallows-and-logs.
+
+        Args:
+            profiler: Active profiler, or None when not in debug mode
+            geist_id: Geist being executed (for log messages)
+            extract_stats: Whether to extract function-level stats
+
+        Returns:
+            ProfileStats list, or None if no profiler/extraction failed/skipped
+        """
+        if profiler is None:
+            return None
+        try:
+            profiler.disable()
+        except Exception:
+            # Profiler disable failed - ignore and continue
+            pass
+        if not extract_stats:
+            return None
+        try:
+            return self._extract_profile_stats(profiler)
+        except Exception as e:
+            logger.warning("Failed to extract profile stats for %s: %s", geist_id, e)
+            return None
+
+    def _extract_profile_stats(self, profiler: cProfile.Profile | None) -> list[ProfileStats]:
         """Extract function-level statistics from profiler.
 
         Args:
@@ -560,7 +592,9 @@ class GeistExecutor:
         pct = (execution_time / self.timeout) * 100
         logger.warning(
             "%s completed in %.3fs (%.0f%% of timeout)",
-            geist_id, execution_time, pct,
+            geist_id,
+            execution_time,
+            pct,
         )
         if not self.debug:
             logger.info("Run with --debug for detailed performance breakdown")
@@ -598,14 +632,19 @@ class GeistExecutor:
 
                 logger.info(
                     "  %d. %s - %.3fs (%.1f%%) - %d calls",
-                    i, name, stats.total_time, pct, stats.calls,
+                    i,
+                    name,
+                    stats.total_time,
+                    pct,
+                    stats.calls,
                 )
 
             # Show percentage accounted for
             pct_accounted = (total_accounted / self.timeout) * 100
             logger.info(
                 "Total accounted: %.3fs (%.1f%%)",
-                total_accounted, pct_accounted,
+                total_accounted,
+                pct_accounted,
             )
 
         # Generate and show smart suggestions
@@ -614,7 +653,7 @@ class GeistExecutor:
         for suggestion in suggestions:
             logger.info("  -> %s", suggestion)
 
-    def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -> List[str]:
+    def _generate_suggestions(self, geist_id: str, profile: GeistExecutionProfile) -> list[str]:
         """Generate actionable suggestions based on execution profile.
 
         Args:

@@ -4,7 +4,7 @@ Discovers semantic stepping-stone paths between unlinked notes, showing how
 ideas could connect even when direct graph paths don't exist.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Note, Suggestion, VaultContext
@@ -22,7 +22,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get unlinked pairs
-    all_pairs = vault.unlinked_pairs(k=20)
+    all_pairs = vault.unlinked_pairs(count=20)
 
     # Filter out pairs involving geist journal notes
     pairs = [
@@ -40,7 +40,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if path and len(path) > 2:
             # Found a multi-hop semantic path
-            path_str = " → ".join([f"[[{n.obsidian_link}]]" for n in path])
+            path_str = " → ".join([f"[[{n.link_text}]]" for n in path])
 
             # Calculate path strength (average similarity between consecutive notes)
             path_strength = sum(
@@ -49,20 +49,20 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if path_strength > SimilarityLevel.MODERATE:  # Strong enough path
                 text = (
-                    f"Semantic bridge from [[{note_a.obsidian_link}]] to "
-                    f"[[{note_b.obsidian_link}]]: {path_str}. No direct links exist, "
+                    f"Semantic bridge from [[{note_a.link_text}]] to "
+                    f"[[{note_b.link_text}]]: {path_str}. No direct links exist, "
                     f"but the ideas connect through these stepping stones."
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[n.obsidian_link for n in path],
+                        notes=[n.link_text for n in path],
                         geist_id="bridge_hunter",
                     )
                 )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)
 
 
 def _filter_journal_notes(
@@ -86,7 +86,7 @@ def _find_semantic_path(
     start: "Note",
     end: "Note",
     max_hops: int = 3,
-) -> Optional[List["Note"]]:
+) -> list["Note"] | None:
     """Find semantic path between two notes using greedy best-first search."""
     from geistfabrik.similarity_analysis import SimilarityLevel
 
@@ -96,7 +96,7 @@ def _find_semantic_path(
     # For 2-hop path: start -> intermediate -> end
     if max_hops == 2:
         # Find notes similar to start (get scores to avoid recomputation)
-        all_candidates_with_scores = vault.neighbours(start, k=10, return_scores=True)
+        all_candidates_with_scores = vault.neighbours(start, count=10, return_scores=True)
 
         # Filter out geist journal notes
         candidates_with_scores = _filter_journal_notes(all_candidates_with_scores)
@@ -122,8 +122,8 @@ def _find_semantic_path(
     # For 3-hop path: start -> mid1 -> mid2 -> end
     if max_hops == 3:
         # Get scores to avoid recomputing start->mid1 and end->mid2
-        all_candidates1_with_scores = vault.neighbours(start, k=10, return_scores=True)
-        all_candidates2_with_scores = vault.neighbours(end, k=10, return_scores=True)
+        all_candidates1_with_scores = vault.neighbours(start, count=10, return_scores=True)
+        all_candidates2_with_scores = vault.neighbours(end, count=10, return_scores=True)
 
         # Filter out geist journal notes
         candidates1_with_scores = _filter_journal_notes(all_candidates1_with_scores)

@@ -12,6 +12,13 @@ if TYPE_CHECKING:
 
 from geistfabrik import Suggestion
 
+# Bound on how many notes the metadata sweeps inspect. vault.metadata() runs
+# every enabled inference module per note, so an unbounded full-vault scan can
+# be expensive on large vaults or with custom metadata modules. Each pattern
+# only needs 2-3 hits, so a sampled candidate set is plenty - and because the
+# sample is date-seeded it surfaces different notes across sessions.
+MAX_CANDIDATES = 300
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find unexpected note groupings based on metadata patterns.
@@ -24,10 +31,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     suggestions = []
 
+    # Sample a bounded candidate set once and reuse it across all three
+    # patterns (also avoids three separate full-vault passes).
+    all_notes = vault.notes_excluding_journal()
+    candidates = vault.sample(all_notes, min(len(all_notes), MAX_CANDIDATES))
+
     # Pattern 1: High complexity but low connectivity (understood but not connected)
-    high_complexity_isolated = _find_complex_but_isolated(vault)
+    high_complexity_isolated = _find_complex_but_isolated(vault, candidates)
     if len(high_complexity_isolated) >= 3:
-        note_titles = [n.obsidian_link for n in high_complexity_isolated[:3]]
+        note_titles = [n.link_text for n in high_complexity_isolated[:3]]
         text = (
             "What do these have in common?\n"
             + "\n".join(f"- [[{title}]]" for title in note_titles)
@@ -45,9 +57,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         )
 
     # Pattern 2: Old notes with high lexical diversity (buried gems)
-    buried_gems = _find_buried_gems(vault)
+    buried_gems = _find_buried_gems(vault, candidates)
     if len(buried_gems) >= 2:
-        note_titles = [n.obsidian_link for n in buried_gems[:2]]
+        note_titles = [n.link_text for n in buried_gems[:2]]
         text = (
             "These notes have high lexical diversity but haven't been touched in months:\n"
             + "\n".join(f"- [[{title}]]" for title in note_titles)
@@ -64,9 +76,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         )
 
     # Pattern 3: Task-heavy but no recent updates (abandoned projects)
-    abandoned_projects = _find_abandoned_task_notes(vault)
+    abandoned_projects = _find_abandoned_task_notes(vault, candidates)
     if len(abandoned_projects) >= 2:
-        note_titles = [n.obsidian_link for n in abandoned_projects[:2]]
+        note_titles = [n.link_text for n in abandoned_projects[:2]]
         incomplete_counts = [_get_incomplete_task_count(vault, n) for n in abandoned_projects[:2]]
 
         text = (
@@ -90,12 +102,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return vault.sample(suggestions, min(2, len(suggestions)))
 
 
-def _find_complex_but_isolated(vault: "VaultContext") -> list["Note"]:
+def _find_complex_but_isolated(vault: "VaultContext", notes: list["Note"]) -> list["Note"]:
     """Find notes with high complexity but low connectivity."""
     complex_isolated = []
 
-    all_notes = vault.notes()
-    for note in all_notes:
+    for note in notes:
         metadata = vault.metadata(note)
 
         # High complexity (high lexical diversity or long reading time)
@@ -112,12 +123,11 @@ def _find_complex_but_isolated(vault: "VaultContext") -> list["Note"]:
     return complex_isolated
 
 
-def _find_buried_gems(vault: "VaultContext") -> list["Note"]:
+def _find_buried_gems(vault: "VaultContext", notes: list["Note"]) -> list["Note"]:
     """Find old notes with high lexical diversity."""
     gems = []
 
-    all_notes = vault.notes()
-    for note in all_notes:
+    for note in notes:
         metadata = vault.metadata(note)
 
         lexical_diversity = metadata.get("lexical_diversity", 0)
@@ -130,12 +140,11 @@ def _find_buried_gems(vault: "VaultContext") -> list["Note"]:
     return gems
 
 
-def _find_abandoned_task_notes(vault: "VaultContext") -> list["Note"]:
+def _find_abandoned_task_notes(vault: "VaultContext", notes: list["Note"]) -> list["Note"]:
     """Find notes with incomplete tasks that are stale."""
     abandoned = []
 
-    all_notes = vault.notes()
-    for note in all_notes:
+    for note in notes:
         metadata = vault.metadata(note)
 
         has_tasks = metadata.get("has_tasks", False)

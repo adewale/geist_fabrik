@@ -29,7 +29,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not notes:
         return []
 
-    note = vault.random_notes(k=1)[0]
+    note = vault.random_notes(count=1)[0]
     content = vault.read(note)
 
     # Extract quotes
@@ -45,21 +45,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         quote_clean = " ".join(quote.split())
 
-        text = (
-            f'From [[{note.obsidian_link}]]: "{quote_clean}" '
-            f"What if you reflected on this again?"
-        )
+        text = f'From [[{note.link_text}]]: "{quote_clean}" What if you reflected on this again?'
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.obsidian_link],
+                notes=[note.link_text],
                 geist_id="quote_harvester",
             )
         )
 
     # Sample 1-3 quotes to avoid overwhelming
-    return vault.sample(suggestions, k=min(3, len(suggestions)))
+    return vault.sample(suggestions, count=min(3, len(suggestions)))
 
 
 def extract_quotes(content: str) -> list[str]:

@@ -11,12 +11,17 @@ Each filter can be enabled/disabled via configuration.
 
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Set
+from typing import Any
+
+import numpy as np
+from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+    cosine_similarity as sklearn_cosine,
+)
 
 from .config import (
     get_default_filter_config,
 )
-from .embeddings import EmbeddingComputer, cosine_similarity
+from .embeddings import EmbeddingComputer
 from .models import Suggestion
 
 
@@ -27,7 +32,7 @@ class SuggestionFilter:
         self,
         db: sqlite3.Connection,
         embedding_computer: EmbeddingComputer,
-        config: Dict[str, Any] | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """Initialise filter with database and configuration.
 
@@ -43,7 +48,7 @@ class SuggestionFilter:
         self._recent_embeddings_cache: Any = None  # numpy array when populated
         self._cache_metadata: Any = None  # (session_date, window_days) tuple when populated
 
-    def _default_config(self) -> Dict[str, Any]:
+    def _default_config(self) -> dict[str, Any]:
         """Return default filtering configuration."""
         return get_default_filter_config()
 
@@ -90,7 +95,7 @@ class SuggestionFilter:
 
         return recent_embeddings
 
-    def filter_all(self, suggestions: List[Suggestion], session_date: datetime) -> List[Suggestion]:
+    def filter_all(self, suggestions: list[Suggestion], session_date: datetime) -> list[Suggestion]:
         """Apply all enabled filters in sequence.
 
         Args:
@@ -114,7 +119,7 @@ class SuggestionFilter:
 
         return filtered
 
-    def filter_boundary(self, suggestions: List[Suggestion]) -> List[Suggestion]:
+    def filter_boundary(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Remove suggestions referencing non-existent or excluded notes.
 
         Args:
@@ -126,32 +131,44 @@ class SuggestionFilter:
         if not self.config.get("boundary", {}).get("enabled", True):
             return suggestions
 
-        # Get all valid note paths from database
-        cursor = self.db.execute("SELECT path FROM notes")
-        valid_paths = {row[0] for row in cursor.fetchall()}
+        # Folder prefixes whose notes must never surface in suggestions
+        # (e.g. "Private/", "People/"). Spec: filtering.boundary.exclude_paths.
+        exclude_paths = tuple(self.config.get("boundary", {}).get("exclude_paths", []) or [])
 
-        # Get note titles for lookup
-        cursor = self.db.execute("SELECT title, path FROM notes")
-        title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
+        # Build the set of every valid way a suggestion may reference a note:
+        # its path, its title, and - for virtual journal entries - the
+        # "filename#heading" deeplink form produced by Note.link_text.
+        # Without the deeplink form, suggestions from journal-aware geists
+        # (on_this_day, seasonal_revisit, ...) would be silently dropped here.
+        cursor = self.db.execute("SELECT path, title, is_virtual, source_file FROM notes")
+        valid_refs: set[str] = set()
+        excluded_refs: set[str] = set()
+        for path, title, is_virtual, source_file in cursor.fetchall():
+            # A note is excluded if its real path - or, for virtual entries, the
+            # source journal file - lives under an excluded folder prefix.
+            owning_path = source_file if (is_virtual and source_file) else path
+            is_excluded = bool(exclude_paths) and owning_path.startswith(exclude_paths)
+            forms = {path, title}
+            if is_virtual and source_file:
+                forms.add(f"{source_file.replace('.md', '')}#{title}")
+            if is_excluded:
+                excluded_refs |= forms
+            else:
+                valid_refs |= forms
 
         filtered = []
         for suggestion in suggestions:
-            # Check if all referenced notes exist
-            all_exist = True
-            for note_ref in suggestion.notes:
-                # Try both as title and as path
-                if note_ref not in valid_paths and note_ref not in title_to_path:
-                    all_exist = False
-                    break
-
-            if all_exist:
+            # Keep only if every referenced note exists AND none is excluded.
+            if any(note_ref in excluded_refs for note_ref in suggestion.notes):
+                continue
+            if all(note_ref in valid_refs for note_ref in suggestion.notes):
                 filtered.append(suggestion)
 
         return filtered
 
     def filter_novelty(
-        self, suggestions: List[Suggestion], session_date: datetime
-    ) -> List[Suggestion]:
+        self, suggestions: list[Suggestion], session_date: datetime
+    ) -> list[Suggestion]:
         """Remove suggestions similar to recent history.
 
         Uses lazy caching and batch embedding computation for optimal performance.
@@ -199,25 +216,17 @@ class SuggestionFilter:
             suggestion_texts = [s.text for s in suggestions]
             suggestion_embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
-            # Filter suggestions with early stopping
-            filtered = []
-            for i, suggestion in enumerate(suggestions):
-                suggestion_embedding = suggestion_embeddings[i]
+            # One S x R similarity matrix instead of a Python double loop of
+            # per-pair cosine calls (the loop dominated --full/firehose mode);
+            # a suggestion is novel iff no recent embedding meets the threshold.
+            suggestion_matrix = np.asarray(suggestion_embeddings, dtype=np.float32)
+            recent_matrix = np.vstack(list(recent_embeddings)).astype(np.float32)
+            sim_matrix = sklearn_cosine(suggestion_matrix, recent_matrix)
+            too_similar = (sim_matrix >= threshold).any(axis=1)
 
-                # Check if too similar to any recent suggestion (early stop on first match)
-                is_novel = True
-                for recent_embedding in recent_embeddings:
-                    similarity = cosine_similarity(suggestion_embedding, recent_embedding)
-                    if similarity >= threshold:
-                        is_novel = False
-                        break
+            return [s for i, s in enumerate(suggestions) if not too_similar[i]]
 
-                if is_novel:
-                    filtered.append(suggestion)
-
-            return filtered
-
-    def filter_diversity(self, suggestions: List[Suggestion]) -> List[Suggestion]:
+    def filter_diversity(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Remove near-duplicate suggestions from current batch.
 
         Uses embeddings to detect semantic similarity. Keeps first occurrence
@@ -242,26 +251,24 @@ class SuggestionFilter:
         suggestion_texts = [s.text for s in suggestions]
         embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
-        # Keep track of which suggestions to include
-        keep = [True] * len(suggestions)
+        # One S x S similarity matrix, then the same greedy keep-first loop
+        # reading matrix cells (previously S^2/2 per-pair cosine calls - the
+        # dominant filter cost in --full mode at 50-200+ suggestions).
+        sim_matrix = sklearn_cosine(np.asarray(embeddings, dtype=np.float32))
 
-        # Compare each suggestion with all previous ones
+        keep = [True] * len(suggestions)
         for i in range(len(suggestions)):
             if not keep[i]:
                 continue
 
             for j in range(i + 1, len(suggestions)):
-                if not keep[j]:
-                    continue
-
-                similarity = cosine_similarity(embeddings[i], embeddings[j])
-                if similarity >= threshold:
+                if keep[j] and float(sim_matrix[i, j]) >= threshold:
                     # Mark later suggestion as duplicate
                     keep[j] = False
 
         return [s for i, s in enumerate(suggestions) if keep[i]]
 
-    def filter_quality(self, suggestions: List[Suggestion]) -> List[Suggestion]:
+    def filter_quality(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Apply basic quality checks.
 
         Checks:
@@ -284,7 +291,7 @@ class SuggestionFilter:
         check_repetition = quality_config.get("check_repetition", True)
 
         filtered = []
-        seen_texts: Set[str] = set()
+        seen_texts: set[str] = set()
 
         for suggestion in suggestions:
             text = suggestion.text.strip()
@@ -313,8 +320,8 @@ class SuggestionFilter:
 
 
 def select_suggestions(
-    filtered: List[Suggestion], mode: str, count: int, seed: int
-) -> List[Suggestion]:
+    filtered: list[Suggestion], mode: str, count: int, seed: int
+) -> list[Suggestion]:
     """Select final suggestions based on invocation mode.
 
     Args:

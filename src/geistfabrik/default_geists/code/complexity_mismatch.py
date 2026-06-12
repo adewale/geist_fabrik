@@ -39,14 +39,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Case 1: High importance, low complexity (underdeveloped)
         if importance > 0.1 and complexity < 1 and word_count < 100:
             text = (
-                f"What if you expanded [[{note.obsidian_link}]]? "
+                f"What if you expanded [[{note.link_text}]]? "
                 f"It's highly connected ({link_count + backlinks} links) "
                 f"but only {word_count} words. Might it deserve more depth?"
             )
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="complexity_mismatch",
                 )
             )
@@ -54,16 +54,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Case 2: Low importance, high complexity (overcomplicated)
         elif importance < 0.05 and complexity > 3 and link_count < 2:
             text = (
-                f"What if you simplified [[{note.obsidian_link}]]? "
+                f"What if you simplified [[{note.link_text}]]? "
                 f"It's {word_count} words but only {link_count} links. "
                 f"Could it be more focused or split into multiple notes?"
             )
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="complexity_mismatch",
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

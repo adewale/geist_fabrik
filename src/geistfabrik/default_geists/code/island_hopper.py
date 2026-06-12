@@ -28,7 +28,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Build simple clusters using hub notes as cluster centers
-    hubs = vault.hubs(k=5)
+    hubs = vault.hubs(count=5)
 
     for hub in hubs:
         # A cluster is the hub + notes that link to it
@@ -45,11 +45,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         candidate_notes = [note for note in all_notes if note.path not in cluster_set]
 
         if candidate_notes and cluster:
-            # Compute similarities using individual calls to benefit from cache
-            for note in candidate_notes:
-                # Calculate average similarity to cluster members
-                sims = [vault.similarity(note, cluster_member) for cluster_member in cluster]
-                avg_sim = sum(sims) / len(sims) if sims else 0
+            # Compute the candidate×cluster similarity matrix in one vectorised,
+            # cache-aware operation rather than an O(candidates×cluster) loop of
+            # individual similarity() calls (the matrix use-case batch_similarity()
+            # is designed for - see CLAUDE.md). Average each candidate's similarity
+            # across the cluster members.
+            sim_matrix = vault.batch_similarity(candidate_notes, cluster)
+            avg_sims = sim_matrix.mean(axis=1)
+            for note, avg in zip(candidate_notes, avg_sims):
+                avg_sim = float(avg)
 
                 # Close enough to bridge, not so close it should be in cluster
                 if SimilarityLevel.MODERATE < avg_sim < SimilarityLevel.HIGH:
@@ -60,17 +64,17 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             boundary_notes.sort(key=lambda x: x[1], reverse=True)
             bridge, sim = boundary_notes[0]
 
-            cluster_sample = vault.sample(cluster, k=2)
-            cluster_names = ", ".join([f"[[{n.obsidian_link}]]" for n in cluster_sample])
+            cluster_sample = vault.sample(cluster, count=2)
+            cluster_names = ", ".join([f"[[{n.link_text}]]" for n in cluster_sample])
 
             text = (
-                f"[[{bridge.obsidian_link}]] could bridge your cluster around "
-                f"[[{hub.obsidian_link}]] (which includes {cluster_names}). It's "
+                f"[[{bridge.link_text}]] could bridge your cluster around "
+                f"[[{hub.link_text}]] (which includes {cluster_names}). It's "
                 f"semantically related but not yet connected."
             )
 
-            notes_list = [bridge.obsidian_link, hub.obsidian_link]
-            notes_list.extend([n.obsidian_link for n in cluster_sample])
+            notes_list = [bridge.link_text, hub.link_text]
+            notes_list.extend([n.link_text for n in cluster_sample])
 
             suggestions.append(
                 Suggestion(
@@ -80,4 +84,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

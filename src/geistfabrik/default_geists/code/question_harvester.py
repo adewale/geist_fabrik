@@ -29,7 +29,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not notes:
         return []
 
-    note = vault.random_notes(k=1)[0]
+    note = vault.random_notes(count=1)[0]
     content = vault.read(note)
 
     # Extract questions
@@ -46,20 +46,20 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         question_clean = " ".join(question.split())
 
         text = (
-            f"From [[{note.obsidian_link}]]: \"{question_clean}\" "
+            f'From [[{note.link_text}]]: "{question_clean}" '
             f"What if you revisited this question now?"
         )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.obsidian_link],
+                notes=[note.link_text],
                 geist_id="question_harvester",
             )
         )
 
     # Sample 1-3 questions to avoid overwhelming
-    return vault.sample(suggestions, k=min(3, len(suggestions)))
+    return vault.sample(suggestions, count=min(3, len(suggestions)))
 
 
 def extract_questions(content: str) -> list[str]:
@@ -78,26 +78,18 @@ def extract_questions(content: str) -> list[str]:
         List of question strings (deduplicated, filtered)
     """
     # Strategy 1: Remove code blocks to avoid false positives
-    content_no_code = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
-    content_no_code = re.sub(r'`[^`]+`', '', content_no_code)
+    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
+    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
 
     questions = []
 
     # Strategy 2: Sentence-ending questions
     # Match text ending with '?' (handles multi-line)
-    sentence_questions = re.findall(
-        r'([^.!?\n][^.!?]*\?)',
-        content_no_code,
-        re.MULTILINE
-    )
+    sentence_questions = re.findall(r"([^.!?\n][^.!?]*\?)", content_no_code, re.MULTILINE)
 
     # Strategy 3: List item questions
     # Match Markdown list items ending with '?'
-    list_questions = re.findall(
-        r'^\s*[-*+]\s+(.+\?)\s*$',
-        content_no_code,
-        re.MULTILINE
-    )
+    list_questions = re.findall(r"^\s*[-*+]\s+(.+\?)\s*$", content_no_code, re.MULTILINE)
 
     # Combine and deduplicate
     all_questions = sentence_questions + list_questions
@@ -137,13 +129,13 @@ def is_valid_question(q: str) -> bool:
         return False
 
     # Must contain at least one letter
-    if not re.search(r'[a-zA-Z]', q):
+    if not re.search(r"[a-zA-Z]", q):
         return False
 
     # Common false positives to exclude
     false_positive_patterns = [
-        r'^#+\s*\?',  # Markdown headings that are just "?"
-        r'^\s*\?\s*$',  # Just a question mark
+        r"^#+\s*\?",  # Markdown headings that are just "?"
+        r"^\s*\?\s*$",  # Just a question mark
     ]
 
     for pattern in false_positive_patterns:

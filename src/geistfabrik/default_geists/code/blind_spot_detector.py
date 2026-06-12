@@ -26,7 +26,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get recent notes to understand current focus
-    recent = vault.recent_notes(k=5)
+    # recent_notes() includes geist-journal output; session notes are not
+    # "current focus", so drop them before analysing.
+    recent = [n for n in vault.recent_notes(count=10) if not n.path.startswith("geist journal/")][
+        :5
+    ]
     if len(recent) < 2:
         return []
 
@@ -40,9 +44,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Check if contrarian notes are sparse or old
         for contrarian_title in contrarian_titles[:1]:  # Take the most contrarian
-            # Resolve title back to Note object
-            contrarian = vault.get_note(contrarian_title)
-            if contrarian is None:
+            # contrarian_to returns bracketed links ("[[Title]]"); strip the
+            # brackets and resolve by title/path. (Passing the bracketed
+            # string to get_note() - an exact-path lookup - always returned
+            # None, which left this geist permanently inert.)
+            contrarian = vault.resolve_link_target(contrarian_title.strip("[]"))
+            if contrarian is None or contrarian.path.startswith("geist journal/"):
                 continue
 
             metadata = vault.metadata(contrarian)
@@ -54,8 +61,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if days_old > 180 or backlink_count == 0:
                 # This is a potential blind spot
                 text = (
-                    f"You've been writing about [[{note.obsidian_link}]] lately. "
-                    f"[[{contrarian.obsidian_link}]] seems like the opposite perspective, "
+                    f"You've been writing about [[{note.link_text}]] lately. "
+                    f"[[{contrarian.link_text}]] seems like the opposite perspective, "
                     f"but it's been {days_old} days since you touched it. "
                     f"What perspectives are you missing?"
                 )
@@ -63,7 +70,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[note.obsidian_link, contrarian.obsidian_link],
+                        notes=[note.link_text, contrarian.link_text],
                         geist_id="blind_spot_detector",
                     )
                 )

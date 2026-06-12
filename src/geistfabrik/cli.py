@@ -6,8 +6,8 @@ package.
 """
 
 import argparse
+import logging
 import sys
-from typing import Type
 
 from .commands import (
     BaseCommand,
@@ -99,7 +99,8 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     invoke_parser.add_argument(
         "vault",
         type=str,
-        help="Path to Obsidian vault",
+        nargs="?",
+        help="Path to Obsidian vault (optional, auto-detects from current directory)",
     )
     invoke_parser.add_argument(
         "--geist",
@@ -119,8 +120,8 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     invoke_parser.add_argument(
         "--timeout",
         type=int,
-        default=30,
-        help="Geist execution timeout in seconds (default: 30)",
+        default=None,
+        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
     )
     invoke_parser.add_argument(
         "--full",
@@ -136,8 +137,8 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     invoke_parser.add_argument(
         "--count",
         type=int,
-        default=5,
-        help="Number of suggestions to select in default mode (default: 5)",
+        default=None,
+        help="Suggestions in default mode (default: config session.default_suggestions, 5)",
     )
     invoke_parser.add_argument(
         "--write",
@@ -198,8 +199,8 @@ def _add_test_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
     test_parser.add_argument(
         "--timeout",
         type=int,
-        default=30,
-        help="Geist execution timeout in seconds (default: 30)",
+        default=None,
+        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
     )
     test_parser.add_argument(
         "--verbose",
@@ -232,8 +233,8 @@ def _add_test_all_parser(subparsers: argparse._SubParsersAction) -> None:  # typ
     test_all_parser.add_argument(
         "--timeout",
         type=int,
-        default=30,
-        help="Geist execution timeout in seconds (default: 30)",
+        default=None,
+        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
     )
     test_all_parser.add_argument(
         "--verbose",
@@ -317,7 +318,7 @@ def _add_validate_parser(subparsers: argparse._SubParsersAction) -> None:  # typ
 
 # Command registry mapping command names to their classes
 # Using a concrete type for each command to avoid abstract instantiation issues
-COMMANDS: dict[str, Type[BaseCommand]] = {
+COMMANDS: dict[str, type[BaseCommand]] = {
     "init": InitCommand,
     "invoke": InvokeCommand,
     "test": TestCommand,
@@ -325,6 +326,26 @@ COMMANDS: dict[str, Type[BaseCommand]] = {
     "stats": StatsCommand,
     "validate": ValidateCommand,
 }
+
+
+def _configure_logging(args: argparse.Namespace) -> None:
+    """Map CLI verbosity flags to the root logging level.
+
+    The library itself never configures logging (it only ever gets a logger
+    and emits). Without this, Python's last-resort handler swallows everything
+    below WARNING - so the --debug per-geist timing diagnostics and --verbose
+    progress (all emitted via logger.info/debug) would be invisible, which is
+    exactly the bug this fixes.
+    """
+    if getattr(args, "debug", False):
+        level = logging.DEBUG
+    elif getattr(args, "verbose", False):
+        level = logging.INFO
+    elif getattr(args, "quiet", False):
+        level = logging.ERROR
+    else:
+        level = logging.WARNING
+    logging.basicConfig(level=level, format="%(levelname)s %(name)s: %(message)s")
 
 
 def main() -> int:
@@ -340,6 +361,9 @@ def main() -> int:
     if not args.command:
         parser.print_help()
         return 1
+
+    # Route logger output to the console at the requested verbosity.
+    _configure_logging(args)
 
     # Get command class from registry
     command_class = COMMANDS.get(args.command)

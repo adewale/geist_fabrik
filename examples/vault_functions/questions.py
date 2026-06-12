@@ -4,7 +4,7 @@ These functions help find notes that are questions or that might benefit
 from being framed as questions.
 """
 
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from geistfabrik import Note, VaultContext
@@ -13,7 +13,7 @@ from geistfabrik import vault_function
 
 
 @vault_function("find_questions")
-def find_question_notes(vault: "VaultContext", k: int = 5) -> List["Note"]:
+def find_question_notes(vault: "VaultContext", k: int = 5) -> list["Note"]:
     """Find notes that are phrased as questions.
 
     Args:
@@ -30,7 +30,7 @@ def find_question_notes(vault: "VaultContext", k: int = 5) -> List["Note"]:
 @vault_function("notes_with_metadata")
 def notes_with_metadata(
     vault: "VaultContext", key: str, value: Any = None, k: int = 10
-) -> List["Note"]:
+) -> list["Note"]:
     """Find notes with specific metadata key/value.
 
     Args:

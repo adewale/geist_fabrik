@@ -58,7 +58,7 @@ class TestHubsOptimization:
 
     def test_hubs_returns_most_linked_notes(self, context_with_hubs: VaultContext):
         """Test that hubs() returns notes with most incoming links."""
-        hubs = context_with_hubs.hubs(k=3)
+        hubs = context_with_hubs.hubs(count=3)
 
         assert isinstance(hubs, list)
         assert len(hubs) <= 3
@@ -74,9 +74,9 @@ class TestHubsOptimization:
 
     def test_hubs_respects_k_parameter(self, context_with_hubs: VaultContext):
         """Test that hubs() respects the k parameter."""
-        hubs_k1 = context_with_hubs.hubs(k=1)
-        hubs_k3 = context_with_hubs.hubs(k=3)
-        hubs_k10 = context_with_hubs.hubs(k=10)
+        hubs_k1 = context_with_hubs.hubs(count=1)
+        hubs_k3 = context_with_hubs.hubs(count=3)
+        hubs_k10 = context_with_hubs.hubs(count=10)
 
         assert len(hubs_k1) <= 1
         assert len(hubs_k3) <= 3
@@ -91,7 +91,7 @@ class TestHubsOptimization:
         # Links can be: "hub", "hub.md", or match by title
         # The JOIN should handle all these cases
 
-        hubs = context_with_hubs.hubs(k=5)
+        hubs = context_with_hubs.hubs(count=5)
 
         # Find the hub note
         hub_note = next((h for h in hubs if h.title == "Hub"), None)
@@ -99,7 +99,7 @@ class TestHubsOptimization:
 
     def test_hubs_sorted_by_link_count(self, context_with_hubs: VaultContext):
         """Test that hubs are sorted by link count descending."""
-        hubs = context_with_hubs.hubs(k=10)
+        hubs = context_with_hubs.hubs(count=10)
 
         # Verify ordering by checking backlinks
         for i in range(len(hubs) - 1):
@@ -116,7 +116,7 @@ class TestHubsOptimization:
         """Test that hubs() uses batch loading (OP-6) internally."""
         # This is implicit in the implementation, but we can verify
         # that it returns valid Note objects efficiently
-        hubs = context_with_hubs.hubs(k=3)
+        hubs = context_with_hubs.hubs(count=3)
 
         # All returned notes should be fully loaded with links and tags
         for hub in hubs:
@@ -132,7 +132,7 @@ class TestHubsCorrectness:
 
     def test_hubs_returns_correct_notes(self, context_with_hubs: VaultContext):
         """Test that hubs() returns exactly the notes we expect."""
-        hubs = context_with_hubs.hubs(k=5)
+        hubs = context_with_hubs.hubs(count=5)
 
         # Manually verify by checking backlinks
         all_notes = context_with_hubs.vault.all_notes()
@@ -167,7 +167,7 @@ class TestHubsCorrectness:
         session.compute_embeddings(notes)
         context = VaultContext(vault, session)
 
-        hubs = context.hubs(k=5)
+        hubs = context.hubs(count=5)
 
         # Should return empty list (no notes have incoming links)
         assert hubs == []
@@ -192,7 +192,7 @@ class TestHubsCorrectness:
         session.compute_embeddings(notes)
         context = VaultContext(vault, session)
 
-        hubs = context.hubs(k=5)
+        hubs = context.hubs(count=5)
 
         # self_linker should be the top hub (3 incoming links)
         assert len(hubs) > 0
@@ -220,7 +220,7 @@ class TestHubsEdgeCases:
         session.compute_embeddings(notes)
         context = VaultContext(vault, session)
 
-        hubs = context.hubs(k=5)
+        hubs = context.hubs(count=5)
 
         # Target should have link count of 1 (unique source), not 3
         target_hub = next((h for h in hubs if h.title == "Target"), None)
@@ -246,7 +246,7 @@ class TestHubsEdgeCases:
         context = VaultContext(vault, session)
 
         # Request more hubs than exist
-        hubs = context.hubs(k=100)
+        hubs = context.hubs(count=100)
 
         # Should return only available hubs
         assert len(hubs) <= 2
@@ -268,7 +268,7 @@ class TestHubsPerformanceBenchmark:
 
         for _ in range(trials):
             start = time.perf_counter()
-            _ = context_with_hubs.hubs(k=5)
+            _ = context_with_hubs.hubs(count=5)
             times.append(time.perf_counter() - start)
 
         avg_time = sum(times) / trials

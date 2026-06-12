@@ -4,21 +4,12 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from geistfabrik.embeddings import EmbeddingComputer, Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
+from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 def create_mock_embedding_computer(num_notes: int) -> EmbeddingComputer:

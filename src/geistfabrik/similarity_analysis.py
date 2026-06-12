@@ -5,7 +5,7 @@ filtering for note similarity operations. Replaces ad-hoc magic numbers
 (0.6, 0.5, 0.7) with named constants and reusable patterns.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -46,9 +46,7 @@ class SimilarityProfile:
         ...     print(f"{note.title} is a semantic hub")
     """
 
-    def __init__(
-        self, vault: "VaultContext", note: "Note", candidates: Optional[List["Note"]] = None
-    ):
+    def __init__(self, vault: "VaultContext", note: "Note", candidates: list["Note"] | None = None):
         """Initialize similarity profile for a note against candidates.
 
         Args:
@@ -59,9 +57,9 @@ class SimilarityProfile:
         self.vault = vault
         self.note = note
         self.candidates = candidates if candidates is not None else vault.notes()
-        self._similarities_cache: Optional[List[float]] = None
+        self._similarities_cache: list[float] | None = None
 
-    def _get_similarities(self) -> List[float]:
+    def _get_similarities(self) -> list[float]:
         """Compute similarities to all candidates (cached).
 
         Returns:
@@ -116,14 +114,14 @@ class SimilarityProfile:
         return float(np.percentile(similarities, p))
 
     def is_hub(self, threshold: float = SimilarityLevel.HIGH, min_count: int = 10) -> bool:
-        """Check if note has many high-similarity neighbors (hub pattern).
+        """Check if note has many high-similarity neighbours (hub pattern).
 
         A hub is a note that is highly similar to many other notes, indicating
         it's a central concept or synthesizer in the vault.
 
         Args:
-            threshold: Minimum similarity to be considered a neighbor
-            min_count: Minimum number of high-similarity neighbors to be a hub
+            threshold: Minimum similarity to be considered a neighbour
+            min_count: Minimum number of high-similarity neighbours to be a hub
 
         Returns:
             True if note is a hub
@@ -159,15 +157,15 @@ class SimilarityProfile:
             return False  # Need at least 2 candidates to bridge
 
         if unlinked_only:
-            # Check if any pair of high-sim candidates are unlinked
+            # Check if any pair of high-sim candidates are unlinked, using
+            # the canonical link-target resolution (path/path-no-ext/title).
             for i, note_a in enumerate(high_sim_candidates):
+                a_forms = note_a.link_target_forms()
+                a_targets = {link.target for link in note_a.links}
                 for note_b in high_sim_candidates[i + 1 :]:
-                    # Check if note_a and note_b are linked
-                    a_links = {link.target for link in note_a.links}
-                    b_links = {link.target for link in note_b.links}
-
-                    # Not linked if neither links to the other
-                    if note_b.title not in a_links and note_a.title not in b_links:
+                    b_linked = any(t in note_b.link_target_forms() for t in a_targets)
+                    a_linked = any(link.target in a_forms for link in note_b.links)
+                    if not b_linked and not a_linked:
                         return True  # Found unlinked pair
             return False
         else:
@@ -199,10 +197,10 @@ class SimilarityFilter:
     def filter_by_range(
         self,
         source: "Note",
-        candidates: List["Note"],
+        candidates: list["Note"],
         min_sim: float,
         max_sim: float,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Filter candidates by similarity range to source.
 
         Args:
@@ -225,10 +223,10 @@ class SimilarityFilter:
 
     def filter_similar_to_any(
         self,
-        anchors: List["Note"],
-        candidates: List["Note"],
+        anchors: list["Note"],
+        candidates: list["Note"],
         threshold: float = SimilarityLevel.MODERATE,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find candidates similar to ANY anchor (union).
 
         Returns candidates that are similar to at least one anchor note.
@@ -258,10 +256,10 @@ class SimilarityFilter:
 
     def filter_similar_to_all(
         self,
-        anchors: List["Note"],
-        candidates: List["Note"],
+        anchors: list["Note"],
+        candidates: list["Note"],
         threshold: float = SimilarityLevel.MODERATE,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find candidates similar to ALL anchors (intersection).
 
         Returns candidates that are similar to every anchor note. Useful for
@@ -299,10 +297,10 @@ class SimilarityFilter:
 
     def filter_dissimilar_to_all(
         self,
-        anchors: List["Note"],
-        candidates: List["Note"],
+        anchors: list["Note"],
+        candidates: list["Note"],
         max_sim: float = SimilarityLevel.WEAK,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find candidates dissimilar to ALL anchors.
 
         Returns candidates that are dissimilar to every anchor note. Useful

@@ -2,14 +2,15 @@
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 # Schema version for migrations
 # Version 3: Removed unused `suggestions` and `suggestion_notes` tables
 # Version 4: Added support for date-collection notes (virtual entries)
 # Version 5: Added embedding_metrics table for stats command caching
 # Version 6: Added composite index for orphans query performance
-SCHEMA_VERSION = 6
+# Version 7: Added session_embeddings.cluster_label (per-session cluster assignments)
+# Version 8: Added geist_status table (persistent per-geist failure tracking)
+SCHEMA_VERSION = 8
 
 SCHEMA_SQL = """
 -- Notes table
@@ -74,10 +75,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
 
 -- Session embeddings table (temporal embeddings)
+-- cluster_label records which semantic cluster the note belonged to in that
+-- session (written when clusters are computed; NULL for noise/unclustered).
+-- It is what lets cluster_evolution_tracker compare assignments across time.
 CREATE TABLE IF NOT EXISTS session_embeddings (
     session_id INTEGER NOT NULL,
     note_path TEXT NOT NULL,
     embedding BLOB NOT NULL,
+    cluster_label TEXT,
     FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
     FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE,
     PRIMARY KEY (session_id, note_path)
@@ -114,10 +119,22 @@ CREATE TABLE IF NOT EXISTS embedding_metrics (
     computed_at TEXT NOT NULL,
     FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
 );
+
+-- Geist status: persistent per-geist failure tracking. A geist is disabled
+-- after N consecutive failures (threshold from config); a successful run
+-- resets the count. State persists across sessions because the executor is
+-- rebuilt every command (an in-memory counter could never reach the cap).
+CREATE TABLE IF NOT EXISTS geist_status (
+    geist_id TEXT PRIMARY KEY,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    disabled INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    updated TEXT
+);
 """
 
 
-def init_db(db_path: Optional[Path] = None) -> sqlite3.Connection:
+def init_db(db_path: Path | None = None) -> sqlite3.Connection:
     """Initialise database with schema.
 
     Args:
@@ -223,4 +240,39 @@ def migrate_schema(conn: sqlite3.Connection) -> None:
 
         # Update version
         conn.execute("PRAGMA user_version = 6")
+        conn.commit()
+
+    # Migration from version 6 to 7: Add cluster_label to session_embeddings.
+    # Fixes cluster_evolution_tracker, which reads this column but the column
+    # was never created (the query raised OperationalError on every run).
+    if current_version < 7:
+        # Check table exists first (defensive: partial schemas in tests)
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='session_embeddings'"
+        )
+        if cursor.fetchone() is not None:
+            cursor = conn.execute("PRAGMA table_info(session_embeddings)")
+            columns = {row[1] for row in cursor.fetchall()}
+
+            if "cluster_label" not in columns:
+                conn.execute("ALTER TABLE session_embeddings ADD COLUMN cluster_label TEXT")
+
+        # Update version
+        conn.execute("PRAGMA user_version = 7")
+        conn.commit()
+
+    # Migration from version 7 to 8: Add geist_status table (persistent
+    # per-geist failure tracking). The in-memory counter could never reach the
+    # disable threshold; this is the store the spec always intended.
+    if current_version < 8:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS geist_status (
+                geist_id TEXT PRIMARY KEY,
+                failure_count INTEGER NOT NULL DEFAULT 0,
+                disabled INTEGER NOT NULL DEFAULT 0,
+                last_error TEXT,
+                updated TEXT
+            )
+        """)
+        conn.execute("PRAGMA user_version = 8")
         conn.commit()

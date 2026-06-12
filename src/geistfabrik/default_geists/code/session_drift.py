@@ -43,9 +43,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         previous_emb = snapshots[-2][1]
 
         similarity = float(
-            sklearn_cosine(current_emb.reshape(1, -1), previous_emb.reshape(1, -1))[
-                0, 0
-            ]
+            sklearn_cosine(current_emb.reshape(1, -1), previous_emb.reshape(1, -1))[0, 0]
         )
         drift = 1.0 - similarity
 
@@ -58,23 +56,23 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if days_since_modified > 30:  # Content hasn't changed recently
                 text = (
-                    f"Your understanding of [[{note.obsidian_link}]] shifted significantly "
+                    f"Your understanding of [[{note.link_text}]] shifted significantly "
                     f"between last session and this one, even though you haven't "
                     f"edited it in {days_since_modified} days. "
                     f"What changed in how you're reading it?"
                 )
             else:
                 text = (
-                    f"[[{note.obsidian_link}]] is being interpreted quite differently "
+                    f"[[{note.link_text}]] is being interpreted quite differently "
                     f"in this session—meaning evolving as you edit it?"
                 )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="session_drift",
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

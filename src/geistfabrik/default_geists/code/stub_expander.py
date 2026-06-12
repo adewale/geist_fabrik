@@ -34,7 +34,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             total_links = link_count + backlink_count
 
             text = (
-                f"What if you expanded [[{note.obsidian_link}]]? "
+                f"What if you expanded [[{note.link_text}]]? "
                 f"It's only {word_count} words but has {total_links} connections. "
                 f"This stub might be worth developing."
             )
@@ -42,9 +42,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="stub_expander",
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

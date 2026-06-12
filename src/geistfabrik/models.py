@@ -4,6 +4,28 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 
+def link_target_forms(path: str, title: str) -> frozenset[str]:
+    """The canonical set of [[link]] target strings that resolve to a note.
+
+    A wikilink reaches a note if its target equals the note's path
+    ("dir/note.md"), the path without extension ("dir/note"), or the note's
+    title. This is THE single definition of "does this link point here" -
+    links_between(), backlinks(), orphans(), and the graph/similarity
+    analyses must all use it (or mirror it exactly in SQL). Historically each
+    had its own variant (one matched titles only), so backlink/bridge
+    detection disagreed between code paths.
+
+    Args:
+        path: Note path relative to the vault root
+        title: Note title
+
+    Returns:
+        Frozenset of target strings that resolve to the note
+    """
+    path_without_ext = path.rsplit(".", 1)[0] if "." in path else path
+    return frozenset((path, path_without_ext, title))
+
+
 @dataclass(frozen=True)
 class Link:
     """A link from one note to another."""
@@ -54,15 +76,22 @@ class Note:
             return NotImplemented
         return self.path == other.path
 
+    def link_target_forms(self) -> frozenset[str]:
+        """Canonical [[link]] target strings that resolve to this note.
+
+        See the module-level link_target_forms() for the definition.
+        """
+        return link_target_forms(self.path, self.title)
+
     @property
-    def obsidian_link(self) -> str:
+    def link_text(self) -> str:
         """Return the link text for this note (WITHOUT [[...]] brackets).
 
         Returns the text that should be placed inside Obsidian wikilink brackets.
         For regular notes, this is the title. For virtual notes (journal entries),
         this is a deeplink in the format "filename#heading".
 
-        This allows geists to use note.obsidian_link without needing to know
+        This allows geists to use note.link_text without needing to know
         whether the note is virtual or not.
 
         Examples:
@@ -70,8 +99,9 @@ class Note:
             Virtual note: "Journal#2025-01-15" (use as [[Journal#2025-01-15]])
 
         Note:
-            The property name "obsidian_link" is a misnomer - it returns link TEXT,
-            not a complete link with brackets. Templates/code must add [[...]] brackets.
+            This is link TEXT, not a complete link - templates/code must add
+            the [[...]] brackets. (Formerly named "obsidian_link", which wrongly
+            implied it already included brackets.)
         """
         if self.is_virtual and self.source_file:
             # For virtual notes, create deeplink: "filename#heading"

@@ -8,16 +8,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import temporal_mirror
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -132,8 +123,8 @@ def test_temporal_mirror_suggestion_structure(vault_with_temporal_notes):
             assert isinstance(note_ref, str)
 
 
-def test_temporal_mirror_uses_obsidian_link(vault_with_temporal_notes):
-    """Test that temporal_mirror uses obsidian_link for note references.
+def test_temporal_mirror_uses_link_text(vault_with_temporal_notes):
+    """Test that temporal_mirror uses link_text for note references.
 
     Setup:
         Vault with temporal patterns.

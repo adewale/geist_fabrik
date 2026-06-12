@@ -66,7 +66,7 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbours = context_with_embeddings.neighbours(note, k=3, return_scores=False)
+        neighbours = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Should return list of Note objects
         assert isinstance(neighbours, list)
@@ -81,15 +81,17 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbors_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Should return list of tuples
-        assert isinstance(neighbors_with_scores, list)
-        assert all(isinstance(item, tuple) for item in neighbors_with_scores)
-        assert all(len(item) == 2 for item in neighbors_with_scores)
+        assert isinstance(neighbours_with_scores, list)
+        assert all(isinstance(item, tuple) for item in neighbours_with_scores)
+        assert all(len(item) == 2 for item in neighbours_with_scores)
 
         # Each tuple should be (Note, float)
-        for note_obj, score in neighbors_with_scores:
+        for note_obj, score in neighbours_with_scores:
             assert isinstance(note_obj, Note)
             assert isinstance(score, float)
             assert 0.0 <= score <= 1.0  # Cosine similarity range
@@ -100,7 +102,7 @@ class TestReturnScoresParameter:
         assert note is not None
 
         # Call without specifying return_scores
-        neighbours = context_with_embeddings.neighbours(note, k=3)
+        neighbours = context_with_embeddings.neighbours(note, count=3)
 
         # Should return list of Note objects (not tuples)
         assert isinstance(neighbours, list)
@@ -113,10 +115,12 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbors_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Verify scores match vault.similarity()
-        for neighbour, returned_score in neighbors_with_scores:
+        for neighbour, returned_score in neighbours_with_scores:
             computed_score = context_with_embeddings.similarity(note, neighbour)
 
             # Scores should match (within floating point tolerance)
@@ -129,10 +133,12 @@ class TestReturnScoresParameter:
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        neighbors_with_scores = context_with_embeddings.neighbours(note, k=4, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=4, return_scores=True
+        )
 
         # Extract scores
-        scores = [score for _, score in neighbors_with_scores]
+        scores = [score for _, score in neighbours_with_scores]
 
         # Should be sorted descending
         assert scores == sorted(scores, reverse=True)
@@ -145,17 +151,19 @@ class TestReturnScoresParameter:
         assert note is not None
 
         # Get neighbours without scores
-        neighbours = context_with_embeddings.neighbours(note, k=3, return_scores=False)
+        neighbours = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Get neighbours with scores
-        neighbors_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Extract notes from tuples
-        neighbors_from_tuples = [n for n, _ in neighbors_with_scores]
+        neighbours_from_tuples = [n for n, _ in neighbours_with_scores]
 
         # Should be the same notes in the same order
-        assert len(neighbours) == len(neighbors_from_tuples)
-        for i, (n1, n2) in enumerate(zip(neighbours, neighbors_from_tuples)):
+        assert len(neighbours) == len(neighbours_from_tuples)
+        for i, (n1, n2) in enumerate(zip(neighbours, neighbours_from_tuples)):
             assert n1.path == n2.path, f"Note {i} differs: {n1.path} vs {n2.path}"
 
 
@@ -168,16 +176,16 @@ class TestReturnScoresCaching:
         assert note is not None
 
         # Call with return_scores=False
-        neighbors1 = context_with_embeddings.neighbours(note, k=3, return_scores=False)
+        neighbours1 = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Call with return_scores=True
-        neighbors2 = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours2 = context_with_embeddings.neighbours(note, count=3, return_scores=True)
 
         # Both should be cached independently
-        assert isinstance(neighbors1, list)
-        assert isinstance(neighbors2, list)
-        assert all(isinstance(n, Note) for n in neighbors1)
-        assert all(isinstance(item, tuple) for item in neighbors2)
+        assert isinstance(neighbours1, list)
+        assert isinstance(neighbours2, list)
+        assert all(isinstance(n, Note) for n in neighbours1)
+        assert all(isinstance(item, tuple) for item in neighbours2)
 
         # Verify cache contains both
         cache_key_false = (note.path, 3, False)
@@ -254,11 +262,13 @@ class TestReturnScoresPerformance:
         context_with_embeddings._similarity_cache.clear()
 
         # Get neighbours with scores
-        neighbors_with_scores = context_with_embeddings.neighbours(note, k=3, return_scores=True)
+        neighbours_with_scores = context_with_embeddings.neighbours(
+            note, count=3, return_scores=True
+        )
 
         # Extract neighbours and scores
-        neighbours = [n for n, _ in neighbors_with_scores]
-        scores_from_neighbours = {n.path: s for n, s in neighbors_with_scores}
+        neighbours = [n for n, _ in neighbours_with_scores]
+        scores_from_neighbours = {n.path: s for n, s in neighbours_with_scores}
 
         # Count similarity cache entries BEFORE calling similarity()
         cache_before = len(context_with_embeddings._similarity_cache)
@@ -300,7 +310,7 @@ class TestReturnScoresBenchmark:
             context_with_embeddings._similarity_cache.clear()
 
             start = time.perf_counter()
-            neighbours = context_with_embeddings.neighbours(note, k=5, return_scores=False)
+            neighbours = context_with_embeddings.neighbours(note, count=5, return_scores=False)
             _ = [context_with_embeddings.similarity(note, n) for n in neighbours]
             times_without_return_scores.append(time.perf_counter() - start)
 
@@ -312,7 +322,7 @@ class TestReturnScoresBenchmark:
             context_with_embeddings._similarity_cache.clear()
 
             start = time.perf_counter()
-            _ = context_with_embeddings.neighbours(note, k=5, return_scores=True)
+            _ = context_with_embeddings.neighbours(note, count=5, return_scores=True)
             times_with_return_scores.append(time.perf_counter() - start)
 
         avg_without = sum(times_without_return_scores) / trials

@@ -34,7 +34,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not notes:
         return []
 
-    note = vault.random_notes(k=1)[0]
+    note = vault.random_notes(count=1)[0]
     content = vault.read(note)
 
     # Create extraction pipeline
@@ -66,17 +66,17 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         definition_clean = " ".join(definition.split())
 
         text = (
-            f"From [[{note.obsidian_link}]]: \"{definition_clean}\" "
+            f'From [[{note.link_text}]]: "{definition_clean}" '
             f"What if you explored this definition further?"
         )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.obsidian_link],
+                notes=[note.link_text],
                 geist_id="definition_harvester",
             )
         )
 
     # Sample 1-3 definitions to avoid overwhelming
-    return vault.sample(suggestions, k=min(3, len(suggestions)))
+    return vault.sample(suggestions, count=min(3, len(suggestions)))

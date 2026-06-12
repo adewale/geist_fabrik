@@ -9,10 +9,9 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
-import pytest
 
 from geistfabrik.embeddings import EmbeddingComputer, Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
+from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
@@ -21,14 +20,6 @@ from geistfabrik.vault_context import VaultContext
 GEISTS_DIR = (
     Path(__file__).parent.parent.parent / "src" / "geistfabrik" / "default_geists" / "tracery"
 )
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 def create_mock_embedding_computer(num_notes: int) -> EmbeddingComputer:
@@ -625,7 +616,7 @@ class TestSemanticNeighbours:
             text = suggestion.text
 
             # Find all properly formatted wikilinks
-            wikilinks = re.findall(r'\[\[([^\]]+)\]\]', text)
+            wikilinks = re.findall(r"\[\[([^\]]+)\]\]", text)
 
             # Should have at least seed + 1 neighbour
             assert len(wikilinks) >= 2, f"Expected >= 2 wikilinks, got {len(wikilinks)} in: {text}"
@@ -633,13 +624,14 @@ class TestSemanticNeighbours:
             # Check for orphaned note references (note titles without brackets)
             # Pattern matches "Word#YYYY Month Day" or "Word Word#YYYY Month Day"
             # that are NOT inside [[ ]]
-            orphaned = re.findall(r'(?<!\[)\b([\w\s]+#\d{4}[^,.\]]*?)(?=[\s,.]|$)', text)
+            orphaned = re.findall(r"(?<!\[)\b([\w\s]+#\d{4}[^,.\]]*?)(?=[\s,.]|$)", text)
 
             # Filter out false positives (things already in brackets)
-            actual_orphaned = [o for o in orphaned if o not in ' '.join(wikilinks)]
+            actual_orphaned = [o for o in orphaned if o not in " ".join(wikilinks)]
 
-            assert len(actual_orphaned) == 0, \
+            assert len(actual_orphaned) == 0, (
                 f"Found unbracketed note references: {actual_orphaned} in '{text}'"
+            )
 
     def test_semantic_neighbours_consistent_formatting(self, tmp_path: Path):
         """Regression test: Seed and neighbours should have consistent formatting."""
@@ -655,14 +647,15 @@ class TestSemanticNeighbours:
             text = suggestion.text
 
             # All wikilinks should be properly closed
-            open_brackets = text.count('[[')
-            close_brackets = text.count(']]')
-            assert open_brackets == close_brackets, \
+            open_brackets = text.count("[[")
+            close_brackets = text.count("]]")
+            assert open_brackets == close_brackets, (
                 f"Mismatched brackets: {open_brackets} [[ vs {close_brackets} ]] in '{text}'"
+            )
 
             # Should not have partial brackets like "[[Note" or "Note]]"
-            assert not re.search(r'\[\[[^\]]*$', text), "Found unclosed [["
-            assert not re.search(r'^[^\[]*\]\]', text), "Found unmatched ]]"
+            assert not re.search(r"\[\[[^\]]*$", text), "Found unclosed [["
+            assert not re.search(r"^[^\[]*\]\]", text), "Found unmatched ]]"
 
     def test_semantic_neighbours_structure_matches_pattern(self, tmp_path: Path):
         """Regression test: Output should match expected structure."""
@@ -678,15 +671,15 @@ class TestSemanticNeighbours:
             text = suggestion.text
 
             # Extract all wikilinks
-            wikilinks = re.findall(r'\[\[([^\]]+)\]\]', text)
+            wikilinks = re.findall(r"\[\[([^\]]+)\]\]", text)
 
             # Verify structure: should have seed (first mention) + neighbours
-            assert len(wikilinks) >= 2, \
+            assert len(wikilinks) >= 2, (
                 f"Expected seed + neighbours (>=2 links), got {len(wikilinks)}"
+            )
 
             # All wikilinks should be non-empty
-            assert all(link.strip() for link in wikilinks), \
-                f"Found empty wikilink in: {text}"
+            assert all(link.strip() for link in wikilinks), f"Found empty wikilink in: {text}"
 
 
 # ============================================================================
@@ -917,13 +910,13 @@ def test_all_tracery_geists_have_consistent_wikilink_formatting(tmp_path: Path):
     # Maps geist_id -> minimum expected wikilinks (for geists that ALWAYS reference notes)
     # Geists with variable templates (like what_if) are checked differently
     always_has_notes = {
-        "orphan_connector": 1,      # Always references [[orphan]]
-        "hub_explorer": 1,          # Always references [[hub]]
-        "note_combinations": 2,     # Always references [[note1]] and [[note2]]
-        "contradictor": 1,          # Always references [[note]]
-        "perspective_shifter": 1,   # Always references [[note]]
+        "orphan_connector": 1,  # Always references [[orphan]]
+        "hub_explorer": 1,  # Always references [[hub]]
+        "note_combinations": 2,  # Always references [[note1]] and [[note2]]
+        "contradictor": 1,  # Always references [[note]]
+        "perspective_shifter": 1,  # Always references [[note]]
         "transformation_suggester": 1,  # Always references [[note]]
-        "semantic_neighbours": 2,   # Always references [[seed]] + [[neighbours]]
+        "semantic_neighbours": 2,  # Always references [[seed]] + [[neighbours]]
     }
 
     # Geists that SOMETIMES reference notes (variable templates)
@@ -945,7 +938,7 @@ def test_all_tracery_geists_have_consistent_wikilink_formatting(tmp_path: Path):
             text = suggestion.text
 
             # 1. Find all properly formatted wikilinks
-            wikilinks = re.findall(r'\[\[([^\]]+)\]\]', text)
+            wikilinks = re.findall(r"\[\[([^\]]+)\]\]", text)
 
             # Verify minimum expected wikilinks (only for geists that ALWAYS have notes)
             if geist_id in always_has_notes:
@@ -958,16 +951,12 @@ def test_all_tracery_geists_have_consistent_wikilink_formatting(tmp_path: Path):
             # 2. Check for orphaned note references
             # This regex catches patterns like "Word#YYYY" or "Word Word#YYYY"
             # that look like note references but aren't in brackets
-            potential_orphans = re.findall(
-                r'(?<!\[)\b([\w\s]+#\d{4}[^\],.\]]*?)(?=[\s,.]|$)',
-                text
-            )
+            potential_orphans = re.findall(r"(?<!\[)\b([\w\s]+#\d{4}[^\],.\]]*?)(?=[\s,.]|$)", text)
 
             # Filter out false positives (content that's actually inside wikilinks)
-            wikilink_content = ' '.join(wikilinks)
+            wikilink_content = " ".join(wikilinks)
             actual_orphans = [
-                o for o in potential_orphans
-                if o.strip() and o not in wikilink_content
+                o for o in potential_orphans if o.strip() and o not in wikilink_content
             ]
 
             assert len(actual_orphans) == 0, (
@@ -975,8 +964,8 @@ def test_all_tracery_geists_have_consistent_wikilink_formatting(tmp_path: Path):
             )
 
             # 3. Verify bracket balance
-            open_brackets = text.count('[[')
-            close_brackets = text.count(']]')
+            open_brackets = text.count("[[")
+            close_brackets = text.count("]]")
             assert open_brackets == close_brackets, (
                 f"{geist_id}: Mismatched brackets: {open_brackets} [[ vs "
                 f"{close_brackets} ]] in '{text}'"
@@ -1001,9 +990,14 @@ def test_all_tracery_geists_extract_notes_metadata_correctly(tmp_path: Path):
 
     # Geists that reference notes
     geists_with_notes = {
-        "orphan_connector", "hub_explorer", "note_combinations",
-        "contradictor", "perspective_shifter", "transformation_suggester",
-        "semantic_neighbours", "what_if"
+        "orphan_connector",
+        "hub_explorer",
+        "note_combinations",
+        "contradictor",
+        "perspective_shifter",
+        "transformation_suggester",
+        "semantic_neighbours",
+        "what_if",
     }
 
     for geist_file in geist_files:
@@ -1020,12 +1014,13 @@ def test_all_tracery_geists_extract_notes_metadata_correctly(tmp_path: Path):
             text = suggestion.text
 
             # Extract wikilinks manually from text
-            manual_extraction = re.findall(r'\[\[([^\]]+)\]\]', text)
+            manual_extraction = re.findall(r"\[\[([^\]]+)\]\]", text)
 
             # Compare with Suggestion.notes field
             # Both should contain the same note references
-            assert suggestion.notes is not None, \
+            assert suggestion.notes is not None, (
                 f"{geist_id}: Suggestion.notes should not be None for: {text}"
+            )
 
             # If there are wikilinks in the text, notes should be populated
             if manual_extraction:
@@ -1057,8 +1052,9 @@ def test_semantic_neighbours_notes_metadata_includes_all_links(tmp_path: Path):
         )
 
         # All note references should be non-empty
-        assert all(note.strip() for note in suggestion.notes), \
+        assert all(note.strip() for note in suggestion.notes), (
             f"Found empty note reference in: {suggestion.notes}"
+        )
 
 
 def test_semantic_clusters_handles_deeplinks_correctly(tmp_path: Path):
@@ -1124,8 +1120,7 @@ Final reflections on [[Project Gamma]].
         seed = parts[0]
 
         # Seed should be a single bracketed link
-        assert seed.startswith("[[") and seed.endswith("]]"), \
-            f"Seed should be bracketed: {seed}"
+        assert seed.startswith("[[") and seed.endswith("]]"), f"Seed should be bracketed: {seed}"
 
         # If seed is a deeplink, it should have the format [[File#Heading]]
         if "#" in seed:

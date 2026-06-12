@@ -7,17 +7,8 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from geistfabrik import Session, Vault
-from geistfabrik.function_registry import _GLOBAL_REGISTRY
 from geistfabrik.models import Note
 from geistfabrik.vault_context import VaultContext
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 @pytest.fixture
@@ -116,13 +107,13 @@ def test_read_note(vault_with_notes):
     assert "artificial intelligence" in content
 
 
-def test_neighbors_semantic_search(vault_with_notes):
+def test_neighbours_semantic_search(vault_with_notes):
     """Test finding semantically similar notes."""
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
-    neighbours = ctx.neighbours(ai_note, k=2)
+    neighbours = ctx.neighbours(ai_note, count=2)
 
     # ml.md should be most similar to ai.md
     assert len(neighbours) >= 1
@@ -241,7 +232,7 @@ def test_hubs(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    hubs = ctx.hubs(k=2)
+    hubs = ctx.hubs(count=2)
 
     # Should find notes that are linked to
     assert len(hubs) <= 2
@@ -276,7 +267,7 @@ def test_hubs_returns_actual_notes_not_empty():
         ctx = VaultContext(vault, session)
 
         # Get hubs - should find the hub note
-        hubs = ctx.hubs(k=5)
+        hubs = ctx.hubs(count=5)
 
         # Verify we got actual notes back
         assert len(hubs) > 0, "hubs() should find linked-to notes"
@@ -324,7 +315,7 @@ def test_hubs_resolves_title_based_links():
         ctx = VaultContext(vault, session)
 
         # Get top hubs
-        hubs = ctx.hubs(k=5)
+        hubs = ctx.hubs(count=5)
 
         # Verify we found the hubs
         assert len(hubs) >= 2, f"Expected at least 2 hubs, got {len(hubs)}"
@@ -489,7 +480,7 @@ def test_unlinked_pairs(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    pairs = ctx.unlinked_pairs(k=3)
+    pairs = ctx.unlinked_pairs(count=3)
 
     assert len(pairs) <= 3
     for a, b in pairs:
@@ -518,7 +509,7 @@ def test_old_notes(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    old = ctx.old_notes(k=2)
+    old = ctx.old_notes(count=2)
 
     assert len(old) <= 2
     # Should be sorted by modification time ascending
@@ -531,7 +522,7 @@ def test_recent_notes(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
 
-    recent = ctx.recent_notes(k=2)
+    recent = ctx.recent_notes(count=2)
 
     assert len(recent) <= 2
     # Should be sorted by modification time descending
@@ -591,7 +582,7 @@ def test_random_notes(vault_with_notes):
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session, seed=42)
 
-    random_notes = ctx.random_notes(k=3)
+    random_notes = ctx.random_notes(count=3)
 
     assert len(random_notes) == 3
     assert all(isinstance(n, Note) for n in random_notes)
@@ -803,3 +794,30 @@ def test_batch_similarity_empty_input(vault_with_notes):
     # Both empty
     result = ctx.batch_similarity([], [])
     assert result.shape == (0, 0)
+
+
+def test_call_function_local_fallback_passes_positional_args(vault_with_notes):
+    """Regression: the local-function fallback dropped *args entirely."""
+    vault, session = vault_with_notes
+    ctx = VaultContext(vault, session)  # no registry attached
+
+    ctx.register_function("combine", lambda vault, a, b=0: (a, b))
+
+    assert ctx.call_function("combine", 1, b=2) == (1, 2)
+    assert ctx.call_function("combine", 7) == (7, 0)
+
+
+def test_list_functions_includes_registry_builtins(vault_with_notes):
+    """Regression: list_functions() returned [] whenever a registry was
+    attached (it only consulted the local dict)."""
+    from geistfabrik.function_registry import FunctionRegistry
+
+    vault, session = vault_with_notes
+    ctx = VaultContext(vault, session, function_registry=FunctionRegistry())
+
+    names = ctx.list_functions()
+    assert "sample_notes" in names  # a builtin
+    assert "orphans" in names
+
+    ctx.register_function("my_local", lambda vault: [])
+    assert "my_local" in ctx.list_functions()

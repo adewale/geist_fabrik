@@ -8,16 +8,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import structure_diversity_checker
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -234,8 +225,8 @@ def test_structure_diversity_checker_suggestion_structure(vault_with_uniform_str
             assert isinstance(note_ref, str)
 
 
-def test_structure_diversity_checker_uses_obsidian_link(vault_with_uniform_structure):
-    """Test that structure_diversity_checker uses obsidian_link for note references.
+def test_structure_diversity_checker_uses_link_text(vault_with_uniform_structure):
+    """Test that structure_diversity_checker uses link_text for note references.
 
     Setup:
         Vault with varied structures.

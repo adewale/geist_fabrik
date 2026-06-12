@@ -5,7 +5,6 @@ as the current date, revealing seasonal patterns in your thinking and
 encouraging reflection on yearly rhythms.
 """
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,7 +26,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Determine current season
-    today = datetime.now()
+    # Session date, not wall-clock: keeps --date replays deterministic
+    today = vault.session.date
     current_season = get_season(today)
     current_year = today.year
 
@@ -58,13 +58,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         text = (
             f"**{current_season} again**. {time_phrase.capitalize()} in {current_season.lower()}, "
-            f"you wrote [[{note.obsidian_link}]]. What patterns repeat with the seasons?"
+            f"you wrote [[{note.link_text}]]. What patterns repeat with the seasons?"
         )
 
         suggestions.append(
             Suggestion(
                 text=text,
-                notes=[note.obsidian_link],
+                notes=[note.link_text],
                 geist_id="seasonal_revisit",
             )
         )

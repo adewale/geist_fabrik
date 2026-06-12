@@ -801,13 +801,13 @@ ISO datetime.
 
 
 def test_obsidian_deeplink_for_virtual_notes(tmp_path: Path) -> None:
-    """Test that virtual notes have obsidian_link property for deeplink format.
+    """Test that virtual notes have link_text property for deeplink format.
 
     Virtual notes represent sections in journal files. They have:
     - title: Just the heading text (e.g., "2025-01-15" or "January 15, 2025")
-    - obsidian_link: The deeplink format (e.g., "Journal#2025-01-15")
+    - link_text: The deeplink format (e.g., "Journal#2025-01-15")
 
-    This allows geists to use [[{note.obsidian_link}]] for both regular and
+    This allows geists to use [[{note.link_text}]] for both regular and
     virtual notes without special handling.
 
     This ensures:
@@ -868,20 +868,20 @@ More thoughts.
     assert journal_jan15 is not None
 
     # Test 3: Virtual notes have titles as just the heading text
-    # and obsidian_link as the deeplink format
+    # and link_text as the deeplink format
     assert work_jan15.is_virtual is True
     assert work_jan15.source_file == "Work Log.md"
     assert work_jan15.title == "2025-01-15", "Virtual note titles should be just the heading text"
-    assert work_jan15.obsidian_link == "Work Log#2025-01-15", (
-        "Virtual note obsidian_link should use deeplink format (filename#heading) "
-        "so geists can use [[{note.obsidian_link}]] and it works in Obsidian"
+    assert work_jan15.link_text == "Work Log#2025-01-15", (
+        "Virtual note link_text should use deeplink format (filename#heading) "
+        "so geists can use [[{note.link_text}]] and it works in Obsidian"
     )
 
-    # Test 4: Virtual note obsidian_link works for geists
-    # Geists can now simply use [[{note.obsidian_link}]] for both regular and virtual notes
+    # Test 4: Virtual note link_text works for geists
+    # Geists can now simply use [[{note.link_text}]] for both regular and virtual notes
     # For virtual notes, this creates a clickable link to the heading in the source file
     assert work_jan16.title == "2025-01-16"
-    assert work_jan16.obsidian_link == "Work Log#2025-01-16"
+    assert work_jan16.link_text == "Work Log#2025-01-16"
 
     # Test 5: Different date formats preserve original heading text
     # The heading "## January 15, 2025" is preserved in the title
@@ -890,12 +890,12 @@ More thoughts.
         "Virtual note titles should use original heading text from the file, "
         "not normalised ISO format"
     )
-    assert journal_jan15.obsidian_link == "Daily Journal#January 15, 2025", (
-        "Virtual note obsidian_link should use original heading text "
+    assert journal_jan15.link_text == "Daily Journal#January 15, 2025", (
+        "Virtual note link_text should use original heading text "
         "so links work when clicked in Obsidian"
     )
 
-    # Test 6: Regular notes have title and obsidian_link be the same
+    # Test 6: Regular notes have title and link_text be the same
     (vault_path / "Regular Note.md").write_text("# Regular Note\nContent here.")
     vault.sync()
 
@@ -903,8 +903,8 @@ More thoughts.
     assert regular is not None
     assert not regular.is_virtual
     assert regular.title == "Regular Note", "Regular notes should have normal titles"
-    assert regular.obsidian_link == "Regular Note", (
-        "For regular notes, obsidian_link should be the same as title"
+    assert regular.link_text == "Regular Note", (
+        "For regular notes, link_text should be the same as title"
     )
 
     # Test 7: Verify deeplinks resolve correctly for ISO date headings
@@ -1011,7 +1011,7 @@ Sprint planning session.
     # Verify content preservation for each entry
     # Entry 1: 2025-01-15
     assert virtual_notes[0].title == "2025-01-15"
-    assert virtual_notes[0].obsidian_link == "Work Log#2025-01-15"
+    assert virtual_notes[0].link_text == "Work Log#2025-01-15"
     assert "Morning standup went well" in virtual_notes[0].content
     assert "### Tasks" in virtual_notes[0].content
     assert "Review PR #123" in virtual_notes[0].content
@@ -1019,14 +1019,14 @@ Sprint planning session.
 
     # Entry 2: January 16, 2025 (original heading preserved)
     assert virtual_notes[1].title == "January 16, 2025"
-    assert virtual_notes[1].obsidian_link == "Work Log#January 16, 2025"
+    assert virtual_notes[1].link_text == "Work Log#January 16, 2025"
     assert "Code review day" in virtual_notes[1].content
     assert "interesting edge cases" in virtual_notes[1].content
     assert "Important Note" in virtual_notes[1].content
 
     # Entry 3: 2025-01-17
     assert virtual_notes[2].title == "2025-01-17"
-    assert virtual_notes[2].obsidian_link == "Work Log#2025-01-17"
+    assert virtual_notes[2].link_text == "Work Log#2025-01-17"
     assert "Sprint planning session" in virtual_notes[2].content
 
     # Verify tags are preserved
@@ -1151,7 +1151,7 @@ Another real entry.
     vault.close()
 
 
-def test_year_month_day_obsidian_link_format(tmp_path: Path) -> None:
+def test_year_month_day_link_text_format(tmp_path: Path) -> None:
     """Test that 'YYYY Month DD' headings generate correct Obsidian deeplinks.
 
     This is a regression test for the issue where virtual note titles incorrectly
@@ -1160,7 +1160,7 @@ def test_year_month_day_obsidian_link_format(tmp_path: Path) -> None:
 
     Correct behaviour:
     - title: "2024 February 18" (just the heading text)
-    - obsidian_link: "Exercise journal#2024 February 18" (filename + heading)
+    - link_text: "Exercise journal#2024 February 18" (filename + heading)
     - In suggestions: [[Exercise journal#2024 February 18]]
 
     Reference: https://help.obsidian.md/Linking+notes+and+files/Internal+links#Link+to+a+heading+in+a+note
@@ -1192,18 +1192,18 @@ Rest day.
         "Virtual note title should be ONLY the heading text, not include filename. "
         "Found incorrect title (old bug where title included filename prefix)."
     )
-    assert feb18.obsidian_link == "Exercise journal#2024 February 18", (
-        "obsidian_link property should combine filename + heading for deeplink format"
+    assert feb18.link_text == "Exercise journal#2024 February 18", (
+        "link_text property should combine filename + heading for deeplink format"
     )
 
     # Verify second entry too
     assert feb19.title == "2024 February 19"
-    assert feb19.obsidian_link == "Exercise journal#2024 February 19"
+    assert feb19.link_text == "Exercise journal#2024 February 19"
 
     # Verify the link works when used in wiki-link syntax
-    wiki_link = f"[[{feb18.obsidian_link}]]"
+    wiki_link = f"[[{feb18.link_text}]]"
     assert wiki_link == "[[Exercise journal#2024 February 18]]", (
-        "When geists use [[{note.obsidian_link}]], it should produce a valid "
+        "When geists use [[{note.link_text}]], it should produce a valid "
         "Obsidian deeplink to the heading in the source file"
     )
 

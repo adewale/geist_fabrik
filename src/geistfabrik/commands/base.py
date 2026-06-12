@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from ..config import (
+    DEFAULT_GEIST_TIMEOUT,
+    DEFAULT_MAX_GEIST_FAILURES,
+    DEFAULT_SESSION_EMBEDDING_RETENTION,
+)
 from ..config_loader import GeistFabrikConfig, load_config
 from ..embeddings import Session
 from ..function_registry import FunctionRegistry
@@ -207,6 +212,25 @@ class BaseCommand(ABC):
             return False
         return True
 
+    def resolve_timeout(self, config: GeistFabrikConfig | None) -> int:
+        """Geist timeout: explicit --timeout wins, else config, else default.
+
+        The CLI flag defaults to None so a config.yaml geist_execution.timeout
+        is honoured unless the user overrides it on the command line.
+        """
+        cli_timeout = getattr(self.args, "timeout", None)
+        if cli_timeout is not None:
+            return int(cli_timeout)
+        if config is not None:
+            return config.geist_execution.timeout
+        return DEFAULT_GEIST_TIMEOUT
+
+    def resolve_max_failures(self, config: GeistFabrikConfig | None) -> int:
+        """Consecutive-failure disable threshold from config (no CLI flag)."""
+        if config is not None:
+            return config.geist_execution.max_failures
+        return DEFAULT_MAX_GEIST_FAILURES
+
     def get_vault_path(self, auto_detect: bool = False) -> Path | None:
         """Get and validate the vault path from arguments.
 
@@ -270,9 +294,7 @@ class BaseCommand(ABC):
         config = None
         if config_path.exists():
             config = load_config(config_path)
-            self.print_verbose(
-                f"Loaded configuration from {config_path.relative_to(vault_path)}"
-            )
+            self.print_verbose(f"Loaded configuration from {config_path.relative_to(vault_path)}")
 
         # Open vault
         self._vault = Vault(vault_path, db_path)
@@ -311,28 +333,32 @@ class BaseCommand(ABC):
         metadata_loader = None
         if metadata_dir.exists():
             metadata_loader = MetadataLoader(metadata_dir)
-            metadata_loader.load_modules()
-            self.print_verbose(
-                f"Loaded {len(metadata_loader.modules)} metadata inference modules"
-            )
+            # Honour config.yaml's enabled_modules allowlist (empty = all).
+            metadata_loader.load_modules(config.enabled_modules or None if config else None)
+            self.print_verbose(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
 
         # Load vault function modules
         functions_dir = geistfabrik_dir / "vault_functions"
         if functions_dir.exists():
             function_registry = FunctionRegistry(functions_dir)
-            function_registry.load_modules()
-            self.print_verbose(
-                f"Loaded {len(function_registry.functions)} vault functions"
-            )
+            # Honour config.yaml's enabled_modules allowlist (empty = all).
+            function_registry.load_modules(config.enabled_modules or None if config else None)
+            self.print_verbose(f"Loaded {len(function_registry.functions)} vault functions")
         else:
             function_registry = FunctionRegistry()
-            self.print_verbose(
-                f"Using {len(function_registry.functions)} built-in vault functions"
-            )
+            self.print_verbose(f"Using {len(function_registry.functions)} built-in vault functions")
 
         # Create session
         backend_type = config.vector_search.backend if config else "in-memory"
-        session = Session(session_date, vault.db, backend=backend_type)
+        embedding_retention = (
+            config.session_embedding_retention if config else DEFAULT_SESSION_EMBEDDING_RETENTION
+        )
+        session = Session(
+            session_date,
+            vault.db,
+            backend=backend_type,
+            embedding_retention=embedding_retention,
+        )
 
         self.print_verbose(f"Computing embeddings for {len(vault.all_notes())} notes...")
         session.compute_embeddings(vault.all_notes())

@@ -9,16 +9,13 @@ and counts throughout the codebase and documentation.
 """
 
 from pathlib import Path
-from typing import List
 
 # Programmatically discover default geists (single source of truth)
 _default_geists_dir = Path(__file__).parent
 
 # Discover code geists (*.py files, excluding __init__.py and __pycache__)
 _code_geist_files = sorted((_default_geists_dir / "code").glob("*.py"))
-DEFAULT_CODE_GEISTS: List[str] = [
-    f.stem for f in _code_geist_files if f.name != "__init__.py"
-]
+DEFAULT_CODE_GEISTS: list[str] = [f.stem for f in _code_geist_files if f.name != "__init__.py"]
 """Sorted list of default code geist IDs, derived from filesystem.
 
 Computed by scanning default_geists/code/ for Python files (excluding __init__.py).
@@ -30,7 +27,7 @@ CODE_GEIST_COUNT = len(DEFAULT_CODE_GEISTS)
 
 # Discover Tracery geists (*.yaml files)
 _tracery_geist_files = sorted((_default_geists_dir / "tracery").glob("*.yaml"))
-DEFAULT_TRACERY_GEISTS: List[str] = [f.stem for f in _tracery_geist_files]
+DEFAULT_TRACERY_GEISTS: list[str] = [f.stem for f in _tracery_geist_files]
 """Sorted list of default Tracery geist IDs, derived from filesystem.
 
 Computed by scanning default_geists/tracery/ for YAML files.

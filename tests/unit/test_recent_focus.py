@@ -8,16 +8,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import recent_focus
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -163,8 +154,8 @@ def test_recent_focus_suggestion_structure(vault_with_recent_and_old_similar):
             assert isinstance(note_ref, str)
 
 
-def test_recent_focus_uses_obsidian_link(vault_with_recent_and_old_similar):
-    """Test that recent_focus uses obsidian_link for note references.
+def test_recent_focus_uses_link_text(vault_with_recent_and_old_similar):
+    """Test that recent_focus uses link_text for note references.
 
     Setup:
         Vault with recent notes.

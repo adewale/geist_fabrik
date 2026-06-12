@@ -70,7 +70,7 @@ Split date-collection files into virtual atomic entries:
 
 ## Architecture Principles (Key Insights)
 
-### The obsidian_link Abstraction
+### The link_text Abstraction
 
 **The Core Problem**: Virtual notes need to be linkable in Obsidian using deeplink syntax (`[[Journal#2025-01-15]]`), but we must separate **what a note is called** (title) from **how to reference it** (link syntax).
 
@@ -78,7 +78,7 @@ Split date-collection files into virtual atomic entries:
 
 ```python
 @property
-def obsidian_link(self) -> str:
+def link_text(self) -> str:
     """Return the Obsidian wiki-link string for this note."""
     if self.is_virtual and self.source_file:
         filename = self.source_file.replace(".md", "")
@@ -88,8 +88,8 @@ def obsidian_link(self) -> str:
 ```
 
 **Examples**:
-- **Regular note**: `title="Project Ideas"`, `obsidian_link="Project Ideas"`
-- **Virtual note**: `title="2025-01-15"`, `obsidian_link="Journal#2025-01-15"`
+- **Regular note**: `title="Project Ideas"`, `link_text="Project Ideas"`
+- **Virtual note**: `title="2025-01-15"`, `link_text="Journal#2025-01-15"`
 
 ### Title vs Path vs Link
 
@@ -105,7 +105,7 @@ Three distinct concepts that must NOT be conflated:
    - Virtual: `"2025-01-15"` or `"January 15, 2025"` (original heading text)
    - Purpose: Display, human reference, Obsidian heading match
 
-3. **`obsidian_link`** (Linking syntax)
+3. **`link_text`** (Linking syntax)
    - Regular: `"Project Ideas"` (same as title)
    - Virtual: `"Journal#2025-01-15"` (deeplink format)
    - Purpose: Obsidian wiki-links, geist suggestions
@@ -123,29 +123,29 @@ Content here...
 - `title` = `"January 15, 2025"` (exact match)
 - `entry_date` = `date(2025, 1, 15)` (parsed for operations)
 - `path` = `"Journal.md/2025-01-15"` (normalized ISO)
-- `obsidian_link` = `"Journal#January 15, 2025"` (uses original)
+- `link_text` = `"Journal#January 15, 2025"` (uses original)
 
 **Why**: Obsidian heading links require exact text match. A link to `[[Journal#January 15, 2025]]` will only work if the heading is exactly `## January 15, 2025`.
 
 ### Separation of Concerns
 
 **Infrastructure Layer** (knows about virtual notes):
-- `Note.obsidian_link` property
+- `Note.link_text` property
 - `date_collection.py` (creates virtuals)
 - `vault.py` (persists, resolves heading links)
 - `schema.py` (database schema)
 
 **Application Layer** (doesn't know about virtual notes):
-- All default geists (use `note.obsidian_link`)
+- All default geists (use `note.link_text`)
 - VaultContext (no virtual-specific methods)
 - Filtering pipeline
 - Session output
 
-**Key Rule**: Geists NEVER check `is_virtual`. They use `note.obsidian_link` uniformly:
+**Key Rule**: Geists NEVER check `is_virtual`. They use `note.link_text` uniformly:
 
 ```python
 # CORRECT - Works for all notes
-suggestion = f"Consider [[{note.obsidian_link}]]"
+suggestion = f"Consider [[{note.link_text}]]"
 
 # WRONG - Don't do this
 if note.is_virtual:
@@ -177,7 +177,7 @@ class Note:
     entry_date: Optional[date] = None  # Parsed date from heading
 
     @property
-    def obsidian_link(self) -> str:
+    def link_text(self) -> str:
         """Return the Obsidian wiki-link string for this note.
 
         For regular notes: Returns title
@@ -200,7 +200,7 @@ class Note:
 |----------|--------------|--------------|---------|
 | `path` | `"Ideas.md"` | `"Journal.md/2025-01-15"` | Database key, uniqueness |
 | `title` | `"Project Ideas"` | `"2025-01-15"` (original) | Display, heading match |
-| `obsidian_link` | `"Project Ideas"` | `"Journal#2025-01-15"` | Wiki-link syntax |
+| `link_text` | `"Project Ideas"` | `"Journal#2025-01-15"` | Wiki-link syntax |
 | `is_virtual` | `False` | `True` | Infrastructure flag |
 | `source_file` | `None` | `"Journal.md"` | Parent journal file |
 | `entry_date` | `None` | `date(2025, 1, 15)` | Parsed date value |
@@ -333,7 +333,7 @@ def split_date_collection_note(
 
         # CRITICAL: Preserve original heading text in title
         # This ensures Obsidian heading links work correctly
-        # The obsidian_link property will combine filename + heading for deeplinks
+        # The link_text property will combine filename + heading for deeplinks
         # If heading is "## January 15, 2025", title is "January 15, 2025"
         # If heading is "## 2025-01-15", title is "2025-01-15"
         original_heading_text = extract_heading_text(heading)
@@ -587,17 +587,17 @@ def compute_session_embeddings(vault: Vault, session_date: date):
 
 #### Referencing Virtual Entries
 
-Session notes reference virtual entries using `note.obsidian_link`:
+Session notes reference virtual entries using `note.link_text`:
 
 ```python
-# In geist code, ALWAYS use note.obsidian_link
-suggestion_text = f"What if you revisited [[{note.obsidian_link}]]?"
+# In geist code, ALWAYS use note.link_text
+suggestion_text = f"What if you revisited [[{note.link_text}]]?"
 ```
 
 **Correct behaviour**:
-- For virtual notes: `note.obsidian_link` returns `"Journal#2025-01-15"` (Obsidian deeplink format)
-- For regular notes: `note.obsidian_link` returns `"Project Ideas"` (just the title)
-- Geists use `[[{note.obsidian_link}]]` uniformly for ALL note types
+- For virtual notes: `note.link_text` returns `"Journal#2025-01-15"` (Obsidian deeplink format)
+- For regular notes: `note.link_text` returns `"Project Ideas"` (just the title)
+- Geists use `[[{note.link_text}]]` uniformly for ALL note types
 
 **Example output**:
 ```markdown
@@ -614,19 +614,19 @@ Consider connecting [[Journal#2025-01-15]] with [[Paper on Transformers]]. Both 
 
 ```python
 def suggest(vault: VaultContext) -> list["Suggestion"]:
-    """Example geist using obsidian_link."""
+    """Example geist using link_text."""
     old = vault.old_notes(k=1)[0]
     recent = vault.recent_notes(k=1)[0]
 
-    # CORRECT: Use obsidian_link (works for both regular and virtual notes)
+    # CORRECT: Use link_text (works for both regular and virtual notes)
     return [Suggestion(
-        text=f"What if you revisited [[{old.obsidian_link}]]?",
-        notes=[old.obsidian_link, recent.obsidian_link],
+        text=f"What if you revisited [[{old.link_text}]]?",
+        notes=[old.link_text, recent.link_text],
         geist_id="example"
     )]
 ```
 
-**CRITICAL**: Do NOT manually construct links like `[[{filename}#{title}]]` or `[[{filename} - {date}]]`. Always use `note.obsidian_link` which handles the correct format automatically.
+**CRITICAL**: Do NOT manually construct links like `[[{filename}#{title}]]` or `[[{filename} - {date}]]`. Always use `note.link_text` which handles the correct format automatically.
 
 **Link Format Produced**:
 - **Regular note**: `[[Project Ideas]]` (title)
@@ -634,7 +634,7 @@ def suggest(vault: VaultContext) -> list["Suggestion"]:
 
 **Why This Works**:
 - Geists don't need to know if a note is virtual
-- `obsidian_link` property handles the format automatically
+- `link_text` property handles the format automatically
 - Links work correctly in Obsidian for both types
 
 #### Viewing in Obsidian
@@ -1288,10 +1288,10 @@ PRAGMA user_version = 2;
 
 **Decision**: ✅ **Option C (Heading format)** - Implemented in November 2025
 - Uses `[[Journal#2025-01-15]]` format (Obsidian native deeplink)
-- Implemented via `note.obsidian_link` property
+- Implemented via `note.link_text` property
 - Virtual notes: Returns `f"{filename}#{title}"` (e.g., `"Journal#2025-01-15"`)
 - Regular notes: Returns `title` (e.g., `"Project Ideas"`)
-- Geists use `[[{note.obsidian_link}]]` uniformly for all note types
+- Geists use `[[{note.link_text}]]` uniformly for all note types
 - Most compatible with Obsidian's native deeplink feature
 - Works seamlessly in Obsidian for navigation
 
@@ -1328,7 +1328,7 @@ PRAGMA user_version = 2;
 - Title stores exact heading text (e.g., "January 15, 2025")
 - Path uses ISO format for consistency (e.g., "Journal.md/2025-01-15")
 - Enables Obsidian heading links to work correctly
-- `obsidian_link` property constructs deeplink with original title
+- `link_text` property constructs deeplink with original title
 
 **Rationale**: Obsidian requires exact heading match for `[[file#heading]]` links to work.
 
@@ -1465,14 +1465,14 @@ Decided to prioritise [[Feature X]].
    - ✅ Path uses ISO date, title uses original format
    - **Rationale**: Obsidian heading links require exact text match
 
-2. **obsidian_link Property** (November 2025)
+2. **link_text Property** (November 2025)
    - ✅ Added computed property to Note dataclass
    - ✅ Returns deeplink format for virtual notes: `"Journal#heading"`
    - ✅ Returns title for regular notes
    - **Rationale**: Separates "what note is called" from "how to link to it"
 
 3. **Geist Simplification** (November 2025)
-   - ✅ All geists use `note.obsidian_link` uniformly
+   - ✅ All geists use `note.link_text` uniformly
    - ✅ No geist checks `is_virtual` flag
    - ✅ Application layer unaware of virtual note complexity
    - **Rationale**: Clean abstraction boundary, maintainable code
@@ -1512,11 +1512,11 @@ Decided to prioritise [[Feature X]].
 
 This specification was initially written in October 2025. During implementation and refinement through November 2025, several critical insights emerged that shaped the final architecture:
 
-### The Missing Abstraction: obsidian_link
+### The Missing Abstraction: link_text
 
 **Problem Identified**: Early implementation conflated **title** (what a note is called) with **link syntax** (how to reference it in Obsidian). This forced application code to understand virtual note internals.
 
-**Solution**: Added `note.obsidian_link` computed property that:
+**Solution**: Added `note.link_text` computed property that:
 - Returns title for regular notes
 - Returns deeplink format (`filename#heading`) for virtual notes
 - Encapsulates all virtual note linking logic in one place
@@ -1524,14 +1524,14 @@ This specification was initially written in October 2025. During implementation 
 **Impact**: All geists use uniform linking without knowing about virtual notes:
 ```python
 # Works for both regular and virtual notes
-text = f"Consider [[{note.obsidian_link}]]"
+text = f"Consider [[{note.link_text}]]"
 ```
 
-**Critical Rule**: Geists must ALWAYS use `note.obsidian_link` for wiki-links:
+**Critical Rule**: Geists must ALWAYS use `note.link_text` for wiki-links:
 
 ```python
 # ✅ CORRECT - Works for both regular and virtual notes
-suggestion_text = f"What if you revisited [[{note.obsidian_link}]]?"
+suggestion_text = f"What if you revisited [[{note.link_text}]]?"
 
 # ❌ INCORRECT - Don't manually construct links
 suggestion_text = f"What if you revisited [[{note.title}]]?"  # Breaks virtual notes
@@ -1554,7 +1554,7 @@ suggestion_text = f"What if you revisited [[{note.source_file}#{note.title}]]?" 
 **Key Architecture Insight**: Separation of concerns between Note fields:
 - **`note.path`**: Internal identifier (e.g., `"Journal.md/2025-01-15"`)
 - **`note.title`**: Just the heading text (e.g., `"January 15, 2025"`)
-- **`note.obsidian_link`**: Computed deeplink property (e.g., `"Journal#January 15, 2025"`)
+- **`note.link_text`**: Computed deeplink property (e.g., `"Journal#January 15, 2025"`)
 
 This separation allows:
 1. Internal consistency (unique paths for database operations)
@@ -1564,7 +1564,7 @@ This separation allows:
 ### Separation of Concerns
 
 **Infrastructure Layer** (knows about virtuals):
-- Note model with `obsidian_link` property
+- Note model with `link_text` property
 - `date_collection.py` (splitting logic)
 - `vault.py` (heading link resolution)
 - Database schema
@@ -1603,7 +1603,7 @@ This clean boundary means adding new geists or modifying existing ones never req
 
 **Why This Works**:
 - GeistFabrik virtual path: `"Journal.md/2025-01-15"` (internal)
-- GeistFabrik obsidian_link: `"Journal#2025-01-15"` (user-facing)
+- GeistFabrik link_text: `"Journal#2025-01-15"` (user-facing)
 - Obsidian doesn't know about virtual paths
 - Obsidian sees standard deeplink and handles it natively
 

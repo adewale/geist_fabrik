@@ -8,16 +8,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import hermeneutic_instability
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -159,8 +150,8 @@ def test_hermeneutic_instability_suggestion_structure(vault_with_multiple_sessio
             assert isinstance(note_ref, str)
 
 
-def test_hermeneutic_instability_uses_obsidian_link(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability uses obsidian_link for note references.
+def test_hermeneutic_instability_uses_link_text(vault_with_multiple_sessions):
+    """Test that hermeneutic_instability uses link_text for note references.
 
     Setup:
         Vault with interpretation changes.

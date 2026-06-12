@@ -49,15 +49,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Try to find seasonal clusters for each season
     for season_name, (start_date, end_date) in seasons.items():
         # Get notes created in this season (excluding geist journal)
-        seasonal_notes = [
-            n for n in notes if start_date <= n.created <= end_date
-        ]
+        seasonal_notes = [n for n in notes if start_date <= n.created <= end_date]
 
         if len(seasonal_notes) < 3:
             continue
 
         # Pick a representative note from the season
-        anchor = vault.sample(seasonal_notes, k=1)[0]
+        anchor = vault.sample(seasonal_notes, count=1)[0]
 
         # Find other notes in the same season that are similar to the anchor
         similar_in_season = tsq.notes_created_similar_to(
@@ -74,7 +72,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if len(similar_in_season) >= 2:
             # Found a seasonal pattern!
-            note_titles = [f"[[{n.obsidian_link}]]" for n in similar_in_season[:3]]
+            note_titles = [f"[[{n.link_text}]]" for n in similar_in_season[:3]]
             pattern_text = ", ".join(note_titles)
 
             suggestions.append(
@@ -90,4 +88,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
 
     # Limit to 2 suggestions to avoid overwhelming
-    return vault.sample(suggestions, k=min(2, len(suggestions)))
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

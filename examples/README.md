@@ -9,8 +9,12 @@ This directory contains example implementations for extending GeistFabrik throug
 This `examples/` directory focuses on:
 - **Metadata inference modules** - Adding custom properties to notes
 - **Vault functions** - Creating reusable functions for Tracery geists
+- **Example geists** (`geists/code/`) - Learning materials showing the
+  GraphPatternFinder extension API (`geistfabrik.graph_analysis`); these are
+  the graph-structural geists the reuse-abstractions spec proposed
+  (structural holes, path-length anomalies, bridge redundancy)
 
-To create custom geists, refer to the bundled source code in `src/geistfabrik/default_geists/` as examples.
+To create custom geists, refer to the bundled source code in `src/geistfabrik/default_geists/` and to `examples/geists/code/`.
 
 ## Directory Structure
 

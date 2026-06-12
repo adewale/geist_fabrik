@@ -1,4 +1,4 @@
-"""Tests for VaultContext helper functions (has_link, graph_neighbors)."""
+"""Tests for VaultContext helper functions (has_link, graph_neighbours)."""
 
 import tempfile
 from datetime import datetime
@@ -86,35 +86,35 @@ def test_has_link_returns_false(vault_context):
     assert not vault_context.has_link(note_d, note_b)
 
 
-def test_graph_neighbors_includes_outgoing(vault_context):
-    """Test graph_neighbors includes notes linked to."""
+def test_graph_neighbours_includes_outgoing(vault_context):
+    """Test graph_neighbours includes notes linked to."""
     note_a = vault_context.get_note("note_a.md")
     note_b = vault_context.get_note("note_b.md")
 
     assert note_a is not None
     assert note_b is not None
 
-    neighbors_a = vault_context.graph_neighbors(note_a)
+    neighbours_a = vault_context.graph_neighbours(note_a)
 
     # A links to B, so B should be in neighbours
-    assert note_b in neighbors_a
+    assert note_b in neighbours_a
 
 
-def test_graph_neighbors_includes_backlinks(vault_context):
-    """Test graph_neighbors includes notes linking to this note."""
+def test_graph_neighbours_includes_backlinks(vault_context):
+    """Test graph_neighbours includes notes linking to this note."""
     note_a = vault_context.get_note("note_a.md")
     note_c = vault_context.get_note("note_c.md")
 
     assert note_a is not None
     assert note_c is not None
 
-    neighbors_a = vault_context.graph_neighbors(note_a)
+    neighbours_a = vault_context.graph_neighbours(note_a)
 
     # C links to A, so C should be in neighbours (backlink)
-    assert note_c in neighbors_a
+    assert note_c in neighbours_a
 
 
-def test_graph_neighbors_deduplicates(vault_context):
+def test_graph_neighbours_deduplicates(vault_context):
     """Test bidirectional links don't appear twice."""
     note_a = vault_context.get_note("note_a.md")
     note_b = vault_context.get_note("note_b.md")
@@ -122,49 +122,49 @@ def test_graph_neighbors_deduplicates(vault_context):
     assert note_a is not None
     assert note_b is not None
 
-    neighbors_a = vault_context.graph_neighbors(note_a)
+    neighbours_a = vault_context.graph_neighbours(note_a)
 
     # B should appear only once even though A→B and B→A
-    assert neighbors_a.count(note_b) == 1
+    assert neighbours_a.count(note_b) == 1
 
 
-def test_graph_neighbors_bidirectional(vault_context):
-    """Test graph_neighbors returns same set for bidirectionally linked notes."""
+def test_graph_neighbours_bidirectional(vault_context):
+    """Test graph_neighbours returns same set for bidirectionally linked notes."""
     note_a = vault_context.get_note("note_a.md")
     note_b = vault_context.get_note("note_b.md")
 
     assert note_a is not None
     assert note_b is not None
 
-    neighbors_a = vault_context.graph_neighbors(note_a)
-    neighbors_b = vault_context.graph_neighbors(note_b)
+    neighbours_a = vault_context.graph_neighbours(note_a)
+    neighbours_b = vault_context.graph_neighbours(note_b)
 
     # A should be in B's neighbours
-    assert note_a in neighbors_b
+    assert note_a in neighbours_b
 
     # B should be in A's neighbours
-    assert note_b in neighbors_a
+    assert note_b in neighbours_a
 
 
-def test_graph_neighbors_empty_for_orphan(vault_context):
-    """Test graph_neighbors returns empty list for orphan note."""
+def test_graph_neighbours_empty_for_orphan(vault_context):
+    """Test graph_neighbours returns empty list for orphan note."""
     note_d = vault_context.get_note("note_d.md")
 
     assert note_d is not None
 
-    neighbors_d = vault_context.graph_neighbors(note_d)
+    neighbours_d = vault_context.graph_neighbours(note_d)
 
     # D has no links, should have no neighbours
-    assert neighbors_d == []
+    assert neighbours_d == []
 
 
-def test_graph_neighbors_returns_notes_not_links(vault_context):
-    """Test graph_neighbors returns Note objects, not Link objects."""
+def test_graph_neighbours_returns_notes_not_links(vault_context):
+    """Test graph_neighbours returns Note objects, not Link objects."""
     note_a = vault_context.get_note("note_a.md")
 
     assert note_a is not None
 
-    neighbours = vault_context.graph_neighbors(note_a)
+    neighbours = vault_context.graph_neighbours(note_a)
 
     # Should return Note objects
     assert all(isinstance(n, Note) for n in neighbours)
@@ -260,17 +260,17 @@ def test_outgoing_links_returns_note_objects(vault_context):
     assert all(isinstance(n, Note) for n in outgoing)
 
 
-def test_graph_neighbors_equals_outgoing_plus_backlinks(vault_context):
-    """Test graph_neighbors is union of outgoing_links and backlinks."""
+def test_graph_neighbours_equals_outgoing_plus_backlinks(vault_context):
+    """Test graph_neighbours is union of outgoing_links and backlinks."""
     note_a = vault_context.get_note("note_a.md")
 
     assert note_a is not None
 
     outgoing = vault_context.outgoing_links(note_a)
     backlinks = vault_context.backlinks(note_a)
-    neighbours = vault_context.graph_neighbors(note_a)
+    neighbours = vault_context.graph_neighbours(note_a)
 
-    # Convert to sets for comparison (graph_neighbors deduplicates)
+    # Convert to sets for comparison (graph_neighbours deduplicates)
     expected = set(outgoing + backlinks)
     actual = set(neighbours)
 

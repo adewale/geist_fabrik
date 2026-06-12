@@ -6,9 +6,11 @@ allowing users to choose between in-memory and sqlite-vec implementations.
 
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple
 
 import numpy as np
+from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+    cosine_similarity as sklearn_cosine,
+)
 
 from .config import TOTAL_DIM
 
@@ -26,7 +28,7 @@ class VectorSearchBackend(ABC):
         pass
 
     @abstractmethod
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
         """Find k most similar notes to query embedding.
 
         Args:
@@ -90,8 +92,25 @@ class InMemoryVectorBackend(VectorSearchBackend):
             db: SQLite database connection
         """
         self.db = db
-        self.embeddings: Dict[str, np.ndarray] = {}
+        self.embeddings: dict[str, np.ndarray] = {}
         self.session_id: int = 0
+        # Cached stacked matrix + parallel path index for vectorised search.
+        # Rebuilt whenever embeddings change (see _rebuild_matrix).
+        self._paths: list[str] = []
+        self._matrix: np.ndarray | None = None
+
+    def _rebuild_matrix(self) -> None:
+        """Rebuild the cached embedding matrix and path index from self.embeddings.
+
+        Stacking all embeddings into a single (N, dim) matrix once lets
+        find_similar() compute every cosine similarity in a single vectorised
+        operation instead of an O(N) Python loop of per-pair calls.
+        """
+        self._paths = list(self.embeddings.keys())
+        if self._paths:
+            self._matrix = np.vstack([self.embeddings[p] for p in self._paths])
+        else:
+            self._matrix = None
 
     def load_embeddings(self, session_date: str) -> None:
         """Load all embeddings for session into memory.
@@ -106,6 +125,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
             # No session found, embeddings will be empty
             self.embeddings = {}
             self.session_id = 0
+            self._rebuild_matrix()
             return
 
         self.session_id = int(row[0])
@@ -126,8 +146,15 @@ class InMemoryVectorBackend(VectorSearchBackend):
             embedding = np.frombuffer(blob, dtype=np.float32)
             self.embeddings[path] = embedding
 
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
-        """Find similar notes via in-memory cosine similarity.
+        self._rebuild_matrix()
+
+    def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
+        """Find similar notes via vectorised in-memory cosine similarity.
+
+        Computes all similarities in a single matrix operation (matching the
+        semantics of embeddings.find_similar_notes), rather than looping over
+        every embedding in Python. Results are sorted descending; ties preserve
+        insertion order (stable sort) to keep output deterministic.
 
         Args:
             query_embedding: Query vector
@@ -136,14 +163,28 @@ class InMemoryVectorBackend(VectorSearchBackend):
         Returns:
             List of (note_path, similarity_score) tuples, sorted descending
         """
-        from .embeddings import cosine_similarity
+        # Defensive: rebuild if embeddings were mutated since the last load.
+        if self._matrix is None or len(self._paths) != len(self.embeddings):
+            self._rebuild_matrix()
+        if self._matrix is None or count <= 0:
+            return []
 
-        similarities = [
-            (path, cosine_similarity(query_embedding, emb)) for path, emb in self.embeddings.items()
-        ]
-
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        return similarities[:k]
+        scores = sklearn_cosine(query_embedding.reshape(1, -1), self._matrix)[0]
+        n = scores.shape[0]
+        if count >= n:
+            # Full stable sort: descending by score, ties keep insertion order.
+            order = np.argsort(-scores, kind="stable")
+        else:
+            # O(N + k log k) top-k via argpartition instead of an O(N log N)
+            # full sort (this is the hottest path - every neighbours() call).
+            # To keep output byte-identical to a full stable argsort prefix,
+            # widen the candidate set to every score tied with the k-th
+            # largest, then stable-sort just that small set.
+            part = np.argpartition(-scores, count - 1)[:count]
+            kth_score = scores[part].min()
+            cand = np.flatnonzero(scores >= kth_score)
+            order = cand[np.argsort(-scores[cand], kind="stable")][:count]
+        return [(self._paths[int(i)], float(scores[int(i)])) for i in order]
 
     def get_similarity(self, path_a: str, path_b: str) -> float:
         """Compute similarity between two notes.
@@ -176,7 +217,8 @@ class InMemoryVectorBackend(VectorSearchBackend):
             path: Note path
 
         Returns:
-            Embedding vector
+            Embedding vector. READ-ONLY (np.frombuffer view shared by all
+            callers) - mutation raises ValueError; .copy() first if needed.
 
         Raises:
             KeyError: If note path not found
@@ -212,8 +254,8 @@ class SqliteVecBackend(VectorSearchBackend):
         self.dim = dim
         self.session_date: str = ""
         self.session_id: int = 0
-        self._path_to_id: Dict[str, int] = {}  # Cache for path -> vec_id mapping
-        self._id_to_path: Dict[int, str] = {}  # Cache for vec_id -> path mapping
+        self._path_to_id: dict[str, int] = {}  # Cache for path -> vec_id mapping
+        self._id_to_path: dict[int, str] = {}  # Cache for vec_id -> path mapping
         self._setup_vec_tables()
 
     def _setup_vec_tables(self) -> None:
@@ -359,7 +401,7 @@ class SqliteVecBackend(VectorSearchBackend):
 
         self.db.commit()
 
-    def find_similar(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
+    def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
         """Find similar notes via sqlite-vec.
 
         Args:
@@ -378,7 +420,7 @@ class SqliteVecBackend(VectorSearchBackend):
             ORDER BY distance
             LIMIT ?
             """,
-            (query_embedding.astype(np.float32).tobytes(), k),
+            (query_embedding.astype(np.float32).tobytes(), count),
         )
 
         results = []

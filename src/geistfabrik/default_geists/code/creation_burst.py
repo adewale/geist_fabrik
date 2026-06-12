@@ -27,9 +27,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     # Use VaultContext aggregation method instead of direct SQL
     # This respects architectural layering and hides database implementation
-    burst_days_dict = vault.notes_grouped_by_creation_date(
-        min_per_day=3, exclude_journal=True
-    )
+    burst_days_dict = vault.notes_grouped_by_creation_date(min_per_day=3, exclude_journal=True)
 
     if not burst_days_dict:
         return []
@@ -38,14 +36,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     burst_days = list(burst_days_dict.items())
 
     # Randomly select one burst day (deterministic via vault's RNG)
-    day_date, notes = vault.sample(burst_days, k=1)[0]
+    day_date, notes = vault.sample(burst_days, count=1)[0]
     count = len(notes)
 
     if not notes:
         return []
 
     # Get obsidian link text for each note (handles both regular and virtual notes)
-    note_links = [note.obsidian_link for note in notes]
+    note_links = [note.link_text for note in notes]
 
     # Limit to showing first 8 notes to avoid overwhelming output
     display_links = note_links[:8]

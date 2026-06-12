@@ -15,11 +15,14 @@ def db():
     """Create in-memory database for testing."""
     conn = sqlite3.connect(":memory:")
 
-    # Create minimal schema for tests
+    # Create minimal schema for tests (mirrors the columns of the real schema
+    # that filtering relies on, including virtual-entry columns).
     conn.execute("""
         CREATE TABLE notes (
             path TEXT PRIMARY KEY,
-            title TEXT NOT NULL
+            title TEXT NOT NULL,
+            is_virtual INTEGER DEFAULT 0,
+            source_file TEXT
         )
     """)
 
@@ -189,3 +192,40 @@ class TestSuggestionFilterConfig:
 
         # Order should be preserved
         assert filter_obj.config["strategies"] == ["quality", "boundary"]
+
+
+class TestBoundaryFilterVirtualNotes:
+    """Boundary filter must recognise virtual (journal) note references."""
+
+    def test_boundary_keeps_virtual_note_deeplink_reference(self, db, mock_embedding_computer):
+        """A suggestion referencing a virtual note via its 'file#heading'
+        deeplink (what Note.link_text returns) must not be dropped."""
+        # Insert a virtual journal entry: path/title differ from the deeplink form.
+        db.execute(
+            "INSERT INTO notes (path, title, is_virtual, source_file) "
+            "VALUES ('Journal.md/2025-01-15', '2025-01-15', 1, 'Journal.md')"
+        )
+        db.commit()
+
+        filter_obj = SuggestionFilter(
+            db,
+            mock_embedding_computer,
+            config={"strategies": ["boundary"], "boundary": {"enabled": True}},
+        )
+
+        # "Journal#2025-01-15" is the link_text deeplink form for the entry.
+        kept = Suggestion(
+            text="On this day you wrote something.",
+            notes=["Journal#2025-01-15"],
+            geist_id="on_this_day",
+        )
+        dropped = Suggestion(
+            text="References a note that does not exist.",
+            notes=["Nonexistent#2025-01-15"],
+            geist_id="on_this_day",
+        )
+
+        result = filter_obj.filter_boundary([kept, dropped])
+
+        assert kept in result, "virtual-note deeplink reference should be kept"
+        assert dropped not in result, "reference to a missing note should be dropped"

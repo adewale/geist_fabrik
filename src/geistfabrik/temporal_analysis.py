@@ -10,7 +10,7 @@ components.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
@@ -60,7 +60,7 @@ class EmbeddingTrajectoryCalculator:
         self,
         vault: "VaultContext",
         note: "Note",
-        sessions: Optional[List[int]] = None,
+        sessions: list[int] | None = None,
     ):
         """Initialize trajectory calculator for a note.
 
@@ -72,20 +72,18 @@ class EmbeddingTrajectoryCalculator:
         self.vault = vault
         self.note = note
         self.sessions = sessions or self._get_available_sessions()
-        self._snapshots_cache: Optional[List[Tuple[datetime, np.ndarray]]] = None
+        self._snapshots_cache: list[tuple[datetime, np.ndarray]] | None = None
 
-    def _get_available_sessions(self) -> List[int]:
+    def _get_available_sessions(self) -> list[int]:
         """Get all available session IDs from database.
 
         Returns:
             List of session IDs ordered by date
         """
-        cursor = self.vault.db.execute(
-            "SELECT session_id FROM sessions ORDER BY date ASC"
-        )
+        cursor = self.vault.db.execute("SELECT session_id FROM sessions ORDER BY date ASC")
         return [row[0] for row in cursor.fetchall()]
 
-    def snapshots(self) -> List[Tuple[datetime, np.ndarray]]:
+    def snapshots(self) -> list[tuple[datetime, np.ndarray]]:
         """Get (date, embedding) for all sessions containing this note.
 
         Returns:
@@ -95,7 +93,7 @@ class EmbeddingTrajectoryCalculator:
             self._snapshots_cache = self._load_snapshots()
         return self._snapshots_cache
 
-    def _load_snapshots(self) -> List[Tuple[datetime, np.ndarray]]:
+    def _load_snapshots(self) -> list[tuple[datetime, np.ndarray]]:
         """Load embedding snapshots from database.
 
         Returns:
@@ -189,7 +187,7 @@ class EmbeddingTrajectoryCalculator:
         # Compute dot product (alignment)
         return float(np.dot(drift_dir, direction_unit))
 
-    def windowed_drift_rates(self, window_size: int = 3) -> List[float]:
+    def windowed_drift_rates(self, window_size: int = 3) -> list[float]:
         """Compute drift rates in sliding windows of consecutive sessions.
 
         Args:
@@ -207,15 +205,13 @@ class EmbeddingTrajectoryCalculator:
             window_start = snapshots[i][1]
             window_end = snapshots[i + window_size - 1][1]
 
-            similarity = sklearn_cosine(
-                window_start.reshape(1, -1), window_end.reshape(1, -1)
-            )
+            similarity = sklearn_cosine(window_start.reshape(1, -1), window_end.reshape(1, -1))
             drift = 1.0 - float(similarity[0, 0])
             drift_rates.append(drift)
 
         return drift_rates
 
-    def early_late_split(self) -> Tuple[float, float]:
+    def early_late_split(self) -> tuple[float, float]:
         """Return (early_avg_sim, late_avg_sim) for convergence detection.
 
         Splits trajectory into first and second half, computes average similarity
@@ -267,9 +263,7 @@ class EmbeddingTrajectoryCalculator:
 
         return (final_rate - initial_rate) > threshold
 
-    def similarity_with_trajectory(
-        self, other: "EmbeddingTrajectoryCalculator"
-    ) -> List[float]:
+    def similarity_with_trajectory(self, other: "EmbeddingTrajectoryCalculator") -> list[float]:
         """Compute similarity between this note and another note at each session.
 
         Only computes similarity for sessions where both notes exist.
@@ -366,9 +360,9 @@ class TemporalPatternFinder:
 
     def find_converging_pairs(
         self,
-        candidate_pairs: List[Tuple["Note", "Note"]],
+        candidate_pairs: list[tuple["Note", "Note"]],
         threshold: float = 0.15,
-    ) -> List[Tuple["Note", "Note"]]:
+    ) -> list[tuple["Note", "Note"]]:
         """Find pairs whose embeddings are converging across sessions.
 
         Args:
@@ -391,9 +385,9 @@ class TemporalPatternFinder:
 
     def find_diverging_pairs(
         self,
-        candidate_pairs: List[Tuple["Note", "Note"]],
+        candidate_pairs: list[tuple["Note", "Note"]],
         threshold: float = 0.15,
-    ) -> List[Tuple["Note", "Note"]]:
+    ) -> list[tuple["Note", "Note"]]:
         """Find pairs whose embeddings are diverging across sessions.
 
         Args:
@@ -415,8 +409,8 @@ class TemporalPatternFinder:
         return diverging
 
     def find_high_drift_notes(
-        self, notes: List["Note"], min_drift: float = 0.2
-    ) -> List[Tuple["Note", np.ndarray]]:
+        self, notes: list["Note"], min_drift: float = 0.2
+    ) -> list[tuple["Note", np.ndarray]]:
         """Find notes with significant drift and their drift direction vectors.
 
         Args:
@@ -444,10 +438,10 @@ class TemporalPatternFinder:
 
     def find_aligned_with_direction(
         self,
-        notes: List["Note"],
+        notes: list["Note"],
         direction: np.ndarray,
         min_alignment: float = 0.5,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find notes drifting in a specific semantic direction.
 
         Args:
@@ -473,9 +467,7 @@ class TemporalPatternFinder:
 
         return aligned
 
-    def find_cycling_notes(
-        self, notes: List["Note"], min_cycles: int = 2
-    ) -> List["Note"]:
+    def find_cycling_notes(self, notes: list["Note"], min_cycles: int = 2) -> list["Note"]:
         """Find notes that return to previous semantic states (cyclical thinking).
 
         A note is considered cyclical if it alternates between being similar and
@@ -554,7 +546,7 @@ class TemporalSemanticQuery:
         start_date: datetime,
         end_date: datetime,
         min_similarity: float = 0.6,
-    ) -> List["Note"]:
+    ) -> list["Note"]:
         """Find notes created in time range similar to anchor.
 
         Args:
@@ -581,9 +573,7 @@ class TemporalSemanticQuery:
 
         return results
 
-    def seasonal_pattern_for_topic(
-        self, topic_keywords: List[str]
-    ) -> Dict[str, int]:
+    def seasonal_pattern_for_topic(self, topic_keywords: list[str]) -> dict[str, int]:
         """Count notes about topic by season (spring/summer/autumn/winter).
 
         Args:
@@ -613,9 +603,7 @@ class TemporalSemanticQuery:
 
         return season_counts
 
-    def drift_direction_by_period(
-        self, note: "Note"
-    ) -> Dict[str, np.ndarray]:
+    def drift_direction_by_period(self, note: "Note") -> dict[str, np.ndarray]:
         """Get drift direction vectors by time period (month, season).
 
         Analyzes how note's drift direction varies across different time
@@ -634,7 +622,7 @@ class TemporalSemanticQuery:
             return {}
 
         # Group snapshots by season
-        season_snapshots: Dict[str, List[Tuple[datetime, np.ndarray]]] = {
+        season_snapshots: dict[str, list[tuple[datetime, np.ndarray]]] = {
             "spring": [],
             "summer": [],
             "autumn": [],
@@ -646,7 +634,7 @@ class TemporalSemanticQuery:
             season_snapshots[season].append((date, emb))
 
         # Compute drift direction per season
-        drift_directions: Dict[str, np.ndarray] = {}
+        drift_directions: dict[str, np.ndarray] = {}
 
         for season, season_snaps in season_snapshots.items():
             if len(season_snaps) >= 2:

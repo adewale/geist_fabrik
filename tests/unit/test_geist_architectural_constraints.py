@@ -8,16 +8,16 @@ import re
 from pathlib import Path
 
 
-def test_geists_use_obsidian_link_not_title() -> None:
-    """Enforce that all code geists use note.obsidian_link instead of note.title in wikilinks.
+def test_geists_use_link_text_not_title() -> None:
+    """Enforce that all code geists use note.link_text instead of note.title in wikilinks.
 
     Architectural Principle:
-    All geists must use note.obsidian_link when generating Obsidian wikilinks.
+    All geists must use note.link_text when generating Obsidian wikilinks.
     This ensures virtual notes (journal entries) work correctly.
 
     Why:
-    - Regular notes: obsidian_link returns title (no change)
-    - Virtual notes: obsidian_link returns deeplink format "Journal#2025-01-15"
+    - Regular notes: link_text returns title (no change)
+    - Virtual notes: link_text returns deeplink format "Journal#2025-01-15"
     - Using .title directly breaks virtual notes by generating [[2025-01-15]]
       instead of [[Journal#2025-01-15]]
 
@@ -52,8 +52,8 @@ def test_geists_use_obsidian_link_not_title() -> None:
 
             # Check all patterns
             if pattern1.search(line) or pattern2.search(line) or pattern3.search(line):
-                # Check if this line actually has .obsidian_link (might be a false positive)
-                if ".obsidian_link" in line:
+                # Check if this line actually has .link_text (might be a false positive)
+                if ".link_text" in line:
                     continue
 
                 violations.append(
@@ -71,11 +71,11 @@ def test_geists_use_obsidian_link_not_title() -> None:
             "ARCHITECTURAL CONSTRAINT VIOLATION",
             "=" * 80,
             "",
-            "Found geists using .title instead of .obsidian_link in wikilinks.",
+            "Found geists using .title instead of .link_text in wikilinks.",
             "",
             "Why this matters:",
-            "  - Regular notes: obsidian_link returns title (works correctly)",
-            "  - Virtual notes: obsidian_link returns 'Journal#2025-01-15' (correct)",
+            "  - Regular notes: link_text returns title (works correctly)",
+            "  - Virtual notes: link_text returns 'Journal#2025-01-15' (correct)",
             "  - Using .title for virtual notes generates [[2025-01-15]] (broken)",
             "",
             "Violations found:",
@@ -90,15 +90,15 @@ def test_geists_use_obsidian_link_not_title() -> None:
         error_msg.extend(
             [
                 "How to fix:",
-                "  Replace all occurrences of .title in wikilinks with .obsidian_link",
+                "  Replace all occurrences of .title in wikilinks with .link_text",
                 "",
                 "  ❌ WRONG:",
                 '    f"[[{note.title}]]"',
-                '    notes=[note.title]',
+                "    notes=[note.title]",
                 "",
                 "  ✅ CORRECT:",
-                '    f"[[{note.obsidian_link}]]"',
-                '    notes=[note.obsidian_link]',
+                '    f"[[{note.link_text}]]"',
+                "    notes=[note.link_text]",
                 "",
                 "See specs/DATE_COLLECTION_NOTES_SPEC.md for architectural details.",
                 "=" * 80,
@@ -151,12 +151,11 @@ def test_geists_have_proper_type_hints() -> None:
                 # Enforce project standard: list["Suggestion"] (lowercase, quoted)
                 elif '-> list["Suggestion"]' not in line:
                     # Detect specific violations for better error messages
-                    if 'List[' in line:
+                    if "List[" in line:
                         issue = "Uses 'List' instead of 'list' (violates PEP 585 style)"
-                    elif '-> list[Suggestion]' in line:
+                    elif "-> list[Suggestion]" in line:
                         issue = (
-                            'Missing quotes around \'Suggestion\' '
-                            '(should be list["Suggestion"])'
+                            "Missing quotes around 'Suggestion' (should be list[\"Suggestion\"])"
                         )
                     else:
                         issue = "Missing or incorrect return type hint"
@@ -275,13 +274,47 @@ def test_geists_use_vault_sample_not_random() -> None:
                 "How to fix:",
                 "  ❌ WRONG:",
                 "    import random",
-                "    sample = random.sample(notes, k=5)",
+                "    sample = random.sample(notes, count=5)",
                 "",
                 "  ✅ CORRECT:",
-                "    sample = vault.sample(notes, k=5)",
+                "    sample = vault.sample(notes, count=5)",
                 "",
                 "=" * 80,
             ]
         )
 
         raise AssertionError("\n".join(error_msg))
+
+
+def test_geists_do_not_use_direct_sql() -> None:
+    """Enforce that no code geist accesses the database directly via vault.db.
+
+    Architectural Principle (CLAUDE.md, "Two-Layer Architecture"):
+    Geists must work through VaultContext methods, never reach into the raw
+    SQLite connection. A geist that calls vault.db.execute(...) couples itself
+    to the database schema and bypasses the abstraction layer.
+
+    This guards the migration of cyclical_thinking, drift_velocity_anomaly,
+    vocabulary_expansion, and cluster_evolution_tracker onto VaultContext
+    methods (e.g. session_count(), session_embeddings_by_session()) - a
+    previously-reported architectural violation that must not regress.
+    """
+    geist_dir = Path("src/geistfabrik/default_geists/code")
+    violations = []
+
+    # Direct DB access: `vault.db`, or `.db.execute(`/`.db.cursor(` on any object.
+    pattern = re.compile(r"\bvault\.db\b|\.db\.(execute|executemany|executescript|cursor)\b")
+
+    for geist_file in sorted(geist_dir.glob("*.py")):
+        if geist_file.name == "__init__.py":
+            continue
+        for line_num, line in enumerate(geist_file.read_text().splitlines(), start=1):
+            if line.strip().startswith("#"):
+                continue
+            if pattern.search(line):
+                violations.append(f"{geist_file.name}:{line_num}: {line.strip()}")
+
+    assert not violations, (
+        "Geists must use VaultContext methods, not direct database access (vault.db). "
+        "Add a VaultContext method instead. Violations:\n" + "\n".join(violations)
+    )

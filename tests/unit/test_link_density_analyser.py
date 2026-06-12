@@ -7,16 +7,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import link_density_analyser
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -151,8 +142,8 @@ def test_link_density_analyser_suggestion_structure(vault_with_link_density_issu
             assert isinstance(note_ref, str)
 
 
-def test_link_density_analyser_uses_obsidian_link(vault_with_link_density_issues):
-    """Test that link_density_analyser uses obsidian_link for note references.
+def test_link_density_analyser_uses_link_text(vault_with_link_density_issues):
+    """Test that link_density_analyser uses link_text for note references.
 
     Setup:
         Vault with density variations.

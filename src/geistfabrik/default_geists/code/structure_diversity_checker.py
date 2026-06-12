@@ -12,6 +12,11 @@ if TYPE_CHECKING:
 
 from geistfabrik import Suggestion
 
+# We only need a single example of a differing structure, so classify (one
+# metadata call per note) only a bounded, date-seeded sample rather than the
+# whole vault.
+MAX_STRUCTURE_CANDIDATES = 50
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Check for structural diversity in recent notes.
@@ -25,7 +30,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get recent notes
-    recent = vault.recent_notes(k=8)
+    recent = vault.recent_notes(count=8)
     if len(recent) < 5:
         return []
 
@@ -53,14 +58,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 text = (
                     f"Your last {len(recent)} notes are structurally similar "
                     f"({dominant_count} are {dominant_type}). "
-                    f"\n\n[[{different_example.obsidian_link}]] has a different structure "
+                    f"\n\n[[{different_example.link_text}]] has a different structure "
                     f"({different_structure}). What if you tried that style again?"
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[different_example.obsidian_link],
+                        notes=[different_example.link_text],
                         geist_id="structure_diversity_checker",
                     )
                 )
@@ -115,11 +120,12 @@ def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note |
     Returns:
         A note with different structure, or None if not found
     """
-    # Look through older notes for different structures
+    # Look through a bounded sample of notes for different structures.
     all_notes = vault.notes()
+    candidates = vault.sample(all_notes, min(len(all_notes), MAX_STRUCTURE_CANDIDATES))
 
     different_notes = []
-    for note in all_notes:
+    for note in candidates:
         structure_type = _classify_structure(vault, note)
         if structure_type != avoid_type:
             different_notes.append(note)

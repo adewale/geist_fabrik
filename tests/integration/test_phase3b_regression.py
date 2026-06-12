@@ -30,7 +30,7 @@ class TestPatternFinderCoverage:
         """Regression: pattern_finder must examine ALL notes, not a sample.
 
         Phase 3B Issue (commit c74a12a):
-        - Added: sampled_notes = vault.sample(notes, k=min(500, len(notes)))
+        - Added: sampled_notes = vault.sample(notes, count=min(500, len(notes)))
         - Impact: On 10k vaults, only 5% of notes examined
         - Result: 95% of patterns missed, causing suggestion quality loss
 
@@ -243,7 +243,7 @@ class TestScaleShifterCacheUsage:
 
         # Warm up the cache by calling similarity() on some note pairs
         # This simulates previous geists in the session populating cache
-        sample_notes = context.sample(notes, k=10)
+        sample_notes = context.sample(notes, count=10)
         for i, note_a in enumerate(sample_notes):
             for note_b in sample_notes[i + 1 :]:
                 context.similarity(note_a, note_b)  # Populate cache

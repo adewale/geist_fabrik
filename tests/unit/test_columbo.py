@@ -7,16 +7,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import columbo
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -170,8 +161,8 @@ def test_columbo_suggestion_structure(vault_with_contradictions):
         assert "lying" in suggestion.text.lower() or "contradict" in suggestion.text.lower()
 
 
-def test_columbo_uses_obsidian_link(vault_with_contradictions):
-    """Test that columbo uses obsidian_link for note references.
+def test_columbo_uses_link_text(vault_with_contradictions):
+    """Test that columbo uses link_text for note references.
 
     Setup:
         Vault with isolated notes.
@@ -196,7 +187,7 @@ def test_columbo_uses_obsidian_link(vault_with_contradictions):
 
         # Check that notes list contains proper references
         for note_ref in suggestion.notes:
-            # Should be a plain string (obsidian_link format)
+            # Should be a plain string (link_text format)
             assert isinstance(note_ref, str)
 
 

@@ -69,28 +69,28 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Highly abstract note - suggest zooming in
         if abstract_score >= 3 and concrete_score <= 1:
             # Find more concrete similar notes
-            similar = vault.neighbours(note, k=10)
+            similar = vault.neighbours(note, count=10)
 
-            concrete_neighbors = []
+            concrete_neighbours = []
             for other in similar:
                 other_content = vault.read(other).lower()
                 other_concrete = sum(1 for word in concrete_words if word in other_content)
                 if other_concrete >= 2:
-                    concrete_neighbors.append(other)
+                    concrete_neighbours.append(other)
 
-            if concrete_neighbors:
-                example = vault.sample(concrete_neighbors, k=1)[0]
+            if concrete_neighbours:
+                example = vault.sample(concrete_neighbours, count=1)[0]
 
                 text = (
-                    f"[[{note.obsidian_link}]] operates at a high level of abstraction. "
-                    f"What if you zoomed in? [[{example.obsidian_link}]] might be a "
+                    f"[[{note.link_text}]] operates at a high level of abstraction. "
+                    f"What if you zoomed in? [[{example.link_text}]] might be a "
                     f"more concrete instance of the same ideas."
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[note.obsidian_link, example.obsidian_link],
+                        notes=[note.link_text, example.link_text],
                         geist_id="scale_shifter",
                     )
                 )
@@ -98,28 +98,28 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Highly concrete note - suggest zooming out
         elif concrete_score >= 3 and abstract_score <= 1:
             # Find more abstract similar notes
-            similar = vault.neighbours(note, k=10)
+            similar = vault.neighbours(note, count=10)
 
-            abstract_neighbors = []
+            abstract_neighbours = []
             for other in similar:
                 other_content = vault.read(other).lower()
                 other_abstract = sum(1 for word in abstract_words if word in other_content)
                 if other_abstract >= 2:
-                    abstract_neighbors.append(other)
+                    abstract_neighbours.append(other)
 
-            if abstract_neighbors:
-                framework = vault.sample(abstract_neighbors, k=1)[0]
+            if abstract_neighbours:
+                framework = vault.sample(abstract_neighbours, count=1)[0]
 
                 text = (
-                    f"[[{note.obsidian_link}]] is very specific and concrete. "
-                    f"What if you zoomed out? [[{framework.obsidian_link}]] might provide "
+                    f"[[{note.link_text}]] is very specific and concrete. "
+                    f"What if you zoomed out? [[{framework.link_text}]] might provide "
                     f"a broader framework for understanding what makes this case interesting."
                 )
 
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[note.obsidian_link, framework.obsidian_link],
+                        notes=[note.link_text, framework.link_text],
                         geist_id="scale_shifter",
                     )
                 )
@@ -144,8 +144,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if vault.similarity(abstract, concrete) > 0.6:
                 if not vault.links_between(abstract, concrete):
                     text = (
-                        f"[[{abstract.obsidian_link}]] (abstract/theoretical) and "
-                        f"[[{concrete.obsidian_link}]] (concrete/specific) are "
+                        f"[[{abstract.link_text}]] (abstract/theoretical) and "
+                        f"[[{concrete.link_text}]] (concrete/specific) are "
                         f"semantically similar but operate at different scales. Could one "
                         f"illuminate the other?"
                     )
@@ -153,9 +153,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     suggestions.append(
                         Suggestion(
                             text=text,
-                            notes=[abstract.obsidian_link, concrete.obsidian_link],
+                            notes=[abstract.link_text, concrete.link_text],
                             geist_id="scale_shifter",
                         )
                     )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

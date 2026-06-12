@@ -21,7 +21,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get recently modified notes
-    recent = vault.recent_notes(k=5)
+    # recent_notes() includes geist-journal output; exclude session notes.
+    recent = [n for n in vault.recent_notes(count=10) if not n.path.startswith("geist journal/")][
+        :5
+    ]
 
     if len(recent) < 2:
         return []
@@ -29,7 +32,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # For each recent note, find old notes that are similar
     for recent_note in recent[:3]:  # Just check top 3
         # Find semantically similar notes
-        similar = vault.neighbours(recent_note, k=10)
+        similar = vault.neighbours(recent_note, count=10)
 
         # Filter to only old notes (not modified recently)
         old_similar = []
@@ -44,15 +47,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             old_note = old_similar[0]  # Pick the most similar old note
 
             text = (
-                f"What if your recent work on [[{recent_note.obsidian_link}]] "
-                f"connects to your older note [[{old_note.obsidian_link}]]? "
+                f"What if your recent work on [[{recent_note.link_text}]] "
+                f"connects to your older note [[{old_note.link_text}]]? "
                 f"They're semantically similar - has your thinking evolved?"
             )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[recent_note.obsidian_link, old_note.obsidian_link],
+                    notes=[recent_note.link_text, old_note.link_text],
                     geist_id="recent_focus",
                 )
             )

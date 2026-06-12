@@ -3,8 +3,9 @@
 import hashlib
 import sqlite3
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator, List, Union, cast
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -33,7 +34,7 @@ class SentenceTransformerStub:
 
     def encode(
         self,
-        sentences: Union[str, List[str]],
+        sentences: str | list[str],
         convert_to_numpy: bool = True,
         show_progress_bar: bool = False,
         batch_size: int = 32,
@@ -53,11 +54,11 @@ class SentenceTransformerStub:
         """
         is_single = isinstance(sentences, str)
         if is_single:
-            texts: List[str] = [cast(str, sentences)]
+            texts: list[str] = [cast(str, sentences)]
         else:
-            texts = cast(List[str], sentences)
+            texts = cast(list[str], sentences)
 
-        embeddings: List[np.ndarray] = []
+        embeddings: list[np.ndarray] = []
         for text in texts:
             # Generate deterministic embedding from text hash
             # Use SHA256 to get bytes, then convert to float values
@@ -184,3 +185,19 @@ def test_db() -> Generator[sqlite3.Connection, None, None]:
     db = init_db()
     yield db
     db.close()
+
+
+@pytest.fixture(autouse=True)
+def clear_global_registry() -> Generator[None, None, None]:
+    """Reset the module-level function registry around every test.
+
+    FunctionRegistry registers builtins into a process-global registry
+    (function_registry._GLOBAL_REGISTRY), so any test that constructs a
+    registry would otherwise poison the next one with DuplicateFunctionError.
+    Hoisted here from ~49 per-file copies of this same fixture.
+    """
+    from geistfabrik.function_registry import _GLOBAL_REGISTRY
+
+    _GLOBAL_REGISTRY.clear()
+    yield
+    _GLOBAL_REGISTRY.clear()

@@ -1,23 +1,13 @@
 """Unit tests for on_this_day geist."""
 
 from datetime import datetime
-from unittest.mock import patch
 
 import pytest
 
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import on_this_day
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -70,13 +60,11 @@ def vault_with_anniversary_notes(tmp_path):
 # ============================================================================
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_finds_anniversary_notes(mock_datetime, vault_with_anniversary_notes):
+def test_on_this_day_finds_anniversary_notes(vault_with_anniversary_notes):
     """Test that on_this_day finds notes from same date in previous years."""
     vault, session = vault_with_anniversary_notes
 
     # Mock today as March 15, 2024
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -100,8 +88,7 @@ def test_on_this_day_finds_anniversary_notes(mock_datetime, vault_with_anniversa
         assert "]]" in suggestion.text
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_suggestion_structure(mock_datetime, vault_with_anniversary_notes):
+def test_on_this_day_suggestion_structure(vault_with_anniversary_notes):
     """Test that suggestions have correct structure.
 
     Setup:
@@ -111,8 +98,6 @@ def test_on_this_day_suggestion_structure(mock_datetime, vault_with_anniversary_
         - Has required fields
         - References notes from same calendar day"""
     vault, session = vault_with_anniversary_notes
-
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -144,9 +129,8 @@ def test_on_this_day_suggestion_structure(mock_datetime, vault_with_anniversary_
         assert isinstance(suggestion.notes[0], str)
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_uses_obsidian_link(mock_datetime, vault_with_anniversary_notes):
-    """Test that on_this_day uses obsidian_link for note references.
+def test_on_this_day_uses_link_text(vault_with_anniversary_notes):
+    """Test that on_this_day uses link_text for note references.
 
     Setup:
         Vault with dated notes.
@@ -154,8 +138,6 @@ def test_on_this_day_uses_obsidian_link(mock_datetime, vault_with_anniversary_no
     Verifies:
         - Uses [[wiki-link]] format"""
     vault, session = vault_with_anniversary_notes
-
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -176,12 +158,9 @@ def test_on_this_day_uses_obsidian_link(mock_datetime, vault_with_anniversary_no
             assert isinstance(note_ref, str)
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_year_phrase(mock_datetime, vault_with_anniversary_notes):
+def test_on_this_day_year_phrase(vault_with_anniversary_notes):
     """Test correct phrasing for 1 year vs multiple years."""
     vault, session = vault_with_anniversary_notes
-
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -208,8 +187,7 @@ def test_on_this_day_year_phrase(mock_datetime, vault_with_anniversary_notes):
 # ============================================================================
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_empty_vault(mock_datetime, tmp_path):
+def test_on_this_day_empty_vault(tmp_path):
     """Test that on_this_day handles empty vault gracefully.
 
     Setup:
@@ -226,8 +204,6 @@ def test_on_this_day_empty_vault(mock_datetime, tmp_path):
     session = Session(datetime(2024, 3, 15), vault.db)
     session.compute_embeddings(vault.all_notes())
 
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
-
     context = VaultContext(
         vault=vault,
         session=session,
@@ -242,8 +218,7 @@ def test_on_this_day_empty_vault(mock_datetime, tmp_path):
     assert len(suggestions) == 0
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_no_matching_dates(mock_datetime, tmp_path):
+def test_on_this_day_no_matching_dates(tmp_path):
     """Test when no notes match the current date."""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -270,7 +245,6 @@ def test_on_this_day_no_matching_dates(mock_datetime, tmp_path):
     session.compute_embeddings(vault.all_notes())
 
     # Today is March 15 - no notes match
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -285,8 +259,7 @@ def test_on_this_day_no_matching_dates(mock_datetime, tmp_path):
     assert len(suggestions) == 0
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_excludes_current_year(mock_datetime, tmp_path):
+def test_on_this_day_excludes_current_year(tmp_path):
     """Test that notes from current year are excluded."""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -308,7 +281,6 @@ def test_on_this_day_excludes_current_year(mock_datetime, tmp_path):
     session.compute_embeddings(vault.all_notes())
 
     # Today is also March 15, 2024
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -323,8 +295,7 @@ def test_on_this_day_excludes_current_year(mock_datetime, tmp_path):
     assert len(suggestions) == 0
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_excludes_future_dates(mock_datetime, tmp_path):
+def test_on_this_day_excludes_future_dates(tmp_path):
     """Test that notes with future dates are excluded."""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -346,7 +317,6 @@ def test_on_this_day_excludes_future_dates(mock_datetime, tmp_path):
     session.compute_embeddings(vault.all_notes())
 
     # Today is March 15, 2024
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -366,12 +336,9 @@ def test_on_this_day_excludes_future_dates(mock_datetime, tmp_path):
 # ============================================================================
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_max_two_suggestions(mock_datetime, vault_with_anniversary_notes):
+def test_on_this_day_max_two_suggestions(vault_with_anniversary_notes):
     """Test that on_this_day returns at most 2 suggestions."""
     vault, session = vault_with_anniversary_notes
-
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,
@@ -386,12 +353,9 @@ def test_on_this_day_max_two_suggestions(mock_datetime, vault_with_anniversary_n
     assert len(suggestions) <= 2
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_sorts_by_recency(mock_datetime, vault_with_anniversary_notes):
+def test_on_this_day_sorts_by_recency(vault_with_anniversary_notes):
     """Test that on_this_day prefers more recent years."""
     vault, session = vault_with_anniversary_notes
-
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     # Use deterministic seed
     context = VaultContext(
@@ -418,8 +382,7 @@ def test_on_this_day_sorts_by_recency(mock_datetime, vault_with_anniversary_note
 # ============================================================================
 
 
-@patch("geistfabrik.default_geists.code.on_this_day.datetime")
-def test_on_this_day_with_virtual_notes(mock_datetime, tmp_path):
+def test_on_this_day_with_virtual_notes(tmp_path):
     """Test that on_this_day works with virtual notes from journals."""
     from tests.fixtures.virtual_notes import create_journal_file
 
@@ -440,7 +403,6 @@ def test_on_this_day_with_virtual_notes(mock_datetime, tmp_path):
     session.compute_embeddings(vault.all_notes())
 
     # Today is March 15, 2024
-    mock_datetime.now.return_value = datetime(2024, 3, 15, 10, 0)
 
     context = VaultContext(
         vault=vault,

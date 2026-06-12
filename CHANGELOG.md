@@ -8,13 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Breaking Changes
+- **Pre-1.0 API consistency pass** (geist-facing `VaultContext` API). Custom
+  geists must update; bundled geists, examples, and docs are already updated.
+  - `note.obsidian_link` → **`note.link_text`** (the property returns link
+    *text* without brackets; the old name implied it included them).
+  - Result-count parameters are now uniformly **`count`** (were `k`/`limit`):
+    `vault.sample(x, k=3)` → `vault.sample(x, count=3)`; likewise `neighbours`,
+    `hubs`, `orphans`, `old_notes`, `recent_notes`, `random_notes`,
+    `unlinked_pairs`, `recent_session_ids`, `get_cluster_representatives`, and
+    the vector backends' `find_similar`/`find_similar_notes`. Descriptive
+    params (`min_size`, `min_backlinks`, `candidate_limit`, `min_per_day`) are
+    unchanged. `semantic_clusters` keeps `count` (seeds) and adds
+    `neighbour_count` (per-seed neighbours).
+  - **British spelling**: `graph_neighbors` → `graph_neighbours`,
+    `k_hop_neighborhood` → `k_hop_neighbourhood`.
+  - **`VaultContext.get_clusters()`** now returns `dict[int, Cluster]` (the
+    typed dataclass) instead of `dict[int, dict[str, Any]]`; access fields as
+    `cluster.notes`, `cluster.formatted_label`, etc.
+  - **Action required**: update custom geists. No database rebuild needed.
+- **Schema v8 — `geist_status` table** (persistent per-geist failure tracking).
+  - **What changed**: a geist is now disabled after N *consecutive* failures
+    (config `geist_max_failures`, default 3), persisted across sessions; a
+    successful run resets the count. Previously the counter was in-memory and
+    could never reach the threshold.
+  - **Action required**: none — additive migration applied automatically.
+    Re-enable a disabled geist by fixing it (next successful run resets it),
+    running `geistfabrik test <geist> <vault>`, or deleting the database.
+- **Schema v7 — `session_embeddings.cluster_label`** column added (additive
+  migration; fixes `cluster_evolution_tracker`, which queried a column that
+  never existed). No rebuild required.
 - **Virtual note title format change**: Fixed virtual note titles to exclude filename prefix
   - **What changed**: Virtual note titles now store ONLY the heading text (e.g., "2024 February 18") instead of the deeplink format (e.g., "Exercise journal#2024 February 18")
   - **Why**: The old format stored "filename#heading" in the title field, causing suggestions to display as `[[Exercise journal#Exercise journal#2024 February 18]]` (double filename prefix)
   - **Correct behaviour**:
     - `note.title` = `"2024 February 18"` (just the heading text)
-    - `note.obsidian_link` = `"Exercise journal#2024 February 18"` (property combines them)
-    - Suggestions use `[[{note.obsidian_link}]]` = `[[Exercise journal#2024 February 18]]`
+    - `note.link_text` = `"Exercise journal#2024 February 18"` (property combines them)
+    - Suggestions use `[[{note.link_text}]]` = `[[Exercise journal#2024 February 18]]`
   - **Action required**: Users with existing databases showing doubled filenames in virtual note links must rebuild:
     ```bash
     rm -rf <vault>/_geistfabrik/vault.db*
@@ -53,6 +82,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Specification and historical documentation preserved for reference
 
 ### Performance
+- **June 2026 perf pass** (before/after in `benchmarks/RESULTS_2026-06.md`,
+  reproducible via `benchmarks/perf_before_after.py`):
+  - `orphans()` O(N·M) → O(N+M) set-difference (the LEFT-JOIN `OR` was
+    non-sargable; ~179× on a 6k-note synthetic vault).
+  - `filter_diversity`/`filter_novelty` per-pair Python cosine loops →
+    single BLAS matrix (~1281× at S=200; dominant `--full`-mode filter cost).
+  - `find_similar` top-k via `argpartition` (13× on the sort step;
+    end-to-end is matmul-bound).
+  - `island_hopper`, graph `find_bridges`/`detect_structural_holes` batch
+    their similarity matrices; `detect_structural_holes` gains a candidate cap.
+  - Sync stale-note deletion uses a temp table instead of `NOT IN (?,…)`,
+    removing the SQLite variable-count hard cap (>32k notes).
+  - Encode threads bounded via `threadpoolctl` instead of global
+    `OMP_NUM_THREADS` env mutation at import.
+  - `session_embeddings` retention window bounds unbounded DB growth.
 - **BIG OPTIMISATION #1**: Fixed O(N²) algorithmic inefficiencies (6 locations)
   - **CRITICAL**: Fixed pattern_finder timeout on large vaults (10k+ notes)
     - Replaced O(N³) list.remove() in nested loops with O(N²) set.remove() (pattern_finder.py:88, 95)

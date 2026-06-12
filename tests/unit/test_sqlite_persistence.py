@@ -169,8 +169,8 @@ def test_migration_v5_to_v6_adds_composite_index() -> None:
     # Run migration
     migrate_schema(conn)
 
-    # Verify we're now at v6
-    assert get_schema_version(conn) == 6
+    # Verify migration ran through to the current schema version
+    assert get_schema_version(conn) == SCHEMA_VERSION
 
     # Check composite index exists
     cursor = conn.execute(
@@ -220,8 +220,8 @@ def test_migration_is_idempotent() -> None:
     migrate_schema(conn)
     migrate_schema(conn)
 
-    # Should still be at v6
-    assert get_schema_version(conn) == 6
+    # Should still be at the current schema version
+    assert get_schema_version(conn) == SCHEMA_VERSION
 
     # Index should exist exactly once
     cursor = conn.execute(
@@ -255,7 +255,7 @@ def test_v6_schema_includes_composite_index() -> None:
     conn = init_db(None)
 
     # Verify version
-    assert get_schema_version(conn) == 6
+    assert get_schema_version(conn) == SCHEMA_VERSION
 
     # Check composite index exists
     cursor = conn.execute(

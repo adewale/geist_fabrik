@@ -11,11 +11,35 @@ This module provides comprehensive vault statistics including:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, TypedDict
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class VaultStats(TypedDict, total=False):
+    """Top-level sections of the collected vault statistics.
+
+    The collector fills these sections and StatsFormatter reads them; typing
+    the seam means a renamed/misspelled section key is a mypy error instead
+    of a KeyError at format time. (Sections marked total=False because the
+    embedding/temporal/top-notes sections are only collected on demand.)
+    Section internals remain dicts - this types the contract, not every leaf.
+    """
+
+    vault: dict[str, Any]
+    notes: dict[str, Any]
+    tags: dict[str, Any]
+    links: dict[str, Any]
+    graph: dict[str, Any]
+    sessions: dict[str, Any]
+    geists: dict[str, Any]
+    embeddings: dict[str, Any]
+    temporal: dict[str, Any]
+    top_linked_notes: list[dict[str, Any]]
+    orphan_notes: list[dict[str, Any]]
+    hub_notes: list[dict[str, Any]]
 
 
 class StatsCollector:
@@ -35,7 +59,7 @@ class StatsCollector:
         self.db = vault.db
 
         # Collected stats
-        self.stats: Dict[str, Any] = {}
+        self.stats: VaultStats = {}
         self._collect_basic_stats()
 
     def _collect_basic_stats(self) -> None:
@@ -76,7 +100,7 @@ class StatsCollector:
             return datetime.fromtimestamp(row[0]).isoformat()
         return "Unknown"
 
-    def _collect_note_stats(self) -> Dict[str, Any]:
+    def _collect_note_stats(self) -> dict[str, Any]:
         """Collect note-level statistics."""
         # Total notes
         total = self.db.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
@@ -122,7 +146,7 @@ class StatsCollector:
             "oldest": oldest,
         }
 
-    def _collect_tag_stats(self) -> Dict[str, Any]:
+    def _collect_tag_stats(self) -> dict[str, Any]:
         """Collect tag statistics."""
         # Unique tags
         unique = self.db.execute("SELECT COUNT(DISTINCT tag) FROM tags").fetchone()[0]
@@ -153,7 +177,7 @@ class StatsCollector:
             "top_tags": top_tags,
         }
 
-    def _collect_link_stats(self) -> Dict[str, Any]:
+    def _collect_link_stats(self) -> dict[str, Any]:
         """Collect link statistics."""
         # Total links
         total = self.db.execute("SELECT COUNT(*) FROM links").fetchone()[0]
@@ -182,7 +206,53 @@ class StatsCollector:
             "bidirectional_pct": round(bidirectional_pct, 1),
         }
 
-    def _collect_graph_stats(self) -> Dict[str, Any]:
+    def _largest_connected_component(self) -> int:
+        """Size of the largest connected component of the link graph.
+
+        Union-find over notes, treating each resolved link as an undirected
+        edge. Link targets are resolved to note paths via the canonical forms
+        (path, path-without-extension, title), matching link_target_forms().
+        Returns 0 for an empty vault.
+        """
+        note_paths = [row[0] for row in self.db.execute("SELECT path FROM notes")]
+        if not note_paths:
+            return 0
+
+        # Resolve every target form to a note path for edge construction.
+        target_to_path: dict[str, str] = {}
+        for path, title in self.db.execute("SELECT path, title FROM notes"):
+            target_to_path[path] = path
+            target_to_path[title] = path
+            if path.endswith(".md"):
+                target_to_path[path[:-3]] = path
+
+        parent = {p: p for p in note_paths}
+
+        def find(x: str) -> str:
+            root = x
+            while parent[root] != root:
+                root = parent[root]
+            while parent[x] != root:  # path compression
+                parent[x], x = root, parent[x]
+            return root
+
+        def union(a: str, b: str) -> None:
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        for source_path, target in self.db.execute("SELECT source_path, target FROM links"):
+            resolved = target_to_path.get(target)
+            if resolved is not None and source_path in parent:
+                union(source_path, resolved)
+
+        sizes: dict[str, int] = {}
+        for p in note_paths:
+            root = find(p)
+            sizes[root] = sizes.get(root, 0) + 1
+        return max(sizes.values())
+
+    def _collect_graph_stats(self) -> dict[str, Any]:
         """Collect graph structure statistics."""
         note_count = self.stats["notes"]["total"]
 
@@ -221,16 +291,9 @@ class StatsCollector:
         actual_links = self.stats["links"]["total"]
         density = actual_links / possible_links if possible_links > 0 else 0
 
-        # Largest connected component (simplified: notes with at least one link)
-        cursor = self.db.execute(
-            """
-            SELECT COUNT(DISTINCT path)
-            FROM notes
-            WHERE path IN (SELECT DISTINCT source_path FROM links)
-               OR path IN (SELECT DISTINCT target FROM links)
-            """
-        )
-        largest_component = cursor.fetchone()[0]
+        # Largest connected component: a true union-find over the link graph
+        # (links treated as undirected), not the old "notes with >=1 link" count.
+        largest_component = self._largest_connected_component()
         largest_component_pct = (largest_component / note_count * 100) if note_count > 0 else 0
 
         return {
@@ -242,7 +305,7 @@ class StatsCollector:
             "largest_component_pct": round(largest_component_pct, 1),
         }
 
-    def _collect_session_stats(self) -> Dict[str, Any]:
+    def _collect_session_stats(self) -> dict[str, Any]:
         """Collect session history statistics."""
         # Total sessions
         total = self.db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
@@ -305,7 +368,7 @@ class StatsCollector:
             "recent_sessions": recent_sessions,
         }
 
-    def _collect_geist_stats(self) -> Dict[str, Any]:
+    def _collect_geist_stats(self) -> dict[str, Any]:
         """Collect geist configuration statistics."""
         # Count default geists
         from geistfabrik.default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
@@ -345,7 +408,7 @@ class StatsCollector:
             "disabled_geists": disabled_geists,
         }
 
-    def get_top_linked_notes(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_top_linked_notes(self, limit: int = 10) -> list[dict[str, Any]]:
         """Get top linked notes with incoming and outgoing counts.
 
         Args:
@@ -396,7 +459,7 @@ class StatsCollector:
         all_notes.sort(key=lambda x: x["total"], reverse=True)
         return all_notes[:limit]
 
-    def get_orphan_notes(self) -> List[Dict[str, str]]:
+    def get_orphan_notes(self) -> list[dict[str, str]]:
         """Get list of orphan notes (no links in or out).
 
         Returns:
@@ -419,7 +482,7 @@ class StatsCollector:
         )
         return [{"path": row[0], "title": row[1]} for row in cursor.fetchall()]
 
-    def get_hub_notes(self, min_connections: int = 10) -> List[Dict[str, Any]]:
+    def get_hub_notes(self, min_connections: int = 10) -> list[dict[str, Any]]:
         """Get hub notes with high connection counts.
 
         Args:
@@ -437,7 +500,7 @@ class StatsCollector:
         row = cursor.fetchone()
         return row[0] > 0 if row else False
 
-    def get_latest_embeddings(self) -> Optional[Tuple[str, np.ndarray, List[str]]]:
+    def get_latest_embeddings(self) -> tuple[str, np.ndarray, list[str]] | None:
         """Get embeddings from most recent session.
 
         Returns:
@@ -488,9 +551,7 @@ class StatsCollector:
         embeddings = np.vstack(embeddings_list)
         return session_date, embeddings, paths
 
-    def get_temporal_drift(
-        self, current_date: str, days_back: int = 30
-    ) -> Optional[Dict[str, Any]]:
+    def get_temporal_drift(self, current_date: str, days_back: int = 30) -> dict[str, Any] | None:
         """Analyze temporal drift between current and historical embeddings.
 
         Args:
@@ -641,11 +702,11 @@ class StatsCollector:
             ],
         }
 
-    def add_embedding_metrics(self, metrics: Dict[str, Any]) -> None:
+    def add_embedding_metrics(self, metrics: dict[str, Any]) -> None:
         """Add computed embedding metrics to stats."""
         self.stats["embeddings"] = metrics
 
-    def add_temporal_analysis(self, temporal: Dict[str, Any]) -> None:
+    def add_temporal_analysis(self, temporal: dict[str, Any]) -> None:
         """Add temporal drift analysis to stats."""
         self.stats["temporal"] = temporal
 

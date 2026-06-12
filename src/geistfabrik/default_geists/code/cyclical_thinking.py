@@ -48,7 +48,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             last_date = session_dates[-1][:7]
 
             text = (
-                f"[[{note.obsidian_link}]] shows cyclical thinking—"
+                f"[[{note.link_text}]] shows cyclical thinking—"
                 f"returning to similar semantic states across sessions "
                 f"({first_date} to {last_date}). "
                 f"What recurring theme keeps drawing you back?"
@@ -57,10 +57,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="cyclical_thinking",
                 )
             )
 
     # Return top 2 cyclical patterns
-    return vault.sample(suggestions, k=min(2, len(suggestions)))
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

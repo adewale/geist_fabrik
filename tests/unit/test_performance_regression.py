@@ -220,8 +220,8 @@ def test_has_link_uses_links_between_not_multiple_calls():
         assert result is True
 
 
-def test_graph_neighbors_uses_set_for_deduplication():
-    """Test that graph_neighbors() returns deduplicated results."""
+def test_graph_neighbours_uses_set_for_deduplication():
+    """Test that graph_neighbours() returns deduplicated results."""
     with tempfile.TemporaryDirectory() as tmpdir:
         vault_path = Path(tmpdir)
         # Bidirectional link between A and B
@@ -241,11 +241,11 @@ def test_graph_neighbors_uses_set_for_deduplication():
         assert note_a is not None
         assert note_b is not None
 
-        neighbors_a = context.graph_neighbors(note_a)
+        neighbours_a = context.graph_neighbours(note_a)
 
         # B should appear exactly once, not twice (even though A→B and B→A)
-        assert neighbors_a.count(note_b) == 1
-        assert len(neighbors_a) == 1
+        assert neighbours_a.count(note_b) == 1
+        assert len(neighbours_a) == 1
 
 
 def test_outgoing_links_resolves_targets_efficiently():
@@ -400,8 +400,8 @@ def test_outgoing_links_caching(temp_vault):
     assert len(result1) == 1
 
 
-def test_graph_neighbors_caching(temp_vault):
-    """Test that graph_neighbors() uses cache on repeated calls."""
+def test_graph_neighbours_caching(temp_vault):
+    """Test that graph_neighbours() uses cache on repeated calls."""
     # Create bidirectional links
     (temp_vault / "note_a.md").write_text("# Note A\n\n[[note_b]]")
     (temp_vault / "note_b.md").write_text("# Note B\n\n[[note_a]]")
@@ -417,10 +417,10 @@ def test_graph_neighbors_caching(temp_vault):
     assert note_a is not None
 
     # First call
-    result1 = context.graph_neighbors(note_a)
+    result1 = context.graph_neighbours(note_a)
 
     # Second call - should use cache
-    result2 = context.graph_neighbors(note_a)
+    result2 = context.graph_neighbours(note_a)
 
     # Verify results are identical (same object from cache)
     assert result1 is result2

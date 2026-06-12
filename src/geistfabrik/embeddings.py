@@ -2,15 +2,13 @@
 
 import os
 
-# CRITICAL: Limit thread/process spawning for ML libraries
-# These MUST be set before importing numpy, torch, or transformers
-# to prevent runaway process spawning during test execution and production use
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+# Cap tokenizers' fork-time threading only if the host hasn't expressed a
+# preference (it has no threadpoolctl-style runtime API, unlike BLAS/OpenMP).
+# Native BLAS/OpenMP thread pools are bounded at the point of use instead, via
+# threadpool_limits() around the heavy encode() calls - see EmbeddingComputer.
+# This avoids mutating global OMP_NUM_THREADS/etc. at import, which silently
+# single-threads any host application that embeds GeistFabrik.
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 import hashlib
 import logging
@@ -18,7 +16,7 @@ import math
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import sklearn  # type: ignore[import-untyped]
@@ -26,6 +24,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
 )
+from threadpoolctl import threadpool_limits  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from .vector_search import VectorSearchBackend
@@ -38,6 +37,32 @@ from .config import (
 from .models import Note
 
 logger = logging.getLogger(__name__)
+
+# Native BLAS/OpenMP thread cap applied only around model.encode() calls.
+# 1 keeps embedding deterministic and prevents the runaway thread-pool
+# spawning (one pool per core, per process) that hung CI under parallel geist
+# execution - without imposing that cap on the host process globally.
+_ENCODE_THREAD_LIMIT = 1
+
+
+def is_offline_mode() -> bool:
+    """Whether GeistFabrik must avoid any network access when loading the model.
+
+    Honours GEISTFABRIK_OFFLINE (any truthy value) as well as the standard
+    HuggingFace HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE flags. When enabled and no
+    local model is available, model loading fails loudly instead of silently
+    downloading from HuggingFace - preserving the "local-first, no network"
+    guarantee.
+    """
+    gf_flag = os.environ.get("GEISTFABRIK_OFFLINE", "").strip().lower()
+    if gf_flag in {"1", "true", "yes", "on"}:
+        return True
+    if os.environ.get("HF_HUB_OFFLINE", "") == "1":
+        return True
+    if os.environ.get("TRANSFORMERS_OFFLINE", "") == "1":
+        return True
+    return False
+
 
 # ============================================================================
 # sklearn Performance Optimisations
@@ -70,7 +95,7 @@ class EmbeddingComputer:
     def __init__(
         self,
         model_name: str = MODEL_NAME,
-        model: Optional[SentenceTransformer] = None,
+        model: SentenceTransformer | None = None,
     ):
         """Initialise embedding computer.
 
@@ -79,8 +104,8 @@ class EmbeddingComputer:
             model: Pre-initialised model (for testing/injection), if None will lazy-load
         """
         self.model_name = model_name
-        self._model: Optional[SentenceTransformer] = model
-        self.device: Optional[str] = None  # Will be set on first model access
+        self._model: SentenceTransformer | None = model
+        self.device: str | None = None  # Will be set on first model access
 
     def _detect_device(self) -> str:
         """Detect best available device for model inference.
@@ -138,9 +163,19 @@ class EmbeddingComputer:
                         f"falling back to HuggingFace download"
                     )
 
+            offline = is_offline_mode()
             if use_local_model:
                 # Use local bundled model (offline, faster, reproducible)
                 model_source = str(local_model_path)
+            elif offline:
+                # Offline mode requested but no usable local model: fail loudly
+                # rather than silently downloading from HuggingFace.
+                raise RuntimeError(
+                    f"Offline mode is enabled but no local model was found at "
+                    f"{local_model_path}. Pull the bundled model with 'git lfs pull', "
+                    f"or unset GEISTFABRIK_OFFLINE/HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE "
+                    f"to allow downloading '{self.model_name}' from HuggingFace."
+                )
             else:
                 # Fall back to HuggingFace (auto-download to cache)
                 model_source = self.model_name
@@ -148,6 +183,7 @@ class EmbeddingComputer:
             self._model = SentenceTransformer(
                 model_source,
                 device=self.device,  # Use detected device (cuda/mps/cpu)
+                local_files_only=offline,
             )
         return self._model
 
@@ -160,10 +196,11 @@ class EmbeddingComputer:
         Returns:
             384-dimensional semantic embedding
         """
-        embedding = self.model.encode(text, convert_to_numpy=True)
+        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+            embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding
 
-    def compute_batch_semantic(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
+    def compute_batch_semantic(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
         """Compute semantic embeddings for multiple texts in batch.
 
         This is significantly faster than calling compute_semantic() in a loop,
@@ -179,12 +216,13 @@ class EmbeddingComputer:
         if not texts:
             return np.array([])
 
-        embeddings = self.model.encode(
-            texts,
-            convert_to_numpy=True,
-            show_progress_bar=False,
-            batch_size=batch_size,
-        )
+        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+            embeddings = self.model.encode(
+                texts,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+                batch_size=batch_size,
+            )
         return embeddings
 
     def compute_temporal_features(self, note: Note, session_date: datetime) -> np.ndarray:
@@ -272,8 +310,9 @@ class Session:
         self,
         date: datetime,
         db: sqlite3.Connection,
-        computer: Optional[EmbeddingComputer] = None,
+        computer: EmbeddingComputer | None = None,
         backend: str = "in-memory",
+        embedding_retention: int | None = None,
     ):
         """Initialise session.
 
@@ -282,13 +321,17 @@ class Session:
             db: Database connection
             computer: EmbeddingComputer instance (for testing/injection), if None will create new
             backend: Vector search backend to use ('in-memory' or 'sqlite-vec')
+            embedding_retention: Maximum number of recent sessions to retain temporal
+                embeddings for. Sessions older than this are pruned at the start of
+                each session to bound database growth. None or <= 0 retains all.
         """
         self.date = date
         self.db = db
         self.session_id = self._get_or_create_session()
         self.computer = computer if computer is not None else EmbeddingComputer()
         self._backend_type = backend
-        self._backend: Optional["VectorSearchBackend"] = None
+        self._backend: VectorSearchBackend | None = None
+        self.embedding_retention = embedding_retention
 
     def _get_or_create_session(self) -> int:
         """Get existing session ID or create new session.
@@ -323,7 +366,7 @@ class Session:
             raise RuntimeError("Failed to create session")
         return session_id
 
-    def compute_vault_state_hash(self, notes: List[Note]) -> str:
+    def compute_vault_state_hash(self, notes: list[Note]) -> str:
         """Compute hash of vault state for change detection.
 
         Args:
@@ -349,7 +392,7 @@ class Session:
         """
         return hashlib.sha256(content.encode()).hexdigest()
 
-    def _get_cached_semantic_embedding(self, note: Note) -> Optional[np.ndarray]:
+    def _get_cached_semantic_embedding(self, note: Note) -> np.ndarray | None:
         """Get cached semantic embedding if available and valid.
 
         Args:
@@ -401,7 +444,7 @@ class Session:
             ),
         )
 
-    def compute_embeddings(self, notes: List[Note]) -> None:
+    def compute_embeddings(self, notes: list[Note]) -> None:
         """Compute and store session embeddings for all notes.
 
         Uses cached semantic embeddings when available (content unchanged),
@@ -423,8 +466,8 @@ class Session:
         self.db.execute("DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,))
 
         # Separate notes into cached and uncached
-        cached_notes: List[tuple[Note, np.ndarray]] = []
-        uncached_notes: List[Note] = []
+        cached_notes: list[tuple[Note, np.ndarray]] = []
+        uncached_notes: list[Note] = []
 
         for note in notes:
             cached_embedding = self._get_cached_semantic_embedding(note)
@@ -438,12 +481,13 @@ class Session:
 
         if uncached_notes:
             texts = [note.content for note in uncached_notes]
-            computed_embeddings = self.computer.model.encode(
-                texts,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-                batch_size=DEFAULT_BATCH_SIZE,
-            )
+            with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+                computed_embeddings = self.computer.model.encode(
+                    texts,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                    batch_size=DEFAULT_BATCH_SIZE,
+                )
 
             # Cache newly computed embeddings
             for i, note in enumerate(uncached_notes):
@@ -489,6 +533,10 @@ class Session:
             logger.error(f"Database commit failed saving embeddings: {e}")
             raise
 
+        # Bound database growth by pruning embeddings for sessions that fall
+        # outside the configured retention window.
+        self._prune_old_session_embeddings()
+
         # Log cache statistics
         total = len(notes)
         cached = len(cached_notes)
@@ -499,7 +547,47 @@ class Session:
             f"{computed} computed"
         )
 
-    def get_embedding(self, note_path: str) -> Optional[np.ndarray]:
+    def _prune_old_session_embeddings(self) -> None:
+        """Delete temporal embeddings for sessions outside the retention window.
+
+        Keeps the most recent ``embedding_retention`` sessions (by date) plus the
+        current session, and deletes older sessions' rows from session_embeddings
+        to bound database growth. Session metadata rows (and tiny session
+        suggestions used for novelty history) are left intact - only the bulky
+        embedding BLOBs are removed. No-op when retention is None or <= 0.
+        """
+        retention = self.embedding_retention
+        if retention is None or retention <= 0:
+            return
+
+        # Prune embeddings for every session except the `retention` most recent
+        # (ranked by date, excluding the current session so a replayed historical
+        # session is never pruned immediately after being written).
+        cursor = self.db.execute(
+            """
+            DELETE FROM session_embeddings
+            WHERE session_id IN (
+                SELECT session_id FROM sessions
+                WHERE session_id != ?
+                ORDER BY date DESC
+                LIMIT -1 OFFSET ?
+            )
+            """,
+            (self.session_id, retention),
+        )
+        pruned = cursor.rowcount
+        try:
+            self.db.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database commit failed pruning old embeddings: {e}")
+            raise
+        if pruned > 0:
+            logger.info(
+                f"Pruned {pruned} session-embedding rows beyond retention "
+                f"window ({retention} sessions)"
+            )
+
+    def get_embedding(self, note_path: str) -> np.ndarray | None:
         """Get embedding for a note in this session.
 
         Args:
@@ -576,8 +664,13 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     if norm_a == 0 or norm_b == 0:
         return 0.0
 
-    # Fast path: if vectors are L2-normalised, cosine_similarity = dot product
-    # sentence-transformers outputs normalised embeddings, so this is safe
+    # Fast path: for unit-norm vectors, cosine similarity is just the dot
+    # product. NOTE: production embeddings do NOT take this path - encode()
+    # is called without normalize_embeddings=True, and the stored 387-dim
+    # temporal embeddings (semantic*0.9 concatenated with temporal*0.1) have
+    # norms around 0.90-1.04. The branch only fires for vectors that happen
+    # to be unit-norm (e.g. the normalised test stubs). Do not rely on a
+    # unit-norm invariant anywhere in this codebase.
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
         # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
@@ -590,9 +683,9 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 def find_similar_notes(
     query_embedding: np.ndarray,
     embeddings: dict[str, np.ndarray],
-    k: int = 10,
-    exclude_paths: Optional[set[str]] = None,
-) -> List[tuple[str, float]]:
+    count: int = 10,
+    exclude_paths: set[str] | None = None,
+) -> list[tuple[str, float]]:
     """Find k most similar notes to query embedding.
 
     Args:
@@ -627,4 +720,4 @@ def find_similar_notes(
     # Sort by similarity descending
     similarities.sort(key=lambda x: x[1], reverse=True)
 
-    return similarities[:k]
+    return similarities[:count]

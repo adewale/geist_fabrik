@@ -5,7 +5,7 @@ used throughout the application. These serve as default values that can
 be overridden by user configuration files or CLI arguments.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 # Embedding Configuration
 # -----------------------
@@ -133,7 +133,28 @@ Recommended: 3 failures
 """
 
 
-def get_default_filter_config() -> Dict[str, Any]:
+# Storage Configuration
+# ---------------------
+# These constants control how much historical data is retained on disk.
+
+DEFAULT_SESSION_EMBEDDING_RETENTION = 730
+"""int: Maximum number of recent sessions to retain temporal embeddings for.
+
+Each session stores one embedding per note (~1.5 KB/note), so on large vaults
+the session_embeddings table grows by several MB per session and is otherwise
+never pruned. To bound database growth, embeddings for sessions older than the
+most recent N are removed at the start of each session.
+
+Set to 0 (or a negative value) to retain all sessions' embeddings (unbounded).
+The default (730) preserves roughly two years of daily history - enough for the
+year-over-year seasonal/temporal geists - while still bounding worst-case
+growth. Lower it on very large or daily-updated vaults; raise it if you rely on
+older history.
+Range: [0, unbounded]
+"""
+
+
+def get_default_filter_config() -> dict[str, Any]:
     """Get default filtering configuration dictionary.
 
     Returns:

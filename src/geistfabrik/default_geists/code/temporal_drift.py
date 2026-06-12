@@ -21,7 +21,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get old notes that have high link density (important but stale)
-    old = vault.old_notes(k=20)
+    # Filter out geist journal output - session notes are system artefacts,
+    # not thinking that "drifted".
+    old = [n for n in vault.old_notes(count=30) if not n.path.startswith("geist journal/")][:20]
 
     for note in old:
         metadata = vault.metadata(note)
@@ -32,7 +34,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if staleness > 0.7 and link_count >= 3:
             days = metadata.get("days_since_modified", 0)
             text = (
-                f"What if [[{note.obsidian_link}]] needs updating? "
+                f"What if [[{note.link_text}]] needs updating? "
                 f"It's been {days} days since you modified it, "
                 f"but it has {link_count} links - might your thinking have evolved?"
             )
@@ -40,9 +42,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="temporal_drift",
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

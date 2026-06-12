@@ -19,14 +19,22 @@ dependencies = [
     "sentence-transformers>=2.2.0",
     "pyyaml>=6.0",
     "scipy>=1.11.0",
+    # scikit-learn is imported unconditionally (embeddings, vector_search,
+    # cluster_labeling, temporal_analysis), so it is a core dependency, not
+    # optional. It was previously only in the [stats] extra and happened to be
+    # present as a transitive dep of sentence-transformers - a fragile fiction.
+    "scikit-learn>=1.3.0",
+    # Bounds native BLAS/OpenMP threads around encode() (see embeddings.py)
+    "threadpoolctl>=3.0.0",
 ]
 
 [project.optional-dependencies]
 vector-search = [
     "sqlite-vec>=0.1.0",
 ]
+# Genuinely optional: only embedding_metrics imports these, behind HAS_SKDIM /
+# HAS_VENDI ImportError guards, for the extended `stats` metrics.
 stats = [
-    "scikit-learn>=1.3.0",      # For clustering and metrics
     "scikit-dimension>=0.3.0",  # For intrinsic dimensionality
     "vendi-score>=0.0.1",       # For diversity metrics
 ]
@@ -90,7 +98,9 @@ target-version = "py311"
 "examples/geists/code/*.py" = ["E501"]  # Allow long lines in geist suggestion text
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W"]
+# UP (pyupgrade) enforces modern Python 3.11+ syntax, including PEP 585 builtin
+# generics (list[x] not List[x]) and PEP 604 unions (X | None not Optional[X]).
+select = ["E", "F", "I", "N", "UP", "W"]
 ignore = []
 
 [tool.mypy]
@@ -101,6 +111,7 @@ disallow_untyped_defs = true
 
 [dependency-groups]
 dev = [
+    "bandit>=1.7",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-timeout>=2.2.0",
@@ -110,3 +121,12 @@ dev = [
     "pre-commit>=3.5.0",
     "types-pyyaml>=6.0",
 ]
+
+[tool.bandit]
+# Recurse src only; tests build throwaway SQL/exec by design.
+exclude_dirs = ["tests", "benchmarks", "examples", "scripts"]
+# B608 (string-built SQL): the only string-formatted SQL in this codebase is
+# placeholder lists - ",".join(["?"] * n) - with all values bound as
+# parameters (verified). Real injection is prevented by the parameterized-query
+# convention; every other bandit check stays on.
+skips = ["B608"]

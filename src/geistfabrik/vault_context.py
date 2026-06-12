@@ -2,28 +2,29 @@
 
 import logging
 import random
-from datetime import datetime
+import re
+from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
-    List,
     Literal,
     Optional,
-    Tuple,
-    Union,
     overload,
 )
 
 import numpy as np
 
+from .clustering_analysis import Cluster, format_cluster_label
 from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
-from .models import Link, Note
+from .models import Link, Note, link_target_forms
 from .vault import Vault
 
 logger = logging.getLogger(__name__)
+
+# Markdown checkbox tasks: "- [ ] open" / "- [x] done" (also * and + bullets)
+_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[ xX]\]", re.MULTILINE)
+_COMPLETED_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[xX]\]", re.MULTILINE)
 
 if TYPE_CHECKING:
     from .function_registry import FunctionRegistry
@@ -57,7 +58,7 @@ class VaultContext:
         self,
         vault: Vault,
         session: Session,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         metadata_loader: Optional["MetadataLoader"] = None,
         function_registry: Optional["FunctionRegistry"] = None,
     ):
@@ -81,43 +82,43 @@ class VaultContext:
         self.rng = random.Random(seed)
 
         # Function registry (for extensibility)
-        self._functions: Dict[str, Callable[..., Any]] = {}
+        self._functions: dict[str, Callable[..., Any]] = {}
         self._function_registry = function_registry
 
         # Cache for notes (performance optimisation)
-        self._notes_cache: Optional[List[Note]] = None
+        self._notes_cache: list[Note] | None = None
 
         # Cache for metadata
-        self._metadata_cache: Dict[str, Dict[str, Any]] = {}
+        self._metadata_cache: dict[str, dict[str, Any]] = {}
 
         # Cache for clusters (performance optimisation - keyed by min_size)
-        self._clusters_cache: Dict[int, Dict[int, Dict[str, Any]]] = {}
+        self._clusters_cache: dict[int, dict[int, Cluster]] = {}
 
         # Cache for similarity scores (performance optimisation - keyed by note path pair)
-        self._similarity_cache: Dict[Tuple[str, str], float] = {}
+        self._similarity_cache: dict[tuple[str, str], float] = {}
 
-        # Cache for neighbours (performance optimisation - keyed by (note_path, k))
-        self._neighbours_cache: Dict[
-            Tuple[str, int, bool], Union[List[Note], List[Tuple[Note, float]]]
+        # Cache for neighbours (keyed by (note_path, count, return_scores))
+        self._neighbours_cache: dict[
+            tuple[str, int, bool], list[Note] | list[tuple[Note, float]]
         ] = {}
 
         # Cache for backlinks (performance optimisation - keyed by note_path)
-        self._backlinks_cache: Dict[str, List[Note]] = {}
+        self._backlinks_cache: dict[str, list[Note]] = {}
 
         # Cache for outgoing_links (performance optimisation - keyed by note_path)
-        self._outgoing_links_cache: Dict[str, List[Note]] = {}
+        self._outgoing_links_cache: dict[str, list[Note]] = {}
 
-        # Cache for graph_neighbors (performance optimisation - keyed by note_path)
-        self._graph_neighbors_cache: Dict[str, List[Note]] = {}
+        # Cache for graph_neighbours (performance optimisation - keyed by note_path)
+        self._graph_neighbours_cache: dict[str, list[Note]] = {}
 
         # Cache for read() content (OPTIMISATION #2 - session-scoped)
-        self._read_cache: Dict[str, str] = {}
+        self._read_cache: dict[str, str] = {}
 
         # Metadata loader for extensible metadata inference
         self._metadata_loader = metadata_loader
 
         # Track metadata inference errors
-        self.metadata_errors: Dict[str, List[str]] = {}  # note_path -> list of failed module names
+        self.metadata_errors: dict[str, list[str]] = {}  # note_path -> list of failed module names
 
         # Vector search backend (delegated from session)
         self._backend = session.get_backend()
@@ -130,14 +131,14 @@ class VaultContext:
             """,
             (session.session_id,),
         )
-        self._embeddings: Dict[str, np.ndarray] = {}
+        self._embeddings: dict[str, np.ndarray] = {}
         for row in cursor.fetchall():
             note_path, embedding_bytes = row
             self._embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
 
     # Direct vault access (delegated)
 
-    def notes(self) -> List[Note]:
+    def notes(self) -> list[Note]:
         """Get all notes in vault (cached).
 
         Performance optimisation: Notes are loaded once and cached
@@ -150,7 +151,7 @@ class VaultContext:
             self._notes_cache = self.vault.all_notes()
         return self._notes_cache
 
-    def notes_excluding_journal(self) -> List[Note]:
+    def notes_excluding_journal(self) -> list[Note]:
         """Get all notes except geist journal entries.
 
         Convenience method for geists that analyze vault history.
@@ -176,7 +177,7 @@ class VaultContext:
         """
         return [n for n in self.notes() if not n.path.startswith("geist journal/")]
 
-    def get_note(self, path: str) -> Optional[Note]:
+    def get_note(self, path: str) -> Note | None:
         """Get specific note by path.
 
         Args:
@@ -187,26 +188,31 @@ class VaultContext:
         """
         return self.vault.get_note(path)
 
-    def get_embedding(self, path: str) -> Optional[np.ndarray]:
+    def get_embedding(self, path: str) -> np.ndarray | None:
         """Get the embedding vector for a note by path.
 
         Args:
             path: Note path
 
         Returns:
-            Embedding array or None if not found
+            Embedding array or None if not found. The array is a READ-ONLY
+            view over the cached buffer (np.frombuffer) shared with every
+            other caller this session - in-place mutation raises ValueError
+            by design. Call .copy() if you need a writable array.
         """
         return self._embeddings.get(path)
 
-    def get_all_embeddings(self) -> Dict[str, np.ndarray]:
+    def get_all_embeddings(self) -> dict[str, np.ndarray]:
         """Get all session embeddings as a path-to-embedding dictionary.
 
         Returns:
-            Dictionary mapping note paths to embedding arrays
+            Dictionary mapping note paths to embedding arrays. The arrays are
+            READ-ONLY views shared with every other caller this session (see
+            get_embedding); call .copy() before mutating.
         """
         return self._embeddings
 
-    def resolve_link_target(self, target: str) -> Optional[Note]:
+    def resolve_link_target(self, target: str) -> Note | None:
         """Resolve a wiki-link target to a Note.
 
         Tries multiple resolution strategies:
@@ -244,17 +250,17 @@ class VaultContext:
 
     @overload
     def neighbours(
-        self, note: Note, k: int = 10, return_scores: Literal[False] = False
-    ) -> List[Note]: ...
+        self, note: Note, count: int = 10, return_scores: Literal[False] = False
+    ) -> list[Note]: ...
 
     @overload
     def neighbours(
-        self, note: Note, k: int = 10, *, return_scores: Literal[True]
-    ) -> List[Tuple[Note, float]]: ...
+        self, note: Note, count: int = 10, *, return_scores: Literal[True]
+    ) -> list[tuple[Note, float]]: ...
 
     def neighbours(
-        self, note: Note, k: int = 10, return_scores: bool = False
-    ) -> Union[List[Note], List[Tuple[Note, float]]]:
+        self, note: Note, count: int = 10, return_scores: bool = False
+    ) -> list[Note] | list[tuple[Note, float]]:
         """Find k semantically similar notes, optionally with similarity scores.
 
         Uses session-scoped caching for performance. Many geists query neighbours
@@ -274,7 +280,7 @@ class VaultContext:
             similarity descending
         """
         # Create cache key (note path + k parameter + return_scores flag)
-        cache_key = (note.path, k, return_scores)
+        cache_key = (note.path, count, return_scores)
 
         # Check cache first
         if cache_key in self._neighbours_cache:
@@ -287,7 +293,7 @@ class VaultContext:
             return [] if not return_scores else []
 
         # Find similar notes (request k+1 to exclude self)
-        similar = self._backend.find_similar(query_embedding, k=k + 1)
+        similar = self._backend.find_similar(query_embedding, count=count + 1)
 
         # Convert paths to notes using batch loading (OP-6)
         # Collect paths first (excluding self)
@@ -310,7 +316,7 @@ class VaultContext:
             if similar_note is not None:
                 result.append(similar_note)
                 result_with_scores.append((similar_note, path_score_map[path]))
-                if len(result) >= k:
+                if len(result) >= count:
                     break
 
         # Cache and return based on return_scores flag
@@ -337,7 +343,7 @@ class VaultContext:
         """
         # Create order-independent cache key (similarity is symmetric)
         sorted_paths = sorted([a.path, b.path])
-        cache_key: Tuple[str, str] = (sorted_paths[0], sorted_paths[1])
+        cache_key: tuple[str, str] = (sorted_paths[0], sorted_paths[1])
 
         # Check cache first
         if cache_key in self._similarity_cache:
@@ -354,7 +360,7 @@ class VaultContext:
         self._similarity_cache[cache_key] = similarity_score
         return similarity_score
 
-    def batch_similarity(self, notes_a: List[Note], notes_b: List[Note]) -> np.ndarray:
+    def batch_similarity(self, notes_a: list[Note], notes_b: list[Note]) -> np.ndarray:
         """Calculate semantic similarity between two sets of notes (cache-aware).
 
         Computes all pairwise similarities between notes_a and notes_b using
@@ -466,7 +472,7 @@ class VaultContext:
 
     # Graph operations
 
-    def backlinks(self, note: Note) -> List[Note]:
+    def backlinks(self, note: Note) -> list[Note]:
         """Find notes that link to this note (cached).
 
         Uses session-scoped caching for performance. Many geists query backlinks
@@ -509,7 +515,7 @@ class VaultContext:
         self._backlinks_cache[note.path] = result
         return result
 
-    def outgoing_links(self, note: Note) -> List[Note]:
+    def outgoing_links(self, note: Note) -> list[Note]:
         """Find notes that this note links to (cached outgoing links).
 
         Symmetric counterpart to backlinks(). Returns resolved Note objects
@@ -539,44 +545,44 @@ class VaultContext:
         self._outgoing_links_cache[note.path] = result
         return result
 
-    def orphans(self, k: Optional[int] = None) -> List[Note]:
+    def orphans(self, count: int | None = None) -> list[Note]:
         """Find notes with no outgoing or incoming links.
 
-        Performance optimised with LEFT JOINs instead of NOT IN subqueries.
+        Builds the linked-note sets once, then set-checks each note: O(N + M).
+        (The previous LEFT-JOIN formulation was O(N x M) - its OR-join on
+        l2.target is not sargable, so SQLite scanned the full links index for
+        every note, and the composite index added for it went unused.)
 
         Args:
             k: Maximum number to return. If None, return all.
 
         Returns:
-            List of orphan notes
+            List of orphan notes, most recently modified first
         """
-        cursor = self.db.execute(
-            """
-            SELECT n.path
-            FROM notes n
-            LEFT JOIN links l1 ON l1.source_path = n.path
-            LEFT JOIN links l2 ON (
-                l2.target = n.path
-                OR l2.target = n.title
-                OR l2.target || '.md' = n.path
-            )
-            WHERE l1.source_path IS NULL
-              AND l2.target IS NULL
-            ORDER BY n.modified DESC
-            """
-        )
+        # One pass over links: notes with outgoing links, and every link
+        # target in the forms links may use (exact path, bare title, or
+        # path without the .md extension - checked per-note below).
+        sources = {row[0] for row in self.db.execute("SELECT DISTINCT source_path FROM links")}
+        targets = {row[0] for row in self.db.execute("SELECT DISTINCT target FROM links")}
 
-        result = []
-        for row in cursor.fetchall():
-            note = self.get_note(row[0])
+        cursor = self.db.execute("SELECT path, title FROM notes ORDER BY modified DESC")
+
+        result: list[Note] = []
+        for path, title in cursor.fetchall():
+            if path in sources:
+                continue
+            # Canonical link-target resolution (single source of truth)
+            if link_target_forms(path, title) & targets:
+                continue
+            note = self.get_note(path)
             if note is not None:
                 result.append(note)
-                if k is not None and len(result) >= k:
+                if count is not None and len(result) >= count:
                     break
 
         return result
 
-    def hubs(self, k: int = 10) -> List[Note]:
+    def hubs(self, count: int = 10) -> list[Note]:
         """Find most-linked-to notes using optimised SQL query.
 
         Performance optimised (OP-8): Uses JOIN to resolve link targets in SQL
@@ -602,7 +608,7 @@ class VaultContext:
             ORDER BY link_count DESC
             LIMIT ?
             """,
-            (k,),
+            (count,),
         )
 
         # Collect all paths, then batch load (OP-6)
@@ -620,7 +626,7 @@ class VaultContext:
 
     def notes_grouped_by_creation_date(
         self, min_per_day: int = 1, exclude_journal: bool = True
-    ) -> Dict[str, List[Note]]:
+    ) -> dict[str, list[Note]]:
         """Group notes by creation date.
 
         Provides temporal aggregation without exposing SQL implementation.
@@ -649,7 +655,7 @@ class VaultContext:
             (min_per_day,),
         )
 
-        result: Dict[str, List[Note]] = {}
+        result: dict[str, list[Note]] = {}
         for row in cursor.fetchall():
             date_str, paths_str = row
             if paths_str:
@@ -657,7 +663,7 @@ class VaultContext:
                 # Batch load notes for efficiency
                 notes_map = self.vault.get_notes_batch(paths)
                 # Preserve order and filter out None
-                notes: List[Note] = []
+                notes: list[Note] = []
                 for p in paths:
                     note = notes_map.get(p)
                     if note is not None:
@@ -677,7 +683,7 @@ class VaultContext:
         result = cursor.fetchone()
         return result[0] if result else 0
 
-    def session_dates_for_note(self, note: Note) -> List[str]:
+    def session_dates_for_note(self, note: Note) -> list[str]:
         """Get session dates when a note had embeddings computed.
 
         Args:
@@ -696,7 +702,7 @@ class VaultContext:
             """,
             (note.path,),
         )
-        dates: List[str] = []
+        dates: list[str] = []
         for row in cursor.fetchall():
             val = row[0]
             if hasattr(val, "strftime"):
@@ -707,7 +713,7 @@ class VaultContext:
 
     def session_embeddings_by_session(
         self,
-    ) -> List[Tuple[int, str, List[Any]]]:
+    ) -> list[tuple[int, str, list[Any]]]:
         """Get embeddings grouped by session for temporal analysis.
 
         Returns:
@@ -723,7 +729,7 @@ class VaultContext:
         )
         sessions = cursor.fetchall()
 
-        result_list: List[Tuple[int, str, List[Any]]] = []
+        result_list: list[tuple[int, str, list[Any]]] = []
         for session_id, session_date in sessions:
             emb_cursor = self.db.execute(
                 """
@@ -732,10 +738,7 @@ class VaultContext:
                 """,
                 (session_id,),
             )
-            embeddings = [
-                np.frombuffer(row[0], dtype=np.float32)
-                for row in emb_cursor.fetchall()
-            ]
+            embeddings = [np.frombuffer(row[0], dtype=np.float32) for row in emb_cursor.fetchall()]
             if hasattr(session_date, "strftime"):
                 date_str = session_date.strftime("%Y-%m")
             else:
@@ -744,9 +747,31 @@ class VaultContext:
 
         return result_list
 
-    def previous_cluster_label_for_note(
-        self, note: Note, session_id: int
-    ) -> Optional[str]:
+    def persist_cluster_labels(self, assignments: dict[str, str]) -> None:
+        """Record this session's cluster assignment for each note.
+
+        Stores the label on the note's session_embeddings row so future
+        sessions can compare assignments over time (the data that
+        previous_cluster_label_for_note() reads and cluster_evolution_tracker
+        builds on). Notes not present in `assignments` (noise/unclustered)
+        keep a NULL label. Called automatically when clusters are computed.
+
+        Args:
+            assignments: Mapping of note path -> cluster label for the
+                current session
+        """
+        if not assignments:
+            return
+        self.db.executemany(
+            """
+            UPDATE session_embeddings SET cluster_label = ?
+            WHERE session_id = ? AND note_path = ?
+            """,
+            [(label, self.session.session_id, path) for path, label in assignments.items()],
+        )
+        self.db.commit()
+
+    def previous_cluster_label_for_note(self, note: Note, session_id: int) -> str | None:
         """Get the cluster label for a note in a previous session.
 
         Args:
@@ -766,7 +791,7 @@ class VaultContext:
         ).fetchone()
         return row[0] if row and row[0] else None
 
-    def recent_session_ids(self, limit: int = 3) -> List[int]:
+    def recent_session_ids(self, count: int = 3) -> list[int]:
         """Get the most recent session IDs.
 
         Args:
@@ -781,11 +806,11 @@ class VaultContext:
             ORDER BY date DESC
             LIMIT ?
             """,
-            (limit,),
+            (count,),
         )
         return [row[0] for row in cursor.fetchall()]
 
-    def get_clusters(self, min_size: int = 5) -> Dict[int, Dict[str, Any]]:
+    def get_clusters(self, min_size: int = 5) -> dict[int, Cluster]:
         """Get cluster assignments and labels for current session.
 
         Uses HDBSCAN clustering on embeddings, then generates labels via
@@ -818,18 +843,17 @@ class VaultContext:
             from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
         except ImportError:
             logger.warning("sklearn not available, clustering disabled")
-            empty_result: Dict[int, Dict[str, Any]] = {}
+            empty_result: dict[int, Cluster] = {}
             self._clusters_cache[min_size] = empty_result
             return empty_result
 
         from . import cluster_labeling
-        from .clustering_analysis import format_cluster_label
 
         # Use cached session embeddings instead of re-querying DB
         embeddings_dict = self._embeddings
 
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
-            empty_result_2: Dict[int, Dict[str, Any]] = {}
+            empty_result_2: dict[int, Cluster] = {}
             self._clusters_cache[min_size] = empty_result_2
             return empty_result_2
 
@@ -841,8 +865,8 @@ class VaultContext:
         labels = clusterer.fit_predict(embeddings_array)
 
         # Group notes by cluster
-        clusters: Dict[int, List[Note]] = {}
-        cluster_paths: Dict[int, List[str]] = {}
+        clusters: dict[int, list[Note]] = {}
+        cluster_paths: dict[int, list[str]] = {}
 
         for i, label in enumerate(labels):
             if label == -1:  # Noise points
@@ -857,7 +881,7 @@ class VaultContext:
                 cluster_paths[label].append(paths[i])
 
         if not clusters:
-            empty_result_3: Dict[int, Dict[str, Any]] = {}
+            empty_result_3: dict[int, Cluster] = {}
             self._clusters_cache[min_size] = empty_result_3
             return empty_result_3
 
@@ -875,7 +899,7 @@ class VaultContext:
             )
 
         # Build result with formatted labels and centroids
-        result: Dict[int, Dict[str, Any]] = {}
+        result: dict[int, Cluster] = {}
 
         for cluster_id, notes in clusters.items():
             # Get embeddings for this cluster
@@ -890,13 +914,24 @@ class VaultContext:
             keyword_label = cluster_labels_raw.get(cluster_id, f"Cluster {cluster_id}")
             formatted_label = format_cluster_label(keyword_label)
 
-            result[cluster_id] = {
-                "label": keyword_label,
-                "formatted_label": formatted_label,
-                "notes": notes,
-                "size": len(notes),
-                "centroid": centroid,
+            result[cluster_id] = Cluster(
+                cluster_id=cluster_id,
+                label=keyword_label,
+                formatted_label=formatted_label,
+                notes=notes,
+                size=len(notes),
+                centroid=centroid,
+            )
+
+        # Persist this session's assignments so future sessions can compare
+        # cluster membership over time (cluster_evolution_tracker).
+        self.persist_cluster_labels(
+            {
+                path: result[cluster_id].label
+                for cluster_id in result
+                for path in cluster_paths[cluster_id]
             }
+        )
 
         # Cache result for this session
         self._clusters_cache[min_size] = result
@@ -906,9 +941,9 @@ class VaultContext:
     def get_cluster_representatives(
         self,
         cluster_id: int,
-        k: int = 3,
-        clusters: Optional[Dict[int, Dict[str, Any]]] = None,
-    ) -> List[Note]:
+        count: int = 3,
+        clusters: dict[int, Cluster] | None = None,
+    ) -> list[Note]:
         """Get most representative notes for a cluster.
 
         Finds notes closest to the cluster centroid, which are the most
@@ -931,8 +966,8 @@ class VaultContext:
             return []
 
         cluster = clusters[cluster_id]
-        centroid = cluster["centroid"]
-        notes = cluster["notes"]
+        centroid = cluster.centroid
+        notes = cluster.notes
 
         # Use cached session embeddings instead of re-querying DB
         similarities = []
@@ -945,9 +980,11 @@ class VaultContext:
 
         # Sort by similarity descending, return top k
         similarities.sort(key=lambda x: x[1], reverse=True)
-        return [note for note, _ in similarities[:k]]
+        return [note for note, _ in similarities[:count]]
 
-    def unlinked_pairs(self, k: int = 10, candidate_limit: int = 200) -> List[Tuple[Note, Note]]:
+    def unlinked_pairs(
+        self, count: int = 10, candidate_limit: int = 200
+    ) -> list[tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
 
         Performance optimised: Uses vectorised numpy matrix multiplication to compute
@@ -966,7 +1003,7 @@ class VaultContext:
         # Optimise for large vaults by limiting candidate set
         if len(all_notes) > candidate_limit:
             # Sample a diverse set: recent notes + random notes
-            recent = self.recent_notes(k=candidate_limit // 2)
+            recent = self.recent_notes(count=candidate_limit // 2)
             # Use set for O(1) membership check instead of O(N) list membership
             recent_set = set(recent)
             remaining = [n for n in all_notes if n not in recent_set]
@@ -1020,9 +1057,9 @@ class VaultContext:
 
         # Sort by similarity descending, return top k
         pairs.sort(key=lambda x: x[2], reverse=True)
-        return [(a, b) for a, b, _ in pairs[:k]]
+        return [(a, b) for a, b, _ in pairs[:count]]
 
-    def links_between(self, a: Note, b: Note) -> List[Link]:
+    def links_between(self, a: Note, b: Note) -> list[Link]:
         """Find all links between two notes (bidirectional).
 
         Args:
@@ -1033,16 +1070,15 @@ class VaultContext:
             List of links between the notes
         """
 
-        # Helper to check if a link target matches a note
-        def link_matches_note(link_target: str, note: Note) -> bool:
-            path_without_ext = note.path.rsplit(".", 1)[0] if "." in note.path else note.path
-            return link_target in (note.path, path_without_ext, note.title)
+        # Canonical link-target resolution (single source of truth)
+        a_forms = a.link_target_forms()
+        b_forms = b.link_target_forms()
 
         # Check a -> b
-        links_ab = [link for link in a.links if link_matches_note(link.target, b)]
+        links_ab = [link for link in a.links if link.target in b_forms]
 
         # Check b -> a
-        links_ba = [link for link in b.links if link_matches_note(link.target, a)]
+        links_ba = [link for link in b.links if link.target in a_forms]
 
         return links_ab + links_ba
 
@@ -1060,7 +1096,7 @@ class VaultContext:
         """
         return len(self.links_between(a, b)) > 0
 
-    def graph_neighbors(self, note: Note) -> List[Note]:
+    def graph_neighbours(self, note: Note) -> list[Note]:
         """Get all notes connected to this note by links (cached, bidirectional).
 
         Returns notes that:
@@ -1078,8 +1114,8 @@ class VaultContext:
             List of connected notes (no duplicates)
         """
         # Check cache first
-        if note.path in self._graph_neighbors_cache:
-            return self._graph_neighbors_cache[note.path]
+        if note.path in self._graph_neighbours_cache:
+            return self._graph_neighbours_cache[note.path]
 
         neighbours = set()
 
@@ -1094,12 +1130,12 @@ class VaultContext:
         result = list(neighbours)
 
         # Cache the result
-        self._graph_neighbors_cache[note.path] = result
+        self._graph_neighbours_cache[note.path] = result
         return result
 
     # Temporal queries
 
-    def old_notes(self, k: int = 10) -> List[Note]:
+    def old_notes(self, count: int = 10) -> list[Note]:
         """Find least recently modified notes.
 
         Args:
@@ -1108,7 +1144,7 @@ class VaultContext:
         Returns:
             List of old notes, sorted by modification time ascending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified ASC LIMIT ?", (k,))
+        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified ASC LIMIT ?", (count,))
 
         result = []
         for row in cursor.fetchall():
@@ -1118,7 +1154,7 @@ class VaultContext:
 
         return result
 
-    def recent_notes(self, k: int = 10) -> List[Note]:
+    def recent_notes(self, count: int = 10) -> list[Note]:
         """Find most recently modified notes.
 
         Args:
@@ -1127,7 +1163,7 @@ class VaultContext:
         Returns:
             List of recent notes, sorted by modification time descending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified DESC LIMIT ?", (k,))
+        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified DESC LIMIT ?", (count,))
 
         result = []
         for row in cursor.fetchall():
@@ -1139,7 +1175,7 @@ class VaultContext:
 
     # Metadata access
 
-    def metadata(self, note: Note) -> Dict[str, Any]:
+    def metadata(self, note: Note) -> dict[str, Any]:
         """Retrieve all inferred metadata for a note.
 
         Args:
@@ -1151,12 +1187,31 @@ class VaultContext:
         if note.path in self._metadata_cache:
             return self._metadata_cache[note.path]
 
-        # Start with basic built-in metadata
+        # Built-in metadata. "Now" is the session date, not wall-clock, so
+        # --date replays stay deterministic (same date + vault = same output).
+        session_now = self.session.date
+        words = note.content.split()
+        word_count = len(words)
+        days_since_modified = max(0, (session_now - note.modified).days)
+        task_count = len(_TASK_PATTERN.findall(note.content))
+        completed_task_count = len(_COMPLETED_TASK_PATTERN.findall(note.content))
         metadata = {
-            "word_count": len(note.content.split()),
+            "word_count": word_count,
             "link_count": len(note.links),
             "tag_count": len(note.tags),
-            "age_days": (datetime.now() - note.created).days,
+            "age_days": max(0, (session_now - note.created).days),
+            "days_since_modified": days_since_modified,
+            # 0 (fresh) -> 1 (stale); asymptotic: 30d=0.5, 90d=0.75, 365d~0.92.
+            # Same curve as examples/metadata_inference/temporal.py, which can
+            # still override these keys via enabled_modules.
+            "staleness": round(1 - (1 / (1 + days_since_modified / 30)), 3),
+            "has_tasks": task_count > 0,
+            "task_count": task_count,
+            "completed_task_count": completed_task_count,
+            "lexical_diversity": (
+                round(len({w.lower() for w in words}) / word_count, 3) if word_count else 0.0
+            ),
+            "reading_time": round(word_count / 200.0, 2),  # minutes at ~200 wpm
         }
 
         # Run metadata inference modules if available
@@ -1181,7 +1236,7 @@ class VaultContext:
 
     # Deterministic sampling
 
-    def sample(self, items: List[Any], k: int) -> List[Any]:
+    def sample(self, items: list[Any], count: int) -> list[Any]:
         """Deterministically sample k items.
 
         Args:
@@ -1191,12 +1246,12 @@ class VaultContext:
         Returns:
             Sample of k items (or fewer if list is smaller)
         """
-        if k >= len(items):
+        if count >= len(items):
             return list(items)
 
-        return self.rng.sample(items, k)
+        return self.rng.sample(items, count)
 
-    def random_notes(self, k: int = 1) -> List[Note]:
+    def random_notes(self, count: int = 1) -> list[Note]:
         """Sample k random notes.
 
         Args:
@@ -1206,7 +1261,7 @@ class VaultContext:
             Random sample of notes
         """
         notes = self.notes()
-        return self.sample(notes, k)
+        return self.sample(notes, count)
 
     # Function registry
 
@@ -1245,23 +1300,31 @@ class VaultContext:
         if name not in self._functions:
             raise KeyError(f"Function '{name}' not registered")
 
-        return self._functions[name](self, **kwargs)
+        return self._functions[name](self, *args, **kwargs)
 
-    def list_functions(self) -> List[str]:
+    def list_functions(self) -> list[str]:
         """List all registered function names.
 
-        Returns:
-            List of function names
-        """
-        return list(self._functions.keys())
+        Includes functions from the attached FunctionRegistry (builtins and
+        user vault functions) as well as locally registered ones. Previously
+        only the local dict was consulted, so this returned [] whenever a
+        registry was attached - i.e. always, in production.
 
-    def get_metadata_error_summary(self) -> Dict[str, int]:
+        Returns:
+            Sorted list of function names
+        """
+        names = set(self._functions.keys())
+        if self._function_registry is not None:
+            names.update(self._function_registry.functions.keys())
+        return sorted(names)
+
+    def get_metadata_error_summary(self) -> dict[str, int]:
         """Get summary of metadata inference errors.
 
         Returns:
             Dictionary mapping module names to count of notes where they failed
         """
-        module_error_counts: Dict[str, int] = {}
+        module_error_counts: dict[str, int] = {}
         for note_path, failed_modules in self.metadata_errors.items():
             for module_name in failed_modules:
                 module_error_counts[module_name] = module_error_counts.get(module_name, 0) + 1

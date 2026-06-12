@@ -28,16 +28,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik.temporal_analysis import EmbeddingTrajectoryCalculator
 
     # Find burst days (uses VaultContext aggregation method)
-    burst_days_dict = vault.notes_grouped_by_creation_date(
-        min_per_day=3, exclude_journal=True
-    )
+    burst_days_dict = vault.notes_grouped_by_creation_date(min_per_day=3, exclude_journal=True)
 
     if not burst_days_dict:
         return []
 
     # Try burst days until we find one with enough embedding history
     burst_days_list = list(burst_days_dict.items())
-    for day_date, notes in vault.sample(burst_days_list, k=len(burst_days_list)):
+    for day_date, notes in vault.sample(burst_days_list, count=len(burst_days_list)):
         # Calculate drift for each note using EmbeddingTrajectoryCalculator
         drifts = []
         for note in notes:
@@ -85,7 +83,7 @@ def _generate_drift_observation(
         if note is None:
             continue
         label = _drift_label(drift)
-        drift_lines.append(f"- [[{note.obsidian_link}]]: {drift:.2f} drift ({label})")
+        drift_lines.append(f"- [[{note.link_text}]]: {drift:.2f} drift ({label})")
 
     drift_text = "\n".join(drift_lines)
 
@@ -102,9 +100,7 @@ def _generate_drift_observation(
         stable = [p for p, d in drifts if d < 0.15]
         if stable:
             stable_notes = [vault.get_note(p) for p in stable[:2]]
-            stable_titles = ", ".join(
-                [f"[[{n.obsidian_link}]]" for n in stable_notes if n is not None]
-            )
+            stable_titles = ", ".join([f"[[{n.link_text}]]" for n in stable_notes if n is not None])
             observation = (
                 f"{stable_titles} are anchors—the stable core "
                 f"around which other ideas orbit and evolve."
@@ -115,7 +111,8 @@ def _generate_drift_observation(
     # Calculate time elapsed
     try:
         burst_datetime = datetime.fromisoformat(date)
-        current_datetime = datetime.now()
+        # Session date, not wall-clock: keeps --date replays deterministic
+        current_datetime = vault.session.date
         days_ago = (current_datetime - burst_datetime).days
 
         if days_ago < 30:
@@ -135,7 +132,7 @@ def _generate_drift_observation(
 
     # Get all note titles
     notes = [vault.get_note(p) for p, _ in drifts]
-    note_titles = [n.obsidian_link for n in notes if n is not None]
+    note_titles = [n.link_text for n in notes if n is not None]
 
     return Suggestion(
         text=text,

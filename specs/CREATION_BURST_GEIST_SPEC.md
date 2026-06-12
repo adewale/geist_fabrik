@@ -284,7 +284,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
     count = len(notes)
 
     # Format title list from Note objects
-    note_links = [note.obsidian_link for note in notes]
+    note_links = [note.link_text for note in notes]
     display = ", ".join([f"[[{link}]]" for link in note_links[:8]])
     if len(note_links) > 8:
         display += f", and {len(note_links) - 8} more"

@@ -8,16 +8,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import anachronism_detector
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -162,15 +153,15 @@ def test_anachronism_detector_suggestion_structure(vault_with_temporal_notes):
             assert isinstance(note_ref, str)
 
 
-def test_anachronism_detector_uses_obsidian_link(vault_with_temporal_notes):
-    """Test that anachronism_detector uses obsidian_link for note references.
+def test_anachronism_detector_uses_link_text(vault_with_temporal_notes):
+    """Test that anachronism_detector uses link_text for note references.
 
     Setup:
         Vault with 32 notes across 3 time periods.
 
     Verifies:
         - Suggestion text uses [[wiki-link]] format
-        - Note references use obsidian_link property
+        - Note references use link_text property
     """
     vault, session = vault_with_temporal_notes
 

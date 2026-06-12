@@ -6,9 +6,9 @@ These files are split into virtual note entries during vault synchronization.
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Callable, Dict, List, Optional, Tuple
 
 from .markdown_parser import extract_links, extract_tags, parse_frontmatter
 from .models import Note
@@ -16,7 +16,7 @@ from .models import Note
 logger = logging.getLogger(__name__)
 
 # Date format patterns (H2 headings only)
-DATE_PATTERNS: List[Tuple[str, Callable[[Tuple[str, ...]], date]]] = [
+DATE_PATTERNS: list[tuple[str, Callable[[tuple[str, ...]], date]]] = [
     # ISO date: 2025-01-15
     (r"^##\s+(\d{4})-(\d{2})-(\d{2})\s*$", lambda m: date(int(m[0]), int(m[1]), int(m[2]))),
     # US format: 01/15/2025
@@ -51,7 +51,7 @@ DATE_PATTERNS: List[Tuple[str, Callable[[Tuple[str, ...]], date]]] = [
 ]
 
 # Pre-compiled patterns for performance (avoid recompiling on every heading)
-_COMPILED_DATE_PATTERNS: List[Tuple[re.Pattern[str], Callable[[Tuple[str, ...]], date]]] = [
+_COMPILED_DATE_PATTERNS: list[tuple[re.Pattern[str], Callable[[tuple[str, ...]], date]]] = [
     (re.compile(pattern, re.IGNORECASE), parser) for pattern, parser in DATE_PATTERNS
 ]
 
@@ -88,7 +88,7 @@ class DateSection:
     end_line: int  # Line number where section ends
 
 
-def parse_date_heading(heading: str, file_path: str | None = None) -> Optional[date]:
+def parse_date_heading(heading: str, file_path: str | None = None) -> date | None:
     """Parse date from H2 heading.
 
     Args:
@@ -113,7 +113,7 @@ def parse_date_heading(heading: str, file_path: str | None = None) -> Optional[d
     return None
 
 
-def extract_h2_headings(content: str) -> List[Tuple[str, int]]:
+def extract_h2_headings(content: str) -> list[tuple[str, int]]:
     """Extract H2 headings and their line numbers.
 
     Args:
@@ -159,7 +159,7 @@ def is_date_collection_note(
     return date_count >= len(headings) * date_threshold
 
 
-def split_by_date_headings(content: str, file_path: str | None = None) -> List[DateSection]:
+def split_by_date_headings(content: str, file_path: str | None = None) -> list[DateSection]:
     """Split content into date-based sections.
 
     Args:
@@ -175,7 +175,7 @@ def split_by_date_headings(content: str, file_path: str | None = None) -> List[D
 
     # Track which headings are date headings
     # Store both line_num (1-indexed) and array index (0-indexed)
-    date_headings: List[Tuple[str, int, int, date]] = []
+    date_headings: list[tuple[str, int, int, date]] = []
     for heading_text, line_num in headings:
         parsed_date = parse_date_heading(heading_text, file_path)
         if parsed_date is not None:
@@ -222,7 +222,7 @@ def split_date_collection_note(
     content: str,
     file_created: datetime,
     file_modified: datetime,
-) -> List[Note]:
+) -> list[Note]:
     """Split journal file into virtual note entries.
 
     Args:
@@ -252,13 +252,13 @@ def split_date_collection_note(
         return []
 
     # Merge duplicate dates, keeping track of first heading text
-    merged_sections: Dict[date, List[str]] = {}
-    original_headings: Dict[date, str] = {}
+    merged_sections: dict[date, list[str]] = {}
+    original_headings: dict[date, str] = {}
     for section in sections:
         if section.entry_date not in merged_sections:
             merged_sections[section.entry_date] = []
             # Store original heading text (strip ## prefix and whitespace)
-            original_headings[section.entry_date] = section.heading.lstrip('#').strip()
+            original_headings[section.entry_date] = section.heading.lstrip("#").strip()
         merged_sections[section.entry_date].append(section.content)
 
     # Create virtual notes
@@ -278,7 +278,7 @@ def split_date_collection_note(
         # Generate virtual path and title
         # Path uses ISO date for consistency and uniqueness
         # Title is just the original heading text (e.g., "2025-01-15" or "January 15, 2025")
-        # The obsidian_link property on Note will construct the deeplink format when needed
+        # The link_text property on Note will construct the deeplink format when needed
         virtual_path = f"{file_path}/{entry_date.isoformat()}"
         original_heading_text = original_headings[entry_date]
         title = original_heading_text

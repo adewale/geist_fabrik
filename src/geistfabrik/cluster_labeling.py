@@ -10,7 +10,6 @@ of truth for labeling logic.
 
 import logging
 import sqlite3
-from typing import Dict, List
 
 import numpy as np
 from sklearn.feature_extraction.text import (  # type: ignore[import-untyped]
@@ -24,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 def apply_mmr(
-    terms: List[str],
+    terms: list[str],
     scores: np.ndarray,
     lambda_param: float = 0.5,
     k: int = 4,
-) -> List[str]:
+) -> list[str]:
     """Apply Maximal Marginal Relevance to select diverse terms.
 
     MMR balances relevance (TF-IDF/KeyBERT score) with diversity
@@ -54,7 +53,7 @@ def apply_mmr(
 
         # Use set for O(1) membership checks instead of O(N) list membership
         selected_set: set[str] = set()
-        selected: List[str] = []
+        selected: list[str] = []
 
         while len(selected) < k and len(selected) < len(terms):
             remaining = [t for t in terms if t not in selected_set]
@@ -75,9 +74,7 @@ def apply_mmr(
                     for sel_term in selected:
                         sel_words = set(sel_term.lower().split())
                         if term_words and sel_words:
-                            overlap = len(term_words & sel_words) / len(
-                                term_words | sel_words
-                            )
+                            overlap = len(term_words & sel_words) / len(term_words | sel_words)
                             max_overlap = max(max_overlap, overlap)
                     diversity_penalty = max_overlap
                 else:
@@ -106,11 +103,11 @@ def apply_mmr(
 
 
 def label_tfidf(
-    paths: List[str],
+    paths: list[str],
     labels: np.ndarray,
     db: sqlite3.Connection,
     n_terms: int = 4,
-) -> Dict[int, str]:
+) -> dict[int, str]:
     """Generate cluster labels using c-TF-IDF with MMR filtering.
 
     Applies class-based TF-IDF to extract keywords, then uses Maximal
@@ -125,10 +122,10 @@ def label_tfidf(
     Returns:
         Dictionary mapping cluster_id to label string (comma-separated keywords)
     """
-    cluster_labels: Dict[int, str] = {}
+    cluster_labels: dict[int, str] = {}
 
     # Load note titles/content for each cluster
-    clusters: Dict[int, List[str]] = {}
+    clusters: dict[int, list[str]] = {}
     for i, label in enumerate(labels):
         if label == -1:
             continue
@@ -152,9 +149,7 @@ def label_tfidf(
     cluster_texts = {cid: " ".join(texts) for cid, texts in clusters.items()}
 
     # Compute TF-IDF
-    vectorizer = TfidfVectorizer(
-        max_features=100, stop_words="english", ngram_range=(1, 2)
-    )
+    vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 2))
 
     try:
         tfidf_matrix = vectorizer.fit_transform(cluster_texts.values())
@@ -189,11 +184,11 @@ def label_tfidf(
 
 
 def label_keybert(
-    paths: List[str],
+    paths: list[str],
     labels: np.ndarray,
     db: sqlite3.Connection,
     n_terms: int = 4,
-) -> Dict[int, str]:
+) -> dict[int, str]:
     """Generate cluster labels using KeyBERT approach with semantic embeddings.
 
     Uses semantic similarity between candidate phrases and cluster centroids
@@ -212,10 +207,10 @@ def label_keybert(
     """
     from geistfabrik.embeddings import EmbeddingComputer
 
-    cluster_labels: Dict[int, str] = {}
+    cluster_labels: dict[int, str] = {}
 
     # Load note titles/content for each cluster
-    clusters: Dict[int, List[str]] = {}
+    clusters: dict[int, list[str]] = {}
     for i, label in enumerate(labels):
         if label == -1:
             continue
@@ -247,7 +242,7 @@ def label_keybert(
         return {cid: f"Cluster {cid}" for cid in clusters.keys()}
 
     # Get cluster embeddings to compute centroids
-    cluster_embeddings: Dict[int, List[np.ndarray]] = {}
+    cluster_embeddings: dict[int, list[np.ndarray]] = {}
     for cluster_id, texts in clusters.items():
         try:
             # Embed all texts in this cluster
@@ -275,9 +270,7 @@ def label_keybert(
         centroid = np.mean(cluster_embeddings[cluster_id], axis=0)
 
         # Extract candidate phrases using TF-IDF to get good candidates
-        vectorizer = TfidfVectorizer(
-            max_features=100, stop_words="english", ngram_range=(1, 3)
-        )
+        vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 3))
         try:
             # Fit on this cluster's text only
             tfidf_matrix = vectorizer.fit_transform([cluster_text])
@@ -302,9 +295,7 @@ def label_keybert(
             similarities = sklearn_cosine(centroid_2d, candidate_embeddings)[0]
 
             # Apply MMR with semantic scores
-            diverse_terms = apply_mmr(
-                candidate_terms, similarities, lambda_param=0.5, k=n_terms
-            )
+            diverse_terms = apply_mmr(candidate_terms, similarities, lambda_param=0.5, k=n_terms)
 
             cluster_labels[cluster_id] = ", ".join(diverse_terms)
 

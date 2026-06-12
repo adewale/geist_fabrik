@@ -15,7 +15,7 @@ This module generalizes the pattern from question_harvester.py to enable
 """
 
 import re
-from typing import List, Protocol
+from typing import Protocol
 
 
 class ExtractionStrategy(Protocol):
@@ -25,7 +25,7 @@ class ExtractionStrategy(Protocol):
     markdown text using regex patterns, linguistic heuristics, or other methods.
     """
 
-    def extract(self, content: str) -> List[str]:
+    def extract(self, content: str) -> list[str]:
         """Extract content items from markdown.
 
         Args:
@@ -73,8 +73,8 @@ class ExtractionPipeline:
 
     def __init__(
         self,
-        strategies: List[ExtractionStrategy],
-        filters: List[ContentFilter] | None = None,
+        strategies: list[ExtractionStrategy],
+        filters: list[ContentFilter] | None = None,
     ):
         """Initialize pipeline with strategies and filters.
 
@@ -85,7 +85,7 @@ class ExtractionPipeline:
         self.strategies = strategies
         self.filters = filters if filters is not None else [LengthFilter()]
 
-    def extract(self, content: str) -> List[str]:
+    def extract(self, content: str) -> list[str]:
         """Run full pipeline: remove code → strategies → filters → deduplicate.
 
         Args:
@@ -156,7 +156,7 @@ class QuestionExtractor:
     - List item questions
     """
 
-    def extract(self, content: str) -> List[str]:
+    def extract(self, content: str) -> list[str]:
         """Extract questions from content.
 
         Args:
@@ -168,15 +168,11 @@ class QuestionExtractor:
         questions = []
 
         # Pattern 1: Sentence-ending questions
-        sentence_questions = re.findall(
-            r"([^.!?\n][^.!?]*\?)", content, re.MULTILINE
-        )
+        sentence_questions = re.findall(r"([^.!?\n][^.!?]*\?)", content, re.MULTILINE)
         questions.extend(sentence_questions)
 
         # Pattern 2: List item questions
-        list_questions = re.findall(
-            r"^\s*[-*+]\s+(.+\?)\s*$", content, re.MULTILINE
-        )
+        list_questions = re.findall(r"^\s*[-*+]\s+(.+\?)\s*$", content, re.MULTILINE)
         questions.extend(list_questions)
 
         return questions
@@ -192,7 +188,7 @@ class DefinitionExtractor:
     - "X refers to Y"
     """
 
-    def extract(self, content: str) -> List[str]:
+    def extract(self, content: str) -> list[str]:
         """Extract definitions from content.
 
         Args:
@@ -249,7 +245,7 @@ class ClaimExtractor:
     - Causal claims ("X causes Y")
     """
 
-    def extract(self, content: str) -> List[str]:
+    def extract(self, content: str) -> list[str]:
         """Extract claims from content.
 
         Args:
@@ -297,7 +293,7 @@ class HypothesisExtractor:
     - Could/would conditionals
     """
 
-    def extract(self, content: str) -> List[str]:
+    def extract(self, content: str) -> list[str]:
         """Extract hypotheses from content.
 
         Args:
@@ -394,7 +390,7 @@ class PatternFilter:
     Removes items matching known false positive patterns.
     """
 
-    def __init__(self, patterns: List[str]):
+    def __init__(self, patterns: list[str]):
         """Initialize pattern filter.
 
         Args:

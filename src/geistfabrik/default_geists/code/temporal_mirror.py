@@ -55,13 +55,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Randomly select 2 different periods (deterministic via vault's RNG)
-    selected_periods = vault.sample(list(range(len(periods))), k=2)
+    selected_periods = vault.sample(list(range(len(periods))), count=2)
     period1_idx = selected_periods[0]
     period2_idx = selected_periods[1]
 
     # Get 1 note from each period
-    note1 = vault.sample(periods[period1_idx], k=1)[0]
-    note2 = vault.sample(periods[period2_idx], k=1)[0]
+    note1 = vault.sample(periods[period1_idx], count=1)[0]
+    note2 = vault.sample(periods[period2_idx], count=1)[0]
 
     # Calculate which period each note is in (1-indexed for readability)
     period1_num = period1_idx + 1
@@ -79,17 +79,17 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         "represents a return to ideas from",
     ]
 
-    relationship = vault.sample(relationships, k=1)[0]
+    relationship = vault.sample(relationships, count=1)[0]
 
     suggestion_text = (
-        f"From period {period1_num}, [[{note1.obsidian_link}]] {relationship} "
-        f"period {period2_num}'s [[{note2.obsidian_link}]]."
+        f"From period {period1_num}, [[{note1.link_text}]] {relationship} "
+        f"period {period2_num}'s [[{note2.link_text}]]."
     )
 
     return [
         Suggestion(
             text=suggestion_text,
-            notes=[note1.obsidian_link, note2.obsidian_link],
+            notes=[note1.link_text, note2.link_text],
             geist_id="temporal_mirror",
         )
     ]

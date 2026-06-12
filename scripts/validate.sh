@@ -48,11 +48,22 @@ run_check "Mypy type checking" uv run mypy src/ --strict || FAILED=1
 # 3. Unused database tables check
 run_check "Unused database tables check" uv run python scripts/detect_unused_tables.py || FAILED=1
 
+# 3b. Security scan (bandit, medium+ severity)
+run_check "Bandit security scan" uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q || FAILED=1
+
 # 4. Unit tests (with mocked models)
-run_check "Unit tests" uv run pytest tests/unit -v -m "not slow" --timeout=60 || FAILED=1
+# Marker filter matches CI (.github/workflows/test.yml): exclude slow tests
+# (real model download) and benchmark tests (perf-only, not run by default).
+run_check "Unit tests" uv run pytest tests/unit -v -m "not slow and not benchmark" --timeout=60 || FAILED=1
 
 # 5. Integration tests (excluding slow tests)
-run_check "Integration tests" uv run pytest tests/integration -v -m "not slow" --timeout=300 || FAILED=1
+run_check "Integration tests" uv run pytest tests/integration -v -m "not slow and not benchmark" --timeout=300 || FAILED=1
+
+# 6. Acceptance-criteria verification (spec <-> code drift gate)
+# RUNS every machine-verifiable criterion in specs/acceptance_criteria.md
+# (it does not trust the status column). Catches renamed/removed tests and
+# unwired features that would otherwise let the spec drift from the code.
+run_check "Acceptance criteria" uv run python scripts/check_phase_completion.py || FAILED=1
 
 # Summary
 echo "=================================================="

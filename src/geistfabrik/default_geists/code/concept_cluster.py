@@ -27,11 +27,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Sample some notes and find their neighbourhoods
-    seed_notes = vault.sample(notes, k=5)
+    seed_notes = vault.sample(notes, count=5)
 
     for seed in seed_notes:
         # Get neighbours of this note
-        neighbours = vault.neighbours(seed, k=5)
+        neighbours = vault.neighbours(seed, count=5)
 
         if len(neighbours) < 3:
             continue
@@ -52,11 +52,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # If average similarity is high, this is a real cluster
         if avg_similarity > SimilarityLevel.HIGH:
-            note_titles = [n.obsidian_link for n in cluster_notes]
+            note_titles = [n.link_text for n in cluster_notes]
             formatted_titles = "]], [[".join(note_titles)
 
             text = (
-                f"What if you recognised an emerging cluster around [[{seed.obsidian_link}]]? "
+                f"What if you recognised an emerging cluster around [[{seed.link_text}]]? "
                 f"These notes are tightly related: [[{formatted_titles}]]. "
                 f"Could they be organised under a shared theme?"
             )
@@ -69,4 +69,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

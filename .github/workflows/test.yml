@@ -78,3 +78,14 @@ jobs:
 
       - name: Check for unused database tables
         run: uv run python scripts/detect_unused_tables.py
+
+      - name: Security scan (bandit)
+        run: uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q
+
+      # Verify specs/acceptance_criteria.md against the code by RUNNING every
+      # machine-verifiable criterion (not trusting its status column). Runs once
+      # (single matrix leg) since it re-executes test modules and is OS/Python
+      # agnostic.
+      - name: Acceptance criteria
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        run: uv run python scripts/check_phase_completion.py

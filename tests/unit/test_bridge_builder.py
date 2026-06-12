@@ -7,16 +7,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import bridge_builder
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -137,8 +128,8 @@ def test_bridge_builder_returns_suggestions(vault_with_hubs):
 
     # BEHAVIORAL: Verify suggestions involve hubs (bridge_builder works with hubs)
     if len(suggestions) > 0:
-        all_hubs = context.hubs(k=10)
-        hub_links = {h.obsidian_link for h in all_hubs}
+        all_hubs = context.hubs(count=10)
+        hub_links = {h.link_text for h in all_hubs}
 
         for suggestion in suggestions:
             # At least one note in each suggestion should be a hub
@@ -191,8 +182,8 @@ def test_bridge_builder_suggestion_structure(vault_with_hubs):
         # BEHAVIORAL: Verify similarity threshold logic (>0.6 from line 38)
         note1_ref, note2_ref = suggestion.notes[0], suggestion.notes[1]
 
-        note1 = next((n for n in vault.all_notes() if n.obsidian_link == note1_ref), None)
-        note2 = next((n for n in vault.all_notes() if n.obsidian_link == note2_ref), None)
+        note1 = next((n for n in vault.all_notes() if n.link_text == note1_ref), None)
+        note2 = next((n for n in vault.all_notes() if n.link_text == note2_ref), None)
 
         if note1 and note2:
             similarity = context.similarity(note1, note2)
@@ -211,8 +202,8 @@ def test_bridge_builder_suggestion_structure(vault_with_hubs):
             )
 
 
-def test_bridge_builder_uses_obsidian_link(vault_with_hubs):
-    """Test that bridge_builder uses obsidian_link for note references.
+def test_bridge_builder_uses_link_text(vault_with_hubs):
+    """Test that bridge_builder uses link_text for note references.
 
     Setup:
         Vault with hub structure.

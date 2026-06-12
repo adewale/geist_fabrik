@@ -4,10 +4,13 @@ Uses temporal embeddings to find notes that naturally cluster by era, revealing
 distinct "seasons" of thinking without manual tagging.
 """
 
-from typing import TYPE_CHECKING, Dict, List
+import logging
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Note, Suggestion, VaultContext
+
+logger = logging.getLogger(__name__)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -28,9 +31,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             return []
 
         # Group notes by time periods (quarters)
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
-        now = datetime.now()
+        # Session date, not wall-clock: keeps --date replays deterministic
+        now = vault.session.date
 
         # Define time windows (quarters going back 2 years)
         quarters = []
@@ -40,7 +44,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             quarters.append((start_date, end_date, f"Q{(i % 4) + 1}-{end_date.year}"))
 
         # Group notes by quarter and find if distinct semantic clusters emerge
-        quarter_groups: Dict[str, List["Note"]] = {}
+        quarter_groups: dict[str, list[Note]] = {}
 
         for note in notes:
             for start, end, label in quarters:
@@ -81,11 +85,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             cluster1_label, cluster1_notes, cluster1_sim = significant_clusters[0]
             cluster2_label, cluster2_notes, cluster2_sim = significant_clusters[1]
 
-            sample1 = vault.sample(cluster1_notes, k=3)
-            sample2 = vault.sample(cluster2_notes, k=3)
+            sample1 = vault.sample(cluster1_notes, count=3)
+            sample2 = vault.sample(cluster2_notes, count=3)
 
-            names1 = ", ".join([f"[[{n.obsidian_link}]]" for n in sample1])
-            names2 = ", ".join([f"[[{n.obsidian_link}]]" for n in sample2])
+            names1 = ", ".join([f"[[{n.link_text}]]" for n in sample1])
+            names2 = ", ".join([f"[[{n.link_text}]]" for n in sample2])
 
             text = (
                 f"Your {cluster1_label} notes form a distinct semantic cluster "
@@ -96,12 +100,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[n.obsidian_link for n in sample1 + sample2],
+                    notes=[n.link_text for n in sample1 + sample2],
                     geist_id="temporal_clustering",
                 )
             )
 
     except Exception:
+        logger.debug("temporal_clustering geist failed", exc_info=True)
         return []
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, count=2)

@@ -7,8 +7,8 @@ Supports symbol expansion, modifiers, and vault function calls.
 import logging
 import random
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, List
 
 import yaml
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class TraceryEngine:
     """Simple Tracery grammar engine with vault function support."""
 
-    def __init__(self, grammar: Dict[str, List[str]], seed: int | None = None):
+    def __init__(self, grammar: dict[str, list[str]], seed: int | None = None):
         """Initialise Tracery engine.
 
         Args:
@@ -32,12 +32,12 @@ class TraceryEngine:
         self.rng = random.Random(seed)
         self.vault_context: VaultContext | None = None
         self.max_depth = 50
-        self.modifiers: Dict[str, Callable[[str], str]] = self._default_modifiers()
+        self.modifiers: dict[str, Callable[[str], str]] = self._default_modifiers()
         self._preprocessed = False  # Track if pre-population done
         self._prepopulation_failed = False  # Track if pre-population failed
         self._has_empty_symbols = False  # Track if any symbols have empty arrays
 
-    def _default_modifiers(self) -> Dict[str, Callable[[str], str]]:
+    def _default_modifiers(self) -> dict[str, Callable[[str], str]]:
         """Get default English language modifiers.
 
         Returns:
@@ -303,7 +303,7 @@ class TraceryEngine:
             pattern = r"\$vault\.([a-z_]+)\(([^)]*)\)"
 
             for symbol, rules in list(self.grammar.items()):
-                expanded_rules: List[str] = []
+                expanded_rules: list[str] = []
 
                 for rule in rules:
                     # Check if this rule is a vault function call
@@ -452,13 +452,14 @@ class TraceryEngine:
         # Return as string
         return arg
 
+
 class TraceryGeist:
     """A geist defined via Tracery grammar."""
 
     def __init__(
         self,
         geist_id: str,
-        grammar: Dict[str, List[str]],
+        grammar: dict[str, list[str]],
         count: int = 1,
         seed: int | None = None,
     ):
@@ -475,7 +476,7 @@ class TraceryGeist:
         self.count = count
 
     @staticmethod
-    def _validate_grammar(grammar: Dict[str, List[str]], geist_id: str, yaml_path: Path) -> None:
+    def _validate_grammar(grammar: dict[str, list[str]], geist_id: str, yaml_path: Path) -> None:
         """Validate Tracery grammar for common anti-patterns.
 
         Args:
@@ -537,7 +538,7 @@ class TraceryGeist:
         Returns:
             Loaded TraceryGeist instance
         """
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             data = yaml.safe_load(f)
 
         if data.get("type") != "geist-tracery":
@@ -557,7 +558,7 @@ class TraceryGeist:
 
         return cls(geist_id, grammar, count, seed)
 
-    def suggest(self, vault: VaultContext) -> List[Suggestion]:
+    def suggest(self, vault: VaultContext) -> list[Suggestion]:
         """Generate suggestions using Tracery grammar.
 
         Args:
@@ -577,9 +578,7 @@ class TraceryGeist:
 
         # If any symbols have empty arrays, don't generate suggestions
         if self.engine._has_empty_symbols:
-            logger.debug(
-                f"Geist {self.geist_id}: skipping suggestions due to empty symbol arrays"
-            )
+            logger.debug(f"Geist {self.geist_id}: skipping suggestions due to empty symbol arrays")
             return []
 
         suggestions = []
@@ -660,7 +659,7 @@ class TraceryGeistLoader:
         geists_dir: Path,
         seed: int | None = None,
         default_geists_dir: Path | None = None,
-        enabled_defaults: Dict[str, bool] | None = None,
+        enabled_defaults: dict[str, bool] | None = None,
     ):
         """Initialise loader.
 
@@ -674,9 +673,9 @@ class TraceryGeistLoader:
         self.seed = seed
         self.default_geists_dir = default_geists_dir
         self.enabled_defaults = enabled_defaults or {}
-        self.newly_discovered: List[str] = []
+        self.newly_discovered: list[str] = []
 
-    def load_all(self) -> tuple[List[TraceryGeist], List[str]]:
+    def load_all(self) -> tuple[list[TraceryGeist], list[str]]:
         """Load all Tracery geists from directories.
 
         Loads default geists first (if configured), then custom geists.
@@ -698,7 +697,7 @@ class TraceryGeistLoader:
 
         return geists, self.newly_discovered
 
-    def _load_from_directory(self, directory: Path, is_default: bool = False) -> List[TraceryGeist]:
+    def _load_from_directory(self, directory: Path, is_default: bool = False) -> list[TraceryGeist]:
         """Load Tracery geists from a specific directory.
 
         Loads geists in config order if they're in config, alphabetically if not.

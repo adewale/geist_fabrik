@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import pytest
 
@@ -12,16 +12,6 @@ from geistfabrik import (
     FunctionRegistryError,
     vault_function,
 )
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    from geistfabrik.function_registry import _GLOBAL_REGISTRY
-
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 def test_function_registry_initialization() -> None:
@@ -99,7 +89,7 @@ def test_manual_register_function() -> None:
     """Test manually registering a function."""
     registry = FunctionRegistry()
 
-    def custom_func(vault: Any, k: int = 5) -> List[Any]:
+    def custom_func(vault: Any, k: int = 5) -> list[Any]:
         return []
 
     registry.register("custom", custom_func)
@@ -347,7 +337,7 @@ def test_function_returns_list() -> None:
     """Test function that returns a list."""
     registry = FunctionRegistry()
 
-    def return_list(vault: Any) -> List[str]:
+    def return_list(vault: Any) -> list[str]:
         return ["a", "b", "c"]
 
     registry.register("return_list", return_list)

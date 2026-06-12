@@ -895,7 +895,7 @@ text = f"What if [[{note.title}]]'s contradictions are revealing something?"
 
 ```python
 text = (
-    f"**Thesis**: [[{note.obsidian_link}]]\n"
+    f"**Thesis**: [[{note.link_text}]]\n"
     f"**Antithesis**: [[{antithesis.title}]]\n"
     f"\nWhat if you synthesized both?"
 )

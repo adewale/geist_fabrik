@@ -19,7 +19,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     Uses ClusterAnalyser with session-scoped caching to efficiently compute
     current clusters, then compares with historical session data to find
-    notes with shifting conceptual neighborhoods.
+    notes with shifting conceptual neighbourhoods.
     """
     # Exclude geist journal to avoid tracking session output migrations
     notes = vault.notes_excluding_journal()
@@ -28,7 +28,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Get previous sessions via VaultContext abstraction
-    session_ids = vault.recent_session_ids(limit=3)
+    session_ids = vault.recent_session_ids(count=3)
 
     if len(session_ids) < 2:
         return []
@@ -60,9 +60,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Check previous session assignments
         prev_session_id = session_ids[1]  # Second most recent
-        prev_label = vault.previous_cluster_label_for_note(
-            note, prev_session_id
-        )
+        prev_label = vault.previous_cluster_label_for_note(note, prev_session_id)
 
         if prev_label:
             # Note migrated to a different cluster
@@ -70,7 +68,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=(
-                            f"[[{note.obsidian_link}]] migrated from "
+                            f"[[{note.link_text}]] migrated from "
                             f"'{prev_label}' cluster to '{current_label}' cluster. "
                             f"What conceptual shift occurred?"
                         ),
@@ -83,4 +81,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 break
 
     # Return up to 2 suggestions
-    return vault.sample(suggestions, k=min(2, len(suggestions)))
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

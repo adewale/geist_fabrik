@@ -235,6 +235,202 @@ origin: "#seed# connects to #neighbours#"     # Template uses as-is
 
 ---
 
+## A Test That Cannot Fail Is Worse Than No Test
+
+**Date:** 2026-06-10
+**Context:** Quality deep-dive found ~7 default geists shipping dead with green tests
+
+**The Problem:** Several geists gated on metadata keys (`staleness`,
+`has_tasks`, `days_since_modified`) that only an optional `examples/` module
+provided. In a default install the gates never opened and the geists silently
+produced nothing — for months. Their tests stayed green the whole time,
+because the testing template taught `for s in suggestions: assert ...`
+(vacuous on an empty list) and `assert len(x) >= 0` (always true). One geist
+(`cluster_evolution_tracker`) queried a database column that **never existed
+in any schema version**; its OperationalError was swallowed by the executor's
+fail-soft handling and its tests, asserting nothing about non-emptiness,
+never noticed.
+
+**The Insight:** Coverage measured execution, not verification. A test whose
+assertions all live inside a loop over possibly-empty output verifies only
+that the geist didn't crash — which the executor already guarantees. The
+failure mode wasn't missing tests; it was tests with no oracle.
+
+**The Principle:** Every geist's happy-path test runs on a fixture *designed
+to trigger* (with the trigger arithmetic stated in a comment) and asserts
+NON-EMPTY output. Exclusion tests verify both directions (planted good notes
+appear, banned notes don't). If you can't build a fixture that makes the
+geist fire, you don't understand the trigger condition yet.
+
+**Impact:** GEIST_TESTING_TEMPLATE.md rewritten around designed-to-trigger
+fixtures + `tests/fixtures/helpers.assert_valid_suggestions()`; built-in
+metadata now provides the keys geists gate on; revived geists carry
+non-empty regression tests.
+
+---
+
+## Determinism Dies By A Thousand Wall-Clocks
+
+**Date:** 2026-06-10
+**Context:** "Same date + vault = same output" (principle 6) was violated in five separate ways
+
+**The Problem:** Built-in metadata used `datetime.now()`; five geists used
+`datetime.now()` instead of the session date; `semantic_clusters` seeded with
+Python's `hash()` (randomised per process via PYTHONHASHSEED); the unit-test
+mock encoder also seeded with `hash()` (different mock embeddings every
+pytest run — latent flakes near similarity thresholds); and test fixtures
+built sessions at `datetime.now()` even though session-season is literally an
+embedding feature, so tests computed different embeddings depending on the
+calendar day they ran.
+
+**The Insight:** Determinism is not a property you declare once — every new
+call site re-decides it. `datetime.now()` and `hash()` both look innocent and
+both silently break replay. Nothing enforced the principle, so it eroded.
+
+**The Principle:** "Now" is always the session date (`vault.session.date`),
+never the wall clock. Seeds derive from the session date via `hashlib`, never
+`hash()`. Test fixtures pin both. When a principle matters, grep for its
+violations and consider lint-banning the offending calls.
+
+**Impact:** `--date` replays are reproducible again; the testing template
+mandates pinned dates/seeds.
+
+---
+
+## Specs Are Promises: Audit the Diff Between Spec and Ship
+
+**Date:** 2026-06-10
+**Context:** Three separate "the spec said X, the code does nothing" discoveries
+
+**The Problem:** (1) The spec specified a `geist_status` table persisting
+failure counts across sessions ("disable after 3 failures") — never built;
+the shipped in-memory counter can never reach 3, so the documented
+auto-disable feature is unreachable dead code. (2) The reuse-abstractions
+spec promised three geists showcasing `GraphPatternFinder` (structural holes,
+path-length anomaly, bridge redundancy) — the module shipped, documented as a
+public API, with zero consumers and zero tests, carrying latent O(N²) bombs.
+(3) `cluster_evolution_tracker` was written against a schema column that was
+specified but never created.
+
+**The Insight:** When implementation pauses partway through a spec, the
+gap is invisible: docs describe the spec, tests exercise the code, and
+nothing compares the two. "Documented" came to mean "specified", not
+"working".
+
+**The Principle:** A spec item is either implemented, explicitly deferred
+(tracked), or deleted from the docs. When adding an abstraction, ship at
+least one consumer and its tests in the same change — an API with zero
+consumers is a liability, not an investment.
+
+**Impact:** The three promised graph geists now exist as
+`examples/geists/code/`; graph_analysis is tested and de-bombed; the
+auto-disable gap is documented as a missing `geist_status` abstraction
+pending a decision.
+
+---
+
+## One Definition Per Concept (Link Resolution Edition)
+
+**Date:** 2026-06-10
+**Context:** Three code paths disagreed about "does this link point to this note"
+
+**The Problem:** `links_between`/`backlinks` matched `{path, path-no-ext,
+title}`; `graph_analysis` and `similarity_analysis.is_bridge` matched titles
+only (path-form links invisible to bridge detection); `orphans()` had an
+inline variant. Backlink and bridge detection silently disagreed depending on
+which API a geist called.
+
+**The Insight:** The same domain question implemented three times will drift
+three ways — and each copy looks locally correct in review.
+
+**The Principle:** Domain predicates get ONE canonical definition
+(`models.link_target_forms()`), every consumer calls it, and an agreement
+test locks the code paths together so the next copy-paste divergence fails
+CI.
+
+**Impact:** All link-resolution consumers unified; `tests/unit/
+test_graph_analysis.py::TestLinkResolutionAgreement` enforces agreement.
+
+---
+
+## Specified But Never Built: Self-Attesting Status Is Not Verification
+
+**Date:** 2026-06-10
+**Context:** ~20 spec promises had no implementation — the largest being most of
+the config.yaml schema (exclude_paths, filtering thresholds, timeout, logging…).
+
+**The Problem:** The spec described features that were never wired, and nothing
+caught it. The worst case: `filtering.boundary.exclude_paths` (a privacy
+control — keep `Private/` notes out of suggestions) was *documented as
+implemented* (`geist_validation_spec.md:186`) but did nothing, for months.
+
+**How it happened (commit evidence, shallow history from 2025-11-01):**
+1. **Self-attesting verification.** `scripts/check_phase_completion.py` skips
+   any acceptance criterion the spec marks `✅` (`if status == "✅": passed += 1;
+   continue`) — it counts an item done because the *document says so*, never
+   running the verification command. The spec attests its own completion.
+2. **The checker wasn't even in CI** (no reference in `.github/` or
+   `validate.sh`) — a manual script that, even if run, trusted the ✅ marks.
+3. **Config-by-demand + silent ignore.** Config sections were added only when a
+   feature PR needed one (`ClusterConfig` with cluster-labeling, `VectorSearch`/
+   `DateCollection` later). Spec keys nothing needed never got wired, and
+   `data.get(key, default)` *silently ignores* unparsed keys — no signal.
+4. **No mechanical spec→code link.** No test parsed the spec schema; the spec
+   was a write-once aspirational doc with zero tie to the code.
+
+**The Principle:** Status must be *verified*, not *asserted*. A document
+claiming "implemented" is worth nothing unless a test re-derives it from the
+code. Unrecognised config keys must warn, not vanish. "Phase complete" must run
+the acceptance check, not read a checkbox.
+
+**What we built to prevent recurrence:**
+- `specs/SPEC_STATUS.md` — one reviewed ledger of every spec config key's true
+  status, enforced by `tests/unit/test_spec_config_sync.py`: a spec edit that
+  adds a key fails CI until its status is recorded (the
+  test_geist_count_consistency pattern, applied to the spec).
+- `load_config()` warns on unknown top-level keys (a typo or unwired spec key
+  is now visible).
+- `tests/unit/test_doc_links.py` fails on dead internal doc links (the failure
+  mode behind never-written referenced docs).
+- bandit in CI/validate.sh (a real security-scan AC, made true).
+- Replaced two hardcoded geist counts in tests with the programmatic constant.
+
+**What we built next — the checker now verifies, never trusts** (2026-06-11):
+`scripts/check_phase_completion.py` was rewritten and wired into both
+`scripts/validate.sh` and CI, so the spec table can no longer drift from the
+code without turning CI red.
+
+- **The silent drop was bigger than the ✅-skip.** Auditing the old checker, the
+  `if status == "✅"` shortcut never even fired — every row was `⬜`. The real
+  leak was its rigid regex, which **silently dropped 95 of 231 criteria** (41%)
+  whose verification cell had a trailing annotation or was prose. "All criteria
+  pass" was true while two-fifths were never looked at. *Lesson: a parser that
+  skips what it can't match is worse than one that errors — make unparseable a
+  hard failure.* The new checker parses every row, classifies each as **AUTO**
+  (runs a real command) or **MANUAL** (prose, reported but not gating), and
+  fails on any unparseable row or any command smuggled into prose.
+- **Reconciling 231 criteria surfaced the drift.** ~120 commands referenced
+  test nodes that had been renamed/removed. Dead `::node`s were coarsened to
+  their (drift-resistant) test file; behaviours with no surviving test became
+  honest MANUAL entries; the count of MANUAL criteria *is* the visible ledger of
+  what we don't pinpoint-test.
+- **A verification gate must be non-destructive and deterministic.** Several ACs
+  "verified" setup by *running* it — `uv sync --only-dev`, `uv pip install -e .`,
+  `pre-commit run --all-files`. Executed by the gate they mutated the dev's
+  environment (one left torch half-installed; `pre-commit` auto-reformatted 12
+  unrelated files). *Lesson: a check that changes the thing it checks isn't a
+  check.* Those became non-mutating import probes or MANUAL.
+- **One process, not N.** `conftest.py` imports the embedding stack (~5s) per
+  process, so spawning a pytest per criterion took ~5 min; batching all targets
+  into one run (like validate.sh) brought it to ~30s while still catching a
+  renamed target (pytest exits non-zero on an unmatched node).
+
+**Still recommended (process, not mechanised):** a PR-template "spec touched?
+update SPEC_STATUS" checkbox; "no abstraction without a consumer + its test" as
+review policy.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_

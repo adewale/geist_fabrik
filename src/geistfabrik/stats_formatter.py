@@ -5,16 +5,18 @@ output formatting for vault statistics, plus recommendation generation.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
+
+from .stats import VaultStats
 
 
 class StatsFormatter:
     """Formats statistics for output."""
 
     def __init__(
-        self, stats: Dict[str, Any], recommendations: List[Dict[str, Any]], verbose: bool = False
+        self, stats: VaultStats, recommendations: list[dict[str, Any]], verbose: bool = False
     ):
         """Initialise formatter.
 
@@ -294,7 +296,7 @@ class StatsFormatter:
         return json.dumps(output, indent=2)
 
 
-def generate_recommendations(stats: Dict[str, Any]) -> List[Dict[str, Any]]:
+def generate_recommendations(stats: VaultStats) -> list[dict[str, Any]]:
     """Generate recommendations based on statistics.
 
     Args:
@@ -303,7 +305,7 @@ def generate_recommendations(stats: Dict[str, Any]) -> List[Dict[str, Any]]:
     Returns:
         List of recommendation dictionaries
     """
-    recommendations: List[Dict[str, Any]] = []
+    recommendations: list[dict[str, Any]] = []
 
     # Backend recommendation
     notes = stats["notes"]["total"]
@@ -419,7 +421,7 @@ def generate_recommendations(stats: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     # All clear if no recommendations
     if not recommendations:
-        rec: Dict[str, Optional[str]] = {
+        rec: dict[str, str | None] = {
             "type": "health",
             "severity": "success",
             "message": "All checks passed - vault structure is healthy",

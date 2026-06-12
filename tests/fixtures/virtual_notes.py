@@ -14,9 +14,9 @@ Example usage:
         assert len(virtual_notes) > 0
 """
 
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
@@ -241,22 +241,17 @@ def assert_virtual_notes_created(vault: Vault, expected_count: int = 6) -> None:
     all_notes = vault.all_notes()
     virtual_notes = [n for n in all_notes if n.is_virtual]
 
-    assert (
-        len(virtual_notes) == expected_count
-    ), f"Expected {expected_count} virtual notes, got {len(virtual_notes)}"
+    assert len(virtual_notes) == expected_count, (
+        f"Expected {expected_count} virtual notes, got {len(virtual_notes)}"
+    )
 
     # Verify all virtual notes have required fields
     for note in virtual_notes:
         assert note.is_virtual is True, f"Note {note.path} should have is_virtual=True"
-        assert (
-            note.source_file is not None
-        ), f"Note {note.path} should have source_file set"
-        assert (
-            note.entry_date is not None
-        ), f"Note {note.path} should have entry_date set"
-        assert "#" in note.obsidian_link, (
-            f"Note {note.path} obsidian_link should contain '#' for deeplink, "
-            f"got: {note.obsidian_link}"
+        assert note.source_file is not None, f"Note {note.path} should have source_file set"
+        assert note.entry_date is not None, f"Note {note.path} should have entry_date set"
+        assert "#" in note.link_text, (
+            f"Note {note.path} link_text should contain '#' for deeplink, got: {note.link_text}"
         )
 
 
@@ -264,7 +259,7 @@ def assert_no_duplicate_titles_in_suggestions(suggestions: list) -> None:
     """Helper to verify suggestions don't contain duplicate note titles.
 
     This catches the abstraction layer bypass bug where geists query
-    raw database titles instead of using Note.obsidian_link.
+    raw database titles instead of using Note.link_text.
 
     Args:
         suggestions: List of Suggestion objects to check
@@ -290,7 +285,7 @@ def assert_no_duplicate_titles_in_suggestions(suggestions: list) -> None:
         assert not duplicates, (
             f"Found duplicate note references in suggestion: {duplicates}\n"
             f"This suggests the geist is querying raw 'title' values instead of "
-            f"using Note.obsidian_link.\n"
+            f"using Note.link_text.\n"
             f"All notes: {suggestion.notes}\n"
             f"Suggestion text: {suggestion.text[:100]}..."
         )

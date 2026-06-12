@@ -19,7 +19,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes()
+    notes = vault.notes_excluding_journal()
 
     for note in notes:
         metadata = vault.metadata(note)
@@ -34,7 +34,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             incomplete = task_count - completed_count
 
             text = (
-                f"What if you revisited the tasks in [[{note.obsidian_link}]]? "
+                f"What if you revisited the tasks in [[{note.link_text}]]? "
                 f"It has {incomplete} incomplete task{'s' if incomplete > 1 else ''} "
                 f"and hasn't been touched in {days_since_modified} days. "
                 f"Are they still relevant?"
@@ -43,9 +43,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[note.obsidian_link],
+                    notes=[note.link_text],
                     geist_id="task_archaeology",
                 )
             )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

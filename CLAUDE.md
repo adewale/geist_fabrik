@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 57 bundled geists (48 code, 9 Tracery) - automatically available
+  - **default_geists/**: 59 bundled geists (50 code, 9 Tracery) - automatically available
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
@@ -30,7 +30,7 @@ The system is fully functional and operational. All phases of the specification 
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 57 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 59 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns
@@ -56,14 +56,27 @@ Pre-commit hooks run automatically on `git commit`:
 ./scripts/validate.sh
 ```
 
-This script runs the **exact same checks as CI**:
+This script runs the **same checks as CI** (same tools, same marker filter):
 1. `ruff check src/ tests/` - Linting
 2. `mypy src/ --strict` - Type checking (STRICT MODE)
 3. `python scripts/detect_unused_tables.py` - Database validation
-4. `pytest tests/unit -v -m "not slow"` - Unit tests (with mocked models)
-5. `pytest tests/integration -v -m "not slow"` - Integration tests (with mocked models)
+4. `bandit -c pyproject.toml -r src/geistfabrik -ll -q` - Security scan
+5. `pytest tests/unit -v -m "not slow and not benchmark"` - Unit tests (with mocked models)
+6. `pytest tests/integration -v -m "not slow and not benchmark"` - Integration tests (with mocked models)
+7. `python scripts/check_phase_completion.py` - Acceptance-criteria gate: *runs*
+   every machine-verifiable criterion in `specs/acceptance_criteria.md` (it does
+   not trust the status column) so the spec cannot silently drift from the code.
+   Each criterion is AUTO (a real command is executed) or MANUAL (prose,
+   reported but non-gating). See that file's header for the contract.
 
-**If validate.sh passes, CI will pass. If it fails, DO NOT PUSH.**
+**If validate.sh passes, CI will almost certainly pass. If it fails, DO NOT PUSH.**
+
+Caveat: validate.sh runs in your single local environment. CI *additionally*
+exercises Python 3.11 **and** 3.12, macOS, and the `[vector-search]` extra
+(sqlite-vec). A failure that is specific to those (a 3.12-only typing quirk, a
+macOS path issue, or the sqlite-vec backend) can still pass locally - so a
+green validate.sh is necessary but, for those environment-specific cases, not
+absolutely sufficient.
 
 **Note on model downloads**: The validation script uses mocked sentence-transformers models (via `SentenceTransformerStub` in `tests/conftest.py`) so it works in environments without Git LFS or network access (like Claude Code for Web). The `-m "not slow"` flag triggers automatic model mocking. Only 9 tests marked as "slow" require the real model (~90MB).
 
@@ -146,7 +159,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 **Current Performance Status** (post-rollback):
 - ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
 - ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 57 geists: Pass timeout thresholds on production vaults
+- ✅ All 59 geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
 
@@ -224,10 +237,16 @@ GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 2. **Questions, not answers** - "What if...?" not "Here's how"
 3. **Sample, don't rank** - Random sampling to avoid preferential attachment
 4. **Intermittent invocation** - User-initiated, not continuous background
-5. **Local-first** - No network required, embeddings computed locally
+5. **Local-first** - Embeddings computed locally; no network required once the
+   model is present (set `GEISTFABRIK_OFFLINE=1` to enforce strictly - otherwise
+   a missing bundled model is downloaded from HuggingFace on first run)
 6. **Deterministic randomness** - Same date + vault = same output
-7. **Never destructive** - Read-only vault access, only writes session notes
-8. **Extensible at every layer** - Metadata, functions, and geists are all user-extensible
+7. **Never destructive** - The engine has read-only access to source notes and
+   writes only to `_geistfabrik/` and `geist journal/`. (User plugins under
+   `_geistfabrik/` are arbitrary Python the engine executes - the read-only
+   guarantee covers the engine, not the code you choose to run.)
+8. **Extensible at every layer** - Metadata, functions, and geists are all
+   user-extensible (and therefore a trust boundary: only run vaults you trust)
 
 ## Key Architectural Decisions
 

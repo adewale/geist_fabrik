@@ -4,7 +4,7 @@ This function finds notes that are semantically distant from a given note,
 potentially representing contrarian or alternative viewpoints.
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Note, VaultContext
@@ -13,7 +13,7 @@ from geistfabrik import vault_function
 
 
 @vault_function("contrarian_to")
-def find_contrarian(vault: "VaultContext", note_title: str, k: int = 3) -> List["Note"]:
+def find_contrarian(vault: "VaultContext", note_title: str, k: int = 3) -> list["Note"]:
     """Find notes that are semantically dissimilar to given note.
 
     Args:

@@ -10,8 +10,9 @@ import importlib.util
 import inspect
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .vault_context import VaultContext
@@ -32,7 +33,7 @@ class DuplicateFunctionError(Exception):
 
 
 # Global registry for decorated functions
-_GLOBAL_REGISTRY: Dict[str, Callable[..., Any]] = {}
+_GLOBAL_REGISTRY: dict[str, Callable[..., Any]] = {}
 
 
 def vault_function(name: str) -> Callable[..., Any]:
@@ -46,9 +47,9 @@ def vault_function(name: str) -> Callable[..., Any]:
 
     Example:
         @vault_function("find_questions")
-        def find_question_notes(vault: VaultContext, k: int = 5):
+        def find_question_notes(vault: VaultContext, count: int = 5):
             questions = [n for n in vault.notes() if "?" in n.title]
-            return vault.sample(questions, k)
+            return vault.sample(questions, count)
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -80,7 +81,7 @@ class FunctionRegistry:
     3. Built-in functions provided by the system
     """
 
-    def __init__(self, function_dir: Optional[Path] = None):
+    def __init__(self, function_dir: Path | None = None):
         """Initialise function registry.
 
         Args:
@@ -88,7 +89,7 @@ class FunctionRegistry:
                          If None, only built-in and decorated functions are available.
         """
         self.function_dir = function_dir
-        self.functions: Dict[str, Callable[..., Any]] = {}
+        self.functions: dict[str, Callable[..., Any]] = {}
 
         # Load built-in functions
         self._register_builtin_functions()
@@ -100,39 +101,40 @@ class FunctionRegistry:
         and VaultContext (Note-based). They:
         - Accept strings from Tracery
         - Work with Note objects internally
-        - Return strings (note titles) back to Tracery
+        - Return bracketed Obsidian links (e.g. "[[Title]]") back to Tracery,
+          so templates use the result as-is without adding their own brackets
         """
 
         @vault_function("sample_notes")
-        def sample_notes(vault: "VaultContext", k: int = 5) -> List[str]:
-            """Sample k random notes from vault.
+        def sample_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Sample count random notes from vault.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
             notes = vault.notes()
-            sampled = vault.sample(notes, k)
-            return [f"[[{note.obsidian_link}]]" for note in sampled]
+            sampled = vault.sample(notes, count)
+            return [f"[[{note.link_text}]]" for note in sampled]
 
         @vault_function("old_notes")
-        def old_notes(vault: "VaultContext", k: int = 5) -> List[str]:
-            """Get k least recently modified notes.
+        def old_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count least recently modified notes.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.old_notes(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            notes = vault.old_notes(count)
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("recent_notes")
-        def recent_notes(vault: "VaultContext", k: int = 5) -> List[str]:
-            """Get k most recently modified notes.
+        def recent_notes(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count most recently modified notes.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.recent_notes(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            notes = vault.recent_notes(count)
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("random_note_title")
         def random_note_title(vault: "VaultContext") -> str:
@@ -147,37 +149,37 @@ class FunctionRegistry:
             if not notes:
                 return ""
             sampled = vault.sample(notes, 1)
-            return f"[[{sampled[0].obsidian_link}]]" if sampled else ""
+            return f"[[{sampled[0].link_text}]]" if sampled else ""
 
         @vault_function("orphans")
-        def orphans(vault: "VaultContext", k: int = 5) -> List[str]:
-            """Get k orphan notes (no incoming or outgoing links).
+        def orphans(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count orphan notes (no incoming or outgoing links).
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.orphans(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            notes = vault.orphans(count)
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("hubs")
-        def hubs(vault: "VaultContext", k: int = 5) -> List[str]:
-            """Get k notes with most incoming links.
+        def hubs(vault: "VaultContext", count: int = 5) -> list[str]:
+            """Get count notes with most incoming links.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
             """
-            notes = vault.hubs(k)
-            return [f"[[{note.obsidian_link}]]" for note in notes]
+            notes = vault.hubs(count)
+            return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("neighbours")
-        def neighbours(vault: "VaultContext", note_title: str, k: int = 5) -> List[str]:
-            """Get k semantically similar notes to given note.
+        def neighbours(vault: "VaultContext", note_title: str, count: int = 5) -> list[str]:
+            """Get count semantically similar notes to given note.
 
             Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
 
             Args:
                 note_title: Note link (string from Tracery)
-                k: Number of neighbours to return
+                count: Number of neighbours to return
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
@@ -188,13 +190,13 @@ class FunctionRegistry:
                 return []
 
             # Work with Note objects internally
-            neighbor_notes = vault.neighbours(note, k)
+            neighbour_notes = vault.neighbours(note, count)
 
             # Convert Note → string for Tracery
-            return [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
+            return [f"[[{n.link_text}]]" for n in neighbour_notes]
 
         @vault_function("contrarian_to")
-        def contrarian_to(vault: "VaultContext", note_title: str, k: int = 3) -> List[str]:
+        def contrarian_to(vault: "VaultContext", note_title: str, count: int = 3) -> list[str]:
             """Find notes that are semantically dissimilar to given note.
 
             Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
@@ -205,7 +207,7 @@ class FunctionRegistry:
 
             Args:
                 note_title: Note link (string from Tracery)
-                k: Number of contrarian notes to return
+                count: Number of contrarian notes to return
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
@@ -252,14 +254,16 @@ class FunctionRegistry:
             candidate_norms = np.linalg.norm(candidates_matrix, axis=1)
             similarities = similarities / (candidate_norms * query_norm)
 
-            # Get indices of k least similar (ascending sort)
-            least_similar_indices = np.argsort(similarities)[:k]
+            # Get indices of count least similar (ascending sort)
+            least_similar_indices = np.argsort(similarities)[:count]
 
             # Return bracketed obsidian links
-            return [f"[[{candidate_notes[i].obsidian_link}]]" for i in least_similar_indices]
+            return [f"[[{candidate_notes[i].link_text}]]" for i in least_similar_indices]
 
         @vault_function("semantic_clusters")
-        def semantic_clusters(vault: "VaultContext", count: int = 2, k: int = 3) -> List[str]:
+        def semantic_clusters(
+            vault: "VaultContext", count: int = 2, neighbour_count: int = 3
+        ) -> list[str]:
             """Sample seed notes and pair each with its semantic neighbours.
 
             Returns formatted strings using a delimiter to separate seed from neighbours.
@@ -267,17 +271,22 @@ class FunctionRegistry:
 
             Args:
                 count: Number of seed notes to sample
-                k: Number of neighbours per seed
+                neighbour_count: Number of neighbours per seed
 
             Returns:
                 List of formatted strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
                 The ||| delimiter allows splitting in Tracery templates
             """
+            import hashlib
             import random
 
-            # Use a fixed sub-seed for deterministic sampling based on session date
+            # Stable sub-seed from the session date. Deliberately NOT Python's
+            # hash(): string hashing is randomised per process
+            # (PYTHONHASHSEED), which silently broke "same date + vault =
+            # same output" across runs.
             session_seed = int(vault.session.date.strftime("%Y%m%d"))
-            cluster_seed = hash(("cluster", session_seed)) % (2**31)
+            digest = hashlib.sha256(f"cluster:{session_seed}".encode()).digest()
+            cluster_seed = int.from_bytes(digest[:4], "big") % (2**31)
             cluster_rng = random.Random(cluster_seed)
 
             notes = vault.notes()
@@ -290,25 +299,25 @@ class FunctionRegistry:
             # Build formatted pairs
             results = []
             for seed_note in sampled_seeds:
-                neighbor_notes = vault.neighbours(seed_note, k)
+                neighbour_notes = vault.neighbours(seed_note, neighbour_count)
 
-                if neighbor_notes:
+                if neighbour_notes:
                     # Format neighbours as bracketed Obsidian links
-                    neighbor_links = [f"[[{n.obsidian_link}]]" for n in neighbor_notes]
-                    if len(neighbor_links) == 1:
-                        neighbors_str = neighbor_links[0]
-                    elif len(neighbor_links) == 2:
-                        neighbors_str = f"{neighbor_links[0]} and {neighbor_links[1]}"
+                    neighbour_links = [f"[[{n.link_text}]]" for n in neighbour_notes]
+                    if len(neighbour_links) == 1:
+                        neighbours_str = neighbour_links[0]
+                    elif len(neighbour_links) == 2:
+                        neighbours_str = f"{neighbour_links[0]} and {neighbour_links[1]}"
                     else:
                         # Break long line for ruff compliance
-                        last_link = neighbor_links[-1]
-                        neighbors_str = ", ".join(neighbor_links[:-1]) + f", and {last_link}"
+                        last_link = neighbour_links[-1]
+                        neighbours_str = ", ".join(neighbour_links[:-1]) + f", and {last_link}"
                 else:
-                    neighbors_str = ""
+                    neighbours_str = ""
 
                 # Format as "SEED|||NEIGHBOURS" for Tracery extraction
                 # Add brackets to seed as well for consistency
-                formatted = f"[[{seed_note.obsidian_link}]]|||{neighbors_str}"
+                formatted = f"[[{seed_note.link_text}]]|||{neighbours_str}"
                 results.append(formatted)
 
             return results
@@ -316,7 +325,7 @@ class FunctionRegistry:
         # Transfer built-in functions from global registry to instance
         self.functions.update(_GLOBAL_REGISTRY)
 
-    def load_modules(self, enabled_modules: Optional[List[str]] = None) -> None:
+    def load_modules(self, enabled_modules: list[str] | None = None) -> None:
         """Load vault function modules from directory.
 
         Args:
@@ -428,7 +437,7 @@ class FunctionRegistry:
         except Exception as e:
             raise FunctionRegistryError(f"Error calling function '{name}': {e}") from e
 
-    def get_function_names(self) -> List[str]:
+    def get_function_names(self) -> list[str]:
         """Get list of all registered function names.
 
         Returns:

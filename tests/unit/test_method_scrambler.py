@@ -7,16 +7,7 @@ import pytest
 from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import method_scrambler
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
-
+from geistfabrik.function_registry import FunctionRegistry
 
 # ============================================================================
 # Test Fixtures
@@ -167,8 +158,8 @@ def test_method_scrambler_suggestion_structure(vault_with_linked_notes):
             assert isinstance(note_ref, str)
 
 
-def test_method_scrambler_uses_obsidian_link(vault_with_linked_notes):
-    """Test that method_scrambler uses obsidian_link for note references.
+def test_method_scrambler_uses_link_text(vault_with_linked_notes):
+    """Test that method_scrambler uses link_text for note references.
 
     Setup:
         Vault with notes.
@@ -451,9 +442,9 @@ Links to [[target{i}]] and [[target{(i + 1) % 3}]].
     for suggestion in suggestions:
         for note_ref in suggestion.notes:
             # Check that the referenced note is not from geist journal
-            # The note_ref is an obsidian_link (title), so we need to find
+            # The note_ref is an link_text (title), so we need to find
             # the actual note to check its path
-            matching_notes = [n for n in all_notes if n.obsidian_link == note_ref]
+            matching_notes = [n for n in all_notes if n.link_text == note_ref]
             for note in matching_notes:
                 assert not note.path.startswith("geist journal/"), (
                     f"geist should exclude geist journal notes, but found: {note.path}"

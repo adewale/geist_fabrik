@@ -22,11 +22,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get hub notes and check their neighbourhoods
-    hubs = vault.hubs(k=10)
+    hubs = vault.hubs(count=10)
 
     for hub in hubs:
         # Find notes similar to this hub but not linked
-        neighbours_with_scores = vault.neighbours(hub, k=10, return_scores=True)
+        neighbours_with_scores = vault.neighbours(hub, count=10, return_scores=True)
 
         for neighbour, similarity in neighbours_with_scores:
             if vault.links_between(hub, neighbour):
@@ -37,8 +37,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             if similarity > SimilarityLevel.HIGH:  # Strong similarity but no link
                 text = (
-                    f"What if [[{hub.obsidian_link}]] and "
-                    f"[[{neighbour.obsidian_link}]] were connected? "
+                    f"What if [[{hub.link_text}]] and "
+                    f"[[{neighbour.link_text}]] were connected? "
                     f"They're semantically similar but in different parts of your vault. "
                     f"A link might bridge important concepts."
                 )
@@ -46,9 +46,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 suggestions.append(
                     Suggestion(
                         text=text,
-                        notes=[hub.obsidian_link, neighbour.obsidian_link],
+                        notes=[hub.link_text, neighbour.link_text],
                         geist_id="bridge_builder",
                     )
                 )
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)

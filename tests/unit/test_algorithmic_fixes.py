@@ -4,8 +4,6 @@ Tests verify that dict/set-based implementations produce identical results
 to the original list-based implementations, while being more efficient.
 """
 
-from typing import List
-
 import numpy as np
 
 # We'll test the fixed implementations against known outputs
@@ -116,7 +114,7 @@ class TestPatternFinderAlgorithmicFixes:
 
         # BEFORE: O(N³) with list.remove()
         unclustered_list = list(notes)
-        clusters_old: List[List[MockNote]] = []
+        clusters_old: list[list[MockNote]] = []
 
         while len(unclustered_list) > 5 and len(clusters_old) < 3:
             seed = unclustered_list[0]  # Deterministic seed selection
@@ -135,7 +133,7 @@ class TestPatternFinderAlgorithmicFixes:
 
         # AFTER: O(N²) with set.remove()
         unclustered_set = set(notes)
-        clusters_new: List[List[MockNote]] = []
+        clusters_new: list[list[MockNote]] = []
 
         while len(unclustered_set) > 5 and len(clusters_new) < 3:
             # Deterministic seed selection (first by sorted path)

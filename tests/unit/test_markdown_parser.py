@@ -223,3 +223,25 @@ def test_parse_invalid_utf8() -> None:
     assert "replacement character" in clean_content
     assert len(links) == 0
     assert len(tags) == 0
+
+
+def test_extract_tags_ignores_fenced_code_blocks() -> None:
+    """#words inside fenced code are not tags (e.g. #define, shebangs)."""
+    content = "Real tag #genuine here.\n```c\n#define MAX 10\n#include <stdio.h>\n```\n"
+    tags = extract_tags(content)
+    assert tags == ["genuine"]
+
+
+def test_extract_tags_ignores_inline_code() -> None:
+    """#words inside inline code spans are not tags (e.g. CSS hex colours)."""
+    content = "Use `color: #fff` for white. Also #styling matters."
+    tags = extract_tags(content)
+    assert tags == ["styling"]
+
+
+def test_extract_tags_unclosed_fence_keeps_prose_tags() -> None:
+    """An unclosed fence is not stripped (no closing ```), so prose tags
+    before it still extract; behaviour stays deterministic."""
+    content = "Before #real\n```python\nx = 1\n"
+    tags = extract_tags(content)
+    assert "real" in tags
