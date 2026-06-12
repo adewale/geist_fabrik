@@ -10,10 +10,10 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 ## Current Project State
 
-**Version**: 0.9.0 (Beta)
-**Status**: Feature-complete, approaching 1.0 release
+**Version**: 0.10.0 (Beta)
+**Status**: Feature-complete, release-candidate quality
 **Tests**: All passing ✅ (100%)
-**Code**: ~14,100 lines across 32 source modules
+**Code**: ~21,000 lines across 99 Python files under `src/geistfabrik`
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
@@ -159,7 +159,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 **Current Performance Status** (post-rollback):
 - ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
 - ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 59 geists: Pass timeout thresholds on production vaults
+- ✅ All 70 default geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
 
@@ -386,7 +386,7 @@ burst_days = vault.notes_grouped_by_creation_date(
 3. Updated specs to show proper layering
 
 **Why This Matters**:
-- ✅ **Maintainability**: Database schema changes only affect VaultContext, not 48 geists
+- ✅ **Maintainability**: Database schema changes only affect VaultContext, not every default geist
 - ✅ **Testability**: Can mock VaultContext methods without mocking SQL
 - ✅ **Clarity**: Geist code expresses intent (`notes_grouped_by_creation_date()`) not implementation (SQL)
 - ✅ **Consistency**: All geists use same abstraction level
@@ -679,34 +679,28 @@ From the spec:
 - 5-minute effort to add new capability at any extensibility layer
 - 1000 notes × 20 sessions = ~30MB embedding storage
 
-## Breaking Database Changes (Pre-1.0 Policy)
+## Database Change Policy
 
-**Current Policy (versions < 1.0)**: We do NOT provide automatic database migrations. Users must manually delete and rebuild their database when breaking changes occur.
+**Current Policy**: Additive schema changes must ship with automatic migrations in `schema.py` and migration tests. Destructive or semantic storage changes may still require a rebuild, but that must be explicit and rare.
 
-**When you make a breaking database change:**
+**When you make a database change:**
 
-1. **Document it in CHANGELOG.md under `## [Unreleased]` > `### Breaking Changes`**:
+1. **Add or update a migration in `src/geistfabrik/schema.py`**:
+   - Increment `SCHEMA_VERSION`
+   - Make the migration idempotent (`IF NOT EXISTS`, column checks via `PRAGMA table_info`, etc.)
+   - Preserve existing data whenever possible
+
+2. **Document it in CHANGELOG.md under the active release's `### Breaking Changes` or `### Changed` section**:
    - Clearly describe what changed
-   - Explain why users need to rebuild
-   - Provide exact rebuild instructions
-   - Example format:
-   ```markdown
-   ### Breaking Changes
-   - **Virtual note titles**: Changed virtual note title format to exclude filename prefix
-     - **Why**: Older databases store titles as "Journal#2025-01-15" instead of "2025-01-15"
-     - **Action required**: Delete and rebuild database:
-       ```bash
-       rm -rf <vault>/_geistfabrik/vault.db*
-       uv run geistfabrik invoke <vault>
-       ```
-     - **Impact**: Existing vaults will show incorrect deeplinks until database is rebuilt
-   ```
+   - State whether migration is automatic or a rebuild is required
+   - If rebuild is required, provide exact instructions:
+     ```bash
+     rm -rf <vault>/_geistfabrik/vault.db*
+     uv run geistfabrik invoke <vault>
+     ```
 
-2. **Update relevant documentation** to reflect the new behaviour
+3. **Add regression/migration tests** to prevent the bug from reoccurring
 
-3. **Add regression tests** to prevent the bug from reoccurring
-
-**Post-1.0 Policy**: After the 1.0 release, we will implement automatic database schema migrations for all breaking changes. Users will never need to manually delete their databases.
 
 **What counts as a breaking change**:
 - Changes to how data is stored in the database (column formats, title formats, path formats)
