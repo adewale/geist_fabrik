@@ -352,14 +352,14 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-7.8 | ⬜ | Future date temporal features | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.9 | ⬜ | Very old note temporal features | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.10 | ⬜ | Season calculation | `uv run pytest tests/unit/test_embeddings.py -v` |
-| AC-7.11 | ⬜ | Drift with no previous session | `uv run pytest tests/unit/test_embeddings.py -v` |
-| AC-7.12 | ⬜ | Drift with identical notes | `uv run pytest tests/unit/test_embeddings.py -v` |
+| AC-7.11 | ⬜ | Drift with no previous session | `uv run pytest tests/unit/test_session_drift.py -v` |
+| AC-7.12 | ⬜ | Drift with identical notes | Manual: drift on unchanged content; no dedicated test (drift computation covered by tests/unit/test_temporal_drift.py) |
 | AC-7.13 | ⬜ | Session pruning | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.14 | ⬜ | Storage limits | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.15 | ⬜ | Cross-session consistency | `uv run pytest tests/unit/test_embeddings.py -v` |
-| AC-7.16 | ⬜ | Deleted note handling | `uv run pytest tests/unit/test_embeddings.py -v` |
+| AC-7.16 | ⬜ | Deleted note handling | Manual: note deleted between sessions; no dedicated test |
 | AC-7.17 | ⬜ | Session comparison API | Manual: cross-session comparison; no dedicated test |
-| AC-7.18 | ⬜ | Temporal geist robustness | `uv run pytest tests/unit/test_embeddings.py -v` |
+| AC-7.18 | ⬜ | Temporal geist robustness | `uv run pytest tests/unit/test_temporal_drift.py -v` |
 
 ### Test Coverage Target
 - `src/geistfabrik/temporal_embeddings.py`: >85%
@@ -443,7 +443,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-9.14 | ⬜ | Function with no docstring | `uv run pytest tests/unit/test_function_registry.py -v` |
 | AC-9.15 | ⬜ | Tracery wrong args | `uv run pytest tests/unit/test_function_registry.py -v` |
 | AC-9.16 | ⬜ | Function directory doesn't exist | `uv run pytest tests/unit/test_function_registry.py -v` |
-| AC-9.17 | ⬜ | Function dependency on metadata | `uv run pytest tests/unit/test_function_registry.py -v` |
+| AC-9.17 | ⬜ | Function dependency on metadata | Manual: vault functions can read metadata via VaultContext; no dedicated test of a function depending on metadata |
 | AC-9.18 | ⬜ | Function caching | `uv run pytest tests/unit/test_function_registry.py -v` (optional) |
 | AC-9.19 | ⬜ | Function with default args | `uv run pytest tests/unit/test_function_registry.py -v` |
 

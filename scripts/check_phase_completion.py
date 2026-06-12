@@ -44,8 +44,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 AC_FILE = REPO_ROOT / "specs" / "acceptance_criteria.md"
 
-# Per-command wall-clock budget. File-level pytest runs are the slow case.
-COMMAND_TIMEOUT = 180
+# Per-command wall-clock budget. The batched pytest run is the slow case; it
+# completes in seconds with the stub, so this is generous headroom.
+COMMAND_TIMEOUT = 300
 
 AC_ROW = re.compile(r"^\|\s*(AC-\d+\.\d+)\s*\|")
 PHASE_HEADER = re.compile(r"^## Phase (\d+):")
@@ -95,12 +96,14 @@ def normalize_command(cmd: str) -> str:
     if not PYTEST_INVOCATION.search(cmd):
         return cmd
     cmd = expand_braces(cmd)
-    if " -m " not in cmd:
+    if " -m" not in cmd:  # tolerate -m "x", -m"x", -m=x already present
         cmd = f"{cmd} {STD_MARKER}"
     return cmd
 
 
-TARGET = re.compile(r"^tests/[\w/]+\.py(::[\w-]+)?$")
+# A tests/… path, optionally with a ::node selector (which may be parametrised,
+# e.g. ::test_x[param]). \S+ after :: keeps any node a future cell might use.
+TARGET = re.compile(r"^tests/[\w./-]+\.py(::\S+)?$")
 
 
 def pytest_targets(cmd: str) -> list[str]:
@@ -255,9 +258,6 @@ def main() -> int:
             print(f"  {c.ac_id:<10} {kind}")
         return 0 if not errors else 1
 
-    pytest_acs = [c for c in auto if PYTEST_INVOCATION.search(c.command or "")]
-    other_acs = [c for c in auto if not PYTEST_INVOCATION.search(c.command or "")]
-
     failures: list[tuple[Criterion, str]] = []
 
     # Run every pytest target in ONE process. conftest imports the embedding
@@ -266,30 +266,38 @@ def main() -> int:
     # renamed/removed target still fails the batch (pytest exits non-zero on an
     # unmatched node), so drift is still caught. Only on a red batch do we re-run
     # each criterion to attribute the failure.
-    targets: list[str] = []
-    files = {t for c in pytest_acs for t in pytest_targets(c.command or "") if "::" not in t}
-    for c in pytest_acs:
-        for t in pytest_targets(c.command or ""):
-            keep = t if "::" not in t else (t if t.split("::")[0] not in files else None)
-            if keep and keep not in targets:
-                targets.append(keep)
+    #
+    # Only criteria whose targets actually go INTO the batch may be vouched for
+    # by it. A pytest command with no extractable ``tests/…`` target (e.g.
+    # ``pytest --collect-only``) is run on its own — never assumed-green, and
+    # never allowed to leave ``targets`` empty (which would make pytest run the
+    # whole suite and hide a real failure).
+    batchable = [c for c in auto if pytest_targets(c.command or "")]
+    standalone = [c for c in auto if not pytest_targets(c.command or "")]
 
-    if pytest_acs:
+    if batchable:
+        files = {t for c in batchable for t in pytest_targets(c.command or "") if "::" not in t}
+        targets: list[str] = []
+        for c in batchable:
+            for t in pytest_targets(c.command or ""):
+                keep = t if "::" not in t else (t if t.split("::")[0] not in files else None)
+                if keep and keep not in targets:
+                    targets.append(keep)
         batch = f"uv run pytest {' '.join(targets)} {STD_MARKER} --no-cov -q -p no:cacheprovider"
         batch_ok, batch_detail = run_command(batch)
         if batch_ok:
             if args.verbose:
-                print(f"  ✓ {'batch':<12} {len(pytest_acs)} pytest criteria via 1 run")
+                print(f"  ✓ {'batch':<12} {len(batchable)} pytest criteria via 1 run")
         else:
             print(f"  ✗ pytest batch failed ({batch_detail}); attributing per-criterion…")
-            for c in pytest_acs:
+            for c in batchable:
                 passed, detail = run_command(normalize_command(c.command or ""))
                 if not passed:
                     failures.append((c, detail))
                     print(f"  ✗ {c.ac_id:<10} AUTO   {normalize_command(c.command or '')}")
                     print(f"      {detail}")
 
-    for c in other_acs:
+    for c in standalone:
         command = normalize_command(c.command or "")
         passed, detail = run_command(command)
         if passed:

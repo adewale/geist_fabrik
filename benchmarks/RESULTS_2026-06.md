@@ -64,3 +64,22 @@ uninformative; cluster_evolution_tracker early-returns with a single session
 (its before-crash is pinned by tests/unit/test_cluster_label_persistence.py);
 pattern_finder is deliberately excluded as explicitly untouched (quality >
 speed rollback policy).
+
+## Re-verification (2026-06-11, after the full branch landed)
+
+Re-ran `benchmarks/issue78_replica.py` on the current HEAD to confirm the fix
+survives all the later work (API renames, config/persistence, the acceptance
+gate). The eight headline geists complete in **4.24 s total**, every one far
+under the 30 s per-geist timeout:
+
+| Geist | After (current HEAD) | suggestions |
+|---|---:|---:|
+| hidden_hub | 0.15 s | 0 |
+| island_hopper | 3.98 s | 0 |
+| method_scrambler | 0.07 s | 3 |
+| cluster_evolution_tracker | 0.00 s (no crash) | 0 |
+| task_archaeology | 0.03 s | 3 |
+| blind_spot_detector | 0.01 s | 2 |
+
+Timings vary with machine load (island_hopper 2.8–4.0 s across runs); the
+order of magnitude — and the absence of any timeout — is the stable result.

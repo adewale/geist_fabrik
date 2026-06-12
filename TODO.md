@@ -78,6 +78,6 @@ Remaining, lower-value:
 - Acceptance-criteria drift gate: **done**. `scripts/check_phase_completion.py`
   now *runs* every machine-verifiable criterion (no ✅-trust, no silent drop),
   is wired into `validate.sh` and CI, and `specs/acceptance_criteria.md` is
-  reconciled (151 AUTO / 80 MANUAL). The 80 MANUAL entries are the honest ledger
+  reconciled (148 AUTO / 83 MANUAL). The MANUAL entries are the honest ledger
   of criteria without a dedicated automated test - a standing backlog if anyone
   wants to convert perf/journal-writer/session-date items into real tests.
