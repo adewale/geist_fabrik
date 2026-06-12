@@ -2,9 +2,9 @@
 
 **A comprehensive classification of GeistFabrik's default geists by pattern and implementation status**
 
-GeistFabrik ships with 57 default geists following distinct patterns. This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
+GeistFabrik ships with 70 default geists following distinct patterns. This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
 
-**Last Updated**: 2025-11-09
+**Last Updated**: 2026-06-12
 
 ---
 
@@ -12,9 +12,9 @@ GeistFabrik ships with 57 default geists following distinct patterns. This docum
 
 | Category | Count | Status |
 |----------|-------|--------|
-| **Code Geists** | 48 (45 core + 3 harvesters) | ✅ All implemented |
-| **Tracery Geists** | 9 | ✅ All implemented |
-| **Total Geists** | 57 | ✅ Production ready |
+| **Code Geists** | 58 | ✅ All implemented |
+| **Tracery Geists** | 12 | ✅ All implemented |
+| **Total Geists** | 70 | ✅ Production ready |
 
 **Quality**: 100% pass rate on validation spec audit (see Quality Standards below)
 
@@ -33,6 +33,8 @@ These geists pick a random note, extract specific content types using regex, and
 | **question_harvester** | Questions (`?`) | "What if you revisited this question now?" |
 | **todo_harvester** | TODO/FIXME/HACK markers | "What if you tackled this now?" |
 | **quote_harvester** | Blockquotes (`>`) | "What if you reflected on this again?" |
+| **claim_harvester** | Strong claims | "What if you tested this claim?" |
+| **hypothesis_harvester** | Hypotheses / maybe-statements | "What would prove or disprove this?" |
 
 **Characteristics**:
 - ✅ O(1) per session (single note read)
@@ -131,7 +133,7 @@ These geists identify groups of related notes and present them as patterns or th
 
 **Characteristics**:
 - 🤖 Uses unsupervised ML (clustering algorithms)
-- 🏷️ Auto-generates labels (c-TF-IDF + MMR)
+- 🏷️ Auto-generates labels (KeyBERT by default; TF-IDF fallback/legacy option)
 - 📦 Groups content thematically
 - 🔬 Reveals hidden organization
 
@@ -228,7 +230,39 @@ These geists analyze what you've been working on recently to reveal patterns in 
 
 ---
 
-### 10. Tracery-Only Geists
+### 10. Reflective Lens Geists 🆕
+
+**Pattern**: `Observable Linguistic Signal → Reflective Provocation`
+
+These geists avoid speculative sentiment labels and instead use measurable
+voice and attention signals: tense, pronouns, hedging, questions, sentence
+rhythm, semantic surprisal, and neighbourhood churn.
+
+| Geist | Signal | Provocation |
+|-------|--------|-------------|
+| **temporal_voice** | Past vs future orientation | What changes when the note looks backward/forward? |
+| **self_and_other** | I/me vs we/us language | Where is thinking private vs collective? |
+| **uncertainty_mapper** | Hedging density | What are you not ready to commit to? |
+| **sentence_variance** | Sentence rhythm | Where does the prose speed up or fragment? |
+| **surprisal** | Semantic unexpectedness | What does the outlier know? |
+| **attention_shift** | Neighbourhood churn | Where has attention moved? |
+| **this_time_last_year** | Calendar recurrence | What has changed since this season last year? |
+| **voice_absence** | Missing voice classes | What kinds of notes are absent? |
+
+**Tracery geists**:
+- **questioning_mind** - Prompts from notes dense with questions
+- **temporal_contrast** - Contrasts past- and future-focused notes
+- **unexpected_neighbour** - Surfaces surprising notes via vault functions
+
+**Characteristics**:
+- 🔍 Evidence-backed prompts (names the signal it observed)
+- 🧪 Pure-Python, local, testable analysis
+- 🧠 Reflective lenses, not emotion/oracle labels
+- ⚡ Cached at `VaultContext` level for session reuse
+
+---
+
+### 11. Tracery-Only Geists
 
 These geists use Tracery grammars rather than code, demonstrating the declarative geist pattern.
 
@@ -238,7 +272,10 @@ These geists use Tracery grammars rather than code, demonstrating the declarativ
 | **note_combinations** | Suggests combining random notes creatively |
 | **orphan_connector** | Suggests connections for orphaned notes |
 | **random_prompts** | Generates random creative prompts |
+| **questioning_mind** | Prompts from notes dense with questions |
 | **semantic_neighbours** | Shows semantic neighborhoods |
+| **temporal_contrast** | Contrasts past- and future-focused notes |
+| **unexpected_neighbour** | Surfaces surprising notes |
 
 ---
 
@@ -443,7 +480,7 @@ All geists have comprehensive tests that:
 | **cluster_evolution_tracker** | Tracks semantic drift of user notes |
 | **metadata_outlier_detector** | Computes statistics then filters results |
 
-**When NOT to Filter** (48 geists correctly include journal):
+**When NOT to Filter** (remaining geists generally include journal):
 
 - **Content analysis**: question_harvester, pattern_finder (no circular reference risk)
 - **Semantic queries**: creative_collision, bridge_builder (point-in-time analysis)
@@ -488,5 +525,5 @@ The catalogue reveals clear patterns that can be identified, extended, and combi
 ---
 
 **Version**: 2.0
-**Date**: 2025-11-06
-**Geists Catalogued**: 57 (48 code + 9 Tracery)
+**Date**: 2026-06-12
+**Geists Catalogued**: 70 (58 code + 12 Tracery)

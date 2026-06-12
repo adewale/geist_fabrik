@@ -1,8 +1,8 @@
 # GeistFabrik Implementation Status
 
-**Last Updated**: 2026-03-14
-**Version**: 0.9.0 (Beta, Schema v6)
-**Overall Progress**: ~99% (Feature Complete, Approaching 1.0)
+**Last Updated**: 2026-06-12
+**Version**: 0.10.0 (Beta, Schema v8)
+**Overall Progress**: Feature complete, release-candidate quality
 
 ---
 
@@ -10,16 +10,16 @@
 
 | Metric | Value |
 |--------|-------|
-| **Tests Passing** | 1,110/1,110 (100%) |
-| **Unit Tests** | 949 |
-| **Integration Tests** | 161 |
-| **Source Modules** | 32 |
-| **Lines of Code (src)** | ~14,100 (excl. default geists); ~18,800 total |
-| **Type Checking** | Mypy strict (85 source files) |
+| **Tests Passing** | 1,380/1,380 selected unit+integration tests (100%) |
+| **Unit Tests** | 1,209 |
+| **Integration Tests** | 171 |
+| **Source Modules** | 30 top-level modules; 99 Python files under src/geistfabrik |
+| **Lines of Code (src)** | ~15,600 excl. default geists; ~21,000 total |
+| **Type Checking** | Mypy strict |
 | **Linting** | Ruff |
-| **Database Schema** | v6 (with composite indexing) |
-| **Default Geists** | 57 (48 code + 9 Tracery) - bundled |
-| **Example Modules** | 5 (3 metadata + 2 vault functions) - examples/ |
+| **Database Schema** | v8 (cluster labels + persistent geist status) |
+| **Default Geists** | 70 (58 code + 12 Tracery) - bundled |
+| **Example Modules** | 8 (3 code geists + 3 metadata + 2 vault functions) - examples/ |
 
 ---
 
@@ -50,7 +50,7 @@
 
 ```
 geist_fabrik/
-├── src/geistfabrik/           # 32 modules, ~14,100 LOC
+├── src/geistfabrik/           # 30 top-level modules, ~21,000 LOC total
 │   ├── models.py              # Note, Link, Suggestion
 │   ├── schema.py              # SQLite database schema
 │   ├── vault.py               # File system + persistence
@@ -77,11 +77,11 @@ geist_fabrik/
 │   ├── cluster_labeling.py    # Cluster label generation
 │   ├── clustering_analysis.py # Cluster analysis
 │   ├── commands/              # CLI command modules (7 files)
-│   └── default_geists/        # 57 bundled geists
+│   └── default_geists/        # 70 bundled geists
 │
-├── tests/                     # 1,110 tests
-│   ├── unit/                  # 949 unit tests
-│   └── integration/           # 161 integration tests
+├── tests/                     # 1,380 selected unit+integration tests
+│   ├── unit/                  # 1,209 unit tests
+│   └── integration/           # 171 integration tests
 │
 ├── testdata/                  # Real Obsidian vault for testing
 ├── specs/                     # Complete specification documents
@@ -92,16 +92,17 @@ geist_fabrik/
 
 ### Database Schema
 
-**Current Version**: v6
+**Current Version**: v8
 
 **Tables**:
 - `notes` - Note content, metadata, timestamps
 - `links` - Wikilinks between notes (with composite index)
 - `tags` - Tag assignments
 - `sessions` - Session dates and vault state
-- `session_embeddings` - Per-session note embeddings
+- `session_embeddings` - Per-session note embeddings, including cluster labels
 - `session_suggestions` - Session history for novelty filtering
 - `embedding_metrics` - Cached stats metrics
+- `geist_status` - Persistent per-geist failure counts / disabled state
 
 ---
 
@@ -167,9 +168,8 @@ uv run pytest tests/integration -v -m "not slow"
 ### Nice to Have
 - Remove dead code (`compare_with_session` stub)
 - Add public accessor for embeddings (replace private `_embeddings` access)
-- Split stats.py (1,657 lines)
-- Schema migration support for post-1.0
+- Continue splitting large modules as they evolve (especially `vault_context.py`)
 
 ---
 
-**Last Updated**: 2026-03-14
+**Last Updated**: 2026-06-12

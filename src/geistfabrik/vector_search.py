@@ -75,7 +75,7 @@ class VectorSearchBackend(ABC):
 class InMemoryVectorBackend(VectorSearchBackend):
     """In-memory vector search using Python cosine similarity.
 
-    This is the current implementation (v0.9.0), now encapsulated
+    This is the current implementation, now encapsulated
     in the backend interface.
 
     Characteristics:

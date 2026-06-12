@@ -10,10 +10,10 @@ Inspired by Gordon Brander's work on tools for thought.
 
 ## Status
 
-**Version**: 0.9.0 (Beta)
+**Version**: 0.10.0 (Beta)
 **Default Geists**: 70 (58 code + 12 Tracery) _[programmatically verified]_
-**Tests**: 1119 passing (100%)
-**Progress**: ~99% (Feature-complete, approaching 1.0)
+**Tests**: `./scripts/validate.sh` passing (unit, integration, acceptance)
+**Progress**: Feature-complete, release-candidate quality
 
 See [STATUS.md](STATUS.md) for detailed implementation status and test results, and [examples/README.md](examples/README.md) for comprehensive examples.
 
@@ -71,9 +71,9 @@ uv run geistfabrik --help
 # Initialise a vault (creates _geistfabrik directory structure)
 uv run geistfabrik init /path/to/your/vault
 
-# This automatically configures 59 bundled default geists:
-# • 50 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)
-# • 9 Tracery geists (contradictor, hub_explorer, transformation_suggester, etc.)
+# This automatically configures 70 bundled default geists:
+# • 58 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, surprisal, etc.)
+# • 12 Tracery geists (contradictor, hub_explorer, questioning_mind, temporal_contrast, etc.)
 
 # Preview suggestions (read-only, no files created)
 uv run geistfabrik invoke /path/to/your/vault
@@ -113,7 +113,7 @@ rm -rf testdata/kepano-obsidian-main/"geist journal"
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
 
-**Note**: 59 default geists work immediately - no installation needed!
+**Note**: 70 default geists work immediately - no installation needed!
 
 ## Privacy & Data Safety
 
@@ -283,7 +283,7 @@ default_geists:
 
 **Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
 
-**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 59 default geists with descriptions and configuration tips.
+**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 70 default geists with descriptions and configuration tips.
 
 ### Cluster Labelling
 
@@ -523,16 +523,21 @@ Vault Files → Vault.sync() → SQLite Database
 
 **Optional Dependencies**:
 - `sqlite-vec` - For large vaults (5000+ notes) using SQLite-Vec backend
-- `numpy`, `scipy`, `scikit-learn` - For advanced stats metrics (auto-detected)
+- `scikit-dimension`, `vendi-score` - For extended stats metrics (auto-detected)
 
 ## Examples
 
-The examples/ directory contains 5 learning materials demonstrating extension patterns (NOT for installation):
+The examples/ directory contains 8 learning materials demonstrating extension patterns (NOT for installation):
 
 ### Metadata Inference Modules (3)
 - **complexity.py** - Add complexity metrics to notes
 - **structure.py** - Analyze note structure patterns
 - **temporal.py** - Compute temporal metadata properties
+
+### Code Geist Examples (3)
+- **load_bearing_bridge.py** - Find notes that carry important bridge roles
+- **path_length_anomaly.py** - Surface unexpectedly distant graph paths
+- **structural_hole_detector.py** - Demonstrate structural-hole graph analysis
 
 ### Vault Functions (2)
 - **contrarian.py** - Find contrarian perspectives
@@ -544,7 +549,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
-- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 59 default geists
+- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 70 default geists
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
 
 ### Deep Dives
@@ -569,7 +574,7 @@ Optimised for vaults with 100+ notes and 100+ geists:
 - **Query optimisation**: Batch loading eliminates N+1 queries
 - **Memory efficient**: Streaming where possible
 
-### Recent Performance Improvements (2025-10-31)
+### Recent Performance Improvements (June 2026)
 
 **Session-level caching**: `vault.notes()` now caches results per session, eliminating redundant filesystem operations when geists query the note list multiple times.
 
@@ -578,7 +583,7 @@ Optimised for vaults with 100+ notes and 100+ geists:
 **Optimised database queries**:
 - Orphan queries now use `LEFT JOIN` instead of `NOT IN` subqueries
 - New composite index `idx_links_target_source` for backlink operations
-- Schema v5→v6 migration applies automatically
+- Additive schema migrations through v8 apply automatically
 
 **Code quality improvements**: Updated 8 geist files to cache `vault.notes()` calls before loops, reducing API call overhead and improving maintainability.
 
@@ -700,10 +705,10 @@ geist_fabrik/
 
 ## Roadmap to 1.0
 
-Remaining work (5%):
+Remaining release polish:
 - [x] Enhanced error messages and debugging
 - [x] Performance profiling for 1000+ note vaults
-- [ ] Migration system for schema changes
+- [x] Additive migration system for schema changes
 - [ ] Comprehensive user tutorials
 - [ ] API documentation
 

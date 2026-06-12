@@ -431,6 +431,37 @@ review policy.
 
 ---
 
+## Observable Signals Beat Speculative Labels
+
+**Date:** 2026-06-12
+**Context:** Replacing the sentiment-analysis plan with the reflective-lenses framework
+
+**The Problem:** The sentiment-geists plan tried to infer emotional state from
+notes. That creates three bad pressures at once: weak accuracy on short,
+personal notes; a temptation to overclaim what the model knows; and licensing /
+network / model-weight complexity that conflicts with GeistFabrik's local-first
+principles. A low-confidence label like "sad" or "angry" would read like an
+oracle, not a muse.
+
+**The Insight:** The useful question was not "what emotion is this note?" but
+"what observable pattern is this note showing?" Tense, pronouns, questions,
+hedging, sentence-length variance, semantic surprisal, and attention shift are
+measurable signals. They still support provocative prompts, but the prompt can
+name the evidence: "you hedged eight times", "this note points futureward",
+"this note is semantically surprising".
+
+**The Principle:** Prefer reflective lenses over psychological labels. If a
+geist cannot observe the thing directly, phrase it as a question or choose a
+proxy signal it can honestly measure. Evidence-backed provocations are more
+trustworthy than confident guesses about inner state.
+
+**Impact:** `voice_analysis.py` and the reflective geists use pure-Python,
+local, testable measurements instead of sentiment classification. The new
+tests assert known-answer voice features, hostile-input totality, metamorphic
+properties, and cached/vectorised surprisal behaviour.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_

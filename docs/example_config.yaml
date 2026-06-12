@@ -24,7 +24,7 @@
 
 default_geists:
   # ============================================================================
-  # Default Code Geists (48 total)
+  # Default Code Geists (58 total)
   # ============================================================================
   # These are bundled with GeistFabrik and execute in the order shown below.
   # Set to 'false' to disable a geist. Set to 'true' to enable it.
@@ -32,10 +32,12 @@ default_geists:
   anachronism_detector: true      # Flags concepts that seem historically misplaced
   antithesis_generator: true      # Suggests opposite perspectives on note content
   assumption_challenger: true     # Questions assumptions in notes
+  attention_shift: true           # Finds notes whose semantic neighbourhood shifted
   blind_spot_detector: true       # Identifies potentially overlooked connections
   bridge_builder: true            # Connects distant but related notes
   bridge_hunter: true             # Finds notes that bridge different clusters
   burst_evolution: true           # Tracks how burst-created notes evolve
+  claim_harvester: true           # Surfaces strong claims buried in notes
   cluster_evolution_tracker: true  # Tracks notes migrating between clusters
   cluster_mirror: true            # Reveals hidden groupings via semantic clustering
   columbo: true                   # Asks probing "just one more thing" questions
@@ -53,6 +55,7 @@ default_geists:
   drift_velocity_anomaly: true    # Detects notes whose drift is accelerating
   hermeneutic_instability: true   # Highlights notes whose interpretation has shifted
   hidden_hub: true                # Discovers implicit hubs (semantically central)
+  hypothesis_harvester: true      # Surfaces hypotheses worth testing
   island_hopper: true             # Connects isolated note clusters
   link_density_analyser: true     # Analyzes linking patterns across vault
   metadata_driven_discovery: true # Uses metadata to suggest connections
@@ -68,18 +71,25 @@ default_geists:
   seasonal_patterns: true         # Finds seasonal rhythms in note-taking
   seasonal_revisit: true          # Resurfaces notes from similar times of year
   seasonal_topic_analysis: true   # Analyzes seasonal patterns in topic coverage
+  self_and_other: true            # Compares self-focused and collective voice
+  sentence_variance: true         # Finds unusually varied sentence rhythms
   session_drift: true             # Tracks how thinking evolved across sessions
   structure_diversity_checker: true # Analyzes diversity of note structures
   stub_expander: true             # Identifies stubs that could be expanded
+  surprisal: true                 # Finds semantically surprising notes
   task_archaeology: true          # Unearths old incomplete tasks
   temporal_clustering: true       # Groups notes by temporal proximity
   temporal_drift: true            # Finds stale but important notes
   temporal_mirror: true           # Compares notes from different time periods
+  temporal_voice: true            # Contrasts past/future-oriented notes
+  this_time_last_year: true       # Revisits notes from this time last year
   todo_harvester: true            # Surfaces forgotten TODO/FIXME/HACK markers
+  uncertainty_mapper: true        # Maps notes with heavy hedging or uncertainty
   vocabulary_expansion: true      # Tracks semantic space coverage over time
+  voice_absence: true             # Notices missing temporal/pronoun voices
 
   # ============================================================================
-  # Default Tracery Geists (9 total)
+  # Default Tracery Geists (12 total)
   # ============================================================================
   # These use Tracery grammars for declarative suggestion generation.
 
@@ -88,9 +98,12 @@ default_geists:
   note_combinations: true         # Combines random notes with creative prompts
   orphan_connector: true          # Suggests connections for orphan notes
   perspective_shifter: true       # Reframes notes from different viewpoints
+  questioning_mind: true          # Prompts from notes dense with questions
   random_prompts: true            # Generates random creative prompts
   semantic_neighbours: true       # Shows semantic neighborhoods around notes
+  temporal_contrast: true         # Contrasts past- and future-focused notes
   transformation_suggester: true  # Demonstrates Tracery text modifiers
+  unexpected_neighbour: true      # Surfaces semantically surprising notes
   what_if: true                   # Generates "What if...?" prompts
 
   # ============================================================================

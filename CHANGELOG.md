@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-12
+
 ### Breaking Changes
 - **Pre-1.0 API consistency pass** (geist-facing `VaultContext` API). Custom
   geists must update; bundled geists, examples, and docs are already updated.
@@ -143,6 +145,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See docs/SKLEARN_OPTIMIZATION_BENCHMARK.md for detailed methodology
 
 ### Added
+- **Reflective lenses framework**: 11 new default geists that use observable
+  linguistic and behavioural signals instead of speculative sentiment labels.
+  - Code geists: `attention_shift`, `self_and_other`, `sentence_variance`,
+    `surprisal`, `temporal_voice`, `this_time_last_year`,
+    `uncertainty_mapper`, and `voice_absence`.
+  - Tracery geists: `questioning_mind`, `temporal_contrast`, and
+    `unexpected_neighbour`.
+  - New typed voice analysis (`VoiceMetadata`) measures tense, pronouns,
+    questions, hedging, sentence variance, and related structural signals in
+    pure Python.
+  - New cached `VaultContext` helpers: `voice()`, `surprisal_scores()`, and
+    attention-shift/neighbour-churn analysis for reflective geists.
+  - New vault functions for Tracery: `past_focused_notes`,
+    `future_focused_notes`, `self_focused_notes`, `we_notes`,
+    `uncertain_notes`, `questioning_notes`, `surprising_notes`, and
+    `attention_shifted_notes`.
+  - Comprehensive tests for voice analysis, reflective code geists, reflective
+    Tracery geists, vault functions, and surprisal/churn properties.
 - **NEW GEISTS**: Two temporal burst geists for detecting creative bursts
   - `creation_burst` - Detects days with 3+ notes created, asks provocative questions about productive moments
   - `burst_evolution` - Tracks how notes from burst days have evolved over time using drift analysis
@@ -390,9 +410,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing summary and results
 - Contributing guidelines
 
-[unreleased]: https://github.com/adewale/geistfabrik/compare/v0.9.0...HEAD
-[0.9.0]: https://github.com/adewale/geistfabrik/compare/v0.4.0...v0.9.0
-[0.4.0]: https://github.com/adewale/geistfabrik/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/adewale/geistfabrik/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/adewale/geistfabrik/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/adewale/geistfabrik/releases/tag/v0.1.0
+[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/adewale/geist_fabrik/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/adewale/geist_fabrik/compare/v0.4.0...v0.9.0
+[0.4.0]: https://github.com/adewale/geist_fabrik/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/adewale/geist_fabrik/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/adewale/geist_fabrik/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/adewale/geist_fabrik/releases/tag/v0.1.0
