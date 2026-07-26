@@ -80,8 +80,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         suggestions.append(
             Suggestion(
                 text=(
-                    f"Only {has_we} of your {total} notes say 'we'. "
-                    f"Who could you be thinking with?"
+                    f"Only {has_we} of your {total} notes say 'we'. Who could you be thinking with?"
                 ),
                 notes=[],
                 geist_id="voice_absence",

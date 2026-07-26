@@ -66,6 +66,5 @@ def _broken_links() -> list[str]:
 def test_no_dead_internal_doc_links():
     broken = _broken_links()
     assert not broken, (
-        "Dead internal doc links (create the file or fix the reference):\n"
-        + "\n".join(broken)
+        "Dead internal doc links (create the file or fix the reference):\n" + "\n".join(broken)
     )

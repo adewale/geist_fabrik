@@ -75,6 +75,7 @@ class VoiceMetadata:
     lexical_diversity: float
     """Unique tokens / total tokens (type-token ratio)."""
 
+
 # ---------------------------------------------------------------------------
 # Precompiled patterns (module level — compiled once)
 # ---------------------------------------------------------------------------

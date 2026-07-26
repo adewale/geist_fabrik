@@ -91,6 +91,7 @@ exclude_lines = [
 directory = "htmlcov"
 
 [tool.ruff]
+required-version = "==0.16.0"
 line-length = 100
 target-version = "py311"
 
@@ -116,7 +117,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-timeout>=2.2.0",
     "hypothesis>=6.99.0",
-    "ruff>=0.1.0",
+    "ruff==0.16.0",
     "mypy>=1.5.0",
     "pre-commit>=3.5.0",
     "types-pyyaml>=6.0",
