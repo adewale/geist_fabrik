@@ -30,7 +30,8 @@ def _spec_config_keys() -> set[str]:
     """Dotted keys of the spec's config.yaml example block."""
     lines = SPEC.read_text().splitlines()
     start = next(
-        i for i, line in enumerate(lines)
+        i
+        for i, line in enumerate(lines)
         if "_geistfabrik/config.yaml" in line and line.strip().startswith("#")
     )
     end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == "```")
@@ -76,8 +77,7 @@ def test_every_spec_config_key_is_in_the_ledger():
     missing = sorted(spec_keys - set(ledger))
     assert not missing, (
         "These spec config keys are not recorded in specs/SPEC_STATUS.md - "
-        "decide and document their status (BUILT / NOT-BUILT / ...):\n"
-        + "\n".join(missing)
+        "decide and document their status (BUILT / NOT-BUILT / ...):\n" + "\n".join(missing)
     )
 
 
