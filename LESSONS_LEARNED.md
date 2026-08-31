@@ -462,6 +462,32 @@ properties, and cached/vectorised surprisal behaviour.
 
 ---
 
+## Vault Sync Correctness Lives In Operation Sequences
+
+**Date:** 2026-08-31
+**Context:** Adding stateful property coverage for incremental vault synchronization
+
+**The Problem:** Parser properties and one-shot sync examples could show that an individual note
+was understood, but not that the vault stayed correct across create, update, delete, and repeated
+sync operations. They also could not expose drift between the in-memory and file-backed SQLite
+paths.
+
+**The Insight:** Incremental synchronization is a state machine, not a collection of independent
+calls. Its useful oracle is the filesystem itself: after every generated operation, both
+persistence modes must agree with a small shadow model of the files and parsed note fields. A
+second sync with no filesystem change must report no work.
+
+**The Principle:** Test mutable storage workflows with shrinkable operation sequences, a model
+outside the implementation, and invariants after every step. When the project offers multiple
+backends for the same contract, run the same trace through all of them and compare their observable
+state rather than duplicating backend-specific assertions.
+
+**Impact:** `tests/unit/test_property_vault_stateful.py` now exercises structured Obsidian notes,
+nested and Unicode paths, deterministic modification times, deletion, quiescent idempotence, and
+in-memory/file-backed agreement after every generated command.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_
