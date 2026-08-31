@@ -473,9 +473,10 @@ sync operations. They also could not expose drift between the in-memory and file
 paths.
 
 **The Insight:** Incremental synchronization is a state machine, not a collection of independent
-calls. Its useful oracle is the filesystem itself: after every generated operation, both
-persistence modes must agree with a small shadow model of the files and parsed note fields. A
-second sync with no filesystem change must report no work.
+calls. Its useful oracles are complementary: after every generated operation, a filesystem shadow
+model checks exact paths and raw content, while a differential check requires the in-memory and
+file-backed stores to agree on parsed note fields. A second sync with no filesystem change must
+report no work.
 
 **The Principle:** Test mutable storage workflows with shrinkable operation sequences, a model
 outside the implementation, and invariants after every step. When the project offers multiple
@@ -483,8 +484,9 @@ backends for the same contract, run the same trace through all of them and compa
 state rather than duplicating backend-specific assertions.
 
 **Impact:** `tests/unit/test_property_vault_stateful.py` now exercises structured Obsidian notes,
-nested and Unicode paths, deterministic modification times, deletion, quiescent idempotence, and
-in-memory/file-backed agreement after every generated command.
+nested and Unicode paths, deterministic modification times, deletion, quiescent idempotence,
+filesystem path/content agreement, and parsed-field agreement between persistence modes after every
+generated command.
 
 ---
 
