@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from ..default_geists import CODE_GEIST_COUNT, TOTAL_GEIST_COUNT, TRACERY_GEIST_COUNT
+from ..path_safety import ensure_contained
 from ..vault import Vault
 from .base import BaseCommand
 
@@ -45,6 +46,18 @@ class InitCommand(BaseCommand):
             print("Use --force to reinitialize (this will overwrite existing configuration)")
             return 1
 
+        # Reject redirected managed state even when --force is used.
+        for managed_path in (
+            geistfabrik_dir,
+            geistfabrik_dir / "config.yaml",
+            geistfabrik_dir / "vault.db",
+            geistfabrik_dir / "geists" / "code",
+            geistfabrik_dir / "geists" / "tracery",
+            geistfabrik_dir / "metadata_inference",
+            geistfabrik_dir / "vault_functions",
+        ):
+            ensure_contained(managed_path, vault_path, reject_symlinks=True)
+
         # Create directory structure
         self._create_directories(vault_path, geistfabrik_dir)
 
@@ -68,10 +81,15 @@ class InitCommand(BaseCommand):
         print("   - Compute embeddings for all notes (stored locally)")
         print("   - Create session notes in 'geist journal/' when you invoke with --write")
         print()
-        print("GeistFabrik will NEVER:")
-        print("   - Modify your existing notes (read-only access)")
-        print("   - Send data to the internet (100% local)")
-        print("   - Delete any files")
+        print("GeistFabrik's engine will NEVER:")
+        print("   - Modify your existing source notes (read-only access)")
+        print("   - Upload vault content or analytics")
+        print("   - Delete your source notes")
+        print()
+        print("Network and plugin trust boundaries:")
+        print("   - A missing bundled model may be downloaded from HuggingFace")
+        print("   - Set GEISTFABRIK_OFFLINE=1 to prohibit network fallback")
+        print("   - Installed Python geists/modules are trusted arbitrary code, not sandboxed")
         print()
 
     def _create_directories(self, vault_path: Path, geistfabrik_dir: Path) -> None:

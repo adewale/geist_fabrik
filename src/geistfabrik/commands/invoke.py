@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from ..config import MAX_SESSION_SUGGESTIONS
 from ..config_loader import GeistFabrikConfig, save_config
 from ..embeddings import EmbeddingComputer
 from ..filtering import SuggestionFilter, select_suggestions
@@ -12,7 +13,6 @@ from ..geist_status import GeistStatusStore
 from ..journal_writer import JournalWriter
 from ..models import Suggestion
 from ..tracery import TraceryGeist, TraceryGeistLoader
-from ..vault import Vault
 from .base import BaseCommand, ExecutionContext
 
 
@@ -53,16 +53,6 @@ class InvokeCommand(BaseCommand):
 
         self.print(f"Loading vault: {vault_path}")
 
-        # Set up database
-        geistfabrik_dir = vault_path / "_geistfabrik"
-        geistfabrik_dir.mkdir(exist_ok=True)
-        db_path = geistfabrik_dir / "vault.db"
-
-        # Load vault and sync
-        self._vault = Vault(vault_path, db_path)
-        note_count = self._vault.sync()
-        self.print(f"Synced {note_count} notes")
-
         # Parse session date
         session_date = self.parse_session_date(getattr(self.args, "date", None))
         if session_date is None:
@@ -72,6 +62,8 @@ class InvokeCommand(BaseCommand):
         cmd_ctx = self.setup_command_context(vault_path)
         if cmd_ctx is None:
             return 1
+        note_count = cmd_ctx.vault.sync()
+        self.print(f"Synced {note_count} notes")
 
         # Set up execution context (session, VaultContext)
         exec_ctx = self.setup_execution_context(cmd_ctx, session_date)
@@ -86,7 +78,7 @@ class InvokeCommand(BaseCommand):
         self._handle_new_geists(exec_ctx, newly_discovered)
 
         # Check if any geists are enabled
-        total_geists = len(code_executor.geists) + len(tracery_geists)
+        total_geists = len(code_executor.geists)
         if total_geists == 0:
             self._print_no_geists_message(exec_ctx)
             return 0
@@ -193,6 +185,13 @@ class InvokeCommand(BaseCommand):
             enabled_defaults=config.default_geists if config else {},
         )
         tracery_geists, newly_discovered_tracery = tracery_loader.load_all()
+        timeout = self.resolve_timeout(config)
+        for geist in tracery_geists:
+            if geist.geist_id in code_executor.geists:
+                raise ValueError(f"Duplicate code/Tracery geist ID '{geist.geist_id}'")
+            geist.execution_timeout = timeout
+            code_executor.register_geist(geist.geist_id, geist.yaml_path, geist.suggest)
+        code_executor.load_status()
 
         newly_discovered = newly_discovered_code + newly_discovered_tracery
         return code_executor, tracery_geists, newly_discovered
@@ -233,13 +232,16 @@ class InvokeCommand(BaseCommand):
             return
 
         vault_path = exec_ctx.vault_path
-        code_geists_count = len(code_executor.geists)
-        enabled_code_geists = code_executor.get_enabled_geists()
-        all_code_ids = list(code_executor.geists.keys())
-        disabled_geists = [gid for gid in all_code_ids if gid not in enabled_code_geists]
+        tracery_ids = {geist.geist_id for geist in tracery_geists}
+        all_code_ids = [gid for gid in code_executor.geists if gid not in tracery_ids]
+        enabled_ids = set(code_executor.get_enabled_geists())
+        enabled_code_geists = [gid for gid in all_code_ids if gid in enabled_ids]
+        enabled_tracery = [gid for gid in tracery_ids if gid in enabled_ids]
+        code_geists_count = len(all_code_ids)
+        disabled_geists = [gid for gid in code_executor.geists if gid not in enabled_ids]
 
-        total_geists = code_geists_count + len(tracery_geists)
-        enabled_count = len(enabled_code_geists) + len(tracery_geists)
+        total_geists = len(code_executor.geists)
+        enabled_count = len(enabled_ids)
 
         print(f"\n{'=' * 60}")
         print("GeistFabrik Configuration Audit")
@@ -248,7 +250,7 @@ class InvokeCommand(BaseCommand):
         print(f"Geists directory: {vault_path / '_geistfabrik' / 'geists'}")
         print(f"Total geists found: {total_geists}")
         print(f"  - Code geists: {code_geists_count} ({len(enabled_code_geists)} enabled)")
-        print(f"  - Tracery geists: {len(tracery_geists)}")
+        print(f"  - Tracery geists: {len(tracery_geists)} ({len(enabled_tracery)} enabled)")
         if disabled_geists:
             print(f"  - Disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
 
@@ -313,34 +315,29 @@ class InvokeCommand(BaseCommand):
         code_results: dict[str, list[Suggestion]] = {}
         tracery_results: dict[str, list[Suggestion]] = {}
 
+        tracery_ids = {geist.geist_id for geist in tracery_geists}
         if geists_to_run:
-            # Run specific geist(s)
-            for geist_id in geists_to_run:
-                if geist_id in code_executor.geists:
-                    code_results[geist_id] = code_executor.execute_geist(geist_id, context)
-                elif any(g.geist_id == geist_id for g in tracery_geists):
-                    tracery_geist = next(g for g in tracery_geists if g.geist_id == geist_id)
-                    try:
-                        suggestions = tracery_geist.suggest(context)
-                        tracery_results[geist_id] = suggestions
-                    except Exception as e:
-                        self.print_error(f"Executing Tracery geist {geist_id}: {e}")
-                        tracery_results[geist_id] = []
-                else:
-                    self.print_error(f"Geist '{geist_id}' not found")
-                    return None
+            execution_order = geists_to_run
+        elif config and config.default_geists:
+            configured = [
+                geist_id for geist_id in config.default_geists if geist_id in code_executor.geists
+            ]
+            undisclosed = sorted(set(code_executor.geists) - set(configured))
+            execution_order = configured + undisclosed
         else:
-            # Execute all code geists
-            code_results = code_executor.execute_all(context)
+            execution_order = list(code_executor.geists)
 
-            # Execute all Tracery geists
-            for tracery_geist in tracery_geists:
-                try:
-                    suggestions = tracery_geist.suggest(context)
-                    tracery_results[tracery_geist.geist_id] = suggestions
-                except Exception as e:
-                    self.print_error(f"Executing Tracery geist {tracery_geist.geist_id}: {e}")
-                    tracery_results[tracery_geist.geist_id] = []
+        # Code and Tracery callables share one executor, but result typing and
+        # configured cross-type order remain observable CLI contracts.
+        for geist_id in execution_order:
+            if geist_id not in code_executor.geists:
+                self.print_error(f"Geist '{geist_id}' not found")
+                return None
+            suggestions = code_executor.execute_geist(geist_id, context)
+            if geist_id in tracery_ids:
+                tracery_results[geist_id] = suggestions
+            else:
+                code_results[geist_id] = suggestions
 
         # Collect all suggestions in config order
         all_suggestions = self._collect_suggestions_in_order(code_results, tracery_results, config)
@@ -371,21 +368,25 @@ class InvokeCommand(BaseCommand):
         all_results = {**code_results, **tracery_results}
 
         if config and config.default_geists:
-            # First: geists in config order
-            for geist_id in config.default_geists.keys():
-                if geist_id in all_results:
-                    all_suggestions.extend(all_results[geist_id])
-            # Then: any geists not in config (alphabetically)
-            for geist_id in sorted(all_results.keys()):
-                if geist_id not in config.default_geists:
-                    all_suggestions.extend(all_results[geist_id])
+            ordered_ids = [
+                geist_id for geist_id in config.default_geists if geist_id in all_results
+            ]
+            ordered_ids.extend(
+                sorted(
+                    geist_id for geist_id in all_results if geist_id not in config.default_geists
+                )
+            )
         else:
-            # No config: use execution order
-            for suggestions in code_results.values():
-                all_suggestions.extend(suggestions)
-            for suggestions in tracery_results.values():
-                all_suggestions.extend(suggestions)
+            # Dictionary insertion order is the actual shared execution order.
+            ordered_ids = list(code_results) + [
+                geist_id for geist_id in tracery_results if geist_id not in code_results
+            ]
 
+        for geist_id in ordered_ids:
+            remaining = MAX_SESSION_SUGGESTIONS - len(all_suggestions)
+            if remaining <= 0:
+                break
+            all_suggestions.extend(all_results[geist_id][:remaining])
         return all_suggestions
 
     def _print_execution_summary(self, results: GeistResults) -> None:
@@ -515,22 +516,11 @@ class InvokeCommand(BaseCommand):
         """
         journal_writer = JournalWriter(exec_ctx.vault_path, exec_ctx.vault.db)
 
-        # Check if session already exists
-        if journal_writer.session_exists(session_date):
-            if not self.args.force:
-                date_str = session_date.strftime("%Y-%m-%d")
-                self.print(f"\nSession note already exists for {date_str}")
-                self.print("Use --force to overwrite, or delete the existing note first.")
-                return False
-            else:
-                # Delete existing session note
-                date_str = session_date.strftime("%Y-%m-%d")
-                existing_path = exec_ctx.vault_path / "geist journal" / f"{date_str}.md"
-                existing_path.unlink()
-
         try:
             mode = "full" if (self.args.full or self.args.no_filter) else "default"
-            journal_path = journal_writer.write_session(session_date, suggestions, mode)
+            journal_path = journal_writer.write_session(
+                session_date, suggestions, mode, overwrite=self.args.force
+            )
             rel_path = journal_path.relative_to(exec_ctx.vault_path)
             self.print(f"Wrote session note: {rel_path}\n")
             return True

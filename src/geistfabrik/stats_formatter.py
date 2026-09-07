@@ -317,7 +317,10 @@ def generate_recommendations(stats: VaultStats) -> list[dict[str, Any]]:
                 "type": "performance",
                 "severity": "warning",
                 "message": f"Consider sqlite-vec backend for {notes} notes (5-6x faster queries)",
-                "action": 'uv pip install -e ".[vector-search]" && update config.yaml',
+                "action": (
+                    'python -m pip install "geistfabrik[vector-search]"; '
+                    "set vector_search.backend: sqlite-vec in config.yaml"
+                ),
             }
         )
 

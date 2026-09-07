@@ -9,6 +9,7 @@ from geistfabrik import Vault
 
 
 @pytest.mark.integration
+@pytest.mark.benchmark
 def test_scenario_first_time_setup(tmp_path: Path) -> None:
     """Test first-time setup scenario with kepano vault.
 
@@ -34,6 +35,7 @@ def test_scenario_first_time_setup(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
+@pytest.mark.benchmark
 def test_scenario_incremental_sync(tmp_path: Path) -> None:
     """Test incremental sync is faster than full sync."""
     vault_path = Path("testdata/kepano-obsidian-main")

@@ -163,34 +163,16 @@ def test_geist_uses_link_text_for_virtual_notes(geist_name, geist_module, vault_
         geist_module: The geist module to test
         vault_context: VaultContext with virtual notes
     """
-    # Skip geists that are known to not reference notes
-    # (Add geists to this list if they intentionally don't reference specific notes)
-    skip_geists = set()  # Currently none, kept for future use if needed
-
-    if geist_name in skip_geists:
-        pytest.skip(f"{geist_name} intentionally doesn't reference specific notes")
-
-    # Run the geist
-    try:
-        suggestions = geist_module.suggest(vault_context)
-    except Exception as e:
-        # Some geists may fail on this minimal vault - that's okay
-        # We're only testing those that successfully run and reference virtual notes
-        pytest.skip(f"{geist_name} failed on test vault: {e}")
-        return
-
-    if not suggestions:
-        # Geist returned no suggestions - nothing to test
-        return
+    # Every bundled geist must execute successfully on the deterministic test
+    # vault. Returning no suggestions is a valid behavior; raising is not.
+    suggestions = geist_module.suggest(vault_context)
+    assert isinstance(suggestions, list)
 
     # Get all virtual note titles from the vault for comparison
     all_notes = vault_context.notes()
     virtual_note_titles = {note.title for note in all_notes if note.is_virtual}
 
-    if not virtual_note_titles:
-        # No virtual notes in vault - skip
-        pytest.skip("No virtual notes in test vault")
-        return
+    assert virtual_note_titles, "fixture must contain virtual notes"
 
     # Check each suggestion for potential abstraction layer bypass
     for suggestion in suggestions:
@@ -251,10 +233,7 @@ def test_regression_creation_burst_specific(vault_context):
 
     suggestions = creation_burst.suggest(vault_context)
 
-    if not suggestions:
-        pytest.skip("creation_burst returned no suggestions on test vault")
-        return
-
+    assert suggestions, "fixture must make creation_burst exercise virtual references"
     suggestion = suggestions[0]
 
     # The burst day (2024-03-15) has 3 virtual notes

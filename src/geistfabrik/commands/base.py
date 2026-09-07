@@ -16,6 +16,7 @@ from ..config_loader import GeistFabrikConfig, load_config
 from ..embeddings import Session
 from ..function_registry import FunctionRegistry
 from ..metadata_system import MetadataLoader
+from ..path_safety import ensure_contained
 from ..vault import Vault
 from ..vault_context import VaultContext
 
@@ -55,7 +56,7 @@ class CommandContext:
 
     vault_path: Path
     vault: Vault
-    config: GeistFabrikConfig | None
+    config: GeistFabrikConfig
     config_path: Path
     geistfabrik_dir: Path
     db_path: Path
@@ -290,14 +291,16 @@ class BaseCommand(ABC):
         db_path = geistfabrik_dir / "vault.db"
         config_path = geistfabrik_dir / "config.yaml"
 
-        # Load configuration
-        config = None
+        # Managed state must not be redirected through symlinks. Validate and
+        # load configuration before database creation or plugin loading.
+        for managed_path in (geistfabrik_dir, config_path, db_path):
+            ensure_contained(managed_path, vault_path, reject_symlinks=True)
+        config = load_config(config_path)
         if config_path.exists():
-            config = load_config(config_path)
             self.print_verbose(f"Loaded configuration from {config_path.relative_to(vault_path)}")
 
-        # Open vault
-        self._vault = Vault(vault_path, db_path)
+        geistfabrik_dir.mkdir(exist_ok=True)
+        self._vault = Vault(vault_path, db_path, config=config)
 
         return CommandContext(
             vault_path=vault_path,
@@ -330,17 +333,23 @@ class BaseCommand(ABC):
 
         # Load metadata inference modules
         metadata_dir = geistfabrik_dir / "metadata_inference"
+        functions_dir = geistfabrik_dir / "vault_functions"
+        code_dir = geistfabrik_dir / "geists" / "code"
+        tracery_dir = geistfabrik_dir / "geists" / "tracery"
+        for managed_path in (metadata_dir, functions_dir, code_dir, tracery_dir):
+            ensure_contained(managed_path, cmd_ctx.vault_path, reject_symlinks=True)
         metadata_loader = None
         if metadata_dir.exists():
-            metadata_loader = MetadataLoader(metadata_dir)
+            metadata_loader = MetadataLoader(metadata_dir, timeout=self.resolve_timeout(config))
             # Honour config.yaml's enabled_modules allowlist (empty = all).
             metadata_loader.load_modules(config.enabled_modules or None if config else None)
             self.print_verbose(f"Loaded {len(metadata_loader.modules)} metadata inference modules")
 
         # Load vault function modules
-        functions_dir = geistfabrik_dir / "vault_functions"
         if functions_dir.exists():
-            function_registry = FunctionRegistry(functions_dir)
+            function_registry = FunctionRegistry(
+                functions_dir, timeout=self.resolve_timeout(config)
+            )
             # Honour config.yaml's enabled_modules allowlist (empty = all).
             function_registry.load_modules(config.enabled_modules or None if config else None)
             self.print_verbose(f"Loaded {len(function_registry.functions)} vault functions")

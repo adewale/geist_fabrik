@@ -89,6 +89,7 @@ def test_get_note(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     note = ctx.get_note("ai.md")
+    assert note is not None
 
     assert note is not None
     assert note.title == "AI"
@@ -101,6 +102,7 @@ def test_read_note(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     note = ctx.get_note("ai.md")
+    assert note is not None
     content = ctx.read(note)
 
     assert content == note.content
@@ -113,6 +115,7 @@ def test_neighbours_semantic_search(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
+    assert ai_note is not None
     neighbours = ctx.neighbours(ai_note, count=2)
 
     # ml.md should be most similar to ai.md
@@ -126,8 +129,11 @@ def test_similarity(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
+    assert ai_note is not None
     ml_note = ctx.get_note("ml.md")
+    assert ml_note is not None
     cooking_note = ctx.get_note("cooking.md")
+    assert cooking_note is not None
 
     # AI and ML should be more similar than AI and Cooking
     sim_ai_ml = ctx.similarity(ai_note, ml_note)
@@ -144,6 +150,7 @@ def test_backlinks(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
+    assert ai_note is not None
     backlinks = ctx.backlinks(ai_note)
 
     # ml.md links to ai.md
@@ -418,11 +425,6 @@ def test_vault_functions_adapter_layer():
         vault = Vault(vault_path)
         vault.sync()
 
-        # Make old.md actually old
-        import time
-
-        time.sleep(0.01)
-
         session_date = datetime(2023, 6, 15)
         session = Session(session_date, vault.db)
         ctx = VaultContext(vault, session, seed=42)
@@ -496,7 +498,9 @@ def test_links_between(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ml_note = ctx.get_note("ml.md")
+    assert ml_note is not None
     ai_note = ctx.get_note("ai.md")
+    assert ai_note is not None
 
     links = ctx.links_between(ml_note, ai_note)
 
@@ -536,6 +540,7 @@ def test_metadata(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
+    assert ai_note is not None
     metadata = ctx.metadata(ai_note)
 
     assert "word_count" in metadata
@@ -554,6 +559,7 @@ def test_metadata_caching(vault_with_notes):
     ctx = VaultContext(vault, session)
 
     ai_note = ctx.get_note("ai.md")
+    assert ai_note is not None
 
     metadata1 = ctx.metadata(ai_note)
     metadata2 = ctx.metadata(ai_note)

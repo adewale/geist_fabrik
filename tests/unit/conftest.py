@@ -93,9 +93,7 @@ def mock_embedding_computer(mock_sentence_transformer):
     """
     from geistfabrik.embeddings import EmbeddingComputer
 
-    computer = EmbeddingComputer()
-    computer._model = mock_sentence_transformer
-    return computer
+    return EmbeddingComputer(model=mock_sentence_transformer)
 
 
 @pytest.fixture

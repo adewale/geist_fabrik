@@ -12,6 +12,7 @@ revived geists actually fire on fixtures designed to trigger them.
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from weakref import finalize
 
 import pytest
 
@@ -44,7 +45,7 @@ def _build_context(notes: dict[str, str], backdate_days: int) -> VaultContext:
     session = Session(SESSION_DATE, vault.db)
     session.compute_embeddings(vault.all_notes())
     ctx = VaultContext(vault, session, seed=20240315, function_registry=FunctionRegistry())
-    ctx._tmpdir = tmpdir  # type: ignore[attr-defined]  # keep tempdir alive
+    finalize(ctx, tmpdir.cleanup)
     return ctx
 
 
@@ -112,7 +113,7 @@ class TestBuiltinMetadataKeys:
                 return {"staleness": 0.123}, []
 
         ctx = _build_context({"a.md": "# A\nText."}, backdate_days=300)
-        ctx._metadata_loader = FakeLoader()  # type: ignore[assignment]
+        ctx._metadata_loader = FakeLoader()
         assert ctx.metadata(ctx.notes()[0])["staleness"] == 0.123
 
 

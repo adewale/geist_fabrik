@@ -21,19 +21,19 @@ try:
     SQLITE_VEC_AVAILABLE = True
 
     # Check if SQLite supports extension loading
-    test_conn = sqlite3.connect(":memory:")
-    if hasattr(test_conn, "enable_load_extension"):
+    probe_conn = sqlite3.connect(":memory:")
+    if hasattr(probe_conn, "enable_load_extension"):
         try:
-            test_conn.enable_load_extension(True)
-            sqlite_vec.load(test_conn)
-            test_conn.execute("SELECT vec_version()")
+            probe_conn.enable_load_extension(True)
+            sqlite_vec.load(probe_conn)
+            probe_conn.execute("SELECT vec_version()")
             SQLITE_VEC_LOADABLE = True
         except (sqlite3.OperationalError, AttributeError):
             pass
         finally:
-            test_conn.close()
+            probe_conn.close()
     else:
-        test_conn.close()
+        probe_conn.close()
 except ImportError:
     pass
 

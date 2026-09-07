@@ -1,12 +1,14 @@
 """Tests for geist executor."""
 
+import cProfile
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from geistfabrik import GeistExecutor, Suggestion, Vault, VaultContext
+from geistfabrik import GeistExecutor, Vault, VaultContext
 from geistfabrik.embeddings import Session
 
 
@@ -38,6 +40,25 @@ def geists_dir(tmp_path: Path):
     geists = tmp_path / "geists"
     geists.mkdir()
     return geists
+
+
+def test_extract_profile_stats_uses_typed_pstats_adapter(geists_dir: Path) -> None:
+    """Real cProfile output is converted to the stable ProfileStats contract."""
+    executor = GeistExecutor(geists_dir)
+    profiler = cProfile.Profile()
+
+    def profiled_work() -> int:
+        return sum(range(10))
+
+    profiler.enable()
+    assert profiled_work() == 45
+    profiler.disable()
+
+    stats = executor._extract_profile_stats(profiler)
+    row = next(item for item in stats if "profiled_work" in item.name)
+    assert row.calls == 1
+    assert row.total_time >= 0
+    assert row.cumulative_time >= row.total_time
 
 
 def test_geist_executor_initialization(geists_dir: Path):
@@ -118,6 +139,41 @@ def suggest(vault):
     # Check execution log
     log = executor.get_execution_log()
     assert any(entry["status"] == "error" and entry["error_type"] == "timeout" for entry in log)
+
+
+def test_code_geist_import_timeout(geists_dir: Path) -> None:
+    """Supported POSIX main-thread runs also bound top-level import hangs."""
+    if sys.platform == "win32":
+        pytest.skip("hard plugin timeout unavailable on Windows")
+    (geists_dir / "import_sleeper.py").write_text(
+        "import time\ntime.sleep(10)\ndef suggest(vault): return []\n"
+    )
+    executor = GeistExecutor(geists_dir, timeout=1)
+    start = time.monotonic()
+    executor.load_geists()
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 2
+    assert "import_sleeper" not in executor.geists
+    assert executor.get_execution_log()[0]["status"] == "load_error"
+    assert "timed out" in executor.get_execution_log()[0]["error"]
+
+
+def test_debug_timeout_uses_same_failure_accounting(geists_dir: Path, sample_context: VaultContext):
+    """Debug diagnostics must not bypass timeout failure accounting."""
+    (geists_dir / "debug_sleeper.py").write_text(
+        "import time\ndef suggest(vault):\n    time.sleep(10)\n    return []\n"
+    )
+    executor = GeistExecutor(geists_dir, timeout=1, max_failures=1, debug=True)
+    executor.load_geists()
+    assert executor.execute_geist("debug_sleeper", sample_context) == []
+    failures = [
+        entry
+        for entry in executor.get_execution_log()
+        if entry.get("geist_id") == "debug_sleeper" and entry.get("error_type") == "timeout"
+    ]
+    assert len(failures) == 1
+    assert executor.geists["debug_sleeper"].is_enabled is False
 
 
 def test_disable_after_three_failures(geists_dir: Path, sample_context: VaultContext):
@@ -343,9 +399,12 @@ def suggest(vault):
 
     suggestions = executor.execute_geist("many", sample_context)
 
-    # Should handle without crashing
-    assert len(suggestions) == 1000
-    assert all(isinstance(s, Suggestion) for s in suggestions)
+    # Per-geist amplification is rejected before aggregate filtering/persistence.
+    assert suggestions == []
+    assert any(
+        entry.get("status") == "error" and "more than 100 suggestions" in entry.get("error", "")
+        for entry in executor.get_execution_log()
+    )
 
 
 def test_geist_unicode_suggestions(geists_dir: Path, sample_context: VaultContext):

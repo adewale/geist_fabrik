@@ -11,9 +11,13 @@ This module provides comprehensive vault statistics including:
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from .config_loader import GeistFabrikConfig
+    from .vault import Vault
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +49,7 @@ class VaultStats(TypedDict, total=False):
 class StatsCollector:
     """Collects statistics from a GeistFabrik vault."""
 
-    def __init__(self, vault: Any, config: Any, history_days: int = 30):
+    def __init__(self, vault: "Vault", config: "GeistFabrikConfig", history_days: int = 30):
         """Initialise stats collector.
 
         Args:

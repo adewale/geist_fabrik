@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ..geist_executor import GeistExecutor
 from ..geist_status import GeistStatusStore
-from ..tracery import TraceryGeist, TraceryGeistLoader
+from ..tracery import TraceryGeistLoader
 from .base import BaseCommand, ExecutionContext
 
 
@@ -41,6 +41,11 @@ class TestAllCommand(BaseCommand):
 
         print(f"Testing all geists in vault: {vault_path}\n")
 
+        # Reject malformed dates before database creation, sync, or plugin load.
+        session_date = self.parse_session_date(getattr(self.args, "date", None))
+        if session_date is None:
+            return 1
+
         # Set up command context
         cmd_ctx = self.setup_command_context(vault_path)
         if cmd_ctx is None:
@@ -49,11 +54,6 @@ class TestAllCommand(BaseCommand):
         # Sync vault
         note_count = cmd_ctx.vault.sync()
         self.print_verbose(f"Loaded {note_count} notes")
-
-        # Parse session date
-        session_date = self.parse_session_date(getattr(self.args, "date", None))
-        if session_date is None:
-            return 1
 
         self.print_verbose(f"Session date: {session_date.strftime('%Y-%m-%d')}")
 
@@ -86,26 +86,31 @@ class TestAllCommand(BaseCommand):
             default_geists_dir=default_tracery_geists_dir,
         )
         tracery_geists, _ = tracery_loader.load_all()
+        timeout = self.resolve_timeout(exec_ctx.config)
+        for geist in tracery_geists:
+            if geist.geist_id in executor.geists:
+                raise ValueError(f"Duplicate code/Tracery geist ID '{geist.geist_id}'")
+            geist.execution_timeout = timeout
+            executor.register_geist(geist.geist_id, geist.yaml_path, geist.suggest)
+        executor.load_status()
 
-        total_geists = len(executor.geists) + len(tracery_geists)
+        total_geists = len(executor.geists)
         if total_geists == 0:
             print("\nNo geists found to test")
             return 0
 
         # Test all geists
-        results = self._test_all_code_geists(executor, exec_ctx)
-        tracery_results = self._test_all_tracery_geists(tracery_geists, exec_ctx)
-        results.update(tracery_results)
+        results = self._test_all_geists(executor, exec_ctx)
 
         # Print summary
         return self._print_summary(results, exec_ctx.vault_path)
 
-    def _test_all_code_geists(
+    def _test_all_geists(
         self,
         executor: GeistExecutor,
         exec_ctx: ExecutionContext,
     ) -> dict[str, TestResult]:
-        """Test all code geists and collect results.
+        """Test every registered code and Tracery geist and collect results.
 
         Args:
             executor: The geist executor
@@ -118,14 +123,18 @@ class TestAllCommand(BaseCommand):
             return {}
 
         print(f"\n{'=' * 60}")
-        print(f"Testing {len(executor.geists)} code geists")
+        print(f"Testing {len(executor.geists)} geists")
         print(f"{'=' * 60}\n")
 
         results: dict[str, TestResult] = {}
 
         for geist_id in sorted(executor.geists.keys()):
             print(f"Testing {geist_id}...", end=" ")
-            suggestions = executor.execute_geist(geist_id, exec_ctx.vault_context)
+            # test-all is a diagnostic/recovery command: persisted disablement
+            # must not conceal whether the current implementation is healthy.
+            suggestions = executor.execute_geist(
+                geist_id, exec_ctx.vault_context, allow_disabled=True
+            )
 
             # Get profile for timing info
             profile = None
@@ -154,52 +163,8 @@ class TestAllCommand(BaseCommand):
                         error=error_msg,
                     )
             else:
-                print("? Unknown status")
-                results[geist_id] = TestResult(status="unknown")
-
-        return results
-
-    def _test_all_tracery_geists(
-        self,
-        tracery_geists: list[TraceryGeist],
-        exec_ctx: ExecutionContext,
-    ) -> dict[str, TestResult]:
-        """Test all Tracery geists and collect results.
-
-        Args:
-            tracery_geists: List of Tracery geists to test
-            exec_ctx: Execution context
-
-        Returns:
-            Dictionary mapping geist ID to test result
-        """
-        if not tracery_geists:
-            return {}
-
-        print(f"\n{'=' * 60}")
-        print(f"Testing {len(tracery_geists)} Tracery geists")
-        print(f"{'=' * 60}\n")
-
-        results: dict[str, TestResult] = {}
-
-        for tracery_geist in sorted(tracery_geists, key=lambda g: g.geist_id):
-            geist_id = tracery_geist.geist_id
-            print(f"Testing {geist_id}...", end=" ")
-
-            try:
-                suggestions = tracery_geist.suggest(exec_ctx.vault_context)
-                print(f"v ({len(suggestions)} suggestions)")
-                results[geist_id] = TestResult(
-                    status="success",
-                    count=len(suggestions),
-                )
-            except Exception as e:
-                error_msg = str(e)
-                print(f"x {error_msg}")
-                results[geist_id] = TestResult(
-                    status="error",
-                    error=error_msg,
-                )
+                print("x Missing execution profile")
+                results[geist_id] = TestResult(status="error", error="Missing execution profile")
 
         return results
 

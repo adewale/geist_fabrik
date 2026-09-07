@@ -231,6 +231,7 @@ def test_antithesis_generator_suggests_titles(vault_with_claims):
     if title_suggestions:
         for suggestion in title_suggestions:
             # Title should contain "Anti-" or "Against"
+            assert suggestion.title is not None
             assert "Anti-" in suggestion.title or "Against" in suggestion.title
 
 

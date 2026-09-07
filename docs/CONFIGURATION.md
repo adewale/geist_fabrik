@@ -1,7 +1,10 @@
 # Configuration (`_geistfabrik/config.yaml`)
 
 Every key GeistFabrik actually reads, with its default. `geistfabrik init`
-writes a starter file; unknown top-level keys are ignored with a warning.
+writes a starter file. Unknown keys and malformed values are rejected before
+GeistFabrik creates its database, journal, or imports vault plugins. Execution
+`timeout` is limited to 1–3600 seconds and persisted consecutive `max_failures`
+to 1–100.
 
 The full historical spec schema (some of it aspirational) lives in
 `specs/geistfabrik_spec.md`; **what is actually wired is recorded in
@@ -13,7 +16,7 @@ The full historical spec schema (some of it aspirational) lives in
 # Which geists run (omitted = enabled). Disable with false.
 default_geists:
   pattern_finder: true
-  congruence_mirror: false
+  cluster_mirror: false
 
 # Allowlist of metadata-inference / vault-function modules under _geistfabrik/
 # (empty = load all). A module not listed here is not loaded.
@@ -53,6 +56,14 @@ clustering:
 # Vector search backend
 vector_search:
   backend: in-memory         # or "sqlite-vec" (needs the [vector-search] extra)
+  # Deprecated/reserved compatibility shapes; accepted and round-tripped but
+  # not currently applied by the backends.
+  backends:
+    in_memory:
+      lazy_load: false
+    sqlite_vec:
+      index_type: flat
+      cache_size_mb: 100
 
 # Date-collection (journal) note splitting
 date_collection:
@@ -77,3 +88,7 @@ A few spec keys are deliberately not config-driven (see `SPEC_STATUS.md`):
 embeddings model/dimensions/weights are fixed constants; `tracery.max_depth` is
 hardcoded; logging is console-based (no `logging.log_file`); filtering
 strategy *order* and per-filter `enabled`/`method` toggles are not exposed.
+The legacy `vector_search.backends.in_memory.lazy_load` and
+`sqlite_vec.index_type`/`cache_size_mb` fields are accepted with strict types
+and bounds for existing vaults, but are reserved/deprecated and currently have
+no operational effect.

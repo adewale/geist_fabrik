@@ -255,7 +255,14 @@ class TestBatchLoadingBenchmark:
         """Benchmark batch loading vs individual loading."""
         import time
 
-        paths = [f"note_{i}.md" for i in range(10)]
+        # A ten-row microbenchmark is dominated by timer noise. Extend this
+        # benchmark fixture so query-count savings are measurable on CI.
+        for i in range(10, 100):
+            (vault_with_notes.vault_path / f"note_{i}.md").write_text(
+                f"# Note {i}\n\nBenchmark content {i}.\n#tag{i % 3}\n"
+            )
+        vault_with_notes.sync()
+        paths = [f"note_{i}.md" for i in range(100)]
 
         # Warmup
         vault_with_notes.get_notes_batch(paths)

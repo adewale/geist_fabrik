@@ -8,16 +8,26 @@ export an `infer(note, vault) -> Dict` function.
 import importlib.util
 import logging
 import sys
-from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
+from .config import DEFAULT_GEIST_TIMEOUT
+from .execution_timeout import _alarm_timeout
 from .models import Note
+from .path_safety import ensure_contained
 
 if TYPE_CHECKING:
     from .vault_context import VaultContext
 
 logger = logging.getLogger(__name__)
+
+
+class MetadataInfer(Protocol):
+    """Callable contract exported by metadata inference plugins."""
+
+    def __call__(self, note: Note, vault: "VaultContext", /) -> dict[str, Any]:
+        """Infer metadata for one note."""
+        ...
 
 
 class MetadataInferenceError(Exception):
@@ -39,15 +49,17 @@ class MetadataLoader:
     an `infer(note, vault) -> Dict` function, and detects key conflicts.
     """
 
-    def __init__(self, module_dir: Path | None = None):
+    def __init__(self, module_dir: Path | None = None, timeout: int = DEFAULT_GEIST_TIMEOUT):
         """Initialise metadata loader.
 
         Args:
             module_dir: Directory containing metadata inference modules.
                        If None, no modules are loaded.
+            timeout: Supported POSIX/main-thread import deadline in seconds.
         """
         self.module_dir = module_dir
-        self.modules: dict[str, Callable[[Note, VaultContext], dict[str, Any]]] = {}
+        self.timeout = timeout
+        self.modules: dict[str, MetadataInfer] = {}
         self._key_to_module: dict[str, str] = {}  # Track which module provides which key
 
     def load_modules(self, enabled_modules: list[str] | None = None) -> None:
@@ -96,26 +108,34 @@ class MetadataLoader:
             MetadataInferenceError: If module is invalid
             MetadataConflictError: If module keys conflict with existing modules
         """
+        if self.module_dir is None:
+            raise MetadataInferenceError("Metadata module directory is not configured")
+        ensure_contained(module_file, self.module_dir, must_exist=True, reject_symlinks=True)
+
         # Load module dynamically
         spec = importlib.util.spec_from_file_location(module_name, module_file)
         if spec is None or spec.loader is None:
             raise MetadataInferenceError(f"Could not load module spec for {module_name}")
 
         module = importlib.util.module_from_spec(spec)
-        sys.modules[f"_metadata_{module_name}"] = module
+        module_key = f"_metadata_{module_name}"
+        sys.modules[module_key] = module
 
         try:
-            spec.loader.exec_module(module)
+            with _alarm_timeout(self.timeout):
+                spec.loader.exec_module(module)
         except Exception as e:
+            sys.modules.pop(module_key, None)
             raise MetadataInferenceError(f"Error executing module {module_name}: {e}")
 
         # Validate that module exports infer function
         if not hasattr(module, "infer"):
             raise MetadataInferenceError(f"Module {module_name} does not export 'infer' function")
 
-        infer_func = module.infer
-        if not callable(infer_func):
+        infer_export: object = getattr(module, "infer")
+        if not callable(infer_export):
             raise MetadataInferenceError(f"Module {module_name} 'infer' is not callable")
+        infer_func = cast(MetadataInfer, infer_export)
 
         # Detect key conflicts by doing a dry run with a dummy note
         # (This is optional but helps catch conflicts early)

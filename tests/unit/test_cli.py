@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from geistfabrik.cli import create_parser
 from geistfabrik.commands import find_vault_root
+from geistfabrik.commands.invoke import InvokeCommand
 
 
 def test_find_vault_root_with_obsidian_dir(tmp_path: Path) -> None:
@@ -48,65 +50,32 @@ def test_find_vault_root_current_dir_default(
 
 
 def test_invoke_command_no_filter_flag(tmp_path: Path) -> None:
-    """Test that --no-filter flag is recognised by argument parser."""
-    import sys
-
-    from geistfabrik.cli import main
-
-    # Create a minimal vault
+    """The public parser accepts --no-filter and preserves its vault argument."""
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
-    (vault_path / ".obsidian").mkdir()
-
-    # Create a test note
-    (vault_path / "test.md").write_text("# Test Note")
-
-    # We can't easily test the full invoke command without mocking,
-    # but we can verify the argument parser accepts --no-filter
-    original_argv = sys.argv
-    try:
-        sys.argv = [
-            "geistfabrik",
-            "invoke",
-            str(vault_path),
-            "--no-filter",
-            "--help",
-        ]
-        # This should not raise an error about unrecognized arguments
-        # The --help will cause it to exit, but that's expected
-        try:
-            main()
-        except SystemExit:
-            # Expected when --help is used
-            pass
-    finally:
-        sys.argv = original_argv
+    args = create_parser().parse_args(["invoke", str(vault_path), "--no-filter"])
+    assert args.command == "invoke"
+    assert args.vault == str(vault_path)
+    assert args.no_filter is True
+    assert args.full is False
 
 
-def test_invoke_command_full_vs_no_filter_help_text() -> None:
-    """Test that --full and --no-filter have distinct help text."""
-    import sys
-
-    from geistfabrik.cli import main
-
-    original_argv = sys.argv
-    try:
-        sys.argv = ["geistfabrik", "invoke", "--help"]
-        try:
-            main()
-        except SystemExit as e:
-            # Check that both flags exist and have different descriptions
-            # We can't capture the help output easily, but this verifies
-            # the command structure is valid
-            assert e.code in (0, None)
-    finally:
-        sys.argv = original_argv
+def test_invoke_command_full_vs_no_filter_help_text(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Help exits successfully and documents the two distinct contracts."""
+    with pytest.raises(SystemExit) as exc:
+        create_parser().parse_args(["invoke", "--help"])
+    assert exc.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--full" in help_text
+    assert "Show all filtered suggestions" in help_text
+    assert "--no-filter" in help_text
+    assert "Skip filtering pipeline" in help_text
 
 
 def test_invoke_loads_both_code_and_tracery_geists(tmp_path: Path) -> None:
     """Test that invoke command loads both code and Tracery geists."""
-    from geistfabrik.vault import Vault
-
     # Create a minimal vault
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -141,22 +110,27 @@ tracery:
 """
     (tracery_geists_dir / "test_tracery.yaml").write_text(tracery_geist)
 
-    # Initialise vault database
-    vault = Vault(vault_path)
-    vault.sync()
-    vault.close()
-
-    # Test that invoke loads both geist types
-    # We verify the geist files exist in the correct locations
-    assert (code_geists_dir / "test_code.py").exists()
-    assert (tracery_geists_dir / "test_tracery.yaml").exists()
-
-    # Count expected geists
-    code_geist_count = len(list(code_geists_dir.glob("*.py")))
-    tracery_geist_count = len(list(tracery_geists_dir.glob("*.yaml")))
-
-    assert code_geist_count == 1, "Should have 1 code geist"
-    assert tracery_geist_count == 1, "Should have 1 Tracery geist"
+    # Exercise InvokeCommand's real loading and unified execution lifecycle.
+    args = create_parser().parse_args(["invoke", str(vault_path), "--date", "2025-01-15"])
+    command = InvokeCommand(args)
+    try:
+        command_context = command.setup_command_context(vault_path)
+        assert command_context is not None
+        command_context.vault.sync()
+        session_date = command.parse_session_date("2025-01-15")
+        assert session_date is not None
+        execution_context = command.setup_execution_context(command_context, session_date)
+        executor, tracery_geists, _ = command._load_geists(execution_context, session_date)
+        assert "test_code" in executor.geists
+        assert any(geist.geist_id == "test_tracery" for geist in tracery_geists)
+        assert executor.execute_geist("test_code", execution_context.vault_context)[0].text == (
+            "Code geist test"
+        )
+        assert executor.execute_geist("test_tracery", execution_context.vault_context)[0].text == (
+            "Tracery geist test"
+        )
+    finally:
+        command._cleanup()
 
 
 def test_invoke_executes_tracery_geists(tmp_path: Path) -> None:

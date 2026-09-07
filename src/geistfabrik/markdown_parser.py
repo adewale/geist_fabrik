@@ -4,8 +4,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from .bounded_yaml import BoundedYAMLError, load_bounded_yaml_text
+from .config import MAX_NOTE_LINKS, MAX_NOTE_TAGS
 from .models import Link
 
 # Pre-compiled regex patterns for performance
@@ -21,6 +21,10 @@ TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
 # colours like #fff in CSS, URL fragments in code samples, ...).
 FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
+
+
+class MarkdownLimitError(ValueError):
+    """Raised when a structurally dense note exceeds a fixed parser quota."""
 
 
 def parse_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
@@ -53,10 +57,16 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
     remaining_content = "\n".join(lines[end_idx + 1 :])
 
     try:
-        frontmatter = yaml.safe_load(frontmatter_text)
+        frontmatter = load_bounded_yaml_text(frontmatter_text, "Markdown frontmatter")
+        if frontmatter is None:
+            return {}, remaining_content
+        if not isinstance(frontmatter, dict) or any(
+            not isinstance(key, str) for key in frontmatter
+        ):
+            return None, content
         return frontmatter, remaining_content
-    except yaml.YAMLError:
-        # Malformed YAML, treat as regular content
+    except BoundedYAMLError:
+        # Malformed or resource-heavy YAML is ordinary Markdown, not metadata.
         return None, content
 
 
@@ -103,7 +113,7 @@ def extract_links(content: str) -> list[Link]:
     Returns:
         List of Link objects
     """
-    links = []
+    links: list[Link] = []
 
     # Use pre-compiled pattern for better performance
     for match in WIKILINK_PATTERN.finditer(content):
@@ -128,6 +138,8 @@ def extract_links(content: str) -> list[Link]:
         if not target:
             continue
 
+        if len(links) >= MAX_NOTE_LINKS:
+            raise MarkdownLimitError(f"note exceeds {MAX_NOTE_LINKS} links")
         links.append(
             Link(
                 target=target,
@@ -165,7 +177,10 @@ def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> lis
             tags.add(fm_tags.strip())
         elif isinstance(fm_tags, list):
             # List of tags
-            tags.update(str(tag).strip() for tag in fm_tags)
+            for tag in fm_tags:
+                tags.add(str(tag).strip())
+                if len(tags) > MAX_NOTE_TAGS:
+                    raise MarkdownLimitError(f"note exceeds {MAX_NOTE_TAGS} unique tags")
 
     # Strip code regions first so #words inside fenced/inline code are not
     # misread as tags (matches Obsidian's behaviour).
@@ -176,6 +191,8 @@ def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> lis
     for match in TAG_PATTERN.finditer(content_no_code):
         tag = match.group(1)
         tags.add(tag)
+        if len(tags) > MAX_NOTE_TAGS:
+            raise MarkdownLimitError(f"note exceeds {MAX_NOTE_TAGS} unique tags")
 
     return sorted(tags)
 

@@ -3,13 +3,15 @@
 import logging
 import random
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    Protocol,
+    TypeVar,
     overload,
 )
 
@@ -24,13 +26,22 @@ from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
+
 # Markdown checkbox tasks: "- [ ] open" / "- [x] done" (also * and + bullets)
 _TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[ xX]\]", re.MULTILINE)
 _COMPLETED_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[xX]\]", re.MULTILINE)
 
 if TYPE_CHECKING:
     from .function_registry import FunctionRegistry
-    from .metadata_system import MetadataLoader
+
+
+class MetadataProvider(Protocol):
+    """Metadata inference surface consumed by ``VaultContext``."""
+
+    def infer_all(self, note: Note, vault: "VaultContext") -> tuple[dict[str, Any], list[str]]:
+        """Infer metadata and return failed module identifiers."""
+        ...
 
 
 def _clip_similarity(score: float) -> float:
@@ -258,7 +269,7 @@ class VaultContext:
         vault: Vault,
         session: Session,
         seed: int | None = None,
-        metadata_loader: "MetadataLoader | None" = None,
+        metadata_loader: MetadataProvider | None = None,
         function_registry: "FunctionRegistry | None" = None,
     ):
         """Initialise vault context.
@@ -921,7 +932,7 @@ class VaultContext:
 
     def session_embeddings_by_session(
         self,
-    ) -> list[tuple[int, str, list[Any]]]:
+    ) -> list[tuple[int, str, list[np.ndarray]]]:
         """Get embeddings grouped by session for temporal analysis.
 
         Returns:
@@ -937,7 +948,7 @@ class VaultContext:
         )
         sessions = cursor.fetchall()
 
-        result_list: list[tuple[int, str, list[Any]]] = []
+        result_list: list[tuple[int, str, list[np.ndarray]]] = []
         for session_id, session_date in sessions:
             emb_cursor = self.db.execute(
                 """
@@ -1626,7 +1637,7 @@ class VaultContext:
 
     # Deterministic sampling
 
-    def sample(self, items: list[Any], count: int) -> list[Any]:
+    def sample(self, items: Sequence[T], count: int) -> list[T]:
         """Deterministically sample k items.
 
         Args:

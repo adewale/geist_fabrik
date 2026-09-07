@@ -278,9 +278,7 @@ def test_outgoing_links_resolves_targets_efficiently():
         assert len(outgoing) == 2
 
 
-@pytest.mark.skipif(
-    True, reason="Benchmark test - run manually with pytest -k test_stats_vectorized_performance"
-)
+@pytest.mark.benchmark
 def test_stats_vectorized_performance():
     """Benchmark test: Verify vectorized stats are faster than naive implementation.
 
@@ -294,8 +292,8 @@ def test_stats_vectorized_performance():
     with tempfile.TemporaryDirectory() as tmpdir:
         vault_path = Path(tmpdir)
 
-        # Create 100 test notes
-        for i in range(100):
+        # Use enough vectors that Python-loop overhead dominates fixed BLAS setup.
+        for i in range(500):
             (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent for note {i}")
 
         vault = Vault(vault_path)
@@ -304,7 +302,8 @@ def test_stats_vectorized_performance():
         session = Session(date=datetime(2025, 1, 15), db=vault.db)
         session.compute_embeddings(vault.all_notes())
 
-        embeddings_dict = session.get_all_embeddings()
+        context = VaultContext(vault, session)
+        embeddings_dict = context.get_all_embeddings()
         embeddings_array = np.array(list(embeddings_dict.values()))
 
         # Naive implementation (O(n²) nested loops)
@@ -316,28 +315,21 @@ def test_stats_vectorized_performance():
                 naive_sims.append(sim)
         naive_time = time.perf_counter() - start_naive
 
-        # Vectorized implementation
-        try:
-            from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-                cosine_similarity,
-            )
+        # Vectorized implementation (scikit-learn is a core dependency).
+        from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
+            cosine_similarity,
+        )
 
-            start_vectorized = time.perf_counter()
-            similarity_matrix = cosine_similarity(embeddings_array)
-            _ = similarity_matrix[np.triu_indices_from(similarity_matrix, k=1)]
-            vectorized_time = time.perf_counter() - start_vectorized
+        start_vectorized = time.perf_counter()
+        similarity_matrix = cosine_similarity(embeddings_array)
+        _ = similarity_matrix[np.triu_indices_from(similarity_matrix, k=1)]
+        vectorized_time = time.perf_counter() - start_vectorized
 
-            # Vectorized should be significantly faster
-            speedup = naive_time / vectorized_time
-            print(f"\nNaive time: {naive_time:.4f}s")
-            print(f"Vectorized time: {vectorized_time:.4f}s")
-            print(f"Speedup: {speedup:.1f}x")
-
-            # Conservative assertion: vectorized should be at least 2x faster
-            assert speedup > 2.0, f"Expected >2x speedup, got {speedup:.1f}x"
-
-        except ImportError:
-            pytest.skip("sklearn not available")
+        speedup = naive_time / vectorized_time
+        print(f"\nNaive time: {naive_time:.4f}s")
+        print(f"Vectorized time: {vectorized_time:.4f}s")
+        print(f"Speedup: {speedup:.1f}x")
+        assert speedup > 2.0, f"Expected >2x speedup, got {speedup:.1f}x"
 
 
 def test_backlinks_caching(temp_vault):

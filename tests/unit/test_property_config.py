@@ -32,10 +32,7 @@ cluster_config_dicts = st.fixed_dictionaries(
 )
 
 vector_search_dicts = st.fixed_dictionaries(
-    {
-        "backend": st.sampled_from(["in-memory", "sqlite-vec"]),
-        "backends": st.just({}),
-    }
+    {"backend": st.sampled_from(["in-memory", "sqlite-vec"])}
 )
 
 full_config_dicts = st.fixed_dictionaries(

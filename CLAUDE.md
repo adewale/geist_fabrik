@@ -10,7 +10,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 ## Current Project State
 
-**Version**: 0.10.0 (Beta)
+**Version**: 0.10.1 (Beta)
 **Status**: Feature-complete, release-candidate quality
 **Tests**: All passing ✅ (100%)
 **Code**: ~21,000 lines across 99 Python files under `src/geistfabrik`
@@ -56,29 +56,38 @@ Pre-commit hooks run automatically on `git commit`:
 ./scripts/validate.sh
 ```
 
-This script runs the **same checks as CI** (same tools, same marker filter):
-1. `ruff check src/ tests/` - Linting
-2. `mypy src/ --strict` - Type checking (STRICT MODE)
-3. `python scripts/detect_unused_tables.py` - Database validation
-4. `bandit -c pyproject.toml -r src/geistfabrik -ll -q` - Security scan
-5. `pytest tests/unit -v -m "not slow and not benchmark"` - Unit tests (with mocked models)
-6. `pytest tests/integration -v -m "not slow and not benchmark"` - Integration tests (with mocked models)
-7. `python scripts/check_phase_completion.py` - Acceptance-criteria gate: *runs*
+This script runs the **same checks as CI** (same tools, extra, marker filter,
+and timeouts):
+1. `uv sync --frozen --extra vector-search` - Locked dependencies
+2. `ruff check src/ tests/` - Linting
+3. `mypy src/ --strict` - Type checking (STRICT MODE)
+4. `ty check src tests --error-on-warning` - Additive whole-project type checking
+5. `python scripts/detect_unused_tables.py` - Database validation
+6. `bandit -c pyproject.toml -r src/geistfabrik -ll -q` - Security scan
+7. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60` - Unit tests plus first coverage pass
+8. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Integration tests, appended coverage, measured 70% branch gate
+9. `python scripts/check_phase_completion.py` - Acceptance-criteria gate: *runs*
    every machine-verifiable criterion in `specs/acceptance_criteria.md` (it does
    not trust the status column) so the spec cannot silently drift from the code.
    Each criterion is AUTO (a real command is executed) or MANUAL (prose,
    reported but non-gating). See that file's header for the contract.
+10. `./scripts/test_wheel.sh` - Builds and inspects wheel/sdist artifacts,
+   rebuilds from the sdist, and runs isolated real-model offline inference.
 
 **If validate.sh passes, CI will almost certainly pass. If it fails, DO NOT PUSH.**
 
 Caveat: validate.sh runs in your single local environment. CI *additionally*
-exercises Python 3.11 **and** 3.12, macOS, and the `[vector-search]` extra
-(sqlite-vec). A failure that is specific to those (a 3.12-only typing quirk, a
-macOS path issue, or the sqlite-vec backend) can still pass locally - so a
-green validate.sh is necessary but, for those environment-specific cases, not
-absolutely sufficient.
+exercises Python 3.11 and 3.12 and macOS. A platform-specific failure can still
+pass locally, so a green validate.sh is necessary but not absolutely
+sufficient.
 
-**Note on model downloads**: The validation script uses mocked sentence-transformers models (via `SentenceTransformerStub` in `tests/conftest.py`) so it works in environments without Git LFS or network access (like Claude Code for Web). The `-m "not slow"` flag triggers automatic model mocking. Only 9 tests marked as "slow" require the real model (~90MB).
+**Note on model loading**: Fast validation sets `GEISTFABRIK_OFFLINE=1` and an
+autouse fixture stubs only the external `SentenceTransformer` constructor for
+tests without the explicit `production_model` marker. Marker selection does
+not rewrite `EmbeddingComputer` or depend on command spelling. The required
+`package-smoke` job and the `./scripts/test_wheel.sh` step within `validate.sh`
+build and install artifacts, then run real inference from the bundled ~88 MB
+model with empty caches and network fallback disabled.
 
 ### Common Mistakes to Avoid
 

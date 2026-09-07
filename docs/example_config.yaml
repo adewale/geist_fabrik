@@ -169,3 +169,7 @@ enabled_modules: []
 #    This enables reliable session replay and debugging.
 #
 # ============================================================================
+
+# Safety bounds (enforced): geist_execution.timeout 1..3600 seconds,
+# max_failures 1..100, session.default_suggestions 1..1000.
+# Tracery count is 1..100; YAML/grammar/output/note limits are fixed safeguards.

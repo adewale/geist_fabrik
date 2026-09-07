@@ -4,8 +4,10 @@ import sqlite3
 from datetime import datetime
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 
+from geistfabrik.config import SIMILARITY_HISTORY_CHUNK, SIMILARITY_SUGGESTION_CHUNK
 from geistfabrik.filtering import SuggestionFilter
 from geistfabrik.models import Suggestion
 
@@ -192,6 +194,120 @@ class TestSuggestionFilterConfig:
 
         # Order should be preserved
         assert filter_obj.config["strategies"] == ["quality", "boundary"]
+
+
+def test_quality_runs_before_embedding_filters(db, mock_embedding_computer) -> None:
+    db.execute(
+        "INSERT INTO session_suggestions VALUES (?, ?, ?, ?, ?)",
+        ("2023-01-01", "old", "history", "^old", "now"),
+    )
+    db.commit()
+    mock_embedding_computer.compute_batch_semantic.side_effect = AssertionError(
+        "embedding work should not run"
+    )
+    filter_obj = SuggestionFilter(
+        db,
+        mock_embedding_computer,
+        config={
+            "strategies": ["novelty", "quality"],
+            "novelty": {"enabled": True, "window_days": 60, "threshold": 0.85},
+            "quality": {
+                "enabled": True,
+                "min_length": 10,
+                "max_length": 2000,
+                "check_repetition": True,
+            },
+        },
+    )
+    invalid = Suggestion(text="short", notes=["Note 1"], geist_id="g")
+    assert filter_obj.filter_all([invalid], datetime(2023, 1, 2)) == []
+    mock_embedding_computer.compute_batch_semantic.assert_not_called()
+
+
+def test_novelty_similarity_is_chunked_across_both_dimensions(
+    db, mock_embedding_computer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    history_count = SIMILARITY_HISTORY_CHUNK + 17
+    db.executemany(
+        "INSERT INTO session_suggestions VALUES (?, ?, ?, ?, ?)",
+        (
+            ("2023-01-01", "old", f"history {index}", f"^{index}", "now")
+            for index in range(history_count)
+        ),
+    )
+    db.commit()
+    suggestion_count = SIMILARITY_SUGGESTION_CHUNK + 3
+
+    def embeddings_for(texts: list[str]) -> np.ndarray:
+        if texts and texts[0].startswith("history"):
+            return np.ones((len(texts), 4), dtype=np.float32)
+        return np.zeros((len(texts), 4), dtype=np.float32)
+
+    mock_embedding_computer.compute_batch_semantic.side_effect = embeddings_for
+    shapes: list[tuple[int, int]] = []
+
+    def bounded_cosine(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+        shapes.append((len(left), len(right)))
+        return np.zeros((len(left), len(right)), dtype=np.float32)
+
+    monkeypatch.setattr("geistfabrik.filtering.sklearn_cosine", bounded_cosine)
+    filter_obj = SuggestionFilter(
+        db,
+        mock_embedding_computer,
+        config={
+            "strategies": ["novelty"],
+            "novelty": {"enabled": True, "window_days": 60, "threshold": 0.85},
+        },
+    )
+    suggestions = [
+        Suggestion(text=f"candidate {index}", notes=["Note 1"], geist_id="g")
+        for index in range(suggestion_count)
+    ]
+    assert filter_obj.filter_all(suggestions, datetime(2023, 1, 2)) == suggestions
+    assert shapes
+    assert max(left for left, _right in shapes) <= SIMILARITY_SUGGESTION_CHUNK
+    assert max(right for _left, right in shapes) <= SIMILARITY_HISTORY_CHUNK
+    history_batch_sizes = [
+        len(call.args[0])
+        for call in mock_embedding_computer.compute_batch_semantic.call_args_list
+        if call.args[0] and call.args[0][0].startswith("history")
+    ]
+    assert history_batch_sizes
+    assert max(history_batch_sizes) <= SIMILARITY_SUGGESTION_CHUNK
+
+
+def test_novelty_excludes_future_sessions_from_replay_window(db, mock_embedding_computer) -> None:
+    db.execute(
+        "INSERT INTO session_suggestions VALUES (?, ?, ?, ?, ?)",
+        ("2030-01-01", "future", "same text", "^future", "now"),
+    )
+    db.commit()
+    suggestion = Suggestion(text="same text", notes=["Note 1"], geist_id="g")
+
+    embedding_filter = SuggestionFilter(
+        db,
+        mock_embedding_computer,
+        config={
+            "strategies": ["novelty"],
+            "novelty": {"enabled": True, "window_days": 60, "threshold": 0.85},
+        },
+    )
+    assert embedding_filter.filter_novelty([suggestion], datetime(2025, 1, 2)) == [suggestion]
+    mock_embedding_computer.compute_batch_semantic.assert_not_called()
+
+    text_filter = SuggestionFilter(
+        db,
+        mock_embedding_computer,
+        config={
+            "strategies": ["novelty"],
+            "novelty": {
+                "enabled": True,
+                "method": "text_match",
+                "window_days": 60,
+            },
+        },
+    )
+    assert text_filter.filter_novelty([suggestion], datetime(2025, 1, 2)) == [suggestion]
 
 
 class TestBoundaryFilterVirtualNotes:

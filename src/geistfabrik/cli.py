@@ -5,9 +5,12 @@ Command pattern to dispatch to individual command classes in the commands/
 package.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import sys
+from collections.abc import Callable
 
 from .commands import (
     BaseCommand,
@@ -18,7 +21,28 @@ from .commands import (
     TestCommand,
     ValidateCommand,
 )
+from .config import (
+    MAX_GEIST_TIMEOUT,
+    MAX_SESSION_SUGGESTIONS,
+    MIN_GEIST_TIMEOUT,
+    MIN_SESSION_SUGGESTIONS,
+)
 from .default_geists import TOTAL_GEIST_COUNT
+
+
+def bounded_int(name: str, minimum: int, maximum: int) -> Callable[[str], int]:
+    """Return an argparse integer converter enforcing an inclusive range."""
+
+    def convert(raw: str) -> int:
+        try:
+            value = int(raw)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(f"{name} must be an integer") from exc
+        if not minimum <= value <= maximum:
+            raise argparse.ArgumentTypeError(f"{name} must be between {minimum} and {maximum}")
+        return value
+
+    return convert
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -69,7 +93,7 @@ Examples:
     return parser
 
 
-def _add_init_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
+def _add_init_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add the init subparser."""
     init_parser = subparsers.add_parser(
         "init",
@@ -87,7 +111,7 @@ def _add_init_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
     )
 
 
-def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
+def _add_invoke_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add the invoke subparser."""
     invoke_parser = subparsers.add_parser(
         "invoke",
@@ -119,9 +143,9 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     )
     invoke_parser.add_argument(
         "--timeout",
-        type=int,
+        type=bounded_int("timeout", MIN_GEIST_TIMEOUT, MAX_GEIST_TIMEOUT),
         default=None,
-        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
+        help="Geist execution timeout in seconds (1-3600; default: config, 30)",
     )
     invoke_parser.add_argument(
         "--full",
@@ -136,9 +160,9 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     )
     invoke_parser.add_argument(
         "--count",
-        type=int,
+        type=bounded_int("count", MIN_SESSION_SUGGESTIONS, MAX_SESSION_SUGGESTIONS),
         default=None,
-        help="Suggestions in default mode (default: config session.default_suggestions, 5)",
+        help="Suggestions in default mode (1-1000; default: config, 5)",
     )
     invoke_parser.add_argument(
         "--write",
@@ -175,7 +199,7 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction) -> None:  # type:
     )
 
 
-def _add_test_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
+def _add_test_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add the test subparser."""
     test_parser = subparsers.add_parser(
         "test",
@@ -198,9 +222,9 @@ def _add_test_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
     )
     test_parser.add_argument(
         "--timeout",
-        type=int,
+        type=bounded_int("timeout", MIN_GEIST_TIMEOUT, MAX_GEIST_TIMEOUT),
         default=None,
-        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
+        help="Geist execution timeout in seconds (1-3600; default: config, 30)",
     )
     test_parser.add_argument(
         "--verbose",
@@ -214,7 +238,7 @@ def _add_test_parser(subparsers: argparse._SubParsersAction) -> None:  # type: i
     )
 
 
-def _add_test_all_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
+def _add_test_all_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add the test-all subparser."""
     test_all_parser = subparsers.add_parser(
         "test-all",
@@ -232,9 +256,9 @@ def _add_test_all_parser(subparsers: argparse._SubParsersAction) -> None:  # typ
     )
     test_all_parser.add_argument(
         "--timeout",
-        type=int,
+        type=bounded_int("timeout", MIN_GEIST_TIMEOUT, MAX_GEIST_TIMEOUT),
         default=None,
-        help="Geist execution timeout in seconds (default: config geist_execution.timeout, 30)",
+        help="Geist execution timeout in seconds (1-3600; default: config, 30)",
     )
     test_all_parser.add_argument(
         "--verbose",
@@ -248,7 +272,7 @@ def _add_test_all_parser(subparsers: argparse._SubParsersAction) -> None:  # typ
     )
 
 
-def _add_stats_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
+def _add_stats_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add the stats subparser."""
     stats_parser = subparsers.add_parser(
         "stats",
@@ -273,17 +297,17 @@ def _add_stats_parser(subparsers: argparse._SubParsersAction) -> None:  # type: 
     )
     stats_parser.add_argument(
         "--history",
-        type=int,
+        type=bounded_int("history", 1, 36500),
         default=30,
-        help="Days of session history to analyze (default: 30)",
+        help="Days of session history to analyze (1-36500; default: 30)",
     )
 
 
-def _add_validate_parser(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
+def _add_validate_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add the validate subparser."""
     validate_parser = subparsers.add_parser(
         "validate",
-        help="Validate geist files for errors without executing them",
+        help="Validate Tracery and import trusted code geists for pre-flight checks",
     )
     validate_parser.add_argument(
         "vault",

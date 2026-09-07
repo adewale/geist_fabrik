@@ -26,8 +26,6 @@ class TestClusterCaching:
 
         This test verifies caching works correctly by tracking HDBSCAN calls.
         """
-        # Skip if sklearn not available
-        pytest.importorskip("sklearn")
 
         # Create vault with enough notes for clustering
         vault = vault_with_notes
@@ -63,8 +61,6 @@ class TestClusterCaching:
         Cache key should include min_size so different parameters don't
         return stale results.
         """
-        # Skip if sklearn not available
-        pytest.importorskip("sklearn")
 
         vault = vault_with_notes
 
@@ -98,8 +94,6 @@ class TestClusterCaching:
 
         This is the key fix for cluster_mirror's redundant clustering.
         """
-        # Skip if sklearn not available
-        pytest.importorskip("sklearn")
 
         vault = vault_with_notes
 
@@ -133,8 +127,6 @@ class TestClusterCaching:
 
         This test simulates the actual cluster_mirror geist execution.
         """
-        # Skip if sklearn not available
-        pytest.importorskip("sklearn")
 
         vault = vault_with_notes
 
@@ -164,8 +156,6 @@ class TestClusterCaching:
 
         This documents the before-optimisation behaviour for regression testing.
         """
-        # Skip if sklearn not available
-        pytest.importorskip("sklearn")
 
         vault = vault_with_notes
 
@@ -237,10 +227,7 @@ def vault_with_notes(tmp_path):
     return context
 
 
-@pytest.mark.skipif(
-    True,
-    reason="Benchmark test - run manually with: pytest -k test_cluster_caching_benchmark -v -s",
-)
+@pytest.mark.benchmark
 def test_cluster_caching_benchmark(tmp_path):
     """Real-world benchmark: validates 75% speedup from cluster caching.
 
@@ -266,8 +253,6 @@ def test_cluster_caching_benchmark(tmp_path):
         - With caching time
         - Speedup ratio
     """
-    # Skip if sklearn not available
-    pytest.importorskip("sklearn")
 
     import tracemalloc
 

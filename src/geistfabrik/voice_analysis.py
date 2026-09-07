@@ -513,6 +513,7 @@ def compute_voice(content: str) -> VoiceMetadata:
     else:
         past_ratio = future_ratio = present_ratio = 0.0
 
+    orientation: Literal["past", "future", "present", "mixed"]
     if past_ratio > 0.6:
         orientation = "past"
     elif future_ratio > 0.4:
@@ -555,7 +556,7 @@ def compute_voice(content: str) -> VoiceMetadata:
         past_tense_ratio=past_ratio,
         future_tense_ratio=future_ratio,
         present_tense_ratio=present_ratio,
-        temporal_orientation=orientation,  # type: ignore[arg-type]
+        temporal_orientation=orientation,
         first_person_singular=fps_rate,
         first_person_plural=fpp_rate,
         second_person=sp_rate,

@@ -29,12 +29,22 @@ mypy src/geistfabrik --ignore-missing-imports
 ./scripts/validate.sh
 ```
 
-**This script runs EXACTLY what CI runs:**
-1. `ruff check src/ tests/` - Linting
-2. `mypy src/ --strict` - Type checking with strict mode
-3. `python scripts/detect_unused_tables.py` - Database validation
-4. `pytest tests/unit -v --timeout=60` - Unit tests
-5. `pytest tests/integration -v -m "not slow" --timeout=300` - Integration tests
+**This script runs the same required checks as CI:**
+1. `uv sync --frozen --extra vector-search` - Locked dependencies
+2. `ruff check src/ tests/` - Linting
+3. `mypy src/ --strict` - Production type checking with strict mode
+4. `ty check src tests --error-on-warning` - Additive whole-project type checking
+5. `python scripts/detect_unused_tables.py` and Bandit - Data/security checks
+5. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60` - Unit coverage pass
+6. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Appended integration coverage and measured 70% branch gate
+7. `python scripts/check_phase_completion.py` - Acceptance criteria
+8. `./scripts/test_wheel.sh` - Wheel/sdist, installation, entry-point, and real-model smoke
+
+Fast lanes set `GEISTFABRIK_OFFLINE=1`; their marker-selected fixture replaces
+only the external SentenceTransformer constructor. The final validation step
+matches the required `package-smoke` CI job by checking wheel and sdist
+metadata/size/content, clean installation, console scripts, and real offline
+inference. `./scripts/test_wheel.sh` remains available as a focused artifact check.
 
 ## The Systemic Fix
 
@@ -96,11 +106,13 @@ git push
 
 | Check | Command | What It Does |
 |-------|---------|--------------|
+| Dependencies | `uv sync --frozen --extra vector-search` | Matches CI lock and extra |
 | Linting | `ruff check src/ tests/` | Code style, imports, line length |
-| Type checking | `mypy src/ --strict` | Full type safety with strict mode |
-| DB validation | `detect_unused_tables.py` | No orphaned database tables |
-| Unit tests | `pytest tests/unit -v` | Fast isolated tests |
-| Integration tests | `pytest tests/integration -v -m "not slow"` | Real component tests |
+| Type checking | `mypy src/ --strict`; `ty check src tests --error-on-warning` | Strict production checking plus additive whole-project checking |
+| DB/security | `detect_unused_tables.py`; Bandit | Data and security regressions |
+| Unit tests | `pytest tests/unit ... --timeout=60` | First branch-coverage pass |
+| Integration tests | `pytest tests/integration ... --timeout=300` | Appended coverage; measured 70% gate |
+| Acceptance | `check_phase_completion.py` | Executable spec criteria |
 
 ## Common Type Errors with --strict
 

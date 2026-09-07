@@ -11,7 +11,7 @@ from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 from geistfabrik.embeddings import Session
 from geistfabrik.models import Note
 from geistfabrik.schema import init_db
-from geistfabrik.stats import StatsCollector
+from geistfabrik.stats import StatsCollector, VaultStats
 from geistfabrik.stats_formatter import StatsFormatter, generate_recommendations
 from geistfabrik.vault import Vault
 
@@ -153,7 +153,9 @@ def test_compute_metrics_basic(vault_with_embeddings):
 
     # Get embeddings
     collector = StatsCollector(vault_with_embeddings, GeistFabrikConfig())
-    session_date, embeddings, paths = collector.get_latest_embeddings()
+    latest = collector.get_latest_embeddings()
+    assert latest is not None
+    session_date, embeddings, paths = latest
 
     metrics = computer.compute_metrics(session_date, embeddings, paths)
 
@@ -171,7 +173,9 @@ def test_compute_basic_metrics(vault_with_embeddings):
 
     # Get embeddings
     collector = StatsCollector(vault_with_embeddings, GeistFabrikConfig())
-    _, embeddings, _ = collector.get_latest_embeddings()
+    latest = collector.get_latest_embeddings()
+    assert latest is not None
+    _, embeddings, _ = latest
 
     metrics = computer._compute_basic_metrics(embeddings)
 
@@ -212,7 +216,9 @@ def test_compute_metrics_with_optional_dependencies(vault_with_embeddings, has_s
 
     # Get embeddings - need enough for metrics
     collector = StatsCollector(vault_with_embeddings, GeistFabrikConfig())
-    _, embeddings, _ = collector.get_latest_embeddings()
+    latest = collector.get_latest_embeddings()
+    assert latest is not None
+    _, embeddings, _ = latest
 
     # Create larger embedding array for testing
     embeddings = np.random.rand(50, 387).astype(np.float32)
@@ -238,7 +244,9 @@ def test_metrics_caching(vault_with_embeddings):
 
     # Get embeddings
     collector = StatsCollector(vault_with_embeddings, GeistFabrikConfig())
-    session_date, embeddings, paths = collector.get_latest_embeddings()
+    latest = collector.get_latest_embeddings()
+    assert latest is not None
+    session_date, embeddings, paths = latest
 
     # Compute metrics (will cache)
     metrics1 = computer.compute_metrics(session_date, embeddings, paths, force_recompute=True)
@@ -422,7 +430,7 @@ def test_temporal_drift_with_past_session(temp_dir, mock_embedding_computer):
 def test_generate_recommendations_empty_stats():
     """Test recommendation generation with empty stats."""
     # Provide minimal required structure
-    stats = {
+    stats: VaultStats = {
         "notes": {"total": 0},
         "graph": {"orphan_pct": 0, "orphans": 0},
         "geists": {"code_disabled": 0},
@@ -438,7 +446,7 @@ def test_generate_recommendations_empty_stats():
 
 def test_generate_recommendations_orphans():
     """Test orphan detection recommendation."""
-    stats = {
+    stats: VaultStats = {
         "notes": {"total": 10},
         "graph": {"orphans": 5, "orphan_pct": 50.0},
         "geists": {"code_disabled": 0},
@@ -455,7 +463,7 @@ def test_generate_recommendations_orphans():
 
 def test_generate_recommendations_low_diversity():
     """Test low diversity recommendation."""
-    stats = {
+    stats: VaultStats = {
         "notes": {"total": 100},
         "embeddings": {"vendi_score": 15.0},  # Low diversity (< 30% of notes)
         "graph": {"orphan_pct": 0},
@@ -472,7 +480,7 @@ def test_generate_recommendations_low_diversity():
 
 def test_generate_recommendations_high_drift():
     """Test high drift recommendation."""
-    stats = {
+    stats: VaultStats = {
         "notes": {"total": 100},
         "graph": {"orphan_pct": 0},
         "geists": {"code_disabled": 0},
@@ -493,7 +501,7 @@ def test_generate_recommendations_high_drift():
 
 def test_generate_recommendations_low_drift():
     """Test low drift (stagnation) recommendation."""
-    stats = {
+    stats: VaultStats = {
         "notes": {"total": 100},
         "graph": {"orphan_pct": 0},
         "geists": {"code_disabled": 0},
@@ -581,7 +589,7 @@ def test_format_json_with_numpy_dict_keys():
     import json
 
     # Create minimal stats with a dict that has numpy.int64 keys
-    stats = {
+    stats: VaultStats = {
         "vault": {"path": "/test", "database_size_mb": 1.0},
         "notes": {"total": 10},
         "tags": {"unique": 5},
@@ -619,7 +627,7 @@ def test_format_json_with_nested_numpy_keys():
     """Test format_json() with nested dicts containing numpy keys."""
     import json
 
-    stats = {
+    stats: VaultStats = {
         "vault": {"path": "/test", "database_size_mb": 1.0},
         "notes": {"total": 10},
         "tags": {"unique": 5},
@@ -660,7 +668,7 @@ def test_format_json_with_numpy_arrays():
     """Test format_json() with numpy arrays in stats."""
     import json
 
-    stats = {
+    stats: VaultStats = {
         "vault": {"path": "/test", "database_size_mb": 1.0},
         "notes": {"total": 10},
         "tags": {"unique": 5},
@@ -700,7 +708,9 @@ def test_full_stats_pipeline(vault_with_embeddings):
     assert collector.has_embeddings()
 
     # 2. Compute embedding metrics
-    session_date, embeddings, paths = collector.get_latest_embeddings()
+    latest = collector.get_latest_embeddings()
+    assert latest is not None
+    session_date, embeddings, paths = latest
     metrics_computer = EmbeddingMetricsComputer(vault_with_embeddings.db)
     metrics = metrics_computer.compute_metrics(session_date, embeddings, paths)
 

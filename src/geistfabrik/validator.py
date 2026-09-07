@@ -7,7 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
+from .bounded_yaml import BoundedYAMLError, load_bounded_yaml
+from .config import DEFAULT_GEIST_TIMEOUT, MAX_TRACERY_COUNT
+from .execution_timeout import _alarm_timeout
+from .path_safety import PathSafetyError, ensure_contained
+from .tracery import TraceryGeist
 
 
 @dataclass
@@ -50,25 +54,54 @@ class GeistValidator:
     you trust. Tracery geists are parsed as YAML and not executed.
     """
 
-    def __init__(self, strict: bool = False):
+    def __init__(self, strict: bool = False, timeout: int = DEFAULT_GEIST_TIMEOUT):
         """Initialise validator.
 
         Args:
             strict: If True, treat warnings as errors
+            timeout: Supported POSIX/main-thread import deadline in seconds
         """
         self.strict = strict
+        self.timeout = timeout
 
-    def validate_code_geist(self, geist_file: Path) -> ValidationResult:
+    def _validate_path(
+        self, geist_file: Path, root: Path | None, geist_type: str
+    ) -> ValidationResult | None:
+        """Return a blocking result if a validation target is unsafe."""
+        try:
+            ensure_contained(
+                geist_file,
+                root or geist_file.parent,
+                must_exist=True,
+                reject_symlinks=True,
+            )
+        except (PathSafetyError, FileNotFoundError, OSError) as exc:
+            return ValidationResult(
+                geist_id=geist_file.stem,
+                file_path=geist_file,
+                geist_type=geist_type,
+                passed=False,
+                issues=[ValidationIssue(severity="error", message=f"Unsafe geist path: {exc}")],
+            )
+        return None
+
+    def validate_code_geist(
+        self, geist_file: Path, *, root: Path | None = None
+    ) -> ValidationResult:
         """Validate a code geist file.
 
         Args:
             geist_file: Path to Python geist file
+            root: Directory the file must remain within
 
         Returns:
             Validation result with any issues found
         """
         geist_id = geist_file.stem
         issues: list[ValidationIssue] = []
+        unsafe = self._validate_path(geist_file, root, "code")
+        if unsafe is not None:
+            return unsafe
 
         # Check file is readable
         if not geist_file.exists():
@@ -108,9 +141,11 @@ class GeistValidator:
 
             module = importlib.util.module_from_spec(spec)
             sys.modules[geist_id] = module
-            spec.loader.exec_module(module)
+            with _alarm_timeout(self.timeout):
+                spec.loader.exec_module(module)
 
         except SyntaxError as e:
+            sys.modules.pop(geist_id, None)
             issues.append(
                 ValidationIssue(
                     severity="error",
@@ -127,6 +162,7 @@ class GeistValidator:
                 issues=issues,
             )
         except ImportError as e:
+            sys.modules.pop(geist_id, None)
             issues.append(
                 ValidationIssue(
                     severity="error",
@@ -142,6 +178,7 @@ class GeistValidator:
                 issues=issues,
             )
         except Exception as e:
+            sys.modules.pop(geist_id, None)
             issues.append(
                 ValidationIssue(
                     severity="error",
@@ -207,17 +244,23 @@ class GeistValidator:
             geist_id=geist_id, file_path=geist_file, geist_type="code", passed=passed, issues=issues
         )
 
-    def validate_tracery_geist(self, geist_file: Path) -> ValidationResult:
+    def validate_tracery_geist(
+        self, geist_file: Path, *, root: Path | None = None
+    ) -> ValidationResult:
         """Validate a Tracery geist file.
 
         Args:
             geist_file: Path to YAML geist file
+            root: Directory the file must remain within
 
         Returns:
             Validation result with any issues found
         """
         geist_id = geist_file.stem
         issues: list[ValidationIssue] = []
+        unsafe = self._validate_path(geist_file, root, "tracery")
+        if unsafe is not None:
+            return unsafe
 
         # Check file is readable
         if not geist_file.exists():
@@ -237,9 +280,8 @@ class GeistValidator:
 
         # Try to parse YAML
         try:
-            with open(geist_file) as f:
-                data = yaml.safe_load(f)
-        except yaml.YAMLError as e:
+            data = load_bounded_yaml(geist_file)
+        except BoundedYAMLError as e:
             issues.append(
                 ValidationIssue(
                     severity="error",
@@ -317,6 +359,10 @@ class GeistValidator:
             )
         else:
             grammar = data["tracery"]
+            try:
+                grammar = TraceryGeist._normalise_grammar(grammar, geist_id, geist_file)
+            except ValueError as exc:
+                issues.append(ValidationIssue(severity="error", message=str(exc)))
             # Check for origin symbol
             if "origin" not in grammar:
                 issues.append(
@@ -336,11 +382,18 @@ class GeistValidator:
         # Check count field (optional)
         if "count" in data:
             count = data["count"]
-            if not isinstance(count, int) or count < 1:
+            if isinstance(count, bool) or not isinstance(count, int) or count < 1:
                 issues.append(
                     ValidationIssue(
                         severity="error",
                         message=f"Invalid count value: {count} (must be positive integer)",
+                    )
+                )
+            elif count > MAX_TRACERY_COUNT:
+                issues.append(
+                    ValidationIssue(
+                        severity="error",
+                        message=f"Invalid count value: {count} (maximum {MAX_TRACERY_COUNT})",
                     )
                 )
             elif count > 10:
@@ -468,13 +521,13 @@ class GeistValidator:
             for geist_file in sorted(code_dir.glob("*.py")):
                 if geist_file.name == "__init__.py":
                     continue
-                result = self.validate_code_geist(geist_file)
+                result = self.validate_code_geist(geist_file, root=code_dir)
                 results.append(result)
 
         # Validate Tracery geists
         if tracery_dir and tracery_dir.exists():
             for geist_file in sorted(tracery_dir.glob("*.yaml")):
-                result = self.validate_tracery_geist(geist_file)
+                result = self.validate_tracery_geist(geist_file, root=tracery_dir)
                 results.append(result)
 
         return results

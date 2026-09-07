@@ -9,6 +9,7 @@ the non-empty assertion is the point (per GEIST_TESTING_TEMPLATE.md).
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from weakref import finalize
 
 import pytest
 
@@ -29,7 +30,7 @@ def _context(notes: dict[str, str]) -> VaultContext:
     session = Session(SESSION_DATE, vault.db)
     session.compute_embeddings(vault.all_notes())
     ctx = VaultContext(vault, session, seed=20240315)
-    ctx._tmp = tmp  # type: ignore[attr-defined]  # keep alive
+    finalize(ctx, tmp.cleanup)
     return ctx
 
 

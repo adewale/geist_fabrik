@@ -8,11 +8,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .config import MAX_NOTE_BYTES
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
-from .markdown_parser import parse_markdown
+from .markdown_parser import MarkdownLimitError, parse_markdown
 from .models import Link, Note
-from .schema import init_db, migrate_schema
+from .path_safety import PathSafetyError, ensure_contained
+from .schema import init_db
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ class Vault:
             db_path: Path to SQLite database. If None, uses in-memory database.
             config: Optional configuration. If None, attempts to load from vault.
         """
-        self.vault_path = Path(vault_path)
+        self.vault_path = Path(vault_path).resolve()
         if not self.vault_path.exists():
             raise FileNotFoundError(f"Vault path does not exist: {vault_path}")
         if not self.vault_path.is_dir():
@@ -44,7 +46,8 @@ class Vault:
 
         # Load or use provided config
         if config is None:
-            config_path = self.vault_path / ".geistfabrik" / "config.yaml"
+            config_path = self.vault_path / "_geistfabrik" / "config.yaml"
+            ensure_contained(config_path, self.vault_path, reject_symlinks=True)
             self.config = load_config(config_path)
         else:
             self.config = config
@@ -59,8 +62,7 @@ class Vault:
             if is_new_db and db_path_obj.exists():
                 os.chmod(db_path_obj, 0o600)
 
-        # Migrate schema if needed
-        migrate_schema(self.db)
+        # init_db performs ordered migrations for existing databases.
 
     def _is_excluded_from_date_collection(self, rel_path: str) -> bool:
         """Check if file should be excluded from date-collection detection.
@@ -84,18 +86,32 @@ class Vault:
         """
         processed_count = 0
 
-        # Get all markdown files in vault
-        md_files = list(self.vault_path.rglob("*.md"))
-
-        for md_file in md_files:
-            # Get relative path from vault root
-            rel_path = str(md_file.relative_to(self.vault_path))
-
-            # Get file modification time (file may have been deleted since rglob)
+        # Resolve every source before reading; escaping/broken symlinks are not
+        # vault notes and must not retain stale database rows.
+        md_files: list[tuple[Path, Path, os.stat_result]] = []
+        for candidate in self.vault_path.rglob("*.md"):
+            rel_path = str(candidate.relative_to(self.vault_path))
             try:
-                file_mtime = md_file.stat().st_mtime
-            except FileNotFoundError:
+                resolved = ensure_contained(candidate, self.vault_path, must_exist=True)
+                stat = resolved.stat()
+            except (PathSafetyError, FileNotFoundError, OSError) as exc:
+                logger.warning("Skipping unsafe note %s: %s", rel_path, exc)
                 continue
+            if not resolved.is_file():
+                continue
+            if stat.st_size > MAX_NOTE_BYTES:
+                logger.warning(
+                    "Skipping oversized note %s (%d bytes; limit %d)",
+                    rel_path,
+                    stat.st_size,
+                    MAX_NOTE_BYTES,
+                )
+                continue
+            md_files.append((candidate, resolved, stat))
+
+        for md_file, resolved_file, initial_stat in md_files:
+            rel_path = str(md_file.relative_to(self.vault_path))
+            file_mtime = initial_stat.st_mtime
 
             # Check if file needs to be processed
             # For regular notes, check by path; for journals (virtual entries), check by source_file
@@ -113,7 +129,14 @@ class Vault:
 
             # File is new or modified, process it
             try:
-                content = md_file.read_text(encoding="utf-8")
+                with resolved_file.open("rb") as handle:
+                    raw_content = handle.read(MAX_NOTE_BYTES + 1)
+                if len(raw_content) > MAX_NOTE_BYTES:
+                    logger.warning(
+                        "Skipping note %s because it grew beyond the size limit", rel_path
+                    )
+                    continue
+                content = raw_content.decode("utf-8")
             except FileNotFoundError:
                 continue
             except UnicodeDecodeError as e:
@@ -125,7 +148,7 @@ class Vault:
 
             # Get file timestamps (file may have been deleted after read_text)
             try:
-                stat = md_file.stat()
+                stat = resolved_file.stat()
             except FileNotFoundError:
                 continue
             created = datetime.fromtimestamp(stat.st_ctime)
@@ -133,15 +156,25 @@ class Vault:
 
             # Check if this is a date-collection note (if enabled and not excluded)
             dc_config = self.config.date_collection
-            if (
-                dc_config.enabled
-                and not self._is_excluded_from_date_collection(rel_path)
-                and is_date_collection_note(
-                    content,
-                    min_sections=dc_config.min_sections,
-                    date_threshold=dc_config.date_threshold,
+            try:
+                is_collection = (
+                    dc_config.enabled
+                    and not self._is_excluded_from_date_collection(rel_path)
+                    and is_date_collection_note(
+                        content,
+                        min_sections=dc_config.min_sections,
+                        date_threshold=dc_config.date_threshold,
+                    )
                 )
-            ):
+            except MarkdownLimitError as exc:
+                logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
+                self.db.execute(
+                    "DELETE FROM notes WHERE path = ? OR source_file = ?",
+                    (rel_path, rel_path),
+                )
+                continue
+
+            if is_collection:
                 # Delete any existing entries for this file (both regular note and virtual entries)
                 # This handles the case where a regular note becomes a journal
                 self.db.execute(
@@ -149,7 +182,11 @@ class Vault:
                 )
 
                 # Split into virtual entries
-                virtual_notes = split_date_collection_note(rel_path, content, created, modified)
+                try:
+                    virtual_notes = split_date_collection_note(rel_path, content, created, modified)
+                except MarkdownLimitError as exc:
+                    logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
+                    continue
 
                 # Insert each virtual entry
                 for virtual_note in virtual_notes:
@@ -159,7 +196,15 @@ class Vault:
                 logger.debug(f"Split {rel_path} into {len(virtual_notes)} virtual entries")
             else:
                 # Regular note - parse markdown
-                title, clean_content, links, tags = parse_markdown(rel_path, content)
+                try:
+                    title, clean_content, links, tags = parse_markdown(rel_path, content)
+                except MarkdownLimitError as exc:
+                    logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
+                    self.db.execute(
+                        "DELETE FROM notes WHERE path = ? OR source_file = ?",
+                        (rel_path, rel_path),
+                    )
+                    continue
 
                 # Delete any virtual entries from when this might have been a journal
                 # This handles the case where a journal becomes a regular note
@@ -181,7 +226,9 @@ class Vault:
 
         # Remove notes that no longer exist in filesystem
         # Build set of existing paths for efficient lookup
-        existing_paths = {str(f.relative_to(self.vault_path)) for f in md_files}
+        existing_paths = {
+            str(candidate.relative_to(self.vault_path)) for candidate, _resolved, _stat in md_files
+        }
 
         # Delete regular notes (not virtual entries) that no longer exist.
         # Virtual entries are managed by their source_file, not their path.
@@ -284,7 +331,7 @@ class Vault:
 
         # Insert new links using batch executemany
         if note.links:
-            link_rows = [
+            link_rows = (
                 (
                     note.path,
                     link.target,
@@ -293,7 +340,7 @@ class Vault:
                     link.block_ref,
                 )
                 for link in note.links
-            ]
+            )
             self.db.executemany(
                 """
                 INSERT INTO links (source_path, target, display_text, is_embed, block_ref)
@@ -304,7 +351,7 @@ class Vault:
 
         # Insert new tags using batch executemany
         if note.tags:
-            tag_rows = [(note.path, tag) for tag in note.tags]
+            tag_rows = ((note.path, tag) for tag in note.tags)
             self.db.executemany(
                 "INSERT INTO tags (note_path, tag) VALUES (?, ?)",
                 tag_rows,

@@ -38,6 +38,7 @@ uv sync
 uv run pytest --version
 uv run ruff --version
 uv run mypy --version
+uv run ty --version
 ```
 
 ---
@@ -58,7 +59,7 @@ On every commit, pre-commit will automatically run:
 
 1. ✅ **Ruff linting** - Catches code style issues, unused imports, line length violations
 2. ✅ **Ruff formatting** - Auto-formats code
-3. ✅ **Mypy type checking** - Catches type errors (src/ and scripts/ only)
+3. ✅ **ty type checking** - Fast whole-project checking for `src/` and `tests/`
 4. ✅ **Trailing whitespace** - Removes trailing spaces
 5. ✅ **End-of-file fixer** - Ensures files end with newline
 6. ✅ **YAML validation** - Checks YAML syntax
@@ -97,15 +98,15 @@ git commit --no-verify -m "Emergency fix"
 ./scripts/validate.sh
 ```
 
-This script runs the same checks as GitHub CI:
+This script runs the same required checks as GitHub CI:
 
-1. Ruff linting (`src/` and `tests/`)
-2. Mypy type checking (`src/`)
-3. Unused database tables check
-4. Unit tests
-5. Integration tests (excluding slow tests)
+1. Dependency sync, Ruff, Mypy strict, ty, database, and security checks
+2. Unit and integration tests with the canonical fast marker selection
+3. Combined branch coverage and acceptance-criteria verification
+4. Wheel/sdist build, artifact inspection, and isolated offline real-model inference
 
-**If `validate.sh` passes, your PR will pass CI!**
+A green run is the mandatory local pre-push gate. CI also exercises additional
+Python versions and operating systems, so platform-specific failures remain possible.
 
 ### Individual Checks
 
@@ -116,15 +117,17 @@ uv run ruff check src/ tests/
 # Fix linting issues automatically
 uv run ruff check src/ tests/ --fix
 
-# Type checking only
+# Additive type checking (mypy remains the strict production-code gate)
 uv run mypy src/ --strict
+uv run ty check src tests --error-on-warning
 
-# Tests only
-uv run pytest tests/unit -v
-uv run pytest tests/integration -v -m "not slow"
+# Fast test lanes (same canonical selection used by validation/CI)
+MARKERS="not slow and not benchmark and not artifact and not production_model"
+uv run pytest tests/unit -v -m "$MARKERS"
+uv run pytest tests/integration -v -m "$MARKERS"
 
-# All tests (including slow)
-uv run pytest -v
+# Full release-artifact checks, including the real bundled model
+./scripts/test_wheel.sh
 ```
 
 ---
@@ -197,9 +200,10 @@ This usually means:
 
 **Fix:**
 ```bash
-# Use uv's managed environment
+# Use uv's managed environment and the canonical fast lanes
 uv sync
-uv run pytest tests/
+MARKERS="not slow and not benchmark and not artifact and not production_model"
+uv run pytest tests/unit tests/integration -m "$MARKERS"
 ```
 
 ---
@@ -211,21 +215,20 @@ uv run pytest tests/
 - **Unit tests**: `tests/unit/` - Fast, isolated, use mocks/stubs
 - **Integration tests**: `tests/integration/` - Real components, real vault data
 - **Use stubs, not mocks** when possible (see `tests/conftest.py`)
+- The autouse fixture stubs only the external `SentenceTransformer` constructor
+  unless a test has the `production_model` marker; command spelling does not
+  activate stubbing.
 
 ### Running Tests
 
 ```bash
-# Fast tests only (unit tests)
-uv run pytest tests/unit -v
+# Fast tests (recommended for local development)
+MARKERS="not slow and not benchmark and not artifact and not production_model"
+uv run pytest tests/unit -v -m "$MARKERS"
+uv run pytest tests/integration -v -m "$MARKERS"
 
-# Integration tests (uses real sentence-transformers model stub)
-uv run pytest tests/integration -v
-
-# All tests except slow ones (recommended for local dev)
-uv run pytest -v -m "not slow"
-
-# All tests including slow ones
-uv run pytest -v
+# Artifact/full-release lane (builds and installs the wheel, then uses real weights)
+./scripts/test_wheel.sh
 
 # Single test file
 uv run pytest tests/unit/test_vault.py -v
@@ -266,11 +269,15 @@ uv run ruff check src/ tests/ --fix
 
 ### Type Checking
 
-We use `mypy --strict` for `src/` directory:
+We use `mypy --strict` for `src/` and pinned Astral ty for the whole project.
+ty is additive and still beta/pre-1.0; upgrade its exact pin deliberately and
+run both checkers. The required ty command is
+`uv run ty check src tests --error-on-warning`.
 
 - All functions must have type hints
 - No `Any` types without explanation
 - No implicit `Optional`
+- No global ty ignores or checked-in diagnostic baseline
 
 ### Type Hint Style
 

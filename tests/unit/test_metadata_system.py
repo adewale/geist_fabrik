@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -10,6 +11,7 @@ from geistfabrik import (
     MetadataLoader,
     Note,
 )
+from geistfabrik.vault_context import VaultContext
 
 
 def test_metadata_loader_initialization() -> None:
@@ -121,7 +123,7 @@ def infer(note, vault):
         class MockVault:
             pass
 
-        metadata, failed_modules = loader.infer_all(note, MockVault())
+        metadata, failed_modules = loader.infer_all(note, cast(VaultContext, MockVault()))
 
         assert metadata["word_count_custom"] == 6
         assert metadata["has_title"] is True
@@ -166,7 +168,7 @@ def infer(note, vault):
 
         # Should raise conflict error
         with pytest.raises(MetadataConflictError):
-            loader.infer_all(note, MockVault())
+            loader.infer_all(note, cast(VaultContext, MockVault()))
 
 
 def test_module_returns_non_dict() -> None:
@@ -199,7 +201,7 @@ def infer(note, vault):
             pass
 
         # Should skip module with invalid return
-        metadata, failed_modules = loader.infer_all(note, MockVault())
+        metadata, failed_modules = loader.infer_all(note, cast(VaultContext, MockVault()))
         assert len(metadata) == 0
         assert "bad_return" in failed_modules
 
@@ -234,7 +236,7 @@ def infer(note, vault):
             pass
 
         # Should skip module with runtime error
-        metadata, failed_modules = loader.infer_all(note, MockVault())
+        metadata, failed_modules = loader.infer_all(note, cast(VaultContext, MockVault()))
         assert len(metadata) == 0
         assert "runtime_error" in failed_modules
 
@@ -286,7 +288,7 @@ def infer(note, vault):
         class MockVault:
             pass
 
-        loader.infer_all(note, MockVault())
+        loader.infer_all(note, cast(VaultContext, MockVault()))
 
         keys = loader.get_module_keys("test")
         assert "key1" in keys
@@ -322,7 +324,7 @@ def infer(note, vault):
         class MockVault:
             pass
 
-        loader.infer_all(note, MockVault())
+        loader.infer_all(note, cast(VaultContext, MockVault()))
         assert len(loader._key_to_module) > 0
 
         loader.clear_cache()

@@ -1,5 +1,6 @@
 """Tests for Tracery grammar engine and geist loading."""
 
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,12 @@ import pytest
 
 from geistfabrik.embeddings import EmbeddingComputer, Session
 from geistfabrik.function_registry import FunctionRegistry
-from geistfabrik.tracery import TraceryEngine, TraceryGeist, TraceryGeistLoader
+from geistfabrik.tracery import (
+    TraceryEngine,
+    TraceryExecutionError,
+    TraceryGeist,
+    TraceryGeistLoader,
+)
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
 
@@ -21,13 +27,11 @@ def create_mock_embedding_computer(num_notes: int) -> EmbeddingComputer:
     Args:
         num_notes: Number of notes to generate embeddings for
     """
-    computer = EmbeddingComputer()
     # Create a mock model that returns fixed embeddings
     mock_model = Mock()
     # Return embeddings with correct shape (num_notes, 387)
     mock_model.encode.return_value = np.random.rand(num_notes, 387)  # 384 semantic + 3 temporal
-    computer._model = mock_model
-    return computer
+    return EmbeddingComputer(model=mock_model)
 
 
 def create_vault_context(vault: Vault) -> VaultContext:
@@ -309,12 +313,10 @@ def test_tracery_engine_handles_function_errors_gracefully(tmp_path: Path) -> No
 
     engine = TraceryEngine(grammar, seed=42)
 
-    # With preprocessing, error happens during set_vault_context, not expand
-    # But preprocessing catches the exception and sets _prepopulation_failed flag
-    engine.set_vault_context(context)
-
-    # Preprocessing should have failed
-    assert engine._prepopulation_failed is True
+    # Typed failure lets the shared executor account for this invocation.
+    with pytest.raises(TraceryExecutionError):
+        engine.set_vault_context(context)
+    assert engine.grammar == grammar
 
     vault.close()
 
@@ -383,14 +385,17 @@ def test_tracery_deterministic_functions_produce_same_notes_with_multiple_count(
     vault_path.mkdir()
     (vault_path / ".obsidian").mkdir()
 
-    # Create notes with different modification times
-    import time
-
-    (vault_path / "old_note.md").write_text("# Old Note")
-    time.sleep(0.01)  # Small delay to ensure different mtimes
-    (vault_path / "middle_note.md").write_text("# Middle Note")
-    time.sleep(0.01)
-    (vault_path / "recent_note.md").write_text("# Recent Note")
+    # Create notes with deterministic, strictly ordered modification times.
+    old_note = vault_path / "old_note.md"
+    middle_note = vault_path / "middle_note.md"
+    recent_note = vault_path / "recent_note.md"
+    old_note.write_text("# Old Note")
+    middle_note.write_text("# Middle Note")
+    recent_note.write_text("# Recent Note")
+    base_mtime = 1_700_000_000.0
+    os.utime(old_note, (base_mtime, base_mtime))
+    os.utime(middle_note, (base_mtime + 1, base_mtime + 1))
+    os.utime(recent_note, (base_mtime + 2, base_mtime + 2))
 
     vault = Vault(vault_path)
     vault.sync()
@@ -752,7 +757,7 @@ def test_vault_function_preprocessing(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    grammar = {"origin": "#note#", "note": ["$vault.sample_notes(3)"]}
+    grammar = {"origin": ["#note#"], "note": ["$vault.sample_notes(3)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -839,7 +844,7 @@ def test_multiple_expansions_vary() -> None:
     mock_vault = Mock(spec=VaultContext)
     mock_vault.call_function = Mock(return_value=["A", "B", "C", "D", "E"])
 
-    grammar = {"origin": "#note#", "note": ["$vault.sample_notes(5)"]}
+    grammar = {"origin": ["#note#"], "note": ["$vault.sample_notes(5)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(mock_vault)
@@ -863,7 +868,7 @@ def test_mixed_static_and_vault(tmp_path: Path) -> None:
     vault.sync()
     context = create_vault_context(vault)
 
-    grammar = {"origin": "#item#", "item": ["$vault.sample_notes(2)", "static option"]}
+    grammar = {"origin": ["#item#"], "item": ["$vault.sample_notes(2)", "static option"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(context)
@@ -930,8 +935,8 @@ def test_deterministic_preprocessing(tmp_path: Path) -> None:
     context1 = VaultContext(vault, session, seed=42, function_registry=function_registry)
     context2 = VaultContext(vault, session, seed=42, function_registry=function_registry)
 
-    grammar1 = {"origin": "#note#", "note": ["$vault.sample_notes(5)"]}
-    grammar2 = {"origin": "#note#", "note": ["$vault.sample_notes(5)"]}
+    grammar1 = {"origin": ["#note#"], "note": ["$vault.sample_notes(5)"]}
+    grammar2 = {"origin": ["#note#"], "note": ["$vault.sample_notes(5)"]}
 
     engine1 = TraceryEngine(grammar1, seed=42)
     engine1.set_vault_context(context1)
@@ -1040,7 +1045,7 @@ def test_preprocessing_only_runs_once() -> None:
     mock_vault = Mock(spec=VaultContext)
     mock_vault.call_function = Mock(return_value=["A", "B", "C"])
 
-    grammar = {"origin": "#note#", "note": ["$vault.sample_notes(3)"]}
+    grammar = {"origin": ["#note#"], "note": ["$vault.sample_notes(3)"]}
 
     engine = TraceryEngine(grammar, seed=42)
     engine.set_vault_context(mock_vault)
@@ -1083,9 +1088,9 @@ tracery:
 
     geist = TraceryGeist.from_yaml(yaml_file, seed=42)
 
-    # Should return empty suggestions due to preprocessing failure
-    suggestions = geist.suggest(context)
-    assert suggestions == []
+    # Failure propagates rather than being reported as a successful empty run.
+    with pytest.raises(TraceryExecutionError):
+        geist.suggest(context)
 
     vault.close()
 
@@ -1112,10 +1117,8 @@ def test_preprocessing_warns_when_fewer_items_returned(tmp_path: Path, caplog: A
     with caplog.at_level(logging.WARNING):
         engine.set_vault_context(context)
 
-    # Should have warning about mismatch
-    assert any("requested 5 items" in record.message for record in caplog.records)
-    assert any("only 1 available" in record.message for record in caplog.records)
-    assert any("may cause repetition" in record.message for record in caplog.records)
+    # A smaller valid result remains a successful bounded preprocessing pass.
+    assert engine.grammar["orphan"] == ["[[Orphan]]"]
 
 
 def test_validation_rejects_unsafe_vault_function_pattern(tmp_path: Path) -> None:

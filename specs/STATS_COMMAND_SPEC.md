@@ -542,8 +542,11 @@ Recommendations:
   ⚠ Performance
     • Consider sqlite-vec backend (current: in-memory)
       Your vault has 1,847 notes - sqlite-vec provides 5-6x faster queries
-      Install: uv pip install -e ".[vector-search]"
-      Configure: vector_backend: sqlite-vec in config.yaml
+      Installed release: python -m pip install "geistfabrik[vector-search]"
+      Source checkout: uv sync --extra vector-search
+      Configure in config.yaml:
+        vector_search:
+          backend: sqlite-vec
 
   ⚠ Knowledge Structure
     • 23 orphan notes (9.3%) - consider linking or tagging

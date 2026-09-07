@@ -6,26 +6,53 @@ This directory contains validation and utility scripts for development.
 
 ### `validate.sh` ⭐
 
-**Run this before every push!**
+**Run this before every push:**
 
 ```bash
 ./scripts/validate.sh
 ```
 
-**What it does:**
-- Ruff linting
-- Mypy type checking (strict)
-- Unused database tables check
-- Unit tests (with mocked models)
-- Integration tests (with mocked models, excludes 9 slow tests)
+It is the authoritative local CI gate and runs:
+- locked dependency sync
+- Ruff and Mypy strict
+- database and security checks
+- split unit/integration coverage with the canonical fast marker selection
+- acceptance-criteria verification
+- `test_wheel.sh` for wheel/sdist inspection and isolated real-model inference
 
-**Requirements:** None! Works in all environments including Claude Code for Web.
+The fast selection is:
 
-**Runtime:** ~20-40 seconds
+```bash
+MARKERS="not slow and not benchmark and not artifact and not production_model"
+```
 
-**How it works:** The script uses `-m "not slow"` flag which triggers automatic model mocking via `SentenceTransformerStub` in `tests/conftest.py`. This allows tests to run without downloading the ~90MB sentence-transformers model. Only 9 tests marked as "slow" require the real model.
+The autouse pytest fixture uses the absence of the `production_model` marker to
+stub only the external `SentenceTransformer` constructor. Stubbing is
+marker-driven; it does not depend on the command text or replace
+`EmbeddingComputer`.
 
-**If validate.sh passes, CI will pass.**
+**Requirements:** synced development dependencies and a materialised bundled
+model snapshot (run `git lfs pull` in a source checkout).
+
+**Runtime:** several minutes, depending on dependency caches and artifact build/install speed.
+
+A green run is required before pushing. CI also tests additional Python versions
+and operating systems, so local success cannot rule out platform-specific failures.
+
+## Release Artifact Script
+
+### `test_wheel.sh`
+
+For a focused artifact/full-release check, run:
+
+```bash
+./scripts/test_wheel.sh
+```
+
+It builds the wheel and sdist, checks their contents and metadata, rebuilds a
+wheel from the sdist, installs the wheel into a fresh environment outside the
+checkout, and performs real offline semantic inference from the bundled model.
+It is also invoked by `validate.sh`; it does not invoke `validate.sh` itself.
 
 ## Other Scripts
 
@@ -33,32 +60,20 @@ This directory contains validation and utility scripts for development.
 
 Analyzes the codebase to detect unused database tables.
 
-**Usage:**
 ```bash
 uv run python scripts/detect_unused_tables.py
 ```
 
-**What it does:**
-- Parses database schema from `src/geistfabrik/schema.py`
-- Searches codebase for table references
-- Reports tables that are never queried
-
-**Exit codes:**
+Exit codes:
 - 0: All tables are used
 - 1: Found unused tables
 
 ## CI/CD Integration
 
-GitHub Actions (`.github/workflows/test.yml`) runs the same checks as `validate.sh`:
-
-```yaml
-- name: Run tests
-  run: uv run pytest -v -m "not slow and not benchmark"
-```
-
-This runs all tests except those marked `slow` or `benchmark`, using mocked models via the automatic stubbing system.
+GitHub Actions uses the same canonical fast selection and runs a required
+package-smoke lane. `validate.sh` covers both locally.
 
 ## See Also
 
 - `docs/CI_VALIDATION_GUIDE.md` - CI/CD best practices
-- `tests/conftest.py` - Automatic model mocking implementation
+- `tests/conftest.py` - Marker-driven external constructor stub

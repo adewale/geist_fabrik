@@ -54,3 +54,4 @@ geist journal/
 _geistfabrik/
 .mypy_cache/
 .hypothesis/
+.pi-subagents/
