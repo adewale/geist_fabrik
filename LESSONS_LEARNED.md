@@ -468,25 +468,26 @@ properties, and cached/vectorised surprisal behaviour.
 **Context:** Adding stateful property coverage for incremental vault synchronization
 
 **The Problem:** Parser properties and one-shot sync examples could show that an individual note
-was understood, but not that the vault stayed correct across create, update, delete, and repeated
-sync operations. They also could not expose drift between the in-memory and file-backed SQLite
-paths.
+was understood, but not that the vault stayed correct across batches, renames, create, update,
+delete, regular/date-collection transitions, and repeated sync operations. Reading a file-backed
+store through its writer connection also could not prove that synchronization was durable.
 
 **The Insight:** Incremental synchronization is a state machine, not a collection of independent
-calls. Its useful oracles are complementary: after every generated operation, a filesystem shadow
-model checks exact paths and raw content, while a differential check requires the in-memory and
-file-backed stores to agree on parsed note fields. A second sync with no filesystem change must
-report no work.
+calls. After every generated operation, an external shadow model must check exact paths, raw
+content, parsed fields, relationships, and dependent-row lifecycle. In-memory SQLite provides a
+fast parity check, while the file-backed mode must be closed and reopened before observation. A
+second sync with no filesystem change must report no work.
 
 **The Principle:** Test mutable storage workflows with shrinkable operation sequences, a model
 outside the implementation, and invariants after every step. When the project offers multiple
-backends for the same contract, run the same trace through all of them and compare their observable
-state rather than duplicating backend-specific assertions.
+storage modes for the same contract, run the same trace through all of them, compare each with the
+independent model, and observe durable modes through a new connection.
 
-**Impact:** `tests/unit/test_property_vault_stateful.py` now exercises structured Obsidian notes,
-nested and Unicode paths, deterministic modification times, deletion, quiescent idempotence,
-filesystem path/content agreement, and parsed-field agreement between persistence modes after every
-generated command.
+**Impact:** `tests/unit/test_property_vault_stateful.py` now exercises independently modeled regular
+and virtual notes, native nested and Unicode paths, fixed coarse-filesystem-safe modification times,
+batched updates, renames, deletion, regular/date-collection transitions, quiescent idempotence,
+processed counts, foreign-key integrity, relationship cleanup, embedding cascades, and reopened-disk
+durability after every generated command.
 
 ---
 
