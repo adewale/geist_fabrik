@@ -2,14 +2,14 @@
 
 **Welcome, brave soul!** 🎉
 
-This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide valuable feedback.
+This guide shows you how to safely test GeistFabrik (v0.10.1 Beta) and provide valuable feedback.
 
 ## What to Expect
 
 **Current Status:**
 - ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
-- ✅ 45 default geists bundled (35 code + 10 Tracery)
+- ✅ 70 default geists bundled (58 code + 12 Tracery)
 - ✅ Read-only vault access (your notes are safe)
 
 **Expect:**
@@ -17,10 +17,14 @@ This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide va
 - Occasional unclear error messages
 - Performance not optimised for 1000+ notes
 
-**Won't happen:**
-- Data loss (GeistFabrik never modifies your notes)
-- Network requests (100% local processing)
-- Silent failures (comprehensive error handling)
+**Engine guarantees and trust boundaries:**
+- GeistFabrik does not modify source notes; it writes only managed DB/journal state.
+- Vault processing is local and no vault content or analytics are uploaded. If the
+  bundled model is missing, default online mode may download it from HuggingFace;
+  set `GEISTFABRIK_OFFLINE=1` to prohibit that fallback.
+- Custom Python geists, metadata modules, and vault functions are trusted arbitrary
+  code. They are imported and executed in-process and are not sandboxed.
+- Individual geist failures are reported and persistently accounted for.
 
 ---
 
@@ -31,10 +35,15 @@ This guide shows you how to safely test GeistFabrik (v0.9.0 Beta) and provide va
 Perfect for first-time exploration. Zero risk to your personal vault.
 
 ```bash
-# 1. Install GeistFabrik
+# 1. Install GeistFabrik (Python 3.11 or 3.12)
+git lfs install
 git clone https://github.com/adewale/geist_fabrik.git
 cd geist_fabrik
 uv sync
+
+# Source clones use Git LFS for the ~88 MB model; verify it is materialized
+# with `git lfs pull`. Release wheels include the same model. Set
+# GEISTFABRIK_OFFLINE=1 to prohibit HuggingFace fallback downloads.
 
 # 2. Initialise sample vault
 uv run geistfabrik init testdata/kepano-obsidian-main
@@ -170,10 +179,13 @@ MyVault/
    • Compute embeddings for all notes (stored locally)
    • Create session notes in 'geist journal/' when you invoke with --write
 
-✅ GeistFabrik will NEVER:
-   • Modify your existing notes (read-only access)
-   • Send data to the internet (100% local)
-   • Delete any files
+✅ GeistFabrik's engine will NEVER:
+   • Modify or delete your existing source notes
+   • Upload vault content or analytics
+
+⚠️ Trust boundaries:
+   • A missing model may be downloaded from HuggingFace unless offline mode is set
+   • Custom Python plugins are trusted arbitrary code and are not sandboxed
 ```
 
 ### 2. Summary Stats After Init
@@ -182,7 +194,7 @@ MyVault/
 📊 Vault Summary:
    Notes found: 247
    Database size: 12.34 MB
-   Example geists installed: 39 (29 code + 10 Tracery)
+   Bundled default geists available: 70 (58 code + 12 Tracery)
 ```
 
 ### 3. Diff Mode
@@ -258,16 +270,20 @@ A: GeistFabrik offers two vector search backends with different performance char
 | 1000 notes | 2.00ms        | 0.37ms         | 5.41x   |
 | 2000 notes | 4.02ms        | 0.67ms         | 5.97x   |
 
-To enable SqliteVec:
+To enable SqliteVec in an installed release:
 ```bash
-# Install the optional dependency
-uv pip install -e ".[vector-search]"
-
-# Configure in _geistfabrik/config.yaml
-vector_backend: sqlite-vec
+python -m pip install "geistfabrik[vector-search]"
 ```
 
-Run your own benchmarks: `uv run python scripts/benchmark_backends.py`
+For a source checkout, use `uv sync --extra vector-search`. Then configure:
+```yaml
+# _geistfabrik/config.yaml
+vector_search:
+  backend: sqlite-vec
+```
+
+Run your own benchmarks from a source checkout:
+`uv run python scripts/benchmark_backends.py`
 
 **Q: Can I create custom geists?**
 A: Yes! Create `_geistfabrik/geists/code/my_geist.py`:
@@ -318,7 +334,7 @@ rm ~/MyVault/_geistfabrik/geists/code/temporal_drift.py
 
 **How to report:**
 - GitHub Issues: https://github.com/adewale/geist_fabrik/issues
-- Include: OS, Python version, GeistFabrik version (0.9.0)
+- Include: OS, Python version, GeistFabrik version (0.10.1)
 - Steps to reproduce
 - Expected vs actual behaviour
 - Anonymize note titles if needed
@@ -382,7 +398,7 @@ cd ~/Documents/MyVault-FullTest
 # Step 2: Backup (extra safety)
 tar -czf ../MyVault-FullTest-backup.tar.gz .
 
-# Step 3: Initialise (45 default geists enabled)
+# Step 3: Initialise (70 default geists enabled)
 uv run geistfabrik init ~/Documents/MyVault-FullTest
 
 # Step 4a: Try --full first (filtered but not sampled)
@@ -442,7 +458,7 @@ With `--nofilter` (raw):
 
 ---
 
-## Known Limitations (v0.9.0)
+## Known Limitations (v0.10.1)
 
 1. **Command-line only** - No GUI
 2. **English-centric** - Embeddings optimised for English
@@ -918,4 +934,4 @@ Before reporting slow performance, verify:
 
 ---
 
-*Last updated: 2025-10-21 (v0.9.0)*
+*Last updated: 2026-07-11 (v0.10.1)*

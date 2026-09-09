@@ -4,7 +4,7 @@ These tests use the actual SentenceTransformer model and are slower.
 They verify end-to-end behaviour with real embeddings.
 
 Run separately with: pytest -v tests/integration/test_embeddings_integration.py
-Mark as slow: pytest -m "not slow" to skip these in CI
+The required package-smoke CI job also verifies real offline inference from an installed wheel.
 """
 
 from datetime import datetime, timedelta
@@ -24,7 +24,8 @@ from geistfabrik.schema import init_db
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.integration,
-    pytest.mark.timeout(60),  # 60 second timeout for model download + computation
+    pytest.mark.production_model,
+    pytest.mark.timeout(60),  # 60 second timeout for model loading + computation
 ]
 
 
@@ -159,8 +160,9 @@ def test_real_session_embeddings(db_with_notes, sample_notes):
     # Compute embeddings for all notes
     session.compute_embeddings(sample_notes)
 
-    # Verify all embeddings were stored
-    embeddings = session.get_all_embeddings()
+    # Verify all embeddings were stored through the public vector backend.
+    backend = session.get_backend()
+    embeddings = {note.path: backend.get_embedding(note.path) for note in sample_notes}
     assert len(embeddings) == len(sample_notes)
 
     # Verify embedding quality
@@ -235,8 +237,9 @@ def test_real_batch_computation(db_with_notes):
     session = Session(datetime(2023, 6, 15), db_with_notes)
     session.compute_embeddings(notes)
 
-    # Verify all embeddings were computed
-    embeddings = session.get_all_embeddings()
+    # Verify all embeddings were computed through the public vector backend.
+    backend = session.get_backend()
+    embeddings = {note.path: backend.get_embedding(note.path) for note in notes}
     assert len(embeddings) == len(notes)
 
     for note in notes:

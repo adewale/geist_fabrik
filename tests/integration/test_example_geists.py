@@ -828,8 +828,11 @@ def test_quote_harvester_geist(vault_context: VaultContext, geist_executor: Geis
 
 def test_quote_harvester_deterministic(vault_context: VaultContext, geist_executor: GeistExecutor):
     """Test quote_harvester is deterministic (same seed = same results)."""
-    # Run twice with same vault context (same seed)
+    # Restore deterministic RNG state before the second invocation. Reusing a
+    # context without restoration intentionally advances its random stream.
+    rng_state = vault_context.rng.getstate()
     suggestions_1 = geist_executor.execute_geist("quote_harvester", vault_context)
+    vault_context.rng.setstate(rng_state)
     suggestions_2 = geist_executor.execute_geist("quote_harvester", vault_context)
 
     # Should return identical results

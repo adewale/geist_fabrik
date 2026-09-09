@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from geistfabrik import embeddings
 from geistfabrik.embeddings import EmbeddingComputer
 
 
@@ -55,49 +56,36 @@ class TestDeviceDetection:
             device = computer._detect_device()
             assert device == "cpu"
 
-    def test_device_set_on_model_access(self):
+    def test_device_set_on_model_access(self, monkeypatch, tmp_path):
         """Test that device is set when model is first accessed."""
+        monkeypatch.setattr(embeddings, "_bundled_model_path", lambda _name: tmp_path)
         computer = EmbeddingComputer()
 
-        # Guard against Python bytecode caching issues in CI
-        if not hasattr(computer, "device"):
-            import pytest
-
-            pytest.skip("EmbeddingComputer.device attribute not found (bytecode caching issue)")
-
+        assert hasattr(computer, "device")
         assert computer.device is None
 
-        # Access model (this will trigger device detection)
+        # Access model (this will trigger device detection and the constructor stub)
         _ = computer.model
 
         # Device should now be set
         assert computer.device is not None
         assert computer.device in ["cuda", "mps", "cpu"]
 
-    def test_device_logged_on_model_load(self, caplog):
+    def test_device_logged_on_model_load(self, caplog, monkeypatch, tmp_path):
         """Test that device selection is logged."""
         import logging
 
-        # Guard against Python bytecode caching issues in CI
+        monkeypatch.setattr(embeddings, "_bundled_model_path", lambda _name: tmp_path)
         computer = EmbeddingComputer()
-        if not hasattr(computer, "device"):
-            import pytest
-
-            pytest.skip("EmbeddingComputer.device attribute not found (bytecode caching issue)")
+        assert hasattr(computer, "device")
 
         # Set logging level to INFO to capture the log message
         caplog.set_level(logging.INFO, logger="geistfabrik.embeddings")
 
-        # Access model to trigger device detection
+        # Access model to trigger device detection and the constructor stub
         _ = computer.model
 
-        # Check that device was logged (allow for environment differences)
-        # In CI this might not log if model is pre-loaded or cached
-        device_logged = any("Using device:" in record.message for record in caplog.records)
-        if not device_logged:
-            import pytest
-
-            pytest.skip("Device logging not detected (CI caching or pre-loaded model)")
+        assert any("Using device:" in record.message for record in caplog.records)
 
     def test_device_only_detected_once(self):
         """Test that device detection only happens once."""

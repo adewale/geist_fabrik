@@ -57,15 +57,14 @@ BACKTICK_SPAN = re.compile(r"`([^`]+)`")
 # false positives on cells that merely *mention* tests.
 COMMAND_SMELL = re.compile(r"(?:\buv run\b|::test_|^\s*pytest\b)")
 
-# The project's canonical way to run the suite (see scripts/validate.sh and
-# .github/workflows/test.yml): the "not slow" marker swaps in the
-# SentenceTransformerStub (tests/conftest.py::pytest_configure) so tests run
-# fast and offline, without the real sentence-transformers/torch stack. The AC
-# table predates the stub and lists bare ``uv run pytest …`` commands, so we
-# normalise them to the canonical invocation here rather than repeating the
-# marker in ~150 spec cells.
+# The project's canonical fast selection (see scripts/validate.sh and CI).
+# A marker-aware autouse fixture replaces only the external model constructor
+# unless a selected test carries ``production_model``; command spelling itself
+# never activates stubbing. The AC table predates these lanes and lists bare
+# pytest commands, so normalise them here instead of repeating the selection in
+# every executable criterion.
 PYTEST_INVOCATION = re.compile(r"\buv run pytest\b")
-STD_MARKER = '-m "not slow and not benchmark"'
+STD_MARKER = '-m "not slow and not benchmark and not artifact and not production_model"'
 BRACE_TOKEN = re.compile(r"(\S*)\{([^{}]+)\}(\S*)")
 
 
@@ -89,8 +88,8 @@ def normalize_command(cmd: str) -> str:
     """Run pytest commands the way the project actually runs them.
 
     For ``uv run pytest`` commands: expand brace node-lists and, unless the
-    command already pins markers, append the canonical ``not slow``/``not
-    benchmark`` filter that activates the embedding stub. Non-pytest commands
+    command already pins markers, append the canonical fast marker filter.
+    Non-pytest commands
     are returned unchanged.
     """
     if not PYTEST_INVOCATION.search(cmd):
@@ -120,6 +119,31 @@ class Criterion:
     is_auto: bool
     command: str | None  # set iff is_auto
     manual_reason: str | None  # set iff not is_auto
+
+
+def partition_pytest_criteria(
+    criteria: list[Criterion],
+) -> tuple[list[Criterion], list[Criterion]]:
+    """Separate compatible fast pytest commands from marker-specific commands."""
+    batchable: list[Criterion] = []
+    standalone: list[Criterion] = []
+    for criterion in criteria:
+        command = criterion.command or ""
+        if pytest_targets(command) and not re.search(r"(?:^|\s)-m(?:\s|=)", command):
+            batchable.append(criterion)
+        else:
+            standalone.append(criterion)
+    return batchable, standalone
+
+
+def combined_pytest_targets(criteria: list[Criterion]) -> list[str]:
+    """Return every unique file/node selector without coarsening named nodes."""
+    targets: list[str] = []
+    for criterion in criteria:
+        for target in pytest_targets(criterion.command or ""):
+            if target not in targets:
+                targets.append(target)
+    return targets
 
 
 def parse_criteria(text: str) -> tuple[list[Criterion], list[str]]:
@@ -208,9 +232,10 @@ def run_command(cmd: str) -> tuple[bool, str]:
         if result.returncode == 0:
             outcome = (True, "")
         else:
-            tail = (result.stderr or result.stdout or "").strip().splitlines()
-            detail = tail[-1] if tail else f"exit {result.returncode}"
-            outcome = (False, f"exit {result.returncode}: {detail[:160]}")
+            output = "\n".join(part for part in (result.stdout, result.stderr) if part)
+            tail = output.strip().splitlines()[-20:]
+            detail = "\n".join(tail) if tail else f"exit {result.returncode}"
+            outcome = (False, f"exit {result.returncode}: {detail[:3000]}")
     _run_cache[cmd] = outcome
     return outcome
 
@@ -272,17 +297,13 @@ def main() -> int:
     # ``pytest --collect-only``) is run on its own — never assumed-green, and
     # never allowed to leave ``targets`` empty (which would make pytest run the
     # whole suite and hide a real failure).
-    batchable = [c for c in auto if pytest_targets(c.command or "")]
-    standalone = [c for c in auto if not pytest_targets(c.command or "")]
+    batchable, standalone = partition_pytest_criteria(auto)
 
     if batchable:
-        files = {t for c in batchable for t in pytest_targets(c.command or "") if "::" not in t}
-        targets: list[str] = []
-        for c in batchable:
-            for t in pytest_targets(c.command or ""):
-                keep = t if "::" not in t else (t if t.split("::")[0] not in files else None)
-                if keep and keep not in targets:
-                    targets.append(keep)
+        # Keep explicit node selectors even when another criterion names the
+        # whole file. Duplicate collection is preferable to silently vouching
+        # for a criterion whose exact contract was never selected.
+        targets = combined_pytest_targets(batchable)
         batch = f"uv run pytest {' '.join(targets)} {STD_MARKER} --no-cov -q -p no:cacheprovider"
         batch_ok, batch_detail = run_command(batch)
         if batch_ok:

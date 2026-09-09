@@ -9,10 +9,12 @@ import json
 import logging
 import sqlite3
 from datetime import datetime
+from importlib import import_module
 from typing import Any
 
 import numpy as np
 
+from .config_loader import GeistFabrikConfig
 from .embeddings import cosine_similarity
 
 # Optional dependencies for advanced metrics
@@ -28,15 +30,15 @@ except ImportError:
     HAS_SKLEARN = False
 
 try:
-    from skdim.id import TwoNN  # type: ignore
-
+    # Optional plugin APIs are discovered dynamically so core installations do
+    # not require their packages or stubs. Values are validated where consumed.
+    TwoNN = getattr(import_module("skdim.id"), "TwoNN")
     HAS_SKDIM = True
-except ImportError:
+except (ImportError, AttributeError):
     HAS_SKDIM = False
 
 try:
-    from vendi_score import vendi  # type: ignore
-
+    vendi = import_module("vendi_score.vendi")
     HAS_VENDI = True
 except ImportError:
     HAS_VENDI = False
@@ -47,7 +49,7 @@ logger = logging.getLogger(__name__)
 class EmbeddingMetricsComputer:
     """Computes advanced embedding-based metrics."""
 
-    def __init__(self, db: sqlite3.Connection, config: Any = None):
+    def __init__(self, db: sqlite3.Connection, config: GeistFabrikConfig | None = None):
         """Initialise metrics computer.
 
         Args:

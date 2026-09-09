@@ -477,17 +477,13 @@ vector_search:
   # Default: "in-memory"
   backend: "in-memory"
 
-  # (Optional) Backend-specific settings
+  # Deprecated/reserved compatibility field. Existing vaults may retain these
+  # strictly validated historical shapes; the settings are currently ignored.
   backends:
     in_memory:
-      # Load embeddings lazily (not yet implemented)
       lazy_load: false
-
     sqlite_vec:
-      # vec0 index type (future: "flat" | "ivf" | "hnsw")
       index_type: "flat"
-
-      # Cache size for vec0 queries (MB)
       cache_size_mb: 100
 ```
 
@@ -496,10 +492,13 @@ vector_search:
 @dataclass
 class VectorSearchConfig:
     backend: str = "in-memory"
-    backend_settings: Dict[str, Any] = field(default_factory=dict)
+    # Compatibility-only; historical settings are validated and round-tripped.
+    backend_settings: Dict[str, Dict[str, int | str | bool]] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "VectorSearchConfig":
+        # Current implementation validates exact historical keys/types/ranges:
+        # in_memory.lazy_load and sqlite_vec.index_type/cache_size_mb.
         return cls(
             backend=data.get("backend", "in-memory"),
             backend_settings=data.get("backends", {})
@@ -1109,14 +1108,21 @@ vector_search:
   backend: "sqlite-vec"
 ```
 
-### With Backend-Specific Settings
+### With Legacy Backend-Specific Settings (Reserved/Deprecated)
+
+`in_memory.lazy_load` and `sqlite_vec.index_type`/`cache_size_mb` are accepted
+and round-tripped for compatibility but currently have no operational effect.
+Unknown backend/settings keys are rejected.
 
 ```yaml
 # .geistfabrik/config.yaml
 vector_search:
   backend: "sqlite-vec"
   backends:
+    in_memory:
+      lazy_load: false
     sqlite_vec:
+      index_type: "flat"
       cache_size_mb: 200
 ```
 

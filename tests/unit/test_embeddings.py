@@ -8,14 +8,28 @@ import pytest
 from geistfabrik.embeddings import (
     EmbeddingComputer,
     Session,
+    _bundled_model_path,
     cosine_similarity,
     find_similar_notes,
 )
 from geistfabrik.models import Note
 from geistfabrik.schema import init_db
+from tests.stubs import SentenceTransformerStub
 
 # Add 5 second timeout to ALL tests to prevent hangs
 pytestmark = pytest.mark.timeout(5)
+
+
+@pytest.fixture(scope="module")
+def module_scoped_default_model() -> object:
+    """Exercise fast-model stubbing before module-scoped fixtures initialize."""
+    return EmbeddingComputer().model
+
+
+def test_fast_model_stub_applies_to_module_scoped_fixtures(
+    module_scoped_default_model: object,
+) -> None:
+    assert isinstance(module_scoped_default_model, SentenceTransformerStub)
 
 
 @pytest.fixture
@@ -64,6 +78,102 @@ def test_embedding_computer_with_injected_model(mock_sentence_transformer):
     computer = EmbeddingComputer(model=mock_sentence_transformer)
     assert computer._model is mock_sentence_transformer
     assert computer._model is not None  # Model already injected
+
+
+def test_sentence_transformer_stub_matches_production_calls(tmp_path):
+    """The test double accepts the constructor and encode arguments production uses."""
+    model = SentenceTransformerStub(tmp_path, device="cpu", local_files_only=True)
+    single = model.encode("one", convert_to_numpy=True)
+    batch = model.encode(
+        ["one", "two"], convert_to_numpy=True, show_progress_bar=False, batch_size=2
+    )
+
+    assert model.local_files_only is True
+    assert single.shape == (384,)
+    assert batch.shape == (2, 384)
+
+
+def _write_test_model(model_path, *, lfs_pointer=False):
+    """Create the minimal runtime files expected by the bundled-model resolver."""
+    required = [
+        "config.json",
+        "config_sentence_transformers.json",
+        "model.safetensors",
+        "modules.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "vocab.txt",
+        "1_Pooling/config.json",
+    ]
+    for relative_path in required:
+        target = model_path / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("{}")
+    weights = model_path / "model.safetensors"
+    if lfs_pointer:
+        weights.write_text("version https://git-lfs.github.com/spec/v1\n")
+    else:
+        weights.write_bytes(b"weights" * 200)
+
+
+def test_bundled_model_resolves_importlib_resource(
+    tmp_path, monkeypatch, preserve_model_path_validation
+):
+    """Installed-package resources take precedence over repository layout."""
+    model_name = "test-resource-model"
+    model_path = tmp_path / model_name
+    _write_test_model(model_path)
+    monkeypatch.setattr("geistfabrik.embeddings.resources.files", lambda package: tmp_path)
+
+    assert _bundled_model_path(model_name) == model_path
+
+
+def test_bundled_model_rejects_lfs_pointer(tmp_path, monkeypatch, preserve_model_path_validation):
+    """A source distribution containing only an LFS pointer is not loadable."""
+    model_name = "test-lfs-pointer-model"
+    model_path = tmp_path / model_name
+    _write_test_model(model_path, lfs_pointer=True)
+    monkeypatch.setattr("geistfabrik.embeddings.resources.files", lambda package: tmp_path)
+
+    assert _bundled_model_path(model_name) is None
+
+
+def test_offline_missing_model_fails_without_constructor(
+    tmp_path, monkeypatch, preserve_model_path_validation
+):
+    """Offline mode never falls through to a HuggingFace identifier."""
+    monkeypatch.setattr("geistfabrik.embeddings.resources.files", lambda package: tmp_path)
+    monkeypatch.setenv("GEISTFABRIK_OFFLINE", "1")
+    computer = EmbeddingComputer(model_name="definitely-missing-test-model")
+
+    with pytest.raises(RuntimeError, match="no usable bundled model resource"):
+        _ = computer.model
+
+
+def test_online_missing_model_uses_huggingface_fallback(
+    tmp_path, monkeypatch, preserve_model_path_validation
+):
+    """Online mode preserves the established model-name fallback."""
+    monkeypatch.setattr("geistfabrik.embeddings.resources.files", lambda package: tmp_path)
+    monkeypatch.delenv("GEISTFABRIK_OFFLINE", raising=False)
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
+    monkeypatch.delenv("TRANSFORMERS_OFFLINE", raising=False)
+    computer = EmbeddingComputer(model_name="remote-test-model")
+
+    model = computer.model
+
+    assert isinstance(model, SentenceTransformerStub)
+    assert model.model_name_or_path == "remote-test-model"
+    assert model.local_files_only is False
+
+
+def test_fast_constructor_stub_does_not_require_materialized_weights(tmp_path, monkeypatch):
+    """Fast CI injection reaches the stub without reading an LFS model file."""
+    unresolved = tmp_path / "unmaterialized-model"
+    monkeypatch.setattr("geistfabrik.embeddings._bundled_model_path", lambda _name: unresolved)
+    computer = EmbeddingComputer()
+    assert isinstance(computer.model, SentenceTransformerStub)
+    assert computer.model.model_name_or_path == str(unresolved)
 
 
 def test_compute_semantic_embedding_mock(mock_embedding_computer):

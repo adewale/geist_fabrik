@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -12,6 +12,7 @@ from geistfabrik import (
     FunctionRegistryError,
     vault_function,
 )
+from geistfabrik.vault_context import VaultContext
 
 
 def test_function_registry_initialization() -> None:
@@ -126,7 +127,7 @@ def test_call_function() -> None:
     class MockVault:
         pass
 
-    result = registry.call("add", MockVault(), 3, 5)
+    result = registry.call("add", cast(VaultContext, MockVault()), 3, 5)
     assert result == 8
 
 
@@ -138,7 +139,7 @@ def test_call_nonexistent_function() -> None:
         pass
 
     with pytest.raises(FunctionRegistryError):
-        registry.call("does_not_exist", MockVault())
+        registry.call("does_not_exist", cast(VaultContext, MockVault()))
 
 
 def test_call_function_with_error() -> None:
@@ -154,7 +155,7 @@ def test_call_function_with_error() -> None:
         pass
 
     with pytest.raises(FunctionRegistryError):
-        registry.call("error_func", MockVault())
+        registry.call("error_func", cast(VaultContext, MockVault()))
 
 
 def test_get_function_names() -> None:
@@ -291,10 +292,10 @@ def test_function_with_kwargs() -> None:
     class MockVault:
         pass
 
-    result1 = registry.call("kwargs_func", MockVault(), 5)
+    result1 = registry.call("kwargs_func", cast(VaultContext, MockVault()), 5)
     assert result1 == 15
 
-    result2 = registry.call("kwargs_func", MockVault(), 5, b=20)
+    result2 = registry.call("kwargs_func", cast(VaultContext, MockVault()), 5, b=20)
     assert result2 == 25
 
 
@@ -310,7 +311,7 @@ def test_function_accesses_vault() -> None:
     class MockVault:
         test_value = "success"
 
-    result = registry.call("use_vault", MockVault())
+    result = registry.call("use_vault", cast(VaultContext, MockVault()))
     assert result == "success"
 
 
@@ -345,7 +346,7 @@ def test_function_returns_list() -> None:
     class MockVault:
         pass
 
-    result = registry.call("return_list", MockVault())
+    result = registry.call("return_list", cast(VaultContext, MockVault()))
     assert result == ["a", "b", "c"]
 
 
@@ -361,5 +362,5 @@ def test_function_returns_none() -> None:
     class MockVault:
         pass
 
-    result = registry.call("return_none", MockVault())
+    result = registry.call("return_none", cast(VaultContext, MockVault()))
     assert result is None

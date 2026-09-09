@@ -9,6 +9,7 @@ Single source of truth: src/geistfabrik/default_geists/__init__.py
 import re
 from pathlib import Path
 
+import geistfabrik
 from geistfabrik.default_geists import (
     CODE_GEIST_COUNT,
     TOTAL_GEIST_COUNT,
@@ -48,6 +49,19 @@ def test_readme_geist_counts():
         f"{TRACERY_GEIST_COUNT} Tracery, {TOTAL_GEIST_COUNT} total"
     )
     assert len(matches) > 0, error_msg
+
+
+def test_early_adopters_version_and_geist_counts():
+    """Verify the early-adopter guide cannot drift from runtime constants."""
+    guide_path = Path(__file__).parent.parent.parent / "README_EARLY_ADOPTERS.md"
+    content = guide_path.read_text()
+    count_pattern = (
+        rf"\b{TOTAL_GEIST_COUNT}\s+default\s+geists\s+bundled\s*\(\s*"
+        rf"{CODE_GEIST_COUNT}\s+code\s*\+\s*{TRACERY_GEIST_COUNT}\s+Tracery\s*\)"
+    )
+
+    assert f"v{geistfabrik.__version__} Beta" in content
+    assert re.search(count_pattern, content, re.IGNORECASE)
 
 
 def test_claude_md_geist_counts():

@@ -2,15 +2,17 @@
 
 This module implements the four-stage filtering pipeline:
 1. Boundary: Ensure referenced notes exist and aren't excluded
-2. Novelty: Avoid suggestions similar to recent history
-3. Diversity: Remove near-duplicate suggestions from current batch
-4. Quality: Enforce basic quality standards
+2. Quality: Enforce cheap structure and length standards
+3. Novelty: Avoid suggestions similar to recent history
+4. Diversity: Remove near-duplicate suggestions from current batch
 
 Each filter can be enabled/disabled via configuration.
 """
 
 import sqlite3
+from collections.abc import Iterator
 from datetime import datetime, timedelta
+from itertools import chain
 from typing import Any
 
 import numpy as np
@@ -19,6 +21,8 @@ from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
 )
 
 from .config import (
+    SIMILARITY_HISTORY_CHUNK,
+    SIMILARITY_SUGGESTION_CHUNK,
     get_default_filter_config,
 )
 from .embeddings import EmbeddingComputer
@@ -26,7 +30,7 @@ from .models import Suggestion
 
 
 class SuggestionFilter:
-    """Filters suggestions through boundary, novelty, diversity, and quality checks."""
+    """Filter suggestions through cheap boundary/quality then embedding checks."""
 
     def __init__(
         self,
@@ -44,56 +48,31 @@ class SuggestionFilter:
         self.db = db
         self.embedding_computer = embedding_computer
         self.config = config or self._default_config()
-        # Lazy caching for novelty filter
-        self._recent_embeddings_cache: Any = None  # numpy array when populated
-        self._cache_metadata: Any = None  # (session_date, window_days) tuple when populated
 
     def _default_config(self) -> dict[str, Any]:
         """Return default filtering configuration."""
         return get_default_filter_config()
 
-    def _get_recent_embeddings(self, session_date: datetime, window_days: int) -> Any:
-        """Get embeddings for recent suggestions with lazy caching.
-
-        Args:
-            session_date: Current session date
-            window_days: Number of days to look back
-
-        Returns:
-            Numpy array of embeddings for recent suggestions
-        """
-        import numpy as np
-
-        cache_key = (session_date, window_days)
-
-        # Check if cache is valid
-        if self._recent_embeddings_cache is not None and self._cache_metadata == cache_key:
-            # Cache hit - return cached embeddings
-            return self._recent_embeddings_cache
-
-        # Cache miss - compute embeddings
+    def _iter_recent_embedding_chunks(
+        self, session_date: datetime, window_days: int
+    ) -> Iterator[np.ndarray]:
+        """Stream bounded embedding chunks from sessions before the replay date."""
         cutoff_date = session_date - timedelta(days=window_days)
         cursor = self.db.execute(
             """
             SELECT suggestion_text
             FROM session_suggestions
-            WHERE session_date >= ?
+            WHERE session_date >= ? AND session_date < ?
+            ORDER BY session_date DESC, block_id
             """,
-            (cutoff_date.isoformat(),),
+            (cutoff_date.strftime("%Y-%m-%d"), session_date.strftime("%Y-%m-%d")),
         )
-        recent_texts = [row[0] for row in cursor.fetchall()]
-
-        if recent_texts:
-            # Batch compute all embeddings at once
-            recent_embeddings = self.embedding_computer.compute_batch_semantic(recent_texts)
-        else:
-            recent_embeddings = np.array([])
-
-        # Update cache
-        self._recent_embeddings_cache = recent_embeddings
-        self._cache_metadata = cache_key
-
-        return recent_embeddings
+        while rows := cursor.fetchmany(SIMILARITY_SUGGESTION_CHUNK):
+            texts = [str(row[0]) for row in rows]
+            yield np.asarray(
+                self.embedding_computer.compute_batch_semantic(texts),
+                dtype=np.float32,
+            )
 
     def filter_all(self, suggestions: list[Suggestion], session_date: datetime) -> list[Suggestion]:
         """Apply all enabled filters in sequence.
@@ -106,8 +85,13 @@ class SuggestionFilter:
             Filtered list of suggestions
         """
         filtered = suggestions
+        configured = self.config.get("strategies", [])
+        # Shape/length checks and DB-only boundaries must run before any
+        # embedding allocation, regardless of legacy strategy ordering.
+        strategies = [s for s in ("boundary", "quality") if s in configured]
+        strategies.extend(s for s in configured if s not in {"boundary", "quality"})
 
-        for strategy in self.config.get("strategies", []):
+        for strategy in strategies:
             if strategy == "boundary":
                 filtered = self.filter_boundary(filtered)
             elif strategy == "novelty":
@@ -191,39 +175,61 @@ class SuggestionFilter:
         if method == "text_match":
             # Simple exact text matching
             cutoff_date = session_date - timedelta(days=window_days)
-            cursor = self.db.execute(
-                """
-                SELECT suggestion_text
-                FROM session_suggestions
-                WHERE session_date >= ?
-                """,
-                (cutoff_date.isoformat(),),
+            bounds = (
+                cutoff_date.strftime("%Y-%m-%d"),
+                session_date.strftime("%Y-%m-%d"),
             )
-            recent_texts = {row[0] for row in cursor.fetchall()}
-            return [s for s in suggestions if s.text not in recent_texts]
+            return [
+                suggestion
+                for suggestion in suggestions
+                if self.db.execute(
+                    """
+                    SELECT 1 FROM session_suggestions
+                    WHERE session_date >= ? AND session_date < ?
+                      AND suggestion_text = ?
+                    LIMIT 1
+                    """,
+                    (*bounds, suggestion.text),
+                ).fetchone()
+                is None
+            ]
         else:
             # Embedding similarity matching with lazy cache + batching
             if not suggestions:
                 return suggestions
 
-            # Get recent embeddings (uses lazy cache)
-            recent_embeddings = self._get_recent_embeddings(session_date, window_days)
+            recent_chunks = self._iter_recent_embedding_chunks(session_date, window_days)
+            first_chunk = next(recent_chunks, None)
+            if first_chunk is None:
+                return suggestions
 
-            if len(recent_embeddings) == 0:
-                return suggestions  # No history to compare against
-
-            # Batch compute embeddings for all suggestions at once
+            # Batch compute embeddings for the bounded current suggestion set.
             suggestion_texts = [s.text for s in suggestions]
             suggestion_embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
-            # One S x R similarity matrix instead of a Python double loop of
-            # per-pair cosine calls (the loop dominated --full/firehose mode);
-            # a suggestion is novel iff no recent embedding meets the threshold.
+            # Stream history once and compare bounded blocks in both dimensions.
             suggestion_matrix = np.asarray(suggestion_embeddings, dtype=np.float32)
-            recent_matrix = np.vstack(list(recent_embeddings)).astype(np.float32)
-            sim_matrix = sklearn_cosine(suggestion_matrix, recent_matrix)
-            too_similar = (sim_matrix >= threshold).any(axis=1)
-
+            too_similar = np.zeros(len(suggestions), dtype=np.bool_)
+            for recent_chunk in chain((first_chunk,), recent_chunks):
+                for history_start in range(0, len(recent_chunk), SIMILARITY_HISTORY_CHUNK):
+                    history_end = history_start + SIMILARITY_HISTORY_CHUNK
+                    history_block = recent_chunk[history_start:history_end]
+                    for suggestion_start in range(0, len(suggestions), SIMILARITY_SUGGESTION_CHUNK):
+                        suggestion_end = min(
+                            suggestion_start + SIMILARITY_SUGGESTION_CHUNK,
+                            len(suggestions),
+                        )
+                        if too_similar[suggestion_start:suggestion_end].all():
+                            continue
+                        similarities = sklearn_cosine(
+                            suggestion_matrix[suggestion_start:suggestion_end],
+                            history_block,
+                        )
+                        too_similar[suggestion_start:suggestion_end] |= (
+                            similarities >= threshold
+                        ).any(axis=1)
+                if too_similar.all():
+                    break
             return [s for i, s in enumerate(suggestions) if not too_similar[i]]
 
     def filter_diversity(self, suggestions: list[Suggestion]) -> list[Suggestion]:

@@ -1,17 +1,20 @@
 """Validate command for checking geist files for errors."""
 
 import json
+import re
 from pathlib import Path
 
+from ..config_loader import load_config
+from ..path_safety import ensure_contained
 from ..validator import GeistValidator, ValidationResult
 from .base import BaseCommand
 
 
 class ValidateCommand(BaseCommand):
-    """Command to validate geist files for errors without executing them.
+    """Validate Tracery structure and import trusted code geists pre-flight.
 
-    Checks both code and Tracery geists for syntax errors, missing fields,
-    and other issues.
+    Importing a code geist executes its module-level Python. Configuration and
+    path checks therefore run first, and users must validate only trusted code.
     """
 
     def execute(self) -> int:
@@ -31,9 +34,13 @@ class ValidateCommand(BaseCommand):
 
         geistfabrik_dir = vault_path / "_geistfabrik"
 
-        # Set up directories
+        # Fail closed on managed paths/configuration before any code-geist import.
+        config_path = geistfabrik_dir / "config.yaml"
         code_dir = geistfabrik_dir / "geists" / "code"
         tracery_dir = geistfabrik_dir / "geists" / "tracery"
+        for managed_path in (geistfabrik_dir, config_path, code_dir, tracery_dir):
+            ensure_contained(managed_path, vault_path, reject_symlinks=True)
+        config = load_config(config_path)
 
         # Get default geists directories
         package_dir = Path(__file__).parent.parent
@@ -42,7 +49,7 @@ class ValidateCommand(BaseCommand):
 
         # Initialise validator
         strict = getattr(self.args, "strict", False)
-        validator = GeistValidator(strict=strict)
+        validator = GeistValidator(strict=strict, timeout=self.resolve_timeout(config))
 
         # Validate geists
         results = self._validate_geists(
@@ -60,6 +67,10 @@ class ValidateCommand(BaseCommand):
         else:
             self._output_text(results, vault_path)
 
+        # A requested ID that is invalid or absent produces no result and is
+        # still a command failure, never an empty-success validation.
+        if getattr(self.args, "geist", None) and not results:
+            return 1
         # Return exit code based on results
         if any(not r.passed for r in results):
             return 1
@@ -126,20 +137,35 @@ class ValidateCommand(BaseCommand):
         Returns:
             List containing the validation result
         """
-        # Check all possible locations
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", geist_id) is None:
+            self.print_error("Geist ID must contain only letters, digits, underscores, or hyphens")
+            return []
+
+        # Check all possible locations. Containment is checked before every
+        # existence probe and repeated by GeistValidator immediately pre-read.
         code_file = code_dir / f"{geist_id}.py"
         default_code_file = default_code_dir / f"{geist_id}.py"
         tracery_file = tracery_dir / f"{geist_id}.yaml"
         default_tracery_file = default_tracery_dir / f"{geist_id}.yaml"
 
+        for candidate, root in (
+            (code_file, code_dir),
+            (default_code_file, default_code_dir),
+            (tracery_file, tracery_dir),
+            (default_tracery_file, default_tracery_dir),
+        ):
+            ensure_contained(candidate, root, reject_symlinks=True)
+
         if code_file.exists():
-            return [validator.validate_code_geist(code_file)]
+            return [validator.validate_code_geist(code_file, root=code_dir)]
         elif default_code_file.exists():
-            return [validator.validate_code_geist(default_code_file)]
+            return [validator.validate_code_geist(default_code_file, root=default_code_dir)]
         elif tracery_file.exists():
-            return [validator.validate_tracery_geist(tracery_file)]
+            return [validator.validate_tracery_geist(tracery_file, root=tracery_dir)]
         elif default_tracery_file.exists():
-            return [validator.validate_tracery_geist(default_tracery_file)]
+            return [
+                validator.validate_tracery_geist(default_tracery_file, root=default_tracery_dir)
+            ]
         else:
             self.print_error(f"Geist '{geist_id}' not found")
             return []

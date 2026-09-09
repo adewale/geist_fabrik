@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-07-11
+
+### Packaging and release engineering
+- Release wheels and source distributions now include the materialized
+  Apache-2.0 `all-MiniLM-L6-v2` snapshot as an importlib resource, with
+  provenance, checksums, and third-party license notice. Source-checkout and
+  online HuggingFace fallback behaviour remains available.
+- Added a required isolated package-smoke CI lane covering LFS materialization,
+  artifact metadata/content/size, sdist-to-wheel reproducibility, clean wheel
+  installation, console entry points, and real inference with empty caches and
+  offline mode enforced.
+- Consolidated pytest configuration in `pyproject.toml`, added explicit
+  `artifact`/`production_model` markers, narrowed model stubbing to the external
+  constructor, and made the fast CI/validation dependency, marker, timeout,
+  offline, and branch-coverage contracts identical.
+- Completed release metadata with MIT licensing, canonical project URLs,
+  classifiers and keywords, and constrained supported Python to tested 3.11
+  and 3.12. Updated model, offline, testing, and early-adopter documentation.
+
+### Correctness, security, and type safety
+- Repaired production dispatch of the existing v4–v8 additive SQLite
+  migrations without a schema-version bump; future-version and ambiguous
+  unversioned databases are rejected without mutation.
+- Configuration now loads once from `_geistfabrik/config.yaml`, rejects every
+  malformed/unknown field before command side effects, and validates bounded
+  numeric, enum, mapping, allowlist, and filtering contracts.
+- Journal creation/replacement is containment- and directory-identity-checked,
+  serialized by the SQLite write lock, portable when hard links are unavailable,
+  durably recoverable after interruption/process death, and exactly mirrored in
+  `session_suggestions`.
+- Explicit `test` and `test-all` runs exercise and can recover auto-disabled
+  geists; normal invocation continues to respect disabled status.
+- Code and Tracery geists now share timeout, error, profiling, persistent
+  failure, and disable lifecycle behavior; debug timeouts count identically.
+- Added bounded YAML, incremental Tracery output/preprocessing limits, Markdown
+  file/structure limits, suggestion/session quotas, and managed-path containment
+  checks. Custom Python plugins
+  remain trusted code, not a sandbox, and hard interruption remains unavailable
+  on Windows/non-main threads.
+- Added pinned Astral `ty==0.0.69` as an additive whole-project warnings-as-errors
+  gate alongside strict mypy, and repaired production/test typing contracts
+  without a diagnostic baseline or global ignores.
+- Strengthened false-green tests, removed core-dependency and committed-fixture
+  skips, made mtime tests deterministic, and separated benchmarks from the fast
+  suite while retaining executable acceptance checks.
+
 ## [0.10.0] - 2026-06-12
 
 ### Breaking Changes
@@ -30,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Action required**: update custom geists. No database rebuild needed.
 - **Schema v8 — `geist_status` table** (persistent per-geist failure tracking).
   - **What changed**: a geist is now disabled after N *consecutive* failures
-    (config `geist_max_failures`, default 3), persisted across sessions; a
+    (config `geist_execution.max_failures`, default 3), persisted across sessions; a
     successful run resets the count. Previously the counter was in-memory and
     could never reach the threshold.
   - **Action required**: none — additive migration applied automatically.
@@ -82,6 +128,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - O(L) algorithm processed all links individually causing 891,104 sklearn validation calls
   - Functionality partially covered by bridge_builder (IMPLICIT quadrant) and hidden_hub
   - Specification and historical documentation preserved for reference
+  - Later entries in this release section that describe `congruence_mirror`
+    optimisation or pre-consistency American API names record work from the
+    development cycle that was superseded by this removal/API pass; they are
+    historical notes, not current extension guidance.
 
 ### Performance
 - **June 2026 perf pass** (before/after in `benchmarks/RESULTS_2026-06.md`,
@@ -89,7 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `orphans()` O(N·M) → O(N+M) set-difference (the LEFT-JOIN `OR` was
     non-sargable; ~179× on a 6k-note synthetic vault).
   - `filter_diversity`/`filter_novelty` per-pair Python cosine loops →
-    single BLAS matrix (~1281× at S=200; dominant `--full`-mode filter cost).
+    BLAS matrix operations (~1281× at S=200); novelty now uses bounded blocks
+    across suggestions/history to cap peak memory in long histories.
   - `find_similar` top-k via `argpartition` (13× on the sort step;
     end-to-end is matmul-bound).
   - `island_hopper`, graph `find_bridges`/`detect_structural_holes` batch
@@ -410,7 +461,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing summary and results
 - Contributing guidelines
 
-[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/adewale/geist_fabrik/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/adewale/geist_fabrik/compare/v0.4.0...v0.9.0
 [0.4.0]: https://github.com/adewale/geist_fabrik/compare/v0.3.0...v0.4.0

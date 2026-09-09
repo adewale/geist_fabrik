@@ -10,7 +10,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from .markdown_parser import extract_links, extract_tags, parse_frontmatter
+from .config import MAX_DATE_SECTIONS, MAX_NOTE_H2_HEADINGS, MAX_VIRTUAL_NOTES_PER_FILE
+from .markdown_parser import MarkdownLimitError, extract_links, extract_tags, parse_frontmatter
 from .models import Note
 
 logger = logging.getLogger(__name__)
@@ -122,12 +123,14 @@ def extract_h2_headings(content: str) -> list[tuple[str, int]]:
     Returns:
         List of (heading_text, line_number) tuples
     """
-    headings = []
+    headings: list[tuple[str, int]] = []
     lines = content.split("\n")
 
     for line_num, line in enumerate(lines, start=1):
         stripped = line.strip()
         if stripped.startswith("## ") and not stripped.startswith("### "):
+            if len(headings) >= MAX_NOTE_H2_HEADINGS:
+                raise MarkdownLimitError(f"note exceeds {MAX_NOTE_H2_HEADINGS} H2 headings")
             headings.append((stripped, line_num))
 
     return headings
@@ -179,6 +182,8 @@ def split_by_date_headings(content: str, file_path: str | None = None) -> list[D
     for heading_text, line_num in headings:
         parsed_date = parse_date_heading(heading_text, file_path)
         if parsed_date is not None:
+            if len(date_headings) >= MAX_DATE_SECTIONS:
+                raise MarkdownLimitError(f"note exceeds {MAX_DATE_SECTIONS} date sections")
             # line_num is 1-indexed, array index is line_num - 1
             date_headings.append((heading_text, line_num, line_num - 1, parsed_date))
 
@@ -263,6 +268,9 @@ def split_date_collection_note(
 
     # Create virtual notes
     virtual_notes = []
+
+    if len(merged_sections) > MAX_VIRTUAL_NOTES_PER_FILE:
+        raise MarkdownLimitError(f"note exceeds {MAX_VIRTUAL_NOTES_PER_FILE} virtual notes")
 
     for entry_date in sorted(merged_sections.keys()):
         contents = merged_sections[entry_date]

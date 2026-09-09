@@ -2,12 +2,15 @@
 
 from datetime import datetime
 
+import numpy as np
 import pytest
 
 from geistfabrik import Vault, VaultContext
+from geistfabrik.clustering_analysis import Cluster
 from geistfabrik.default_geists.code import cluster_mirror
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.models import Note
 
 # ============================================================================
 # Test Fixtures
@@ -177,35 +180,50 @@ def test_cluster_mirror_uses_link_text(vault_with_clusters):
             assert isinstance(note_ref, str)
 
 
-def test_cluster_mirror_shows_multiple_clusters(vault_with_clusters):
-    """Test that cluster_mirror shows 2-3 clusters with representatives."""
+def test_cluster_mirror_shows_multiple_clusters(
+    vault_with_clusters, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Render multiple clusters from a deterministic clustering boundary."""
     vault, session = vault_with_clusters
-
     context = VaultContext(
         vault=vault,
         session=session,
         seed=20240315,
         function_registry=FunctionRegistry(),
     )
+    notes = context.notes()
+    clusters = {
+        cluster_id: Cluster(
+            cluster_id=cluster_id,
+            label=f"topic {cluster_id}",
+            formatted_label=f"Notes about topic {cluster_id}",
+            notes=cluster_notes,
+            size=len(cluster_notes),
+            centroid=np.zeros(384),
+        )
+        for cluster_id, cluster_notes in enumerate((notes[:6], notes[6:12]))
+    }
 
+    def fixed_clusters(min_size: int = 5) -> dict[int, Cluster]:
+        assert min_size == 5
+        return clusters
+
+    def fixed_representatives(
+        cluster_id: int,
+        count: int = 3,
+        clusters: dict[int, Cluster] | None = None,
+    ) -> list[Note]:
+        assert clusters is not None
+        return clusters[cluster_id].notes[:count]
+
+    monkeypatch.setattr(context, "get_clusters", fixed_clusters)
+    monkeypatch.setattr(context, "get_cluster_representatives", fixed_representatives)
     suggestions = cluster_mirror.suggest(context)
-
-    # HDBSCAN can be non-deterministic; if no clusters found, skip test
-    if not suggestions:
-        import pytest
-
-        pytest.skip("HDBSCAN did not find sufficient clusters (non-deterministic)")
 
     assert len(suggestions) == 1
     suggestion = suggestions[0]
-
-    # Should show 2-3 clusters (each with label → notes format)
-    # Count occurrences of "→" which separates labels from notes
-    arrow_count = suggestion.text.count("→")
-    assert 2 <= arrow_count <= 3
-
-    # Should have multiple note references (3 per cluster × 2-3 clusters)
-    assert len(suggestion.notes) >= 6  # At least 2 clusters × 3 notes
+    assert suggestion.text.count("→") == 2
+    assert len(suggestion.notes) == 6
 
 
 # ============================================================================

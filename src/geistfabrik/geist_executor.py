@@ -5,20 +5,29 @@ import importlib.util
 import io
 import logging
 import pstats
-import signal
 import sys
 import time
 import traceback
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
+from .execution_timeout import GeistTimeoutError, _alarm_timeout
 from .geist_status import GeistStatusStore
 from .models import Suggestion
+from .path_safety import ensure_contained
+from .suggestion_limits import validate_geist_suggestions
 from .vault_context import VaultContext
 
 logger = logging.getLogger(__name__)
+
+
+class GeistSuggest(Protocol):
+    """Callable contract exported by code geist plugins."""
+
+    def __call__(self, vault: VaultContext, /) -> list[Suggestion]:
+        """Generate suggestions for a vault context."""
+        ...
 
 
 @dataclass
@@ -27,7 +36,7 @@ class GeistMetadata:
 
     id: str
     path: Path
-    func: Callable[[VaultContext], list[Suggestion]]
+    func: GeistSuggest
     failure_count: int = 0
     is_enabled: bool = True
 
@@ -57,17 +66,6 @@ class GeistExecutionProfile:
     stack_trace: str | None = None  # Stack at timeout
 
 
-class GeistTimeoutError(Exception):
-    """Raised when a geist exceeds its execution timeout."""
-
-    pass
-
-
-def timeout_handler(signum: int, frame: Any) -> None:
-    """Signal handler for geist timeouts."""
-    raise GeistTimeoutError("Geist execution timed out")
-
-
 class GeistExecutor:
     """Executes code geists and manages their lifecycle."""
 
@@ -91,6 +89,10 @@ class GeistExecutor:
             enabled_defaults: Dictionary of default geist enabled states (optional)
             debug: Enable detailed performance profiling and diagnostics (optional)
         """
+        if isinstance(timeout, bool) or timeout < 1:
+            raise ValueError("timeout must be a positive integer")
+        if isinstance(max_failures, bool) or max_failures < 1:
+            raise ValueError("max_failures must be a positive integer")
         self.geists_dir = geists_dir
         self.timeout = timeout
         self.max_failures = max_failures
@@ -136,6 +138,27 @@ class GeistExecutor:
                         geist.is_enabled = False
 
         return self.newly_discovered
+
+    def load_status(self) -> None:
+        """Apply persisted status to all currently registered geists."""
+        if self.status_store is None:
+            return
+        for geist_id, status in self.status_store.load().items():
+            geist = self.geists.get(geist_id)
+            if geist is not None:
+                geist.failure_count = status.failure_count
+                geist.is_enabled = not status.disabled
+
+    def register_geist(
+        self,
+        geist_id: str,
+        path: Path,
+        func: GeistSuggest,
+    ) -> None:
+        """Register a non-module geist for the shared execution lifecycle."""
+        if geist_id in self.geists:
+            raise ValueError(f"Duplicate geist ID '{geist_id}'")
+        self.geists[geist_id] = GeistMetadata(id=geist_id, path=path, func=func)
 
     def _load_geists_from_directory(self, directory: Path, is_default: bool = False) -> None:
         """Load geists from a specific directory.
@@ -202,6 +225,7 @@ class GeistExecutor:
             ImportError: If module cannot be loaded
             AttributeError: If module doesn't have suggest() function
         """
+        ensure_contained(geist_file, geist_file.parent, must_exist=True, reject_symlinks=True)
         geist_id = geist_file.stem
 
         # Check for duplicate IDs
@@ -226,7 +250,14 @@ class GeistExecutor:
         module = importlib.util.module_from_spec(spec)
         module_key = f"geistfabrik.user_geists.{geist_id}"
         sys.modules[module_key] = module
-        spec.loader.exec_module(module)
+        # Top-level plugin code is trusted Python, but on supported POSIX
+        # main-thread runs the same availability deadline covers import hangs.
+        try:
+            with _alarm_timeout(self.timeout):
+                spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop(module_key, None)
+            raise
 
         # Get suggest function
         if not hasattr(module, "suggest"):
@@ -238,12 +269,17 @@ class GeistExecutor:
                 f"      return []"
             )
 
-        suggest_func = getattr(module, "suggest")
+        suggest_export: object = getattr(module, "suggest")
+        if not callable(suggest_export):
+            raise TypeError(f"Geist '{geist_id}' export 'suggest' is not callable")
+        suggest_func = cast(GeistSuggest, suggest_export)
 
         # Store geist metadata
         self.geists[geist_id] = GeistMetadata(id=geist_id, path=geist_file, func=suggest_func)
 
-    def execute_geist(self, geist_id: str, context: VaultContext) -> list[Suggestion]:
+    def execute_geist(
+        self, geist_id: str, context: VaultContext, *, allow_disabled: bool = False
+    ) -> list[Suggestion]:
         """Execute a single geist with timeout and error handling.
 
         When verbose mode is enabled, collects detailed profiling information
@@ -262,7 +298,7 @@ class GeistExecutor:
         geist = self.geists[geist_id]
 
         # Skip if disabled (e.g. auto-disabled after repeated failures)
-        if not geist.is_enabled:
+        if not geist.is_enabled and not allow_disabled:
             self.execution_log.append(
                 {
                     "geist_id": geist_id,
@@ -290,12 +326,7 @@ class GeistExecutor:
                 profiler = None
 
         try:
-            # Set up timeout (Unix-only)
-            if sys.platform != "win32":
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(self.timeout)
-
-            try:
+            with _alarm_timeout(self.timeout):
                 # Execute geist
                 suggestions = geist.func(context)
 
@@ -303,13 +334,11 @@ class GeistExecutor:
                 if not isinstance(suggestions, list):
                     raise TypeError(f"Geist {geist_id} returned {type(suggestions)}, expected list")
 
-                # Validate suggestion types
-                for i, suggestion in enumerate(suggestions):
-                    if not isinstance(suggestion, Suggestion):
-                        raise TypeError(
-                            f"Geist {geist_id} suggestion {i} is {type(suggestion)}, "
-                            f"expected Suggestion"
-                        )
+                # Validate runtime shape and resource bounds before aggregate work.
+                try:
+                    validate_geist_suggestions(suggestions)
+                except (TypeError, ValueError) as exc:
+                    raise type(exc)(f"Geist {geist_id} {exc}") from exc
 
                 profile_stats = self._finalize_profiler(profiler, geist_id)
 
@@ -319,9 +348,12 @@ class GeistExecutor:
 
                 # A successful run clears any accumulated consecutive-failure
                 # count (transient failures should not permanently penalise).
-                if self.status_store is not None and geist.failure_count > 0:
+                # Always reset persistent state: another connection may have
+                # recorded a failure after this executor loaded its local copy.
+                if self.status_store is not None:
                     self.status_store.record_success(geist_id)
-                    geist.failure_count = 0
+                geist.failure_count = 0
+                geist.is_enabled = True
 
                 # Log success
                 self.execution_log.append(
@@ -347,33 +379,27 @@ class GeistExecutor:
 
                 return suggestions
 
-            finally:
-                # Cancel timeout
-                if sys.platform != "win32":
-                    signal.alarm(0)
-
         except GeistTimeoutError:
             profile_stats = self._finalize_profiler(profiler, geist_id)
 
+            elapsed = time.perf_counter() - start_time
             profile = GeistExecutionProfile(
                 geist_id=geist_id,
                 status="timeout",
-                total_time=self.timeout,
+                total_time=elapsed,
                 function_stats=profile_stats,
                 stack_trace=traceback.format_exc(),
             )
             self.execution_profiles.append(profile)
 
-            # Show detailed diagnostic in debug mode
+            timeout_msg = (
+                f"Execution timed out (>{self.timeout}s)\n"
+                f"  → Test with longer timeout: geistfabrik test {geist_id} <vault>\n"
+                f"  → Check for infinite loops or expensive operations in {geist.path}"
+            )
+            self._handle_failure(geist_id, "timeout", timeout_msg)
             if self.debug:
                 self._show_timeout_diagnostic(geist_id, profile, geist.path)
-            else:
-                timeout_msg = (
-                    f"Execution timed out (>{self.timeout}s)\n"
-                    f"  → Test with longer timeout: geistfabrik test {geist_id} <vault>\n"
-                    f"  → Check for infinite loops or expensive operations in {geist.path}"
-                )
-                self._handle_failure(geist_id, "timeout", timeout_msg)
 
             return []
 
@@ -554,11 +580,15 @@ class GeistExecutor:
         ps.strip_dirs()
         ps.sort_stats(pstats.SortKey.TIME)
 
-        # Extract function stats - access via dict-like interface
-        stats_list = []
-        # Note: mypy doesn't have accurate type info for pstats.Stats.stats
-        # We use type: ignore to bypass the check
-        for func, (cc, nc, tt, ct, callers) in ps.stats.items():  # type: ignore[attr-defined]
+        # ``Stats.stats`` exists at runtime but is absent from some checker stubs.
+        # Keep that uncertain stdlib boundary local and expose only the concrete
+        # fields consumed below through a typed adapter.
+        profile_stats = cast(
+            dict[tuple[str, int, str], tuple[int, int, float, float, object]],
+            vars(ps)["stats"],
+        )
+        stats_list: list[ProfileStats] = []
+        for func, (_cc, nc, tt, ct, _callers) in profile_stats.items():
             # Format function name
             filename, line, func_name = func
             if filename.startswith("<"):

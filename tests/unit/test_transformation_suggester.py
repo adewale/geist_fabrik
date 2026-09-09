@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -12,16 +13,29 @@ from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
 
 
+class MockEmbeddingModel:
+    """EmbeddingModel test double with deterministic output dimensions."""
+
+    def __init__(self, num_notes: int) -> None:
+        self.num_notes = num_notes
+
+    def encode(
+        self,
+        sentences: str | list[str],
+        *,
+        convert_to_numpy: bool = True,
+        show_progress_bar: bool = False,
+        batch_size: int = 32,
+        **kwargs: Any,
+    ) -> np.ndarray:
+        del convert_to_numpy, show_progress_bar, batch_size, kwargs
+        rows = len(sentences) if isinstance(sentences, list) else self.num_notes
+        return np.random.rand(rows, 387)
+
+
 def create_mock_embedding_computer(num_notes: int) -> EmbeddingComputer:
     """Create a mocked EmbeddingComputer for testing."""
-    computer = EmbeddingComputer()
-    mock_model = object.__new__(type("MockModel", (), {}))
-    # Mock encode method that accepts all the kwargs the real model uses
-    mock_model.encode = lambda texts, **kwargs: np.random.rand(
-        len(texts) if isinstance(texts, list) else num_notes, 387
-    )
-    computer._model = mock_model
-    return computer
+    return EmbeddingComputer(model=MockEmbeddingModel(num_notes))
 
 
 def create_vault_context(vault: Vault) -> VaultContext:

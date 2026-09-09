@@ -164,7 +164,7 @@ class EmbeddingTrajectoryCalculator:
         if norm < 1e-10:  # Avoid division by zero
             return np.zeros_like(drift_vector)
 
-        return drift_vector / norm  # type: ignore[no-any-return]
+        return np.asarray(drift_vector / norm)
 
     def drift_alignment(self, direction: np.ndarray) -> float:
         """Compute how aligned trajectory is with a given direction (dot product).

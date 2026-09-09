@@ -18,8 +18,11 @@ away from the code without turning CI red. Two rules follow from that:
     (an optional human annotation may follow). The checker executes it; a
     non-zero exit fails the gate. `uv run pytest …` commands are run the way the
     project always runs them — the checker expands `{a,b}` node lists and
-    appends the canonical `-m "not slow and not benchmark"` filter (which
-    activates the embedding stub), so do **not** repeat the marker here.
+    appends the canonical `-m "not slow and not benchmark and not artifact and not production_model"`
+    filter. The marker-aware fixture stubs external model construction unless a
+    test requests `production_model`; command spelling does not activate it.
+    Do **not** repeat the fast marker here. Explicit marker commands such as
+    `-m benchmark` are preserved and run separately.
   - **MANUAL** — any cell that is prose. Use this for criteria that genuinely
     need human judgement, a platform we can't run in CI, or a behaviour with no
     dedicated automated test. MANUAL criteria are reported and counted but do
@@ -44,7 +47,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 
 | ID | Status | Criteria | Verification |
 |----|--------|----------|--------------|
-| AC-0.1 | ⬜ | Project structure exists | `test -d src/geistfabrik && test -f pyproject.toml && test -f pytest.ini && test -d tests/` |
+| AC-0.1 | ⬜ | Project structure exists | `test -d src/geistfabrik && test -f pyproject.toml && ! test -f pytest.ini && test -d tests/` |
 | AC-0.2 | ⬜ | Dependencies install cleanly | `test -f uv.lock && uv run python -c "import sentence_transformers, yaml, scipy, sklearn, sqlite3"` |
 | AC-0.3 | ⬜ | Tests can run | `uv run pytest --collect-only` (exit code 0) |
 | AC-0.4 | ⬜ | Linting passes | `uv run ruff check src/ && uv run mypy src/ --strict` |
@@ -85,7 +88,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-1.4 | ⬜ | Database schema valid | `uv run pytest tests/integration/test_kepano_vault.py -v` |
 | AC-1.5 | ⬜ | Incremental sync works | `uv run pytest tests/unit/test_vault.py::test_sync_{modified_file,no_changes} -v` (only changed files reprocessed) |
 | AC-1.6 | ⬜ | Link graph builds correctly | `uv run pytest tests/integration/test_kepano_vault.py::test_kepano_link_graph -v` |
-| AC-1.7 | ⬜ | Performance target met | `uv run pytest tests/integration/test_scenarios.py::test_scenario_first_time_setup -v` (8 notes synced in <5s) |
+| AC-1.7 | ⬜ | Performance target met | `uv run pytest tests/integration/test_scenarios.py::test_scenario_first_time_setup -v -m benchmark` (10 notes synced in <5s) |
 
 ### Edge Cases & Error Handling
 
@@ -515,8 +518,8 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 
 | ID | Status | Criteria | Verification |
 |----|--------|----------|--------------|
-| AC-11.1 | ⬜ | Performance benchmarks pass | `uv run pytest tests/unit/test_performance_regression.py tests/unit/test_phase1_benchmarks.py -v` |
-| AC-11.2 | ⬜ | Test coverage target | Manual: coverage target is not gate-enforced (see pyproject fail_under note); run with --cov locally |
+| AC-11.1 | ⬜ | Performance benchmarks pass | `uv run pytest tests/unit/test_performance_regression.py tests/unit/test_phase1_benchmarks.py tests/unit/test_phase2_batch_loading.py tests/unit/test_phase2_hubs_optimization.py tests/unit/test_phase2_return_scores.py tests/unit/test_cluster_performance.py tests/integration/test_phase3b_regression.py tests/integration/test_scenarios.py -v -m benchmark` |
+| AC-11.2 | ⬜ | Test coverage target | Manual: validation and CI enforce at least 70% combined branch coverage across the fast unit/integration lanes |
 | AC-11.3 | ⬜ | All E2E tests pass | `uv run pytest tests/integration/test_scenarios.py -v` |
 | AC-11.4 | ⬜ | Large vault performance | 1000 notes processable in <3 minutes |
 | AC-11.5 | ⬜ | Documentation builds | Manual: no mkdocs site; documentation is plain Markdown under docs/ |

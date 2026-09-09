@@ -10,7 +10,7 @@ Inspired by Gordon Brander's work on tools for thought.
 
 ## Status
 
-**Version**: 0.10.0 (Beta)
+**Version**: 0.10.1 (Beta)
 **Default Geists**: 70 (58 code + 12 Tracery) _[programmatically verified]_
 **Tests**: `./scripts/validate.sh` passing (unit, integration, acceptance)
 **Progress**: Feature-complete, release-candidate quality
@@ -47,51 +47,59 @@ See [STATUS.md](STATUS.md) for detailed implementation status and test results, 
 
 ### Installation
 
+GeistFabrik supports Python 3.11 and 3.12. Release wheels include the
+all-MiniLM-L6-v2 snapshot, adding about 88 MB to the installed footprint (plus
+Python dependencies), so normal wheel installs work without a model download.
+
 ```bash
-# Clone repository
+# Install a release wheel
+python -m pip install geistfabrik
+
+# Or clone for development (Git LFS materialises the bundled model)
+git lfs install
 git clone https://github.com/adewale/geist_fabrik.git
 cd geist_fabrik
-
-# Install dependencies (requires Python 3.11+)
-uv sync
+uv sync --extra vector-search
 
 # Install pre-commit hooks (for contributors)
 uv run pre-commit install
 
-# Run tests
-uv run pytest
+# Run the canonical fast tests
+MARKERS="not slow and not benchmark and not artifact and not production_model"
+uv run pytest tests/unit tests/integration -m "$MARKERS"
 
-# Check that everything works
-uv run geistfabrik --help
+# Installed-wheel users call the console script directly
+geistfabrik --help
+# Source contributors may prefix CLI examples with: uv run
 ```
 
 ### First Run
 
 ```bash
 # Initialise a vault (creates _geistfabrik directory structure)
-uv run geistfabrik init /path/to/your/vault
+geistfabrik init /path/to/your/vault
 
 # This automatically configures 70 bundled default geists:
 # • 58 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, surprisal, etc.)
 # • 12 Tracery geists (contradictor, hub_explorer, questioning_mind, temporal_contrast, etc.)
 
 # Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke /path/to/your/vault
+geistfabrik invoke /path/to/your/vault
 
 # Write suggestions to journal (creates session note)
-uv run geistfabrik invoke /path/to/your/vault --write
+geistfabrik invoke /path/to/your/vault --write
 
 # View your session note at:
 # /path/to/your/vault/geist journal/YYYY-MM-DD.md
 
 # Check vault health and statistics
-uv run geistfabrik stats /path/to/your/vault
+geistfabrik stats /path/to/your/vault
 
 # Get detailed stats with verbose mode
-uv run geistfabrik stats /path/to/your/vault --verbose
+geistfabrik stats /path/to/your/vault --verbose
 
 # Export stats as JSON for scripting
-uv run geistfabrik stats /path/to/your/vault --json
+geistfabrik stats /path/to/your/vault --json
 ```
 
 ### Try on Sample Vault (Risk-Free)
@@ -122,12 +130,15 @@ This is the **safest way** for early adopters to explore GeistFabrik without tou
 - Semantic embeddings (384-dim vectors) → SQLite database
 - Generated suggestions → Session notes in `geist journal/`
 
-**What GeistFabrik NEVER does:**
-- ❌ Modify your original notes (the engine has read-only access to your notes)
-- ❌ Send data to external servers (100% local processing)
-- ❌ Track usage or analytics
+**What the GeistFabrik engine does not do:**
+- ❌ Modify or delete your original notes (source-note access is read-only)
+- ❌ Send note content, embeddings, usage data, or analytics to external servers
 - ❌ Require an internet connection once the embedding model is present
-- ❌ Delete any files (writes only to `_geistfabrik/` and `geist journal/`)
+- ❌ Write outside its managed `_geistfabrik/` and `geist journal/` paths
+
+`--force` can replace an existing managed session journal. Model bootstrap may
+contact HuggingFace only under the explicitly documented fallback below, and
+installed Python plugins are outside these engine guarantees.
 
 **Your vault remains yours.** All processing happens locally using sentence-transformers for embeddings.
 
@@ -141,11 +152,14 @@ else's vault like running their script). `geistfabrik validate` also *executes*
 a geist's import-time code to check it loads, so it is not a safe way to
 inspect untrusted code.
 
-**Enforcing offline mode.** By default, if the bundled embedding model is
-missing (e.g. an LFS-less clone) GeistFabrik downloads it from HuggingFace on
-first run. Set `GEISTFABRIK_OFFLINE=1` (or the standard `HF_HUB_OFFLINE=1` /
-`TRANSFORMERS_OFFLINE=1`) to forbid any network access: GeistFabrik then uses
-the local model and fails loudly instead of downloading.
+**Enforcing offline mode.** Official release wheels bundle the
+`sentence-transformers/all-MiniLM-L6-v2` snapshot and load it through package
+resources. Source clones use the Git LFS snapshot in `models/`; run
+`git lfs pull` if those files are pointers. If neither local copy is usable,
+the default online mode falls back to HuggingFace. Set `GEISTFABRIK_OFFLINE=1`
+(or `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1`) to prohibit that fallback
+and fail loudly instead. The model is Apache-2.0 licensed; provenance and
+checksums are recorded in `models/all-MiniLM-L6-v2/NOTICE`.
 
 ## Uninstalling GeistFabrik
 
@@ -347,7 +361,8 @@ GeistFabrik supports pluggable vector search backends for semantic similarity:
 **SQLite-Vec Backend** (optional):
 - Better for large vaults (5000+ notes)
 - Native SQL vector operations
-- Requires: `uv pip install -e ".[vector-search]"`
+- Installed release: `python -m pip install "geistfabrik[vector-search]"`
+- Source checkout: `uv sync --extra vector-search`
 
 **Configuration**:
 ```yaml
@@ -504,17 +519,17 @@ Vault Files → Vault.sync() → SQLite Database
 2. **Questions, not answers** - "What if...?" not "Here's how"
 3. **Sample, don't rank** - Avoid preferential attachment
 4. **Intermittent invocation** - User-initiated, not continuous
-5. **Local-first** - No network required
+5. **Local-first** - Bundled-model operation needs no network; offline flags prohibit fallback
 6. **Deterministic randomness** - Same date + vault = same output
-7. **Never destructive** - Read-only vault access
-8. **Extensible at every layer** - Metadata, functions, geists
+7. **Never destructive** - Engine writes only managed DB/journal state, not source notes
+8. **Extensible at every layer** - Python extensions are trusted code, not sandboxed
 
 ### Technologies
 
 **Core Dependencies**:
 - `sentence-transformers` (≥2.2.0) - Local embedding computation with all-MiniLM-L6-v2 model
 - `pyyaml` (≥6.0) - YAML parsing for configuration and Tracery geists
-- Python 3.11+ standard library (SQLite, pathlib, etc.)
+- Python 3.11 or 3.12 standard library (SQLite, pathlib, etc.)
 
 **Tracery Grammar**:
 - Custom implementation included (no external dependency)
@@ -658,17 +673,17 @@ This prevents CI failures by catching issues locally before you push.
 ### Running Tests
 
 ```bash
-# All tests
-uv run pytest
+# Full fast validation (canonical CI commands and branch-coverage gate)
+./scripts/validate.sh
 
-# Unit tests only
-uv run pytest tests/unit/
+# Unit tests only, without artifact or production-model lanes
+uv run pytest tests/unit -m "not slow and not benchmark and not artifact and not production_model"
 
-# Integration tests only
-uv run pytest tests/integration/
+# Integration tests only, with the same fast-lane selection
+uv run pytest tests/integration -m "not slow and not benchmark and not artifact and not production_model"
 
-# With coverage
-uv run pytest --cov=src/geistfabrik
+# Build, inspect, install, and run real offline inference from the wheel
+./scripts/test_wheel.sh
 
 # Type checking
 uv run mypy src/ --strict
@@ -717,7 +732,7 @@ Remaining release polish:
 Contributions welcome! Please:
 1. Read [CLAUDE.md](CLAUDE.md) for development guidelines
 2. Install pre-commit hooks: `uv run pre-commit install` (blocks bad commits)
-3. Run tests: `uv run pytest`
+3. Run the canonical fast unit/integration lanes shown above
 4. Check types: `uv run mypy src/ --strict`
 5. Validate before pushing: `./scripts/validate.sh`
 6. Follow existing code style
@@ -733,3 +748,13 @@ Inspired by Gordon Brander's work on tools for thought and the philosophy of "mu
 ---
 
 **Note**: This is beta software approaching 1.0. Core functionality is feature-complete and well-tested. The system is ready for adventurous users who want to extend their Obsidian vaults with creative suggestion engines.
+
+### Correctness and security limits
+
+Configuration is loaded authoritatively from `<vault>/_geistfabrik/config.yaml` before the database or plugins are opened. Existing malformed configuration fails closed. `geist_execution.timeout` is limited to 1–3600 seconds, `geist_execution.max_failures` to 1–100, and `session.default_suggestions`/`--count` to 1–1000.
+
+YAML inputs are size-, depth-, node-, and alias-bounded. Tracery grammars also have fixed practical symbol/rule/output/operation limits and `count` is limited to 1–100. Runtime results are capped at 100 suggestions per geist and 1000 per session, with fixed text/note-field quotas before embedding or persistence. Code and Tracery geists share timeout and persistent failure accounting. Hard wall-clock interruption uses multiplexed POSIX `SIGALRM` on the main thread; Tracery has additional cooperative limits. Custom Python geists, metadata modules, and vault functions remain trusted arbitrary code and are **not sandboxed** or portably forcibly stopped on Windows.
+
+Markdown sources and managed `_geistfabrik`/journal paths are resolved and checked for vault containment. Escaping or broken symlinks, Markdown files over 16 MiB, and structurally dense notes above fixed link/tag/date-section quotas are skipped/rejected. Journal commits also check managed-directory identity and use descriptor-relative replacement on supported POSIX systems. These checks reduce accidental path escape but are not an OS-level sandbox against a malicious concurrent local process; Windows lacks an equivalent stdlib hardening primitive.
+
+These hardening and packaging changes are included in version 0.10.1.

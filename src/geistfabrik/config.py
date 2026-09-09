@@ -109,28 +109,63 @@ Recommended: 2000 characters
 # ------------------------------
 # These constants control how geists are executed and managed.
 
+MIN_GEIST_TIMEOUT = 1
+MAX_GEIST_TIMEOUT = 3600
 DEFAULT_GEIST_TIMEOUT = 30
 """int: Maximum execution time for a single geist in seconds.
 
-Geists that exceed this timeout are terminated to prevent hangs.
-Applies to both code geists and Tracery geists.
+Code and Tracery geists share timeout/failure accounting. Hard interruption
+uses POSIX signals and is unavailable on Windows and non-main threads; custom
+Python plugins remain trusted code rather than sandboxed processes.
 
 This default is set to 30 seconds based on production usage with large vaults
 (10k+ notes). For smaller vaults or more conservative timeout behavior, 5-10
 seconds may be sufficient.
 
-Range: [1, 60] seconds
+Range: [1, 3600] seconds
 Recommended: 30 seconds (production), 5 seconds (conservative)
 """
 
+MIN_MAX_GEIST_FAILURES = 1
+MAX_MAX_GEIST_FAILURES = 100
 DEFAULT_MAX_GEIST_FAILURES = 3
 """int: Number of consecutive failures before a geist is auto-disabled.
 
-After this many failures, a geist will be automatically disabled for
-the current session to prevent repeated errors from degrading UX.
-Range: [1, 10] failures
+After this many consecutive failures, a geist is persistently disabled until
+a successful diagnostic run or explicit reset re-enables it.
+Range: [1, 100] failures
 Recommended: 3 failures
 """
+
+
+MIN_SESSION_SUGGESTIONS = 1
+MAX_SESSION_SUGGESTIONS = 1000
+MAX_GEIST_SUGGESTIONS = 100
+MAX_TRACERY_COUNT = 100
+
+# Practical, non-configurable resource limits.
+MAX_NOTE_BYTES = 16 * 1024 * 1024
+MAX_NOTE_LINKS = 50_000
+MAX_NOTE_TAGS = 10_000
+MAX_NOTE_H2_HEADINGS = 50_000
+MAX_DATE_SECTIONS = 10_000
+MAX_VIRTUAL_NOTES_PER_FILE = 10_000
+MAX_SUGGESTION_TEXT_BYTES = 64 * 1024
+MAX_SUGGESTION_NOTES = 100
+MAX_SUGGESTION_NOTE_CHARS = 1024
+MAX_SUGGESTION_GEIST_ID_CHARS = 128
+MAX_SUGGESTION_TITLE_CHARS = 512
+SIMILARITY_SUGGESTION_CHUNK = 128
+SIMILARITY_HISTORY_CHUNK = 2048
+MAX_TRACERY_SYMBOLS = 256
+MAX_TRACERY_RULES = 1024
+MAX_TRACERY_RULES_PER_SYMBOL = 256
+MAX_TRACERY_RULE_BYTES = 64 * 1024
+MAX_TRACERY_OUTPUT_BYTES = 64 * 1024
+MAX_TRACERY_PREPROCESSED_BYTES = 4 * 1024 * 1024
+MAX_TRACERY_EXPANSIONS = 10_000
+MAX_TRACERY_VAULT_CALLS = 256
+MAX_TRACERY_VAULT_ITEMS = 10_000
 
 
 # Storage Configuration
@@ -145,7 +180,8 @@ the session_embeddings table grows by several MB per session and is otherwise
 never pruned. To bound database growth, embeddings for sessions older than the
 most recent N are removed at the start of each session.
 
-Set to 0 (or a negative value) to retain all sessions' embeddings (unbounded).
+Set to 0 to retain all sessions' embeddings (unbounded). Negative values are
+invalid configuration.
 The default (730) preserves roughly two years of daily history - enough for the
 year-over-year seasonal/temporal geists - while still bounding worst-case
 growth. Lower it on very large or daily-updated vaults; raise it if you rely on
@@ -161,7 +197,7 @@ def get_default_filter_config() -> dict[str, Any]:
         Default configuration for the SuggestionFilter with all constants.
     """
     return {
-        "strategies": ["boundary", "novelty", "diversity", "quality"],
+        "strategies": ["boundary", "quality", "novelty", "diversity"],
         "boundary": {"enabled": True},
         "novelty": {
             "enabled": True,

@@ -1,5 +1,7 @@
 """Integration tests for date-collection notes."""
 
+import os
+from datetime import date
 from pathlib import Path
 
 from geistfabrik.vault import Vault
@@ -101,10 +103,8 @@ Second entry.
     entry1 = [n for n in notes if n.path == "Journal.md/2025-01-15"][0]
     assert entry1.content.strip() == "Original content."
 
-    # Modify journal - change first entry
-    import time
-
-    time.sleep(0.1)  # Ensure mtime changes
+    # Modify journal - change first entry and advance mtime deterministically.
+    previous_mtime = journal.stat().st_mtime
     journal.write_text("""
 ## 2025-01-15
 Modified content.
@@ -115,6 +115,7 @@ Second entry.
 ## 2025-01-17
 New entry.
 """)
+    os.utime(journal, (previous_mtime + 2, previous_mtime + 2))
 
     # Re-sync
     vault.sync()
@@ -173,6 +174,7 @@ Second entry.
 
     # Get by virtual path
     note = vault.get_note("Journal.md/2025-01-15")
+    assert note is not None
 
     assert note is not None
     assert note.is_virtual
@@ -380,7 +382,9 @@ Second entry.
     vault.sync()
 
     entry1 = vault.get_note("Journal.md/2025-01-15")
+    assert entry1 is not None
     entry2 = vault.get_note("Journal.md/2025-01-16")
+    assert entry2 is not None
 
     # Both should have frontmatter tags
     assert "journal" in entry1.tags
@@ -413,7 +417,9 @@ Link to [[Note B]].
     vault.sync()
 
     entry1 = vault.get_note("Journal.md/2025-01-15")
+    assert entry1 is not None
     entry2 = vault.get_note("Journal.md/2025-01-16")
+    assert entry2 is not None
 
     # Check links are per-entry
     entry1_targets = {link.target for link in entry1.links}
@@ -450,6 +456,7 @@ Next day content.
     vault.sync()
 
     entry1 = vault.get_note("Journal.md/2025-01-15")
+    assert entry1 is not None
 
     assert "### Morning" in entry1.content
     assert "Morning content" in entry1.content
@@ -493,6 +500,7 @@ Second entry placeholder.
     vault.sync()
 
     entry = vault.get_note("Work Log.md/2025-01-15")
+    assert entry is not None
 
     # Check structure preserved
     assert "### Tasks" in entry.content
@@ -541,10 +549,8 @@ Entry B2.
     count = vault.sync()
     assert count == 4  # Both journals processed (2 entries each)
 
-    # Modify only Journal A
-    import time
-
-    time.sleep(1.0)  # Ensure mtime difference is detectable
+    # Modify only Journal A and advance mtime deterministically.
+    previous_mtime = journal_a.stat().st_mtime
     journal_a.write_text("""
 ## 2025-01-15
 Modified entry A.
@@ -552,12 +558,14 @@ Modified entry A.
 ## 2025-01-16
 Entry A2.
 """)
+    os.utime(journal_a, (previous_mtime + 2, previous_mtime + 2))
 
     # Re-sync
     count = vault.sync()
     assert count == 2  # Only Journal A reprocessed (2 entries)
 
     entry_a = vault.get_note("Journal A.md/2025-01-15")
+    assert entry_a is not None
     assert "Modified entry A" in entry_a.content
 
     vault.close()
@@ -583,10 +591,8 @@ Entry two.
     assert len(vault.all_notes()) == 2
     assert all(n.is_virtual for n in vault.all_notes())
 
-    # Change to regular note
-    import time
-
-    time.sleep(0.1)
+    # Change to regular note and advance mtime deterministically.
+    previous_mtime = journal.stat().st_mtime
     journal.write_text("""
 # Regular Note
 
@@ -596,6 +602,7 @@ Not a date.
 ## Conclusion
 Also not a date.
 """)
+    os.utime(journal, (previous_mtime + 2, previous_mtime + 2))
 
     vault.sync()
 
@@ -624,10 +631,8 @@ Regular content.
     assert len(vault.all_notes()) == 1
     assert not vault.all_notes()[0].is_virtual
 
-    # Change to journal
-    import time
-
-    time.sleep(0.1)
+    # Change to journal and advance mtime deterministically.
+    previous_mtime = note.stat().st_mtime
     note.write_text("""
 ## 2025-01-15
 Now a journal entry.
@@ -635,6 +640,7 @@ Now a journal entry.
 ## 2025-01-16
 Another entry.
 """)
+    os.utime(note, (previous_mtime + 2, previous_mtime + 2))
 
     vault.sync()
 
@@ -681,6 +687,7 @@ Second entry.
     vault.sync()
 
     entry = vault.get_note("Journal.md/2025-01-15")
+    assert entry is not None
 
     assert "你好世界" in entry.content
     assert "🎉" in entry.content
@@ -737,7 +744,9 @@ Entry two.
     vault.sync()
 
     entry1 = vault.get_note("Journal.md/2025-01-15")
+    assert entry1 is not None
     entry2 = vault.get_note("Journal.md/2025-01-20")
+    assert entry2 is not None
 
     from datetime import date
 
@@ -860,8 +869,11 @@ More thoughts.
 
     # Test 2: Get specific virtual notes
     work_jan15 = vault.get_note("Work Log.md/2025-01-15")
+    assert work_jan15 is not None
     work_jan16 = vault.get_note("Work Log.md/2025-01-16")
+    assert work_jan16 is not None
     journal_jan15 = vault.get_note("Daily Journal.md/2025-01-15")
+    assert journal_jan15 is not None
 
     assert work_jan15 is not None
     assert work_jan16 is not None
@@ -987,8 +999,10 @@ Sprint planning session.
     # Verify we got 3 virtual notes
     assert len(virtual_notes) == 3, f"Expected 3 virtual notes, got {len(virtual_notes)}"
 
-    # Sort by entry date (same order as original file)
-    virtual_notes.sort(key=lambda n: n.entry_date)
+    # Sort by entry date (same order as original file). Virtual notes always
+    # carry an entry date; the fallback keeps the sort key total for typing.
+    assert all(note.entry_date is not None for note in virtual_notes)
+    virtual_notes.sort(key=lambda note: note.entry_date or date.min)
 
     # Reconstruct the journal from virtual notes
     # Each virtual note has:
@@ -1182,7 +1196,9 @@ Rest day.
 
     # Get virtual notes
     feb18 = vault.get_note("Exercise journal.md/2024-02-18")
+    assert feb18 is not None
     feb19 = vault.get_note("Exercise journal.md/2024-02-19")
+    assert feb19 is not None
 
     assert feb18 is not None
     assert feb19 is not None

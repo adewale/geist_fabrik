@@ -73,21 +73,36 @@ class GeistStatusStore:
             The new persisted GeistStatus (with the incremented count and the
             resulting disabled flag).
         """
-        row = self.db.execute(
-            "SELECT failure_count FROM geist_status WHERE geist_id = ?", (geist_id,)
-        ).fetchone()
-        new_count = (int(row[0]) if row else 0) + 1
-        disabled = new_count >= max_failures
         truncated = error[:_MAX_ERROR_CHARS]
-        self.db.execute(
+        row = self.db.execute(
             """
-            INSERT OR REPLACE INTO geist_status
+            INSERT INTO geist_status
                 (geist_id, failure_count, disabled, last_error, updated)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, 1, CASE WHEN 1 >= ? THEN 1 ELSE 0 END, ?, ?)
+            ON CONFLICT(geist_id) DO UPDATE SET
+                failure_count = geist_status.failure_count + 1,
+                disabled = CASE
+                    WHEN geist_status.disabled = 1
+                      OR geist_status.failure_count + 1 >= ? THEN 1 ELSE 0
+                END,
+                last_error = excluded.last_error,
+                updated = excluded.updated
+            RETURNING failure_count, disabled
             """,
-            (geist_id, new_count, int(disabled), truncated, datetime.now().isoformat()),
-        )
+            (
+                geist_id,
+                max_failures,
+                truncated,
+                datetime.now().isoformat(),
+                max_failures,
+            ),
+        ).fetchone()
+        if row is None:
+            self.db.rollback()
+            raise sqlite3.DatabaseError("Failure status update returned no row")
         self.db.commit()
+        new_count = int(row[0])
+        disabled = bool(row[1])
         return GeistStatus(geist_id, new_count, disabled, truncated)
 
     def record_success(self, geist_id: str) -> None:

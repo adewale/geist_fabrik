@@ -12,12 +12,19 @@ import logging
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
+
+from .config import DEFAULT_GEIST_TIMEOUT
+from .execution_timeout import _alarm_timeout
+from .path_safety import ensure_contained
 
 if TYPE_CHECKING:
     from .vault_context import VaultContext
 
 logger = logging.getLogger(__name__)
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class FunctionRegistryError(Exception):
@@ -36,7 +43,7 @@ class DuplicateFunctionError(Exception):
 _GLOBAL_REGISTRY: dict[str, Callable[..., Any]] = {}
 
 
-def vault_function(name: str) -> Callable[..., Any]:
+def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """Decorator to register a function for use in geists and Tracery.
 
     Args:
@@ -52,7 +59,7 @@ def vault_function(name: str) -> Callable[..., Any]:
             return vault.sample(questions, count)
     """
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         if name in _GLOBAL_REGISTRY:
             raise DuplicateFunctionError(
                 f"Function '{name}' is already registered: {_GLOBAL_REGISTRY[name]}"
@@ -81,14 +88,16 @@ class FunctionRegistry:
     3. Built-in functions provided by the system
     """
 
-    def __init__(self, function_dir: Path | None = None):
+    def __init__(self, function_dir: Path | None = None, timeout: int = DEFAULT_GEIST_TIMEOUT):
         """Initialise function registry.
 
         Args:
             function_dir: Directory containing vault function modules.
                          If None, only built-in and decorated functions are available.
+            timeout: Supported POSIX/main-thread import deadline in seconds.
         """
         self.function_dir = function_dir
+        self.timeout = timeout
         self.functions: dict[str, Callable[..., Any]] = {}
 
         # Load built-in functions
@@ -499,17 +508,29 @@ class FunctionRegistry:
             FunctionRegistryError: If module is invalid
             DuplicateFunctionError: If function names conflict
         """
+        if self.function_dir is None:
+            raise FunctionRegistryError("Vault function directory is not configured")
+        ensure_contained(module_file, self.function_dir, must_exist=True, reject_symlinks=True)
+
         # Load module dynamically
         spec = importlib.util.spec_from_file_location(module_name, module_file)
         if spec is None or spec.loader is None:
             raise FunctionRegistryError(f"Could not load module spec for {module_name}")
 
         module = importlib.util.module_from_spec(spec)
-        sys.modules[f"_vaultfunc_{module_name}"] = module
+        module_key = f"_vaultfunc_{module_name}"
+        sys.modules[module_key] = module
+        registry_before = dict(_GLOBAL_REGISTRY)
 
         try:
-            spec.loader.exec_module(module)
+            with _alarm_timeout(self.timeout):
+                spec.loader.exec_module(module)
         except Exception as e:
+            # A timed-out/failed import may already have run decorators. Do not
+            # leak those partial registrations into the successful module set.
+            _GLOBAL_REGISTRY.clear()
+            _GLOBAL_REGISTRY.update(registry_before)
+            sys.modules.pop(module_key, None)
             raise FunctionRegistryError(f"Error executing module {module_name}: {e}")
 
         # After module execution, check if any new functions were registered globally

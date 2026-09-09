@@ -3,27 +3,34 @@ name: Test
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
 jobs:
   test:
+    timeout-minutes: 20
     runs-on: ${{ matrix.os }}
+    env:
+      GEISTFABRIK_OFFLINE: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
     strategy:
       matrix:
-        # Test on Linux with both Python versions (primary platform)
-        # Only test macOS on one Python version to save CI time
         os: [ubuntu-latest]
         python-version: ["3.11", "3.12"]
         include:
-          # Add macOS with Python 3.11 only
           - os: macos-latest
             python-version: "3.11"
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for git-based regression tests
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -35,46 +42,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cache sentence-transformers models
-        uses: actions/cache@v4
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
-        with:
-          path: ~/.cache/torch/sentence_transformers
-          key: ${{ runner.os }}-sentence-transformers-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-sentence-transformers-
-
       - name: Install dependencies
-        run: |
-          uv sync
-          uv pip install -e ".[vector-search]"
-        env:
-          # Force uv to cache aggressively
-          UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
+        run: uv sync --frozen --extra vector-search
 
-      - name: Pre-download sentence-transformers model
-        run: |
-          uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-        continue-on-error: true
-        timeout-minutes: 5
+      - name: Run unit tests
+        run: >-
+          uv run pytest tests/unit -v
+          -m "not slow and not benchmark and not artifact and not production_model"
+          --timeout=60 --cov=geistfabrik --cov-branch --cov-report=
 
-      - name: Set thread limits for ML libraries
-        run: |
-          echo "OMP_NUM_THREADS=1" >> $GITHUB_ENV
-          echo "MKL_NUM_THREADS=1" >> $GITHUB_ENV
-          echo "NUMEXPR_NUM_THREADS=1" >> $GITHUB_ENV
-          echo "OPENBLAS_NUM_THREADS=1" >> $GITHUB_ENV
-          echo "VECLIB_MAXIMUM_THREADS=1" >> $GITHUB_ENV
-          echo "TOKENIZERS_PARALLELISM=false" >> $GITHUB_ENV
-
-      - name: Run tests
-        run: uv run pytest -v -m "not slow and not benchmark"
+      - name: Run integration tests and enforce branch coverage
+        run: >-
+          uv run pytest tests/integration -v
+          -m "not slow and not benchmark and not artifact and not production_model"
+          --timeout=300 --cov=geistfabrik --cov-branch --cov-append
+          --cov-report=term-missing --cov-fail-under=70
 
       - name: Run linting
         run: uv run ruff check src/ tests/
 
-      - name: Run type checking
+      - name: Run mypy type checking
         run: uv run mypy src/ --strict
+
+      - name: Run ty type checking
+        run: uv run ty check src tests --error-on-warning
 
       - name: Check for unused database tables
         run: uv run python scripts/detect_unused_tables.py
@@ -82,10 +73,55 @@ jobs:
       - name: Security scan (bandit)
         run: uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q
 
-      # Verify specs/acceptance_criteria.md against the code by RUNNING every
-      # machine-verifiable criterion (not trusting its status column). Runs once
-      # (single matrix leg) since it re-executes test modules and is OS/Python
-      # agnostic.
       - name: Acceptance criteria
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         run: uv run python scripts/check_phase_completion.py
+
+  package-smoke:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Require materialized Git LFS model
+        run: |
+          git lfs pull
+          test "$(wc -c < models/all-MiniLM-L6-v2/model.safetensors)" -gt 1000
+          ! head -c 64 models/all-MiniLM-L6-v2/model.safetensors | grep -q 'git-lfs.github.com'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra vector-search
+
+      - name: Build and smoke-test installed artifacts offline
+        env:
+          PACKAGE_SMOKE_WORKDIR: ${{ github.workspace }}/.package-smoke
+          PACKAGE_SMOKE_PYTHON: ${{ matrix.python-version }}
+        run: |
+          set -o pipefail
+          ./scripts/test_wheel.sh 2>&1 | tee .package-smoke.log
+
+      - name: Upload package-smoke diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-smoke-${{ matrix.python-version }}-diagnostics
+          path: |
+            .package-smoke/**
+            .package-smoke.log
+          retention-days: 3

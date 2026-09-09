@@ -142,7 +142,7 @@ def test_contrarian_to_vectorization_benchmark(benchmark_vault):
     context = VaultContext(vault, session)
 
     # Initialise function registry
-    registry = FunctionRegistry(context)
+    registry = FunctionRegistry()
 
     # Get a note to query against
     notes = context.notes()

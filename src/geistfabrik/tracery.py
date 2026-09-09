@@ -7,15 +7,37 @@ Supports symbol expansion, modifiers, and vault function calls.
 import logging
 import random
 import re
+import time
 from collections.abc import Callable
 from pathlib import Path
 
-import yaml
-
+from .bounded_yaml import load_bounded_yaml
+from .config import (
+    DEFAULT_GEIST_TIMEOUT,
+    MAX_TRACERY_COUNT,
+    MAX_TRACERY_EXPANSIONS,
+    MAX_TRACERY_OUTPUT_BYTES,
+    MAX_TRACERY_PREPROCESSED_BYTES,
+    MAX_TRACERY_RULE_BYTES,
+    MAX_TRACERY_RULES,
+    MAX_TRACERY_RULES_PER_SYMBOL,
+    MAX_TRACERY_SYMBOLS,
+    MAX_TRACERY_VAULT_CALLS,
+    MAX_TRACERY_VAULT_ITEMS,
+)
 from .models import Suggestion
+from .path_safety import ensure_contained
 from .vault_context import VaultContext
 
 logger = logging.getLogger(__name__)
+
+
+class TraceryExecutionError(RuntimeError):
+    """Raised when a Tracery invocation fails."""
+
+
+class TraceryLimitError(TraceryExecutionError):
+    """Raised when a grammar exceeds an invocation resource limit."""
 
 
 class TraceryEngine:
@@ -36,6 +58,32 @@ class TraceryEngine:
         self._preprocessed = False  # Track if pre-population done
         self._prepopulation_failed = False  # Track if pre-population failed
         self._has_empty_symbols = False  # Track if any symbols have empty arrays
+        self.deadline = 0.0
+        self.expansions_remaining = MAX_TRACERY_EXPANSIONS
+        self.vault_calls_remaining = MAX_TRACERY_VAULT_CALLS
+        self.vault_items_remaining = MAX_TRACERY_VAULT_ITEMS
+
+    def begin_invocation(self, timeout: int) -> None:
+        """Reset cooperative per-invocation budgets."""
+        self.deadline = time.monotonic() + timeout
+        self.expansions_remaining = MAX_TRACERY_EXPANSIONS
+        self.vault_calls_remaining = MAX_TRACERY_VAULT_CALLS
+        self.vault_items_remaining = MAX_TRACERY_VAULT_ITEMS
+
+    def _consume(self, kind: str, amount: int = 1) -> None:
+        if self.deadline and time.monotonic() > self.deadline:
+            raise TraceryLimitError("Tracery cooperative deadline exceeded")
+        if kind == "expansion":
+            self.expansions_remaining -= amount
+            remaining = self.expansions_remaining
+        elif kind == "vault_call":
+            self.vault_calls_remaining -= amount
+            remaining = self.vault_calls_remaining
+        else:
+            self.vault_items_remaining -= amount
+            remaining = self.vault_items_remaining
+        if remaining < 0:
+            raise TraceryLimitError(f"Tracery {kind} budget exceeded")
 
     def _default_modifiers(self) -> dict[str, Callable[[str], str]]:
         """Get default English language modifiers.
@@ -289,79 +337,64 @@ class TraceryEngine:
         self._preprocess_vault_functions()
 
     def _preprocess_vault_functions(self) -> None:
-        """Execute all $vault.* calls and expand symbol arrays.
-
-        This pre-populates symbol arrays with vault function results before
-        Tracery expansion begins, ensuring idiomatic Tracery behaviour where
-        each expansion independently samples from pre-populated arrays.
-        """
+        """Transactionally pre-populate grammar rules from vault functions."""
         if self._preprocessed or not self.vault_context:
             return
+        pattern = r"\$vault\.([a-z_]+)\(([^)]*)\)"
+        new_grammar: dict[str, list[str]] = {}
+        has_empty = False
+        preprocessed_bytes = 0
+
+        def append_rule(rules: list[str], value: object) -> None:
+            nonlocal preprocessed_bytes
+            text = str(value)
+            size = len(text.encode("utf-8"))
+            if size > MAX_TRACERY_RULE_BYTES:
+                raise TraceryLimitError(
+                    f"Preprocessed Tracery rule exceeds {MAX_TRACERY_RULE_BYTES} bytes"
+                )
+            preprocessed_bytes += size
+            if preprocessed_bytes > MAX_TRACERY_PREPROCESSED_BYTES:
+                raise TraceryLimitError(
+                    f"Preprocessed Tracery grammar exceeds {MAX_TRACERY_PREPROCESSED_BYTES} bytes"
+                )
+            rules.append(text)
 
         try:
-            # Pattern to match $vault.function_name(args)
-            pattern = r"\$vault\.([a-z_]+)\(([^)]*)\)"
-
-            for symbol, rules in list(self.grammar.items()):
+            for symbol, rules in self.grammar.items():
                 expanded_rules: list[str] = []
-
                 for rule in rules:
-                    # Check if this rule is a vault function call
                     match = re.fullmatch(pattern, rule.strip())
-
-                    if match:
-                        # Execute vault function
-                        func_name = match.group(1)
-                        args_str = match.group(2).strip()
-
-                        # Parse arguments
-                        args = []
-                        if args_str:
-                            raw_args = [arg.strip().strip("\"'") for arg in args_str.split(",")]
-                            args = [self._convert_arg(arg) for arg in raw_args]
-
-                        # Call function and get results
-                        result = self.vault_context.call_function(func_name, *args)
-
-                        # Check if we got fewer items than requested
-                        if isinstance(result, list) and args and isinstance(args[0], int):
-                            requested_count = args[0]
-                            actual_count = len(result)
-                            if actual_count < requested_count:
-                                logger.warning(
-                                    f"Symbol '{symbol}' requested {requested_count} items "
-                                    f"via $vault.{func_name}() but only {actual_count} "
-                                    f"available. This may cause repetition in suggestions."
-                                )
-
-                        # If result is a list, expand into multiple rules
-                        if isinstance(result, list):
-                            if len(result) == 0:
-                                logger.warning(
-                                    f"Symbol '{symbol}' has empty result from "
-                                    f"$vault.{func_name}(). This will produce "
-                                    f"suggestions with empty placeholders."
-                                )
-                                self._has_empty_symbols = True
-                            expanded_rules.extend([str(item) for item in result])
-                        else:
-                            expanded_rules.append(str(result))
+                    if not match:
+                        append_rule(expanded_rules, rule)
+                        continue
+                    self._consume("vault_call")
+                    func_name = match.group(1)
+                    args_str = match.group(2).strip()
+                    args: list[int | str] = []
+                    if args_str:
+                        raw_args = [arg.strip().strip("\"'") for arg in args_str.split(",")]
+                        args = [self._convert_arg(arg) for arg in raw_args]
+                    result = self.vault_context.call_function(func_name, *args)
+                    if isinstance(result, list):
+                        self._consume("vault_item", len(result))
+                        if not result:
+                            has_empty = True
+                        for item in result:
+                            append_rule(expanded_rules, item)
                     else:
-                        # Static rule, keep as-is
-                        expanded_rules.append(rule)
-
-                # Replace symbol's rules with expanded version
-                self.grammar[symbol] = expanded_rules
-
-            self._preprocessed = True
-
-        except Exception as e:
-            logger.error(
-                f"Vault function pre-population failed: {e}\n"
-                f"  → Check that all $vault.* functions exist and work correctly\n"
-                f"  → Validate your geist with: geistfabrik validate"
-            )
-            self._prepopulation_failed = True
+                        self._consume("vault_item")
+                        append_rule(expanded_rules, result)
+                new_grammar[symbol] = expanded_rules
+        except TraceryLimitError:
+            raise
+        except Exception as exc:
+            raise TraceryExecutionError(
+                f"Vault function preprocessing failed: {type(exc).__name__}: {exc}"
+            ) from exc
+        self.grammar = new_grammar
+        self._has_empty_symbols = has_empty
+        self._preprocessed = True
 
     def expand(self, text: str, depth: int = 0) -> str:
         """Expand a text template using grammar rules.
@@ -376,20 +409,30 @@ class TraceryEngine:
         Raises:
             RecursionError: If expansion exceeds max depth
         """
+        self._consume("expansion")
         if depth > self.max_depth:
-            raise RecursionError(f"Tracery expansion exceeded max depth ({self.max_depth})")
+            raise TraceryLimitError(f"Tracery expansion exceeded max depth ({self.max_depth})")
 
-        # Find and expand #symbols#
+        # Expand incrementally so amplification is rejected before a large
+        # intermediate string is allocated.
         pattern = r"#([^#]+)#"
+        pieces: list[str] = []
+        output_bytes = 0
+        cursor = 0
 
-        def replace_symbol(match: re.Match[str]) -> str:
-            symbol = match.group(1)
-            expanded = self._expand_symbol(symbol, depth + 1)
-            return expanded
+        def append_piece(piece: str) -> None:
+            nonlocal output_bytes
+            output_bytes += len(piece.encode("utf-8"))
+            if output_bytes > MAX_TRACERY_OUTPUT_BYTES:
+                raise TraceryLimitError(f"Tracery output exceeds {MAX_TRACERY_OUTPUT_BYTES} bytes")
+            pieces.append(piece)
 
-        expanded = re.sub(pattern, replace_symbol, text)
-
-        return expanded
+        for match in re.finditer(pattern, text):
+            append_piece(text[cursor : match.start()])
+            append_piece(self._expand_symbol(match.group(1), depth + 1))
+            cursor = match.end()
+        append_piece(text[cursor:])
+        return "".join(pieces)
 
     def _expand_symbol(self, symbol: str, depth: int) -> str:
         """Expand a single symbol with optional modifiers.
@@ -428,6 +471,10 @@ class TraceryEngine:
         for modifier_name in modifier_names:
             if modifier_name in self.modifiers:
                 result = self.modifiers[modifier_name](result)
+                if len(result.encode("utf-8")) > MAX_TRACERY_OUTPUT_BYTES:
+                    raise TraceryLimitError(
+                        f"Tracery output exceeds {MAX_TRACERY_OUTPUT_BYTES} bytes"
+                    )
             else:
                 # Unknown modifier - leave as-is or could warn
                 pass
@@ -462,6 +509,7 @@ class TraceryGeist:
         grammar: dict[str, list[str]],
         count: int = 1,
         seed: int | None = None,
+        yaml_path: Path | None = None,
     ):
         """Initialise Tracery geist.
 
@@ -473,7 +521,42 @@ class TraceryGeist:
         """
         self.geist_id = geist_id
         self.engine = TraceryEngine(grammar, seed)
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, int)
+            or not 1 <= count <= MAX_TRACERY_COUNT
+        ):
+            raise ValueError(f"Tracery count must be an integer in [1, {MAX_TRACERY_COUNT}]")
         self.count = count
+        self.yaml_path = yaml_path or Path(f"{geist_id}.yaml")
+        self.execution_timeout = DEFAULT_GEIST_TIMEOUT
+
+    @staticmethod
+    def _normalise_grammar(grammar: object, geist_id: str, yaml_path: Path) -> dict[str, list[str]]:
+        if not isinstance(grammar, dict):
+            raise ValueError(f"Tracery grammar must be a mapping in {yaml_path}")
+        if len(grammar) > MAX_TRACERY_SYMBOLS:
+            raise ValueError(f"Tracery grammar exceeds {MAX_TRACERY_SYMBOLS} symbols")
+        normalised: dict[str, list[str]] = {}
+        total_rules = 0
+        for symbol, raw_rules in grammar.items():
+            if not isinstance(symbol, str) or not symbol or len(symbol) > 256:
+                raise ValueError(f"Invalid Tracery symbol in {yaml_path}: {symbol!r}")
+            rules = [raw_rules] if isinstance(raw_rules, str) else raw_rules
+            if not isinstance(rules, list) or any(not isinstance(rule, str) for rule in rules):
+                raise ValueError(f"Rules for '{symbol}' must be a string or list of strings")
+            if len(rules) > MAX_TRACERY_RULES_PER_SYMBOL:
+                raise ValueError(f"Symbol '{symbol}' exceeds {MAX_TRACERY_RULES_PER_SYMBOL} rules")
+            for rule in rules:
+                if len(rule.encode("utf-8")) > MAX_TRACERY_RULE_BYTES:
+                    raise ValueError(f"Rule for '{symbol}' exceeds {MAX_TRACERY_RULE_BYTES} bytes")
+            total_rules += len(rules)
+            if total_rules > MAX_TRACERY_RULES:
+                raise ValueError(f"Tracery grammar exceeds {MAX_TRACERY_RULES} total rules")
+            normalised[symbol] = list(rules)
+        if "origin" not in normalised:
+            raise ValueError(f"Missing origin symbol in {yaml_path} for geist {geist_id}")
+        return normalised
 
     @staticmethod
     def _validate_grammar(grammar: dict[str, list[str]], geist_id: str, yaml_path: Path) -> None:
@@ -538,8 +621,10 @@ class TraceryGeist:
         Returns:
             Loaded TraceryGeist instance
         """
-        with open(yaml_path) as f:
-            data = yaml.safe_load(f)
+        ensure_contained(yaml_path, yaml_path.parent, must_exist=True, reject_symlinks=True)
+        data = load_bounded_yaml(yaml_path)
+        if not isinstance(data, dict):
+            raise ValueError(f"Tracery YAML root must be a mapping: {yaml_path}")
 
         if data.get("type") != "geist-tracery":
             raise ValueError(
@@ -549,14 +634,20 @@ class TraceryGeist:
                 f"  → Fix the YAML file to use the correct type"
             )
 
-        geist_id = data["id"]
-        grammar = data["tracery"]
+        geist_id = data.get("id")
+        if not isinstance(geist_id, str) or not geist_id or len(geist_id) > 256:
+            raise ValueError(f"Tracery geist id must be a non-empty string in {yaml_path}")
         count = data.get("count", 1)
-
-        # Validate grammar for anti-patterns
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, int)
+            or not 1 <= count <= MAX_TRACERY_COUNT
+        ):
+            raise ValueError(f"Tracery count must be an integer in [1, {MAX_TRACERY_COUNT}]")
+        grammar = cls._normalise_grammar(data.get("tracery"), geist_id, yaml_path)
         cls._validate_grammar(grammar, geist_id, yaml_path)
 
-        return cls(geist_id, grammar, count, seed)
+        return cls(geist_id, grammar, count, seed, yaml_path)
 
     def suggest(self, vault: VaultContext) -> list[Suggestion]:
         """Generate suggestions using Tracery grammar.
@@ -567,14 +658,8 @@ class TraceryGeist:
         Returns:
             List of generated suggestions
         """
+        self.engine.begin_invocation(self.execution_timeout)
         self.engine.set_vault_context(vault)
-
-        # If preprocessing failed, return empty suggestions
-        if self.engine._prepopulation_failed:
-            logger.error(
-                f"Geist {self.geist_id}: returning empty suggestions due to preprocessing failure"
-            )
-            return []
 
         # If any symbols have empty arrays, don't generate suggestions
         if self.engine._has_empty_symbols:
@@ -583,36 +668,16 @@ class TraceryGeist:
 
         suggestions = []
         for _ in range(self.count):
-            try:
-                # Expand the origin symbol
-                text = self.engine.expand("#origin#")
+            # Expand the origin symbol. Any broken expansion fails the whole
+            # invocation so the shared executor can account for it.
+            text = self.engine.expand("#origin#")
+            if len(text.encode("utf-8")) > MAX_TRACERY_OUTPUT_BYTES:
+                raise TraceryLimitError(f"Tracery output exceeds {MAX_TRACERY_OUTPUT_BYTES} bytes")
 
-                # Check for empty placeholders in expanded text
-                if self._has_empty_placeholder(text):
-                    logger.debug(
-                        f"Geist {self.geist_id}: skipping suggestion with empty placeholder: {text}"
-                    )
-                    continue
-
-                # Extract note references from text
-                note_pattern = r"\[\[([^\]]+)\]\]"
-                note_refs = re.findall(note_pattern, text)
-
-                suggestion = Suggestion(
-                    text=text,
-                    notes=note_refs,
-                    geist_id=self.geist_id,
-                )
-                suggestions.append(suggestion)
-
-            except Exception as e:
-                # Skip failed expansions
-                logger.warning(
-                    f"Tracery expansion failed for geist '{self.geist_id}': {e}\n"
-                    f"  → Check grammar for undefined symbols\n"
-                    f"  → Validate: geistfabrik validate --geist {self.geist_id}"
-                )
+            if self._has_empty_placeholder(text):
                 continue
+            note_refs = re.findall(r"\[\[([^\]]+)\]\]", text)
+            suggestions.append(Suggestion(text=text, notes=note_refs, geist_id=self.geist_id))
 
         return suggestions
 

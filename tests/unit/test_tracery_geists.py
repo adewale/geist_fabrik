@@ -24,11 +24,9 @@ GEISTS_DIR = (
 
 def create_mock_embedding_computer(num_notes: int) -> EmbeddingComputer:
     """Create a mock embedding computer for testing."""
-    computer = EmbeddingComputer()
     mock_model = Mock()
     mock_model.encode.return_value = np.random.rand(num_notes, 387)  # 384 semantic + 3 temporal
-    computer._model = mock_model
-    return computer
+    return EmbeddingComputer(model=mock_model)
 
 
 def create_test_vault_context(tmp_path: Path, num_notes: int = 10) -> VaultContext:

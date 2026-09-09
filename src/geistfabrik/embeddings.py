@@ -15,8 +15,9 @@ import logging
 import math
 import sqlite3
 from datetime import datetime
+from importlib import resources
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
 import sklearn  # type: ignore[import-untyped]
@@ -38,11 +39,75 @@ from .models import Note
 
 logger = logging.getLogger(__name__)
 
+
+class EmbeddingModel(Protocol):
+    """Structural interface required from embedding model implementations."""
+
+    def encode(
+        self,
+        sentences: str | list[str],
+        *,
+        convert_to_numpy: bool = True,
+        show_progress_bar: bool = False,
+        batch_size: int = 32,
+        **kwargs: Any,
+    ) -> np.ndarray:
+        """Encode one string or a batch of strings as numpy arrays."""
+        ...
+
+
 # Native BLAS/OpenMP thread cap applied only around model.encode() calls.
 # 1 keeps embedding deterministic and prevents the runaway thread-pool
 # spawning (one pool per core, per process) that hung CI under parallel geist
 # execution - without imposing that cap on the host process globally.
 _ENCODE_THREAD_LIMIT = 1
+
+_REQUIRED_MODEL_FILES = (
+    "config.json",
+    "config_sentence_transformers.json",
+    "model.safetensors",
+    "modules.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "vocab.txt",
+    "1_Pooling/config.json",
+)
+_LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/v1"
+
+
+def _is_usable_model_directory(model_path: Path) -> bool:
+    """Return whether *model_path* contains a complete, materialised snapshot."""
+    if not model_path.is_dir():
+        return False
+    if any(not (model_path / relative_path).is_file() for relative_path in _REQUIRED_MODEL_FILES):
+        logger.warning("Bundled model snapshot is incomplete at %s", model_path)
+        return False
+
+    weights_path = model_path / "model.safetensors"
+    try:
+        with weights_path.open("rb") as weights_file:
+            header = weights_file.read(len(_LFS_POINTER_PREFIX))
+    except OSError:
+        return False
+    if weights_path.stat().st_size <= 1000 or header.startswith(_LFS_POINTER_PREFIX):
+        logger.warning("Bundled model weights at %s are a Git LFS pointer", weights_path)
+        return False
+    return True
+
+
+def _bundled_model_path(model_name: str) -> Path | None:
+    """Resolve a bundled model from package resources or a source checkout.
+
+    Installed wheels expose the snapshot through ``geistfabrik.model_data``.
+    The repository-level fallback keeps editable/source-checkout behaviour for
+    contributors whose Git LFS objects are materialised.
+    """
+    resource_path = Path(str(resources.files("geistfabrik.model_data").joinpath(model_name)))
+    source_path = Path(__file__).resolve().parents[2] / "models" / model_name
+    for candidate in dict.fromkeys((resource_path, source_path)):
+        if _is_usable_model_directory(candidate):
+            return candidate
+    return None
 
 
 def is_offline_mode() -> bool:
@@ -95,7 +160,7 @@ class EmbeddingComputer:
     def __init__(
         self,
         model_name: str = MODEL_NAME,
-        model: SentenceTransformer | None = None,
+        model: EmbeddingModel | None = None,
     ):
         """Initialise embedding computer.
 
@@ -104,7 +169,7 @@ class EmbeddingComputer:
             model: Pre-initialised model (for testing/injection), if None will lazy-load
         """
         self.model_name = model_name
-        self._model: SentenceTransformer | None = model
+        self._model: EmbeddingModel | None = model
         self.device: str | None = None  # Will be set on first model access
 
     def _detect_device(self) -> str:
@@ -129,11 +194,11 @@ class EmbeddingComputer:
         return "cpu"
 
     @property
-    def model(self) -> SentenceTransformer:
+    def model(self) -> EmbeddingModel:
         """Lazy-load the sentence-transformers model.
 
-        Checks for bundled local model first (models/all-MiniLM-L6-v2/),
-        then falls back to HuggingFace cache/download.
+        Checks the packaged model resource first, then the source-checkout
+        model directory, and finally falls back to HuggingFace cache/download.
 
         Auto-detects best available device (CUDA > MPS > CPU).
         """
@@ -143,49 +208,34 @@ class EmbeddingComputer:
                 self.device = self._detect_device()
                 logger.info(f"Using device: {self.device}")
 
-            # Check for local bundled model first
-            # Project root is: src/geistfabrik -> src -> project_root
-            project_root = Path(__file__).parent.parent.parent
-            local_model_path = project_root / "models" / self.model_name
-
-            # Verify model path contains actual model files, not Git LFS pointers
-            # Git LFS pointers are small text files (~130 bytes) that start with "version https://git-lfs.github.com"
-            model_file = local_model_path / "model.safetensors"
-            use_local_model = False
-            if local_model_path.exists() and model_file.exists():
-                # Check if file is a Git LFS pointer (small file starting with "version https://git-lfs.github.com")
-                file_size = model_file.stat().st_size
-                if file_size > 1000:  # Real model files are >1KB, LFS pointers are ~130 bytes
-                    use_local_model = True
-                else:
-                    logger.info(
-                        f"Local model appears to be Git LFS pointer ({file_size} bytes), "
-                        f"falling back to HuggingFace download"
-                    )
-
+            local_model_path = _bundled_model_path(self.model_name)
             offline = is_offline_mode()
-            if use_local_model:
-                # Use local bundled model (offline, faster, reproducible)
+            if local_model_path is not None:
                 model_source = str(local_model_path)
             elif offline:
-                # Offline mode requested but no usable local model: fail loudly
-                # rather than silently downloading from HuggingFace.
+                source_path = Path(__file__).resolve().parents[2] / "models" / self.model_name
                 raise RuntimeError(
-                    f"Offline mode is enabled but no local model was found at "
-                    f"{local_model_path}. Pull the bundled model with 'git lfs pull', "
-                    f"or unset GEISTFABRIK_OFFLINE/HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE "
-                    f"to allow downloading '{self.model_name}' from HuggingFace."
+                    "Offline mode is enabled but the installed distribution has no usable "
+                    f"bundled model resource for '{self.model_name}'. If this is a source "
+                    f"checkout, materialise Git LFS files at {source_path} with 'git lfs pull'. "
+                    "Otherwise reinstall an official wheel, or unset the offline flags to "
+                    "allow the HuggingFace fallback."
                 )
             else:
-                # Fall back to HuggingFace (auto-download to cache)
                 model_source = self.model_name
 
-            self._model = SentenceTransformer(
+            loaded_model = SentenceTransformer(
                 model_source,
                 device=self.device,  # Use detected device (cuda/mps/cpu)
                 local_files_only=offline,
             )
-        return self._model
+            # sentence-transformers exposes a large overloaded encode() API whose
+            # third-party annotations do not narrow to its numpy-returning mode.
+            # Runtime arguments above enforce the EmbeddingModel contract.
+            self._model = cast(EmbeddingModel, loaded_model)
+        model = self._model
+        assert model is not None
+        return model
 
     def compute_semantic(self, text: str) -> np.ndarray:
         """Compute semantic embedding for text.

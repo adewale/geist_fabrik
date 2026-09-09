@@ -1588,3 +1588,6 @@ The system asks different questions than you would ask yourself.
 - System requires constant tuning to stay useful
 - Suggestions feel random rather than provocative
 - Journal becomes a checklist instead of a source of wonder
+
+### Portable execution and filesystem safety clarification
+Geist execution uses a hard `SIGALRM` wall-clock interruption on supported POSIX main-thread CLI runs. Tracery additionally uses cooperative operation/deadline/output budgets. User-provided Python geists, metadata inference, and vault functions are trusted arbitrary Python; they are not sandboxed and cannot be forcibly interrupted portably on Windows without future process isolation. Managed writes and Markdown sources are resolved for vault containment; this portable protection does not claim race-proof OS sandboxing against a malicious concurrent local actor.

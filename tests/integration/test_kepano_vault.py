@@ -1,5 +1,6 @@
 """Integration tests using the kepano Obsidian vault."""
 
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
 
@@ -13,10 +14,9 @@ KEPANO_VAULT_PATH = Path(__file__).parent.parent.parent / "testdata" / "kepano-o
 
 
 @pytest.fixture
-def kepano_vault() -> Vault:
+def kepano_vault() -> Generator[Vault, None, None]:
     """Create a Vault instance for the kepano test data."""
-    if not KEPANO_VAULT_PATH.exists():
-        pytest.skip(f"Kepano vault not found at {KEPANO_VAULT_PATH}")
+    assert KEPANO_VAULT_PATH.is_dir(), f"Committed vault missing: {KEPANO_VAULT_PATH}"
 
     vault = Vault(KEPANO_VAULT_PATH)
     vault.sync()
@@ -48,8 +48,7 @@ def test_parse_evergreen_notes(kepano_vault: Vault) -> None:
             evergreen = note
             break
 
-    if evergreen is None:
-        pytest.skip("Evergreen notes file not found")
+    assert evergreen is not None, "Committed Evergreen notes fixture is missing"
 
     # Verify structure
     assert evergreen.title
@@ -65,9 +64,7 @@ def test_parse_daily_note(kepano_vault: Vault) -> None:
     # Find a daily note (format: YYYY-MM-DD)
     daily_notes = [n for n in notes if n.path.startswith("2023-")]
 
-    if not daily_notes:
-        pytest.skip("No daily notes found")
-
+    assert daily_notes, "Committed daily-note fixtures are missing"
     daily = daily_notes[0]
     assert daily.title
     assert daily.content
@@ -84,8 +81,7 @@ def test_parse_meeting_note(kepano_vault: Vault) -> None:
             meeting = note
             break
 
-    if meeting is None:
-        pytest.skip("Meeting note not found")
+    assert meeting is not None, "Committed meeting-note fixture is missing"
 
     assert meeting.title
     assert meeting.content

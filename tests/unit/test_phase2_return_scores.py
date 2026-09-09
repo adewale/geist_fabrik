@@ -21,6 +21,8 @@ def load_geist(geist_name: str):
     geist_path = repo_root / "src" / "geistfabrik" / "default_geists" / "code" / f"{geist_name}.py"
 
     spec = importlib.util.spec_from_file_location(geist_name, geist_path)
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

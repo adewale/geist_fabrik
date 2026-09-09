@@ -2,8 +2,9 @@
 
 import sys
 
-from ..config_loader import GeistFabrikConfig, load_config
+from ..config_loader import load_config
 from ..embedding_metrics import EmbeddingMetricsComputer
+from ..path_safety import ensure_contained
 from ..stats import StatsCollector
 from ..stats_formatter import StatsFormatter, generate_recommendations
 from ..vault import Vault
@@ -28,17 +29,23 @@ class StatsCommand(BaseCommand):
         if vault_path is None:
             return 1
 
+        # Check contained managed paths before reading config or opening SQLite.
+        geistfabrik_dir = vault_path / "_geistfabrik"
+        db_path = geistfabrik_dir / "vault.db"
+        config_path = geistfabrik_dir / "config.yaml"
+        for managed_path in (geistfabrik_dir, db_path, config_path):
+            ensure_contained(managed_path, vault_path, reject_symlinks=True)
+
         # Check if vault is initialised (need database for stats)
-        db_path = vault_path / "_geistfabrik" / "vault.db"
         if not db_path.exists():
             self.print_error(f"GeistFabrik not initialised in {vault_path}")
             print(f"Run: geistfabrik init {vault_path}", file=sys.stderr)
             return 1
 
-        # Load vault and config
-        self._vault = Vault(vault_path, db_path)
-        config_path = vault_path / "_geistfabrik" / "config.yaml"
-        config = load_config(config_path) if config_path.exists() else GeistFabrikConfig()
+        # Validate configuration before opening the database and pass the same
+        # authoritative object to every consumer.
+        config = load_config(config_path)
+        self._vault = Vault(vault_path, db_path, config=config)
 
         # Collect statistics
         history_days = getattr(self.args, "history", 30)

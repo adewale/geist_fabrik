@@ -1,7 +1,7 @@
 # GeistFabrik Implementation Status
 
-**Last Updated**: 2026-06-12
-**Version**: 0.10.0 (Beta, Schema v8)
+**Last Updated**: 2026-07-11
+**Version**: 0.10.1 (Beta, Schema v8)
 **Overall Progress**: Feature complete, release-candidate quality
 
 ---
@@ -147,15 +147,22 @@ uv run geistfabrik stats ~/my-vault
 ### Development
 
 ```bash
-# Run validation (same as CI)
+# Authoritative pre-push validation (fast lanes plus package smoke)
 ./scripts/validate.sh
 
-# Individual checks
+# Individual fast checks
 uv run ruff check src/ tests/
 uv run mypy src/ --strict
-uv run pytest tests/unit -v -m "not slow"
-uv run pytest tests/integration -v -m "not slow"
+MARKERS="not slow and not benchmark and not artifact and not production_model"
+uv run pytest tests/unit -v -m "$MARKERS"
+uv run pytest tests/integration -v -m "$MARKERS"
+
+# Focused artifact/full-release check with real bundled weights
+./scripts/test_wheel.sh
 ```
+
+The fast lanes use a marker-driven autouse fixture that stubs only the external
+`SentenceTransformer` constructor for tests without `production_model`.
 
 ---
 
@@ -172,4 +179,4 @@ uv run pytest tests/integration -v -m "not slow"
 
 ---
 
-**Last Updated**: 2026-06-12
+**Last Updated**: 2026-07-11

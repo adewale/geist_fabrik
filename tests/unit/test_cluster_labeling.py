@@ -49,7 +49,6 @@ class TestClusterLabelingTFIDF:
 
     def test_label_clusters_tfidf_basic(self, mock_db):
         """Test that c-TF-IDF labelling produces keyword lists."""
-        pytest.importorskip("sklearn")
 
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
@@ -73,7 +72,6 @@ class TestClusterLabelingTFIDF:
 
     def test_label_clusters_tfidf_empty(self, mock_db):
         """Test c-TF-IDF with no clusters."""
-        pytest.importorskip("sklearn")
 
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
@@ -90,7 +88,6 @@ class TestClusterLabelingTFIDF:
 
     def test_label_clusters_tfidf_single_cluster(self, mock_db):
         """Test c-TF-IDF with single cluster."""
-        pytest.importorskip("sklearn")
 
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
@@ -110,8 +107,6 @@ class TestClusterLabelingKeyBERT:
 
     def test_label_clusters_keybert_basic(self, mock_db):
         """Test that KeyBERT labelling produces semantic phrases."""
-        pytest.importorskip("sklearn")
-        pytest.importorskip("sentence_transformers")
 
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
@@ -133,8 +128,6 @@ class TestClusterLabelingKeyBERT:
 
     def test_label_clusters_keybert_empty(self, mock_db):
         """Test KeyBERT with no clusters."""
-        pytest.importorskip("sklearn")
-        pytest.importorskip("sentence_transformers")
 
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
@@ -151,7 +144,6 @@ class TestClusterLabelingKeyBERT:
 
     def test_label_clusters_keybert_fallback_on_error(self, mock_db):
         """Test KeyBERT falls back gracefully on errors."""
-        pytest.importorskip("sklearn")
 
         from unittest.mock import patch
 
@@ -180,8 +172,6 @@ class TestClusterLabelingComparison:
 
     def test_both_methods_produce_labels(self, mock_db):
         """Verify both methods produce valid labels for the same input."""
-        pytest.importorskip("sklearn")
-        pytest.importorskip("sentence_transformers")
 
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
@@ -203,8 +193,6 @@ class TestClusterLabelingComparison:
 
     def test_keybert_uses_longer_ngrams(self, mock_db):
         """Verify KeyBERT can produce longer phrases than c-TF-IDF."""
-        pytest.importorskip("sklearn")
-        pytest.importorskip("sentence_transformers")
 
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 

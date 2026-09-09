@@ -134,6 +134,6 @@ def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note |
         # Sample one
         sampled = vault.sample(different_notes, 1)
         if sampled:
-            return sampled[0]  # type: ignore[no-any-return]
+            return sampled[0]
 
     return None

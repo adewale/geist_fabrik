@@ -5,7 +5,7 @@ Two jobs:
    filtering with exclude_paths, session) round-trip and actually reach the
    pieces that consume them.
 2. PREVENTION: assert the privacy-relevant exclude_paths boundary filter works,
-   and that load_config warns on unknown keys. (The broader spec<->config
+   and that load_config rejects unknown keys. (The broader spec<->config
    reconciliation is enforced by test_spec_config_sync.py.)
 """
 
@@ -19,6 +19,7 @@ from geistfabrik.config import (
     DEFAULT_MAX_GEIST_FAILURES,
 )
 from geistfabrik.config_loader import (
+    ConfigError,
     FilteringConfig,
     GeistFabrikConfig,
     load_config,
@@ -58,6 +59,38 @@ class TestConfigSectionsRoundTrip:
         assert cfg.session.default_suggestions == 9
         # from_dict(to_dict(x)) == x
         assert GeistFabrikConfig.from_dict(cfg.to_dict()) == cfg
+
+    def test_legacy_vector_backend_settings_roundtrip_strictly(self):
+        data = {
+            "vector_search": {
+                "backend": "sqlite-vec",
+                "backends": {
+                    "in_memory": {"lazy_load": False},
+                    "sqlite_vec": {"index_type": "flat", "cache_size_mb": 256},
+                },
+            }
+        }
+        cfg = GeistFabrikConfig.from_dict(data)
+        assert cfg.vector_search.backend_settings == {
+            "in_memory": {"lazy_load": False},
+            "sqlite_vec": {"index_type": "flat", "cache_size_mb": 256},
+        }
+        assert GeistFabrikConfig.from_dict(cfg.to_dict()) == cfg
+
+    @pytest.mark.parametrize(
+        "backends",
+        [
+            {"sqlite_vec": {"cache_size_mb": True}},
+            {"sqlite_vec": {"cache_size_mb": 0}},
+            {"sqlite_vec": {"index_type": "unknown"}},
+            {"sqlite_vec": {"unknown": 1}},
+            {"in_memory": {"lazy_load": "false"}},
+            {"in_memory": {"unknown": False}},
+        ],
+    )
+    def test_legacy_vector_backend_settings_reject_unknown_or_invalid_shape(self, backends):
+        with pytest.raises(ConfigError):
+            GeistFabrikConfig.from_dict({"vector_search": {"backends": backends}})
 
     def test_to_filter_config_overlays_defaults(self):
         fc = FilteringConfig(exclude_paths=["Secret/"], novelty_threshold=0.5)
@@ -125,14 +158,12 @@ class TestExcludePathsBoundaryFilter:
         assert s in f.filter_boundary([s])
 
 
-class TestUnknownKeyWarning:
-    def test_load_config_warns_on_unknown_key(self, tmp_path, caplog):
+class TestUnknownKeyValidation:
+    def test_load_config_rejects_unknown_key(self, tmp_path):
         cfg_path = tmp_path / "config.yaml"
         cfg_path.write_text("enabled_modules: []\nnonsense_key: 3\nanother_typo: true\n")
-        with caplog.at_level(logging.WARNING):
+        with pytest.raises(ConfigError, match="another_typo, nonsense_key"):
             load_config(cfg_path)
-        joined = " ".join(r.message for r in caplog.records)
-        assert "nonsense_key" in joined and "another_typo" in joined
 
     def test_known_keys_do_not_warn(self, tmp_path, caplog):
         cfg_path = tmp_path / "config.yaml"

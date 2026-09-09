@@ -1,5 +1,6 @@
 """Unit tests for Vault class."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -24,8 +25,6 @@ def test_vault_path_is_file(tmp_path: Path) -> None:
 
 def test_permission_denied(tmp_path: Path) -> None:
     """Test Vault handles permission denied errors gracefully (AC-1.15)."""
-    import os
-
     # Skip if running as root (chmod won't prevent root from reading)
     if os.geteuid() == 0:
         pytest.skip("Permission test not applicable when running as root")
@@ -102,11 +101,10 @@ def test_sync_modified_file(tmp_path: Path) -> None:
     assert note1 is not None
     assert "v1" in note1.content
 
-    # Modify file
-    import time
-
-    time.sleep(0.1)  # Ensure different mtime
+    # Modify file and advance mtime deterministically.
+    previous_mtime = note_file.stat().st_mtime
     note_file.write_text("# Test v2")
+    os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
 
     # Second sync should reprocess
     count = vault.sync()

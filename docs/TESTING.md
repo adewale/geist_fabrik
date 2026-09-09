@@ -4,13 +4,20 @@ This document explains how to test GeistFabrik locally and replicate CI failures
 
 ## Quick Start
 
-To run the full CI pipeline locally before pushing:
+To run the full fast CI pipeline locally before pushing:
 
 ```bash
-./scripts/ci_local.sh
+./scripts/validate.sh
 ```
 
-This script replicates the exact CI environment and runs all the same checks.
+It syncs the locked `[vector-search]` extra, forces offline mode, runs Ruff,
+strict Mypy plus warnings-as-errors Astral ty, database/security checks, split unit/integration coverage with a
+measured 70% branch gate, the acceptance-criteria verifier, and the release
+artifact real-model lane. For a focused artifact check, run:
+
+```bash
+./scripts/test_wheel.sh
+```
 
 ## Replicating CI Environment
 
@@ -25,8 +32,11 @@ export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export TOKENIZERS_PARALLELISM=false
 
-# Run tests excluding slow tests (like CI)
-uv run pytest -v -m "not slow"
+export GEISTFABRIK_OFFLINE=1
+MARKERS="not slow and not benchmark and not artifact and not production_model"
+uv sync --frozen --extra vector-search
+uv run pytest tests/unit -v -m "$MARKERS" --timeout=60
+uv run pytest tests/integration -v -m "$MARKERS" --timeout=300
 ```
 
 ## Common Test Issues
@@ -68,21 +78,26 @@ tests/
 │   ├── test_tracery_geists.py   # 50 tests for Tracery geists
 │   ├── test_vault_context.py    # VaultContext functionality
 │   └── ...
-├── integration/            # Integration tests (~2s)
+├── integration/            # Integration tests
 │   ├── test_example_geists.py   # All example geists
 │   ├── test_kepano_vault.py     # Real vault parsing
 │   └── ...
-└── conftest.py            # Shared fixtures
+├── artifact/               # Built wheel/sdist structure contracts
+├── stubs.py                # External SentenceTransformer test double
+└── conftest.py             # Marker-selected constructor fixture
 ```
 
 ## Running Tests
 
 ```bash
-# Run all tests (excluding slow)
-uv run pytest -v -m "not slow"
+# Run the fast lane exactly as validation/CI selects it
+uv run pytest -v -m "not slow and not benchmark and not artifact and not production_model"
 
-# Run all tests including slow ones
-uv run pytest -v
+# Run real source-checkout model integration tests
+uv run pytest tests/integration/test_embeddings_integration.py -m production_model -v
+
+# Build and test installed release artifacts (real offline model)
+./scripts/test_wheel.sh
 
 # Run specific test file
 uv run pytest tests/unit/test_tracery_geists.py -v
@@ -90,8 +105,8 @@ uv run pytest tests/unit/test_tracery_geists.py -v
 # Run specific test
 uv run pytest tests/unit/test_tracery_geists.py::TestContradictor::test_contradictor_is_deterministic -xvs
 
-# Run with coverage
-uv run pytest --cov=src/geistfabrik --cov-report=html
+# Run an explicit one-process coverage report
+uv run pytest tests/unit tests/integration --cov=geistfabrik --cov-branch --cov-report=term-missing
 
 # Run tests multiple times to check for flakiness
 for i in {1..10}; do
@@ -104,15 +119,21 @@ done
 
 The CI runs these steps on every push to `main` and every pull request:
 
-1. **Install dependencies**: `uv sync`
-2. **Run tests**: `uv run pytest -v -m "not slow"`
-3. **Linting**: `uv run ruff check src/ tests/`
-4. **Type checking**: `uv run mypy src/ --strict`
-5. **Unused tables check**: `uv run python scripts/detect_unused_tables.py`
+1. **Install dependencies**: `uv sync --frozen --extra vector-search`
+2. **Fast tests**: split unit (`--timeout=60`) and integration
+   (`--timeout=300`) runs excluding `slow`, `benchmark`, `artifact`, and
+   `production_model`, with explicit appended branch coverage and a measured 70% gate
+3. **Static checks**: Ruff, strict Mypy, ty warnings-as-errors, unused tables, Bandit, acceptance gate
+4. **Package smoke**: LFS checkout, wheel+sdist and size/metadata/content checks,
+   clean wheel install outside the checkout, both console scripts, and real
+   384-dimensional inference with empty caches and offline flags
 
-The CI runs on:
+The fast CI matrix runs on:
 - **Ubuntu**: Python 3.11 and 3.12
 - **macOS**: Python 3.11 only (to save CI time)
+
+The installed-wheel, real-model package smoke runs on Ubuntu with both Python
+3.11 and 3.12.
 
 ## Debugging Test Failures
 
@@ -125,13 +146,13 @@ gh run view <run-id> --log-failed
 
 ### 2. Replicate locally
 ```bash
-# Run with CI environment
-./scripts/ci_local.sh
+# Run the canonical local CI validation
+./scripts/validate.sh
 
-# Or manually set env vars
-export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
-       OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 TOKENIZERS_PARALLELISM=false
-uv run pytest -v -m "not slow"
+# Or reproduce only the fast pytest selection
+export GEISTFABRIK_OFFLINE=1
+uv run pytest -v \
+  -m "not slow and not benchmark and not artifact and not production_model"
 ```
 
 ### 3. Run test multiple times
@@ -156,7 +177,10 @@ Target performance (on modern MacBook):
 - Integration tests: < 3 seconds
 - Full suite: < 10 seconds
 
-Slow tests are marked with `@pytest.mark.slow` and excluded from CI via `-m "not slow"`.
+`slow` describes duration, `benchmark` performance-only work,
+`production_model` real weights, and `artifact` release builds. The fast lane
+excludes all four explicitly; `package-smoke` is required release evidence for
+the latter two concerns.
 
 ## Writing New Tests
 

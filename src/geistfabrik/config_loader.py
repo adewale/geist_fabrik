@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+from .bounded_yaml import BoundedYAMLError, load_bounded_yaml
 from .config import (
     DEFAULT_GEIST_TIMEOUT,
     DEFAULT_MAX_GEIST_FAILURES,
@@ -18,11 +19,76 @@ from .config import (
     DEFAULT_NOVELTY_WINDOW_DAYS,
     DEFAULT_SESSION_EMBEDDING_RETENTION,
     DEFAULT_SIMILARITY_THRESHOLD,
+    MAX_GEIST_TIMEOUT,
+    MAX_MAX_GEIST_FAILURES,
+    MAX_SESSION_SUGGESTIONS,
+    MIN_GEIST_TIMEOUT,
+    MIN_MAX_GEIST_FAILURES,
+    MIN_SESSION_SUGGESTIONS,
     get_default_filter_config,
 )
 from .default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
 
 logger = logging.getLogger(__name__)
+
+
+class ConfigError(ValueError):
+    """Raised when an existing configuration file is invalid."""
+
+
+def _mapping(data: Any, key: str) -> dict[str, Any]:
+    if not isinstance(data, dict) or any(not isinstance(item, str) for item in data):
+        raise ConfigError(f"{key} must be a mapping with string keys")
+    return data
+
+
+def _reject_unknown(data: dict[str, Any], allowed: set[str], key: str) -> None:
+    unknown = sorted(set(data) - allowed)
+    if unknown:
+        raise ConfigError(f"{key} contains unknown key(s): {', '.join(unknown)}")
+
+
+def _bounded_int(data: dict[str, Any], key: str, default: int, minimum: int, maximum: int) -> int:
+    value = data.get(key.rsplit(".", 1)[-1], default)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ConfigError(f"{key} must be an integer in [{minimum}, {maximum}]")
+    if not minimum <= value <= maximum:
+        raise ConfigError(f"{key} must be in [{minimum}, {maximum}], got {value}")
+    return int(value)
+
+
+def _bounded_float(
+    data: dict[str, Any], key: str, default: float, minimum: float, maximum: float
+) -> float:
+    value = data.get(key.rsplit(".", 1)[-1], default)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigError(f"{key} must be a number in [{minimum}, {maximum}]")
+    result = float(value)
+    if not minimum <= result <= maximum:
+        raise ConfigError(f"{key} must be in [{minimum}, {maximum}], got {value}")
+    return result
+
+
+def _strict_bool(data: dict[str, Any], key: str, default: bool) -> bool:
+    value = data.get(key.rsplit(".", 1)[-1], default)
+    if not isinstance(value, bool):
+        raise ConfigError(f"{key} must be a boolean")
+    return value
+
+
+def _string_list(data: dict[str, Any], key: str) -> list[str]:
+    value = data.get(key.rsplit(".", 1)[-1], [])
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ConfigError(f"{key} must be a list of strings")
+    return value
+
+
+def _enum_string(data: dict[str, Any], key: str, default: str, allowed: set[str]) -> str:
+    value = data.get(key.rsplit(".", 1)[-1], default)
+    if not isinstance(value, str) or value not in allowed:
+        choices = ", ".join(sorted(allowed))
+        raise ConfigError(f"{key} must be one of: {choices}")
+    return value
 
 
 @dataclass
@@ -36,12 +102,17 @@ class DateCollectionConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "DateCollectionConfig":
-        """Create config from dictionary."""
+        """Create config from a fully validated dictionary."""
+        _reject_unknown(
+            data,
+            {"enabled", "exclude_files", "min_sections", "date_threshold"},
+            "date_collection",
+        )
         return cls(
-            enabled=data.get("enabled", True),
-            exclude_files=data.get("exclude_files", []),
-            min_sections=data.get("min_sections", 2),
-            date_threshold=data.get("date_threshold", 0.5),
+            enabled=_strict_bool(data, "date_collection.enabled", True),
+            exclude_files=_string_list(data, "date_collection.exclude_files"),
+            min_sections=_bounded_int(data, "date_collection.min_sections", 2, 1, 100_000),
+            date_threshold=_bounded_float(data, "date_collection.date_threshold", 0.5, 0.0, 1.0),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -64,18 +135,18 @@ class ClusterConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ClusterConfig":
-        """Create config from dictionary.
-
-        Args:
-            data: Configuration dictionary
-
-        Returns:
-            ClusterConfig instance
-        """
+        """Create config from a fully validated dictionary."""
+        _reject_unknown(
+            data,
+            {"labeling_method", "min_cluster_size", "n_label_terms"},
+            "clustering",
+        )
         return cls(
-            labeling_method=data.get("labeling_method", "keybert"),
-            min_cluster_size=data.get("min_cluster_size", 5),
-            n_label_terms=data.get("n_label_terms", 4),
+            labeling_method=_enum_string(
+                data, "clustering.labeling_method", "keybert", {"keybert", "tfidf"}
+            ),
+            min_cluster_size=_bounded_int(data, "clustering.min_cluster_size", 5, 2, 100_000),
+            n_label_terms=_bounded_int(data, "clustering.n_label_terms", 4, 1, 100),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -93,24 +164,66 @@ class ClusterConfig:
 
 @dataclass
 class VectorSearchConfig:
-    """Configuration for vector search backend."""
+    """Configuration for the selected vector search backend.
+
+    ``backend_settings`` retains the documented legacy ``backends`` mapping
+    for round-trip compatibility. These settings are reserved and currently
+    ignored, but their historical shapes remain strictly validated.
+    """
 
     backend: str = "in-memory"
-    backend_settings: dict[str, Any] = field(default_factory=dict)
+    backend_settings: dict[str, dict[str, int | str | bool]] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "VectorSearchConfig":
-        """Create config from dictionary."""
+        """Create config from a fully validated dictionary."""
+        _reject_unknown(data, {"backend", "backends"}, "vector_search")
+        raw_backends = _mapping(data.get("backends", {}), "vector_search.backends")
+        _reject_unknown(raw_backends, {"in_memory", "sqlite_vec"}, "vector_search.backends")
+        backend_settings: dict[str, dict[str, int | str | bool]] = {}
+        if "in_memory" in raw_backends:
+            in_memory = _mapping(raw_backends["in_memory"], "vector_search.backends.in_memory")
+            _reject_unknown(in_memory, {"lazy_load"}, "vector_search.backends.in_memory")
+            settings: dict[str, int | str | bool] = {}
+            if "lazy_load" in in_memory:
+                settings["lazy_load"] = _strict_bool(
+                    in_memory, "vector_search.backends.in_memory.lazy_load", False
+                )
+            backend_settings["in_memory"] = settings
+        if "sqlite_vec" in raw_backends:
+            sqlite_vec = _mapping(raw_backends["sqlite_vec"], "vector_search.backends.sqlite_vec")
+            _reject_unknown(
+                sqlite_vec,
+                {"index_type", "cache_size_mb"},
+                "vector_search.backends.sqlite_vec",
+            )
+            settings = {}
+            if "index_type" in sqlite_vec:
+                settings["index_type"] = _enum_string(
+                    sqlite_vec,
+                    "vector_search.backends.sqlite_vec.index_type",
+                    "flat",
+                    {"flat", "hnsw", "ivf"},
+                )
+            if "cache_size_mb" in sqlite_vec:
+                settings["cache_size_mb"] = _bounded_int(
+                    sqlite_vec,
+                    "vector_search.backends.sqlite_vec.cache_size_mb",
+                    100,
+                    1,
+                    1_048_576,
+                )
+            backend_settings["sqlite_vec"] = settings
         return cls(
-            backend=data.get("backend", "in-memory"),
-            backend_settings=data.get("backends", {}),
+            backend=_enum_string(
+                data, "vector_search.backend", "in-memory", {"in-memory", "sqlite-vec"}
+            ),
+            backend_settings=backend_settings,
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert config to dictionary."""
-        result: dict[str, Any] = {
-            "backend": self.backend,
-        }
+        """Convert config to dictionary, retaining compatible legacy settings."""
+        result: dict[str, Any] = {"backend": self.backend}
         if self.backend_settings:
             result["backends"] = self.backend_settings
         return result
@@ -125,10 +238,23 @@ class GeistExecutionConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "GeistExecutionConfig":
-        """Create config from dictionary."""
+        """Create config from a fully validated dictionary."""
+        _reject_unknown(data, {"timeout", "max_failures"}, "geist_execution")
         return cls(
-            timeout=data.get("timeout", DEFAULT_GEIST_TIMEOUT),
-            max_failures=data.get("max_failures", DEFAULT_MAX_GEIST_FAILURES),
+            timeout=_bounded_int(
+                data,
+                "geist_execution.timeout",
+                DEFAULT_GEIST_TIMEOUT,
+                MIN_GEIST_TIMEOUT,
+                MAX_GEIST_TIMEOUT,
+            ),
+            max_failures=_bounded_int(
+                data,
+                "geist_execution.max_failures",
+                DEFAULT_MAX_GEIST_FAILURES,
+                MIN_MAX_GEIST_FAILURES,
+                MAX_MAX_GEIST_FAILURES,
+            ),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -154,18 +280,59 @@ class FilteringConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "FilteringConfig":
-        """Create config from the nested YAML shape."""
-        boundary = data.get("boundary", {})
-        novelty = data.get("novelty", {})
-        diversity = data.get("diversity", {})
-        quality = data.get("quality", {})
+        """Create config from the nested YAML shape after exact validation."""
+        _reject_unknown(data, {"boundary", "novelty", "diversity", "quality"}, "filtering")
+        boundary = _mapping(data.get("boundary", {}), "filtering.boundary")
+        novelty = _mapping(data.get("novelty", {}), "filtering.novelty")
+        diversity = _mapping(data.get("diversity", {}), "filtering.diversity")
+        quality = _mapping(data.get("quality", {}), "filtering.quality")
+        _reject_unknown(boundary, {"exclude_paths"}, "filtering.boundary")
+        _reject_unknown(novelty, {"window_days", "threshold"}, "filtering.novelty")
+        _reject_unknown(diversity, {"threshold"}, "filtering.diversity")
+        _reject_unknown(quality, {"min_length", "max_length"}, "filtering.quality")
+        minimum_length = _bounded_int(
+            quality,
+            "filtering.quality.min_length",
+            DEFAULT_MIN_SUGGESTION_LENGTH,
+            0,
+            1_000_000,
+        )
+        maximum_length = _bounded_int(
+            quality,
+            "filtering.quality.max_length",
+            DEFAULT_MAX_SUGGESTION_LENGTH,
+            1,
+            1_000_000,
+        )
+        if minimum_length > maximum_length:
+            raise ConfigError(
+                "filtering.quality.min_length must not exceed filtering.quality.max_length"
+            )
         return cls(
-            exclude_paths=boundary.get("exclude_paths", []),
-            novelty_window_days=novelty.get("window_days", DEFAULT_NOVELTY_WINDOW_DAYS),
-            novelty_threshold=novelty.get("threshold", DEFAULT_SIMILARITY_THRESHOLD),
-            diversity_threshold=diversity.get("threshold", DEFAULT_SIMILARITY_THRESHOLD),
-            quality_min_length=quality.get("min_length", DEFAULT_MIN_SUGGESTION_LENGTH),
-            quality_max_length=quality.get("max_length", DEFAULT_MAX_SUGGESTION_LENGTH),
+            exclude_paths=_string_list(boundary, "filtering.boundary.exclude_paths"),
+            novelty_window_days=_bounded_int(
+                novelty,
+                "filtering.novelty.window_days",
+                DEFAULT_NOVELTY_WINDOW_DAYS,
+                0,
+                100_000,
+            ),
+            novelty_threshold=_bounded_float(
+                novelty,
+                "filtering.novelty.threshold",
+                DEFAULT_SIMILARITY_THRESHOLD,
+                0.0,
+                1.0,
+            ),
+            diversity_threshold=_bounded_float(
+                diversity,
+                "filtering.diversity.threshold",
+                DEFAULT_SIMILARITY_THRESHOLD,
+                0.0,
+                1.0,
+            ),
+            quality_min_length=minimum_length,
+            quality_max_length=maximum_length,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -203,8 +370,17 @@ class SessionConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SessionConfig":
-        """Create config from dictionary."""
-        return cls(default_suggestions=data.get("default_suggestions", 5))
+        """Create config from a fully validated dictionary."""
+        _reject_unknown(data, {"default_suggestions"}, "session")
+        return cls(
+            default_suggestions=_bounded_int(
+                data,
+                "session.default_suggestions",
+                5,
+                MIN_SESSION_SUGGESTIONS,
+                MAX_SESSION_SUGGESTIONS,
+            )
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
@@ -246,21 +422,36 @@ class GeistFabrikConfig:
         Returns:
             GeistFabrikConfig instance
         """
-        date_collection_data = data.get("date_collection", {})
-        vector_search_data = data.get("vector_search", {})
-        clustering_data = data.get("clustering", {})
+        _reject_unknown(data, set(KNOWN_CONFIG_KEYS), "configuration root")
+        date_collection_data = _mapping(data.get("date_collection", {}), "date_collection")
+        vector_search_data = _mapping(data.get("vector_search", {}), "vector_search")
+        clustering_data = _mapping(data.get("clustering", {}), "clustering")
+        geist_execution_data = _mapping(data.get("geist_execution", {}), "geist_execution")
+        filtering_data = _mapping(data.get("filtering", {}), "filtering")
+        session_data = _mapping(data.get("session", {}), "session")
+        enabled_modules = _string_list(data, "enabled_modules")
+        raw_defaults = _mapping(data.get("default_geists", {}), "default_geists")
+        default_geists: dict[str, bool] = {}
+        for geist_id, enabled in raw_defaults.items():
+            if not isinstance(enabled, bool):
+                raise ConfigError("default_geists values must be booleans")
+            default_geists[geist_id] = enabled
         return cls(
-            enabled_modules=data.get("enabled_modules", []),
-            default_geists=data.get("default_geists", {}),
+            enabled_modules=enabled_modules,
+            default_geists=default_geists,
             date_collection=DateCollectionConfig.from_dict(date_collection_data),
             vector_search=VectorSearchConfig.from_dict(vector_search_data),
             clustering=ClusterConfig.from_dict(clustering_data),
-            session_embedding_retention=data.get(
-                "session_embedding_retention", DEFAULT_SESSION_EMBEDDING_RETENTION
+            session_embedding_retention=_bounded_int(
+                data,
+                "session_embedding_retention",
+                DEFAULT_SESSION_EMBEDDING_RETENTION,
+                0,
+                100_000,
             ),
-            geist_execution=GeistExecutionConfig.from_dict(data.get("geist_execution", {})),
-            filtering=FilteringConfig.from_dict(data.get("filtering", {})),
-            session=SessionConfig.from_dict(data.get("session", {})),
+            geist_execution=GeistExecutionConfig.from_dict(geist_execution_data),
+            filtering=FilteringConfig.from_dict(filtering_data),
+            session=SessionConfig.from_dict(session_data),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -300,19 +491,6 @@ KNOWN_CONFIG_KEYS = frozenset(
 )
 
 
-def _warn_unknown_keys(data: dict[str, Any], config_path: Path) -> None:
-    """Warn about top-level config keys that GeistFabrik does not consume."""
-    if not isinstance(data, dict):
-        return
-    unknown = sorted(set(data) - KNOWN_CONFIG_KEYS)
-    if unknown:
-        logger.warning(
-            "Ignoring unknown config key(s) in %s: %s",
-            config_path,
-            ", ".join(unknown),
-        )
-
-
 def load_config(config_path: Path) -> GeistFabrikConfig:
     """Load configuration from config.yaml.
 
@@ -326,16 +504,13 @@ def load_config(config_path: Path) -> GeistFabrikConfig:
         return GeistFabrikConfig()
 
     try:
-        with open(config_path) as f:
-            data = yaml.safe_load(f)
-            if data is None:
-                return GeistFabrikConfig()
-            _warn_unknown_keys(data, config_path)
-            return GeistFabrikConfig.from_dict(data)
-    except Exception as e:
-        # If loading fails, return default config
-        logger.warning(f"Failed to load config: {e}")
-        return GeistFabrikConfig()
+        data = load_bounded_yaml(config_path)
+        if data is None:
+            return GeistFabrikConfig()
+        root = _mapping(data, "configuration root")
+        return GeistFabrikConfig.from_dict(root)
+    except (BoundedYAMLError, ConfigError, TypeError, KeyError) as exc:
+        raise ConfigError(f"Invalid configuration {config_path}: {exc}") from exc
 
 
 def save_config(config: GeistFabrikConfig, config_path: Path) -> None:
@@ -359,6 +534,7 @@ def generate_default_config() -> str:
     """
     lines = [
         "# GeistFabrik Configuration",
+        "# Unknown keys and malformed values are rejected before side effects.",
         "",
         "# Default Geists",
         "# --------------",
@@ -399,9 +575,23 @@ def generate_default_config() -> str:
     lines.append("# Configuration for vector similarity search")
     lines.append("vector_search:")
     lines.append("  backend: in-memory      # Options: 'in-memory' | 'sqlite-vec'")
-    lines.append("  # backends:             # Backend-specific settings (optional)")
-    lines.append("  #   sqlite_vec:")
-    lines.append("  #     cache_size_mb: 100")
+    lines.append("")
+    lines.append("# Geist Execution (availability limits; Python plugins are trusted code)")
+    lines.append("geist_execution:")
+    lines.append(
+        f"  timeout: {DEFAULT_GEIST_TIMEOUT}       # "
+        f"{MIN_GEIST_TIMEOUT}..{MAX_GEIST_TIMEOUT} seconds"
+    )
+    lines.append(
+        f"  max_failures: {DEFAULT_MAX_GEIST_FAILURES}    # "
+        f"{MIN_MAX_GEIST_FAILURES}..{MAX_MAX_GEIST_FAILURES}, persisted"
+    )
+    lines.append("")
+    lines.append("# Session Output")
+    lines.append("session:")
+    lines.append(
+        f"  default_suggestions: 5  # {MIN_SESSION_SUGGESTIONS}..{MAX_SESSION_SUGGESTIONS}"
+    )
     lines.append("")
     lines.append("# Storage")
     lines.append("# -------")

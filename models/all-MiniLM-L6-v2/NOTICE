@@ -1,0 +1,16 @@
+Bundled third-party model notice
+================================
+
+Model: sentence-transformers/all-MiniLM-L6-v2
+Upstream: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+Snapshot revision: c9745ed1d9f207416be6d2e6f8de32d1f16199bf
+License: Apache License 2.0 (see LICENSE.apache-2.0 in this directory)
+
+GeistFabrik redistributes this unmodified sentence-transformers model snapshot.
+The model card in README.md documents its architecture, training data, intended
+uses, and limitations. The model is a separate work and is not covered by
+GeistFabrik's MIT license.
+
+SHA-256 checksums for the two Git LFS-managed files:
+  model.safetensors  1377e9af0ca0b016a9f2aa584d6fc71ab3ea6804fae21ef9fb1416e2944057ac
+  tokenizer.json     4084ce5afffa730ba5697e3e81ec5707e14b13ad1bace0cc43bb0bdb411cfdcf

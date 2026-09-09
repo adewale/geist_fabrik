@@ -135,13 +135,11 @@ CREATE TABLE IF NOT EXISTS geist_status (
 
 
 def init_db(db_path: Path | None = None) -> sqlite3.Connection:
-    """Initialise database with schema.
+    """Initialise a database in one owned schema transaction.
 
-    Args:
-        db_path: Path to SQLite database file. If None, use in-memory database.
-
-    Returns:
-        SQLite connection with schema initialised.
+    Existing supported schemas are migrated, reconciled with ``SCHEMA_SQL``,
+    and stamped current only after every DDL statement succeeds. On failure,
+    the whole upgrade is rolled back and the newly opened connection is closed.
     """
     if db_path is None:
         conn = sqlite3.connect(":memory:")
@@ -149,17 +147,65 @@ def init_db(db_path: Path | None = None) -> sqlite3.Connection:
         db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(db_path))
 
-    # Enable foreign keys
-    conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        tables = {
+            str(row[0])
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+        current_version = get_schema_version(conn)
+        if current_version > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema version {current_version} is newer than supported "
+                f"version {SCHEMA_VERSION}; refusing to downgrade"
+            )
+        if tables and current_version == 0:
+            raise RuntimeError(
+                "Existing database has application tables but no supported schema version; "
+                "refusing to modify an ambiguous legacy database"
+            )
 
-    # Execute schema
-    conn.executescript(SCHEMA_SQL)
+        _upgrade_and_reconcile(conn, current_version)
+        return conn
+    except Exception:
+        if conn.in_transaction:
+            conn.rollback()
+        conn.close()
+        raise
 
-    # Set schema version
-    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
-    conn.commit()
-    return conn
+def _execute_schema_sql(conn: sqlite3.Connection) -> None:
+    """Execute ``SCHEMA_SQL`` statement-by-statement without implicit commits."""
+    statement = ""
+    for line in SCHEMA_SQL.splitlines(keepends=True):
+        statement += line
+        if sqlite3.complete_statement(statement):
+            conn.execute(statement)
+            statement = ""
+    if statement.strip():
+        raise RuntimeError("Incomplete statement in SCHEMA_SQL")
+
+
+def _upgrade_and_reconcile(conn: sqlite3.Connection, current_version: int) -> None:
+    """Apply ordered migrations and current DDL in one owned transaction."""
+    if conn.in_transaction:
+        raise RuntimeError("Schema migration requires ownership of the SQLite transaction")
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        if current_version > 0:
+            _apply_ordered_migrations(conn, current_version)
+        # user_version records migration intent, not structural truth. Repair
+        # additive columns even when an interrupted/buggy older release stamped
+        # a database current before completing its DDL.
+        _reconcile_additive_columns(conn)
+        _execute_schema_sql(conn)
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 
 def get_schema_version(conn: sqlite3.Connection) -> int:
@@ -172,98 +218,89 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
 
 
 def migrate_schema(conn: sqlite3.Connection) -> None:
-    """Migrate database schema to current version.
-
-    Args:
-        conn: SQLite connection
-    """
+    """Migrate and reconcile a supported database in one owned transaction."""
     current_version = get_schema_version(conn)
+    if current_version > SCHEMA_VERSION:
+        raise RuntimeError(
+            f"Database schema version {current_version} is newer than supported "
+            f"version {SCHEMA_VERSION}"
+        )
+    if current_version == 0:
+        raise RuntimeError("Cannot migrate an unversioned application database")
+    _upgrade_and_reconcile(conn, current_version)
 
-    if current_version == SCHEMA_VERSION:
-        return  # Already at current version
 
-    # Migration from version 3 to 4: Add virtual entry columns
+def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:
+    """Repair columns that ``CREATE TABLE IF NOT EXISTS`` cannot reconcile."""
+    notes_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='notes'"
+    ).fetchone()
+    if notes_table is not None:
+        note_columns = {row[1] for row in conn.execute("PRAGMA table_info(notes)")}
+        for name, declaration in (
+            ("is_virtual", "INTEGER DEFAULT 0"),
+            ("source_file", "TEXT"),
+            ("entry_date", "TEXT"),
+        ):
+            if name not in note_columns:
+                conn.execute(f"ALTER TABLE notes ADD COLUMN {name} {declaration}")
+
+    embeddings_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='session_embeddings'"
+    ).fetchone()
+    if embeddings_table is not None:
+        embedding_columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(session_embeddings)")
+        }
+        if "cluster_label" not in embedding_columns:
+            conn.execute("ALTER TABLE session_embeddings ADD COLUMN cluster_label TEXT")
+
+
+def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) -> None:
+    """Apply required pre-reconciliation DDL without committing or stamping."""
     if current_version < 4:
-        # Check if columns already exist (defensive programming)
-        cursor = conn.execute("PRAGMA table_info(notes)")
-        columns = {row[1] for row in cursor.fetchall()}
-
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
         if "is_virtual" not in columns:
             conn.execute("ALTER TABLE notes ADD COLUMN is_virtual INTEGER DEFAULT 0")
-
         if "source_file" not in columns:
             conn.execute("ALTER TABLE notes ADD COLUMN source_file TEXT")
-
         if "entry_date" not in columns:
             conn.execute("ALTER TABLE notes ADD COLUMN entry_date TEXT")
-
-        # Create indexes
         conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_source_file ON notes(source_file)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_entry_date ON notes(entry_date)")
 
-        # Update version
-        conn.execute("PRAGMA user_version = 4")
-        conn.commit()
-
-    # Migration from version 4 to 5: Add embedding_metrics table
     if current_version < 5:
-        # Check if table already exists
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='embedding_metrics'"
-        )
-        if cursor.fetchone() is None:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS embedding_metrics (
-                    session_date TEXT PRIMARY KEY,
-                    intrinsic_dim REAL,
-                    vendi_score REAL,
-                    shannon_entropy REAL,
-                    silhouette_score REAL,
-                    n_clusters INTEGER,
-                    n_gaps INTEGER,
-                    cluster_labels TEXT,
-                    computed_at TEXT NOT NULL,
-                    FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
-                )
-            """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS embedding_metrics (
+                session_date TEXT PRIMARY KEY,
+                intrinsic_dim REAL,
+                vendi_score REAL,
+                shannon_entropy REAL,
+                silhouette_score REAL,
+                n_clusters INTEGER,
+                n_gaps INTEGER,
+                cluster_labels TEXT,
+                computed_at TEXT NOT NULL,
+                FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
+            )
+        """)
 
-        # Update version
-        conn.execute("PRAGMA user_version = 5")
-        conn.commit()
-
-    # Migration from version 5 to 6: Add composite index for orphans query
     if current_version < 6:
-        # Add composite index for better orphan query performance
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_links_target_source ON links(target, source_path)"
         )
 
-        # Update version
-        conn.execute("PRAGMA user_version = 6")
-        conn.commit()
-
-    # Migration from version 6 to 7: Add cluster_label to session_embeddings.
-    # Fixes cluster_evolution_tracker, which reads this column but the column
-    # was never created (the query raised OperationalError on every run).
     if current_version < 7:
-        # Check table exists first (defensive: partial schemas in tests)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='session_embeddings'"
-        )
-        if cursor.fetchone() is not None:
-            cursor = conn.execute("PRAGMA table_info(session_embeddings)")
-            columns = {row[1] for row in cursor.fetchall()}
-
+        table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='session_embeddings'"
+        ).fetchone()
+        if table is not None:
+            columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(session_embeddings)").fetchall()
+            }
             if "cluster_label" not in columns:
                 conn.execute("ALTER TABLE session_embeddings ADD COLUMN cluster_label TEXT")
 
-        # Update version
-        conn.execute("PRAGMA user_version = 7")
-        conn.commit()
-
-    # Migration from version 7 to 8: Add geist_status table (persistent
-    # per-geist failure tracking). The in-memory counter could never reach the
-    # disable threshold; this is the store the spec always intended.
     if current_version < 8:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS geist_status (
@@ -274,5 +311,3 @@ def migrate_schema(conn: sqlite3.Connection) -> None:
                 updated TEXT
             )
         """)
-        conn.execute("PRAGMA user_version = 8")
-        conn.commit()

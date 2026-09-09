@@ -1,84 +1,46 @@
-# Sentence-Transformers Models
+# Sentence-Transformers Model Snapshot
 
-This directory contains bundled sentence-transformers models for offline use.
+GeistFabrik redistributes a materialized snapshot of
+[`sentence-transformers/all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
+for reproducible local inference. It produces normalized 384-dimensional
+sentence embeddings and occupies roughly 88 MB before Python dependencies.
 
-## Current State
+## Distribution and loading
 
-✅ **Models are pre-bundled in this repository via Git LFS**
+- **Release wheels:** Hatch maps this directory into the importable
+  `geistfabrik.model_data` resource package. Standard wheel installers unpack
+  it into `site-packages`; `EmbeddingComputer` resolves it with
+  `importlib.resources`.
+- **Source checkouts:** the same files remain here and the loader retains a
+  repository-layout fallback. Git LFS must materialize `model.safetensors` and
+  `tokenizer.json` (`git lfs pull`).
+- **Online fallback:** when neither packaged nor source resources are usable,
+  the loader may resolve `all-MiniLM-L6-v2` through HuggingFace.
+- **Strict offline mode:** set `GEISTFABRIK_OFFLINE=1` (or
+  `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1`) to forbid downloads. A wheel
+  installed normally from an official artifact works in this mode.
 
-When you clone this repository with Git LFS installed, the models are automatically downloaded. GeistFabrik checks for models in this directory first before falling back to HuggingFace cache.
+Directly zip-importing an uninstalled wheel is not supported by
+sentence-transformers; install the wheel normally.
 
-- **Model files tracked with Git LFS**: `model.safetensors` (87MB), `tokenizer.json` (695KB)
-- **Local-first**: Models loaded from `models/all-MiniLM-L6-v2/` directory
-- **Fallback**: Automatic download from HuggingFace if local models not found
+## Provenance and license
 
-## Current Model
+The exact upstream repository, snapshot revision, Git LFS checksums, and
+redistribution notice are in `all-MiniLM-L6-v2/NOTICE`. The model is licensed
+under Apache-2.0; its license is packaged as
+`all-MiniLM-L6-v2/LICENSE.apache-2.0`. The upstream model card remains in the
+snapshot's `README.md`. These terms are separate from GeistFabrik's MIT
+license.
 
-- **all-MiniLM-L6-v2**: A lightweight sentence embedding model (~80-90MB)
-  - 384-dimensional embeddings
-  - Fast inference
-  - Good balance of speed and quality
-
-## Re-downloading the Model
-
-If you need to re-download the model (e.g., after deleting it):
+## Refreshing the snapshot
 
 ```bash
-# From the project root
 uv run python scripts/download_model.py
+git lfs status
 ```
 
-This will download the model from HuggingFace and save it to `models/all-MiniLM-L6-v2/`.
-
-**Note**: You typically don't need to run this command. The models are already bundled in the repository via Git LFS.
-
-## Git LFS Setup
-
-✅ **Git LFS is already configured for this repository**
-
-Model files are tracked with Git LFS in `.gitattributes`:
-- `models/**/*.safetensors` - Model weights (87MB)
-- `models/**/tokenizer.json` - Tokenizer file (695KB)
-
-To clone this repository with models:
-
-```bash
-# Install Git LFS (one-time setup, if not already installed)
-git lfs install
-
-# Clone repository (models download automatically via LFS)
-git clone https://github.com/adewale/geist_fabrik.git
-
-# Verify models are present
-ls -lh models/all-MiniLM-L6-v2/
-```
-
-## Fallback Behaviour
-
-If the local model is not found, GeistFabrik will automatically download it from HuggingFace on first use. The local model is checked first to enable:
-
-1. **Offline usage** - No internet connection required
-2. **Faster startup** - No download wait time
-3. **Reproducibility** - Guaranteed model version
-4. **Privacy** - No external API calls
-
-## File Structure
-
-```
-models/
-└── all-MiniLM-L6-v2/
-    ├── config.json
-    ├── config_sentence_transformers.json
-    ├── model.safetensors  (or pytorch_model.bin)
-    ├── tokenizer_config.json
-    ├── tokenizer.json
-    ├── special_tokens_map.json
-    └── vocab.txt
-```
-
-## Model Size
-
-The complete model directory is approximately **80-90MB**, consisting of:
-- Model weights: ~85MB
-- Tokenizer files: ~1MB
-- Config files: <1MB
+When changing the snapshot, update `NOTICE` revision/checksums and run
+`./scripts/test_wheel.sh` before release. The artifact check rejects Git LFS
+pointers, incomplete resources, wheels/source distributions at or above the
+95,000,000-byte policy ceiling, and installed wheels that cannot perform real
+offline inference.

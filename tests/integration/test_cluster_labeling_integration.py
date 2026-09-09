@@ -44,8 +44,6 @@ class TestClusterLabelingIntegration:
 
     def test_get_clusters_with_keybert_config(self, vault_with_config):
         """Test get_clusters uses KeyBERT when configured."""
-        pytest.importorskip("sklearn")
-        pytest.importorskip("sentence_transformers")
 
         from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
@@ -69,14 +67,12 @@ class TestClusterLabelingIntegration:
         # Should have at least one cluster with labels
         if len(clusters) > 0:
             for cluster_id, cluster_info in clusters.items():
-                assert "label" in cluster_info
-                assert "formatted_label" in cluster_info
                 assert isinstance(cluster_info.label, str)
                 assert len(cluster_info.label) > 0
+                assert cluster_info.formatted_label
 
     def test_get_clusters_with_tfidf_config(self, vault_with_config):
         """Test get_clusters uses c-TF-IDF when configured."""
-        pytest.importorskip("sklearn")
 
         from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
@@ -100,15 +96,12 @@ class TestClusterLabelingIntegration:
         # Should have at least one cluster with labels
         if len(clusters) > 0:
             for cluster_id, cluster_info in clusters.items():
-                assert "label" in cluster_info
-                assert "formatted_label" in cluster_info
                 assert isinstance(cluster_info.label, str)
                 assert len(cluster_info.label) > 0
+                assert cluster_info.formatted_label
 
     def test_switching_labeling_methods(self, vault_with_config):
         """Test that changing config affects labelling method."""
-        pytest.importorskip("sklearn")
-        pytest.importorskip("sentence_transformers")
 
         from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
@@ -146,7 +139,6 @@ class TestClusterLabelingIntegration:
 
     def test_n_label_terms_config(self, vault_with_config):
         """Test that n_label_terms config is respected."""
-        pytest.importorskip("sklearn")
 
         from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.embeddings import Session
@@ -217,8 +209,6 @@ class TestClusterMirrorGeist:
 
     def test_cluster_mirror_uses_config_method(self, vault_for_geist):
         """Test that cluster_mirror respects clustering config."""
-        pytest.importorskip("sklearn")
-        pytest.importorskip("sentence_transformers")
 
         from geistfabrik.config_loader import ClusterConfig
         from geistfabrik.default_geists.code import cluster_mirror
