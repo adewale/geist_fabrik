@@ -1,7 +1,8 @@
 """Stateful model properties for vault synchronization and SQLite storage modes."""
 
 import os
-from contextlib import ExitStack
+import sqlite3
+from contextlib import ExitStack, closing
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -146,7 +147,7 @@ def journal_cases(draw: st.DrawFn) -> JournalCase:
 
 
 class _VaultSyncStateMachineBase(RuleBasedStateMachine):
-    """Shared durable SQLite-pair harness with an external state model."""
+    """Persistent SQLite writers checked against a fresh read-only observer."""
 
     memory_vault: Vault
     disk_vault: Vault
@@ -175,19 +176,19 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
     def _close_disk_vault(self) -> None:
         self.disk_vault.close()
 
-    def _reopen_disk_vault(self) -> None:
-        """Make every disk assertion observe state from a new connection."""
+    def _restart_disk_vault(self) -> None:
+        """Exercise an explicit clean restart without resetting every transition."""
         self.disk_vault.close()
         self.disk_vault = Vault(self.vault_path, self.disk_db_path, config=self.config)
 
-    def _sync_disk_durably(self) -> int:
-        processed = self.disk_vault.sync()
-        self._reopen_disk_vault()
-        return processed
+    def _open_disk_observer(self) -> sqlite3.Connection:
+        """Open a passive reader that can see committed file-backed state only."""
+        uri = f"{self.disk_db_path.resolve().as_uri()}?mode=ro"
+        return sqlite3.connect(uri, uri=True)
 
     def _sync_both(self, expected_count: int) -> None:
         assert self.memory_vault.sync() == expected_count
-        assert self._sync_disk_durably() == expected_count
+        assert self.disk_vault.sync() == expected_count
 
     def _write_file(self, path: str, content: str) -> str:
         native_path = _native_path(path)
@@ -242,14 +243,45 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         }
 
     @staticmethod
+    def _snapshot_connection(connection: sqlite3.Connection) -> dict[str, NoteState]:
+        """Read persisted state directly without invoking a mutating Vault constructor."""
+        links_by_path: dict[str, list[LinkState]] = {}
+        for row in connection.execute(
+            "SELECT source_path, target, display_text, is_embed, block_ref FROM links"
+        ).fetchall():
+            links_by_path.setdefault(str(row[0]), []).append(
+                (str(row[1]), row[2], bool(row[3]), row[4])
+            )
+
+        tags_by_path: dict[str, list[str]] = {}
+        for row in connection.execute("SELECT note_path, tag FROM tags").fetchall():
+            tags_by_path.setdefault(str(row[0]), []).append(str(row[1]))
+
+        snapshot: dict[str, NoteState] = {}
+        for row in connection.execute(
+            "SELECT path, title, content, is_virtual, source_file, entry_date FROM notes"
+        ).fetchall():
+            path = str(row[0])
+            snapshot[path] = NoteState(
+                title=str(row[1]),
+                content=str(row[2]),
+                links=tuple(sorted(links_by_path.get(path, []), key=repr)),
+                tags=tuple(sorted(tags_by_path.get(path, []))),
+                is_virtual=bool(row[3]),
+                source_file=row[4],
+                entry_date=row[5],
+            )
+        return snapshot
+
+    @staticmethod
     def _relationship_snapshot(
-        vault: Vault,
+        connection: sqlite3.Connection,
     ) -> tuple[tuple[RelationshipState, ...], tuple[tuple[str, str], ...]]:
         links = tuple(
             sorted(
                 (
                     (str(row[0]), str(row[1]), row[2], bool(row[3]), row[4])
-                    for row in vault.db.execute(
+                    for row in connection.execute(
                         "SELECT source_path, target, display_text, is_embed, block_ref FROM links"
                     ).fetchall()
                 ),
@@ -259,7 +291,7 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         tags = tuple(
             sorted(
                 (str(row[0]), str(row[1]))
-                for row in vault.db.execute("SELECT note_path, tag FROM tags").fetchall()
+                for row in connection.execute("SELECT note_path, tag FROM tags").fetchall()
             )
         )
         return links, tags
@@ -275,26 +307,30 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         return tuple(sorted(links, key=repr)), tuple(sorted(tags))
 
     @staticmethod
-    def _dependent_paths(vault: Vault) -> tuple[set[str], set[str]]:
+    def _dependent_paths(connection: sqlite3.Connection) -> tuple[set[str], set[str]]:
         embeddings = {
-            str(row[0]) for row in vault.db.execute("SELECT note_path FROM embeddings").fetchall()
+            str(row[0]) for row in connection.execute("SELECT note_path FROM embeddings").fetchall()
         }
         session_embeddings = {
             str(row[0])
-            for row in vault.db.execute("SELECT note_path FROM session_embeddings").fetchall()
+            for row in connection.execute("SELECT note_path FROM session_embeddings").fetchall()
         }
         return embeddings, session_embeddings
 
-    def _assert_store_matches_model(self, vault: Vault) -> None:
-        assert self._snapshot(vault) == self.expected_notes
-        assert self._relationship_snapshot(vault) == self._expected_relationships()
-        assert self._dependent_paths(vault) == (
+    def _assert_connection_matches_model(self, connection: sqlite3.Connection) -> None:
+        assert self._snapshot_connection(connection) == self.expected_notes
+        assert self._relationship_snapshot(connection) == self._expected_relationships()
+        assert self._dependent_paths(connection) == (
             self.expected_dependent_paths,
             self.expected_dependent_paths,
         )
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+
+    def _assert_vault_matches_model(self, vault: Vault) -> None:
+        assert self._snapshot(vault) == self.expected_notes
+        self._assert_connection_matches_model(vault.db)
         foreign_keys = vault.db.execute("PRAGMA foreign_keys").fetchone()
         assert foreign_keys is not None and foreign_keys[0] == 1
-        assert vault.db.execute("PRAGMA foreign_key_check").fetchall() == []
 
     @staticmethod
     def _insert_dependent_rows(vault: Vault, path: str) -> None:
@@ -327,17 +363,23 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         self._insert_dependent_rows(self.memory_vault, path)
         self._insert_dependent_rows(self.disk_vault, path)
         self.expected_dependent_paths.add(path)
-        self._reopen_disk_vault()
 
     @rule()
     def repeat_sync(self) -> None:
-        """A quiescent sync is idempotent and durable in both storage modes."""
+        """A quiescent sync reports no work in either storage mode."""
         self._sync_both(0)
+
+    @rule()
+    def restart_disk_writer(self) -> None:
+        """A deliberate clean restart preserves the committed model state."""
+        self._restart_disk_vault()
 
     @invariant()
     def stores_match_the_independent_model(self) -> None:
-        self._assert_store_matches_model(self.memory_vault)
-        self._assert_store_matches_model(self.disk_vault)
+        self._assert_vault_matches_model(self.memory_vault)
+        self._assert_vault_matches_model(self.disk_vault)
+        with closing(self._open_disk_observer()) as observer:
+            self._assert_connection_matches_model(observer)
 
     def teardown(self) -> None:
         self._resources.close()

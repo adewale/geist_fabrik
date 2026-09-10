@@ -470,24 +470,25 @@ properties, and cached/vectorised surprisal behaviour.
 **The Problem:** Parser properties and one-shot sync examples could show that an individual note
 was understood, but not that the vault stayed correct across batches, renames, create, update,
 delete, regular/date-collection transitions, and repeated sync operations. Reading a file-backed
-store through its writer connection also could not prove that synchronization was durable.
+store through its writer connection also could not prove that synchronization had committed.
 
 **The Insight:** Incremental synchronization is a state machine, not a collection of independent
 calls. After every generated operation, an external shadow model must check exact paths, raw
-content, parsed fields, relationships, and dependent-row lifecycle. In-memory SQLite provides a
-fast parity check, while the file-backed mode must be closed and reopened before observation. A
-second sync with no filesystem change must report no work.
+content, parsed fields, relationships, and dependent-row lifecycle. The file-backed writer must
+remain alive across the trace so connection-scoped bugs stay observable, while a fresh raw read-only
+connection checks committed state without running application initialization. A second sync with no
+filesystem change must report no work, and clean restart is a separate transition.
 
 **The Principle:** Test mutable storage workflows with shrinkable operation sequences, a model
 outside the implementation, and invariants after every step. When the project offers multiple
 storage modes for the same contract, run the same trace through all of them, compare each with the
-independent model, and observe durable modes through a new connection.
+independent model, and use a passive connection to observe committed state.
 
 **Impact:** `tests/unit/test_property_vault_stateful.py` now exercises independently modeled regular
 and virtual notes, native nested and Unicode paths, fixed coarse-filesystem-safe modification times,
 batched updates, renames, deletion, regular/date-collection transitions, quiescent idempotence,
-processed counts, foreign-key integrity, relationship cleanup, embedding cascades, and reopened-disk
-durability after every generated command.
+processed counts, foreign-key integrity, relationship cleanup, embedding cascades, fresh-reader
+commit visibility, and explicit clean restarts.
 
 ---
 
