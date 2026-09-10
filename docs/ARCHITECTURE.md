@@ -294,6 +294,39 @@ PERSISTENCE:
   • In-memory vector similarity search (Python cosine similarity)
 ```
 
+## SQLite persistence contract
+
+GeistFabrik opens one managed SQLite connection per command and shares it with
+its storage components. SQLite is both an index of current Markdown and the
+store for non-rebuildable history:
+
+- `notes`, `links`, and `tags` mirror current vault files.
+- `embeddings` is a replaceable cache for current note content.
+- `sessions` and `session_embeddings` retain temporal history.
+- `session_suggestions`, `embedding_metrics`, and `geist_status` retain session
+  and execution state.
+
+Every top-level writer requires an idle connection and owns `BEGIN IMMEDIATE`
+through commit. Any escaping exception, including a commit failure, rolls the
+transaction back; one component therefore cannot commit another component's
+pending rows. Expensive embedding inference is completed before taking the
+single-writer lock.
+
+Stable note paths use SQLite UPSERT/UPDATE semantics. Updating a note explicitly
+invalidates its current semantic cache while preserving historical session
+embeddings. Deleting a note—or removing a virtual entry from a date
+collection—uses foreign-key cascades to remove rows that can no longer refer to
+an existing note.
+
+Managed connections enable foreign keys, set a 5-second busy timeout, and use
+`FULL` synchronous mode. GeistFabrik supports SQLite's rollback journal and an
+existing WAL database rather than forcing one journal mode. A fresh read-only
+connection is used in persistence tests as the committed-state oracle.
+
+Arbitrary database corruption is not automatically recoverable. Initialization
+fails without overwriting a malformed file; restoration requires a known-good
+backup, or an explicit rebuild that sacrifices stored history.
+
 ## Summary
 
 GeistFabrik uses a two-layer architecture:

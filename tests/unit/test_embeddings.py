@@ -1,6 +1,11 @@
 """Unit tests for embeddings module (mocked models)."""
 
+import sqlite3
+from contextlib import closing
+from dataclasses import replace
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -281,6 +286,84 @@ def test_compute_embeddings_mock(mocked_session, sample_notes):
         embedding = mocked_session.get_embedding(note.path)
         assert embedding is not None
         assert embedding.shape == (387,)
+
+
+def test_compute_embeddings_failure_rolls_back_and_retry_succeeds(
+    tmp_path: Path, sample_notes: list[Note], mock_embedding_computer: EmbeddingComputer
+) -> None:
+    """A model failure preserves the previously committed session snapshot."""
+
+    class FailingModel:
+        def encode(
+            self,
+            sentences: str | list[str],
+            *,
+            convert_to_numpy: bool = True,
+            show_progress_bar: bool = False,
+            batch_size: int = 32,
+            **kwargs: Any,
+        ) -> np.ndarray:
+            raise RuntimeError("injected model failure")
+
+    db_path = tmp_path / "embeddings.db"
+    db = init_db(db_path)
+    for note in sample_notes:
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                note.path,
+                note.title,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+                note.modified.timestamp(),
+            ),
+        )
+    db.commit()
+
+    date = datetime(2023, 6, 15)
+    baseline_session = Session(date, db, computer=mock_embedding_computer)
+    baseline_session.compute_embeddings(sample_notes)
+    before_hash = db.execute(
+        "SELECT vault_state_hash FROM sessions WHERE session_id = ?",
+        (baseline_session.session_id,),
+    ).fetchone()
+    before_rows = db.execute(
+        "SELECT note_path, embedding FROM session_embeddings "
+        "WHERE session_id = ? ORDER BY note_path",
+        (baseline_session.session_id,),
+    ).fetchall()
+    changed_notes = [replace(sample_notes[0], content="changed content"), *sample_notes[1:]]
+    failing_computer = EmbeddingComputer(model=FailingModel())
+    failing_session = Session(date, db, computer=failing_computer)
+
+    with pytest.raises(RuntimeError, match="injected model failure"):
+        failing_session.compute_embeddings(changed_notes)
+
+    assert db.in_transaction is False
+    assert db.execute(
+        "SELECT vault_state_hash FROM sessions WHERE session_id = ?",
+        (baseline_session.session_id,),
+    ).fetchone() == before_hash
+    assert db.execute(
+        "SELECT note_path, embedding FROM session_embeddings "
+        "WHERE session_id = ? ORDER BY note_path",
+        (baseline_session.session_id,),
+    ).fetchall() == before_rows
+
+    uri = f"{db_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as observer:
+        assert observer.execute(
+            "SELECT note_path, embedding FROM session_embeddings "
+            "WHERE session_id = ? ORDER BY note_path",
+            (baseline_session.session_id,),
+        ).fetchall() == before_rows
+
+    retry_session = Session(date, db, computer=mock_embedding_computer)
+    retry_session.compute_embeddings(changed_notes)
+    assert retry_session.get_embedding(sample_notes[0].path) is not None
+    db.close()
 
 
 def test_cosine_similarity():

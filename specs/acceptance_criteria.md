@@ -100,7 +100,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-1.11 | ⬜ | Invalid UTF-8 handling | `uv run pytest tests/unit/test_markdown_parser.py::test_parse_invalid_utf8 -v` |
 | AC-1.12 | ⬜ | Circular link detection | `uv run pytest tests/unit/test_vault.py::test_circular_links -v` (A→B→C→A handled) |
 | AC-1.13 | ⬜ | Broken link tracking | `uv run pytest tests/unit/test_vault.py::test_broken_links -v` |
-| AC-1.14 | ⬜ | Database corruption recovery | `uv run pytest tests/unit/test_sqlite_persistence.py::test_corrupted_database_recovery -v` |
+| AC-1.14 | ⬜ | Malformed database fails safely without overwriting it | `uv run pytest tests/unit/test_sqlite_persistence.py::test_init_db_rejects_malformed_database_without_overwriting -v` |
 | AC-1.15 | ⬜ | Filesystem error handling | `uv run pytest tests/unit/test_vault.py::test_{permission_denied,vault_path_not_exists,vault_path_is_file} -v` |
 | AC-1.16 | ⬜ | Case sensitivity handling | `uv run pytest tests/unit/test_vault.py::test_case_insensitive_links -v` |
 | AC-1.17 | ⬜ | Duplicate note titles | `uv run pytest tests/unit/test_vault.py::test_duplicate_titles_different_folders -v` |
@@ -546,7 +546,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-11.21 | ⬜ | Troubleshooting guide | docs/TROUBLESHOOTING.md exists |
 | AC-11.22 | ⬜ | Performance regression tests | `uv run pytest tests/unit/test_performance_regression.py -v` |
 | AC-11.23 | ⬜ | Load testing | Handles 10K+ notes |
-| AC-11.24 | ⬜ | Recovery from corruption | `uv run pytest tests/unit/test_sqlite_persistence.py::test_corrupted_database_recovery -v` |
+| AC-11.24 | ⚠️ | Recovery from corruption | Manual: automatic recovery of arbitrary SQLite corruption is not implemented; restore a known-good backup, or explicitly rebuild the derived database while accepting loss of stored session history |
 | AC-11.25 | ⬜ | Observability | Metrics exposed (if implemented) |
 
 ### Test Coverage Target

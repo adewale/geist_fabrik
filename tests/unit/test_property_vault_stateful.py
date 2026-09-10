@@ -169,7 +169,8 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
             self._resources.close()
             raise
         self.expected_notes: dict[str, NoteState] = {}
-        self.expected_dependent_paths: set[str] = set()
+        self.expected_semantic_paths: set[str] = set()
+        self.expected_session_embedding_paths: set[str] = set()
         self._file_mtimes: dict[str, float] = {}
         self._mtime = FIXED_MTIME
 
@@ -216,7 +217,8 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         ]
         for path in affected_paths:
             self.expected_notes.pop(path)
-            self.expected_dependent_paths.discard(path)
+            self.expected_semantic_paths.discard(path)
+            self.expected_session_embedding_paths.discard(path)
         self._file_mtimes.pop(source_file, None)
 
     @staticmethod
@@ -321,8 +323,8 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         assert self._snapshot_connection(connection) == self.expected_notes
         assert self._relationship_snapshot(connection) == self._expected_relationships()
         assert self._dependent_paths(connection) == (
-            self.expected_dependent_paths,
-            self.expected_dependent_paths,
+            self.expected_semantic_paths,
+            self.expected_session_embedding_paths,
         )
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
 
@@ -362,7 +364,8 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         path = sorted(self.expected_notes)[0]
         self._insert_dependent_rows(self.memory_vault, path)
         self._insert_dependent_rows(self.disk_vault, path)
-        self.expected_dependent_paths.add(path)
+        self.expected_semantic_paths.add(path)
+        self.expected_session_embedding_paths.add(path)
 
     @rule()
     def repeat_sync(self) -> None:
@@ -392,7 +395,7 @@ class RegularVaultSyncStateMachine(_VaultSyncStateMachineBase):
     def create_or_update_note(self, path: str, note: RegularNoteCase) -> None:
         native_path = self._write_file(path, note.content)
         self.expected_notes[native_path] = note.state
-        self.expected_dependent_paths.discard(native_path)
+        self.expected_semantic_paths.discard(native_path)
         self._sync_both(1)
 
     @rule(path=NOTE_PATHS)
@@ -402,7 +405,8 @@ class RegularVaultSyncStateMachine(_VaultSyncStateMachineBase):
         if note_path.exists():
             note_path.unlink()
         self.expected_notes.pop(native_path, None)
-        self.expected_dependent_paths.discard(native_path)
+        self.expected_semantic_paths.discard(native_path)
+        self.expected_session_embedding_paths.discard(native_path)
         self._file_mtimes.pop(native_path, None)
         self._sync_both(0)
 
@@ -417,7 +421,7 @@ class RegularVaultSyncStateMachine(_VaultSyncStateMachineBase):
         second_path = self._write_file(paths[1], second.content)
         self.expected_notes[first_path] = first.state
         self.expected_notes[second_path] = second.state
-        self.expected_dependent_paths.difference_update((first_path, second_path))
+        self.expected_semantic_paths.difference_update((first_path, second_path))
         self._sync_both(2)
 
     @precondition(lambda self: bool(self.expected_notes))
@@ -436,7 +440,8 @@ class RegularVaultSyncStateMachine(_VaultSyncStateMachineBase):
         source_state = self.expected_notes.pop(source_path)
         self.expected_notes.pop(destination_path, None)
         self.expected_notes[destination_path] = source_state
-        self.expected_dependent_paths.difference_update((source_path, destination_path))
+        self.expected_semantic_paths.difference_update((source_path, destination_path))
+        self.expected_session_embedding_paths.discard(source_path)
         self._file_mtimes.pop(destination_path, None)
         self._file_mtimes.pop(source_path, None)
         self._stamp_file(destination_path)
@@ -450,7 +455,18 @@ class DateCollectionVaultSyncStateMachine(_VaultSyncStateMachineBase):
     """Exercise virtual notes and regular/date-collection transitions."""
 
     def _replace_journal_model(self, journal: JournalCase) -> None:
-        self._remove_expected_source(JOURNAL_PATH)
+        old_paths = {
+            path
+            for path, state in self.expected_notes.items()
+            if path == JOURNAL_PATH or state.source_file == JOURNAL_PATH
+        }
+        new_paths = {
+            f"{JOURNAL_PATH}/{entry.entry_date.isoformat()}" for entry in journal.entries
+        }
+        for stale_path in old_paths - new_paths:
+            self.expected_notes.pop(stale_path)
+            self.expected_semantic_paths.discard(stale_path)
+            self.expected_session_embedding_paths.discard(stale_path)
         for entry in journal.entries:
             entry_date = entry.entry_date.isoformat()
             virtual_path = f"{JOURNAL_PATH}/{entry_date}"
@@ -463,6 +479,7 @@ class DateCollectionVaultSyncStateMachine(_VaultSyncStateMachineBase):
                 source_file=JOURNAL_PATH,
                 entry_date=entry_date,
             )
+            self.expected_semantic_paths.discard(virtual_path)
 
     @rule(journal=journal_cases())
     def create_or_update_journal(self, journal: JournalCase) -> None:
@@ -472,8 +489,17 @@ class DateCollectionVaultSyncStateMachine(_VaultSyncStateMachineBase):
 
     @rule(note=regular_notes())
     def convert_journal_to_regular(self, note: RegularNoteCase) -> None:
-        self._remove_expected_source(JOURNAL_PATH)
+        virtual_paths = {
+            path
+            for path, state in self.expected_notes.items()
+            if state.source_file == JOURNAL_PATH
+        }
+        for virtual_path in virtual_paths:
+            self.expected_notes.pop(virtual_path)
+            self.expected_semantic_paths.discard(virtual_path)
+            self.expected_session_embedding_paths.discard(virtual_path)
         self.expected_notes[JOURNAL_PATH] = note.state
+        self.expected_semantic_paths.discard(JOURNAL_PATH)
         self._write_file(JOURNAL_PATH, note.content)
         self._sync_both(1)
 

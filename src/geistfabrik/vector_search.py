@@ -13,6 +13,7 @@ from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
 )
 
 from .config import TOTAL_DIM
+from .sqlite_transaction import owned_transaction
 
 
 class VectorSearchBackend(ABC):
@@ -272,23 +273,22 @@ class SqliteVecBackend(VectorSearchBackend):
                 "sqlite-vec extension not available. Install with: pip install sqlite-vec"
             )
 
-        # Create path mapping table (maps note paths to integer IDs)
-        self.db.execute("""
-            CREATE TABLE IF NOT EXISTS vec_path_mapping (
-                vec_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                note_path TEXT NOT NULL UNIQUE
-            )
-        """)
+        with owned_transaction(self.db, "SqliteVecBackend setup"):
+            # Create path mapping table (maps note paths to integer IDs)
+            self.db.execute("""
+                CREATE TABLE IF NOT EXISTS vec_path_mapping (
+                    vec_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    note_path TEXT NOT NULL UNIQUE
+                )
+            """)
 
-        # Create virtual table for vector search with cosine distance
-        # rowid corresponds to vec_id from vec_path_mapping
-        self.db.execute(f"""
-            CREATE VIRTUAL TABLE IF NOT EXISTS vec_search USING vec0(
-                embedding float[{self.dim}] distance_metric=cosine
-            )
-        """)
-
-        self.db.commit()
+            # Create virtual table for vector search with cosine distance
+            # rowid corresponds to vec_id from vec_path_mapping
+            self.db.execute(f"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS vec_search USING vec0(
+                    embedding float[{self.dim}] distance_metric=cosine
+                )
+            """)
 
     def _get_or_create_vec_id(self, path: str) -> int:
         """Get or create a vec_id for a note path.
@@ -360,46 +360,54 @@ class SqliteVecBackend(VectorSearchBackend):
         Args:
             session_date: ISO date string (YYYY-MM-DD)
         """
-        self.session_date = session_date
-
-        # Get session_id from date
-        cursor = self.db.execute("SELECT session_id FROM sessions WHERE date = ?", (session_date,))
-        row = cursor.fetchone()
+        # Get session_id from date before requesting the writer lock.
+        row = self.db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+        ).fetchone()
         if row is None:
-            # No session found, clear caches
+            self.session_date = session_date
             self.session_id = 0
             self._path_to_id = {}
             self._id_to_path = {}
             return
 
+        previous_state = (
+            self.session_date,
+            self.session_id,
+            self._path_to_id,
+            self._id_to_path,
+        )
+        self.session_date = session_date
         self.session_id = int(row[0])
-
-        # Clear existing vec_search data and caches
-        self.db.execute("DELETE FROM vec_search")
         self._path_to_id = {}
         self._id_to_path = {}
+        try:
+            with owned_transaction(self.db, "SqliteVecBackend.load_embeddings"):
+                self.db.execute("DELETE FROM vec_search")
+                cursor = self.db.execute(
+                    """
+                    SELECT note_path, embedding
+                    FROM session_embeddings
+                    WHERE session_id = ?
+                    """,
+                    (self.session_id,),
+                )
 
-        # Load from session_embeddings into vec_search
-        cursor = self.db.execute(
-            """
-            SELECT note_path, embedding
-            FROM session_embeddings
-            WHERE session_id = ?
-            """,
-            (self.session_id,),
-        )
-
-        for path, blob in cursor:
-            embedding = np.frombuffer(blob, dtype=np.float32)
-            vec_id = self._get_or_create_vec_id(path)
-
-            # Insert into vec_search using vec_id as rowid
-            self.db.execute(
-                "INSERT INTO vec_search(rowid, embedding) VALUES (?, ?)",
-                (vec_id, embedding.tobytes()),
-            )
-
-        self.db.commit()
+                for path, blob in cursor:
+                    embedding = np.frombuffer(blob, dtype=np.float32)
+                    vec_id = self._get_or_create_vec_id(path)
+                    self.db.execute(
+                        "INSERT INTO vec_search(rowid, embedding) VALUES (?, ?)",
+                        (vec_id, embedding.tobytes()),
+                    )
+        except BaseException:
+            (
+                self.session_date,
+                self.session_id,
+                self._path_to_id,
+                self._id_to_path,
+            ) = previous_state
+            raise
 
     def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
         """Find similar notes via sqlite-vec.

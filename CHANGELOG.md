@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Vault synchronization now updates stable note paths in place, invalidates only
+  current-content semantic caches, and preserves historical session embeddings;
+  removed virtual-note paths still cascade cleanly.
+- Every SQLite writer now owns an explicit transaction, rejects a pre-existing
+  transaction, and rolls back failures so another component cannot accidentally
+  publish partial work. Expensive embedding inference runs before the write lock.
+- Replaced the false database-corruption recovery check with an honest
+  fail-without-overwrite contract and documented backup/rebuild recovery limits.
+
 ## [0.10.1] - 2026-07-11
 
 ### Packaging and release engineering

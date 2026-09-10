@@ -1,8 +1,17 @@
 """Unit tests for SQLite persistence."""
 
 import sqlite3
+from pathlib import Path
 
-from geistfabrik.schema import SCHEMA_VERSION, get_schema_version, init_db, migrate_schema
+import pytest
+
+from geistfabrik.schema import (
+    SCHEMA_VERSION,
+    SQLITE_BUSY_TIMEOUT_MS,
+    get_schema_version,
+    init_db,
+    migrate_schema,
+)
 
 
 def test_init_db_memory() -> None:
@@ -33,13 +42,16 @@ def test_schema_version() -> None:
     conn.close()
 
 
-def test_foreign_keys_enabled() -> None:
-    """Test that foreign keys are enabled."""
+def test_connection_integrity_and_durability_policy() -> None:
+    """Managed connections make their integrity, wait, and sync policy explicit."""
     conn = init_db(None)
-    cursor = conn.execute("PRAGMA foreign_keys")
-    result = cursor.fetchone()
-    assert result is not None
-    assert result[0] == 1
+    foreign_keys = conn.execute("PRAGMA foreign_keys").fetchone()
+    busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()
+    synchronous = conn.execute("PRAGMA synchronous").fetchone()
+
+    assert foreign_keys == (1,)
+    assert busy_timeout == (SQLITE_BUSY_TIMEOUT_MS,)
+    assert synchronous == (2,)  # SQLite FULL
     conn.close()
 
 
@@ -102,23 +114,16 @@ def test_indexes_created() -> None:
     conn.close()
 
 
-def test_corrupted_database_recovery() -> None:
-    """Test handling of database that might be corrupted."""
-    # For now, just test we can reinitialize
-    conn = init_db(None)
-    # Simulate corruption by dropping a table
-    conn.execute("DROP TABLE IF EXISTS notes")
+def test_init_db_rejects_malformed_database_without_overwriting(tmp_path: Path) -> None:
+    """A malformed file fails safely; recovery requires a separate known-good source."""
+    db_path = tmp_path / "malformed.db"
+    original_bytes = b"not a SQLite database\x00with user data"
+    db_path.write_bytes(original_bytes)
 
-    # Reinitialize should recreate tables
-    conn.executescript("BEGIN; ROLLBACK;")  # Reset any transaction
-    conn.close()
+    with pytest.raises(sqlite3.DatabaseError):
+        init_db(db_path)
 
-    # Create new connection and init
-    conn = init_db(None)
-    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = {row[0] for row in cursor.fetchall()}
-    assert "notes" in tables
-    conn.close()
+    assert db_path.read_bytes() == original_bytes
 
 
 def test_migration_v5_to_v6_adds_composite_index() -> None:

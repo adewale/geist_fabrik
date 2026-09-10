@@ -16,6 +16,7 @@ import numpy as np
 
 from .config_loader import GeistFabrikConfig
 from .embeddings import cosine_similarity
+from .sqlite_transaction import owned_transaction
 
 # Optional dependencies for advanced metrics
 try:
@@ -162,26 +163,35 @@ class EmbeddingMetricsComputer:
                 return float(val)
             return val
 
-        self.db.execute(
-            """
-            INSERT OR REPLACE INTO embedding_metrics
-            (session_date, intrinsic_dim, vendi_score, shannon_entropy,
-             silhouette_score, n_clusters, n_gaps, cluster_labels, computed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                session_date,
-                to_python_type(metrics.get("intrinsic_dim")),
-                to_python_type(metrics.get("vendi_score")),
-                to_python_type(metrics.get("shannon_entropy")),
-                to_python_type(metrics.get("silhouette_score")),
-                to_python_type(metrics.get("n_clusters")),
-                to_python_type(metrics.get("n_gaps")),
-                cluster_labels_json,
-                datetime.now().isoformat(),
-            ),
-        )
-        self.db.commit()
+        with owned_transaction(self.db, "EmbeddingMetricsComputer._cache_metrics"):
+            self.db.execute(
+                """
+                INSERT INTO embedding_metrics
+                (session_date, intrinsic_dim, vendi_score, shannon_entropy,
+                 silhouette_score, n_clusters, n_gaps, cluster_labels, computed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_date) DO UPDATE SET
+                    intrinsic_dim = excluded.intrinsic_dim,
+                    vendi_score = excluded.vendi_score,
+                    shannon_entropy = excluded.shannon_entropy,
+                    silhouette_score = excluded.silhouette_score,
+                    n_clusters = excluded.n_clusters,
+                    n_gaps = excluded.n_gaps,
+                    cluster_labels = excluded.cluster_labels,
+                    computed_at = excluded.computed_at
+                """,
+                (
+                    session_date,
+                    to_python_type(metrics.get("intrinsic_dim")),
+                    to_python_type(metrics.get("vendi_score")),
+                    to_python_type(metrics.get("shannon_entropy")),
+                    to_python_type(metrics.get("silhouette_score")),
+                    to_python_type(metrics.get("n_clusters")),
+                    to_python_type(metrics.get("n_gaps")),
+                    cluster_labels_json,
+                    datetime.now().isoformat(),
+                ),
+            )
 
     def _compute_basic_metrics(self, embeddings: np.ndarray) -> dict[str, Any]:
         """Compute basic metrics that don't require external libraries."""

@@ -11,6 +11,7 @@ from pathlib import Path
 # Version 7: Added session_embeddings.cluster_label (per-session cluster assignments)
 # Version 8: Added geist_status table (persistent per-geist failure tracking)
 SCHEMA_VERSION = 8
+SQLITE_BUSY_TIMEOUT_MS = 5_000
 
 SCHEMA_SQL = """
 -- Notes table
@@ -148,7 +149,13 @@ def init_db(db_path: Path | None = None) -> sqlite3.Connection:
         conn = sqlite3.connect(str(db_path))
 
     try:
+        # Per-connection policy: enforce relational integrity, wait briefly for
+        # the single writer, and require full fsync discipline at transaction
+        # boundaries. Journal mode remains compatible with either SQLite's
+        # rollback journal or an existing WAL database.
         conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
+        conn.execute("PRAGMA synchronous = FULL")
         tables = {
             str(row[0])
             for row in conn.execute(

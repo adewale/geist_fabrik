@@ -487,8 +487,41 @@ independent model, and use a passive connection to observe committed state.
 **Impact:** `tests/unit/test_property_vault_stateful.py` now exercises independently modeled regular
 and virtual notes, native nested and Unicode paths, fixed coarse-filesystem-safe modification times,
 batched updates, renames, deletion, regular/date-collection transitions, quiescent idempotence,
-processed counts, foreign-key integrity, relationship cleanup, embedding cascades, fresh-reader
-commit visibility, and explicit clean restarts.
+processed counts, foreign-key integrity, relationship cleanup, semantic-cache invalidation,
+historical-embedding preservation and deletion cascades, fresh-reader commit visibility, and
+explicit clean restarts.
+
+---
+
+## SQLite Names Are Not SQLite Contracts
+
+**Date:** 2026-07-11
+**Context:** Following the stateful vault-sync review into production transaction and history bugs
+
+**The Problem:** Three shortcuts created false confidence. `INSERT OR REPLACE` was read as an update
+although SQLite implements it as delete-then-insert, cascading away temporal history. Multi-step
+methods relied on sqlite3's implicit transaction and caught only final `commit()` errors, so an
+earlier exception left partial work pending for another component to commit. A test named
+"corruption recovery" discarded its damaged in-memory connection and proved only that a new empty
+database could be initialized; acceptance criteria trusted the name and exit code.
+
+**The Insight:** Database correctness is defined by observable transaction and data-lifecycle
+contracts, not convenient SQL keywords, a final `commit()`, or a test's name. Current-content caches
+and historical records need separate models. Each top-level writer needs exclusive ownership from
+`BEGIN IMMEDIATE` through commit, rollback on every escaping failure, and a passive connection as the
+commit oracle. Recovery claims require reopening the same damaged artifact or an explicit backup;
+fresh initialization is not recovery.
+
+**The Principle:** Translate storage features into exact lifecycle semantics before coding: which
+rows survive an update, who owns the transaction, what an independent reader can observe, and what
+artifact is recovered. Write a failing test for each contract and sabotage the critical operation to
+prove the oracle detects the old behavior.
+
+**Impact:** Note upserts preserve temporal history while explicitly invalidating semantic caches;
+date collections delete only vanished virtual paths. Shared SQLite writers use one owned-transaction
+primitive and embedding inference happens before the writer lock. Corrupt databases fail without
+being overwritten, acceptance criteria no longer claim automatic recovery, and troubleshooting
+requires a known-good backup or an explicit history-losing rebuild.
 
 ---
 
