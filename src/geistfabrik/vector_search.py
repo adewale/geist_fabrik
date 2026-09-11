@@ -4,8 +4,10 @@ This module provides pluggable vector similarity search backends,
 allowing users to choose between in-memory and sqlite-vec implementations.
 """
 
+import re
 import sqlite3
 from abc import ABC, abstractmethod
+from importlib import import_module
 from itertools import count
 
 import numpy as np
@@ -22,6 +24,17 @@ _VEC_TABLE_COUNTER = count()
 class VectorSearchBackend(ABC):
     """Abstract base class for vector similarity search backends."""
 
+    _closed: bool = False
+
+    @property
+    def closed(self) -> bool:
+        """Whether this backend has released its loaded projection."""
+        return self._closed
+
+    def _ensure_open(self) -> None:
+        if self.closed:
+            raise RuntimeError("Vector search backend is closed")
+
     @abstractmethod
     def load_embeddings(self, session_date: str) -> None:
         """Load embeddings for the given session.
@@ -33,6 +46,7 @@ class VectorSearchBackend(ABC):
 
     def close(self) -> None:
         """Release backend-specific derived state."""
+        self._closed = True
 
     @abstractmethod
     def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
@@ -106,6 +120,14 @@ class InMemoryVectorBackend(VectorSearchBackend):
         self._paths: list[str] = []
         self._matrix: np.ndarray | None = None
 
+    def close(self) -> None:
+        """Release loaded arrays; the shared database connection remains open."""
+        self.embeddings = {}
+        self._paths = []
+        self._matrix = None
+        self.session_id = 0
+        super().close()
+
     def _rebuild_matrix(self) -> None:
         """Rebuild the cached embedding matrix and path index from self.embeddings.
 
@@ -125,6 +147,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
         Args:
             session_date: ISO date string (YYYY-MM-DD)
         """
+        self._ensure_open()
         # Get session_id from date
         cursor = self.db.execute("SELECT session_id FROM sessions WHERE date = ?", (session_date,))
         row = cursor.fetchone()
@@ -170,6 +193,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
         Returns:
             List of (note_path, similarity_score) tuples, sorted descending
         """
+        self._ensure_open()
         # Defensive: rebuild if embeddings were mutated since the last load.
         if self._matrix is None or len(self._paths) != len(self.embeddings):
             self._rebuild_matrix()
@@ -206,6 +230,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
         Raises:
             KeyError: If either note path not found
         """
+        self._ensure_open()
         from .embeddings import cosine_similarity
 
         if path_a not in self.embeddings:
@@ -230,6 +255,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
         Raises:
             KeyError: If note path not found
         """
+        self._ensure_open()
         if path not in self.embeddings:
             raise KeyError(f"Note not found: {path}")
         return self.embeddings[path]
@@ -273,15 +299,23 @@ class SqliteVecBackend(VectorSearchBackend):
         Raises:
             RuntimeError: If sqlite-vec extension not available
         """
-        # Check if sqlite-vec is available
-        try:
-            self.db.execute("SELECT vec_version()")
-        except sqlite3.OperationalError:
-            raise RuntimeError(
-                "sqlite-vec extension not available. Install with: pip install sqlite-vec"
-            )
+        self._ensure_sqlite_vec_loaded()
 
         with owned_transaction(self.db, "SqliteVecBackend setup"):
+            # Releases before TEMP projections stored a disposable vec0 table in
+            # main. Dropping the virtual table also drops its own shadow tables.
+            # Do not delete an unrelated ordinary table that shares the name.
+            legacy = self.db.execute(
+                "SELECT sql FROM main.sqlite_master WHERE type = 'table' AND name = 'vec_search'"
+            ).fetchone()
+            if legacy and re.search(
+                r"^\s*CREATE\s+VIRTUAL\s+TABLE\s+vec_search\s+USING\s+vec0\s*\(\s*"
+                r"embedding\s+float\[\d+\]\s+distance_metric\s*=\s*cosine\s*\)\s*$",
+                legacy[0] or "",
+                re.IGNORECASE | re.DOTALL,
+            ):
+                self.db.execute("DROP TABLE main.vec_search")
+
             # Create path mapping table (maps note paths to integer IDs)
             self.db.execute("""
                 CREATE TABLE IF NOT EXISTS vec_path_mapping (
@@ -299,6 +333,50 @@ class SqliteVecBackend(VectorSearchBackend):
                 )
             """)
 
+    def _ensure_sqlite_vec_loaded(self) -> None:
+        """Load the known sqlite-vec package on this connection when needed."""
+        try:
+            self.db.execute("SELECT vec_version()").fetchone()
+            return
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            sqlite_vec = import_module("sqlite_vec")
+            load = getattr(sqlite_vec, "load")
+            enable_load_extension = self.db.enable_load_extension
+        except (ImportError, AttributeError) as error:
+            raise RuntimeError(
+                "sqlite-vec extension not available. Install with: pip install sqlite-vec"
+            ) from error
+
+        load_error: BaseException | None = None
+        try:
+            enable_load_extension(True)
+            load(self.db)
+        except (sqlite3.Error, OSError) as error:
+            load_error = error
+        finally:
+            try:
+                # Loading arbitrary extensions must not remain enabled after the
+                # trusted package has initialized this connection.
+                enable_load_extension(False)
+            except (sqlite3.Error, AttributeError) as error:
+                raise RuntimeError(
+                    "sqlite-vec loaded but SQLite extension loading could not be disabled"
+                ) from error
+
+        if load_error is not None:
+            raise RuntimeError(
+                "sqlite-vec extension not available. Install with: pip install sqlite-vec"
+            ) from load_error
+        try:
+            self.db.execute("SELECT vec_version()").fetchone()
+        except sqlite3.OperationalError as error:
+            raise RuntimeError(
+                "sqlite-vec extension not available. Install with: pip install sqlite-vec"
+            ) from error
+
     def _get_or_create_vec_id(self, path: str) -> int:
         """Get or create a vec_id for a note path.
 
@@ -312,15 +390,18 @@ class SqliteVecBackend(VectorSearchBackend):
         if path in self._path_to_id:
             return self._path_to_id[path]
 
-        # Check database
+        vec_id = self._lookup_or_create_vec_id(path)
+        self._path_to_id[path] = vec_id
+        self._id_to_path[vec_id] = path
+        return vec_id
+
+    def _lookup_or_create_vec_id(self, path: str) -> int:
+        """Resolve durable mapping without publishing it to instance caches."""
         cursor = self.db.execute("SELECT vec_id FROM vec_path_mapping WHERE note_path = ?", (path,))
         row = cursor.fetchone()
 
         if row is not None:
-            vec_id = int(row[0])
-            self._path_to_id[path] = vec_id
-            self._id_to_path[vec_id] = path
-            return vec_id
+            return int(row[0])
 
         # Create new mapping
         cursor = self.db.execute("INSERT INTO vec_path_mapping (note_path) VALUES (?)", (path,))
@@ -328,10 +409,7 @@ class SqliteVecBackend(VectorSearchBackend):
         if lastrowid is None:
             raise RuntimeError(f"Failed to create vec_id for path: {path}")
 
-        vec_id = lastrowid
-        self._path_to_id[path] = vec_id
-        self._id_to_path[vec_id] = path
-        return vec_id
+        return lastrowid
 
     def _get_path_from_vec_id(self, vec_id: int) -> str:
         """Get note path from vec_id.
@@ -369,56 +447,58 @@ class SqliteVecBackend(VectorSearchBackend):
         Args:
             session_date: ISO date string (YYYY-MM-DD)
         """
-        # Get session_id from date before requesting the writer lock.
-        row = self.db.execute(
-            "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
-        ).fetchone()
-        previous_state = (
-            self.session_date,
-            self.session_id,
-            self._path_to_id,
-            self._id_to_path,
-        )
-        self.session_date = session_date
-        self.session_id = int(row[0]) if row is not None else 0
-        self._path_to_id = {}
-        self._id_to_path = {}
-        try:
-            with owned_transaction(self.db, "SqliteVecBackend.load_embeddings"):
-                self.db.execute(f"DELETE FROM temp.{self._search_table}")
-                if row is not None:
-                    cursor = self.db.execute(
-                        """
-                        SELECT note_path, embedding
-                        FROM session_embeddings
-                        WHERE session_id = ?
-                        """,
-                        (self.session_id,),
-                    )
-
+        self._ensure_open()
+        path_to_id: dict[str, int] = {}
+        id_to_path: dict[int, str] = {}
+        with owned_transaction(self.db, "SqliteVecBackend.load_embeddings"):
+            # A different writer may create/replace the session while BEGIN
+            # waits. Both identity and vectors must come from the locked state.
+            row = self.db.execute(
+                "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
+            ).fetchone()
+            session_id = int(row[0]) if row is not None else 0
+            self.db.execute(f"DELETE FROM temp.{self._search_table}")
+            if row is not None:
+                cursor = self.db.execute(
+                    """
+                    SELECT note_path, embedding
+                    FROM session_embeddings
+                    WHERE session_id = ?
+                    """,
+                    (session_id,),
+                )
+                try:
                     for path, blob in cursor:
-                        embedding = np.frombuffer(blob, dtype=np.float32)
-                        vec_id = self._get_or_create_vec_id(path)
+                        vec_id = self._lookup_or_create_vec_id(path)
                         self.db.execute(
                             f"INSERT INTO temp.{self._search_table}(rowid, embedding) "
                             "VALUES (?, ?)",
-                            (vec_id, embedding.tobytes()),
+                            (vec_id, blob),
                         )
-        except BaseException:
-            (
-                self.session_date,
-                self.session_id,
-                self._path_to_id,
-                self._id_to_path,
-            ) = previous_state
-            raise
+                        path_to_id[path] = vec_id
+                        id_to_path[vec_id] = path
+                finally:
+                    # A traceback can keep this partially consumed statement
+                    # alive; close it before rollback/cleanup need schema locks.
+                    cursor.close()
+
+        # Publish only after commit; exceptions leave the previous projection
+        # and its Python-side identity/cache state together.
+        self.session_date = session_date
+        self.session_id = session_id
+        self._path_to_id = path_to_id
+        self._id_to_path = id_to_path
 
     def close(self) -> None:
         """Drop this backend's connection-local vector projection."""
         if self._closed:
             return
-        with owned_transaction(self.db, "SqliteVecBackend.close"):
-            self.db.execute(f"DROP TABLE IF EXISTS temp.{self._search_table}")
+        if self.db.in_transaction:
+            raise RuntimeError("SqliteVecBackend.close requires an idle SQLite connection")
+        # TEMP schema teardown is connection-local and does not need the main
+        # database's writer lock. Acquiring it here can make cleanup fail merely
+        # because an unrelated connection is writing.
+        self.db.execute(f"DROP TABLE IF EXISTS temp.{self._search_table}")
         self._path_to_id = {}
         self._id_to_path = {}
         self.session_id = 0
@@ -434,6 +514,7 @@ class SqliteVecBackend(VectorSearchBackend):
         Returns:
             List of (note_path, similarity_score) tuples, sorted descending
         """
+        self._ensure_open()
         # Query vec_search for similar vectors
         cursor = self.db.execute(
             f"""
@@ -499,6 +580,7 @@ class SqliteVecBackend(VectorSearchBackend):
         Raises:
             KeyError: If note path not found
         """
+        self._ensure_open()
         # Get vec_id for path
         if path not in self._path_to_id:
             # Try to load from database

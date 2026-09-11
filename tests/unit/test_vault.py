@@ -119,6 +119,30 @@ def test_sync_modified_file(tmp_path: Path) -> None:
     vault.close()
 
 
+def test_sync_detects_content_change_with_preserved_mtime(tmp_path: Path) -> None:
+    """Incremental identity does not treat a same-mtime replacement as unchanged."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "test.md"
+    note_file.write_text("# First\n\nold")
+    vault = Vault(vault_path)
+    assert vault.sync() == 1
+
+    original_mtime = note_file.stat().st_mtime
+    replacement = vault_path / "replacement.tmp"
+    replacement.write_text("# Other\n\nnew")
+    os.utime(replacement, (original_mtime, original_mtime))
+    replacement.replace(note_file)
+    os.utime(note_file, (original_mtime, original_mtime))
+
+    assert vault.sync() == 1
+    note = vault.get_note("test.md")
+    assert note is not None
+    assert note.title == "Other"
+    assert note.content == "# Other\n\nnew"
+    vault.close()
+
+
 def test_sync_update_preserves_temporal_history_and_invalidates_semantic_cache(
     tmp_path: Path,
 ) -> None:

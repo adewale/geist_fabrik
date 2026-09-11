@@ -315,6 +315,14 @@ at method entry and again under the lock, and supplied note fields are compared
 with committed rows before mutation, so a stale computation cannot overwrite a
 newer commit.
 
+Vault synchronization acquires that writer lock before discovering Markdown,
+then compares file identity, size, nanosecond timestamps, and change metadata
+with a second complete scan before committing. A file that changes during
+reconciliation rolls the attempt back and is retried from a new scan; repeated
+changes fail explicitly without publishing a partial mirror. SQLite cannot lock
+files being edited by another application, so this is an optimistic
+stable-snapshot check rather than a claim of filesystem transactions.
+
 Stable note paths use SQLite UPSERT/UPDATE semantics. Updating a note explicitly
 invalidates its current semantic cache while preserving historical session
 embeddings. Deleting a note—or removing a virtual entry from a date
@@ -326,9 +334,25 @@ Managed connections enable foreign keys, set a 5-second busy timeout, and use
 existing WAL database rather than forcing one journal mode. The optional
 sqlite-vec backend builds an instance-private TEMP projection from durable
 `session_embeddings`, so loading one session cannot change another backend's
-queries. Schema version and structure are validated only after the migration
-writer lock is held. A fresh read-only connection is used in persistence tests
-as the committed-state oracle.
+queries. A `Session` owns and deterministically closes that projection; accessing
+the session after cleanup creates a fresh backend. Each production connection
+loads the known sqlite-vec package on demand, then immediately disables further
+extension loading. TEMP teardown is connection-local and does not contend for the
+main database's writer lock. Legacy durable `vec_search` accelerators are
+discarded only when they match GeistFabrik's exact historical `vec0` schema,
+while unrelated virtual tables and durable `session_embeddings` source rows
+remain intact.
+
+`embedding_metrics` is a derived schema-v9 cache keyed by exact source and
+algorithm digests. The source identity covers ordered paths, embedding dtype,
+shape and bytes, plus the complete title and bounded content prefix actually used
+for labels; the algorithm identity covers configuration, capabilities and
+dependency versions. A worker does not cache
+after an intervening database change. KeyBERT metrics deliberately skip the
+persistent cache because the model loader does not expose an exact artifact and
+fallback identity. Schema version and structure are validated only after the
+migration writer lock is held, and v3 is the explicit migration floor. A fresh
+read-only connection is used in persistence tests as the committed-state oracle.
 
 Arbitrary database corruption is not automatically recoverable. Initialization
 fails without overwriting a malformed file; restoration requires a known-good

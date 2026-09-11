@@ -385,9 +385,52 @@ class Session:
         self.session_id = self._get_or_create_session()
         self._snapshot_data_version = self._read_data_version()
         self.computer = computer if computer is not None else EmbeddingComputer()
+        self._owns_computer = computer is None
         self._backend_type = backend
         self._backend: VectorSearchBackend | None = None
         self.embedding_retention = embedding_retention
+
+    def close(self) -> None:
+        """Release resources owned by this session, leaving its shared DB open.
+
+        Sessions remain reusable: another get_backend() loads a fresh projection.
+        An injected EmbeddingComputer belongs to its caller and is never closed.
+        Use this method or a context manager for deterministic projection cleanup.
+        """
+        try:
+            if self._backend is not None:
+                self._backend.close()
+                self._backend = None
+        finally:
+            if self._owns_computer:
+                self.computer.close()
+
+    def __enter__(self) -> "Session":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        if exc_type is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except Exception:
+            # Context-manager cleanup must not replace the body exception.
+            logger.warning("Session cleanup failed while handling an exception", exc_info=True)
+
+    def __del__(self) -> None:
+        # Best effort for abandoned sessions. Explicit close/context ownership
+        # remains necessary if GC runs after connection shutdown or during a
+        # caller-owned transaction: cleanup must not commit that caller's work.
+        try:
+            self.close()
+        except (AttributeError, sqlite3.Error, RuntimeError):
+            pass
 
     def _get_or_create_session(self) -> int:
         """Atomically get or create the canonical session ID for this date."""
@@ -745,11 +788,21 @@ class Session:
         Returns:
             VectorSearchBackend with embeddings loaded
         """
-        if self._backend is None:
-            self._backend = self._create_backend()
-            # Load embeddings for this session
+        if self._backend is None or self._backend.closed:
+            self._backend = None
+            backend = self._create_backend()
             session_date = self.date.strftime("%Y-%m-%d")
-            self._backend.load_embeddings(session_date)
+            try:
+                backend.load_embeddings(session_date)
+            except BaseException:
+                try:
+                    backend.close()
+                except Exception:
+                    logger.warning(
+                        "Vector backend cleanup failed after load failure", exc_info=True
+                    )
+                raise
+            self._backend = backend
 
         return self._backend
 

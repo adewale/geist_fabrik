@@ -10,7 +10,10 @@ from pathlib import Path
 # Version 6: Added composite index for orphans query performance
 # Version 7: Added session_embeddings.cluster_label (per-session cluster assignments)
 # Version 8: Added geist_status table (persistent per-geist failure tracking)
-SCHEMA_VERSION = 8
+# Version 9: Version embedding metric caches by exact source and algorithm inputs
+# Version 10: Persist exact filesystem fingerprints for incremental vault sync
+SCHEMA_VERSION = 10
+MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
 SCHEMA_SQL = """
@@ -21,7 +24,8 @@ CREATE TABLE IF NOT EXISTS notes (
     content TEXT NOT NULL,
     created TEXT NOT NULL,
     modified TEXT NOT NULL,
-    file_mtime REAL NOT NULL,  -- For incremental sync
+    file_mtime REAL NOT NULL,  -- Retained for historical compatibility/reporting
+    source_fingerprint TEXT,   -- Exact stat identity for incremental sync
     is_virtual INTEGER DEFAULT 0,  -- True for virtual entries from date-collection notes
     source_file TEXT,  -- Original file path for virtual entries
     entry_date TEXT  -- Date extracted from heading for virtual entries
@@ -109,15 +113,12 @@ CREATE INDEX IF NOT EXISTS idx_session_suggestions_geist ON session_suggestions(
 
 -- Embedding metrics cache (for stats command)
 CREATE TABLE IF NOT EXISTS embedding_metrics (
-    session_date TEXT PRIMARY KEY,
-    intrinsic_dim REAL,
-    vendi_score REAL,
-    shannon_entropy REAL,
-    silhouette_score REAL,
-    n_clusters INTEGER,
-    n_gaps INTEGER,
-    cluster_labels TEXT,  -- JSON: {0: "ml, neural, networks", 1: "philosophy, ethics"}
+    session_date TEXT NOT NULL,
+    source_digest TEXT NOT NULL,
+    algorithm_digest TEXT NOT NULL,
+    metrics_json TEXT NOT NULL,
     computed_at TEXT NOT NULL,
+    PRIMARY KEY (session_date, source_digest, algorithm_digest),
     FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
 );
 
@@ -207,6 +208,11 @@ def _upgrade_and_reconcile(
                     "refusing to modify an ambiguous legacy database"
                 )
             raise RuntimeError("Cannot migrate an unversioned application database")
+        if 0 < current_version < MIN_SUPPORTED_SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema version {current_version} is older than minimum supported "
+                f"version {MIN_SUPPORTED_SCHEMA_VERSION}; refusing to modify it"
+            )
 
         if current_version > 0:
             _apply_ordered_migrations(conn, current_version)
@@ -214,6 +220,7 @@ def _upgrade_and_reconcile(
         # additive columns even when an interrupted/buggy older release stamped
         # a database current before completing its DDL.
         _reconcile_additive_columns(conn)
+        _reconcile_metrics_cache(conn)
         _execute_schema_sql(conn)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
@@ -248,6 +255,7 @@ def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:
             ("is_virtual", "INTEGER DEFAULT 0"),
             ("source_file", "TEXT"),
             ("entry_date", "TEXT"),
+            ("source_fingerprint", "TEXT"),
         ):
             if name not in note_columns:
                 conn.execute(f"ALTER TABLE notes ADD COLUMN {name} {declaration}")
@@ -318,3 +326,17 @@ def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) ->
                 updated TEXT
             )
         """)
+
+
+def _reconcile_metrics_cache(conn: sqlite3.Connection) -> None:
+    """Discard unverifiable derived cache rows, preserving all durable source data."""
+    columns = conn.execute("PRAGMA table_info(embedding_metrics)").fetchall()
+    if not columns:
+        return
+    primary_key = {row[1]: row[5] for row in columns if row[5]}
+    expected_key = {"session_date": 1, "source_digest": 2, "algorithm_digest": 3}
+    if primary_key != expected_key or "metrics_json" not in {row[1] for row in columns}:
+        # v8 and older cached only by date. There is no trustworthy provenance
+        # to attach to those values; recomputation is the only safe migration.
+        # SCHEMA_SQL recreates the cache in this same owned transaction.
+        conn.execute("DROP TABLE embedding_metrics")

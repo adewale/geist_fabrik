@@ -495,7 +495,7 @@ explicit clean restarts.
 
 ## SQLite Names Are Not SQLite Contracts
 
-**Date:** 2026-07-11
+**Date:** 2026-09-10
 **Context:** Following the stateful vault-sync review into production transaction and history bugs
 
 **The Problem:** Three shortcuts created false confidence. `INSERT OR REPLACE` was read as an update
@@ -527,7 +527,7 @@ requires a known-good backup or an explicit history-losing rebuild.
 
 ## The Proof Boundary Must Match the Guarantee Boundary
 
-**Date:** 2026-07-11
+**Date:** 2026-09-11
 **Context:** Multi-agent review of the SQLite hardening changes
 
 **The Problem:** Fixing transaction rollback made each write atomic, but review still found races
@@ -553,6 +553,13 @@ publishing embeddings. sqlite-vec projections are instance-private TEMP tables w
 lifecycle cleanup; schema metadata is validated under `BEGIN IMMEDIATE`; rollback is fault-injected
 after writes begin; v4 migration uses a frozen file-backed fixture; and journal recovery is exercised
 through an actual abruptly terminated child process.
+
+Follow-up review extended the same principle beyond SQLite state. Vault deletion now depends on a
+writer-owned, twice-validated filesystem snapshot; vector loaders resolve sessions only after lock
+acquisition; metric caches carry exact source and algorithm provenance; Sessions own temporary
+projection lifetime; migration support has an explicit v3 floor; and CI asserts the interpreter it
+claims to test. Project-wide Hypothesis review also replaced properties whose generators or oracles
+made the claimed invariant vacuous.
 
 ---
 

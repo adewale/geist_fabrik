@@ -1,5 +1,6 @@
 """Base command class providing shared infrastructure for CLI commands."""
 
+import logging
 import sys
 from abc import ABC, abstractmethod
 from argparse import Namespace
@@ -19,6 +20,8 @@ from ..metadata_system import MetadataLoader
 from ..path_safety import ensure_contained
 from ..vault import Vault
 from ..vault_context import VaultContext
+
+logger = logging.getLogger(__name__)
 
 
 def find_vault_root(start_path: Path | None = None) -> Path | None:
@@ -97,6 +100,7 @@ class BaseCommand(ABC):
         """
         self.args = args
         self._vault: Vault | None = None
+        self._session: Session | None = None
 
     @property
     def verbose(self) -> bool:
@@ -171,8 +175,20 @@ class BaseCommand(ABC):
 
     def _cleanup(self) -> None:
         """Clean up resources after command execution."""
+        if self._session is not None:
+            try:
+                self._session.close()
+            except Exception:
+                logger.warning("Session cleanup failed", exc_info=True)
+            finally:
+                self._session = None
         if self._vault is not None:
-            self._vault.close()
+            try:
+                self._vault.close()
+            except Exception:
+                logger.warning("Vault cleanup failed", exc_info=True)
+            finally:
+                self._vault = None
 
     # -------------------------------------------------------------------------
     # Vault and Path Validation
@@ -368,6 +384,7 @@ class BaseCommand(ABC):
             backend=backend_type,
             embedding_retention=embedding_retention,
         )
+        self._session = session
 
         notes = vault.all_notes()
         self.print_verbose(f"Computing embeddings for {len(notes)} notes...")

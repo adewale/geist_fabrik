@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from geistfabrik.schema import (
+    MIN_SUPPORTED_SCHEMA_VERSION,
     SCHEMA_VERSION,
     SQLITE_BUSY_TIMEOUT_MS,
     get_schema_version,
@@ -126,9 +127,13 @@ def test_init_db_rejects_malformed_database_without_overwriting(tmp_path: Path) 
     assert db_path.read_bytes() == original_bytes
 
 
-def test_frozen_v4_database_migrates_without_losing_data(tmp_path: Path) -> None:
-    """The oldest supported frozen schema reaches current with sentinel rows intact."""
-    db_path = tmp_path / "v4.db"
+@pytest.mark.parametrize("historical_version", [3, 4])
+def test_frozen_historical_database_migrates_without_losing_data(
+    tmp_path: Path, historical_version: int
+) -> None:
+    """Frozen v3/v4 DDL reaches current with durable sentinel rows intact."""
+    assert MIN_SUPPORTED_SCHEMA_VERSION == 3
+    db_path = tmp_path / f"v{historical_version}.db"
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript("""
@@ -138,10 +143,7 @@ def test_frozen_v4_database_migrates_without_losing_data(tmp_path: Path) -> None
             content TEXT NOT NULL,
             created TEXT NOT NULL,
             modified TEXT NOT NULL,
-            file_mtime REAL NOT NULL,
-            is_virtual INTEGER DEFAULT 0,
-            source_file TEXT,
-            entry_date TEXT
+            file_mtime REAL NOT NULL
         );
         CREATE TABLE links (
             source_path TEXT NOT NULL,
@@ -187,11 +189,19 @@ def test_frozen_v4_database_migrates_without_losing_data(tmp_path: Path) -> None
         );
         CREATE INDEX idx_links_source ON links(source_path);
         CREATE INDEX idx_links_target ON links(target);
-        PRAGMA user_version = 4;
+        PRAGMA user_version = 3;
     """)
+    if historical_version == 4:
+        conn.executescript("""
+            ALTER TABLE notes ADD COLUMN is_virtual INTEGER DEFAULT 0;
+            ALTER TABLE notes ADD COLUMN source_file TEXT;
+            ALTER TABLE notes ADD COLUMN entry_date TEXT;
+            PRAGMA user_version = 4;
+        """)
     conn.execute(
-        "INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ("sentinel.md", "Sentinel", "keep me", "2024-01-01", "2024-01-02", 1.0, 0, None, None),
+        """INSERT INTO notes (path, title, content, created, modified, file_mtime)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        ("sentinel.md", "Sentinel", "keep me", "2024-01-01", "2024-01-02", 1.0),
     )
     conn.execute(
         "INSERT INTO links VALUES (?, ?, ?, ?, ?)",
@@ -200,7 +210,7 @@ def test_frozen_v4_database_migrates_without_losing_data(tmp_path: Path) -> None
     conn.execute("INSERT INTO tags VALUES (?, ?)", ("sentinel.md", "keep"))
     conn.execute(
         "INSERT INTO embeddings VALUES (?, ?, ?, ?)",
-        ("sentinel.md", b"semantic", "v4", "2024-01-02"),
+        ("sentinel.md", b"semantic", f"v{historical_version}", "2024-01-02"),
     )
     conn.execute(
         "INSERT INTO sessions (date, vault_state_hash, created_at) VALUES (?, ?, ?)",
@@ -234,7 +244,7 @@ def test_frozen_v4_database_migrates_without_losing_data(tmp_path: Path) -> None
     assert observer.execute(
         "SELECT embedding, model_version FROM embeddings WHERE note_path = ?",
         ("sentinel.md",),
-    ).fetchone() == (b"semantic", "v4")
+    ).fetchone() == (b"semantic", f"v{historical_version}")
     assert observer.execute(
         "SELECT vault_state_hash FROM sessions WHERE date = ?", ("2024-01-02",)
     ).fetchone() == ("sentinel-hash",)
@@ -253,7 +263,67 @@ def test_frozen_v4_database_migrates_without_losing_data(tmp_path: Path) -> None
         "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_links_target_source'"
     ).fetchone() == (1,)
     assert observer.execute("PRAGMA foreign_key_check").fetchall() == []
+    assert observer.execute(
+        "SELECT is_virtual, source_file, entry_date FROM notes WHERE path = 'sentinel.md'"
+    ).fetchone() == (0, None, None)
+    assert {row[1] for row in observer.execute("PRAGMA table_info(embedding_metrics)")} >= {
+        "source_digest",
+        "algorithm_digest",
+        "metrics_json",
+    }
     observer.close()
+
+
+@pytest.mark.parametrize("historical_version", [1, 2])
+def test_unsupported_historical_schema_is_unchanged(
+    tmp_path: Path, historical_version: int
+) -> None:
+    db_path = tmp_path / f"unsupported-v{historical_version}.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE user_data (value TEXT)")
+    conn.execute("INSERT INTO user_data VALUES ('preserve me')")
+    conn.execute(f"PRAGMA user_version = {historical_version}")
+    conn.commit()
+    conn.close()
+    before = db_path.read_bytes()
+
+    with pytest.raises(RuntimeError, match="older than minimum supported version 3"):
+        init_db(db_path)
+
+    assert db_path.read_bytes() == before
+
+
+def test_v8_metrics_migration_discards_only_unverifiable_cache(tmp_path: Path) -> None:
+    db_path = tmp_path / "v8-metrics.db"
+    conn = init_db(db_path)
+    conn.execute("DROP TABLE embedding_metrics")
+    conn.executescript("""
+        CREATE TABLE embedding_metrics (
+            session_date TEXT PRIMARY KEY,
+            intrinsic_dim REAL, vendi_score REAL, shannon_entropy REAL,
+            silhouette_score REAL, n_clusters INTEGER, n_gaps INTEGER,
+            cluster_labels TEXT, computed_at TEXT NOT NULL,
+            FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
+        );
+        INSERT INTO sessions (date, vault_state_hash, created_at)
+        VALUES ('2025-01-15', 'keep this snapshot', '2025-01-15');
+        INSERT INTO embedding_metrics (session_date, n_clusters, computed_at)
+        VALUES ('2025-01-15', 123, '2025-01-15');
+        PRAGMA user_version = 8;
+    """)
+    conn.close()
+
+    migrated = init_db(db_path)
+    assert get_schema_version(migrated) == SCHEMA_VERSION
+    assert migrated.execute("SELECT vault_state_hash FROM sessions").fetchall() == [
+        ("keep this snapshot",)
+    ]
+    assert migrated.execute("SELECT count(*) FROM embedding_metrics").fetchone() == (0,)
+    primary_key = {
+        row[1]: row[5] for row in migrated.execute("PRAGMA table_info(embedding_metrics)") if row[5]
+    }
+    assert primary_key == {"session_date": 1, "source_digest": 2, "algorithm_digest": 3}
+    migrated.close()
 
 
 def test_migration_validates_version_after_acquiring_writer_lock(tmp_path: Path) -> None:

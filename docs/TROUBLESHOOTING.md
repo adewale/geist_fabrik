@@ -45,6 +45,11 @@ GeistFabrik syncs incrementally on each run. If references look stale, the
 database may predate a breaking change — rebuild it:
 `rm -rf <vault>/_geistfabrik/vault.db*` then `geistfabrik invoke <vault>`.
 
+If synchronization instead reports that vault files changed repeatedly, an
+editor, sync client, or other process modified Markdown during all bounded
+snapshot attempts. Let that activity settle and rerun the command. No partial
+database mirror from the failed attempts is committed.
+
 ## SQLite reports that the database is malformed or corrupt
 
 GeistFabrik fails closed and leaves a malformed database untouched. It does not

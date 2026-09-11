@@ -1,8 +1,12 @@
 """Unit tests for vector search backends."""
 
+import gc
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from threading import Event
+from typing import cast
 
 import numpy as np
 import pytest
@@ -10,7 +14,11 @@ import pytest
 from geistfabrik.embeddings import Session
 from geistfabrik.models import Note
 from geistfabrik.schema import init_db
-from geistfabrik.vector_search import InMemoryVectorBackend, SqliteVecBackend
+from geistfabrik.vector_search import (
+    InMemoryVectorBackend,
+    SqliteVecBackend,
+    VectorSearchBackend,
+)
 
 # Check if sqlite-vec is available AND loadable
 SQLITE_VEC_AVAILABLE = False
@@ -61,7 +69,10 @@ def db():
         import sqlite_vec
 
         conn.enable_load_extension(True)
-        sqlite_vec.load(conn)
+        try:
+            sqlite_vec.load(conn)
+        finally:
+            conn.enable_load_extension(False)
 
     return conn
 
@@ -523,6 +534,21 @@ class TestSqliteVecBackend:
         assert backend._path_to_id == {}
         assert backend._id_to_path == {}
 
+    def test_initialization_loads_installed_extension_on_raw_connection(self):
+        """Production connections do not rely on a test fixture to load sqlite-vec."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        raw = init_db(db_path=None)
+        try:
+            with pytest.raises(sqlite3.OperationalError):
+                raw.execute("SELECT vec_version()").fetchone()
+            backend = SqliteVecBackend(raw, dim=3)
+            assert raw.execute("SELECT vec_version()").fetchone() is not None
+            backend.close()
+        finally:
+            raw.close()
+
     def test_initialization_raises_without_sqlite_vec(self, db):
         """Test that initialisation raises RuntimeError without sqlite-vec."""
         # Mock sqlite-vec not available by patching the version check
@@ -572,8 +598,7 @@ class TestSqliteVecBackend:
         ).fetchone()[0]
         second_embedding = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         db.execute(
-            "INSERT INTO session_embeddings (session_id, note_path, embedding) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
             (second_id, "note1.md", second_embedding.tobytes()),
         )
         db.commit()
@@ -609,6 +634,316 @@ class TestSqliteVecBackend:
         ).fetchone()[0]
         assert remaining == baseline
 
+    def test_close_does_not_wait_for_unrelated_main_database_writer(self, tmp_path):
+        """TEMP teardown must remain available while another connection writes."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        db_path = tmp_path / "close-under-contention.db"
+        writer = init_db(db_path)
+        owner = init_db(db_path)
+        backend = SqliteVecBackend(owner, dim=3)
+        try:
+            writer.execute("BEGIN IMMEDIATE")
+            backend.close()
+            assert (
+                owner.execute(
+                    "SELECT 1 FROM sqlite_temp_master WHERE type = 'table' AND name = ?",
+                    (backend._search_table,),
+                ).fetchone()
+                is None
+            )
+        finally:
+            writer.rollback()
+            if not backend.closed:
+                backend.close()
+            owner.close()
+            writer.close()
+
+    def test_close_rejects_caller_transaction_without_losing_projection(self, db):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        backend = SqliteVecBackend(db, dim=3)
+        db.execute("BEGIN")
+        with pytest.raises(RuntimeError, match="idle SQLite connection"):
+            backend.close()
+        assert not backend.closed
+        assert db.execute(
+            "SELECT 1 FROM sqlite_temp_master WHERE type = 'table' AND name = ?",
+            (backend._search_table,),
+        ).fetchone() == (1,)
+        db.rollback()
+        backend.close()
+
+    def test_waiting_loader_observes_session_created_by_lock_holder(self, tmp_path):
+        """The session lookup belongs to the snapshot acquired with the writer lock."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        db_path = tmp_path / "concurrent-vectors.db"
+        writer = init_db(db_path)
+        now = datetime.now().isoformat()
+        vector = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        writer.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("note.md", "Note", "content", now, now, 0.0),
+        )
+        writer.commit()
+        ready = Event()
+        load = Event()
+        lock_requested = Event()
+
+        def load_after_writer_starts():
+            reader = init_db(db_path)
+            reader.enable_load_extension(True)
+            sqlite_vec.load(reader)
+            backend = SqliteVecBackend(reader, dim=3)
+            try:
+                ready.set()
+                assert load.wait(5)
+                reader.set_trace_callback(
+                    lambda sql: lock_requested.set() if sql == "BEGIN IMMEDIATE" else None
+                )
+                backend.load_embeddings("2025-01-20")
+                return backend.get_embedding("note.md").copy()
+            finally:
+                backend.close()
+                reader.close()
+
+        try:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(load_after_writer_starts)
+                try:
+                    assert ready.wait(5)
+                    writer.execute("BEGIN IMMEDIATE")
+                    load.set()
+                    assert lock_requested.wait(5)
+                    session_id = writer.execute(
+                        "INSERT INTO sessions (date, created_at) VALUES (?, ?)",
+                        ("2025-01-20", now),
+                    ).lastrowid
+                    writer.execute(
+                        "INSERT INTO session_embeddings (session_id, note_path, embedding) "
+                        "VALUES (?, ?, ?)",
+                        (session_id, "note.md", vector.tobytes()),
+                    )
+                    writer.commit()
+                    assert np.array_equal(future.result(timeout=5), vector)
+                finally:
+                    writer.rollback()
+                    load.set()
+        finally:
+            writer.close()
+
+    def test_setup_removes_only_legacy_durable_projection(self, db, sample_embeddings):
+        """An old vec0 accelerator and its shadows are disposable; source rows are not."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        durable_rows = db.execute("SELECT * FROM session_embeddings ORDER BY note_path").fetchall()
+        db.execute(
+            "CREATE VIRTUAL TABLE main.vec_search "
+            "USING vec0(embedding float[3] distance_metric=cosine)"
+        )
+        db.execute(
+            "INSERT INTO main.vec_search(rowid, embedding) VALUES (?, ?)",
+            (1, sample_embeddings["embeddings"]["note1.md"].tobytes()),
+        )
+        db.commit()
+        legacy_tables = {
+            row[0]
+            for row in db.execute(
+                "SELECT name FROM main.sqlite_master WHERE name GLOB 'vec_search*'"
+            )
+        }
+        assert len(legacy_tables) > 1
+
+        backend = SqliteVecBackend(db, dim=3)
+        backend.load_embeddings(sample_embeddings["session_date"])
+
+        tables = {row[0] for row in db.execute("SELECT name FROM main.sqlite_master")}
+        assert not legacy_tables & tables
+        assert (
+            db.execute("SELECT * FROM session_embeddings ORDER BY note_path").fetchall()
+            == durable_rows
+        )
+        assert np.array_equal(
+            backend.get_embedding("note1.md"), sample_embeddings["embeddings"]["note1.md"]
+        )
+        backend.close()
+
+    def test_setup_preserves_unrelated_table_named_vec_search(self, db):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        db.execute("CREATE TABLE main.vec_search (user_data TEXT)")
+        db.execute("INSERT INTO main.vec_search VALUES ('keep me')")
+        db.commit()
+
+        backend = SqliteVecBackend(db, dim=3)
+        assert db.execute("SELECT user_data FROM main.vec_search").fetchall() == [("keep me",)]
+        backend.close()
+
+    def test_setup_preserves_unrelated_virtual_table_named_vec_search(self, db):
+        """Text inside an FTS declaration must not be mistaken for its module clause."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        try:
+            db.execute('CREATE VIRTUAL TABLE main.vec_search USING fts5("content USING vec0(")')
+        except sqlite3.OperationalError as error:
+            pytest.skip(f"FTS5 not available: {error}")
+        db.execute("INSERT INTO main.vec_search VALUES ('keep me')")
+        db.commit()
+
+        backend = SqliteVecBackend(db, dim=3)
+        assert db.execute("SELECT * FROM main.vec_search").fetchall() == [("keep me",)]
+        backend.close()
+
+    def test_setup_ignores_vec0_text_inside_virtual_table_comment(self, db):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        try:
+            db.execute("CREATE VIRTUAL TABLE main.vec_search /* USING vec0( */ USING fts5(content)")
+        except sqlite3.OperationalError as error:
+            pytest.skip(f"FTS5 not available: {error}")
+        db.execute("INSERT INTO main.vec_search VALUES ('keep me')")
+        db.commit()
+
+        backend = SqliteVecBackend(db, dim=3)
+        assert db.execute("SELECT * FROM main.vec_search").fetchall() == [("keep me",)]
+        backend.close()
+
+    def test_failed_commit_preserves_projection_and_never_publishes_new_state(
+        self, db, sample_embeddings
+    ):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        backend = SqliteVecBackend(db, dim=3)
+        backend.load_embeddings(sample_embeddings["session_date"])
+        observed_at_commit = []
+
+        def deny_commit(action, argument, *_unused):
+            if action == sqlite3.SQLITE_TRANSACTION and argument == "COMMIT":
+                observed_at_commit.append((backend.session_date, backend.session_id))
+                return sqlite3.SQLITE_DENY
+            return sqlite3.SQLITE_OK
+
+        db.set_authorizer(deny_commit)
+        try:
+            with pytest.raises(sqlite3.DatabaseError, match="not authorized"):
+                backend.load_embeddings("2099-12-31")
+        finally:
+            db.set_authorizer(None)
+
+        assert observed_at_commit == [
+            (sample_embeddings["session_date"], sample_embeddings["session_id"])
+        ]
+        assert backend.session_date == sample_embeddings["session_date"]
+        assert backend.session_id == sample_embeddings["session_id"]
+        assert np.array_equal(
+            backend.get_embedding("note1.md"), sample_embeddings["embeddings"]["note1.md"]
+        )
+        assert not db.in_transaction
+        backend.close()
+
+    @pytest.mark.parametrize("external_close", [False, True])
+    def test_session_close_is_idempotent_and_next_access_reloads(
+        self, db, sample_embeddings, monkeypatch, external_close
+    ):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        session = Session(datetime.fromisoformat(sample_embeddings["session_date"]), db)
+        monkeypatch.setattr(session, "_create_backend", lambda: SqliteVecBackend(db, dim=3))
+        for _ in range(3):
+            backend = session.get_backend()
+            assert np.array_equal(
+                backend.get_embedding("note1.md"), sample_embeddings["embeddings"]["note1.md"]
+            )
+            if external_close:
+                backend.close()
+                backend.close()
+            else:
+                session.close()
+                session.close()
+            assert (
+                db.execute(
+                    "SELECT name FROM sqlite_temp_master WHERE name GLOB '_geist_vec_search_*'"
+                ).fetchall()
+                == []
+            )
+        session.close()
+
+    def test_session_context_releases_projection_after_exception(
+        self, db, sample_embeddings, monkeypatch
+    ):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        session = Session(datetime.fromisoformat(sample_embeddings["session_date"]), db)
+        monkeypatch.setattr(session, "_create_backend", lambda: SqliteVecBackend(db, dim=3))
+
+        with pytest.raises(ValueError, match="consumer failed"), session:
+            session.get_backend()
+            raise ValueError("consumer failed")
+
+        assert session._backend is None
+        assert (
+            db.execute(
+                "SELECT name FROM sqlite_temp_master WHERE name GLOB '_geist_vec_search_*'"
+            ).fetchall()
+            == []
+        )
+
+    def test_session_context_preserves_body_error_when_cleanup_fails(self, db):
+        class FailingBackend:
+            closed = False
+
+            def close(self):
+                raise RuntimeError("cleanup failed")
+
+        session = Session(datetime(2025, 1, 15), db)
+        session._backend = cast(VectorSearchBackend, FailingBackend())
+
+        with pytest.raises(ValueError, match="consumer failed"), session:
+            raise ValueError("consumer failed")
+
+        session._backend = None
+
+    def test_session_failed_load_does_not_publish_or_leak_backend(
+        self, db, sample_embeddings, monkeypatch
+    ):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        session = Session(datetime.fromisoformat(sample_embeddings["session_date"]), db)
+        monkeypatch.setattr(session, "_create_backend", lambda: SqliteVecBackend(db, dim=2))
+        with pytest.raises(sqlite3.OperationalError):
+            session.get_backend()
+        assert session._backend is None
+        assert (
+            db.execute(
+                "SELECT name FROM sqlite_temp_master WHERE name GLOB '_geist_vec_search_*'"
+            ).fetchall()
+            == []
+        )
+
+    def test_abandoned_session_releases_projection_on_idle_connection(
+        self, db, sample_embeddings, monkeypatch
+    ):
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+        monkeypatch.setattr(Session, "_create_backend", lambda self: SqliteVecBackend(db, dim=3))
+        for _ in range(3):
+            session = Session(datetime.fromisoformat(sample_embeddings["session_date"]), db)
+            session.get_backend()
+            del session
+        gc.collect()
+        assert (
+            db.execute(
+                "SELECT name FROM sqlite_temp_master WHERE name GLOB '_geist_vec_search_*'"
+            ).fetchall()
+            == []
+        )
+
     def test_session_recompute_disposes_previous_projection(
         self, db, sample_embeddings, mock_embedding_computer
     ):
@@ -641,10 +976,13 @@ class TestSqliteVecBackend:
 
         session.compute_embeddings(notes)
 
-        assert db.execute(
-            "SELECT 1 FROM sqlite_temp_master WHERE type = 'table' AND name = ?",
-            (backend._search_table,),
-        ).fetchone() is None
+        assert (
+            db.execute(
+                "SELECT 1 FROM sqlite_temp_master WHERE type = 'table' AND name = ?",
+                (backend._search_table,),
+            ).fetchone()
+            is None
+        )
         assert session._backend is None
 
     def test_load_embeddings_nonexistent_session(self, db, sample_embeddings):

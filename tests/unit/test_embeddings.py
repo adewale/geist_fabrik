@@ -71,6 +71,29 @@ def mocked_session(db_with_notes, mock_embedding_computer):
     return session
 
 
+def test_session_close_preserves_injected_computer(db_with_notes, mock_embedding_computer):
+    model = mock_embedding_computer.model
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    session.get_backend()
+    session.close()
+    session.close()
+    assert session._backend is None
+    assert mock_embedding_computer.model is model
+    assert db_with_notes.execute("SELECT 1").fetchone() == (1,)
+
+
+def test_session_close_releases_owned_computer_and_allows_reuse(db_with_notes):
+    session = Session(datetime(2023, 6, 15), db_with_notes)
+    model = session.computer.model
+    backend = session.get_backend()
+    session.close()
+    assert session.computer._model is None
+    assert backend.closed
+    assert session.get_backend() is not backend
+    assert session.computer.model is not model
+    session.close()
+
+
 def test_embedding_computer_initialization():
     """Test EmbeddingComputer initialisation."""
     computer = EmbeddingComputer()

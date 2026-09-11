@@ -5,15 +5,18 @@ embedding-based metrics including clustering, dimensionality,
 and diversity scores.
 """
 
+import hashlib
 import json
 import logging
 import sqlite3
 from datetime import datetime
 from importlib import import_module
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 import numpy as np
 
+from .config import MODEL_NAME
 from .config_loader import GeistFabrikConfig
 from .embeddings import cosine_similarity
 from .sqlite_transaction import owned_transaction
@@ -45,6 +48,8 @@ except ImportError:
     HAS_VENDI = False
 
 logger = logging.getLogger(__name__)
+# Bump when metric formulas, sampling, clustering, or labeling behavior changes.
+METRICS_ALGORITHM_VERSION = 1
 
 
 class EmbeddingMetricsComputer:
@@ -77,17 +82,25 @@ class EmbeddingMetricsComputer:
 
         Returns:
             Dictionary of computed metrics
+
+        KeyBERT labeling is computed without persistent caching: its model loader
+        can use external weights or return fallback labels, and currently exposes
+        no artifact identity that could establish exact cache provenance.
         """
-        # Check cache first
-        if not force_recompute:
-            cached = self._load_cached_metrics(session_date)
-            if cached:
-                # Always include dimension and n_notes from current embeddings
-                # (these are not cached because they can change)
-                cached["n_notes"] = len(embeddings)
-                cached["dimension"] = embeddings.shape[1]
-                cached["session_date"] = session_date
-                return cached
+        if embeddings.ndim != 2 or len(paths) != len(embeddings):
+            raise ValueError("Metrics require a matrix and one path per embedding")
+        # Callers may retain and mutate their arrays while a worker computes.
+        embeddings = embeddings.copy(order="C")
+        paths = paths.copy()
+        cacheable = self.config is None or self.config.clustering.labeling_method != "keybert"
+        if cacheable:
+            revision = self._database_revision()
+            source_digest = self._source_digest(embeddings, paths)
+            algorithm_digest = self._algorithm_digest()
+            if not force_recompute:
+                cached = self._load_cached_metrics(session_date, source_digest, algorithm_digest)
+                if cached is not None:
+                    return cached
 
         # Compute metrics
         metrics: dict[str, Any] = {
@@ -106,89 +119,134 @@ class EmbeddingMetricsComputer:
             metrics["clustering_available"] = False
 
         # Cache results
-        self._cache_metrics(session_date, metrics)
+        if cacheable:
+            self._cache_metrics(session_date, source_digest, algorithm_digest, metrics, revision)
 
         return metrics
 
-    def _load_cached_metrics(self, session_date: str) -> dict[str, Any] | None:
-        """Load cached metrics from database."""
-        cursor = self.db.execute(
-            "SELECT * FROM embedding_metrics WHERE session_date = ?", (session_date,)
-        )
-        row = cursor.fetchone()
+    def _database_revision(self) -> tuple[int, int]:
+        """Observe external commits and writes on our own connection."""
+        return int(self.db.execute("PRAGMA data_version").fetchone()[0]), self.db.total_changes
 
-        if not row:
+    def _source_digest(self, embeddings: np.ndarray, paths: list[str]) -> str:
+        """Identify every ordered input, including the text used to label clusters."""
+
+        def add_field(digest: Any, value: str) -> None:
+            encoded = value.encode("utf-8")
+            digest.update(len(encoded).to_bytes(8, "big"))
+            digest.update(encoded)
+
+        # Both labelers consume the complete title but only the first 200
+        # characters of content. Retain exactly that bounded input rather than
+        # duplicating the entire vault in Python memory. SQLite's text substr()
+        # stops at embedded NULs, unlike Python slicing, so rows are streamed and
+        # sliced here to preserve the labelers' exact semantics.
+        path_set = set(paths)
+        label_inputs: dict[str, tuple[str, str]] = {}
+        cursor = self.db.execute("SELECT path, title, content FROM notes")
+        try:
+            for path, title, content in cursor:
+                if path in path_set:
+                    label_inputs[path] = (title, content[:200])
+                # Keep peak memory proportional to one source row, not the sum
+                # of every full note returned by the statement.
+                del content
+        finally:
+            cursor.close()
+        digest = hashlib.sha256()
+        add_field(digest, embeddings.dtype.str)
+        add_field(digest, json.dumps(embeddings.shape))
+        for path in paths:
+            add_field(digest, path)
+            label_input = label_inputs.get(path)
+            digest.update(b"\x00" if label_input is None else b"\x01")
+            if label_input is not None:
+                add_field(digest, str(label_input[0]))
+                add_field(digest, str(label_input[1]))
+        digest.update(embeddings.tobytes(order="C"))
+        return digest.hexdigest()
+
+    def _algorithm_digest(self) -> str:
+        """Include configuration and optional implementations that affect results."""
+        dependencies: dict[str, str | None] = {}
+        for package in (
+            "numpy",
+            "scipy",
+            "scikit-learn",
+            "scikit-dimension",
+            "vendi-score",
+            "sentence-transformers",
+            "transformers",
+            "torch",
+        ):
+            try:
+                dependencies[package] = version(package)
+            except PackageNotFoundError:
+                dependencies[package] = None
+        identity = {
+            "version": METRICS_ALGORITHM_VERSION,
+            "labeling_method": self.config.clustering.labeling_method if self.config else "tfidf",
+            "n_label_terms": self.config.clustering.n_label_terms if self.config else 4,
+            "labeling_model": MODEL_NAME,
+            "capabilities": [HAS_SKLEARN, HAS_SKDIM, HAS_VENDI],
+            "dependencies": dependencies,
+        }
+        return hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
+
+    def _load_cached_metrics(
+        self, session_date: str, source_digest: str, algorithm_digest: str
+    ) -> dict[str, Any] | None:
+        """Read only the result for these exact source and algorithm versions."""
+        row = self.db.execute(
+            """SELECT metrics_json FROM embedding_metrics
+               WHERE session_date = ? AND source_digest = ? AND algorithm_digest = ?""",
+            (session_date, source_digest, algorithm_digest),
+        ).fetchone()
+        if row is None:
             return None
-
-        # Convert row to dict
-        columns = [desc[0] for desc in cursor.description]
-        cached = dict(zip(columns, row))
-
-        # Parse cluster_labels JSON and convert string keys back to int
+        cached: dict[str, Any] = json.loads(row[0])
         if cached.get("cluster_labels"):
-            cluster_labels_raw = json.loads(cached["cluster_labels"])
-            # JSON converts int keys to strings, convert them back
-            cached["cluster_labels"] = {int(k): v for k, v in cluster_labels_raw.items()}
-
-        # Ensure integer fields are actually integers (SQLite sometimes returns blobs)
-        for key in ["n_clusters", "n_gaps"]:
-            if key in cached and cached[key] is not None:
-                try:
-                    # Handle both regular ints and blobs (numpy int serialization)
-                    if isinstance(cached[key], bytes):
-                        # Blob from numpy int - use struct to unpack
-                        import struct
-
-                        cached[key] = struct.unpack("<q", cached[key])[0]  # little-endian int64
-                    else:
-                        cached[key] = int(cached[key])
-                except (TypeError, ValueError, struct.error):
-                    # If conversion fails, set to None rather than keeping invalid data
-                    cached[key] = None
-
+            cached["cluster_labels"] = {int(k): v for k, v in cached["cluster_labels"].items()}
         return cached
 
-    def _cache_metrics(self, session_date: str, metrics: dict[str, Any]) -> None:
-        """Cache computed metrics to database."""
-        # Serialise cluster_labels to JSON (keys already converted to Python int)
-        cluster_labels_json = json.dumps(metrics.get("cluster_labels", {}))
+    def _cache_metrics(
+        self,
+        session_date: str,
+        source_digest: str,
+        algorithm_digest: str,
+        metrics: dict[str, Any],
+        revision: tuple[int, int],
+    ) -> None:
+        """Version derived results; a slow old worker never replaces a newer snapshot."""
 
-        # Convert numpy types to Python types for SQLite
         def to_python_type(val: Any) -> Any:
-            if val is None:
-                return None
-            if isinstance(val, (np.integer, np.int64, np.int32)):
-                return int(val)
-            if isinstance(val, (np.floating, np.float64, np.float32)):
-                return float(val)
-            return val
+            if isinstance(val, np.generic):
+                return val.item()
+            raise TypeError(f"Cannot serialize metric value of type {type(val).__name__}")
 
         with owned_transaction(self.db, "EmbeddingMetricsComputer._cache_metrics"):
+            # Labeling reads note text during computation. Any intervening commit
+            # may have changed that input (including an ABA change); do not cache
+            # an output whose label snapshot cannot be established.
+            if (
+                revision != self._database_revision()
+                or algorithm_digest != self._algorithm_digest()
+            ):
+                return
             self.db.execute(
                 """
                 INSERT INTO embedding_metrics
-                (session_date, intrinsic_dim, vendi_score, shannon_entropy,
-                 silhouette_score, n_clusters, n_gaps, cluster_labels, computed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(session_date) DO UPDATE SET
-                    intrinsic_dim = excluded.intrinsic_dim,
-                    vendi_score = excluded.vendi_score,
-                    shannon_entropy = excluded.shannon_entropy,
-                    silhouette_score = excluded.silhouette_score,
-                    n_clusters = excluded.n_clusters,
-                    n_gaps = excluded.n_gaps,
-                    cluster_labels = excluded.cluster_labels,
+                (session_date, source_digest, algorithm_digest, metrics_json, computed_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(session_date, source_digest, algorithm_digest) DO UPDATE SET
+                    metrics_json = excluded.metrics_json,
                     computed_at = excluded.computed_at
                 """,
                 (
                     session_date,
-                    to_python_type(metrics.get("intrinsic_dim")),
-                    to_python_type(metrics.get("vendi_score")),
-                    to_python_type(metrics.get("shannon_entropy")),
-                    to_python_type(metrics.get("silhouette_score")),
-                    to_python_type(metrics.get("n_clusters")),
-                    to_python_type(metrics.get("n_gaps")),
-                    cluster_labels_json,
+                    source_digest,
+                    algorithm_digest,
+                    json.dumps(metrics, default=to_python_type),
                     datetime.now().isoformat(),
                 ),
             )
