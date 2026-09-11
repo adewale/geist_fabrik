@@ -16,6 +16,8 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 
+from .sqlite_transaction import owned_transaction
+
 _MAX_ERROR_CHARS = 2000
 
 
@@ -74,33 +76,32 @@ class GeistStatusStore:
             resulting disabled flag).
         """
         truncated = error[:_MAX_ERROR_CHARS]
-        row = self.db.execute(
-            """
-            INSERT INTO geist_status
-                (geist_id, failure_count, disabled, last_error, updated)
-            VALUES (?, 1, CASE WHEN 1 >= ? THEN 1 ELSE 0 END, ?, ?)
-            ON CONFLICT(geist_id) DO UPDATE SET
-                failure_count = geist_status.failure_count + 1,
-                disabled = CASE
-                    WHEN geist_status.disabled = 1
-                      OR geist_status.failure_count + 1 >= ? THEN 1 ELSE 0
-                END,
-                last_error = excluded.last_error,
-                updated = excluded.updated
-            RETURNING failure_count, disabled
-            """,
-            (
-                geist_id,
-                max_failures,
-                truncated,
-                datetime.now().isoformat(),
-                max_failures,
-            ),
-        ).fetchone()
-        if row is None:
-            self.db.rollback()
-            raise sqlite3.DatabaseError("Failure status update returned no row")
-        self.db.commit()
+        with owned_transaction(self.db, "GeistStatusStore.record_failure"):
+            row = self.db.execute(
+                """
+                INSERT INTO geist_status
+                    (geist_id, failure_count, disabled, last_error, updated)
+                VALUES (?, 1, CASE WHEN 1 >= ? THEN 1 ELSE 0 END, ?, ?)
+                ON CONFLICT(geist_id) DO UPDATE SET
+                    failure_count = geist_status.failure_count + 1,
+                    disabled = CASE
+                        WHEN geist_status.disabled = 1
+                          OR geist_status.failure_count + 1 >= ? THEN 1 ELSE 0
+                    END,
+                    last_error = excluded.last_error,
+                    updated = excluded.updated
+                RETURNING failure_count, disabled
+                """,
+                (
+                    geist_id,
+                    max_failures,
+                    truncated,
+                    datetime.now().isoformat(),
+                    max_failures,
+                ),
+            ).fetchone()
+            if row is None:
+                raise sqlite3.DatabaseError("Failure status update returned no row")
         new_count = int(row[0])
         disabled = bool(row[1])
         return GeistStatus(geist_id, new_count, disabled, truncated)
@@ -114,12 +115,12 @@ class GeistStatusStore:
         Args:
             geist_id: The geist that succeeded
         """
-        self.db.execute(
-            "UPDATE geist_status SET failure_count = 0, disabled = 0, updated = ? "
-            "WHERE geist_id = ?",
-            (datetime.now().isoformat(), geist_id),
-        )
-        self.db.commit()
+        with owned_transaction(self.db, "GeistStatusStore.record_success"):
+            self.db.execute(
+                "UPDATE geist_status SET failure_count = 0, disabled = 0, updated = ? "
+                "WHERE geist_id = ?",
+                (datetime.now().isoformat(), geist_id),
+            )
 
     def reset(self, geist_id: str) -> None:
         """Explicitly clear a geist's failure state (manual re-enable).
@@ -127,5 +128,5 @@ class GeistStatusStore:
         Args:
             geist_id: The geist to re-enable
         """
-        self.db.execute("DELETE FROM geist_status WHERE geist_id = ?", (geist_id,))
-        self.db.commit()
+        with owned_transaction(self.db, "GeistStatusStore.reset"):
+            self.db.execute("DELETE FROM geist_status WHERE geist_id = ?", (geist_id,))

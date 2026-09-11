@@ -1,6 +1,7 @@
 """Property-based tests for markdown parsing invariants."""
 
-from hypothesis import given, settings
+import yaml
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from geistfabrik.markdown_parser import (
@@ -32,15 +33,27 @@ tag_name = st.from_regex(r"[a-zA-Z][a-zA-Z0-9_/-]{0,19}", fullmatch=True)
 # --- parse_frontmatter ---
 
 
-@given(st.text())
-@settings(max_examples=100)
-def test_frontmatter_idempotent(content: str) -> None:
-    """Parsing the body a second time should yield no frontmatter."""
-    _, body = parse_frontmatter(content)
-    fm2, body2 = parse_frontmatter(body)
-    # If the original had valid frontmatter, the body shouldn't
-    # Only assert body stability — re-parsing body gives same body
-    assert body2 == body or fm2 is None
+@given(
+    metadata=st.fixed_dictionaries(
+        {
+            "title": yaml_safe_text,
+            "tags": st.lists(yaml_safe_text, max_size=5),
+            "count": st.integers(min_value=-1000, max_value=1000),
+            "published": st.booleans(),
+        }
+    ),
+    body=st.text(max_size=500),
+)
+@example(
+    metadata={"title": "first", "tags": [], "count": 0, "published": False},
+    body="---\ntitle: second\n---\nBody",
+)
+def test_frontmatter_preserves_metadata_and_exact_body(metadata: dict, body: str) -> None:
+    """Consume only the first metadata block, leaving even a second block intact."""
+    content = "---\n" + yaml.safe_dump(metadata, allow_unicode=True) + "---\n" + body
+    actual_metadata, actual_body = parse_frontmatter(content)
+    assert actual_metadata == metadata
+    assert actual_body == body
 
 
 @given(yaml_safe_text)

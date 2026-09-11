@@ -10,7 +10,11 @@ from pathlib import Path
 # Version 6: Added composite index for orphans query performance
 # Version 7: Added session_embeddings.cluster_label (per-session cluster assignments)
 # Version 8: Added geist_status table (persistent per-geist failure tracking)
-SCHEMA_VERSION = 8
+# Version 9: Version embedding metric caches by exact source and algorithm inputs
+# Version 10: Persist exact filesystem fingerprints for incremental vault sync
+SCHEMA_VERSION = 10
+MIN_SUPPORTED_SCHEMA_VERSION = 3
+SQLITE_BUSY_TIMEOUT_MS = 5_000
 
 SCHEMA_SQL = """
 -- Notes table
@@ -20,7 +24,8 @@ CREATE TABLE IF NOT EXISTS notes (
     content TEXT NOT NULL,
     created TEXT NOT NULL,
     modified TEXT NOT NULL,
-    file_mtime REAL NOT NULL,  -- For incremental sync
+    file_mtime REAL NOT NULL,  -- Retained for historical compatibility/reporting
+    source_fingerprint TEXT,   -- Exact stat identity for incremental sync
     is_virtual INTEGER DEFAULT 0,  -- True for virtual entries from date-collection notes
     source_file TEXT,  -- Original file path for virtual entries
     entry_date TEXT  -- Date extracted from heading for virtual entries
@@ -108,15 +113,12 @@ CREATE INDEX IF NOT EXISTS idx_session_suggestions_geist ON session_suggestions(
 
 -- Embedding metrics cache (for stats command)
 CREATE TABLE IF NOT EXISTS embedding_metrics (
-    session_date TEXT PRIMARY KEY,
-    intrinsic_dim REAL,
-    vendi_score REAL,
-    shannon_entropy REAL,
-    silhouette_score REAL,
-    n_clusters INTEGER,
-    n_gaps INTEGER,
-    cluster_labels TEXT,  -- JSON: {0: "ml, neural, networks", 1: "philosophy, ethics"}
+    session_date TEXT NOT NULL,
+    source_digest TEXT NOT NULL,
+    algorithm_digest TEXT NOT NULL,
+    metrics_json TEXT NOT NULL,
     computed_at TEXT NOT NULL,
+    PRIMARY KEY (session_date, source_digest, algorithm_digest),
     FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
 );
 
@@ -148,28 +150,16 @@ def init_db(db_path: Path | None = None) -> sqlite3.Connection:
         conn = sqlite3.connect(str(db_path))
 
     try:
+        # Per-connection policy: enforce relational integrity, wait briefly for
+        # the single writer, and require full fsync discipline at transaction
+        # boundaries. Journal mode remains compatible with either SQLite's
+        # rollback journal or an existing WAL database.
         conn.execute("PRAGMA foreign_keys = ON")
-        tables = {
-            str(row[0])
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-            )
-        }
-        current_version = get_schema_version(conn)
-        if current_version > SCHEMA_VERSION:
-            raise RuntimeError(
-                f"Database schema version {current_version} is newer than supported "
-                f"version {SCHEMA_VERSION}; refusing to downgrade"
-            )
-        if tables and current_version == 0:
-            raise RuntimeError(
-                "Existing database has application tables but no supported schema version; "
-                "refusing to modify an ambiguous legacy database"
-            )
-
-        _upgrade_and_reconcile(conn, current_version)
+        conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
+        conn.execute("PRAGMA synchronous = FULL")
+        _upgrade_and_reconcile(conn, allow_empty_unversioned=True)
         return conn
-    except Exception:
+    except BaseException:
         if conn.in_transaction:
             conn.rollback()
         conn.close()
@@ -188,23 +178,55 @@ def _execute_schema_sql(conn: sqlite3.Connection) -> None:
         raise RuntimeError("Incomplete statement in SCHEMA_SQL")
 
 
-def _upgrade_and_reconcile(conn: sqlite3.Connection, current_version: int) -> None:
-    """Apply ordered migrations and current DDL in one owned transaction."""
+def _upgrade_and_reconcile(
+    conn: sqlite3.Connection, *, allow_empty_unversioned: bool
+) -> None:
+    """Validate, migrate, and reconcile while holding the schema writer lock."""
     if conn.in_transaction:
         raise RuntimeError("Schema migration requires ownership of the SQLite transaction")
     conn.execute("BEGIN IMMEDIATE")
     try:
+        # Read both structural and version metadata only after acquiring the
+        # writer lock. Otherwise a newer process can stamp a future version
+        # between validation and this process's final user_version write.
+        tables = {
+            str(row[0])
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+        current_version = get_schema_version(conn)
+        if current_version > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema version {current_version} is newer than supported "
+                f"version {SCHEMA_VERSION}; refusing to downgrade"
+            )
+        if current_version == 0 and (tables or not allow_empty_unversioned):
+            if tables:
+                raise RuntimeError(
+                    "Existing database has application tables but no supported schema version; "
+                    "refusing to modify an ambiguous legacy database"
+                )
+            raise RuntimeError("Cannot migrate an unversioned application database")
+        if 0 < current_version < MIN_SUPPORTED_SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema version {current_version} is older than minimum supported "
+                f"version {MIN_SUPPORTED_SCHEMA_VERSION}; refusing to modify it"
+            )
+
         if current_version > 0:
             _apply_ordered_migrations(conn, current_version)
         # user_version records migration intent, not structural truth. Repair
         # additive columns even when an interrupted/buggy older release stamped
         # a database current before completing its DDL.
         _reconcile_additive_columns(conn)
+        _reconcile_metrics_cache(conn)
         _execute_schema_sql(conn)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-    except Exception:
-        conn.rollback()
+    except BaseException:
+        if conn.in_transaction:
+            conn.rollback()
         raise
 
 
@@ -219,15 +241,7 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
 
 def migrate_schema(conn: sqlite3.Connection) -> None:
     """Migrate and reconcile a supported database in one owned transaction."""
-    current_version = get_schema_version(conn)
-    if current_version > SCHEMA_VERSION:
-        raise RuntimeError(
-            f"Database schema version {current_version} is newer than supported "
-            f"version {SCHEMA_VERSION}"
-        )
-    if current_version == 0:
-        raise RuntimeError("Cannot migrate an unversioned application database")
-    _upgrade_and_reconcile(conn, current_version)
+    _upgrade_and_reconcile(conn, allow_empty_unversioned=False)
 
 
 def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:
@@ -241,6 +255,7 @@ def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:
             ("is_virtual", "INTEGER DEFAULT 0"),
             ("source_file", "TEXT"),
             ("entry_date", "TEXT"),
+            ("source_fingerprint", "TEXT"),
         ):
             if name not in note_columns:
                 conn.execute(f"ALTER TABLE notes ADD COLUMN {name} {declaration}")
@@ -311,3 +326,17 @@ def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) ->
                 updated TEXT
             )
         """)
+
+
+def _reconcile_metrics_cache(conn: sqlite3.Connection) -> None:
+    """Discard unverifiable derived cache rows, preserving all durable source data."""
+    columns = conn.execute("PRAGMA table_info(embedding_metrics)").fetchall()
+    if not columns:
+        return
+    primary_key = {row[1]: row[5] for row in columns if row[5]}
+    expected_key = {"session_date": 1, "source_digest": 2, "algorithm_digest": 3}
+    if primary_key != expected_key or "metrics_json" not in {row[1] for row in columns}:
+        # v8 and older cached only by date. There is no trustworthy provenance
+        # to attach to those values; recomputation is the only safe migration.
+        # SCHEMA_SQL recreates the cache in this same owned transaction.
+        conn.execute("DROP TABLE embedding_metrics")

@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 20
     runs-on: ${{ matrix.os }}
     env:
+      UV_PYTHON: ${{ matrix.python-version }}
       GEISTFABRIK_OFFLINE: "1"
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -44,6 +45,12 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --frozen --extra vector-search
+
+      - name: Verify matrix interpreter
+        run: >-
+          uv run python -c "import os, sys;
+          expected = tuple(map(int, os.environ['UV_PYTHON'].split('.')));
+          print(sys.version); assert sys.version_info[:2] == expected"
 
       - name: Run unit tests
         run: >-
@@ -80,6 +87,8 @@ jobs:
   package-smoke:
     timeout-minutes: 15
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -107,6 +116,12 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --frozen --extra vector-search
+
+      - name: Verify matrix interpreter
+        run: >-
+          uv run python -c "import os, sys;
+          expected = tuple(map(int, os.environ['UV_PYTHON'].split('.')));
+          print(sys.version); assert sys.version_info[:2] == expected"
 
       - name: Build and smoke-test installed artifacts offline
         env:

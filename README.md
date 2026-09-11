@@ -598,7 +598,9 @@ Optimised for vaults with 100+ notes and 100+ geists:
 **Optimised database queries**:
 - Orphan queries now use `LEFT JOIN` instead of `NOT IN` subqueries
 - New composite index `idx_links_target_source` for backlink operations
-- Additive schema migrations through v8 apply automatically
+- Supported schema migrations from v3 through v10 apply automatically; v9
+  discards only unverifiable derived metric-cache rows, while v10 adds exact
+  source fingerprints for reliable incremental synchronization
 
 **Code quality improvements**: Updated 8 geist files to cache `vault.notes()` calls before loops, reducing API call overhead and improving maintainability.
 

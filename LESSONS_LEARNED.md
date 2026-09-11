@@ -462,6 +462,107 @@ properties, and cached/vectorised surprisal behaviour.
 
 ---
 
+## Vault Sync Correctness Lives In Operation Sequences
+
+**Date:** 2026-08-31
+**Context:** Adding stateful property coverage for incremental vault synchronization
+
+**The Problem:** Parser properties and one-shot sync examples could show that an individual note
+was understood, but not that the vault stayed correct across batches, renames, create, update,
+delete, regular/date-collection transitions, and repeated sync operations. Reading a file-backed
+store through its writer connection also could not prove that synchronization had committed.
+
+**The Insight:** Incremental synchronization is a state machine, not a collection of independent
+calls. After every generated operation, an external shadow model must check exact paths, raw
+content, parsed fields, relationships, and dependent-row lifecycle. The file-backed writer must
+remain alive across the trace so connection-scoped bugs stay observable, while a fresh raw read-only
+connection checks committed state without running application initialization. A second sync with no
+filesystem change must report no work, and clean restart is a separate transition.
+
+**The Principle:** Test mutable storage workflows with shrinkable operation sequences, a model
+outside the implementation, and invariants after every step. When the project offers multiple
+storage modes for the same contract, run the same trace through all of them, compare each with the
+independent model, and use a passive connection to observe committed state.
+
+**Impact:** `tests/unit/test_property_vault_stateful.py` now exercises independently modeled regular
+and virtual notes, native nested and Unicode paths, fixed coarse-filesystem-safe modification times,
+batched updates, renames, deletion, regular/date-collection transitions, quiescent idempotence,
+processed counts, foreign-key integrity, relationship cleanup, semantic-cache invalidation,
+historical-embedding preservation and deletion cascades, fresh-reader commit visibility, and
+explicit clean restarts.
+
+---
+
+## SQLite Names Are Not SQLite Contracts
+
+**Date:** 2026-09-10
+**Context:** Following the stateful vault-sync review into production transaction and history bugs
+
+**The Problem:** Three shortcuts created false confidence. `INSERT OR REPLACE` was read as an update
+although SQLite implements it as delete-then-insert, cascading away temporal history. Multi-step
+methods relied on sqlite3's implicit transaction and caught only final `commit()` errors, so an
+earlier exception left partial work pending for another component to commit. A test named
+"corruption recovery" discarded its damaged in-memory connection and proved only that a new empty
+database could be initialized; acceptance criteria trusted the name and exit code.
+
+**The Insight:** Database correctness is defined by observable transaction and data-lifecycle
+contracts, not convenient SQL keywords, a final `commit()`, or a test's name. Current-content caches
+and historical records need separate models. Each top-level writer needs exclusive ownership from
+`BEGIN IMMEDIATE` through commit, rollback on every escaping failure, and a passive connection as the
+commit oracle. Recovery claims require reopening the same damaged artifact or an explicit backup;
+fresh initialization is not recovery.
+
+**The Principle:** Translate storage features into exact lifecycle semantics before coding: which
+rows survive an update, who owns the transaction, what an independent reader can observe, and what
+artifact is recovered. Write a failing test for each contract and sabotage the critical operation to
+prove the oracle detects the old behavior.
+
+**Impact:** Note upserts preserve temporal history while explicitly invalidating semantic caches;
+date collections delete only vanished virtual paths. Shared SQLite writers use one owned-transaction
+primitive and embedding inference happens before the writer lock. Corrupt databases fail without
+being overwritten, acceptance criteria no longer claim automatic recovery, and troubleshooting
+requires a known-good backup or an explicit history-losing rebuild.
+
+---
+
+## The Proof Boundary Must Match the Guarantee Boundary
+
+**Date:** 2026-09-11
+**Context:** Multi-agent review of the SQLite hardening changes
+
+**The Problem:** Fixing transaction rollback made each write atomic, but review still found races
+outside those transaction boundaries. Embeddings were computed from one database version and could
+be committed after another connection published newer state. Every sqlite-vec backend projected its
+session into one global table, so a later backend changed what an earlier instance queried. Schema
+version checks happened before the migration lock. Recovery tests manufactured persisted-looking
+state without crossing a real process boundary.
+
+**The Insight:** The recurring defect was a **scope mismatch**: the state or test oracle lived at a
+narrower scope than the guarantee. Operation-local atomicity cannot prove freshness across time;
+one global projection cannot represent instance-local session state; an unlocked check cannot guard
+a locked mutation; and an in-process reconstruction cannot prove process-restart recovery.
+
+**The Principle:** Draw the full proof boundary before implementing persistence behavior: identity,
+transaction, connection, process, and time. Scope derived state no wider than its owner, validate
+optimistic work again after acquiring the write lock, perform check-and-mutate under the same lock,
+and make tests cross every boundary named by the claim.
+
+**Impact:** Sessions capture SQLite's `data_version` before production note snapshots, recheck it at
+method entry and under the writer lock, and compare supplied note fields with committed rows before
+publishing embeddings. sqlite-vec projections are instance-private TEMP tables with explicit
+lifecycle cleanup; schema metadata is validated under `BEGIN IMMEDIATE`; rollback is fault-injected
+after writes begin; v4 migration uses a frozen file-backed fixture; and journal recovery is exercised
+through an actual abruptly terminated child process.
+
+Follow-up review extended the same principle beyond SQLite state. Vault deletion now depends on a
+writer-owned, twice-validated filesystem snapshot; vector loaders resolve sessions only after lock
+acquisition; metric caches carry exact source and algorithm provenance; Sessions own temporary
+projection lifetime; migration support has an explicit v3 floor; and CI asserts the interpreter it
+claims to test. Project-wide Hypothesis review also replaced properties whose generators or oracles
+made the claimed invariant vacuous.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_

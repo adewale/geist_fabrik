@@ -36,8 +36,13 @@ from .config import (
     MODEL_NAME,
 )
 from .models import Note
+from .sqlite_transaction import owned_transaction
 
 logger = logging.getLogger(__name__)
+
+
+class ConcurrentVaultChangeError(RuntimeError):
+    """Raised when embedding inputs become stale before they can be committed."""
 
 
 class EmbeddingModel(Protocol):
@@ -378,42 +383,73 @@ class Session:
         self.date = date
         self.db = db
         self.session_id = self._get_or_create_session()
+        self._snapshot_data_version = self._read_data_version()
         self.computer = computer if computer is not None else EmbeddingComputer()
+        self._owns_computer = computer is None
         self._backend_type = backend
         self._backend: VectorSearchBackend | None = None
         self.embedding_retention = embedding_retention
 
-    def _get_or_create_session(self) -> int:
-        """Get existing session ID or create new session.
+    def close(self) -> None:
+        """Release resources owned by this session, leaving its shared DB open.
 
-        Returns:
-            Session ID
+        Sessions remain reusable: another get_backend() loads a fresh projection.
+        An injected EmbeddingComputer belongs to its caller and is never closed.
+        Use this method or a context manager for deterministic projection cleanup.
         """
-        date_str = self.date.strftime("%Y-%m-%d")
-
-        # Check if session exists
-        cursor = self.db.execute("SELECT session_id FROM sessions WHERE date = ?", (date_str,))
-        row = cursor.fetchone()
-
-        if row is not None:
-            return int(row[0])
-
-        # Create new session
-        cursor = self.db.execute(
-            """
-            INSERT INTO sessions (date, created_at)
-            VALUES (?, ?)
-            """,
-            (date_str, datetime.now().isoformat()),
-        )
         try:
-            self.db.commit()
-        except sqlite3.Error as e:
-            logger.error(f"Database commit failed creating session: {e}")
-            raise
-        session_id = cursor.lastrowid
-        if session_id is None:
-            raise RuntimeError("Failed to create session")
+            if self._backend is not None:
+                self._backend.close()
+                self._backend = None
+        finally:
+            if self._owns_computer:
+                self.computer.close()
+
+    def __enter__(self) -> "Session":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        if exc_type is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except Exception:
+            # Context-manager cleanup must not replace the body exception.
+            logger.warning("Session cleanup failed while handling an exception", exc_info=True)
+
+    def __del__(self) -> None:
+        # Best effort for abandoned sessions. Explicit close/context ownership
+        # remains necessary if GC runs after connection shutdown or during a
+        # caller-owned transaction: cleanup must not commit that caller's work.
+        try:
+            self.close()
+        except (AttributeError, sqlite3.Error, RuntimeError):
+            pass
+
+    def _get_or_create_session(self) -> int:
+        """Atomically get or create the canonical session ID for this date."""
+        date_str = self.date.strftime("%Y-%m-%d")
+        with owned_transaction(self.db, "Session creation"):
+            self.db.execute(
+                """
+                INSERT INTO sessions (date, created_at)
+                VALUES (?, ?)
+                ON CONFLICT(date) DO NOTHING
+                """,
+                (date_str, datetime.now().isoformat()),
+            )
+            row = self.db.execute(
+                "SELECT session_id FROM sessions WHERE date = ?", (date_str,)
+            ).fetchone()
+            if row is None:
+                raise sqlite3.DatabaseError("Session upsert returned no row")
+            session_id = int(row[0])
         return session_id
 
     def compute_vault_state_hash(self, notes: list[Note]) -> str:
@@ -427,8 +463,15 @@ class Session:
         """
         hasher = hashlib.sha256()
         for note in sorted(notes, key=lambda n: n.path):
-            hasher.update(note.path.encode())
-            hasher.update(str(note.modified).encode())
+            for value in (
+                note.path,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+            ):
+                encoded = value.encode()
+                hasher.update(len(encoded).to_bytes(8, "big"))
+                hasher.update(encoded)
         return hasher.hexdigest()
 
     def _compute_content_hash(self, content: str) -> str:
@@ -483,8 +526,12 @@ class Session:
 
         self.db.execute(
             """
-            INSERT OR REPLACE INTO embeddings (note_path, embedding, model_version, computed_at)
+            INSERT INTO embeddings (note_path, embedding, model_version, computed_at)
             VALUES (?, ?, ?, ?)
+            ON CONFLICT(note_path) DO UPDATE SET
+                embedding = excluded.embedding,
+                model_version = excluded.model_version,
+                computed_at = excluded.computed_at
             """,
             (
                 note.path,
@@ -493,6 +540,50 @@ class Session:
                 datetime.now().isoformat(),
             ),
         )
+
+    def _read_data_version(self) -> int:
+        """Read this connection's token for commits made by other connections."""
+        row = self.db.execute("PRAGMA data_version").fetchone()
+        if row is None:
+            raise sqlite3.DatabaseError("Could not read SQLite data_version")
+        return int(row[0])
+
+    @staticmethod
+    def _embedding_input_snapshot(notes: list[Note]) -> list[tuple[str, str, str, str]]:
+        """Return the database-comparable fields that determine embeddings."""
+        return sorted(
+            (
+                note.path,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+            )
+            for note in notes
+        )
+
+    def _assert_embedding_inputs_are_current(self, notes: list[Note]) -> None:
+        """Require every supplied note to match its current committed row."""
+        expected = self._embedding_input_snapshot(notes)
+        persisted = {
+            str(path): (str(content), str(created), str(modified))
+            for path, content, created, modified in self.db.execute(
+                "SELECT path, content, created, modified FROM notes"
+            ).fetchall()
+        }
+        expected_paths = {row[0] for row in expected}
+        inputs_match = (
+            len(expected_paths) == len(expected)
+            and expected_paths == set(persisted)
+            and all(
+                persisted[path] == (content, created, modified)
+                for path, content, created, modified in expected
+            )
+        )
+        if not inputs_match:
+            raise ConcurrentVaultChangeError(
+                "Embedding inputs do not match the committed vault snapshot; rerun the "
+                "command from a fresh synchronized snapshot"
+            )
 
     def compute_embeddings(self, notes: list[Note]) -> None:
         """Compute and store session embeddings for all notes.
@@ -503,17 +594,23 @@ class Session:
         Args:
             notes: List of all notes in vault
         """
-        # Compute vault state hash
+        if self.db.in_transaction:
+            raise RuntimeError("Session.compute_embeddings requires an idle SQLite connection")
+        if self._backend is not None:
+            self._backend.close()
+            self._backend = None
+
+        # Compute expensive/model-dependent values before taking SQLite's
+        # single-writer lock. data_version is an optimistic-concurrency token:
+        # after the lock is acquired we must still be looking at the same
+        # committed database state from which caches/notes were read.
+        initial_data_version = self._read_data_version()
+        if initial_data_version != self._snapshot_data_version:
+            raise ConcurrentVaultChangeError(
+                "Vault changed before the embedding snapshot was accepted; rerun the command "
+                "from a fresh synchronized snapshot"
+            )
         vault_hash = self.compute_vault_state_hash(notes)
-
-        # Update session with vault state
-        self.db.execute(
-            "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ?",
-            (vault_hash, self.session_id),
-        )
-
-        # Delete existing embeddings for this session (if recomputing)
-        self.db.execute("DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,))
 
         # Separate notes into cached and uncached
         cached_notes: list[tuple[Note, np.ndarray]] = []
@@ -539,11 +636,9 @@ class Session:
                     batch_size=DEFAULT_BATCH_SIZE,
                 )
 
-            # Cache newly computed embeddings
             for i, note in enumerate(uncached_notes):
                 semantic = computed_embeddings[i]
                 semantic_embeddings[note.path] = semantic
-                self._cache_semantic_embedding(note, semantic)
 
         # Add cached embeddings to lookup dict
         for note, semantic in cached_notes:
@@ -568,24 +663,39 @@ class Session:
 
             embedding_rows.append((self.session_id, note.path, embedding_bytes))
 
-        # Batch insert all embeddings
-        self.db.executemany(
-            """
-            INSERT INTO session_embeddings (session_id, note_path, embedding)
-            VALUES (?, ?, ?)
-            """,
-            embedding_rows,
-        )
+        with owned_transaction(self.db, "Session.compute_embeddings"):
+            current_data_version = self._read_data_version()
+            if current_data_version != initial_data_version:
+                raise ConcurrentVaultChangeError(
+                    "Vault changed while embeddings were being computed; rerun the command "
+                    "from a fresh synchronized snapshot"
+                )
+            # data_version covers commits after method entry. This exact state
+            # comparison also covers a Note list captured before method entry.
+            self._assert_embedding_inputs_are_current(notes)
+            self.db.execute(
+                "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ?",
+                (vault_hash, self.session_id),
+            )
+            self.db.execute(
+                "DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,)
+            )
+            for note in uncached_notes:
+                self._cache_semantic_embedding(note, semantic_embeddings[note.path])
+            self.db.executemany(
+                """
+                INSERT INTO session_embeddings (session_id, note_path, embedding)
+                VALUES (?, ?, ?)
+                """,
+                embedding_rows,
+            )
+            pruned = self._prune_old_session_embeddings()
 
-        try:
-            self.db.commit()
-        except sqlite3.Error as e:
-            logger.error(f"Database commit failed saving embeddings: {e}")
-            raise
-
-        # Bound database growth by pruning embeddings for sessions that fall
-        # outside the configured retention window.
-        self._prune_old_session_embeddings()
+        if pruned > 0:
+            logger.info(
+                f"Pruned {pruned} session-embedding rows beyond retention "
+                f"window ({self.embedding_retention} sessions)"
+            )
 
         # Log cache statistics
         total = len(notes)
@@ -597,8 +707,8 @@ class Session:
             f"{computed} computed"
         )
 
-    def _prune_old_session_embeddings(self) -> None:
-        """Delete temporal embeddings for sessions outside the retention window.
+    def _prune_old_session_embeddings(self) -> int:
+        """Delete old temporal embeddings inside the caller-owned transaction.
 
         Keeps the most recent ``embedding_retention`` sessions (by date) plus the
         current session, and deletes older sessions' rows from session_embeddings
@@ -608,7 +718,7 @@ class Session:
         """
         retention = self.embedding_retention
         if retention is None or retention <= 0:
-            return
+            return 0
 
         # Prune embeddings for every session except the `retention` most recent
         # (ranked by date, excluding the current session so a replayed historical
@@ -625,17 +735,7 @@ class Session:
             """,
             (self.session_id, retention),
         )
-        pruned = cursor.rowcount
-        try:
-            self.db.commit()
-        except sqlite3.Error as e:
-            logger.error(f"Database commit failed pruning old embeddings: {e}")
-            raise
-        if pruned > 0:
-            logger.info(
-                f"Pruned {pruned} session-embedding rows beyond retention "
-                f"window ({retention} sessions)"
-            )
+        return cursor.rowcount
 
     def get_embedding(self, note_path: str) -> np.ndarray | None:
         """Get embedding for a note in this session.
@@ -688,11 +788,21 @@ class Session:
         Returns:
             VectorSearchBackend with embeddings loaded
         """
-        if self._backend is None:
-            self._backend = self._create_backend()
-            # Load embeddings for this session
+        if self._backend is None or self._backend.closed:
+            self._backend = None
+            backend = self._create_backend()
             session_date = self.date.strftime("%Y-%m-%d")
-            self._backend.load_embeddings(session_date)
+            try:
+                backend.load_embeddings(session_date)
+            except BaseException:
+                try:
+                    backend.close()
+                except Exception:
+                    logger.warning(
+                        "Vector backend cleanup failed after load failure", exc_info=True
+                    )
+                raise
+            self._backend = backend
 
         return self._backend
 
@@ -705,7 +815,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
         b: Second embedding
 
     Returns:
-        Cosine similarity (0-1)
+        Cosine similarity in [-1, 1]
     """
     # Handle zero vectors
     norm_a = np.linalg.norm(a)
@@ -724,10 +834,13 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
         # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
-            return float(np.dot(a, b))
+            similarity = float(np.dot(a, b))
+            return max(-1.0, min(1.0, similarity))
 
-    # Use sklearn for vectorized computation
-    return float(sklearn_cosine(a.reshape(1, -1), b.reshape(1, -1))[0, 0])
+    # Floating-point accumulation can drift a few ulps outside the mathematical
+    # cosine range; keep the public contract exact.
+    similarity = float(sklearn_cosine(a.reshape(1, -1), b.reshape(1, -1))[0, 0])
+    return max(-1.0, min(1.0, similarity))
 
 
 def find_similar_notes(

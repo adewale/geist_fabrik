@@ -45,6 +45,28 @@ GeistFabrik syncs incrementally on each run. If references look stale, the
 database may predate a breaking change — rebuild it:
 `rm -rf <vault>/_geistfabrik/vault.db*` then `geistfabrik invoke <vault>`.
 
+If synchronization instead reports that vault files changed repeatedly, an
+editor, sync client, or other process modified Markdown during all bounded
+snapshot attempts. Let that activity settle and rerun the command. No partial
+database mirror from the failed attempts is committed.
+
+## SQLite reports that the database is malformed or corrupt
+
+GeistFabrik fails closed and leaves a malformed database untouched. It does not
+pretend that creating a different empty database recovers the original data.
+
+1. Stop commands that use the vault.
+2. Preserve `_geistfabrik/vault.db` and any adjacent `-wal`/`-shm` files for
+   diagnosis; do not overwrite them in place.
+3. Restore a known-good backup if you need session embeddings, suggestion
+   history, cached metrics, or geist failure state.
+4. If losing that history is acceptable, move the damaged database and its
+   companion files out of `_geistfabrik/`, then invoke GeistFabrik to rebuild
+   current note-derived state from Markdown.
+
+SQLite's `PRAGMA integrity_check` can diagnose damage but is not a recovery
+mechanism. Automatic recovery of arbitrary corruption is not supported.
+
 ## Database is growing
 
 Each session stores one embedding per note. `session_embedding_retention`

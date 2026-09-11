@@ -1,6 +1,11 @@
 """Unit tests for embeddings module (mocked models)."""
 
+import sqlite3
+from contextlib import closing
+from dataclasses import replace
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -64,6 +69,29 @@ def mocked_session(db_with_notes, mock_embedding_computer):
     """Session with mocked embedding computer for fast unit testing."""
     session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
     return session
+
+
+def test_session_close_preserves_injected_computer(db_with_notes, mock_embedding_computer):
+    model = mock_embedding_computer.model
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    session.get_backend()
+    session.close()
+    session.close()
+    assert session._backend is None
+    assert mock_embedding_computer.model is model
+    assert db_with_notes.execute("SELECT 1").fetchone() == (1,)
+
+
+def test_session_close_releases_owned_computer_and_allows_reuse(db_with_notes):
+    session = Session(datetime(2023, 6, 15), db_with_notes)
+    model = session.computer.model
+    backend = session.get_backend()
+    session.close()
+    assert session.computer._model is None
+    assert backend.closed
+    assert session.get_backend() is not backend
+    assert session.computer.model is not model
+    session.close()
 
 
 def test_embedding_computer_initialization():
@@ -263,6 +291,10 @@ def test_compute_vault_state_hash(mocked_session, sample_notes):
     hash3 = mocked_session.compute_vault_state_hash(modified_notes)
     assert hash1 != hash3
 
+    # Content is embedding-relevant even if a coarse filesystem preserves mtime.
+    content_changed = [replace(sample_notes[0], content="changed"), *sample_notes[1:]]
+    assert mocked_session.compute_vault_state_hash(content_changed) != hash1
+
 
 def test_compute_embeddings_mock(mocked_session, sample_notes):
     """Test embedding computation with mocked model."""
@@ -281,6 +313,315 @@ def test_compute_embeddings_mock(mocked_session, sample_notes):
         embedding = mocked_session.get_embedding(note.path)
         assert embedding is not None
         assert embedding.shape == (387,)
+
+
+def test_compute_embeddings_failure_rolls_back_and_retry_succeeds(
+    tmp_path: Path, sample_notes: list[Note], mock_embedding_computer: EmbeddingComputer
+) -> None:
+    """A model failure preserves the previously committed session snapshot."""
+
+    class FailingModel:
+        def encode(
+            self,
+            sentences: str | list[str],
+            *,
+            convert_to_numpy: bool = True,
+            show_progress_bar: bool = False,
+            batch_size: int = 32,
+            **kwargs: Any,
+        ) -> np.ndarray:
+            raise RuntimeError("injected model failure")
+
+    db_path = tmp_path / "embeddings.db"
+    db = init_db(db_path)
+    for note in sample_notes:
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                note.path,
+                note.title,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+                note.modified.timestamp(),
+            ),
+        )
+    db.commit()
+
+    date = datetime(2023, 6, 15)
+    baseline_session = Session(date, db, computer=mock_embedding_computer)
+    baseline_session.compute_embeddings(sample_notes)
+    before_hash = db.execute(
+        "SELECT vault_state_hash FROM sessions WHERE session_id = ?",
+        (baseline_session.session_id,),
+    ).fetchone()
+    before_rows = db.execute(
+        "SELECT note_path, embedding FROM session_embeddings "
+        "WHERE session_id = ? ORDER BY note_path",
+        (baseline_session.session_id,),
+    ).fetchall()
+    changed_notes = [replace(sample_notes[0], content="changed content"), *sample_notes[1:]]
+    failing_computer = EmbeddingComputer(model=FailingModel())
+    failing_session = Session(date, db, computer=failing_computer)
+
+    with pytest.raises(RuntimeError, match="injected model failure"):
+        failing_session.compute_embeddings(changed_notes)
+
+    assert db.in_transaction is False
+    assert db.execute(
+        "SELECT vault_state_hash FROM sessions WHERE session_id = ?",
+        (baseline_session.session_id,),
+    ).fetchone() == before_hash
+    assert db.execute(
+        "SELECT note_path, embedding FROM session_embeddings "
+        "WHERE session_id = ? ORDER BY note_path",
+        (baseline_session.session_id,),
+    ).fetchall() == before_rows
+
+    uri = f"{db_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as observer:
+        assert observer.execute(
+            "SELECT note_path, embedding FROM session_embeddings "
+            "WHERE session_id = ? ORDER BY note_path",
+            (baseline_session.session_id,),
+        ).fetchall() == before_rows
+
+    db.execute(
+        "UPDATE notes SET content = ? WHERE path = ?",
+        (changed_notes[0].content, changed_notes[0].path),
+    )
+    db.commit()
+    retry_session = Session(date, db, computer=mock_embedding_computer)
+    retry_session.compute_embeddings(changed_notes)
+    assert retry_session.get_embedding(sample_notes[0].path) is not None
+    db.close()
+
+
+def test_compute_embeddings_rejects_snapshot_staled_during_inference(
+    tmp_path: Path, sample_notes: list[Note], mock_embedding_computer: EmbeddingComputer
+) -> None:
+    """An older computation cannot overwrite a newer connection's session snapshot."""
+    db_path = tmp_path / "concurrent-embeddings.db"
+    db = init_db(db_path)
+    external = init_db(db_path)
+    stale_note = sample_notes[0]
+    db.execute(
+        "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            stale_note.path,
+            stale_note.title,
+            stale_note.content,
+            stale_note.created.isoformat(),
+            stale_note.modified.isoformat(),
+            stale_note.modified.timestamp(),
+        ),
+    )
+    db.commit()
+    session = Session(datetime(2023, 6, 15), db, computer=mock_embedding_computer)
+
+    class ConcurrentCommitModel:
+        def encode(
+            self,
+            sentences: str | list[str],
+            *,
+            convert_to_numpy: bool = True,
+            show_progress_bar: bool = False,
+            batch_size: int = 32,
+            **kwargs: Any,
+        ) -> np.ndarray:
+            external.execute(
+                "UPDATE notes SET content = ?, modified = ? WHERE path = ?",
+                ("newer content", "2023-06-16T00:00:00", stale_note.path),
+            )
+            external.execute(
+                "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ?",
+                ("newer-hash", session.session_id),
+            )
+            external.execute(
+                "INSERT INTO session_embeddings (session_id, note_path, embedding) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(session_id, note_path) DO UPDATE SET embedding = excluded.embedding",
+                (session.session_id, stale_note.path, b"newer-embedding"),
+            )
+            external.commit()
+            count = 1 if isinstance(sentences, str) else len(sentences)
+            return np.ones((count, 384), dtype=np.float32)
+
+    session.computer = EmbeddingComputer(model=ConcurrentCommitModel())
+    with pytest.raises(RuntimeError, match="changed while embeddings were being computed"):
+        session.compute_embeddings([stale_note])
+
+    assert db.in_transaction is False
+    assert db.execute(
+        "SELECT content FROM notes WHERE path = ?", (stale_note.path,)
+    ).fetchone() == ("newer content",)
+    assert db.execute(
+        "SELECT vault_state_hash FROM sessions WHERE session_id = ?", (session.session_id,)
+    ).fetchone() == ("newer-hash",)
+    assert db.execute(
+        "SELECT embedding FROM session_embeddings WHERE session_id = ? AND note_path = ?",
+        (session.session_id, stale_note.path),
+    ).fetchone() == (b"newer-embedding",)
+
+    fresh_note = replace(
+        stale_note,
+        content="newer content",
+        modified=datetime(2023, 6, 16),
+    )
+    retry = Session(datetime(2023, 6, 15), db, computer=mock_embedding_computer)
+    retry.compute_embeddings([fresh_note])
+    assert retry.get_embedding(stale_note.path) is not None
+    external.close()
+    db.close()
+
+
+def test_compute_embeddings_rejects_incomplete_vault_snapshot(
+    db_with_notes: sqlite3.Connection,
+    sample_notes: list[Note],
+    mock_embedding_computer: EmbeddingComputer,
+) -> None:
+    """A session snapshot cannot silently omit committed vault notes."""
+    session = Session(
+        datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer
+    )
+
+    with pytest.raises(RuntimeError, match="do not match the committed vault snapshot"):
+        session.compute_embeddings(sample_notes[:1])
+
+    assert db_with_notes.in_transaction is False
+    assert db_with_notes.execute(
+        "SELECT 1 FROM session_embeddings WHERE session_id = ?", (session.session_id,)
+    ).fetchone() is None
+
+
+def test_compute_embeddings_rejects_snapshot_stale_before_method_entry(
+    tmp_path: Path, sample_notes: list[Note], mock_embedding_computer: EmbeddingComputer
+) -> None:
+    """Committed note state is checked even when staleness predates method entry."""
+    db_path = tmp_path / "pre-entry-stale.db"
+    db = init_db(db_path)
+    external = init_db(db_path)
+    stale_note = sample_notes[0]
+    db.execute(
+        "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            stale_note.path,
+            stale_note.title,
+            stale_note.content,
+            stale_note.created.isoformat(),
+            stale_note.modified.isoformat(),
+            stale_note.modified.timestamp(),
+        ),
+    )
+    db.commit()
+    session = Session(datetime(2023, 6, 15), db, computer=mock_embedding_computer)
+
+    # This commit happens after the caller captured stale_note but before it
+    # enters compute_embeddings(), so a token captured inside alone is insufficient.
+    external.execute(
+        "UPDATE notes SET content = ?, modified = ? WHERE path = ?",
+        ("newer content", "2023-06-16T00:00:00", stale_note.path),
+    )
+    external.commit()
+
+    with pytest.raises(RuntimeError, match="changed before the embedding snapshot"):
+        session.compute_embeddings([stale_note])
+
+    assert db.in_transaction is False
+    assert db.execute(
+        "SELECT content FROM notes WHERE path = ?", (stale_note.path,)
+    ).fetchone() == ("newer content",)
+    assert db.execute(
+        "SELECT 1 FROM session_embeddings WHERE session_id = ?", (session.session_id,)
+    ).fetchone() is None
+    external.close()
+    db.close()
+
+
+def test_compute_embeddings_mid_write_failure_rolls_back_snapshot(
+    tmp_path: Path, sample_notes: list[Note], mock_embedding_computer: EmbeddingComputer
+) -> None:
+    """A failure after destructive writes begin restores the prior session snapshot."""
+    db_path = tmp_path / "mid-write-embeddings.db"
+    db = init_db(db_path)
+    for note in sample_notes:
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                note.path,
+                note.title,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+                note.modified.timestamp(),
+            ),
+        )
+    db.commit()
+    session = Session(datetime(2023, 6, 15), db, computer=mock_embedding_computer)
+    session.compute_embeddings(sample_notes)
+    before_hash = db.execute(
+        "SELECT vault_state_hash FROM sessions WHERE session_id = ?", (session.session_id,)
+    ).fetchone()
+    before_rows = db.execute(
+        "SELECT note_path, embedding FROM session_embeddings "
+        "WHERE session_id = ? ORDER BY note_path",
+        (session.session_id,),
+    ).fetchall()
+    before_cache = db.execute(
+        "SELECT note_path, embedding, model_version FROM embeddings ORDER BY note_path"
+    ).fetchall()
+    db.execute(
+        """
+        CREATE TRIGGER fail_session_embedding_insert
+        BEFORE INSERT ON session_embeddings
+        BEGIN
+            SELECT RAISE(ABORT, 'injected session embedding failure');
+        END
+        """
+    )
+    db.commit()
+    changed_notes = [replace(sample_notes[0], content="changed content"), *sample_notes[1:]]
+    db.execute(
+        "UPDATE notes SET content = ? WHERE path = ?",
+        (changed_notes[0].content, changed_notes[0].path),
+    )
+    db.commit()
+
+    with pytest.raises(sqlite3.IntegrityError, match="injected session embedding failure"):
+        session.compute_embeddings(changed_notes)
+
+    assert db.in_transaction is False
+    assert db.execute(
+        "SELECT vault_state_hash FROM sessions WHERE session_id = ?", (session.session_id,)
+    ).fetchone() == before_hash
+    assert db.execute(
+        "SELECT note_path, embedding FROM session_embeddings "
+        "WHERE session_id = ? ORDER BY note_path",
+        (session.session_id,),
+    ).fetchall() == before_rows
+    assert db.execute(
+        "SELECT note_path, embedding, model_version FROM embeddings ORDER BY note_path"
+    ).fetchall() == before_cache
+    uri = f"{db_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as observer:
+        assert observer.execute(
+            "SELECT note_path, embedding FROM session_embeddings "
+            "WHERE session_id = ? ORDER BY note_path",
+            (session.session_id,),
+        ).fetchall() == before_rows
+        assert observer.execute(
+            "SELECT note_path, embedding, model_version FROM embeddings ORDER BY note_path"
+        ).fetchall() == before_cache
+
+    db.execute("DROP TRIGGER fail_session_embedding_insert")
+    db.commit()
+    session.compute_embeddings(changed_notes)
+    assert session.get_embedding(sample_notes[0].path) is not None
+    db.close()
 
 
 def test_cosine_similarity():
@@ -319,7 +660,7 @@ def test_find_similar_notes(fixed_embeddings):
     assert "note1.md" not in [r[0] for r in results]
 
 
-def test_embed_very_long_note_mock(db_with_notes, mock_embedding_computer):
+def test_embed_very_long_note_mock(db_with_notes, mock_embedding_computer, sample_notes):
     """Test handling of very long notes with mocked model (AC-2.7)."""
     # Create a note with very long content (>10000 words)
     long_content = " ".join(["word" for _ in range(15000)])
@@ -352,14 +693,14 @@ def test_embed_very_long_note_mock(db_with_notes, mock_embedding_computer):
 
     # Should not crash, might truncate
     session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
-    session.compute_embeddings([note])
+    session.compute_embeddings([*sample_notes, note])
 
     embedding = session.get_embedding(note.path)
     assert embedding is not None
     assert embedding.shape == (387,)
 
 
-def test_empty_embedding_handling_mock(db_with_notes, mock_embedding_computer):
+def test_empty_embedding_handling_mock(db_with_notes, mock_embedding_computer, sample_notes):
     """Test handling of notes with minimal/empty content (AC-2.14)."""
     # Create a note with only frontmatter/whitespace
     note = Note(
@@ -391,14 +732,14 @@ def test_empty_embedding_handling_mock(db_with_notes, mock_embedding_computer):
 
     # Should handle gracefully (might use title or create zero vector)
     session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
-    session.compute_embeddings([note])
+    session.compute_embeddings([*sample_notes, note])
 
     embedding = session.get_embedding(note.path)
     assert embedding is not None
     assert embedding.shape == (387,)
 
 
-def test_embedding_persistence_mock(db_with_notes, mock_embedding_computer):
+def test_embedding_persistence_mock(db_with_notes, mock_embedding_computer, sample_notes):
     """Test that embeddings persist across session reloads (AC-2.15)."""
     note = Note(
         path="persist.md",
@@ -429,7 +770,7 @@ def test_embedding_persistence_mock(db_with_notes, mock_embedding_computer):
 
     # Compute embeddings
     session1 = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
-    session1.compute_embeddings([note])
+    session1.compute_embeddings([*sample_notes, note])
     embedding1 = session1.get_embedding(note.path)
 
     # Create new session object (simulates reload)
@@ -442,7 +783,7 @@ def test_embedding_persistence_mock(db_with_notes, mock_embedding_computer):
     assert np.array_equal(embedding1, embedding2)
 
 
-def test_semantic_cache_hit(db_with_notes, mock_embedding_computer):
+def test_semantic_cache_hit(db_with_notes, mock_embedding_computer, sample_notes):
     """Test that semantic embeddings are cached and reused."""
     note = Note(
         path="cache_test.md",
@@ -473,7 +814,7 @@ def test_semantic_cache_hit(db_with_notes, mock_embedding_computer):
 
     # First computation - cache miss
     session1 = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
-    session1.compute_embeddings([note])
+    session1.compute_embeddings([*sample_notes, note])
 
     # Verify cache entry exists
     cursor = db_with_notes.execute(

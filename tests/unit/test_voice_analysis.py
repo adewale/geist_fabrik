@@ -7,7 +7,7 @@ fuzz cases for the pure-Python linguistic voice analysis.
 import math
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from geistfabrik.voice_analysis import (
@@ -273,15 +273,15 @@ def test_appending_hedge_never_decreases_hedging(content: str) -> None:
     assert after >= before + 1
 
 
-@given(st.text(max_size=2000))
+@given(st.text(alphabet=st.characters(max_codepoint=127), max_size=2000))
+@example(content="https://example.com Maybe.")
 @settings(max_examples=50, deadline=None)
 def test_case_invariance(content: str) -> None:
     """Voice metadata is invariant under uppercasing of ASCII text."""
-    # Restrict to ASCII to avoid unicode case-folding surprises (e.g. ß -> SS)
-    ascii_content = content.encode("ascii", errors="ignore").decode("ascii")
-    lower = compute_voice_metadata(ascii_content.lower())
-    upper_then_lower = compute_voice_metadata(ascii_content.upper().lower())
-    assert lower == upper_then_lower
+    # Generate ASCII directly; do not normalize both inputs to the same string.
+    lower = compute_voice_metadata(content.lower())
+    upper = compute_voice_metadata(content.upper())
+    assert lower == upper
 
 
 @given(st.text(max_size=2000))

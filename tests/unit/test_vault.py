@@ -1,6 +1,8 @@
 """Unit tests for Vault class."""
 
 import os
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -114,6 +116,188 @@ def test_sync_modified_file(tmp_path: Path) -> None:
     assert note2 is not None
     assert "v2" in note2.content
 
+    vault.close()
+
+
+def test_sync_detects_content_change_with_preserved_mtime(tmp_path: Path) -> None:
+    """Incremental identity does not treat a same-mtime replacement as unchanged."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "test.md"
+    note_file.write_text("# First\n\nold")
+    vault = Vault(vault_path)
+    assert vault.sync() == 1
+
+    original_mtime = note_file.stat().st_mtime
+    replacement = vault_path / "replacement.tmp"
+    replacement.write_text("# Other\n\nnew")
+    os.utime(replacement, (original_mtime, original_mtime))
+    replacement.replace(note_file)
+    os.utime(note_file, (original_mtime, original_mtime))
+
+    assert vault.sync() == 1
+    note = vault.get_note("test.md")
+    assert note is not None
+    assert note.title == "Other"
+    assert note.content == "# Other\n\nnew"
+    vault.close()
+
+
+def test_sync_update_preserves_temporal_history_and_invalidates_semantic_cache(
+    tmp_path: Path,
+) -> None:
+    """A same-path edit preserves history while invalidating derived semantic cache."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "test.md"
+    note_file.write_text("# Original\n\nFirst version")
+    db_path = tmp_path / "vault.db"
+    vault = Vault(vault_path, db_path)
+
+    assert vault.sync() == 1
+    vault.db.execute(
+        "INSERT INTO sessions (date, created_at) VALUES (?, ?)",
+        ("2024-01-01", "2024-01-01T00:00:00"),
+    )
+    session_id = vault.db.execute(
+        "SELECT session_id FROM sessions WHERE date = ?", ("2024-01-01",)
+    ).fetchone()
+    assert session_id is not None
+    vault.db.execute(
+        "INSERT INTO embeddings (note_path, embedding, model_version, computed_at) "
+        "VALUES (?, ?, ?, ?)",
+        ("test.md", b"semantic", "test", "2024-01-01T00:00:00"),
+    )
+    vault.db.execute(
+        "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
+        (session_id[0], "test.md", b"historical"),
+    )
+    vault.db.commit()
+
+    previous_mtime = note_file.stat().st_mtime
+    note_file.write_text("# Updated\n\nSecond version")
+    os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
+
+    assert vault.sync() == 1
+    assert vault.db.execute(
+        "SELECT 1 FROM embeddings WHERE note_path = ?", ("test.md",)
+    ).fetchone() is None
+    historical = vault.db.execute(
+        "SELECT embedding FROM session_embeddings WHERE session_id = ? AND note_path = ?",
+        (session_id[0], "test.md"),
+    ).fetchone()
+    assert historical == (b"historical",)
+
+    uri = f"{db_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as observer:
+        assert observer.execute(
+            "SELECT title FROM notes WHERE path = ?", ("test.md",)
+        ).fetchone() == ("Updated",)
+        assert observer.execute(
+            "SELECT embedding FROM session_embeddings WHERE session_id = ? AND note_path = ?",
+            (session_id[0], "test.md"),
+        ).fetchone() == (b"historical",)
+    vault.close()
+
+
+def test_sync_failure_rolls_back_and_retry_succeeds(tmp_path: Path) -> None:
+    """A mid-sync SQL failure cannot leak partial state into a later commit."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "test.md"
+    note_file.write_text("# Original\n\nFirst version")
+    db_path = tmp_path / "vault.db"
+    vault = Vault(vault_path, db_path)
+    assert vault.sync() == 1
+
+    vault.db.execute(
+        """
+        CREATE TRIGGER fail_test_link_insert
+        BEFORE INSERT ON links
+        WHEN NEW.source_path = 'test.md'
+        BEGIN
+            SELECT RAISE(ABORT, 'injected sync failure');
+        END
+        """
+    )
+    vault.db.commit()
+    previous_mtime = note_file.stat().st_mtime
+    note_file.write_text("# Updated\n\nSecond version links to [[Target]]")
+    os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
+
+    with pytest.raises(sqlite3.IntegrityError, match="injected sync failure"):
+        vault.sync()
+
+    assert vault.db.in_transaction is False
+    assert vault.db.execute(
+        "SELECT title, content FROM notes WHERE path = ?", ("test.md",)
+    ).fetchone() == ("Original", "# Original\n\nFirst version")
+    assert vault.db.execute("SELECT * FROM links").fetchall() == []
+
+    uri = f"{db_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as observer:
+        assert observer.execute(
+            "SELECT title FROM notes WHERE path = ?", ("test.md",)
+        ).fetchone() == ("Original",)
+        assert observer.execute("SELECT * FROM links").fetchall() == []
+
+    vault.db.execute("DROP TRIGGER fail_test_link_insert")
+    vault.db.commit()
+    assert vault.sync() == 1
+    retried_note = vault.get_note("test.md")
+    assert retried_note is not None
+    assert retried_note.title == "Updated"
+    assert vault.db.execute(
+        "SELECT target FROM links WHERE source_path = ?", ("test.md",)
+    ).fetchall() == [("Target",)]
+    vault.close()
+
+
+def test_date_collection_update_preserves_only_stable_path_history(tmp_path: Path) -> None:
+    """Refreshing a journal preserves history for retained virtual-note paths."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    journal_path = vault_path / "journal.md"
+    journal_path.write_text(
+        "# Journal\n\n## 2024-01-01\n\nOriginal\n\n## 2024-01-02\n\nRemoved"
+    )
+    vault = Vault(vault_path)
+    assert vault.sync() == 2
+
+    vault.db.execute(
+        "INSERT INTO sessions (date, created_at) VALUES (?, ?)",
+        ("2024-02-01", "2024-02-01T00:00:00"),
+    )
+    session_id = vault.db.execute(
+        "SELECT session_id FROM sessions WHERE date = ?", ("2024-02-01",)
+    ).fetchone()
+    assert session_id is not None
+    for path in ("journal.md/2024-01-01", "journal.md/2024-01-02"):
+        vault.db.execute(
+            "INSERT INTO embeddings (note_path, embedding, model_version, computed_at) "
+            "VALUES (?, ?, ?, ?)",
+            (path, b"semantic", "test", "2024-02-01T00:00:00"),
+        )
+        vault.db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) "
+            "VALUES (?, ?, ?)",
+            (session_id[0], path, path.encode()),
+        )
+    vault.db.commit()
+
+    previous_mtime = journal_path.stat().st_mtime
+    journal_path.write_text(
+        "# Journal\n\n## 2024-01-01\n\nUpdated\n\n## 2024-01-03\n\nAdded"
+    )
+    os.utime(journal_path, (previous_mtime + 2, previous_mtime + 2))
+
+    assert vault.sync() == 2
+    assert vault.db.execute(
+        "SELECT note_path FROM embeddings ORDER BY note_path"
+    ).fetchall() == []
+    assert vault.db.execute(
+        "SELECT note_path FROM session_embeddings ORDER BY note_path"
+    ).fetchall() == [("journal.md/2024-01-01",)]
     vault.close()
 
 

@@ -21,6 +21,7 @@ from .clustering_analysis import Cluster, format_cluster_label
 from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
 from .models import Link, Note, link_target_forms
+from .sqlite_transaction import owned_transaction
 from .vault import Vault
 from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
 
@@ -981,14 +982,14 @@ class VaultContext:
         """
         if not assignments:
             return
-        self.db.executemany(
-            """
-            UPDATE session_embeddings SET cluster_label = ?
-            WHERE session_id = ? AND note_path = ?
-            """,
-            [(label, self.session.session_id, path) for path, label in assignments.items()],
-        )
-        self.db.commit()
+        with owned_transaction(self.db, "VaultContext.persist_cluster_labels"):
+            self.db.executemany(
+                """
+                UPDATE session_embeddings SET cluster_label = ?
+                WHERE session_id = ? AND note_path = ?
+                """,
+                [(label, self.session.session_id, path) for path, label in assignments.items()],
+            )
 
     def previous_cluster_label_for_note(self, note: Note, session_id: int) -> str | None:
         """Get the cluster label for a note in a previous session.

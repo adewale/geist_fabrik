@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Vault synchronization now updates stable note paths in place, invalidates only
+  current-content semantic caches, and preserves historical session embeddings;
+  removed virtual-note paths still cascade cleanly. Synchronizers acquire the
+  SQLite writer lock before filesystem discovery and validate the complete scan
+  again before committing deletions, rolling back and retrying a changing vault.
+  Schema v10 fingerprints exact file identity and nanosecond metadata, so a
+  same-path replacement cannot hide behind a preserved coarse modification time.
+- Every SQLite writer now owns an explicit transaction, rejects a pre-existing
+  transaction, and rolls back failures so another component cannot accidentally
+  publish partial work. Expensive embedding inference runs before the write lock,
+  with optimistic version validation preventing stale results from overwriting a
+  newer concurrent commit.
+- sqlite-vec search projections are instance-private, explicitly disposable TEMP
+  tables, preventing cross-session replacement and connection-lifetime buildup.
+  Sessions now own their backend lifecycle, clean up on command/context exit, and
+  safely recreate an explicitly closed backend. Production connections load the
+  installed sqlite-vec package with extension loading immediately disabled again;
+  TEMP cleanup needs no main-database writer lock. Obsolete durable `vec_search`
+  projections are removed only when they match GeistFabrik's exact historical
+  schema, without touching stored session embeddings or unrelated virtual tables.
+- Embedding metric caches are schema-v9 derived records keyed by exact ordered
+  paths, embedding bytes, label inputs, configuration, algorithm, and dependency
+  identity. KeyBERT-labelled metrics remain computable but are not persisted
+  because the loader does not expose a trustworthy model-artifact identity. Cache
+  provenance reads only the bounded text prefix actually consumed by labelers.
+- Schema version and structure checks now occur under the same writer lock as
+  migration, closing a mixed-version downgrade race. The supported migration
+  floor is explicit at v3; frozen v3 and v4 databases preserve durable rows,
+  while older versions fail without modification.
+- Cosine similarity is clamped to its mathematical `[-1, 1]` range, preventing
+  floating-point accumulation from escaping the public contract by a few ulps.
+- Replaced the false database-corruption recovery check with an honest
+  fail-without-overwrite contract and documented backup/rebuild recovery limits.
+  Added frozen-v3/v4 migration coverage, mid-write rollback fault injection, and an
+  actual child-process interruption/recovery test for journal reconciliation.
+- CI now binds `uv` to the declared Python matrix interpreter and asserts the
+  runtime version, so the full 3.12 lane no longer silently executes on 3.11.
+- Project-wide Hypothesis review replaced false-green case, frontmatter, cosine,
+  and partial-configuration properties with structured independent oracles that
+  cover valid stacked frontmatter, real ASCII case variants, non-unit 384/387-D
+  vectors, and every configuration section.
+- Pattern Finder now compares notes in bounded similarity batches, eliminating
+  the Python 3.12 CI timeout without reintroducing corpus sampling. Its regression
+  test deterministically proves that notes beyond the historical 500-note cutoff
+  are examined and can produce a suggestion.
+
 ## [0.10.1] - 2026-07-11
 
 ### Packaging and release engineering

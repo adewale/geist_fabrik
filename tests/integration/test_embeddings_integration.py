@@ -200,7 +200,7 @@ def test_real_semantic_cache(db_with_notes, sample_notes):
     assert embedding1.shape == embedding2.shape
 
 
-def test_real_batch_computation(db_with_notes):
+def test_real_batch_computation(db_with_notes, sample_notes):
     """Test batch embedding computation with real model."""
     # Create multiple notes
     notes = []
@@ -233,9 +233,9 @@ def test_real_batch_computation(db_with_notes):
         )
     db_with_notes.commit()
 
-    # Compute embeddings in batch
+    # Compute the complete committed vault snapshot in batch.
     session = Session(datetime(2023, 6, 15), db_with_notes)
-    session.compute_embeddings(notes)
+    session.compute_embeddings([*sample_notes, *notes])
 
     # Verify all embeddings were computed through the public vector backend.
     backend = session.get_backend()
@@ -248,7 +248,7 @@ def test_real_batch_computation(db_with_notes):
         assert embedding.shape == (387,)
 
 
-def test_real_empty_content_handling(db_with_notes):
+def test_real_empty_content_handling(db_with_notes, sample_notes):
     """Test that real model handles empty/whitespace content gracefully."""
     note = Note(
         path="empty_real.md",
@@ -279,14 +279,14 @@ def test_real_empty_content_handling(db_with_notes):
 
     # Should handle gracefully
     session = Session(datetime(2023, 6, 15), db_with_notes)
-    session.compute_embeddings([note])
+    session.compute_embeddings([*sample_notes, note])
 
     embedding = session.get_embedding(note.path)
     assert embedding is not None
     assert embedding.shape == (387,)
 
 
-def test_real_very_long_content(db_with_notes):
+def test_real_very_long_content(db_with_notes, sample_notes):
     """Test that real model handles very long content.
 
     Most sentence-transformers models have a token limit (~512 tokens).
@@ -323,7 +323,7 @@ def test_real_very_long_content(db_with_notes):
 
     # Should not crash (model will truncate)
     session = Session(datetime(2023, 6, 15), db_with_notes)
-    session.compute_embeddings([note])
+    session.compute_embeddings([*sample_notes, note])
 
     embedding = session.get_embedding(note.path)
     assert embedding is not None

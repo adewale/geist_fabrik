@@ -1,12 +1,52 @@
 """Tests for CLI module."""
 
+from argparse import Namespace
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
 from geistfabrik.cli import create_parser
 from geistfabrik.commands import find_vault_root
+from geistfabrik.commands.base import BaseCommand
 from geistfabrik.commands.invoke import InvokeCommand
+
+
+class _CleanupCommand(BaseCommand):
+    def execute(self) -> int:
+        raise ValueError("primary failure")
+
+
+class _FailingResource:
+    def __init__(self) -> None:
+        self.close_attempted = False
+
+    def close(self) -> None:
+        self.close_attempted = True
+        raise RuntimeError("cleanup failure")
+
+
+class _ClosingResource:
+    def __init__(self) -> None:
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_command_cleanup_preserves_result_and_releases_every_resource(capsys) -> None:
+    command = _CleanupCommand(Namespace(verbose=False, quiet=False))
+    session = _FailingResource()
+    vault = _ClosingResource()
+    command._session = cast(Any, session)
+    command._vault = cast(Any, vault)
+
+    assert command.run() == 1
+    assert "primary failure" in capsys.readouterr().err
+    assert session.close_attempted
+    assert vault.closed
+    assert command._session is None
+    assert command._vault is None
 
 
 def test_find_vault_root_with_obsidian_dir(tmp_path: Path) -> None:

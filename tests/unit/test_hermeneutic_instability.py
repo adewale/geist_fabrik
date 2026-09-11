@@ -361,14 +361,21 @@ def test_hermeneutic_instability_handles_missing_embeddings(tmp_path):
     vault = Vault(str(vault_path), ":memory:")
     vault.sync()
 
-    # Create sessions but only embed some notes
+    # Create complete session snapshots, then simulate historical row loss for
+    # half the notes. Session.compute_embeddings itself requires a complete
+    # vault snapshot so production cannot accidentally publish partial history.
     now = datetime.now()
+    all_notes = vault.all_notes()
+    missing_paths = [note.path for note in all_notes[5:]]
     for i in range(5):
         session_date = now - timedelta(days=i * 10)
         session = Session(session_date, vault.db)
-        # Only compute embeddings for first 5 notes
-        notes_to_embed = list(vault.all_notes())[:5]
-        session.compute_embeddings(notes_to_embed)
+        session.compute_embeddings(all_notes)
+        vault.db.executemany(
+            "DELETE FROM session_embeddings WHERE session_id = ? AND note_path = ?",
+            ((session.session_id, path) for path in missing_paths),
+        )
+        vault.db.commit()
 
     current_session = Session(now, vault.db)
     current_session.compute_embeddings(vault.all_notes())
