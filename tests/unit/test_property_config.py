@@ -32,8 +32,39 @@ cluster_config_dicts = st.fixed_dictionaries(
 )
 
 vector_search_dicts = st.fixed_dictionaries(
-    {"backend": st.sampled_from(["in-memory", "sqlite-vec"])}
+    {
+        "backend": st.sampled_from(["in-memory", "sqlite-vec"]),
+        "backends": st.fixed_dictionaries(
+            {
+                "in_memory": st.fixed_dictionaries({"lazy_load": st.booleans()}),
+                "sqlite_vec": st.fixed_dictionaries(
+                    {
+                        "index_type": st.sampled_from(["flat", "hnsw", "ivf"]),
+                        "cache_size_mb": st.integers(min_value=1, max_value=1_048_576),
+                    }
+                ),
+            }
+        ),
+    }
 )
+
+
+@st.composite
+def filtering_config_dicts(draw: st.DrawFn) -> dict:
+    """Generate valid cross-field limits as well as every nested filter section."""
+    maximum_length = draw(st.integers(min_value=1, max_value=1_000_000))
+    minimum_length = draw(st.integers(min_value=0, max_value=maximum_length))
+    threshold = st.floats(min_value=0.0, max_value=1.0)
+    return {
+        "boundary": {"exclude_paths": draw(st.lists(st.text(min_size=1, max_size=30), max_size=5))},
+        "novelty": {
+            "window_days": draw(st.integers(min_value=0, max_value=100_000)),
+            "threshold": draw(threshold),
+        },
+        "diversity": {"threshold": draw(threshold)},
+        "quality": {"min_length": minimum_length, "max_length": maximum_length},
+    }
+
 
 full_config_dicts = st.fixed_dictionaries(
     {
@@ -44,6 +75,17 @@ full_config_dicts = st.fixed_dictionaries(
         "date_collection": date_collection_dicts,
         "vector_search": vector_search_dicts,
         "clustering": cluster_config_dicts,
+        "session_embedding_retention": st.integers(min_value=0, max_value=100_000),
+        "geist_execution": st.fixed_dictionaries(
+            {
+                "timeout": st.integers(min_value=1, max_value=3600),
+                "max_failures": st.integers(min_value=1, max_value=100),
+            }
+        ),
+        "filtering": filtering_config_dicts(),
+        "session": st.fixed_dictionaries(
+            {"default_suggestions": st.integers(min_value=1, max_value=1000)}
+        ),
     }
 )
 
@@ -123,9 +165,7 @@ def test_full_config_dict_roundtrip(d: dict) -> None:
     """to_dict(from_dict(d)) == d for complete dicts."""
     config = GeistFabrikConfig.from_dict(d)
     result = config.to_dict()
-    assert result["enabled_modules"] == d["enabled_modules"]
-    assert result["default_geists"] == d["default_geists"]
-    assert result["clustering"] == d["clustering"]
+    assert result == d
 
 
 def test_empty_dict_uses_all_defaults() -> None:

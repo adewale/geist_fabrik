@@ -90,7 +90,7 @@ _FENCED_CODE_RE = re.compile(r"^(```|~~~)[^\n]*\n.*?^\1[^\n]*$", re.DOTALL | re.
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 
 # URLs (bare or inside markdown links)
-_URL_RE = re.compile(r"(?:https?://|www\.)\S+")
+_URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 
 # Lowercase word tokens; keeps internal apostrophes ("won't" is one token)
 _WORD_RE = re.compile(r"\w+(?:'\w+)*")

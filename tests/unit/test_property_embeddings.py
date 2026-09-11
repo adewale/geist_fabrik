@@ -1,37 +1,85 @@
 """Property-based tests for cosine similarity invariants."""
 
+import math
+
 import numpy as np
 import pytest
-from hypothesis import HealthCheck, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
+from geistfabrik.config import SEMANTIC_DIM, TOTAL_DIM
 from geistfabrik.embeddings import cosine_similarity
 
 # Timeout all tests in this module
 pytestmark = pytest.mark.timeout(10)
 
-DIM = 384  # sentence-transformers embedding dimension
+DIM = TOTAL_DIM  # persisted vectors include semantic and temporal dimensions
 
 # Use hypothesis.extra.numpy for efficient array generation
-_float_elements = st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+_float_elements = st.floats(
+    min_value=-1.0,
+    max_value=1.0,
+    allow_nan=False,
+    allow_infinity=False,
+    allow_subnormal=False,
+    width=32,
+)
+
+
+@st.composite
+def _nonzero_array(draw: st.DrawFn, dimension: int = DIM) -> np.ndarray:
+    """Construct a bounded nonzero vector without rejecting zero-filled draws."""
+    vector = draw(arrays(dtype=np.float32, shape=(dimension,), elements=_float_elements)).copy()
+    pivot = draw(st.integers(min_value=0, max_value=dimension - 1))
+    vector[pivot] = draw(st.sampled_from([-1.0, -0.5, 0.5, 1.0]))
+    return vector
 
 
 def _normalized_array() -> st.SearchStrategy[np.ndarray]:
     """Generate a normalised DIM-dimensional vector using hypothesis numpy arrays."""
-    return (
-        arrays(dtype=np.float32, shape=(DIM,), elements=_float_elements)
-        .filter(lambda v: np.linalg.norm(v) > 0.01)
-        .map(lambda v: v / np.linalg.norm(v))
-    )
+    return _nonzero_array().map(lambda v: v / np.linalg.norm(v))
+
+
+@st.composite
+def embedding_pairs(draw: st.DrawFn) -> tuple[np.ndarray, np.ndarray]:
+    """Cover both production dimensions and small vectors with readable shrinks."""
+    dimension = draw(st.sampled_from([1, 3, SEMANTIC_DIM, TOTAL_DIM]))
+    return draw(_nonzero_array(dimension)), draw(_nonzero_array(dimension))
 
 
 normalized = _normalized_array()
 
-_pbt_settings = settings(
-    max_examples=50,
-    suppress_health_check=[HealthCheck.large_base_example],
+_pbt_settings = settings(max_examples=50)
+
+
+@given(pair=embedding_pairs())
+@_pbt_settings
+def test_nonunit_vectors_match_scalar_cosine_reference(
+    pair: tuple[np.ndarray, np.ndarray],
+) -> None:
+    """General vectors agree with an independent double-precision scalar oracle."""
+    a, b = pair
+    dot = math.fsum(float(x) * float(y) for x, y in zip(a, b, strict=True))
+    norm_a = math.sqrt(math.fsum(float(x) ** 2 for x in a))
+    norm_b = math.sqrt(math.fsum(float(x) ** 2 for x in b))
+    assert cosine_similarity(a, b) == pytest.approx(dot / (norm_a * norm_b), abs=1e-5)
+
+
+@given(
+    pair=embedding_pairs(),
+    scale_a=st.floats(min_value=0.125, max_value=8.0, width=32),
+    scale_b=st.floats(min_value=0.125, max_value=8.0, width=32),
 )
+@_pbt_settings
+def test_positive_rescaling_preserves_cosine(
+    pair: tuple[np.ndarray, np.ndarray], scale_a: float, scale_b: float
+) -> None:
+    """Magnitude changes must not change cosine for unnormalised production inputs."""
+    a, b = pair
+    assert cosine_similarity(a * scale_a, b * scale_b) == pytest.approx(
+        cosine_similarity(a, b), abs=1e-5
+    )
 
 
 @given(a=normalized, b=normalized)
