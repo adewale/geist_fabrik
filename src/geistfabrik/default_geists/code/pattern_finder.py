@@ -104,12 +104,19 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Find similar notes
         cluster = [seed]
         to_remove = []
-        for note in list(unclustered_set):
-            if vault.similarity(seed, note) > SimilarityLevel.VERY_HIGH:  # Very similar
-                cluster.append(note)
-                to_remove.append(note)
+        candidates = list(unclustered_set)
+        for start in range(0, len(candidates), 256):
+            batch = candidates[start : start + 256]
+            similarities = vault.batch_similarity([seed], batch)[0]
+            for note, similarity in zip(batch, similarities, strict=True):
+                if similarity > SimilarityLevel.VERY_HIGH:  # Very similar
+                    cluster.append(note)
+                    to_remove.append(note)
 
-            if len(cluster) >= 5:  # Limit cluster size
+                if len(cluster) >= 5:  # Limit cluster size
+                    break
+
+            if len(cluster) >= 5:
                 break
 
         # Remove clustered notes from unclustered set

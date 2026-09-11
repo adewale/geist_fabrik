@@ -15,18 +15,48 @@ The scale_shifter tests remain valid, but the reasoning has changed:
 
 from datetime import datetime
 from pathlib import Path
+from typing import TypeVar, cast
 
 import pytest
 
 from geistfabrik.embeddings import Session
+from geistfabrik.models import Note, Suggestion
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
+
+_T = TypeVar("_T")
+
+
+class _RecordingPatternContext:
+    """Minimal deterministic context for the full-corpus regression oracle."""
+
+    def __init__(self, notes: list[Note]) -> None:
+        self.notes = notes
+        self.read_paths: list[str] = []
+
+    def notes_excluding_journal(self) -> list[Note]:
+        return self.notes
+
+    def outgoing_links(self, note: Note) -> list[Note]:
+        return []
+
+    def read(self, note: Note) -> str:
+        self.read_paths.append(note.path)
+        return note.content
+
+    @staticmethod
+    def sample(items: list[_T], count: int) -> list[_T]:
+        return items[:count]
+
+    @staticmethod
+    def batch_similarity(notes_a: list[Note], notes_b: list[Note]) -> list[list[float]]:
+        return [[1.0 for _ in notes_b] for _ in notes_a]
 
 
 class TestPatternFinderCoverage:
     """Tests ensuring pattern_finder examines all notes, not a sample."""
 
-    def test_pattern_finder_processes_all_notes_not_sample(self, tmp_path: Path) -> None:
+    def test_pattern_finder_processes_all_notes_not_sample(self) -> None:
         """Regression: pattern_finder must examine ALL notes, not a sample.
 
         Phase 3B Issue (commit c74a12a):
@@ -34,59 +64,32 @@ class TestPatternFinderCoverage:
         - Impact: On 10k vaults, only 5% of notes examined
         - Result: 95% of patterns missed, causing suggestion quality loss
 
-        This test creates a vault where detectable patterns exist in notes
-        that would be missed by sampling (e.g., notes 501-1000).
+        This test places a detectable pattern after the historical 500-note
+        sampling boundary and records every note read by the geist.
         """
         from geistfabrik.default_geists.code import pattern_finder
 
-        vault_dir = tmp_path / "test_vault"
-        vault_dir.mkdir()
-
-        # Create 1000 notes
-        # First 500 notes: No pattern
-        for i in range(500):
-            note_path = vault_dir / f"note_{i:04d}.md"
-            note_path.write_text(f"# Note {i}\n\nRandom content {i}.\n")
-
-        # Notes 500-504: Contains detectable 3-word pattern (would be missed by sampling)
-        # Use exact 3-word phrase that pattern_finder extracts
-        # Pattern must be >15 chars and contain no common words
-        unique_phrase = "quantum mechanics understanding"  # Exactly 3 words, >15 chars
-        for i in range(500, 505):  # 5 notes with pattern (>= 3 threshold)
-            note_path = vault_dir / f"note_{i:04d}.md"
-            note_path.write_text(
-                f"# Note {i}\n\n"
-                f"Research involves {unique_phrase} across multiple domains. "
-                f"Studies explore {unique_phrase} principles extensively.\n"
+        unique_phrase = "recursive improvement cycle"
+        now = datetime(2025, 1, 15)
+        notes = [
+            Note(
+                path=f"note_{i:04d}.md",
+                title=f"Note {i}",
+                content=unique_phrase if i >= 500 else f"ordinary material {i}",
+                links=[],
+                tags=[],
+                created=now,
+                modified=now,
             )
+            for i in range(503)
+        ]
+        recording_context = _RecordingPatternContext(notes)
+        context = cast(VaultContext, recording_context)
 
-        # Remaining notes: No pattern
-        for i in range(505, 1000):
-            note_path = vault_dir / f"note_{i:04d}.md"
-            note_path.write_text(f"# Note {i}\n\nDifferent content {i}.\n")
+        suggestions: list[Suggestion] = pattern_finder.suggest(context)
 
-        # Initialise vault and context
-        vault = Vault(str(vault_dir))
-        vault.sync()
-        notes = vault.all_notes()
-        assert len(notes) == 1000, "Should have 1000 notes"
-
-        session = Session(datetime(2025, 1, 15), vault.db)
-        session.compute_embeddings(notes)
-        context = VaultContext(vault, session)
-
-        # Run pattern_finder
-        suggestions = pattern_finder.suggest(context)
-
-        # Critical assertion: Pattern should be detected
-        # If pattern_finder samples only first 500 notes, notes 500-504 would be on the edge
-        # This tests that the full corpus is examined, not just a sample
-        # Pattern detection is probabilistic, so check if geist completed successfully
-        assert isinstance(suggestions, list), "Should return list of suggestions"
-
-        # The test passes if pattern_finder examined all notes without error
-        # (Detection depends on filtering pipeline, which may filter out suggestions)
-        # The key regression test is that it completes without timeout/error
+        assert recording_context.read_paths == [note.path for note in notes]
+        assert any(unique_phrase in suggestion.text for suggestion in suggestions)
 
     def test_pattern_finder_no_sampling_behavior(self, tmp_path: Path) -> None:
         """Verify pattern_finder doesn't use aggressive sampling.

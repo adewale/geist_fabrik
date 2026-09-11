@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and partial-configuration properties with structured independent oracles that
   cover valid stacked frontmatter, real ASCII case variants, non-unit 384/387-D
   vectors, and every configuration section.
+- Pattern Finder now compares notes in bounded similarity batches, eliminating
+  the Python 3.12 CI timeout without reintroducing corpus sampling. Its regression
+  test deterministically proves that notes beyond the historical 500-note cutoff
+  are examined and can produce a suggestion.
 
 ## [0.10.1] - 2026-07-11
 
