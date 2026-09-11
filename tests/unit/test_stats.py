@@ -42,9 +42,9 @@ def vault_with_embeddings(sample_notes, mock_embedding_computer, temp_dir):
     # Sync vault to load notes
     vault.sync()
 
-    # Compute embeddings for a session
+    # Compute from the canonical rows produced by filesystem synchronization.
     session = Session(datetime(2025, 1, 15), vault.db, computer=mock_embedding_computer)
-    session.compute_embeddings(sample_notes)
+    session.compute_embeddings(vault.all_notes())
 
     yield vault
     vault.close()
@@ -76,10 +76,11 @@ def _create_vault_with_sessions(vault_path, notes, session_dates, embedding_comp
     vault = Vault(vault_path, db_path)
     vault.sync()
 
-    # Compute embeddings for all sessions
+    # Compute from the canonical rows produced by filesystem synchronization.
+    persisted_notes = vault.all_notes()
     for session_date in session_dates:
         session = Session(session_date, vault.db, computer=embedding_computer)
-        session.compute_embeddings(notes)
+        session.compute_embeddings(persisted_notes)
 
     return vault
 

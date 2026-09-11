@@ -27,7 +27,7 @@ def test_concurrent_sync(tmp_path: Path) -> None:
     def sync_vault() -> int:
         vault = Vault(vault_path, db_path)
         try:
-            barrier.wait()
+            barrier.wait(timeout=5)
             return vault.sync()
         finally:
             vault.close()
@@ -64,7 +64,7 @@ def test_concurrent_same_date_session_creation_is_idempotent(tmp_path: Path) -> 
     def create_session() -> int:
         db = init_db(db_path)
         try:
-            barrier.wait()
+            barrier.wait(timeout=5)
             return Session(datetime(2024, 1, 1), db).session_id
         finally:
             db.close()

@@ -156,27 +156,9 @@ def init_db(db_path: Path | None = None) -> sqlite3.Connection:
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
         conn.execute("PRAGMA synchronous = FULL")
-        tables = {
-            str(row[0])
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-            )
-        }
-        current_version = get_schema_version(conn)
-        if current_version > SCHEMA_VERSION:
-            raise RuntimeError(
-                f"Database schema version {current_version} is newer than supported "
-                f"version {SCHEMA_VERSION}; refusing to downgrade"
-            )
-        if tables and current_version == 0:
-            raise RuntimeError(
-                "Existing database has application tables but no supported schema version; "
-                "refusing to modify an ambiguous legacy database"
-            )
-
-        _upgrade_and_reconcile(conn, current_version)
+        _upgrade_and_reconcile(conn, allow_empty_unversioned=True)
         return conn
-    except Exception:
+    except BaseException:
         if conn.in_transaction:
             conn.rollback()
         conn.close()
@@ -195,12 +177,37 @@ def _execute_schema_sql(conn: sqlite3.Connection) -> None:
         raise RuntimeError("Incomplete statement in SCHEMA_SQL")
 
 
-def _upgrade_and_reconcile(conn: sqlite3.Connection, current_version: int) -> None:
-    """Apply ordered migrations and current DDL in one owned transaction."""
+def _upgrade_and_reconcile(
+    conn: sqlite3.Connection, *, allow_empty_unversioned: bool
+) -> None:
+    """Validate, migrate, and reconcile while holding the schema writer lock."""
     if conn.in_transaction:
         raise RuntimeError("Schema migration requires ownership of the SQLite transaction")
     conn.execute("BEGIN IMMEDIATE")
     try:
+        # Read both structural and version metadata only after acquiring the
+        # writer lock. Otherwise a newer process can stamp a future version
+        # between validation and this process's final user_version write.
+        tables = {
+            str(row[0])
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+        current_version = get_schema_version(conn)
+        if current_version > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema version {current_version} is newer than supported "
+                f"version {SCHEMA_VERSION}; refusing to downgrade"
+            )
+        if current_version == 0 and (tables or not allow_empty_unversioned):
+            if tables:
+                raise RuntimeError(
+                    "Existing database has application tables but no supported schema version; "
+                    "refusing to modify an ambiguous legacy database"
+                )
+            raise RuntimeError("Cannot migrate an unversioned application database")
+
         if current_version > 0:
             _apply_ordered_migrations(conn, current_version)
         # user_version records migration intent, not structural truth. Repair
@@ -210,8 +217,9 @@ def _upgrade_and_reconcile(conn: sqlite3.Connection, current_version: int) -> No
         _execute_schema_sql(conn)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-    except Exception:
-        conn.rollback()
+    except BaseException:
+        if conn.in_transaction:
+            conn.rollback()
         raise
 
 
@@ -226,15 +234,7 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
 
 def migrate_schema(conn: sqlite3.Connection) -> None:
     """Migrate and reconcile a supported database in one owned transaction."""
-    current_version = get_schema_version(conn)
-    if current_version > SCHEMA_VERSION:
-        raise RuntimeError(
-            f"Database schema version {current_version} is newer than supported "
-            f"version {SCHEMA_VERSION}"
-        )
-    if current_version == 0:
-        raise RuntimeError("Cannot migrate an unversioned application database")
-    _upgrade_and_reconcile(conn, current_version)
+    _upgrade_and_reconcile(conn, allow_empty_unversioned=False)
 
 
 def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:

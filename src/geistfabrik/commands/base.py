@@ -369,8 +369,9 @@ class BaseCommand(ABC):
             embedding_retention=embedding_retention,
         )
 
-        self.print_verbose(f"Computing embeddings for {len(vault.all_notes())} notes...")
-        session.compute_embeddings(vault.all_notes())
+        notes = vault.all_notes()
+        self.print_verbose(f"Computing embeddings for {len(notes)} notes...")
+        session.compute_embeddings(notes)
 
         # Create VaultContext
         vault_context = VaultContext(

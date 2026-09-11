@@ -126,6 +126,153 @@ def test_init_db_rejects_malformed_database_without_overwriting(tmp_path: Path) 
     assert db_path.read_bytes() == original_bytes
 
 
+def test_frozen_v4_database_migrates_without_losing_data(tmp_path: Path) -> None:
+    """The oldest supported frozen schema reaches current with sentinel rows intact."""
+    db_path = tmp_path / "v4.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.executescript("""
+        CREATE TABLE notes (
+            path TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created TEXT NOT NULL,
+            modified TEXT NOT NULL,
+            file_mtime REAL NOT NULL,
+            is_virtual INTEGER DEFAULT 0,
+            source_file TEXT,
+            entry_date TEXT
+        );
+        CREATE TABLE links (
+            source_path TEXT NOT NULL,
+            target TEXT NOT NULL,
+            display_text TEXT,
+            is_embed INTEGER NOT NULL DEFAULT 0,
+            block_ref TEXT,
+            FOREIGN KEY (source_path) REFERENCES notes(path) ON DELETE CASCADE
+        );
+        CREATE TABLE tags (
+            note_path TEXT NOT NULL,
+            tag TEXT NOT NULL,
+            FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
+        );
+        CREATE TABLE embeddings (
+            note_path TEXT PRIMARY KEY,
+            embedding BLOB NOT NULL,
+            model_version TEXT NOT NULL,
+            computed_at TEXT NOT NULL,
+            FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
+        );
+        CREATE TABLE sessions (
+            session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL UNIQUE,
+            vault_state_hash TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE session_embeddings (
+            session_id INTEGER NOT NULL,
+            note_path TEXT NOT NULL,
+            embedding BLOB NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE,
+            PRIMARY KEY (session_id, note_path)
+        );
+        CREATE TABLE session_suggestions (
+            session_date TEXT NOT NULL,
+            geist_id TEXT NOT NULL,
+            suggestion_text TEXT NOT NULL,
+            block_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (session_date, block_id)
+        );
+        CREATE INDEX idx_links_source ON links(source_path);
+        CREATE INDEX idx_links_target ON links(target);
+        PRAGMA user_version = 4;
+    """)
+    conn.execute(
+        "INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("sentinel.md", "Sentinel", "keep me", "2024-01-01", "2024-01-02", 1.0, 0, None, None),
+    )
+    conn.execute(
+        "INSERT INTO links VALUES (?, ?, ?, ?, ?)",
+        ("sentinel.md", "target", None, 0, None),
+    )
+    conn.execute("INSERT INTO tags VALUES (?, ?)", ("sentinel.md", "keep"))
+    conn.execute(
+        "INSERT INTO embeddings VALUES (?, ?, ?, ?)",
+        ("sentinel.md", b"semantic", "v4", "2024-01-02"),
+    )
+    conn.execute(
+        "INSERT INTO sessions (date, vault_state_hash, created_at) VALUES (?, ?, ?)",
+        ("2024-01-02", "sentinel-hash", "2024-01-02"),
+    )
+    session_id = conn.execute(
+        "SELECT session_id FROM sessions WHERE date = ?", ("2024-01-02",)
+    ).fetchone()
+    assert session_id is not None
+    conn.execute(
+        "INSERT INTO session_embeddings VALUES (?, ?, ?)",
+        (session_id[0], "sentinel.md", b"historical"),
+    )
+    conn.commit()
+    conn.close()
+
+    migrated = init_db(db_path)
+    migrated.close()
+    observer = sqlite3.connect(db_path)
+    observer.execute("PRAGMA foreign_keys = ON")
+    assert get_schema_version(observer) == SCHEMA_VERSION
+    assert observer.execute(
+        "SELECT title, content FROM notes WHERE path = ?", ("sentinel.md",)
+    ).fetchone() == ("Sentinel", "keep me")
+    assert observer.execute(
+        "SELECT target FROM links WHERE source_path = ?", ("sentinel.md",)
+    ).fetchall() == [("target",)]
+    assert observer.execute(
+        "SELECT tag FROM tags WHERE note_path = ?", ("sentinel.md",)
+    ).fetchall() == [("keep",)]
+    assert observer.execute(
+        "SELECT embedding, model_version FROM embeddings WHERE note_path = ?",
+        ("sentinel.md",),
+    ).fetchone() == (b"semantic", "v4")
+    assert observer.execute(
+        "SELECT vault_state_hash FROM sessions WHERE date = ?", ("2024-01-02",)
+    ).fetchone() == ("sentinel-hash",)
+    assert observer.execute(
+        "SELECT embedding, cluster_label FROM session_embeddings WHERE note_path = ?",
+        ("sentinel.md",),
+    ).fetchone() == (b"historical", None)
+    tables = {
+        str(row[0])
+        for row in observer.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    assert {"embedding_metrics", "geist_status"} <= tables
+    assert observer.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_links_target_source'"
+    ).fetchone() == (1,)
+    assert observer.execute("PRAGMA foreign_key_check").fetchall() == []
+    observer.close()
+
+
+def test_migration_validates_version_after_acquiring_writer_lock(tmp_path: Path) -> None:
+    """Schema metadata is read only after migration owns the writer transaction."""
+    db_path = tmp_path / "lock-order.db"
+    init_db(db_path).close()
+    conn = sqlite3.connect(db_path)
+    statements: list[str] = []
+    conn.set_trace_callback(statements.append)
+
+    migrate_schema(conn)
+
+    normalized = [statement.strip().upper() for statement in statements]
+    begin_index = normalized.index("BEGIN IMMEDIATE")
+    version_index = normalized.index("PRAGMA USER_VERSION")
+    assert begin_index < version_index
+    conn.close()
+
+
 def test_migration_v5_to_v6_adds_composite_index() -> None:
     """Test migration from v5 to v6 adds idx_links_target_source index."""
     # Create v5 schema manually

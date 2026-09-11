@@ -41,6 +41,10 @@ from .sqlite_transaction import owned_transaction
 logger = logging.getLogger(__name__)
 
 
+class ConcurrentVaultChangeError(RuntimeError):
+    """Raised when embedding inputs become stale before they can be committed."""
+
+
 class EmbeddingModel(Protocol):
     """Structural interface required from embedding model implementations."""
 
@@ -379,6 +383,7 @@ class Session:
         self.date = date
         self.db = db
         self.session_id = self._get_or_create_session()
+        self._snapshot_data_version = self._read_data_version()
         self.computer = computer if computer is not None else EmbeddingComputer()
         self._backend_type = backend
         self._backend: VectorSearchBackend | None = None
@@ -415,8 +420,15 @@ class Session:
         """
         hasher = hashlib.sha256()
         for note in sorted(notes, key=lambda n: n.path):
-            hasher.update(note.path.encode())
-            hasher.update(str(note.modified).encode())
+            for value in (
+                note.path,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+            ):
+                encoded = value.encode()
+                hasher.update(len(encoded).to_bytes(8, "big"))
+                hasher.update(encoded)
         return hasher.hexdigest()
 
     def _compute_content_hash(self, content: str) -> str:
@@ -486,6 +498,50 @@ class Session:
             ),
         )
 
+    def _read_data_version(self) -> int:
+        """Read this connection's token for commits made by other connections."""
+        row = self.db.execute("PRAGMA data_version").fetchone()
+        if row is None:
+            raise sqlite3.DatabaseError("Could not read SQLite data_version")
+        return int(row[0])
+
+    @staticmethod
+    def _embedding_input_snapshot(notes: list[Note]) -> list[tuple[str, str, str, str]]:
+        """Return the database-comparable fields that determine embeddings."""
+        return sorted(
+            (
+                note.path,
+                note.content,
+                note.created.isoformat(),
+                note.modified.isoformat(),
+            )
+            for note in notes
+        )
+
+    def _assert_embedding_inputs_are_current(self, notes: list[Note]) -> None:
+        """Require every supplied note to match its current committed row."""
+        expected = self._embedding_input_snapshot(notes)
+        persisted = {
+            str(path): (str(content), str(created), str(modified))
+            for path, content, created, modified in self.db.execute(
+                "SELECT path, content, created, modified FROM notes"
+            ).fetchall()
+        }
+        expected_paths = {row[0] for row in expected}
+        inputs_match = (
+            len(expected_paths) == len(expected)
+            and expected_paths == set(persisted)
+            and all(
+                persisted[path] == (content, created, modified)
+                for path, content, created, modified in expected
+            )
+        )
+        if not inputs_match:
+            raise ConcurrentVaultChangeError(
+                "Embedding inputs do not match the committed vault snapshot; rerun the "
+                "command from a fresh synchronized snapshot"
+            )
+
     def compute_embeddings(self, notes: list[Note]) -> None:
         """Compute and store session embeddings for all notes.
 
@@ -497,9 +553,20 @@ class Session:
         """
         if self.db.in_transaction:
             raise RuntimeError("Session.compute_embeddings requires an idle SQLite connection")
+        if self._backend is not None:
+            self._backend.close()
+            self._backend = None
 
         # Compute expensive/model-dependent values before taking SQLite's
-        # single-writer lock. Nothing persistent changes if model work fails.
+        # single-writer lock. data_version is an optimistic-concurrency token:
+        # after the lock is acquired we must still be looking at the same
+        # committed database state from which caches/notes were read.
+        initial_data_version = self._read_data_version()
+        if initial_data_version != self._snapshot_data_version:
+            raise ConcurrentVaultChangeError(
+                "Vault changed before the embedding snapshot was accepted; rerun the command "
+                "from a fresh synchronized snapshot"
+            )
         vault_hash = self.compute_vault_state_hash(notes)
 
         # Separate notes into cached and uncached
@@ -554,6 +621,15 @@ class Session:
             embedding_rows.append((self.session_id, note.path, embedding_bytes))
 
         with owned_transaction(self.db, "Session.compute_embeddings"):
+            current_data_version = self._read_data_version()
+            if current_data_version != initial_data_version:
+                raise ConcurrentVaultChangeError(
+                    "Vault changed while embeddings were being computed; rerun the command "
+                    "from a fresh synchronized snapshot"
+                )
+            # data_version covers commits after method entry. This exact state
+            # comparison also covers a Note list captured before method entry.
+            self._assert_embedding_inputs_are_current(notes)
             self.db.execute(
                 "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ?",
                 (vault_hash, self.session_id),
@@ -572,8 +648,6 @@ class Session:
             )
             pruned = self._prune_old_session_embeddings()
 
-        # A loaded backend is a projection of the previous committed rows.
-        self._backend = None
         if pruned > 0:
             logger.info(
                 f"Pruned {pruned} session-embedding rows beyond retention "
@@ -688,7 +762,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
         b: Second embedding
 
     Returns:
-        Cosine similarity (0-1)
+        Cosine similarity in [-1, 1]
     """
     # Handle zero vectors
     norm_a = np.linalg.norm(a)
@@ -707,10 +781,13 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
         # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
-            return float(np.dot(a, b))
+            similarity = float(np.dot(a, b))
+            return max(-1.0, min(1.0, similarity))
 
-    # Use sklearn for vectorized computation
-    return float(sklearn_cosine(a.reshape(1, -1), b.reshape(1, -1))[0, 0])
+    # Floating-point accumulation can drift a few ulps outside the mathematical
+    # cosine range; keep the public contract exact.
+    similarity = float(sklearn_cosine(a.reshape(1, -1), b.reshape(1, -1))[0, 0])
+    return max(-1.0, min(1.0, similarity))
 
 
 def find_similar_notes(

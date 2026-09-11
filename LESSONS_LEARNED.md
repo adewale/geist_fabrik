@@ -525,6 +525,37 @@ requires a known-good backup or an explicit history-losing rebuild.
 
 ---
 
+## The Proof Boundary Must Match the Guarantee Boundary
+
+**Date:** 2026-07-11
+**Context:** Multi-agent review of the SQLite hardening changes
+
+**The Problem:** Fixing transaction rollback made each write atomic, but review still found races
+outside those transaction boundaries. Embeddings were computed from one database version and could
+be committed after another connection published newer state. Every sqlite-vec backend projected its
+session into one global table, so a later backend changed what an earlier instance queried. Schema
+version checks happened before the migration lock. Recovery tests manufactured persisted-looking
+state without crossing a real process boundary.
+
+**The Insight:** The recurring defect was a **scope mismatch**: the state or test oracle lived at a
+narrower scope than the guarantee. Operation-local atomicity cannot prove freshness across time;
+one global projection cannot represent instance-local session state; an unlocked check cannot guard
+a locked mutation; and an in-process reconstruction cannot prove process-restart recovery.
+
+**The Principle:** Draw the full proof boundary before implementing persistence behavior: identity,
+transaction, connection, process, and time. Scope derived state no wider than its owner, validate
+optimistic work again after acquiring the write lock, perform check-and-mutate under the same lock,
+and make tests cross every boundary named by the claim.
+
+**Impact:** Sessions capture SQLite's `data_version` before production note snapshots, recheck it at
+method entry and under the writer lock, and compare supplied note fields with committed rows before
+publishing embeddings. sqlite-vec projections are instance-private TEMP tables with explicit
+lifecycle cleanup; schema metadata is validated under `BEGIN IMMEDIATE`; rollback is fault-injected
+after writes begin; v4 migration uses a frozen file-backed fixture; and journal recovery is exercised
+through an actual abruptly terminated child process.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_

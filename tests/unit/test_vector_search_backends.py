@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from geistfabrik.embeddings import Session
+from geistfabrik.models import Note
 from geistfabrik.schema import init_db
 from geistfabrik.vector_search import InMemoryVectorBackend, SqliteVecBackend
 
@@ -550,22 +551,116 @@ class TestSqliteVecBackend:
         assert "note1.md" in backend._path_to_id
         assert "note2.md" in backend._path_to_id
 
-        # Check that embeddings were inserted into vec_search
-        cursor = db.execute("SELECT COUNT(*) FROM vec_search")
-        count = cursor.fetchone()[0]
-        assert count == 4
+        # Public lookup proves that the private projection was populated.
+        assert np.allclose(
+            backend.get_embedding("note1.md"),
+            sample_embeddings["embeddings"]["note1.md"],
+        )
 
-    def test_load_embeddings_nonexistent_session(self, db):
+    def test_instances_keep_session_private_projections(self, db, sample_embeddings):
+        """Loading another backend cannot replace this instance's session projection."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        second_date = "2025-01-16"
+        db.execute(
+            "INSERT INTO sessions (date, created_at) VALUES (?, ?)",
+            (second_date, datetime.now().isoformat()),
+        )
+        second_id = db.execute(
+            "SELECT session_id FROM sessions WHERE date = ?", (second_date,)
+        ).fetchone()[0]
+        second_embedding = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        db.execute(
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) "
+            "VALUES (?, ?, ?)",
+            (second_id, "note1.md", second_embedding.tobytes()),
+        )
+        db.commit()
+
+        first_backend = SqliteVecBackend(db, dim=3)
+        first_backend.load_embeddings(sample_embeddings["session_date"])
+        second_backend = SqliteVecBackend(db, dim=3)
+        second_backend.load_embeddings(second_date)
+
+        assert np.allclose(
+            first_backend.get_embedding("note1.md"),
+            sample_embeddings["embeddings"]["note1.md"],
+        )
+        assert np.allclose(second_backend.get_embedding("note1.md"), second_embedding)
+
+    def test_close_drops_instance_private_projection(self, db, sample_embeddings):
+        """Disposed backends do not accumulate full projections on a reused connection."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        baseline = db.execute(
+            "SELECT COUNT(*) FROM sqlite_temp_master "
+            "WHERE type = 'table' AND name LIKE '_geist_vec_search_%'"
+        ).fetchone()[0]
+        for _ in range(5):
+            backend = SqliteVecBackend(db, dim=3)
+            backend.load_embeddings(sample_embeddings["session_date"])
+            backend.close()
+
+        remaining = db.execute(
+            "SELECT COUNT(*) FROM sqlite_temp_master "
+            "WHERE type = 'table' AND name LIKE '_geist_vec_search_%'"
+        ).fetchone()[0]
+        assert remaining == baseline
+
+    def test_session_recompute_disposes_previous_projection(
+        self, db, sample_embeddings, mock_embedding_computer
+    ):
+        """Session invalidation closes its loaded sqlite-vec projection first."""
+        if not SQLITE_VEC_LOADABLE:
+            pytest.skip("sqlite-vec not loadable")
+
+        backend = SqliteVecBackend(db, dim=3)
+        backend.load_embeddings(sample_embeddings["session_date"])
+        session = Session(
+            datetime.fromisoformat(sample_embeddings["session_date"]),
+            db,
+            computer=mock_embedding_computer,
+        )
+        session._backend = backend
+        notes = [
+            Note(
+                path=str(path),
+                title=str(title),
+                content=str(content),
+                links=[],
+                tags=[],
+                created=datetime.fromisoformat(str(created)),
+                modified=datetime.fromisoformat(str(modified)),
+            )
+            for path, title, content, created, modified in db.execute(
+                "SELECT path, title, content, created, modified FROM notes ORDER BY path"
+            ).fetchall()
+        ]
+
+        session.compute_embeddings(notes)
+
+        assert db.execute(
+            "SELECT 1 FROM sqlite_temp_master WHERE type = 'table' AND name = ?",
+            (backend._search_table,),
+        ).fetchone() is None
+        assert session._backend is None
+
+    def test_load_embeddings_nonexistent_session(self, db, sample_embeddings):
         """Test loading embeddings for a session that doesn't exist."""
         if not SQLITE_VEC_LOADABLE:
             pytest.skip("sqlite-vec not loadable")
 
         backend = SqliteVecBackend(db, dim=3)
+        backend.load_embeddings(sample_embeddings["session_date"])
         backend.load_embeddings("2099-12-31")
 
         assert backend.session_id == 0
         assert backend._path_to_id == {}
         assert backend._id_to_path == {}
+        with pytest.raises(KeyError, match="Note not found"):
+            backend.get_embedding("note1.md")
 
     def test_find_similar_returns_correct_count(self, db, sample_embeddings):
         """Test that find_similar returns the requested number of results."""
@@ -905,9 +1000,11 @@ class TestBackendIntegration:
             backend_vec = SqliteVecBackend(db, dim=387)
             backend_vec.load_embeddings(session_date)
 
-            # Should have loaded all 4 embeddings into vec_search
-            count = db.execute("SELECT COUNT(*) FROM vec_search").fetchone()[0]
-            assert count == 4
+            # Should have loaded all 4 embeddings into its private projection.
+            assert np.allclose(
+                backend_vec.get_embedding("Projects/AI Research.md"),
+                embeddings["Projects/AI Research.md"],
+            )
 
             # Should get same results as InMemory
             results_vec = backend_vec.find_similar(query, count=3)

@@ -13,9 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed virtual-note paths still cascade cleanly.
 - Every SQLite writer now owns an explicit transaction, rejects a pre-existing
   transaction, and rolls back failures so another component cannot accidentally
-  publish partial work. Expensive embedding inference runs before the write lock.
+  publish partial work. Expensive embedding inference runs before the write lock,
+  with optimistic version validation preventing stale results from overwriting a
+  newer concurrent commit.
+- sqlite-vec search projections are instance-private, explicitly disposable TEMP
+  tables, preventing cross-session replacement and connection-lifetime buildup.
+- Schema version and structure checks now occur under the same writer lock as
+  migration, closing a mixed-version downgrade race.
+- Cosine similarity is clamped to its mathematical `[-1, 1]` range, preventing
+  floating-point accumulation from escaping the public contract by a few ulps.
 - Replaced the false database-corruption recovery check with an honest
   fail-without-overwrite contract and documented backup/rebuild recovery limits.
+  Added frozen-v4 migration coverage, mid-write rollback fault injection, and an
+  actual child-process interruption/recovery test for journal reconciliation.
 
 ## [0.10.1] - 2026-07-11
 

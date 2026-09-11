@@ -310,7 +310,10 @@ Every top-level writer requires an idle connection and owns `BEGIN IMMEDIATE`
 through commit. Any escaping exception, including a commit failure, rolls the
 transaction back; one component therefore cannot commit another component's
 pending rows. Expensive embedding inference is completed before taking the
-single-writer lock.
+single-writer lock. The session's pre-snapshot SQLite `data_version` is checked
+at method entry and again under the lock, and supplied note fields are compared
+with committed rows before mutation, so a stale computation cannot overwrite a
+newer commit.
 
 Stable note paths use SQLite UPSERT/UPDATE semantics. Updating a note explicitly
 invalidates its current semantic cache while preserving historical session
@@ -320,8 +323,12 @@ an existing note.
 
 Managed connections enable foreign keys, set a 5-second busy timeout, and use
 `FULL` synchronous mode. GeistFabrik supports SQLite's rollback journal and an
-existing WAL database rather than forcing one journal mode. A fresh read-only
-connection is used in persistence tests as the committed-state oracle.
+existing WAL database rather than forcing one journal mode. The optional
+sqlite-vec backend builds an instance-private TEMP projection from durable
+`session_embeddings`, so loading one session cannot change another backend's
+queries. Schema version and structure are validated only after the migration
+writer lock is held. A fresh read-only connection is used in persistence tests
+as the committed-state oracle.
 
 Arbitrary database corruption is not automatically recoverable. Initialization
 fails without overwriting a malformed file; restoration requires a known-good

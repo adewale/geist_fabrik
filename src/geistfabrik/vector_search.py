@@ -6,6 +6,7 @@ allowing users to choose between in-memory and sqlite-vec implementations.
 
 import sqlite3
 from abc import ABC, abstractmethod
+from itertools import count
 
 import numpy as np
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
@@ -14,6 +15,8 @@ from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
 
 from .config import TOTAL_DIM
 from .sqlite_transaction import owned_transaction
+
+_VEC_TABLE_COUNTER = count()
 
 
 class VectorSearchBackend(ABC):
@@ -27,6 +30,9 @@ class VectorSearchBackend(ABC):
             session_date: ISO date string (YYYY-MM-DD)
         """
         pass
+
+    def close(self) -> None:
+        """Release backend-specific derived state."""
 
     @abstractmethod
     def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
@@ -237,8 +243,8 @@ class SqliteVecBackend(VectorSearchBackend):
     Characteristics:
     - Scales better for large vaults (5000+ notes)
     - Native SQL vector operations
-    - Disk-based with intelligent caching
-    - Uses vec0 virtual table with path mapping
+    - Durable embeddings remain in session_embeddings
+    - Uses an instance-private TEMP vec0 projection with persistent path mapping
     """
 
     def __init__(self, db: sqlite3.Connection, dim: int = TOTAL_DIM):
@@ -257,6 +263,8 @@ class SqliteVecBackend(VectorSearchBackend):
         self.session_id: int = 0
         self._path_to_id: dict[str, int] = {}  # Cache for path -> vec_id mapping
         self._id_to_path: dict[int, str] = {}  # Cache for vec_id -> path mapping
+        self._search_table = f"_geist_vec_search_{next(_VEC_TABLE_COUNTER)}"
+        self._closed = False
         self._setup_vec_tables()
 
     def _setup_vec_tables(self) -> None:
@@ -282,10 +290,11 @@ class SqliteVecBackend(VectorSearchBackend):
                 )
             """)
 
-            # Create virtual table for vector search with cosine distance
-            # rowid corresponds to vec_id from vec_path_mapping
+            # TEMP plus a per-instance name prevents one Session/backend from
+            # replacing another backend's loaded projection. Durable vectors
+            # remain in session_embeddings; this table is only an accelerator.
             self.db.execute(f"""
-                CREATE VIRTUAL TABLE IF NOT EXISTS vec_search USING vec0(
+                CREATE VIRTUAL TABLE temp.{self._search_table} USING vec0(
                     embedding float[{self.dim}] distance_metric=cosine
                 )
             """)
@@ -364,13 +373,6 @@ class SqliteVecBackend(VectorSearchBackend):
         row = self.db.execute(
             "SELECT session_id FROM sessions WHERE date = ?", (session_date,)
         ).fetchone()
-        if row is None:
-            self.session_date = session_date
-            self.session_id = 0
-            self._path_to_id = {}
-            self._id_to_path = {}
-            return
-
         previous_state = (
             self.session_date,
             self.session_id,
@@ -378,28 +380,30 @@ class SqliteVecBackend(VectorSearchBackend):
             self._id_to_path,
         )
         self.session_date = session_date
-        self.session_id = int(row[0])
+        self.session_id = int(row[0]) if row is not None else 0
         self._path_to_id = {}
         self._id_to_path = {}
         try:
             with owned_transaction(self.db, "SqliteVecBackend.load_embeddings"):
-                self.db.execute("DELETE FROM vec_search")
-                cursor = self.db.execute(
-                    """
-                    SELECT note_path, embedding
-                    FROM session_embeddings
-                    WHERE session_id = ?
-                    """,
-                    (self.session_id,),
-                )
-
-                for path, blob in cursor:
-                    embedding = np.frombuffer(blob, dtype=np.float32)
-                    vec_id = self._get_or_create_vec_id(path)
-                    self.db.execute(
-                        "INSERT INTO vec_search(rowid, embedding) VALUES (?, ?)",
-                        (vec_id, embedding.tobytes()),
+                self.db.execute(f"DELETE FROM temp.{self._search_table}")
+                if row is not None:
+                    cursor = self.db.execute(
+                        """
+                        SELECT note_path, embedding
+                        FROM session_embeddings
+                        WHERE session_id = ?
+                        """,
+                        (self.session_id,),
                     )
+
+                    for path, blob in cursor:
+                        embedding = np.frombuffer(blob, dtype=np.float32)
+                        vec_id = self._get_or_create_vec_id(path)
+                        self.db.execute(
+                            f"INSERT INTO temp.{self._search_table}(rowid, embedding) "
+                            "VALUES (?, ?)",
+                            (vec_id, embedding.tobytes()),
+                        )
         except BaseException:
             (
                 self.session_date,
@@ -408,6 +412,17 @@ class SqliteVecBackend(VectorSearchBackend):
                 self._id_to_path,
             ) = previous_state
             raise
+
+    def close(self) -> None:
+        """Drop this backend's connection-local vector projection."""
+        if self._closed:
+            return
+        with owned_transaction(self.db, "SqliteVecBackend.close"):
+            self.db.execute(f"DROP TABLE IF EXISTS temp.{self._search_table}")
+        self._path_to_id = {}
+        self._id_to_path = {}
+        self.session_id = 0
+        self._closed = True
 
     def find_similar(self, query_embedding: np.ndarray, count: int = 10) -> list[tuple[str, float]]:
         """Find similar notes via sqlite-vec.
@@ -421,9 +436,9 @@ class SqliteVecBackend(VectorSearchBackend):
         """
         # Query vec_search for similar vectors
         cursor = self.db.execute(
-            """
+            f"""
             SELECT rowid, distance
-            FROM vec_search
+            FROM temp.{self._search_table}
             WHERE embedding MATCH ?
             ORDER BY distance
             LIMIT ?
@@ -500,7 +515,9 @@ class SqliteVecBackend(VectorSearchBackend):
             vec_id = self._path_to_id[path]
 
         # Get embedding from vec_search
-        cursor = self.db.execute("SELECT embedding FROM vec_search WHERE rowid = ?", (vec_id,))
+        cursor = self.db.execute(
+            f"SELECT embedding FROM temp.{self._search_table} WHERE rowid = ?", (vec_id,)
+        )
         row = cursor.fetchone()
 
         if row is None:
