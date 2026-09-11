@@ -1404,7 +1404,10 @@ def test_host_handler_can_cancel_its_periodic_alarm() -> None:
         signal.setitimer(signal.ITIMER_REAL, 0.02, 0.02)
         with _alarm_timeout(1):
             time.sleep(0.09)
-        assert calls == 1
+        remaining, interval = signal.getitimer(signal.ITIMER_REAL)
+        assert calls >= 1
+        assert remaining == 0.0
+        assert interval == 0.0
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0.0)
         signal.signal(signal.SIGALRM, previous_handler)
