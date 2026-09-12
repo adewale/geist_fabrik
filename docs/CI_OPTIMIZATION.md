@@ -1,5 +1,9 @@
 # CI Optimisation Summary
 
+> **Historical snapshot.** This records an earlier CI design and is not the
+> current workflow contract. See [TESTING.md](TESTING.md), `scripts/validate.sh`,
+> and `.github/workflows/test.yml` for the maintained platform matrix and gates.
+
 ## Problem Analysis
 
 CI builds were taking 14-19 minutes due to:

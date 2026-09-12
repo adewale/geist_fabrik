@@ -102,7 +102,7 @@ This script runs the same required checks as GitHub CI:
 
 1. Dependency sync, Ruff, Mypy strict, ty, database, and security checks
 2. Unit and integration tests with the canonical fast marker selection
-3. Combined branch coverage and acceptance-criteria verification
+3. Explicit branch-only coverage and acceptance-criteria verification
 4. Wheel/sdist build, artifact inspection, and isolated offline real-model inference
 
 A green run is the mandatory local pre-push gate. CI also exercises additional
@@ -234,7 +234,7 @@ uv run pytest tests/integration -v -m "$MARKERS"
 uv run pytest tests/unit/test_vault.py -v
 
 # Single test function
-uv run pytest tests/unit/test_vault.py::test_sync_notes -v
+uv run pytest tests/unit/test_vault.py::test_sync_no_changes -v
 ```
 
 ### Test Performance
@@ -409,4 +409,5 @@ Before every push:
 - [ ] `./scripts/validate.sh` passes ✓
 - [ ] Commits follow conventional format ✓
 
-**If both pre-commit and validate.sh pass, your PR will pass CI!** 🎉
+**If both pre-commit and validate.sh pass, the local required checks are green.**
+CI may still reveal platform-specific or service-side failures.

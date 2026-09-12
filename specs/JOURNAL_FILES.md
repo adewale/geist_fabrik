@@ -100,7 +100,7 @@ Second entry here.
 ```
 
 **Requirements for Detection:**
-- At least **2 date headings** in the file
+- At least **2 H2 headings** in the file
 - At least **50%** of H2 headings must be valid dates
 - Dates must use level-2 headings (`##`)
 
@@ -131,12 +131,7 @@ You can link to journal entries in multiple ways:
 
 **By Virtual Path:**
 ```markdown
-See [[Daily Journal.md/2025-01-15]] for details.
-```
-
-**By Title:**
-```markdown
-See [[Daily Journal - 2025-01-15]] for details.
+See [[Daily Journal#2025-01-15]] for details.
 ```
 
 **By Date Reference (from same journal):**
@@ -197,8 +192,8 @@ GeistFabrik recognizes these date heading formats:
 #### ❌ Don't
 
 - **Don't use H3+ for dates** - only H2 headings are detected
-- **Don't have just one date** - need at least 2 for detection
-- **Don't mix dates and topics 50/50** - date sections must be majority
+- **Don't use fewer than 2 H2 sections** - the default detector needs two H2s
+- **Don't make fewer than half of the H2s dates** - the default threshold is 50%
 - **Don't manually create "virtual paths"** - they're generated automatically
 
 #### Example: Well-Structured Journal
@@ -297,15 +292,14 @@ Links to virtual entries work through enhanced target resolution:
 
 1. **Exact path match** - Try as virtual path (`Journal.md/2025-01-15`)
 2. **With .md extension** - Try adding `.md` to path
-3. **Title lookup** - Search for matching title (`Journal - 2025-01-15`)
-4. **Date reference** - If source is virtual, resolve date in same journal
+3. **Unambiguous alias** - Resolve a unique title or filename alias
+4. **Date reference** - If the source is virtual, resolve the date in its journal
 
 **Examples:**
 
 From a regular note:
 ```markdown
-See [[Daily Journal.md/2025-01-15]] for details.
-See [[Daily Journal - 2025-01-15]] for details.
+See [[Daily Journal#2025-01-15]] for details.
 ```
 
 From within a journal entry:
@@ -327,12 +321,11 @@ Virtual entries are regenerated only when their source file changes:
 4. Record file modification time
 
 **On Subsequent Syncs:**
-1. Check file mtime against database
-2. Skip if unchanged (within 0.01s tolerance)
-3. If changed:
-   - Delete all old virtual entries for this file
-   - Re-parse and regenerate entries
-   - Update database
+1. Compare the exact filesystem fingerprint, parser revision, and
+   date-collection configuration with the stored source fingerprint
+2. Skip only when that complete identity is unchanged
+3. If changed, parse first and upsert retained virtual paths in place
+4. Delete only entries that disappeared, preserving history for stable paths
 
 **Performance:**
 - **Large journals** (100+ entries) re-split in ~10-50ms
@@ -421,7 +414,7 @@ def is_date_collection_note(
 Both thresholds are configurable:
 
 ```yaml
-# .geistfabrik/config.yaml
+# _geistfabrik/config.yaml
 date_collection:
   min_sections: 2      # Require at least 2 H2 headings
   date_threshold: 0.5  # Require 50% to be dates
@@ -501,7 +494,7 @@ They are **merged** into a single virtual entry:
 
 ### Configuration Options
 
-Date-collection behaviour is configured in `.geistfabrik/config.yaml`:
+Date-collection behaviour is configured in `_geistfabrik/config.yaml`:
 
 ```yaml
 date_collection:
@@ -644,7 +637,7 @@ def resolve_link_target(
     Resolution order:
         1. Exact path (handles virtual paths like "Journal.md/2025-01-15")
         2. Path with .md extension added
-        3. Title match (handles virtual titles like "Journal - 2025-01-15")
+        3. Unambiguous title or filename alias
         4. Date reference (if source is virtual, same journal)
     """
 ```
@@ -733,7 +726,7 @@ vault/
 
 3. Update links in other notes:
    ```
-   [[2025-01-15]] -> [[Daily Journal.md/2025-01-15]]
+   [[2025-01-15]] -> [[Daily Journal#2025-01-15]]
    ```
 
 4. Remove old files:
@@ -741,9 +734,9 @@ vault/
    rm 2025-*.md
    ```
 
-5. Sync vault:
+5. Refresh the managed vault index:
    ```bash
-   geistfabrik sync ~/vault
+   geistfabrik invoke ~/vault
    ```
 
 GeistFabrik will automatically detect the new journal and create virtual entries.
@@ -753,7 +746,7 @@ GeistFabrik will automatically detect the new journal and create virtual entries
 If you have templates that use date headings:
 
 ```yaml
-# .geistfabrik/config.yaml
+# _geistfabrik/config.yaml
 date_collection:
   exclude_files:
     - "Templates/*.md"
@@ -787,25 +780,26 @@ This prevents templates from being detected as journals.
 **Symptoms:** `[[link]]` doesn't resolve to virtual entry.
 
 **Causes:**
-1. Incorrect virtual path format
+1. Incorrect journal-anchor format
 2. Entry doesn't exist
 3. Title mismatch
 
 **Solutions:**
-- Use exact virtual path: `[[Journal.md/2025-01-15]]`
-- Or use generated title: `[[Journal - 2025-01-15]]`
-- Check entry exists: `geistfabrik query ~/vault --path "Journal.md/2025-01-15"`
+- Use the source journal and heading: `[[Journal#2025-01-15]]`
+- A date-only link such as `[[2025-01-15]]` is source-local when written inside
+  another virtual entry from the same journal.
+- Refresh and inspect diagnostics with `geistfabrik invoke ~/vault --debug`.
 
 ### Entries Not Updating
 
 **Symptoms:** Changes to journal file don't appear in virtual entries.
 
 **Causes:**
-1. File modification time not updated
-2. Vault not synced
+1. The source file was not saved
+2. The next invocation has not synchronized it yet
 
 **Solutions:**
-- Force re-sync: `touch "Journal.md" && geistfabrik sync ~/vault`
+- Save the source and run `geistfabrik invoke ~/vault`
 - Check file permissions
 
 ### Performance Issues
@@ -847,12 +841,12 @@ This prevents templates from being detected as journals.
 ## See Also
 
 - [Specification](../specs/DATE_COLLECTION_NOTES_SPEC.md) - Detailed technical specification
-- [Schema Documentation](../docs/SCHEMA.md) - Database schema reference
-- [Link Resolution](../docs/LINK_RESOLUTION.md) - Wiki-link handling
+- [Architecture](../docs/ARCHITECTURE.md) - Database and execution overview
+- [README journal guide](../README.md#date-collection-journal-notes) - Current link usage
 - [Configuration Guide](../docs/CONFIGURATION.md) - Config file reference
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-10-27
-**GeistFabrik Version**: 0.9.0
+**Document Version**: 1.1
+**Last Updated**: 2026-09-12
+**GeistFabrik Version**: 0.10.1

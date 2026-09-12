@@ -1,19 +1,26 @@
 """Core data structures for GeistFabrik."""
 
+import posixpath
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 
 
-def link_target_forms(path: str, title: str) -> frozenset[str]:
-    """The canonical set of [[link]] target strings that resolve to a note.
+def _normalise_vault_path(path: str) -> str:
+    """Use one separator for persisted paths and user-supplied link targets."""
+    return path.replace("\\", "/")
 
-    A wikilink reaches a note if its target equals the note's path
-    ("dir/note.md"), the path without extension ("dir/note"), or the note's
-    title. This is THE single definition of "does this link point here" -
-    links_between(), backlinks(), orphans(), and the graph/similarity
-    analyses must all use it (or mirror it exactly in SQL). Historically each
-    had its own variant (one matched titles only), so backlink/bridge
-    detection disagreed between code paths.
+
+def link_target_forms(
+    path: str,
+    title: str,
+    source_file: str | None = None,
+    entry_date: str | None = None,
+) -> frozenset[str]:
+    """Return canonical aliases for one note, including journal deeplinks.
+
+    Aliases alone cannot settle duplicate titles or source-local references;
+    use NoteLinkIndex to resolve them against the complete note collection.
 
     Args:
         path: Note path relative to the vault root
@@ -22,8 +29,172 @@ def link_target_forms(path: str, title: str) -> frozenset[str]:
     Returns:
         Frozenset of target strings that resolve to the note
     """
-    path_without_ext = path.rsplit(".", 1)[0] if "." in path else path
-    return frozenset((path, path_without_ext, title))
+    path = _normalise_vault_path(path)
+    forms = {
+        path,
+        title,
+        title.strip(),
+        _normalise_vault_path(title),
+        _normalise_vault_path(title.strip()),
+    }
+    if source_file:
+        source_file = _normalise_vault_path(source_file)
+        # A virtual path is not a filename: stripping at its last dot would
+        # turn "archive.md/Journal.md/2025-01-15" into "archive.md/Journal".
+        for source in {source_file, posixpath.basename(source_file)}:
+            for filename in {source, source.removesuffix(".md")}:
+                for heading in {title, entry_date or title}:
+                    forms.add(f"{filename}#{heading}")
+    else:
+        forms.add(path.removesuffix(".md"))
+        forms.add(posixpath.basename(path))
+        forms.add(posixpath.basename(path).removesuffix(".md"))
+    return frozenset(forms)
+
+
+class NoteLinkIndex:
+    """Resolve link identities consistently without a SQL query per edge.
+
+    Exact paths win over aliases. Within a journal, bare dates first select
+    entries in that same source file. Other short names prefer the source
+    directory, then an unambiguous vault-wide title/basename. Ambiguous aliases
+    stay unresolved instead of attaching an edge to an arbitrary note.
+    """
+
+    def __init__(self, rows: Iterable[tuple[str, str, bool, str | None, str | None]]):
+        self.sources: dict[str, str] = {}
+        self.path_identities: dict[str, set[str]] = {}
+        self.forms: dict[str, set[str]] = {}
+        self.journal_dates: dict[tuple[str, str], str] = {}
+        for path, title, is_virtual, source_file, entry_date in rows:
+            normalised_path = _normalise_vault_path(path)
+            source = (
+                _normalise_vault_path(source_file)
+                if is_virtual and source_file
+                else normalised_path
+            )
+            self.sources[path] = source
+            self.path_identities.setdefault(normalised_path, set()).add(path)
+            forms = link_target_forms(path, title, source_file if is_virtual else None, entry_date)
+            for form in forms:
+                self.forms.setdefault(form, set()).add(path)
+            if is_virtual and source_file and entry_date:
+                self.journal_dates[_normalise_vault_path(source_file), entry_date] = path
+
+    @classmethod
+    def from_notes(cls, notes: Iterable["Note"]) -> "NoteLinkIndex":
+        """Build an index from a session's already loaded notes."""
+        return cls(
+            (
+                note.path,
+                note.title,
+                note.is_virtual,
+                note.source_file,
+                note.entry_date.isoformat() if note.entry_date else None,
+            )
+            for note in notes
+        )
+
+    def candidates(self, target: str, source_path: str | None = None) -> frozenset[str]:
+        """Return the best matching identities (possibly ambiguous)."""
+        target = _normalise_vault_path(target.strip()).split("^", 1)[0].rstrip("#").strip()
+        source_identity = source_path if source_path in self.sources else None
+        if source_identity is None and source_path:
+            source_candidates = self.path_identities.get(_normalise_vault_path(source_path), set())
+            if len(source_candidates) == 1:
+                source_identity = next(iter(source_candidates))
+        source_file = self.sources.get(source_identity or "")
+        if source_file and self.sources.get(source_identity or "") != _normalise_vault_path(
+            source_identity or ""
+        ) and "#" not in target:
+            # Import here because date_collection also constructs Note objects.
+            from .date_collection import parse_date_heading
+
+            parsed = parse_date_heading(f"## {target}")
+            if parsed is not None:
+                local = self.journal_dates.get((source_file, parsed.isoformat()))
+                if local is not None:
+                    return frozenset((local,))
+
+        if target.startswith("#"):
+            if source_file is None:
+                return frozenset()
+            target = source_file + target
+
+        if path_matches := self.path_identities.get(target):
+            return frozenset(path_matches)
+        if path_matches := self.path_identities.get(f"{target}.md"):
+            return frozenset(path_matches)
+
+        if source_file:
+            local_target = posixpath.normpath(
+                posixpath.join(posixpath.dirname(source_file), target)
+            )
+            local_matches = self.forms.get(local_target, set())
+            if local_matches:
+                return frozenset(local_matches)
+
+        matches = self.forms.get(target, set())
+        if matches:
+            if source_file and "/" not in target:
+                same_directory = {
+                    path
+                    for path in matches
+                    if posixpath.dirname(self.sources[path]) == posixpath.dirname(source_file)
+                }
+                if same_directory:
+                    return frozenset(same_directory)
+            return frozenset(matches)
+
+        if "#" in target:
+            filename, heading = target.split("#", 1)
+            from .date_collection import parse_date_heading
+
+            parsed = parse_date_heading(f"## {heading}")
+            if parsed is not None and heading != parsed.isoformat():
+                date_matches = self.candidates(f"{filename}#{parsed.isoformat()}", source_path)
+                if date_matches:
+                    return date_matches
+            # An ordinary note remains the target of a section/block link.
+            # A split journal has no source Note, so nonexistent entries cannot
+            # silently resolve to some other entry with a similar title.
+            return self.candidates(filename, source_path) if filename else frozenset()
+        return frozenset()
+
+    def resolve(self, target: str, source_path: str | None = None) -> str | None:
+        """Return one unambiguous note path, or None."""
+        matches = self.candidates(target, source_path)
+        return next(iter(matches)) if len(matches) == 1 else None
+
+    def matching_paths(self, target: str) -> frozenset[str]:
+        """Return every note that can emit or receive an unscoped reference.
+
+        Graph resolution deliberately gives explicit paths precedence. Security
+        boundaries need the broader set: a public path alias must not conceal an
+        excluded note that emits the same title.
+        """
+        raw_target = target
+        normalised_target = _normalise_vault_path(raw_target)
+        matches = set(self.forms.get(raw_target, set()))
+        matches.update(self.forms.get(normalised_target, set()))
+        matches.update(self.forms.get(normalised_target.strip(), set()))
+
+        # A boundary must consider both literal titles (which may contain ^ or
+        # #) and their interpretation as block/section references. Otherwise a
+        # public alias can conceal an excluded note with that exact title.
+        target = normalised_target.strip().split("^", 1)[0].rstrip("#").strip()
+        matches.update(self.forms.get(target, set()))
+        if "#" in target:
+            filename, heading = target.split("#", 1)
+            from .date_collection import parse_date_heading
+
+            parsed = parse_date_heading(f"## {heading}")
+            if parsed is not None and heading != parsed.isoformat():
+                normalized = self.forms.get(f"{filename}#{parsed.isoformat()}", set())
+                matches.update(normalized)
+            if filename:
+                matches.update(self.matching_paths(filename))
+        return frozenset(matches)
 
 
 @dataclass(frozen=True)
@@ -81,7 +252,12 @@ class Note:
 
         See the module-level link_target_forms() for the definition.
         """
-        return link_target_forms(self.path, self.title)
+        return link_target_forms(
+            self.path,
+            self.title,
+            self.source_file if self.is_virtual else None,
+            self.entry_date.isoformat() if self.entry_date else None,
+        )
 
     @property
     def link_text(self) -> str:
@@ -106,7 +282,7 @@ class Note:
         if self.is_virtual and self.source_file:
             # For virtual notes, create deeplink: "filename#heading"
             # Remove .md extension from source file
-            filename = self.source_file.replace(".md", "")
+            filename = _normalise_vault_path(self.source_file).removesuffix(".md")
             return f"{filename}#{self.title}"
         else:
             # For regular notes, just use the title

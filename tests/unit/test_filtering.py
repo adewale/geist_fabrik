@@ -24,7 +24,8 @@ def db():
             path TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             is_virtual INTEGER DEFAULT 0,
-            source_file TEXT
+            source_file TEXT,
+            entry_date TEXT
         )
     """)
 

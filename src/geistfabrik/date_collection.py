@@ -11,7 +11,13 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from .config import MAX_DATE_SECTIONS, MAX_NOTE_H2_HEADINGS, MAX_VIRTUAL_NOTES_PER_FILE
-from .markdown_parser import MarkdownLimitError, extract_links, extract_tags, parse_frontmatter
+from .markdown_parser import (
+    MarkdownLimitError,
+    extract_links,
+    extract_tags,
+    markdown_prose_lines,
+    parse_frontmatter,
+)
 from .models import Note
 
 logger = logging.getLogger(__name__)
@@ -74,7 +80,7 @@ MONTHS = {
 
 def _parse_long_date(month_name: str, day_str: str, year_str: str) -> date:
     """Parse long date format like 'January 15, 2025'."""
-    month_num = MONTHS[month_name]
+    month_num = MONTHS[month_name.capitalize()]
     return date(int(year_str), month_num, int(day_str))
 
 
@@ -124,9 +130,7 @@ def extract_h2_headings(content: str) -> list[tuple[str, int]]:
         List of (heading_text, line_number) tuples
     """
     headings: list[tuple[str, int]] = []
-    lines = content.split("\n")
-
-    for line_num, line in enumerate(lines, start=1):
+    for line_num, line in markdown_prose_lines(content):
         stripped = line.strip()
         if stripped.startswith("## ") and not stripped.startswith("### "):
             if len(headings) >= MAX_NOTE_H2_HEADINGS:
@@ -149,7 +153,8 @@ def is_date_collection_note(
     Returns:
         True if file should be split into date entries
     """
-    headings = extract_h2_headings(content)
+    _, clean_content = parse_frontmatter(content)
+    headings = extract_h2_headings(clean_content)
 
     # Must have at least min_sections headings
     if len(headings) < min_sections:
@@ -241,13 +246,6 @@ def split_date_collection_note(
     """
     # Parse frontmatter (applies to all entries)
     frontmatter, clean_content = parse_frontmatter(content)
-    frontmatter_tags = []
-    if frontmatter and "tags" in frontmatter:
-        tags_value = frontmatter["tags"]
-        if isinstance(tags_value, list):
-            frontmatter_tags = tags_value
-        elif isinstance(tags_value, str):
-            frontmatter_tags = [tags_value]
 
     # Split by date headings
     sections = split_by_date_headings(clean_content, file_path)
@@ -278,10 +276,9 @@ def split_date_collection_note(
 
         # Extract links and tags from this entry only
         links = extract_links(merged_content)
-        inline_tags = extract_tags(merged_content, frontmatter)
-
-        # Combine frontmatter tags with inline tags
-        all_tags = frontmatter_tags + [tag for tag in inline_tags if tag not in frontmatter_tags]
+        # Use the same bounded string normalization as ordinary notes. Raw
+        # YAML scalars/collections cannot safely be bound as SQLite tag values.
+        all_tags = extract_tags(merged_content, frontmatter)
 
         # Generate virtual path and title
         # Path uses ISO date for consistency and uniqueness

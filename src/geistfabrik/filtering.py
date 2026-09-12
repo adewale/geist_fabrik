@@ -26,7 +26,7 @@ from .config import (
     get_default_filter_config,
 )
 from .embeddings import EmbeddingComputer
-from .models import Suggestion
+from .models import NoteLinkIndex, Suggestion, _normalise_vault_path
 
 
 class SuggestionFilter:
@@ -117,35 +117,27 @@ class SuggestionFilter:
 
         # Folder prefixes whose notes must never surface in suggestions
         # (e.g. "Private/", "People/"). Spec: filtering.boundary.exclude_paths.
-        exclude_paths = tuple(self.config.get("boundary", {}).get("exclude_paths", []) or [])
+        exclude_paths = tuple(
+            _normalise_vault_path(path)
+            for path in (self.config.get("boundary", {}).get("exclude_paths", []) or [])
+        )
 
-        # Build the set of every valid way a suggestion may reference a note:
-        # its path, its title, and - for virtual journal entries - the
-        # "filename#heading" deeplink form produced by Note.link_text.
-        # Without the deeplink form, suggestions from journal-aware geists
-        # (on_this_day, seasonal_revisit, ...) would be silently dropped here.
-        cursor = self.db.execute("SELECT path, title, is_virtual, source_file FROM notes")
-        valid_refs: set[str] = set()
-        excluded_refs: set[str] = set()
-        for path, title, is_virtual, source_file in cursor.fetchall():
-            # A note is excluded if its real path - or, for virtual entries, the
-            # source journal file - lives under an excluded folder prefix.
-            owning_path = source_file if (is_virtual and source_file) else path
-            is_excluded = bool(exclude_paths) and owning_path.startswith(exclude_paths)
-            forms = {path, title}
-            if is_virtual and source_file:
-                forms.add(f"{source_file.replace('.md', '')}#{title}")
-            if is_excluded:
-                excluded_refs |= forms
-            else:
-                valid_refs |= forms
+        index = NoteLinkIndex(
+            self.db.execute("SELECT path, title, is_virtual, source_file, entry_date FROM notes")
+        )
 
         filtered = []
         for suggestion in suggestions:
-            # Keep only if every referenced note exists AND none is excluded.
-            if any(note_ref in excluded_refs for note_ref in suggestion.notes):
-                continue
-            if all(note_ref in valid_refs for note_ref in suggestion.notes):
+            # Check every identity behind an unscoped reference. Graph-style
+            # path precedence is unsafe here: a private note title can collide
+            # with a public filename alias. Boundaries therefore fail closed if
+            # any matching identity is excluded.
+            matches = [index.matching_paths(note_ref) for note_ref in suggestion.notes]
+            if all(
+                paths
+                and not any(index.sources[path].startswith(exclude_paths) for path in paths)
+                for paths in matches
+            ):
                 filtered.append(suggestion)
 
         return filtered

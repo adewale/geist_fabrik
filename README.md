@@ -52,10 +52,8 @@ all-MiniLM-L6-v2 snapshot, adding about 88 MB to the installed footprint (plus
 Python dependencies), so normal wheel installs work without a model download.
 
 ```bash
-# Install a release wheel
-python -m pip install geistfabrik
-
-# Or clone for development (Git LFS materialises the bundled model)
+# Clone the current release candidate (Git LFS materialises the bundled model).
+# A public PyPI wheel has not been published yet.
 git lfs install
 git clone https://github.com/adewale/geist_fabrik.git
 cd geist_fabrik
@@ -83,7 +81,7 @@ geistfabrik init /path/to/your/vault
 # • 58 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, surprisal, etc.)
 # • 12 Tracery geists (contradictor, hub_explorer, questioning_mind, temporal_contrast, etc.)
 
-# Preview suggestions (read-only, no files created)
+# Preview suggestions (no journal or source-note writes; managed state is updated)
 geistfabrik invoke /path/to/your/vault
 
 # Write suggestions to journal (creates session note)
@@ -190,7 +188,7 @@ rm -rf /path/to/vault/"geist journal"
 ### Basic Invocation
 
 ```bash
-# Default: Preview suggestions (read-only, no files created)
+# Default: preview without a journal write; sync/cache state is still persisted
 uv run geistfabrik invoke ~/my-vault
 
 # Write suggestions to journal
@@ -227,7 +225,7 @@ uv run geistfabrik invoke ~/my-vault --debug
 uv run geistfabrik test my_geist ~/my-vault --date 2025-01-15
 
 # Debug geist timeouts with performance profiling
-uv run geistfabrik test my_geist ~/my-vault --timeout 10 --debug
+uv run geistfabrik test my_geist ~/my-vault --timeout 60 --debug
 
 # Test all geists
 uv run geistfabrik test-all ~/my-vault
@@ -415,16 +413,17 @@ Create reusable query functions in `_geistfabrik/vault_functions/`:
 from geistfabrik import vault_function
 
 @vault_function("find_questions")
-def find_question_notes(vault, k=5):
+def find_question_notes(vault, count=5):
     """Find notes with questions in title or content."""
     questions = [n for n in vault.notes() if '?' in n.title or '?' in n.content]
-    return vault.sample(questions, k)
+    return [f"[[{note.link_text}]]" for note in vault.sample(questions, count)]
 
 @vault_function("by_complexity")
 def notes_by_complexity(vault, threshold=0.7):
     """Find notes above complexity threshold."""
-    return [n for n in vault.notes()
-            if vault.metadata(n).get("lexical_diversity", 0) > threshold]
+    notes = [n for n in vault.notes()
+             if vault.metadata(n).get("lexical_diversity", 0) > threshold]
+    return [f"[[{note.link_text}]]" for note in notes]
 ```
 
 Use in Tracery geists:
@@ -432,8 +431,8 @@ Use in Tracery geists:
 type: geist-tracery
 id: question_prompt
 tracery:
-  origin: "Consider: #question.title#"
-  question: "$vault.find_questions(k=1)"
+  origin: "Consider: #question#"
+  question: "$vault.find_questions(1)"
 ```
 
 ### 3. Geists
@@ -448,7 +447,7 @@ Create Python geists in `_geistfabrik/geists/code/`:
 def suggest(vault):
     from geistfabrik import Suggestion
 
-    old_notes = vault.old_notes(k=20)
+    old_notes = vault.old_notes(count=20)
     backlinks_map = {n: len(vault.backlinks(n)) for n in old_notes}
     important_old = sorted(backlinks_map.items(), key=lambda x: x[1], reverse=True)[:5]
 
@@ -475,9 +474,9 @@ id: creative_collision
 description: Pair unrelated notes for creative collision
 
 tracery:
-  origin: "What if you combined [[#note1.title#]] with [[#note2.title#]]?"
-  note1: "$vault.sample_notes(k=1)"
-  note2: "$vault.sample_notes(k=1)"
+  origin: "What if you combined #note1# with #note2#?"
+  note1: "$vault.sample_notes(1)"
+  note2: "$vault.sample_notes(1)"
 ```
 
 ## Architecture
@@ -542,7 +541,9 @@ Vault Files → Vault.sync() → SQLite Database
 
 ## Examples
 
-The examples/ directory contains 8 learning materials demonstrating extension patterns (NOT for installation):
+The examples/ directory contains 8 learning materials demonstrating extension patterns.
+The metadata and vault-function examples can be copied into a vault to try them;
+the code-geist examples are reference implementations of the graph extension API.
 
 ### Metadata Inference Modules (3)
 - **complexity.py** - Add complexity metrics to notes
@@ -555,7 +556,7 @@ The examples/ directory contains 8 learning materials demonstrating extension pa
 - **structural_hole_detector.py** - Demonstrate structural-hole graph analysis
 
 ### Vault Functions (2)
-- **contrarian.py** - Find contrarian perspectives
+- **contrarian.py** - Find contrarian perspectives without shadowing the bundled function
 - **questions.py** - Find notes containing questions
 
 See [examples/README.md](examples/README.md) for detailed documentation.
@@ -569,7 +570,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Deep Dives
 - **[docs/TEMPORAL_EMBEDDINGS_EXAMPLES.md](docs/TEMPORAL_EMBEDDINGS_EXAMPLES.md)** - Temporal embeddings explained with examples
-- **[docs/TRACERY_COMPARISON.md](docs/TRACERY_COMPARISON.md)** - Tracery engine technical analysis
+- **[docs/TRACERY_COMPARISON.md](docs/TRACERY_COMPARISON.md)** - Historical Tracery design comparison
 
 ### Development
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development setup and workflow
@@ -615,7 +616,7 @@ When geists timeout or run slowly, use the `--debug` flag to enable detailed per
 uv run geistfabrik invoke ~/my-vault --debug
 
 # Debug a specific geist with extended timeout
-uv run geistfabrik test cluster_mirror ~/my-vault --timeout 10 --debug
+uv run geistfabrik test cluster_mirror ~/my-vault --timeout 60 --debug
 ```
 
 **Debug output includes**:
@@ -626,7 +627,7 @@ uv run geistfabrik test cluster_mirror ~/my-vault --timeout 10 --debug
 
 **Example diagnostic output**:
 ```
-✗ cluster_mirror timed out after 5.000s
+✗ cluster_mirror timed out after 30.000s
 
 Top expensive operations:
   1. sklearn.cluster.HDBSCAN.fit     2.891s (57.8%)  1 calls
@@ -638,7 +639,7 @@ Total accounted: 4.123s (82.5%)
 Suggestions:
   → HDBSCAN clustering took 2.9s - consider caching results or reducing min_size
   → get_clusters took 3.5s - clustering is expensive, consider caching
-  → Test with longer timeout: geistfabrik test cluster_mirror <vault> --timeout 10 --debug
+  → Test with longer timeout: geistfabrik test cluster_mirror <vault> --timeout 60 --debug
 ```
 
 For more details, see [docs/GEIST_INSTRUMENTATION_DESIGN.md](docs/GEIST_INSTRUMENTATION_DESIGN.md).

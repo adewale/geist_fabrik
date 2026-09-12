@@ -2,6 +2,12 @@
 
 **Date**: 2025-10-21
 
+> **Historical snapshot.** Counts and usage tables below describe the project on
+> the stated date and are not a current API inventory. For supported extension
+> APIs and executable examples, use
+> [WRITING_GOOD_GEISTS.md](WRITING_GOOD_GEISTS.md) and
+> [../examples/README.md](../examples/README.md).
+
 This document shows all extension points in GeistFabrik and which geists use them.
 
 ---
@@ -184,12 +190,12 @@ Modules in `examples/metadata_inference/` that add properties to notes.
 ```python
 def suggest(vault: VaultContext):
     """Find orphaned notes and suggest connections."""
-    orphans = vault.orphans(k=10)
+    orphans = vault.orphans(count=10)
     suggestions = []
 
     for orphan in orphans:
         # Find semantically similar notes
-        similar = vault.neighbours(orphan, k=5)
+        similar = vault.neighbours(orphan, count=5)
         if similar:
             suggestions.append(Suggestion(
                 text=f"[[{orphan.title}]] has no links but is similar to "
@@ -198,7 +204,7 @@ def suggest(vault: VaultContext):
                 geist_id="connect_the_dots"
             ))
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)
 ```
 
 **2. "hub_explorer" (Tracery geist using `$vault.hubs()`)**

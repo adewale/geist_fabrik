@@ -4,6 +4,7 @@ This module handles loading and saving vault configuration from config.yaml.
 """
 
 import logging
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -63,7 +64,12 @@ def _bounded_float(
     value = data.get(key.rsplit(".", 1)[-1], default)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ConfigError(f"{key} must be a number in [{minimum}, {maximum}]")
-    result = float(value)
+    try:
+        result = float(value)
+    except (OverflowError, ValueError) as exc:
+        raise ConfigError(f"{key} must be a finite number in [{minimum}, {maximum}]") from exc
+    if not math.isfinite(result):
+        raise ConfigError(f"{key} must be a finite number in [{minimum}, {maximum}]")
     if not minimum <= result <= maximum:
         raise ConfigError(f"{key} must be in [{minimum}, {maximum}], got {value}")
     return result
@@ -271,6 +277,7 @@ class FilteringConfig:
     the boundary filter drops any suggestion that mentions them.
     """
 
+    boundary_enabled: bool = True
     exclude_paths: list[str] = field(default_factory=list)
     novelty_window_days: int = DEFAULT_NOVELTY_WINDOW_DAYS
     novelty_threshold: float = DEFAULT_SIMILARITY_THRESHOLD
@@ -286,7 +293,7 @@ class FilteringConfig:
         novelty = _mapping(data.get("novelty", {}), "filtering.novelty")
         diversity = _mapping(data.get("diversity", {}), "filtering.diversity")
         quality = _mapping(data.get("quality", {}), "filtering.quality")
-        _reject_unknown(boundary, {"exclude_paths"}, "filtering.boundary")
+        _reject_unknown(boundary, {"enabled", "exclude_paths"}, "filtering.boundary")
         _reject_unknown(novelty, {"window_days", "threshold"}, "filtering.novelty")
         _reject_unknown(diversity, {"threshold"}, "filtering.diversity")
         _reject_unknown(quality, {"min_length", "max_length"}, "filtering.quality")
@@ -309,6 +316,7 @@ class FilteringConfig:
                 "filtering.quality.min_length must not exceed filtering.quality.max_length"
             )
         return cls(
+            boundary_enabled=_strict_bool(boundary, "filtering.boundary.enabled", True),
             exclude_paths=_string_list(boundary, "filtering.boundary.exclude_paths"),
             novelty_window_days=_bounded_int(
                 novelty,
@@ -338,7 +346,10 @@ class FilteringConfig:
     def to_dict(self) -> dict[str, Any]:
         """Convert config to the nested YAML shape."""
         return {
-            "boundary": {"exclude_paths": self.exclude_paths},
+            "boundary": {
+                "enabled": self.boundary_enabled,
+                "exclude_paths": self.exclude_paths,
+            },
             "novelty": {
                 "window_days": self.novelty_window_days,
                 "threshold": self.novelty_threshold,
@@ -353,6 +364,7 @@ class FilteringConfig:
     def to_filter_config(self) -> dict[str, Any]:
         """Produce the SuggestionFilter config dict (defaults overlaid)."""
         cfg = get_default_filter_config()
+        cfg["boundary"]["enabled"] = self.boundary_enabled
         cfg["boundary"]["exclude_paths"] = list(self.exclude_paths)
         cfg["novelty"]["window_days"] = self.novelty_window_days
         cfg["novelty"]["threshold"] = self.novelty_threshold

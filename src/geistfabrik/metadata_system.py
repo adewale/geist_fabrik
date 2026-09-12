@@ -10,6 +10,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
+from uuid import uuid4
 
 from .config import DEFAULT_GEIST_TIMEOUT
 from .execution_timeout import _alarm_timeout
@@ -61,6 +62,7 @@ class MetadataLoader:
         self.timeout = timeout
         self.modules: dict[str, MetadataInfer] = {}
         self._key_to_module: dict[str, str] = {}  # Track which module provides which key
+        self._module_namespace = uuid4().hex
 
     def load_modules(self, enabled_modules: list[str] | None = None) -> None:
         """Load metadata inference modules from directory.
@@ -113,28 +115,42 @@ class MetadataLoader:
         ensure_contained(module_file, self.module_dir, must_exist=True, reject_symlinks=True)
 
         # Load module dynamically
-        spec = importlib.util.spec_from_file_location(module_name, module_file)
+        module_key = f"_metadata_{self._module_namespace}_{module_name}"
+        spec = importlib.util.spec_from_file_location(module_key, module_file)
         if spec is None or spec.loader is None:
             raise MetadataInferenceError(f"Could not load module spec for {module_name}")
 
         module = importlib.util.module_from_spec(spec)
-        module_key = f"_metadata_{module_name}"
+        previous_module = sys.modules.get(module_key)
         sys.modules[module_key] = module
+
+        def restore_module() -> None:
+            if previous_module is None:
+                sys.modules.pop(module_key, None)
+            else:
+                sys.modules[module_key] = previous_module
 
         try:
             with _alarm_timeout(self.timeout):
                 spec.loader.exec_module(module)
-        except Exception as e:
-            sys.modules.pop(module_key, None)
-            raise MetadataInferenceError(f"Error executing module {module_name}: {e}")
+        except BaseException as e:
+            restore_module()
+            if not isinstance(e, Exception):
+                raise
+            raise MetadataInferenceError(f"Error executing module {module_name}: {e}") from e
 
-        # Validate that module exports infer function
-        if not hasattr(module, "infer"):
-            raise MetadataInferenceError(f"Module {module_name} does not export 'infer' function")
-
-        infer_export: object = getattr(module, "infer")
-        if not callable(infer_export):
-            raise MetadataInferenceError(f"Module {module_name} 'infer' is not callable")
+        missing = object()
+        try:
+            infer_export: object = getattr(module, "infer", missing)
+            if infer_export is missing:
+                raise MetadataInferenceError(
+                    f"Module {module_name} does not export 'infer' function"
+                )
+            if not callable(infer_export):
+                raise MetadataInferenceError(f"Module {module_name} 'infer' is not callable")
+        except BaseException:
+            restore_module()
+            raise
         infer_func = cast(MetadataInfer, infer_export)
 
         # Detect key conflicts by doing a dry run with a dummy note

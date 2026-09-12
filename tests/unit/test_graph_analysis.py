@@ -56,7 +56,7 @@ def linked_vault():
 class TestLinkTargetForms:
     def test_forms_for_regular_note(self):
         forms = link_target_forms("dir/note.md", "My Title")
-        assert forms == frozenset({"dir/note.md", "dir/note", "My Title"})
+        assert forms == frozenset({"dir/note.md", "dir/note", "My Title", "note.md", "note"})
 
     def test_forms_without_extension(self):
         forms = link_target_forms("plain", "plain")
@@ -76,9 +76,9 @@ class TestLinkResolutionAgreement:
             for y in notes.values():
                 if x.path >= y.path:
                     continue
-                assert _are_linked(x, y) == bool(linked_vault.links_between(x, y)), (
-                    f"_are_linked and links_between disagree for {x.path} / {y.path}"
-                )
+                assert _are_linked(x, y, linked_vault.link_index()) == bool(
+                    linked_vault.links_between(x, y)
+                ), f"_are_linked and links_between disagree for {x.path} / {y.path}"
 
     def test_backlinks_agree_with_forms(self, linked_vault):
         notes = {n.path: n for n in linked_vault.notes()}

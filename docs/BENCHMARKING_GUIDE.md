@@ -334,7 +334,7 @@ Benchmark documents follow this structure:
 
 **Impact**: 38-46% session speedup, 86.3% cache hit rate
 
-**See**: [`PERFORMANCE_OPTIMIZATION_RESULTS.md`](PERFORMANCE_OPTIMIZATION_RESULTS.md)
+**See**: [`BENCHMARK_COMPARISON_2025_11_14.md`](BENCHMARK_COMPARISON_2025_11_14.md)
 
 ---
 
@@ -478,6 +478,6 @@ GeistFabrik's benchmarking suite provides comprehensive performance testing acro
 
 **Key documents**:
 - Quick reference: [`scripts/BENCHMARKS.md`](../scripts/BENCHMARKS.md)
-- Comprehensive results: [`PERFORMANCE_OPTIMIZATION_RESULTS.md`](PERFORMANCE_OPTIMIZATION_RESULTS.md)
+- Historical comparison: [`BENCHMARK_COMPARISON_2025_11_14.md`](BENCHMARK_COMPARISON_2025_11_14.md)
 - sklearn tuning: [`SKLEARN_OPTIMIZATION_BENCHMARK.md`](SKLEARN_OPTIMIZATION_BENCHMARK.md)
 - Troubleshooting: [`GEIST_INSTRUMENTATION_DESIGN.md`](GEIST_INSTRUMENTATION_DESIGN.md)

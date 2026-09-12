@@ -16,6 +16,7 @@ class TestResult:
     status: str
     count: int = 0
     error: str | None = None
+    geist_id: str | None = None
 
 
 class TestAllCommand(BaseCommand):
@@ -89,18 +90,34 @@ class TestAllCommand(BaseCommand):
         timeout = self.resolve_timeout(exec_ctx.config)
         for geist in tracery_geists:
             if geist.geist_id in executor.geists:
-                raise ValueError(f"Duplicate code/Tracery geist ID '{geist.geist_id}'")
+                tracery_loader.load_errors.append(
+                    {
+                        "geist_id": geist.geist_id,
+                        "path": str(geist.yaml_path),
+                        "error": f"Duplicate code/Tracery geist ID '{geist.geist_id}'",
+                    }
+                )
+                continue
             geist.execution_timeout = timeout
             executor.register_geist(geist.geist_id, geist.yaml_path, geist.suggest)
         executor.load_status()
 
         total_geists = len(executor.geists)
-        if total_geists == 0:
+        load_errors = [
+            entry for entry in executor.get_execution_log() if entry["status"] == "load_error"
+        ] + tracery_loader.load_errors
+        if total_geists == 0 and not load_errors:
             print("\nNo geists found to test")
             return 0
 
         # Test all geists
         results = self._test_all_geists(executor, exec_ctx)
+        for entry in load_errors:
+            geist_id = entry["geist_id"]
+            key = f"{geist_id} ({entry['path']})"
+            results[key] = TestResult(
+                status="error", error=f"Load failed: {entry['error']}", geist_id=geist_id
+            )
 
         # Print summary
         return self._print_summary(results, exec_ctx.vault_path)
@@ -199,7 +216,10 @@ class TestAllCommand(BaseCommand):
             for geist_id, result in results.items():
                 if result.status == "error":
                     print(f"  x {geist_id}: {result.error or 'Unknown error'}")
-                    print(f"    Test with: geistfabrik test {geist_id} {vault_path}")
+                    print(
+                        f"    Test with: geistfabrik test {result.geist_id or geist_id} "
+                        f"{vault_path}"
+                    )
 
         print(f"\n{'=' * 60}\n")
 

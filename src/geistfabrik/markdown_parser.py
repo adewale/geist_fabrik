@@ -1,6 +1,7 @@
 """Markdown parser for Obsidian files."""
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,36 @@ TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
 # colours like #fff in CSS, URL fragments in code samples, ...).
 FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
+
+
+def markdown_prose_lines(content: str) -> Iterator[tuple[int, str]]:
+    """Yield original line numbers outside fenced and indented code blocks.
+
+    Fences may use backticks or tildes, with up to three leading spaces; a
+    closing fence must use the opening character and at least its length.
+    Keeping line numbers lets journal splitting preserve code verbatim while
+    excluding its example headings from detection and section boundaries.
+    """
+    fence_character = ""
+    fence_length = 0
+    for line_number, line in enumerate(content.split("\n"), start=1):
+        expanded = line.expandtabs(4)
+        fence = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", expanded)
+        if fence_character:
+            if (
+                fence
+                and fence[1][0] == fence_character
+                and len(fence[1]) >= fence_length
+                and not fence[2].strip()
+            ):
+                fence_character = ""
+            continue
+        if expanded.startswith("    "):
+            continue
+        if fence and (fence[1][0] != "`" or "`" not in fence[2]):
+            fence_character, fence_length = fence[1][0], len(fence[1])
+            continue
+        yield line_number, line
 
 
 class MarkdownLimitError(ValueError):
@@ -86,8 +117,7 @@ def extract_title(path: str, frontmatter: dict[str, Any] | None, content: str) -
         return str(frontmatter["title"])
 
     # Priority 2: First H1 heading (skip empty headings like "# ")
-    lines = content.split("\n")
-    for line in lines:
+    for _, line in markdown_prose_lines(content):
         if line.startswith("# "):
             heading = line[2:].strip()
             if heading:
@@ -130,9 +160,11 @@ def extract_links(content: str) -> list[Link]:
         else:
             target = target_raw
 
-        # Remove heading anchors (#heading) from target
-        if "#" in target:
-            target = target.split("#")[0].strip()
+        # Preserve heading anchors: a journal heading identifies a distinct
+        # virtual note. Resolution (with the source context) owns stripping a
+        # regular note's section anchor, not this lossless parsing step.
+        if block_ref is not None:
+            target = target.rstrip("#")
 
         # Skip empty targets
         if not target:
@@ -184,7 +216,7 @@ def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> lis
 
     # Strip code regions first so #words inside fenced/inline code are not
     # misread as tags (matches Obsidian's behaviour).
-    content_no_code = FENCED_CODE_PATTERN.sub("", content)
+    content_no_code = "\n".join(line for _, line in markdown_prose_lines(content))
     content_no_code = INLINE_CODE_PATTERN.sub("", content_no_code)
 
     # Extract inline tags from content using pre-compiled pattern

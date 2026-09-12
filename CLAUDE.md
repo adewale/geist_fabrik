@@ -11,9 +11,9 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 ## Current Project State
 
 **Version**: 0.10.1 (Beta)
-**Status**: Feature-complete, release-candidate quality
-**Tests**: All passing ✅ (100%)
-**Code**: ~21,000 lines across 99 Python files under `src/geistfabrik`
+**Status**: Release-candidate hardening
+**Tests**: The canonical validation is defined by `scripts/validate.sh` and CI
+**Code**: Runtime package and bundled geists live under `src/geistfabrik`
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
@@ -21,11 +21,13 @@ This repository contains:
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
-- **specs/**: Original technical specifications (all implemented)
+- **specs/**: Current, historical, and aspirational specifications; consult
+  `specs/SPEC_STATUS.md` for the reconciliation ledger
 - **testdata/**: Sample Obsidian vault notes from kepano's vault for testing
 - **models/**: Bundled sentence-transformers model (all-MiniLM-L6-v2) in Git LFS
 
-The system is fully functional and operational. All phases of the specification have been implemented.
+The system is functional, while unbuilt, differently built, and deferred spec
+promises remain explicitly tracked in `specs/SPEC_STATUS.md`.
 
 ### Default Geists vs Examples
 

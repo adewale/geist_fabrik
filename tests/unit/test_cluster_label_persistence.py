@@ -116,14 +116,18 @@ class TestPersistAndRead:
         assert ctx2.previous_cluster_label_for_note(note, session1.session_id) is None
         assert ctx2.previous_cluster_label_for_note(note, session2.session_id) == "later topics"
 
-    def test_persist_empty_assignments_is_noop(self, context_with_two_sessions):
+    def test_persist_empty_assignments_clears_stale_labels(self, context_with_two_sessions):
         vault, _session1, session2 = context_with_two_sessions
         ctx = VaultContext(vault, session2)
-        ctx.persist_cluster_labels({})  # must not raise
+        note = ctx.notes()[0]
+        ctx.persist_cluster_labels({note.path: "old cluster"})
+        ctx.persist_cluster_labels({})
+        assert ctx.previous_cluster_label_for_note(note, session2.session_id) is None
 
     def test_get_clusters_persists_labels_when_clusters_form(self, context_with_two_sessions):
         """When HDBSCAN finds clusters, the assignments land in the database."""
         vault, _session1, session2 = context_with_two_sessions
+        vault.config.clustering.min_cluster_size = 2
         ctx = VaultContext(vault, session2)
 
         clusters = ctx.get_clusters(min_size=2)

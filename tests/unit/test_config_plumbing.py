@@ -44,7 +44,7 @@ class TestConfigSectionsRoundTrip:
         data = {
             "geist_execution": {"timeout": 12, "max_failures": 7},
             "filtering": {
-                "boundary": {"exclude_paths": ["Private/", "People/"]},
+                "boundary": {"enabled": False, "exclude_paths": ["Private/", "People/"]},
                 "novelty": {"window_days": 90, "threshold": 0.7},
                 "diversity": {"threshold": 0.8},
                 "quality": {"min_length": 20, "max_length": 500},
@@ -54,6 +54,7 @@ class TestConfigSectionsRoundTrip:
         cfg = GeistFabrikConfig.from_dict(data)
         assert cfg.geist_execution.timeout == 12
         assert cfg.geist_execution.max_failures == 7
+        assert cfg.filtering.boundary_enabled is False
         assert cfg.filtering.exclude_paths == ["Private/", "People/"]
         assert cfg.filtering.novelty_window_days == 90
         assert cfg.session.default_suggestions == 9
@@ -93,8 +94,13 @@ class TestConfigSectionsRoundTrip:
             GeistFabrikConfig.from_dict({"vector_search": {"backends": backends}})
 
     def test_to_filter_config_overlays_defaults(self):
-        fc = FilteringConfig(exclude_paths=["Secret/"], novelty_threshold=0.5)
+        fc = FilteringConfig(
+            boundary_enabled=False,
+            exclude_paths=["Secret/"],
+            novelty_threshold=0.5,
+        )
         out = fc.to_filter_config()
+        assert out["boundary"]["enabled"] is False
         assert out["boundary"]["exclude_paths"] == ["Secret/"]
         assert out["novelty"]["threshold"] == 0.5
         # untouched defaults still present
@@ -120,7 +126,7 @@ class TestExcludePathsBoundaryFilter:
         conn = sqlite3.connect(":memory:")
         conn.execute(
             "CREATE TABLE notes (path TEXT PRIMARY KEY, title TEXT NOT NULL, "
-            "is_virtual INTEGER DEFAULT 0, source_file TEXT)"
+            "is_virtual INTEGER DEFAULT 0, source_file TEXT, entry_date TEXT)"
         )
         conn.execute(
             "CREATE TABLE session_suggestions (session_date TEXT, geist_id TEXT, "
@@ -159,6 +165,14 @@ class TestExcludePathsBoundaryFilter:
 
 
 class TestUnknownKeyValidation:
+    def test_load_config_wraps_unrepresentable_float_as_config_error(self, tmp_path):
+        cfg_path = tmp_path / "config.yaml"
+        cfg_path.write_text(
+            "filtering:\n  novelty:\n    threshold: " + str(10**400) + "\n"
+        )
+        with pytest.raises(ConfigError, match="finite number"):
+            load_config(cfg_path)
+
     def test_load_config_rejects_unknown_key(self, tmp_path):
         cfg_path = tmp_path / "config.yaml"
         cfg_path.write_text("enabled_modules: []\nnonsense_key: 3\nanother_typo: true\n")

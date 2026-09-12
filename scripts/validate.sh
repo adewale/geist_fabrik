@@ -65,8 +65,9 @@ run_check "Unit tests" uv run pytest tests/unit -v -m "$MARKERS" --timeout=60 \
 
 # 5. Integration tests (same selection and coverage contract as CI)
 run_check "Integration tests" uv run pytest tests/integration -v -m "$MARKERS" --timeout=300 \
-    --cov=geistfabrik --cov-branch --cov-append --cov-report=term-missing \
-    --cov-fail-under=70 || FAILED=1
+    --cov=geistfabrik --cov-branch --cov-append --cov-report=term-missing || FAILED=1
+run_check "Branch-only coverage gate" uv run python scripts/check_branch_coverage.py \
+    --minimum 70 || FAILED=1
 
 # 6. Acceptance-criteria verification (spec <-> code drift gate)
 # RUNS every machine-verifiable criterion in specs/acceptance_criteria.md

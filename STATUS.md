@@ -1,8 +1,8 @@
 # GeistFabrik Implementation Status
 
-**Last Updated**: 2026-07-11
-**Version**: 0.10.1 (Beta, Schema v8)
-**Overall Progress**: Feature complete, release-candidate quality
+**Last Updated**: 2026-09-12
+**Version**: 0.10.1 (Beta, Schema v10)
+**Overall Progress**: Release-candidate hardening
 
 ---
 
@@ -10,14 +10,11 @@
 
 | Metric | Value |
 |--------|-------|
-| **Tests Passing** | 1,380/1,380 selected unit+integration tests (100%) |
-| **Unit Tests** | 1,209 |
-| **Integration Tests** | 171 |
-| **Source Modules** | 30 top-level modules; 99 Python files under src/geistfabrik |
-| **Lines of Code (src)** | ~15,600 excl. default geists; ~21,000 total |
+| **Tests** | Canonical unit/integration selection enforced by CI and `scripts/validate.sh` |
+| **Source inventory** | Derived from the tree; avoid freezing counts in documentation |
 | **Type Checking** | Mypy strict |
 | **Linting** | Ruff |
-| **Database Schema** | v8 (cluster labels + persistent geist status) |
+| **Database Schema** | v10 (exact source fingerprints) |
 | **Default Geists** | 70 (58 code + 12 Tracery) - bundled |
 | **Example Modules** | 8 (3 code geists + 3 metadata + 2 vault functions) - examples/ |
 
@@ -50,7 +47,7 @@
 
 ```
 geist_fabrik/
-├── src/geistfabrik/           # 30 top-level modules, ~21,000 LOC total
+├── src/geistfabrik/           # Runtime package and bundled geists
 │   ├── models.py              # Note, Link, Suggestion
 │   ├── schema.py              # SQLite database schema
 │   ├── vault.py               # File system + persistence
@@ -79,9 +76,9 @@ geist_fabrik/
 │   ├── commands/              # CLI command modules (7 files)
 │   └── default_geists/        # 70 bundled geists
 │
-├── tests/                     # 1,380 selected unit+integration tests
-│   ├── unit/                  # 1,209 unit tests
-│   └── integration/           # 171 integration tests
+├── tests/                     # Unit, integration, property, and artifact tests
+│   ├── unit/
+│   └── integration/
 │
 ├── testdata/                  # Real Obsidian vault for testing
 ├── specs/                     # Complete specification documents
@@ -92,7 +89,7 @@ geist_fabrik/
 
 ### Database Schema
 
-**Current Version**: v8
+**Current Version**: v10
 
 **Tables**:
 - `notes` - Note content, metadata, timestamps
@@ -170,13 +167,10 @@ The fast lanes use a marker-driven autouse fixture that stubs only the external
 
 ### Should Fix
 - Consolidate session embedding loading (repeated 4x across modules)
-- Consolidate clustering pipeline (duplicated between VaultContext and ClusterAnalyser)
 
 ### Nice to Have
-- Remove dead code (`compare_with_session` stub)
-- Add public accessor for embeddings (replace private `_embeddings` access)
 - Continue splitting large modules as they evolve (especially `vault_context.py`)
 
 ---
 
-**Last Updated**: 2026-07-11
+**Last Updated**: 2026-09-12

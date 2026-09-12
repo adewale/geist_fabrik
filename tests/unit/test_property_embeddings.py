@@ -51,6 +51,10 @@ def embedding_pairs(draw: st.DrawFn) -> tuple[np.ndarray, np.ndarray]:
 normalized = _normalized_array()
 
 _pbt_settings = settings(max_examples=50)
+_positive_scale = st.one_of(
+    st.integers(min_value=-30, max_value=3).map(lambda exponent: float(10.0**exponent)),
+    st.floats(min_value=0.125, max_value=8.0, width=32),
+)
 
 
 @given(pair=embedding_pairs())
@@ -68,8 +72,8 @@ def test_nonunit_vectors_match_scalar_cosine_reference(
 
 @given(
     pair=embedding_pairs(),
-    scale_a=st.floats(min_value=0.125, max_value=8.0, width=32),
-    scale_b=st.floats(min_value=0.125, max_value=8.0, width=32),
+    scale_a=_positive_scale,
+    scale_b=_positive_scale,
 )
 @_pbt_settings
 def test_positive_rescaling_preserves_cosine(
@@ -114,6 +118,46 @@ def test_zero_vector_gives_zero(v: np.ndarray) -> None:
     assert cosine_similarity(v, zero) == 0.0
 
 
+@given(
+    invalid=st.sampled_from([np.float32("nan"), np.float32("inf"), np.float32("-inf")]),
+    invalid_on_left=st.booleans(),
+    zero_peer=st.booleans(),
+    fast_path=st.booleans(),
+)
+def test_nonfinite_components_are_rejected_before_other_shortcuts(
+    invalid: np.float32,
+    invalid_on_left: bool,
+    zero_peer: bool,
+    fast_path: bool,
+) -> None:
+    """Invalid embeddings never become plausible scores or zero-vector results."""
+    from geistfabrik import embeddings
+
+    previous_fast_path = embeddings.SKLEARN_OPTIMIZATIONS["fast_path"]
+    try:
+        embeddings.SKLEARN_OPTIMIZATIONS["fast_path"] = fast_path
+        invalid_vector = np.array([1.0, invalid], dtype=np.float32)
+        peer = np.zeros(2, dtype=np.float32) if zero_peer else np.ones(2, dtype=np.float32)
+        left, right = (invalid_vector, peer) if invalid_on_left else (peer, invalid_vector)
+        with pytest.raises(ValueError, match="finite"):
+            cosine_similarity(left, right)
+    finally:
+        embeddings.SKLEARN_OPTIMIZATIONS["fast_path"] = previous_fast_path
+
+
+def test_original_embedding_shapes_must_match() -> None:
+    """Equal element counts do not make differently shaped embeddings compatible."""
+    with pytest.raises(ValueError, match="shapes must match"):
+        cosine_similarity(np.ones((1, 2)), np.ones(2))
+
+
+def test_large_finite_vectors_do_not_overflow_to_a_false_unit_score() -> None:
+    """Scale-safe normalization handles finite float64 values near their limit."""
+    large = np.array([1e308, 1e308])
+    orthogonal = np.array([1e308, -1e308])
+    assert cosine_similarity(large, orthogonal) == pytest.approx(0.0, abs=1e-12)
+
+
 def test_orthogonal_vectors() -> None:
     """Orthogonal unit vectors have similarity ~ 0."""
     a = np.zeros(DIM, dtype=np.float32)
@@ -128,6 +172,17 @@ def test_identical_vectors() -> None:
     v = np.random.default_rng(42).standard_normal(DIM).astype(np.float32)
     v = v / np.linalg.norm(v)
     assert cosine_similarity(v, v) > 0.999
+
+
+@given(exponent=st.integers(min_value=-44, max_value=-7))
+@_pbt_settings
+def test_tiny_nonzero_vector_has_unit_self_similarity(exponent: int) -> None:
+    """Float32 magnitudes below sklearn's cutoff remain mathematically non-zero."""
+    value = np.float32(10.0**exponent)
+    if value == 0:
+        return
+    vector = np.array([value], dtype=np.float32)
+    assert cosine_similarity(vector, vector) == pytest.approx(1.0, abs=1e-12)
 
 
 def test_opposite_vectors() -> None:

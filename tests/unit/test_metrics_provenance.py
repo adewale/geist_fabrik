@@ -126,7 +126,17 @@ def test_source_digest_matches_python_slicing_across_embedded_nul(tmp_path, chea
 
 @pytest.mark.parametrize(
     "change",
-    ["bytes", "paths", "dtype", "config", "note_text", "capability", "algorithm", "dependency"],
+    [
+        "bytes",
+        "paths",
+        "dtype",
+        "config",
+        "cluster_size",
+        "note_text",
+        "capability",
+        "algorithm",
+        "dependency",
+    ],
 )
 def test_same_date_cache_requires_exact_inputs(tmp_path, cheap_metrics, monkeypatch, change):
     db = _database(tmp_path / "metrics.db")
@@ -148,6 +158,8 @@ def test_same_date_cache_requires_exact_inputs(tmp_path, cheap_metrics, monkeypa
         embeddings = embeddings.astype(np.float64)
     elif change == "config":
         config.clustering.n_label_terms += 1
+    elif change == "cluster_size":
+        config.clustering.min_cluster_size += 1
     elif change == "note_text":
         db.execute("UPDATE notes SET title = 'changed' WHERE path = 'a.md'")
         db.commit()

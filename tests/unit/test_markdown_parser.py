@@ -126,7 +126,7 @@ def test_extract_links_with_heading() -> None:
     content = "Link to [[Note#Section]]"
     links = extract_links(content)
     assert len(links) == 1
-    assert links[0].target == "Note"
+    assert links[0].target == "Note#Section"
     assert links[0].block_ref is None
 
 
@@ -143,8 +143,8 @@ def test_extract_links_invalid() -> None:
     """Test handling invalid or empty links."""
     content = "Empty link: [[]] or [[#just-anchor]]"
     links = extract_links(content)
-    # Both should be filtered out (empty target after processing)
-    assert len(links) == 0
+    # Anchor-only links must survive until source-aware resolution.
+    assert [link.target for link in links] == ["#just-anchor"]
 
 
 def test_extract_tags_inline() -> None:

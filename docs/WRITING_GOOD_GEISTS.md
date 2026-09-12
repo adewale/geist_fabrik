@@ -381,7 +381,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
 
     # 3. Final sampling to limit output
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, count=3)
 ```
 
 ### Why This Structure?
@@ -415,14 +415,14 @@ Get similarity scores once with `return_scores=True`.
 
 ```python
 # ❌ BAD: Recompute similarity multiple times
-neighbours = vault.neighbours(note, k=10)
+neighbours = vault.neighbours(note, count=10)
 for n in neighbours:
     sim = vault.similarity(note, n)  # Recomputed!
     if sim > 0.6:
         later_sim = vault.similarity(note, n)  # Recomputed again!
 
 # ✅ GOOD: Get scores once, reuse
-neighbours_with_scores = vault.neighbours(note, k=10, return_scores=True)
+neighbours_with_scores = vault.neighbours(note, count=10, return_scores=True)
 for n, sim in neighbours_with_scores:
     if sim > 0.6:
         # Reuse cached sim
@@ -586,7 +586,7 @@ Sample to manageable size before expensive operations.
 ```python
 for note in vault.sample(notes, min(30, len(notes))):
     # Analyze sampled subset
-    neighbours = vault.neighbours(note, k=5)
+    neighbours = vault.neighbours(note, count=5)
     # ... expensive analysis
 ```
 
@@ -608,7 +608,7 @@ for note in notes:  # Analyze all
         candidates.append(create_suggestion(note))
 
 # Sample from quality candidates
-return vault.sample(candidates, k=3)
+return vault.sample(candidates, count=3)
 ```
 
 **When to use**:
@@ -654,7 +654,7 @@ sample_size = 500  # Too many for small vaults, too few for large
 
 # ✅ GOOD: Adaptive sampling
 sample_size = min(1000, max(50, len(notes) // 10))
-sampled = vault.sample(notes, k=sample_size)
+sampled = vault.sample(notes, count=sample_size)
 ```
 
 **Formula**: `min(max_size, max(min_size, len(notes) // ratio))`
@@ -669,14 +669,14 @@ Used universally for deterministic sampling.
 
 ```python
 # Random notes
-random_notes = vault.sample(notes, k=3)
+random_notes = vault.sample(notes, count=3)
 
 # Random from filtered set
 stale_notes = [n for n in notes if vault.metadata(n)["staleness"] > 90]
-random_stale = vault.sample(stale_notes, k=2)
+random_stale = vault.sample(stale_notes, count=2)
 
 # Random element from list
-operation = vault.sample(scamper_operations, k=1)[0]
+operation = vault.sample(scamper_operations, count=1)[0]
 ```
 
 **Key property**: Respects session seed - same date + vault = same results.
@@ -687,12 +687,12 @@ Critical optimisation: Use `return_scores=True` to avoid recomputation.
 
 ```python
 # ❌ BAD: Scores not returned, must recompute if needed
-neighbours = vault.neighbours(hub, k=10)
+neighbours = vault.neighbours(hub, count=10)
 for n in neighbours:
     sim = vault.similarity(hub, n)  # Recomputed!
 
 # ✅ GOOD: Scores returned, reuse them
-neighbours_with_scores = vault.neighbours(hub, k=10, return_scores=True)
+neighbours_with_scores = vault.neighbours(hub, count=10, return_scores=True)
 for neighbour, similarity in neighbours_with_scores:
     if similarity > 0.6:  # Use cached score
         # ...
@@ -735,8 +735,8 @@ for candidate in candidates:
 **Use `batch_similarity()` for N×M matrices:**
 ```python
 # Good for: computing all pairwise similarities
-candidates1 = vault.neighbours(start, k=10)
-candidates2 = vault.neighbours(end, k=10)
+candidates1 = vault.neighbours(start, count=10)
+candidates2 = vault.neighbours(end, count=10)
 sim_matrix = vault.batch_similarity(candidates1, candidates2)
 
 for i, mid1 in enumerate(candidates1):
@@ -777,7 +777,7 @@ for note_a in cluster:
 
 ```python
 # Get scores once, use multiple times
-neighbors_with_scores = vault.neighbours(note, k=30, return_scores=True)
+neighbors_with_scores = vault.neighbours(note, count=30, return_scores=True)
 
 # Use 1: Count high-similarity neighbours
 high_similarity_count = sum(1 for n, sim in neighbors_with_scores if sim > 0.6)
@@ -794,7 +794,7 @@ strong_connections = [(n, sim) for n, sim in neighbors_with_scores if sim > 0.7]
 ```python
 # Combine and deduplicate in one operation
 linked_notes = vault.outgoing_links(note)[:3]
-similar_notes = vault.neighbours(note, k=5)
+similar_notes = vault.neighbours(note, count=5)
 candidates = list(set(linked_notes + similar_notes))
 ```
 
@@ -1051,11 +1051,13 @@ hub:
 orphan:
   - "$vault.orphans(1)"
 
-# Context-sensitive (references other symbols)
+# Context-sensitive pairs must be bundled before Tracery expands symbols
+cluster:
+  - "$vault.semantic_clusters(2, 3)"
 seed:
-  - "$vault.sample_notes(2)"
+  - "#cluster.split_seed#"
 neighbours:
-  - "$vault.neighbours(#seed#, 3)"
+  - "#cluster.split_neighbours#"
 ```
 
 ### Template Variation
@@ -1091,12 +1093,12 @@ for note in vault.sample(notes, min(500, len(notes))):
 
 ```python
 # ❌ BAD: Recomputes same similarity
-similar = vault.neighbours(seed, k=10)
+similar = vault.neighbours(seed, count=10)
 for note in similar:
     sim = vault.similarity(seed, note)  # Recomputed!
 
 # ✅ GOOD: Compute once with scores
-similar_with_scores = vault.neighbours(seed, k=10, return_scores=True)
+similar_with_scores = vault.neighbours(seed, count=10, return_scores=True)
 for note, sim in similar_with_scores:
     # Reuse cached sim
 ```
@@ -1118,12 +1120,12 @@ return [Suggestion(text=q, ...) for q in valid]
 
 ```python
 # ❌ BAD: Crashes on empty vault
-note = vault.sample(notes, k=1)[0]  # IndexError!
+note = vault.sample(notes, count=1)[0]  # IndexError!
 
 # ✅ GOOD: Early validation
 if len(notes) < 1:
     return []
-note = vault.sample(notes, k=1)[0]
+note = vault.sample(notes, count=1)[0]
 ```
 
 ### Anti-Pattern 5: Matrix Computation in Sequential Loop (UPDATED)
@@ -1302,7 +1304,7 @@ Greedy best-first search for semantic bridges:
 def _find_semantic_path(vault, start, end, max_hops=3):
     """Find semantic path from start to end note."""
     # Get candidates from start
-    candidates1_with_scores = vault.neighbours(start, k=10, return_scores=True)
+    candidates1_with_scores = vault.neighbours(start, count=10, return_scores=True)
     candidates1 = [c for c, _ in candidates1_with_scores]
 
     # Batch compute all intermediate->end similarities
@@ -1330,7 +1332,7 @@ Compare graph density vs semantic density:
 ```python
 def _analyze_density_mismatch(vault, note):
     """Detect mismatch between link density and semantic density."""
-    neighbours = vault.neighbours(note, k=10)
+    neighbours = vault.neighbours(note, count=10)
 
     # Graph density: actual links / possible links
     edges = sum(1 for n1 in neighbours for n2 in neighbours

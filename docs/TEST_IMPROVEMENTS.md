@@ -1,5 +1,9 @@
 # Test Suite Improvements & Recommendations
 
+> **Historical snapshot.** Counts and recommendations below describe the suite
+> at the document's original date. Use [TESTING.md](TESTING.md), the current test
+> tree, and `scripts/validate.sh` for the maintained test contract.
+
 **Purpose**: Make tests simpler, faster, more resilient, and more comprehensive
 **Current State**: 153/153 unit tests passing, ~3.5s runtime
 **Goal**: Expand coverage without sacrificing speed

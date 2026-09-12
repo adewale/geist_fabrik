@@ -34,7 +34,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     # Initialize cluster analyser (benefits from session-scoped cache)
-    analyser = ClusterAnalyser(vault, min_size=3)
+    analyser = ClusterAnalyser(vault)
 
     # Get current clusters (cached for this session)
     current_clusters = analyser.get_clusters()

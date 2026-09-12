@@ -2,7 +2,7 @@
 
 **Status**: ✅ Enabled by Default
 **Date**: 2025-11-08
-**Related Research**: [docs/research/CLUSTER_NAMING_RESEARCH.md](../docs/research/CLUSTER_NAMING_RESEARCH.md)
+**Related Research**: [research/CLUSTER_NAMING_RESEARCH.md](research/CLUSTER_NAMING_RESEARCH.md)
 
 ---
 
@@ -728,7 +728,7 @@ KeyBERT is now the **default cluster labelling method** in GeistFabrik, providin
 
 ### Research Background
 
-This implementation is based on comprehensive academic research documented in [docs/research/CLUSTER_NAMING_RESEARCH.md](../docs/research/CLUSTER_NAMING_RESEARCH.md).
+This implementation is based on academic research documented in [research/CLUSTER_NAMING_RESEARCH.md](research/CLUSTER_NAMING_RESEARCH.md).
 
 **Key papers informing this implementation**:
 1. Grootendorst, M. (2020). "KeyBERT: Minimal keyword extraction with BERT"

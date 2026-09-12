@@ -1,6 +1,8 @@
 """Vault class for Obsidian vault management."""
 
 import fnmatch
+import hashlib
+import json
 import logging
 import os
 from datetime import datetime
@@ -11,7 +13,7 @@ from .config import MAX_NOTE_BYTES
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
 from .markdown_parser import MarkdownLimitError, parse_markdown
-from .models import Link, Note
+from .models import Link, Note, NoteLinkIndex
 from .path_safety import PathSafetyError, ensure_contained
 from .schema import init_db
 from .sqlite_transaction import owned_transaction
@@ -70,6 +72,8 @@ class Vault:
                 os.chmod(db_path_obj, 0o600)
 
         # init_db performs ordered migrations for existing databases.
+        self._link_index: NoteLinkIndex | None = None
+        self._link_index_version: tuple[int, int] | None = None
 
     def _is_excluded_from_date_collection(self, rel_path: str) -> bool:
         """Check if file should be excluded from date-collection detection.
@@ -114,9 +118,7 @@ class Vault:
 
         raise AssertionError("unreachable")
 
-    def _snapshot_is_current(
-        self, md_files: list[tuple[Path, Path, os.stat_result]]
-    ) -> bool:
+    def _snapshot_is_current(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> bool:
         """Revalidate the complete eligible source set without resolving known paths twice."""
         expected = {
             str(candidate.relative_to(self.vault_path)): (resolved, stat)
@@ -180,9 +182,7 @@ class Vault:
             md_files.append((candidate, resolved, stat))
         return md_files
 
-    def _sync_discovered_files(
-        self, md_files: list[tuple[Path, Path, os.stat_result]]
-    ) -> int:
+    def _sync_discovered_files(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> int:
         """Reconcile already-resolved sources inside the owned transaction."""
         processed_count = 0
         for md_file, resolved_file, initial_stat in md_files:
@@ -193,8 +193,7 @@ class Vault:
             # For regular notes, check by path; for journals (virtual entries), check by source_file
             source_fingerprint = self._source_fingerprint(initial_stat)
             cursor = self.db.execute(
-                "SELECT source_fingerprint FROM notes "
-                "WHERE path = ? OR source_file = ? LIMIT 1",
+                "SELECT source_fingerprint FROM notes WHERE path = ? OR source_file = ? LIMIT 1",
                 (rel_path, rel_path),
             )
             row = cursor.fetchone()
@@ -263,9 +262,7 @@ class Vault:
                     logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                     continue
 
-                self._replace_virtual_notes(
-                    rel_path, virtual_notes, file_mtime, source_fingerprint
-                )
+                self._replace_virtual_notes(rel_path, virtual_notes, file_mtime, source_fingerprint)
                 processed_count += len(virtual_notes)
                 logger.debug(f"Split {rel_path} into {len(virtual_notes)} virtual entries")
             else:
@@ -312,14 +309,19 @@ class Vault:
             stat.st_ctime_ns,
         )
 
-    @classmethod
-    def _source_fingerprint(cls, stat: os.stat_result) -> str:
-        """Serialize exact stat identity for the incremental database cache."""
-        return ":".join(str(value) for value in cls._stat_signature(stat))
+    def _source_fingerprint(self, stat: os.stat_result) -> str:
+        """Key parsed rows by source identity, parser revision, and settings.
 
-    def _delete_missing_notes(
-        self, md_files: list[tuple[Path, Path, os.stat_result]]
-    ) -> None:
+        Reclassification must occur even when only date-collection settings
+        change. The revision also refreshes persisted links that older parsers
+        stored without journal anchors; no schema migration is needed.
+        """
+        settings = json.dumps(self.config.date_collection.to_dict(), sort_keys=True)
+        config_digest = hashlib.sha256(settings.encode()).hexdigest()
+        stat_key = ":".join(str(value) for value in self._stat_signature(stat))
+        return f"parser-v2:{config_digest}:{stat_key}"
+
+    def _delete_missing_notes(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> None:
         """Delete notes absent from the validated, writer-owned filesystem view."""
         existing_paths = {
             str(candidate.relative_to(self.vault_path)) for candidate, _resolved, _stat in md_files
@@ -373,9 +375,7 @@ class Vault:
         new_paths = {note.path for note in virtual_notes}
 
         # A regular note and its virtual entries represent different identities.
-        self.db.execute(
-            "DELETE FROM notes WHERE path = ? AND is_virtual = 0", (source_file,)
-        )
+        self.db.execute("DELETE FROM notes WHERE path = ? AND is_virtual = 0", (source_file,))
         stale_paths = existing_paths - new_paths
         if stale_paths:
             self.db.executemany(
@@ -715,122 +715,35 @@ class Vault:
 
         return result
 
-    def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
-        """Resolve a wiki-link target to a Note.
-
-        Wiki-links in Obsidian can reference notes by:
-        - Full path with extension: "path/to/note.md"
-        - Path without extension: "path/to/note"
-        - Note title: "Note Title"
-        - Basename: "note"
-        - Virtual path: "Journal.md/2025-01-15"
-        - Heading link: "Journal#2025-01-15" (matches virtual note title)
-        - Date reference from virtual entry: "2025-01-15" (when source is virtual)
-
-        This method tries to resolve the target in order:
-        1. As exact path match (handles virtual paths)
-        2. As path with .md extension added
-        3. As exact title match (handles both regular notes and virtual note titles with #)
-        4. As title match after stripping heading/block refs (for regular heading links)
-        5. As date reference (if source is a virtual entry)
-
-        Args:
-            target: Link target string from wiki-link
-            source_path: Optional path of the note containing the link
-                         (used for context-aware date resolution in journals)
-
-        Returns:
-            Note object if found, None otherwise
-        """
-        # Try as exact path first (handles virtual paths like "Journal.md/2025-01-15")
-        note = self.get_note(target)
-        if note is not None:
-            return note
-
-        # Try adding .md extension
-        if not target.endswith(".md"):
-            note = self.get_note(f"{target}.md")
-            if note is not None:
-                return note
-
-        # Try exact title match (handles regular notes and virtual note titles)
-        cursor = self.db.execute(
-            "SELECT path FROM notes WHERE title = ?",
-            (target,),
-        )
-        row = cursor.fetchone()
-        if row is not None:
-            return self.get_note(row[0])
-
-        # Try as heading link (e.g., "Journal#2025-01-15" or "Regular Note#Some Heading")
-        # For virtual notes, if the heading looks like a date, construct the virtual path
-        if "#" in target:
-            from .date_collection import parse_date_heading
-
-            parts = target.split("#", 1)
-            filename = parts[0]
-            heading = parts[1] if len(parts) > 1 else ""
-
-            # Check if heading looks like a date (for virtual note deeplinks)
-            date_obj = parse_date_heading(f"## {heading}")
-            if date_obj is not None:
-                # Try to construct virtual path
-                # Handle both "filename" and "filename.md"
-                if not filename.endswith(".md"):
-                    virtual_path = f"{filename}.md/{date_obj.isoformat()}"
-                else:
-                    virtual_path = f"{filename}/{date_obj.isoformat()}"
-
-                note = self.get_note(virtual_path)
-                if note is not None:
-                    return note
-
-        # Strip heading/block references and try again
-        # e.g., [[Note#heading]] -> "Note", [[Note^block]] -> "Note"
-        # This handles regular heading links to non-virtual notes
-        if "#" in target or "^" in target:
-            clean_target = target.split("#")[0].split("^")[0]
-
-            # Try clean target as path
-            note = self.get_note(clean_target)
-            if note is not None:
-                return note
-
-            # Try clean target with .md extension
-            if not clean_target.endswith(".md"):
-                note = self.get_note(f"{clean_target}.md")
-                if note is not None:
-                    return note
-
-            # Try clean target as title
-            cursor = self.db.execute(
-                "SELECT path FROM notes WHERE title = ?",
-                (clean_target,),
+    def link_index(self) -> NoteLinkIndex:
+        """Return the canonical resolver, refreshing after local/external writes."""
+        if self.db.in_transaction:
+            # A resolver built from uncommitted rows must not outlive a rollback:
+            # SQLite's total_changes is not decremented, so the normal cache key
+            # cannot distinguish that transition.
+            return NoteLinkIndex(
+                self.db.execute(
+                    "SELECT path, title, is_virtual, source_file, entry_date FROM notes"
+                )
             )
-            row = cursor.fetchone()
-            if row is not None:
-                return self.get_note(row[0])
-        else:
-            # Use clean_target for date resolution below
-            clean_target = target
+        version = (self.db.total_changes, int(self.db.execute("PRAGMA data_version").fetchone()[0]))
+        if self._link_index is None or version != self._link_index_version:
+            self._link_index = NoteLinkIndex(
+                self.db.execute(
+                    "SELECT path, title, is_virtual, source_file, entry_date FROM notes"
+                )
+            )
+            self._link_index_version = version
+        return self._link_index
 
-        # Try date-based resolution if source is a virtual entry
-        # This handles bare date links like [[2025-01-15]] from within journal entries
-        if source_path and "/" in source_path:
-            from .date_collection import parse_date_heading
+    def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
+        """Resolve paths, aliases, and journal anchors using their source context.
 
-            # Source is a virtual entry, target might be a date reference
-            date_obj = parse_date_heading(f"## {clean_target}")
-            if date_obj is not None:
-                # Extract source file from virtual path
-                source_file = source_path.split("/")[0]
-                # Try to find entry with this date in the same journal
-                virtual_path = f"{source_file}/{date_obj.isoformat()}"
-                note = self.get_note(virtual_path)
-                if note is not None:
-                    return note
-
-        return None
+        Ambiguous titles/basenames are unresolved unless the source directory
+        or journal identifies a unique target. See NoteLinkIndex for precedence.
+        """
+        path = self.link_index().resolve(target, source_path)
+        return self.get_note(path) if path is not None else None
 
     def close(self) -> None:
         """Close database connection."""

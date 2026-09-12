@@ -1,5 +1,8 @@
 # GeistFabrik Benchmark Comparison (2025-11-14)
 
+> **Historical benchmark snapshot.** Measurements and implementation notes below
+> apply only to the recorded revision and are not current performance guarantees.
+
 **Date**: 2025-11-14
 **Purpose**: Compare current codebase performance against historical baselines
 **Branch**: claude/benchmark-against-metrics-015mdCLULa71CkJxGCUVtQ7C

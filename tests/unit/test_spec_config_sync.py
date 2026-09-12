@@ -96,17 +96,16 @@ def test_ledger_has_no_phantom_keys():
 
 
 def test_built_keys_are_reachable_in_live_config():
-    """A key marked literally BUILT must have its leaf in the live config, so
+    """A key marked literally BUILT must have its full path in live config, so
     the ledger cannot claim a config key is implemented when it isn't (the
     false-"implemented" failure mode). BUILT-DIFFERENTLY is a human-reviewed
     divergence by definition (different shape/name or behavioural-not-config),
     so it is intentionally not code-checked here."""
-    live_leaves = {p.split(".")[-1] for p in _live_config_leaf_paths()}
+    live_paths = _live_config_leaf_paths()
     offenders = []
     for key, status in _ledger_rows().items():
         if status != "BUILT":
             continue
-        leaf = key.split(".")[-1]
-        if leaf not in live_leaves:
-            offenders.append(f"{key} (BUILT) - leaf '{leaf}' not in live config")
+        if key not in live_paths:
+            offenders.append(f"{key} (BUILT) - full path is not in live config")
     assert not offenders, "Ledger claims BUILT but code disagrees:\n" + "\n".join(offenders)

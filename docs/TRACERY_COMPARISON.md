@@ -1,4 +1,10 @@
-# Tracery Implementation Comparison
+# Historical Tracery Implementation Comparison
+
+> **Archived snapshot.** This comparison predates GeistFabrik's built-in and
+> custom modifier support and is retained as design history, not as a current
+> feature reference. See `src/geistfabrik/tracery.py`,
+> `tests/unit/test_tracery.py`, and [WRITING_GOOD_GEISTS.md](WRITING_GOOD_GEISTS.md)
+> for the supported engine.
 
 This document provides a detailed comparison between GeistFabrik's custom Tracery-like implementation and standard Tracery (original JavaScript version and pytracery Python port).
 
