@@ -1,5 +1,11 @@
 # Lessons Learned: GeistFabrik Development
 
+> **Archived development snapshot (2025).** This file is retained for historical
+> context and its counts/status are not current. The maintained lessons document
+> is [../LESSONS_LEARNED.md](../LESSONS_LEARNED.md); operational contracts live
+> in [TESTING.md](TESTING.md), [CONFIGURATION.md](CONFIGURATION.md), and
+> [ARCHITECTURE.md](ARCHITECTURE.md).
+
 **Project**: GeistFabrik - A divergence engine for Obsidian vaults
 **Timeline**: Specification → Implementation → Testing → CI/CD → Production-Ready
 **Status**: ~95% Complete, 153/153 unit tests passing

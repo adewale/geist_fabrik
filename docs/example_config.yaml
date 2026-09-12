@@ -1,6 +1,7 @@
-# GeistFabrik Configuration Example
-# ==================================
-# This file shows all available configuration options for GeistFabrik.
+# GeistFabrik Geist-Ordering Example
+# ===================================
+# This file demonstrates the bundled geist ordering, not every live setting.
+# See docs/CONFIGURATION.md for the complete validated configuration reference.
 #
 # Location: <vault>/_geistfabrik/config.yaml
 #

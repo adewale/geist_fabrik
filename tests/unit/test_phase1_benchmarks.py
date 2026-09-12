@@ -47,9 +47,10 @@ def benchmark_vault():
 
 @pytest.mark.benchmark
 def test_backlinks_caching_benchmark(benchmark_vault):
-    """Benchmark: Verify backlinks() caching improves performance.
+    """Repeated backlink traversal performs a bounded number of SQL reads.
 
-    Expected: 10-50x speedup for repeated queries on same notes.
+    A query-count contract is stable across runners and detects the original
+    per-note SQL implementation without relying on sub-millisecond timings.
     """
     vault = Vault(benchmark_vault)
     vault.sync()
@@ -57,40 +58,23 @@ def test_backlinks_caching_benchmark(benchmark_vault):
     session = Session(date=datetime(2025, 1, 15), db=vault.db)
     session.compute_embeddings(vault.all_notes())
 
-    # Test WITHOUT caching (clear cache between calls)
-    context_no_cache = VaultContext(vault, session)
-    notes = context_no_cache.notes()[:10]  # Test on 10 notes
+    context = VaultContext(vault, session)
+    notes = context.notes()[:10]
+    statements: list[str] = []
+    vault.db.set_trace_callback(statements.append)
+    try:
+        for _ in range(10):
+            for note in notes:
+                context.backlinks(note)
+    finally:
+        vault.db.set_trace_callback(None)
 
-    start_no_cache = time.perf_counter()
-    for _ in range(10):  # 10 iterations
-        for note in notes:
-            _ = context_no_cache.backlinks(note)
-            context_no_cache._backlinks_cache.clear()  # Force re-query
-    time_no_cache = time.perf_counter() - start_no_cache
-
-    # Test WITH caching
-    context_with_cache = VaultContext(vault, session)
-
-    start_with_cache = time.perf_counter()
-    for _ in range(10):  # Same 10 iterations
-        for note in notes:
-            _ = context_with_cache.backlinks(note)
-            # Cache persists
-    time_with_cache = time.perf_counter() - start_with_cache
-
-    # Calculate speedup
-    speedup = time_no_cache / time_with_cache
-
-    print(f"\n{'=' * 60}")
-    print("Backlinks Caching Benchmark")
-    print(f"{'=' * 60}")
-    print(f"Without caching: {time_no_cache:.3f}s (100 queries)")
-    print(f"With caching:    {time_with_cache:.3f}s (100 queries)")
-    print(f"Speedup:         {speedup:.1f}x")
-    print(f"{'=' * 60}\n")
-
-    # Assert minimum speedup threshold
-    assert speedup >= 5.0, f"Expected >=5x speedup, got {speedup:.1f}x"
+    reads = [
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith("SELECT")
+    ]
+    assert len(reads) <= 3, f"backlink traversal issued {len(reads)} SQL reads"
 
 
 @pytest.mark.benchmark

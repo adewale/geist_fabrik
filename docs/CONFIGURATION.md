@@ -30,6 +30,7 @@ geist_execution:
 # Suggestion filtering pipeline
 filtering:
   boundary:
+    enabled: true
     exclude_paths: ["Private/", "People/"]  # folders whose notes never surface
   novelty:
     window_days: 60     # look-back for "have I seen this before?"
@@ -77,10 +78,12 @@ date_collection:
 
 - **Timeout / count**: explicit CLI flag (`--timeout`, `--count`) wins; otherwise
   the config value; otherwise the built-in default (30s, 5).
-- **`exclude_paths`**: the boundary filter drops any suggestion that references a
-  note whose path (or, for journal entries, source file) is under one of these
-  folder prefixes. This is the privacy control — notes under `Private/` etc.
-  never appear in suggestions.
+- **`exclude_paths`**: when the boundary filter is enabled, it drops a suggestion
+  whose structured `Suggestion.notes` references a note under one of these
+  prefixes. It does not prevent trusted Python plugins from reading those notes,
+  inspect arbitrary suggestion prose, or apply under `--no-filter`/the diagnostic
+  `test` command. Treat it as an output-reference filter, not an access-control or
+  redaction boundary.
 
 ## Notes on divergence from the spec
 

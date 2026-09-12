@@ -1,5 +1,10 @@
 # CI Validation Guide: Preventing Failed Builds
 
+> **Historical troubleshooting record.** Commands and guarantees below describe
+> an earlier workflow. Use [TESTING.md](TESTING.md) and `scripts/validate.sh` as
+> the maintained local contract. A local pass is strong evidence, not a promise
+> that platform-specific or service-side CI failures are impossible.
+
 ## The Problem
 
 **Issue**: Code passes local checks but fails in CI with mypy errors.
@@ -55,7 +60,8 @@ inference. `./scripts/test_wheel.sh` remains available as a focused artifact che
 ./scripts/validate.sh
 ```
 
-If this passes, CI will pass. **No exceptions.**
+If this passes, the equivalent local checks have passed; CI may still expose a
+platform-specific or service-side failure.
 
 ### 2. Never Run Custom CI Checks
 
@@ -197,7 +203,7 @@ If CI fails after pushing:
 ./scripts/validate.sh
 ```
 
-If it passes, CI will pass. If it fails, don't push.
+If it passes, the equivalent local checks have passed. If it fails, don't push.
 
 ### Why This Failed Before
 

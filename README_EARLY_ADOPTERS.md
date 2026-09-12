@@ -10,7 +10,7 @@ This guide shows you how to safely test GeistFabrik (v0.10.1 Beta) and provide v
 - ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
 - ✅ 70 default geists bundled (58 code + 12 Tracery)
-- ✅ Read-only vault access (your notes are safe)
+- ✅ Source notes are never modified; managed state is written under `_geistfabrik/`
 
 **Expect:**
 - Rough edges in CLI output
@@ -49,7 +49,7 @@ uv sync
 uv run geistfabrik init testdata/kepano-obsidian-main
 
 # 3. Run geists and view suggestions
-uv run geistfabrik invoke --vault testdata/kepano-obsidian-main --write
+uv run geistfabrik invoke testdata/kepano-obsidian-main --write
 
 # 4. Inspect results
 cat "testdata/kepano-obsidian-main/geist journal"/*.md
@@ -76,22 +76,22 @@ cp -r ~/Documents/MyVault ~/Documents/MyVault-Test
 # 2. Initialise GeistFabrik
 uv run geistfabrik init ~/Documents/MyVault-Test
 
-# 3. Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke --vault ~/Documents/MyVault-Test
+# 3. Preview suggestions (no journal/source-note writes; managed state is updated)
+uv run geistfabrik invoke ~/Documents/MyVault-Test
 
 # 4. Check for similar suggestions (diff mode)
-uv run geistfabrik invoke --vault ~/Documents/MyVault-Test --diff
+uv run geistfabrik invoke ~/Documents/MyVault-Test --diff
 
 # 5. Write session note
-uv run geistfabrik invoke --vault ~/Documents/MyVault-Test --write
+uv run geistfabrik invoke ~/Documents/MyVault-Test --write
 
 # 6. Open in Obsidian
 # Add ~/Documents/MyVault-Test as vault
 # Browse to "geist journal/" folder
 
 # 7. Test individual geists
-uv run geistfabrik test temporal_drift --vault ~/Documents/MyVault-Test
-uv run geistfabrik test creative_collision --vault ~/Documents/MyVault-Test
+uv run geistfabrik test temporal_drift ~/Documents/MyVault-Test
+uv run geistfabrik test creative_collision ~/Documents/MyVault-Test
 
 # 8. Clean up when done
 rm -rf ~/Documents/MyVault-Test
@@ -104,7 +104,8 @@ rm -rf ~/Documents/MyVault-Test
 
 ### Option 3: Your Real Vault (For Confident Users)
 
-Use your actual vault. Safe because GeistFabrik is read-only.
+Use your actual vault. GeistFabrik leaves source notes untouched while keeping
+its database and optional session journal in the managed paths described below.
 
 ```bash
 # Optional: Backup first
@@ -114,14 +115,14 @@ cp -r ~/Documents/MyVault ~/Documents/MyVault.backup
 uv run geistfabrik init ~/Documents/MyVault
 # You'll see warnings about what GeistFabrik will/won't do
 
-# 2. Preview suggestions (read-only, no files created)
-uv run geistfabrik invoke --vault ~/Documents/MyVault
+# 2. Preview suggestions (no journal/source-note writes; managed state is updated)
+uv run geistfabrik invoke ~/Documents/MyVault
 
 # 3. Compare to previous sessions
-uv run geistfabrik invoke --vault ~/Documents/MyVault --diff
+uv run geistfabrik invoke ~/Documents/MyVault --diff
 
 # 4. Write your first session note
-uv run geistfabrik invoke --vault ~/Documents/MyVault --write
+uv run geistfabrik invoke ~/Documents/MyVault --write
 
 # 5. View in Obsidian
 # Navigate to "geist journal/" folder
@@ -134,7 +135,7 @@ rm -rf ~/Documents/MyVault/"geist journal"
 ```
 
 **Time:** Ongoing exploration
-**Risk:** Very low (read-only access)
+**Risk:** Very low (source-note-safe; managed database/journal writes only)
 
 ---
 
@@ -147,24 +148,27 @@ MyVault/
 ├── _geistfabrik/                    # GeistFabrik's directory
 │   ├── vault.db                     # SQLite (notes + embeddings)
 │   ├── geists/
-│   │   ├── code/                    # 29 Python geists
-│   │   └── tracery/                 # 10 YAML geists
-│   ├── metadata_inference/          # 3 metadata modules
-│   └── vault_functions/             # 2 query functions
+│   │   ├── code/                    # Custom Python geists
+│   │   └── tracery/                 # Custom YAML geists
+│   ├── metadata_inference/          # Custom metadata modules
+│   └── vault_functions/             # Custom query functions
 └── geist journal/                   # Session notes (--write only)
     └── 2025-10-21.md                # Today's suggestions
 ```
 
 **Database contents (`vault.db`):**
-- Note metadata (titles, links, tags, timestamps)
+- Note titles, full Markdown content, links, tags, and timestamps
 - Embeddings (384-dim vectors, ~30MB for 1000 notes)
 - Session history
 - Previous suggestions (for novelty filtering)
 
-**Not stored:**
-- Full note content (read on-demand)
-- Personal identifiers
+**Not collected or transmitted by the engine:**
 - Usage analytics
+- Cloud telemetry
+
+The local database contains full note text and can therefore contain any
+personal information present in the vault. Protect backups or copies of
+`vault.db` as carefully as the source notes.
 
 ---
 
@@ -200,7 +204,7 @@ MyVault/
 ### 3. Diff Mode
 
 ```bash
-uv run geistfabrik invoke --vault ~/MyVault --diff
+uv run geistfabrik invoke ~/MyVault --diff
 # 🔍 Diff Mode: Comparing to recent sessions...
 #   ✨ New: What if you combined [[Note A]] with [[Note B]]?
 #   ⚠️  Similar to recent: Consider revisiting [[Old Note]]...
@@ -303,23 +307,28 @@ def suggest(vault):
                 geist_id="my_geist"
             ))
 
-    return vault.sample(suggestions, k=5)
+    return vault.sample(suggestions, count=5)
 ```
 
-Test it: `uv run geistfabrik test my_geist`
+Test it: `uv run geistfabrik test my_geist ~/my-vault`
 
 **Q: What if a geist crashes?**
 A: System continues. Geists have:
-- 5-second timeout
+- Configurable timeout (30 seconds by default)
 - Error isolation (one failure doesn't stop others)
 - Execution logs
 - Auto-disable after 3 failures
 
 **Q: Can I remove example geists?**
-A: Yes! Delete unwanted geists:
-```bash
-rm ~/MyVault/_geistfabrik/geists/code/temporal_drift.py
+A: Bundled geists are not copied into the vault. Disable an unwanted bundled
+geist in `~/MyVault/_geistfabrik/config.yaml`:
+```yaml
+default_geists:
+  temporal_drift: false
 ```
+
+Deleting a custom override only reveals the bundled geist again; it does not
+disable that geist.
 
 ---
 
@@ -350,7 +359,7 @@ Test each geist and rank them:
 ```bash
 for geist in temporal_drift creative_collision bridge_builder; do
     echo "Testing $geist..."
-    uv run geistfabrik test $geist
+    uv run geistfabrik test $geist ~/my-vault
 done
 ```
 
@@ -370,10 +379,10 @@ Run on the same date multiple times:
 
 ```bash
 # Day 1
-uv run geistfabrik invoke --vault ~/MyVault --date 2025-01-15 --write
+uv run geistfabrik invoke ~/MyVault --date 2025-01-15 --write
 
 # Day 30 (vault has evolved)
-uv run geistfabrik invoke --vault ~/MyVault --date 2025-01-15 --write --force
+uv run geistfabrik invoke ~/MyVault --date 2025-01-15 --write --force
 
 # Compare how suggestions changed as your vault grew
 ```
@@ -388,7 +397,7 @@ Run ALL geists with ALL raw suggestions (no filtering) against a vault copy. Thi
 
 **Understanding the difference:**
 - `--full`: All **filtered** suggestions (quality checks applied, no sampling)
-- `--nofilter`: All **raw** suggestions (no filtering, no quality checks)
+- `--no-filter`: All **raw** suggestions (no filtering, no quality checks)
 
 ```bash
 # Step 1: Create a fresh copy
@@ -402,10 +411,10 @@ tar -czf ../MyVault-FullTest-backup.tar.gz .
 uv run geistfabrik init ~/Documents/MyVault-FullTest
 
 # Step 4a: Try --full first (filtered but not sampled)
-uv run geistfabrik invoke --vault ~/Documents/MyVault-FullTest --full --write
+uv run geistfabrik invoke ~/Documents/MyVault-FullTest --full --write
 
-# Step 4b: For TRUE firehose, use --nofilter (completely unfiltered)
-uv run geistfabrik invoke --vault ~/Documents/MyVault-FullTest --nofilter --write --force
+# Step 4b: For TRUE firehose, use --no-filter (completely unfiltered)
+uv run geistfabrik invoke ~/Documents/MyVault-FullTest --no-filter --write --force
 
 # Step 5: Review the flood of suggestions
 cat ~/Documents/MyVault-FullTest/"geist journal"/$(date +%Y-%m-%d).md
@@ -430,7 +439,7 @@ With `--full` (filtered):
 - Notes must exist in vault
 - Good for thorough review
 
-With `--nofilter` (raw):
+With `--no-filter` (raw):
 - 50-200+ suggestions (completely unfiltered)
 - You'll see EVERYTHING every geist thinks
 - May include low-quality, redundant, or broken suggestions
@@ -438,20 +447,20 @@ With `--nofilter` (raw):
 - Perfect for understanding raw geist output
 
 **Why this is dangerous:**
-- While GeistFabrik never modifies your notes, running with `--nofilter` generates a LOT of data
-- The session note can be overwhelming (10+ pages with `--nofilter`)
+- While GeistFabrik never modifies your source notes, `--no-filter` generates a LOT of data
+- The session note can be overwhelming (10+ pages with `--no-filter`)
 - You'll see the "raw feed" with all its flaws
 - Some geists may crash or timeout (this is expected in beta)
 
 **Best for:**
-- Understanding what filtering removes (`--full` vs `--nofilter`)
+- Understanding what filtering removes (`--full` vs `--no-filter`)
 - Debugging custom geists (see raw output)
 - Seeing maximum divergent thinking
 - Stress-testing the system
 - Understanding vault patterns
 
 **NOT recommended for:**
-- Daily use (way too noisy, especially `--nofilter`)
+- Daily use (way too noisy, especially `--no-filter`)
 - Your actual vault (use a copy!)
 - Production workflows
 - First-time users (start with default mode)
@@ -525,14 +534,14 @@ Performance Profiling (--debug mode)
 
 ✓ creative_collision: 0.142s (3 suggestions)
 ✓ bridge_builder: 0.089s (2 suggestions)
-⚠ slow_geist: 4.213s (1 suggestions)   ← Approaching timeout
-✗ timeout_geist: Execution timed out (>5s)
+⚠ slow_geist: 24.213s (1 suggestions)   ← Approaching timeout
+✗ timeout_geist: Execution timed out (>30s)
 ```
 
 **What to report:**
 - Geists that take >2s (slow but acceptable)
-- Geists approaching timeout (>4s, need optimisation)
-- Geists that timeout (>5s, blocking issue)
+- Geists approaching the configured timeout (>25s with the default)
+- Geists that exceed the configured timeout (>30s by default)
 
 ### Run Cluster Caching Benchmark
 
@@ -739,7 +748,7 @@ Found a slow geist? Here's how to report it effectively:
 
 **1. Profile the specific geist:**
 ```bash
-uv run geistfabrik test slow_geist ~/my-vault --timeout 10 --debug
+uv run geistfabrik test slow_geist ~/my-vault --timeout 60 --debug
 ```
 
 **2. Create GitHub issue** with title:
@@ -775,7 +784,7 @@ From: `uv run geistfabrik test <geist_name> ~/my-vault --debug`
 
 ## Observations
 
-- Does it timeout (>5s)?
+- Does it exceed the configured timeout (>30s by default)?
 - Is it consistently slow?
 - Which operation takes most time?
 ```
@@ -854,7 +863,7 @@ The sentence-transformer model (all-MiniLM-L6-v2) computes semantic embeddings f
 **If geists timeout:**
 ```bash
 # Increase timeout for large vaults
-uv run geistfabrik invoke ~/my-vault --timeout 10
+uv run geistfabrik invoke ~/my-vault --timeout 60
 ```
 
 **If first run is slow:**
@@ -905,13 +914,13 @@ Before reporting slow performance, verify:
 
 - [ ] Using cached embeddings? (daily runs should be fast)
 - [ ] Incremental sync working? (only changed files)
-- [ ] Timeout appropriate? (5s default, increase for large vaults)
+- [ ] Timeout appropriate? (30s default, increase for large vaults)
 - [ ] sklearn installed? (required for vectorization and clustering)
 - [ ] System has >2GB RAM available?
 
 ### Questions About Performance?
 
-- 📝 **GitHub Issues**: https://github.com/anthropics/geist_fabrik/issues
+- 📝 **GitHub Issues**: https://github.com/adewale/geist_fabrik/issues
 - 📚 **Performance Design Doc**: `docs/GEIST_INSTRUMENTATION_DESIGN.md`
 - 🔍 **Use --debug**: Best tool for diagnosing slowness
 

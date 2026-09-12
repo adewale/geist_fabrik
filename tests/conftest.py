@@ -99,10 +99,9 @@ def test_db() -> Generator[sqlite3.Connection, None, None]:
 def clear_global_registry() -> Generator[None, None, None]:
     """Reset the module-level function registry around every test.
 
-    FunctionRegistry registers builtins into a process-global registry
-    (function_registry._GLOBAL_REGISTRY), so any test that constructs a
-    registry would otherwise poison the next one with DuplicateFunctionError.
-    Hoisted here from ~49 per-file copies of this same fixture.
+    Explicit host-level @vault_function declarations use a process-global
+    registry. Keep those declarations isolated between tests; built-ins and
+    imported vault plugins are owned by their FunctionRegistry instances.
     """
     from geistfabrik.function_registry import _GLOBAL_REGISTRY
 

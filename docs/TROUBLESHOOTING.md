@@ -14,11 +14,10 @@ GeistFabrik downloads it from HuggingFace on first run.
 ## A geist stopped producing suggestions / "disabled after N failures"
 
 Geists are disabled after `geist_execution.max_failures` (default 3)
-*consecutive* failures, persisted in `geist_status`. Re-enable by:
-- Fixing the geist — the next successful run resets its count; or
-- `geistfabrik test <geist_id> <vault>` (a passing run clears it); or
-- `rm -rf <vault>/_geistfabrik/vault.db*` to reset all state (rebuilds on next
-  invoke).
+*consecutive* failures, persisted in `geist_status`. Normal invocation skips a
+disabled geist, so edit the code and then run
+`geistfabrik test <geist_id> <vault>`. A successful diagnostic run clears the
+failure state and re-enables it.
 
 See the last error with `geistfabrik invoke <vault> --verbose` (or `--debug`).
 
@@ -28,8 +27,10 @@ See the last error with `geistfabrik invoke <vault> --verbose` (or `--debug`).
   vaults legitimately produce nothing.
 - Check geists aren't all disabled in `config.yaml` (`default_geists:`).
 - Run one geist directly: `geistfabrik test <geist_id> <vault>`.
-- Notes under `filtering.boundary.exclude_paths` never surface — make sure you
-  didn't exclude the folder you're testing.
+- The boundary filter drops suggestions whose structured note references point
+  under `filtering.boundary.exclude_paths`. It is bypassed by `--no-filter` and
+  the diagnostic `test` command; make sure you did not exclude the folder under
+  normal filtered invocation.
 
 ## A geist is slow / times out
 
@@ -41,9 +42,11 @@ See the last error with `geistfabrik invoke <vault> --verbose` (or `--debug`).
 
 ## Suggestions reference notes I deleted / wrong deeplinks
 
-GeistFabrik syncs incrementally on each run. If references look stale, the
-database may predate a breaking change — rebuild it:
-`rm -rf <vault>/_geistfabrik/vault.db*` then `geistfabrik invoke <vault>`.
+GeistFabrik syncs incrementally on each run. If references look stale after a
+breaking upgrade, first preserve `_geistfabrik/vault.db` and adjacent
+`-wal`/`-shm` files. If losing session history, cached metrics, and failure state
+is acceptable, move those files out of `_geistfabrik/` and invoke again. Do not
+delete the only copy as a routine troubleshooting step.
 
 If synchronization instead reports that vault files changed repeatedly, an
 editor, sync client, or other process modified Markdown during all bounded

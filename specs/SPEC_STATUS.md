@@ -11,8 +11,8 @@ Status vocabulary:
 - **BUILT** — implemented as specified.
 - **BUILT-DIFFERENTLY** — implemented, but shape/name/location diverges from the
   spec (the spec should eventually be amended to match).
-- **NOT-WIRED** — a default exists in code but the config key does not drive it
-  (changing it in config.yaml has no effect).
+- **NOT-WIRED** — the concept exists internally but the documented config key is
+  not accepted or does not drive it; consult the row before adding it to YAML.
 - **NOT-BUILT** — no implementation; recommend amending the spec.
 - **DEFERRED** — intentionally post-1.0 (see referenced doc).
 
@@ -39,7 +39,7 @@ Status vocabulary:
 | `geist_execution.max_failures` | BUILT | drives geist_status disable threshold |
 | `geist_execution.execution_mode` | NOT-BUILT | only serial exists; amend spec |
 | `filtering.strategies` | NOT-WIRED | order fixed in `get_default_filter_config`; not user-config-driven |
-| `filtering.boundary.enabled` | BUILT | honoured by `filter_boundary` |
+| `filtering.boundary.enabled` | BUILT | validated and honoured by `filter_boundary` |
 | `filtering.novelty.enabled` | NOT-WIRED | default on; no config toggle plumbed |
 | `filtering.novelty.method` | NOT-WIRED | `embedding_similarity`/`text_match` exist; default only |
 | `filtering.novelty.threshold` | BUILT | `filtering.novelty.threshold` |
@@ -61,7 +61,7 @@ Status vocabulary:
 
 Live config keys NOT in the spec (added since): `enabled_modules`,
 `session_embedding_retention`, `clustering.*`, `vector_search.*`,
-`date_collection.*` — these are documented in `docs/example_config.yaml`.
+`date_collection.*` — these are documented in `docs/CONFIGURATION.md`.
 
 ## Other concrete spec promises
 
@@ -74,7 +74,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 | Real connected-components stat | STATS_COMMAND_SPEC.md:181 | BUILT (uses GraphPatternFinder.find_connected_components) |
 | `claim_harvester` / `hypothesis_harvester` geists | reuse_abstractions_spec.md (items 12-13) | BUILT (bundled default geists) |
 | Betweenness-centrality bridge stat; "most productive day" temporal pattern | STATS_COMMAND_SPEC.md:217 | NOT-BUILT — defer; mark in spec |
-| `geistfabrik sync` / `query` commands; `--session-id` | JOURNAL_FILES.md:746,797 | NOT-BUILT — amend docs (sync is implicit; `--date` covers query) |
+| `geistfabrik sync` / `query` commands; `--session-id` | historical spec | NOT-BUILT — current guide uses implicit invoke sync and supported diagnostics |
 | docs/CONFIGURATION.md | several | BUILT |
 | docs/TROUBLESHOOTING.md | several | BUILT |
 | bandit security scan | acceptance_criteria.md:498 | BUILT (CI + validate.sh, B608 skipped w/ rationale) |

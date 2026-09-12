@@ -63,7 +63,10 @@ jobs:
           uv run pytest tests/integration -v
           -m "not slow and not benchmark and not artifact and not production_model"
           --timeout=300 --cov=geistfabrik --cov-branch --cov-append
-          --cov-report=term-missing --cov-fail-under=70
+          --cov-report=term-missing
+
+      - name: Enforce branch-only coverage
+        run: uv run python scripts/check_branch_coverage.py --minimum 70
 
       - name: Run linting
         run: uv run ruff check src/ tests/

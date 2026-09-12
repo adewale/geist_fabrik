@@ -12,19 +12,19 @@ if TYPE_CHECKING:
 from geistfabrik import vault_function
 
 
-@vault_function("contrarian_to")
-def find_contrarian(vault: "VaultContext", note_title: str, k: int = 3) -> list["Note"]:
+@vault_function("example_contrarian_to")
+def find_contrarian(vault: "VaultContext", note_title: str, count: int = 3) -> list[str]:
     """Find notes that are semantically dissimilar to given note.
 
     Args:
         vault: VaultContext
         note_title: Title of note to find contrarians for
-        k: Number of contrarian notes to return
+        count: Number of contrarian notes to return
 
     Returns:
-        List of k most dissimilar notes
+        List of count bracketed links to the most dissimilar notes
     """
-    note = vault.get_note(note_title)
+    note = vault.resolve_link_target(note_title)
     if note is None:
         return []
 
@@ -41,5 +41,6 @@ def find_contrarian(vault: "VaultContext", note_title: str, k: int = 3) -> list[
     # Sort by similarity ascending (least similar first)
     similarities.sort(key=lambda x: x[1])
 
-    # Return k least similar
-    return [n for n, _ in similarities[:k]]
+    # Return the least similar notes as Tracery-safe Obsidian links. The
+    # example name is deliberately distinct from the bundled contrarian_to.
+    return [f"[[{note.link_text}]]" for note, _ in similarities[:count]]

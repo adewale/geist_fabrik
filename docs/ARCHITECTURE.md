@@ -21,10 +21,10 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │                       SESSION ORCHESTRATOR                                │
 │                                                                           │
 │  1. Compute embeddings for this session (temporal + semantic)            │
-│  2. Execute ALL geists (parallel, 30s timeout each)                       │
+│  2. Execute enabled geists serially (30s timeout each)                    │
 │  3. Apply filtering (boundary/novelty/diversity/quality)                 │
 │  4. Sample ~5 suggestions (deterministic, date-seeded)                   │
-│  5. Write to geist journal/YYYY-MM-DD.md                                 │
+│  5. Optionally write journal/YYYY-MM-DD.md with --write                  │
 └───────────────────────┬──────────────────────┬───────────────────────────┘
                         │                      │
             ┌───────────┴─────────┐      ┌─────┴──────────────┐
@@ -124,16 +124,16 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │ _geistfabrik/    │ │ _geistfabrik/    │ │ Built-in functions:  │
 │  metadata_       │ │  vault_functions/│ │                      │
 │  inference/*.py  │ │                  │ │ @vault_function()    │
-│                  │ │ @vault_function  │ │  def hubs(vault, k): │
-│ def infer(note,  │ │  def func(vault, │ │   # SQL → Notes      │
-│    vault) -> Dict│ │    **kwargs):    │ │   return notes       │
+│                  │ │ @vault_function  │ │  def hubs(vault,     │
+│ def infer(note,  │ │  def func(vault, │ │    count):           │
+│    vault) -> Dict│ │    **kwargs):    │ │   return links       │
 │                  │ │   # Note-based   │ │                      │
 │ Adds properties  │ │   logic          │ │ Adapts for Tracery:  │
-│ to metadata():   │ │   return result  │ │ Notes → ".title"     │
+│ to metadata():   │ │   return result  │ │ Notes → "[[link]]"   │
 │  • complexity    │ │                  │ │ (string-based I/O)   │
 │  • sentiment     │ │ Available as:    │ │                      │
-│  • reading_time  │ │ $vault.func()    │ │ $vault.hubs(k=5)     │
-│  • custom...     │ │ in Tracery       │ │  .map(title)         │
+│  • reading_time  │ │ $vault.func()    │ │ $vault.hubs(5)       │
+│  • custom...     │ │ in Tracery       │ │  (bracketed links)   │
 └──────────────────┘ └──────────────────┘ └──────────────────────┘
          │                 │                         │
          └─────────────────┴─────────────────────────┘
@@ -141,7 +141,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
                            ▼ Delegates to
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃                     LAYER 1: Vault                                       ┃
-┃                 (Raw Data Access - Read-Only)                            ┃
+┃              (Raw Data Access - Source-Note-Safe)                       ┃
 ┃                                                                          ┃
 ┃  WHAT VAULT DOES: Parses files → Creates Note objects → Syncs SQLite   ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
@@ -172,7 +172,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  │    entry_date: date   # Date from heading (virtual entries)     │   ┃
 ┃  │                                                                  │   ┃
 ┃  │  ✓ Immutable (frozen dataclass)                                 │   ┃
-┃  │  ✓ Lightweight (no computed properties)                         │   ┃
+┃  │  ✓ Lightweight (`link_text` is the only computed property)       │   ┃
 ┃  │  ✓ All intelligence lives in VaultContext, not Note            │   ┃
 ┃  │  ✓ Supports date-collection notes (journal file splitting)      │   ┃
 ┃  └─────────────────────────────────────────────────────────────────┘   ┃
@@ -284,8 +284,8 @@ THREE-DIMENSIONAL EXTENSIBILITY:
 TRACERY ↔ VAULTCONTEXT BRIDGE:
   • FunctionRegistry provides adapter layer
   • Vault functions work with Note objects internally
-  • Return strings for Tracery consumption (usually note.title)
-  • Example: $vault.hubs(k=5).map(title) → List of note titles
+  • Return strings for Tracery consumption (usually bracketed wikilinks)
+  • Example: $vault.hubs(5) → List of bracketed note links
 
 PERSISTENCE:
   • Single SQLite file: <vault>/_geistfabrik/vault.db

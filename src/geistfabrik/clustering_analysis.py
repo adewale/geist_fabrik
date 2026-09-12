@@ -107,19 +107,18 @@ class ClusterAnalyser:
         self,
         vault: "VaultContext",
         strategy: str = "hdbscan",
-        min_size: int = 5,
+        min_size: int | None = None,
     ):
         """Initialize clustering analyser.
 
         Args:
             vault: VaultContext
             strategy: "hdbscan", "kmeans", "agglomerative" (future)
-            min_size: Minimum cluster size
+            min_size: Minimum cluster size; defaults to the vault configuration
         """
         self.vault = vault
         self.strategy = strategy
         self.min_size = min_size
-        self._clusters_cache: dict[int, Cluster] | None = None
 
     def get_clusters(self) -> dict[int, Cluster]:
         """Get clusters (cached per session).
@@ -130,9 +129,6 @@ class ClusterAnalyser:
         Returns:
             Dictionary mapping cluster_id to Cluster
         """
-        if self._clusters_cache is not None:
-            return self._clusters_cache
-
         # Run clustering based on strategy
         if self.strategy == "hdbscan":
             clusters = self._cluster_hdbscan()
@@ -140,104 +136,11 @@ class ClusterAnalyser:
             # Future strategies: kmeans, agglomerative
             clusters = self._cluster_hdbscan()  # Fallback to HDBSCAN
 
-        self._clusters_cache = clusters
         return clusters
 
     def _cluster_hdbscan(self) -> dict[int, Cluster]:
-        """Run HDBSCAN clustering.
-
-        Returns:
-            Dictionary mapping cluster_id to Cluster
-        """
-        from geistfabrik import cluster_labeling
-
-        # Import optional dependency
-        try:
-            from sklearn.cluster import HDBSCAN  # type: ignore[import-untyped]
-        except ImportError:
-            return {}
-
-        # Use cached session embeddings via public accessor
-        embeddings_dict = self.vault.get_all_embeddings()
-
-        if len(embeddings_dict) < self.min_size * 2:  # Need at least 2 clusters worth
-            return {}
-
-        paths = list(embeddings_dict.keys())
-        embeddings_array = np.array([embeddings_dict[p] for p in paths])
-
-        # Run HDBSCAN clustering
-        clusterer = HDBSCAN(min_cluster_size=self.min_size, min_samples=3)
-        labels = clusterer.fit_predict(embeddings_array)
-
-        # Group notes by cluster
-        clusters_notes: dict[int, list[Note]] = {}
-        cluster_paths: dict[int, list[str]] = {}
-
-        for i, label in enumerate(labels):
-            if label == -1:  # Noise points
-                continue
-            if label not in clusters_notes:
-                clusters_notes[label] = []
-                cluster_paths[label] = []
-
-            note = self.vault.get_note(paths[i])
-            if note:
-                clusters_notes[label].append(note)
-                cluster_paths[label].append(paths[i])
-
-        if not clusters_notes:
-            return {}
-
-        # Generate labels using cluster_labeling module
-        labeling_method = self.vault.vault.config.clustering.labeling_method
-        n_terms = self.vault.vault.config.clustering.n_label_terms
-
-        if labeling_method == "keybert":
-            cluster_labels_raw = cluster_labeling.label_keybert(
-                paths, labels, self.vault.db, n_terms=n_terms
-            )
-        else:  # Default to tfidf
-            cluster_labels_raw = cluster_labeling.label_tfidf(
-                paths, labels, self.vault.db, n_terms=n_terms
-            )
-
-        # Build Cluster objects
-        result: dict[int, Cluster] = {}
-
-        for cluster_id, notes in clusters_notes.items():
-            # Get embeddings for this cluster
-            cluster_embeddings = np.array(
-                [embeddings_dict[path] for path in cluster_paths[cluster_id]]
-            )
-
-            # Calculate centroid (mean of embeddings)
-            centroid = np.mean(cluster_embeddings, axis=0)
-
-            # Format label as phrase
-            keyword_label = cluster_labels_raw.get(cluster_id, f"Cluster {cluster_id}")
-            formatted_label = format_cluster_label(keyword_label)
-
-            result[cluster_id] = Cluster(
-                cluster_id=cluster_id,
-                label=keyword_label,
-                formatted_label=formatted_label,
-                notes=notes,
-                size=len(notes),
-                centroid=centroid,
-            )
-
-        # Persist this session's assignments so future sessions can compare
-        # cluster membership over time (cluster_evolution_tracker).
-        self.vault.persist_cluster_labels(
-            {
-                path: result[cluster_id].label
-                for cluster_id in result
-                for path in cluster_paths[cluster_id]
-            }
-        )
-
-        return result
+        """Use the context's canonical clustering, cache, and history writer."""
+        return self.vault.get_clusters(min_size=self.min_size)
 
     def get_cluster_for_note(self, note: "Note") -> int | None:
         """Get cluster ID for a note.

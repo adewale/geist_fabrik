@@ -191,12 +191,17 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
         assert self.memory_vault.sync() == expected_count
         assert self.disk_vault.sync() == expected_count
 
-    def _write_file(self, path: str, content: str) -> str:
+    def _write_file(self, path: str, content: str, *, preserve_mtime: bool = False) -> str:
         native_path = _native_path(path)
         note_path = self.vault_path / native_path
         note_path.parent.mkdir(parents=True, exist_ok=True)
+        previous_mtime = self._file_mtimes.get(native_path)
         note_path.write_text(content, encoding="utf-8")
-        self._stamp_file(native_path)
+        if preserve_mtime and previous_mtime is not None:
+            os.utime(note_path, (previous_mtime, previous_mtime))
+            assert note_path.stat().st_mtime == previous_mtime
+        else:
+            self._stamp_file(native_path)
         return native_path
 
     def _stamp_file(self, native_path: str) -> None:
@@ -391,9 +396,11 @@ class _VaultSyncStateMachineBase(RuleBasedStateMachine):
 class RegularVaultSyncStateMachine(_VaultSyncStateMachineBase):
     """Exercise regular notes, batching, renames, updates, and deletions."""
 
-    @rule(path=NOTE_PATHS, note=regular_notes())
-    def create_or_update_note(self, path: str, note: RegularNoteCase) -> None:
-        native_path = self._write_file(path, note.content)
+    @rule(path=NOTE_PATHS, note=regular_notes(), preserve_mtime=st.booleans())
+    def create_or_update_note(
+        self, path: str, note: RegularNoteCase, preserve_mtime: bool
+    ) -> None:
+        native_path = self._write_file(path, note.content, preserve_mtime=preserve_mtime)
         self.expected_notes[native_path] = note.state
         self.expected_semantic_paths.discard(native_path)
         self._sync_both(1)
@@ -410,15 +417,25 @@ class RegularVaultSyncStateMachine(_VaultSyncStateMachineBase):
         self._file_mtimes.pop(native_path, None)
         self._sync_both(0)
 
-    @rule(paths=DISTINCT_PATH_PAIRS, first=regular_notes(), second=regular_notes())
+    @rule(
+        paths=DISTINCT_PATH_PAIRS,
+        first=regular_notes(),
+        second=regular_notes(),
+        preserve_mtime=st.booleans(),
+    )
     def batch_update_notes(
         self,
         paths: tuple[str, str],
         first: RegularNoteCase,
         second: RegularNoteCase,
+        preserve_mtime: bool,
     ) -> None:
-        first_path = self._write_file(paths[0], first.content)
-        second_path = self._write_file(paths[1], second.content)
+        first_path = self._write_file(
+            paths[0], first.content, preserve_mtime=preserve_mtime
+        )
+        second_path = self._write_file(
+            paths[1], second.content, preserve_mtime=preserve_mtime
+        )
         self.expected_notes[first_path] = first.state
         self.expected_notes[second_path] = second.state
         self.expected_semantic_paths.difference_update((first_path, second_path))
@@ -481,14 +498,16 @@ class DateCollectionVaultSyncStateMachine(_VaultSyncStateMachineBase):
             )
             self.expected_semantic_paths.discard(virtual_path)
 
-    @rule(journal=journal_cases())
-    def create_or_update_journal(self, journal: JournalCase) -> None:
+    @rule(journal=journal_cases(), preserve_mtime=st.booleans())
+    def create_or_update_journal(self, journal: JournalCase, preserve_mtime: bool) -> None:
         self._replace_journal_model(journal)
-        self._write_file(JOURNAL_PATH, journal.content)
+        self._write_file(JOURNAL_PATH, journal.content, preserve_mtime=preserve_mtime)
         self._sync_both(len(journal.entries))
 
-    @rule(note=regular_notes())
-    def convert_journal_to_regular(self, note: RegularNoteCase) -> None:
+    @rule(note=regular_notes(), preserve_mtime=st.booleans())
+    def convert_journal_to_regular(
+        self, note: RegularNoteCase, preserve_mtime: bool
+    ) -> None:
         virtual_paths = {
             path
             for path, state in self.expected_notes.items()
@@ -500,7 +519,7 @@ class DateCollectionVaultSyncStateMachine(_VaultSyncStateMachineBase):
             self.expected_session_embedding_paths.discard(virtual_path)
         self.expected_notes[JOURNAL_PATH] = note.state
         self.expected_semantic_paths.discard(JOURNAL_PATH)
-        self._write_file(JOURNAL_PATH, note.content)
+        self._write_file(JOURNAL_PATH, note.content, preserve_mtime=preserve_mtime)
         self._sync_both(1)
 
     @rule()

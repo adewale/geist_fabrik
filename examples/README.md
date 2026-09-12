@@ -26,7 +26,7 @@ examples/
 │   └── structure.py        # Document structure analysis
 │
 └── vault_functions/        # Custom vault functions
-    ├── contrarian.py       # Find semantically dissimilar notes
+    ├── contrarian.py       # Example dissimilar-note query (distinct from the builtin)
     └── questions.py        # Find question notes
 ```
 
@@ -42,12 +42,9 @@ cp -r examples/metadata_inference/* /path/to/vault/_geistfabrik/metadata_inferen
 cp -r examples/vault_functions/* /path/to/vault/_geistfabrik/vault_functions/
 ```
 
-Or create symlinks for easier development:
-
-```bash
-ln -s $(pwd)/examples/metadata_inference /path/to/vault/_geistfabrik/metadata_inference
-ln -s $(pwd)/examples/vault_functions /path/to/vault/_geistfabrik/vault_functions
-```
+Managed plugin paths reject symlinks so a vault cannot escape its configured
+root through path indirection. During development, repeat the copy after edits
+or keep the plugin source directly in the vault.
 
 ## Usage
 
@@ -82,8 +79,8 @@ Vault functions can be called from Python geists or Tracery geists:
 # From Python geists
 def suggest(vault):
     # Call vault functions directly
-    questions = vault.call_function('find_questions', k=5)
-    contrarian = vault.call_function('contrarian_to', 'My Note', k=3)
+    questions = vault.call_function('find_questions', count=5)
+    contrarian = vault.call_function('example_contrarian_to', 'My Note', count=3)
 ```
 
 ```yaml
@@ -96,8 +93,11 @@ tracery:
   questions:
     - "$vault.find_questions(3)"
 
+  note:
+    - "[[My Note]]"
+
   contrarian:
-    - "$vault.contrarian_to('My Note', 2)"
+    - "$vault.example_contrarian_to('My Note', 2)"
 ```
 
 ## Creating Your Own Extensions
@@ -123,13 +123,13 @@ Create `_geistfabrik/vault_functions/my_function.py`:
 from geistfabrik import vault_function
 
 @vault_function("my_function")
-def my_function(vault, arg1, k=5):
+def my_function(vault, arg1, count=5):
     """Do something with the vault."""
     results = []
     for note in vault.notes():
         if condition(note, arg1):
             results.append(note)
-    return vault.sample(results, k)
+    return vault.sample(results, count)
 ```
 
 ### 3. Creating Custom Geists
@@ -153,7 +153,7 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
     This example demonstrates VaultContext helper functions:
     - outgoing_links(note) - Get notes this note links to
     - has_link(a, b) - Check if two notes are linked
-    - graph_neighbors(note) - Get all connected notes (incoming + outgoing)
+    - graph_neighbours(note) - Get all connected notes (incoming + outgoing)
     """
     suggestions = []
 
@@ -176,7 +176,7 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
             )
 
         # Example: Find semantically similar notes that aren't linked
-        similar = vault.neighbours(note, k=5)
+        similar = vault.neighbours(note, count=5)
         for candidate in similar:
             if not vault.has_link(note, candidate):  # Check if linked (bidirectional)
                 suggestions.append(
@@ -189,7 +189,7 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
                 )
 
         # Example: Analyze graph neighborhood density
-        neighbours = vault.graph_neighbors(note)  # All connected notes (both directions)
+        neighbours = vault.graph_neighbours(note)  # All connected notes (both directions)
         if len(neighbours) > 10:
             # Check how interconnected the neighbours are
             interconnections = sum(
@@ -209,7 +209,7 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
                     )
                 )
 
-    return vault.sample(suggestions, k=5)
+    return vault.sample(suggestions, count=5)
 ```
 
 #### Tracery Geist
@@ -280,10 +280,10 @@ Test custom geists:
 
 ```bash
 # Test a specific geist
-uv run geistfabrik test my_geist --vault ~/my-vault
+uv run geistfabrik test my_geist ~/my-vault
 
 # Test with specific date for reproducibility
-uv run geistfabrik test my_geist --vault ~/my-vault --date 2025-01-15
+uv run geistfabrik test my_geist ~/my-vault --date 2025-01-15
 ```
 
 ## Contributing

@@ -37,8 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   migration, closing a mixed-version downgrade race. The supported migration
   floor is explicit at v3; frozen v3 and v4 databases preserve durable rows,
   while older versions fail without modification.
-- Cosine similarity is clamped to its mathematical `[-1, 1]` range, preventing
-  floating-point accumulation from escaping the public contract by a few ulps.
+- Cosine similarity uses scale-safe float64 normalization, rejects non-finite
+  inputs and mismatched shapes, preserves tiny-vector self-similarity, and is
+  clamped to its mathematical `[-1, 1]` range.
 - Replaced the false database-corruption recovery check with an honest
   fail-without-overwrite contract and documented backup/rebuild recovery limits.
   Added frozen-v3/v4 migration coverage, mid-write rollback fault injection, and an
@@ -53,8 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the Python 3.12 CI timeout without reintroducing corpus sampling. Its regression
   test deterministically proves that notes beyond the historical 500-note cutoff
   are examined and can produce a suggestion.
-
-## [0.10.1] - 2026-07-11
 
 ### Packaging and release engineering
 - Release wheels and source distributions now include the materialized
@@ -74,6 +73,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and 3.12. Updated model, offline, testing, and early-adopter documentation.
 
 ### Correctness, security, and type safety
+- Unified path, title, section, block, and virtual-journal link resolution behind
+  one ambiguity-aware index used by graph, filtering, similarity, and statistics
+  consumers. Windows separators are normalized for matching and folder
+  exclusions while database identities are preserved. Private-path boundaries
+  now fail closed across every colliding literal or interpreted alias, and
+  transactional resolver snapshots cannot survive a rollback.
+- Date-collection parsing now ignores headings inside code, normalizes arbitrary
+  YAML tag scalars before SQLite storage, includes parser/configuration identity
+  in source fingerprints, preserves anchors, and updates stable virtual entries
+  without discarding their historical session rows.
+- Plugin loaders now publish modules under loader-private identities and stage
+  decorated functions per registry, so concurrent vaults and failed imports
+  cannot overwrite or leak one another's module or decorator state. Import
+  interruptions and export-resolution failures restore `sys.modules` as well.
+  `test-all` reports both code and Tracery load failures in its total.
+- Temporal readers consistently exclude sessions after the replay date. Cluster
+  computation has one configured implementation, handles small vaults, clears
+  stale assignments, and versions persisted labels by algorithm settings.
 - Repaired production dispatch of the existing v4–v8 additive SQLite
   migrations without a schema-version bump; future-version and ambiguous
   unversioned databases are rejected without mutation.
@@ -96,9 +113,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added pinned Astral `ty==0.0.69` as an additive whole-project warnings-as-errors
   gate alongside strict mypy, and repaired production/test typing contracts
   without a diagnostic baseline or global ignores.
+- CI and local validation now enforce true branch-only coverage with an explicit
+  compatible `coverage>=7.7` dependency instead of relying on combined statement
+  coverage or a transitive tool version.
 - Strengthened false-green tests, removed core-dependency and committed-fixture
   skips, made mtime tests deterministic, and separated benchmarks from the fast
   suite while retaining executable acceptance checks.
+- Reconciled maintained guides, examples, status files, and specifications with
+  the shipped CLI, Tracery preprocessing rules, bundled-geist configuration,
+  clustering defaults, optional dependencies, and source-note-safe persistence
+  behavior. Shipped vault-function examples now use the `count` convention,
+  return Tracery-safe links, and avoid colliding with built-ins.
 
 ## [0.10.0] - 2026-06-12
 
@@ -127,8 +152,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     successful run resets the count. Previously the counter was in-memory and
     could never reach the threshold.
   - **Action required**: none — additive migration applied automatically.
-    Re-enable a disabled geist by fixing it (next successful run resets it),
-    running `geistfabrik test <geist> <vault>`, or deleting the database.
+    Re-enable a disabled geist by fixing it and running
+    `geistfabrik test <geist> <vault>`; a successful diagnostic run resets it.
+    Normal invocation intentionally skips disabled geists.
 - **Schema v7 — `session_embeddings.cluster_label`** column added (additive
   migration; fixes `cluster_evolution_tracker`, which queried a column that
   never existed). No rebuild required.
@@ -508,8 +534,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing summary and results
 - Contributing guidelines
 
-[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.1...HEAD
-[0.10.1]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...v0.10.1
+[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...HEAD
 [0.10.0]: https://github.com/adewale/geist_fabrik/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/adewale/geist_fabrik/compare/v0.4.0...v0.9.0
 [0.4.0]: https://github.com/adewale/geist_fabrik/compare/v0.3.0...v0.4.0

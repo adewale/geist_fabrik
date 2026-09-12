@@ -71,7 +71,7 @@ class EmbeddingTrajectoryCalculator:
         """
         self.vault = vault
         self.note = note
-        self.sessions = sessions or self._get_available_sessions()
+        self.sessions = self._get_available_sessions() if sessions is None else sessions
         self._snapshots_cache: list[tuple[datetime, np.ndarray]] | None = None
 
     def _get_available_sessions(self) -> list[int]:
@@ -80,7 +80,10 @@ class EmbeddingTrajectoryCalculator:
         Returns:
             List of session IDs ordered by date
         """
-        cursor = self.vault.db.execute("SELECT session_id FROM sessions ORDER BY date ASC")
+        cursor = self.vault.db.execute(
+            "SELECT session_id FROM sessions WHERE date <= ? ORDER BY date ASC",
+            (self.vault.session.date.strftime("%Y-%m-%d"),),
+        )
         return [row[0] for row in cursor.fetchall()]
 
     def snapshots(self) -> list[tuple[datetime, np.ndarray]]:
@@ -105,14 +108,16 @@ class EmbeddingTrajectoryCalculator:
         cursor = self.vault.db.execute(
             """
             SELECT session_id, date FROM sessions
+            WHERE date <= ?
             ORDER BY date ASC
-            """
+            """,
+            (self.vault.session.date.strftime("%Y-%m-%d"),),
         )
         sessions = cursor.fetchall()
 
         # Load embeddings for each session
         for session_id, session_date in sessions:
-            if self.sessions and session_id not in self.sessions:
+            if session_id not in self.sessions:
                 continue
 
             cursor = self.vault.db.execute(
@@ -125,7 +130,7 @@ class EmbeddingTrajectoryCalculator:
             row = cursor.fetchone()
             if row:
                 emb = np.frombuffer(row[0], dtype=np.float32)
-                snapshots.append((session_date, emb))
+                snapshots.append((datetime.fromisoformat(str(session_date)), emb))
 
         return snapshots
 

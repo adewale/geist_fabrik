@@ -266,16 +266,14 @@ def test_outgoing_links_resolves_targets_efficiently():
         note_a = context.get_note("note_a.md")
         assert note_a is not None
 
-        # Mock resolve_link_target to track calls
-        original_resolve = context.resolve_link_target
-        context.resolve_link_target = MagicMock(wraps=original_resolve)
-
-        # Call outgoing_links
+        statements = []
+        vault.db.set_trace_callback(statements.append)
         outgoing = context.outgoing_links(note_a)
+        vault.db.set_trace_callback(None)
 
-        # Should resolve each link exactly once (2 links = 2 resolutions)
-        assert context.resolve_link_target.call_count == 2
-        assert len(outgoing) == 2
+        # A bounded snapshot load replaces per-edge note/alias SQL lookups.
+        assert len(statements) <= 3
+        assert {note.path for note in outgoing} == {"note_b.md", "note_c.md"}
 
 
 @pytest.mark.benchmark
@@ -375,17 +373,14 @@ def test_outgoing_links_caching(temp_vault):
     note_a = context.get_note("note_a.md")
     assert note_a is not None
 
-    # Mock resolve_link_target to track resolution calls
-    original_resolve = context.resolve_link_target
-    context.resolve_link_target = MagicMock(wraps=original_resolve)
-
-    # First call - should resolve links
     result1 = context.outgoing_links(note_a)
-    assert context.resolve_link_target.call_count == 1
-
-    # Second call - should use cache (no new resolutions)
+    statements = []
+    vault.db.set_trace_callback(statements.append)
     result2 = context.outgoing_links(note_a)
-    assert context.resolve_link_target.call_count == 1  # Still 1
+    incoming = context.backlinks(result1[0])
+    vault.db.set_trace_callback(None)
+    assert statements == []
+    assert incoming == [note_a]
 
     # Verify results are identical
     assert result1 is result2

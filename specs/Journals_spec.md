@@ -38,8 +38,8 @@ Work meeting about project planning.
 Another day of work.
 """)
 
-# ✅ MUST have at least 2 date headings (min_sections requirement)
-# ✅ MUST have ≥50% of H2 headings as dates (date_threshold)
+# ✅ MUST have at least 2 H2 headings (min_sections requirement)
+# ✅ MUST have ≥50% of H2 headings as dates (date_threshold; equality qualifies)
 ```
 
 **Common mistake**:
@@ -312,7 +312,7 @@ date_collection:
     - "Archive/*.md"
     - "Templates/*.md"
 
-  # Minimum date headings required
+  # Minimum H2 headings required before applying date_threshold
   min_sections: 2
 
   # Minimum percentage of H2s that must be dates

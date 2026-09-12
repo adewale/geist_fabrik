@@ -11,8 +11,10 @@ import inspect
 import logging
 import sys
 from collections.abc import Callable
+from contextvars import ContextVar
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
+from uuid import uuid4
 
 from .config import DEFAULT_GEIST_TIMEOUT
 from .execution_timeout import _alarm_timeout
@@ -41,6 +43,9 @@ class DuplicateFunctionError(Exception):
 
 # Global registry for decorated functions
 _GLOBAL_REGISTRY: dict[str, Callable[..., Any]] = {}
+_IMPORT_REGISTRY: ContextVar[dict[str, Callable[..., Any]] | None] = ContextVar(
+    "vault_function_import_registry", default=None
+)
 
 
 def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -59,10 +64,19 @@ def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
             return vault.sample(questions, count)
     """
 
+    registry = _IMPORT_REGISTRY.get()
+    return _function_decorator(name, _GLOBAL_REGISTRY if registry is None else registry)
+
+
+def _function_decorator(
+    name: str, registry: dict[str, Callable[..., Any]]
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Validate and register a function in its owning registry."""
+
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
-        if name in _GLOBAL_REGISTRY:
+        if name in registry:
             raise DuplicateFunctionError(
-                f"Function '{name}' is already registered: {_GLOBAL_REGISTRY[name]}"
+                f"Function '{name}' is already registered: {registry[name]}"
             )
 
         # Validate function signature
@@ -72,7 +86,7 @@ def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
         if not params or params[0].name != "vault":
             raise FunctionRegistryError(f"Function '{name}' must have 'vault' as first parameter")
 
-        _GLOBAL_REGISTRY[name] = func
+        registry[name] = func
         logger.debug(f"Registered vault function: {name}")
         return func
 
@@ -99,9 +113,18 @@ class FunctionRegistry:
         self.function_dir = function_dir
         self.timeout = timeout
         self.functions: dict[str, Callable[..., Any]] = {}
+        self._module_namespace = uuid4().hex
 
         # Load built-in functions
         self._register_builtin_functions()
+        self._merge_global_functions()
+
+    def _merge_global_functions(self) -> None:
+        """Include explicitly decorated host functions without sharing plugin state."""
+        for name, func in _GLOBAL_REGISTRY.items():
+            if name in self.functions and self.functions[name] is not func:
+                raise DuplicateFunctionError(f"Function '{name}' is already registered")
+            self.functions[name] = func
 
     def _register_builtin_functions(self) -> None:
         """Register built-in vault functions.
@@ -113,6 +136,9 @@ class FunctionRegistry:
         - Return bracketed Obsidian links (e.g. "[[Title]]") back to Tracery,
           so templates use the result as-is without adding their own brackets
         """
+
+        def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
+            return _function_decorator(name, self.functions)
 
         @vault_function("sample_notes")
         def sample_notes(vault: "VaultContext", count: int = 5) -> list[str]:
@@ -452,9 +478,6 @@ class FunctionRegistry:
                     results.append(f"[[{note.link_text}]]")
             return results
 
-        # Transfer built-in functions from global registry to instance
-        self.functions.update(_GLOBAL_REGISTRY)
-
     def load_modules(self, enabled_modules: list[str] | None = None) -> None:
         """Load vault function modules from directory.
 
@@ -466,7 +489,7 @@ class FunctionRegistry:
             DuplicateFunctionError: If duplicate function names are found
         """
         # First, register any globally decorated functions
-        self.functions.update(_GLOBAL_REGISTRY)
+        self._merge_global_functions()
 
         if self.function_dir is None or not self.function_dir.exists():
             logger.debug("Function module directory does not exist, skipping")
@@ -492,9 +515,6 @@ class FunctionRegistry:
                 logger.error(f"Failed to load function module {module_name}: {e}")
                 continue
 
-        # Transfer any functions added to global registry during module loading
-        self.functions.update(_GLOBAL_REGISTRY)
-
         logger.info(f"Loaded {len(self.functions)} vault functions")
 
     def _load_module(self, module_name: str, module_file: Path) -> None:
@@ -513,28 +533,33 @@ class FunctionRegistry:
         ensure_contained(module_file, self.function_dir, must_exist=True, reject_symlinks=True)
 
         # Load module dynamically
-        spec = importlib.util.spec_from_file_location(module_name, module_file)
+        module_key = f"_vaultfunc_{self._module_namespace}_{module_name}"
+        spec = importlib.util.spec_from_file_location(module_key, module_file)
         if spec is None or spec.loader is None:
             raise FunctionRegistryError(f"Could not load module spec for {module_name}")
 
         module = importlib.util.module_from_spec(spec)
-        module_key = f"_vaultfunc_{module_name}"
+        previous_module = sys.modules.get(module_key)
         sys.modules[module_key] = module
-        registry_before = dict(_GLOBAL_REGISTRY)
+        staged_functions = dict(self.functions)
+        token = _IMPORT_REGISTRY.set(staged_functions)
 
         try:
             with _alarm_timeout(self.timeout):
                 spec.loader.exec_module(module)
-        except Exception as e:
+        except BaseException as e:
             # A timed-out/failed import may already have run decorators. Do not
             # leak those partial registrations into the successful module set.
-            _GLOBAL_REGISTRY.clear()
-            _GLOBAL_REGISTRY.update(registry_before)
-            sys.modules.pop(module_key, None)
-            raise FunctionRegistryError(f"Error executing module {module_name}: {e}")
-
-        # After module execution, check if any new functions were registered globally
-        # (This happens automatically via @vault_function decorator)
+            if previous_module is None:
+                sys.modules.pop(module_key, None)
+            else:
+                sys.modules[module_key] = previous_module
+            if not isinstance(e, Exception):
+                raise
+            raise FunctionRegistryError(f"Error executing module {module_name}: {e}") from e
+        finally:
+            _IMPORT_REGISTRY.reset(token)
+        self.functions = staged_functions
 
         logger.debug(f"Loaded function module: {module_name}")
 

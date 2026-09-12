@@ -1,5 +1,9 @@
 # CI Testing Strategy Analysis
 
+> **Historical analysis.** This documents an earlier Windows-CI incident and is
+> not the current matrix. See [TESTING.md](TESTING.md) and the workflow file for
+> current required platforms and checks.
+
 ## Problem Statement
 
 Windows CI builds hang indefinitely, causing CI runs to timeout after hours. This indicates our current "test everything on all platforms" strategy has fundamental issues.

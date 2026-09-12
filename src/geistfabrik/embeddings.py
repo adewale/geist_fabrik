@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
-import sklearn  # type: ignore[import-untyped]
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
@@ -135,11 +134,10 @@ def is_offline_mode() -> bool:
 
 
 # ============================================================================
-# sklearn Performance Optimisations
+# Similarity Performance Optimisations
 # ============================================================================
 # Based on comprehensive benchmarking (8 configs × 9 geists = 72 runs),
 # the optimal configuration is opt1+2:
-#   - assume_finite: Disables sklearn input validation (safe for trusted embeddings)
 #   - fast_path: Uses np.dot() for L2-normalised vectors
 #
 # Performance improvement: 21.5% speedup on large vaults (10k+ notes)
@@ -150,13 +148,8 @@ def is_offline_mode() -> bool:
 #   - bridge_hunter: 25.38s → 19.61s (23% faster)
 #   - columbo: 27.73s → 21.51s (22% faster)
 SKLEARN_OPTIMIZATIONS = {
-    "assume_finite": True,
     "fast_path": True,
 }
-
-# Apply sklearn configuration
-sklearn.set_config(assume_finite=True)
-logger.info("sklearn optimisations enabled: assume_finite=True, fast_path=True (21.5% speedup)")
 
 
 class EmbeddingComputer:
@@ -817,12 +810,31 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     Returns:
         Cosine similarity in [-1, 1]
     """
-    # Handle zero vectors
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
+    # Calculate in float64. Squaring tiny float32 values in float32 can underflow
+    # to zero, making a non-zero vector appear orthogonal to itself. Preserve the
+    # caller's shape contract before flattening the equally shaped embeddings.
+    a_array = np.asarray(a, dtype=np.float64)
+    b_array = np.asarray(b, dtype=np.float64)
+    if a_array.shape != b_array.shape:
+        raise ValueError(f"embedding shapes must match, got {a.shape} and {b.shape}")
+    a64 = a_array.reshape(-1)
+    b64 = b_array.reshape(-1)
+    if not np.all(np.isfinite(a64)) or not np.all(np.isfinite(b64)):
+        raise ValueError("embeddings must contain only finite values")
 
-    if norm_a == 0 or norm_b == 0:
+    # Scale each vector before its norm. This avoids underflow for subnormals and
+    # overflow for large-but-finite float64 inputs without changing direction.
+    scale_a = float(np.max(np.abs(a64))) if a64.size else 0.0
+    scale_b = float(np.max(np.abs(b64))) if b64.size else 0.0
+
+    if scale_a == 0 or scale_b == 0:
         return 0.0
+    scaled_a = a64 / scale_a
+    scaled_b = b64 / scale_b
+    scaled_norm_a = float(np.linalg.norm(scaled_a))
+    scaled_norm_b = float(np.linalg.norm(scaled_b))
+    norm_a = scale_a * scaled_norm_a
+    norm_b = scale_b * scaled_norm_b
 
     # Fast path: for unit-norm vectors, cosine similarity is just the dot
     # product. NOTE: production embeddings do NOT take this path - encode()
@@ -834,12 +846,13 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
         # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
-            similarity = float(np.dot(a, b))
+            similarity = float(np.dot(a64, b64))
             return max(-1.0, min(1.0, similarity))
 
-    # Floating-point accumulation can drift a few ulps outside the mathematical
-    # cosine range; keep the public contract exact.
-    similarity = float(sklearn_cosine(a.reshape(1, -1), b.reshape(1, -1))[0, 0])
+    # Avoid sklearn's near-zero normalisation cutoff: any mathematically non-zero
+    # vector has self-similarity one, regardless of magnitude. Floating-point
+    # accumulation can drift a few ulps outside the range, so clamp the result.
+    similarity = float(np.dot(scaled_a, scaled_b) / (scaled_norm_a * scaled_norm_b))
     return max(-1.0, min(1.0, similarity))
 
 

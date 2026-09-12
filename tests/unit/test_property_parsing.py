@@ -120,14 +120,13 @@ def test_title_always_returns_string(content: str) -> None:
 
 @given(st.lists(wikilink_target, min_size=1, max_size=10))
 def test_extract_links_finds_all_wikilinks(targets: list[str]) -> None:
-    """All [[target]] links in content should be extracted."""
+    """Plain wikilinks round-trip exactly, including order and duplicates."""
     content = " ".join(f"[[{t}]]" for t in targets)
     links = extract_links(content)
-    extracted_targets = [link.target for link in links]
-    for target in targets:
-        stripped = target.strip()
-        if stripped:
-            assert stripped in extracted_targets
+    assert [link.target for link in links] == [target.strip() for target in targets]
+    assert all(link.display_text is None for link in links)
+    assert all(not link.is_embed for link in links)
+    assert all(link.block_ref is None for link in links)
 
 
 @given(st.text(min_size=0, max_size=200))
@@ -155,10 +154,10 @@ def test_extract_links_embed() -> None:
 
 
 def test_extract_links_heading_anchor() -> None:
-    """[[Note#heading]] should strip the heading anchor."""
+    """[[Note#heading]] retains the identity of a potential journal entry."""
     links = extract_links("[[Note#Section One]]")
     assert len(links) == 1
-    assert links[0].target == "Note"
+    assert links[0].target == "Note#Section One"
 
 
 def test_extract_links_block_ref() -> None:
@@ -179,19 +178,17 @@ def test_extract_links_empty_content() -> None:
 
 @given(st.lists(tag_name, min_size=1, max_size=5, unique=True))
 def test_extract_tags_finds_inline_tags(tags: list[str]) -> None:
-    """All #tag occurrences should be extracted."""
+    """Inline tags are returned as the exact sorted unique set."""
     content = " ".join(f"#{t}" for t in tags)
-    extracted = extract_tags(content)
-    for tag in tags:
-        assert tag in extracted
+    assert extract_tags(content) == sorted(tags)
 
 
 @given(st.lists(yaml_safe_text.filter(lambda t: t.strip()), min_size=1, max_size=5, unique=True))
 def test_extract_tags_from_frontmatter(tags: list[str]) -> None:
-    """Tags in frontmatter should be included."""
-    extracted = extract_tags("No inline tags", frontmatter={"tags": tags})
-    for tag in tags:
-        assert tag.strip() in extracted
+    """Frontmatter tags are returned as the exact sorted unique set."""
+    assert extract_tags("No inline tags", frontmatter={"tags": tags}) == sorted(
+        {tag.strip() for tag in tags}
+    )
 
 
 def test_extract_tags_returns_sorted() -> None:

@@ -11,12 +11,18 @@
 
 ## Overview
 
-The `stats` command provides a comprehensive, read-only overview of vault health, structure, and GeistFabrik state without executing geists or computing new embeddings. It serves as a "vault health check" and diagnostic tool for understanding knowledge base characteristics.
+The `stats` command provides a comprehensive overview of vault health,
+structure, and GeistFabrik state without executing geists or creating new
+session embeddings. It serves as a "vault health check" and diagnostic tool
+for understanding knowledge base characteristics. It can compute and persist a
+managed metrics cache; KeyBERT cluster labeling can also run local model
+inference over note excerpts and candidate phrases.
 
 ### Design Principles
 
 1. **Fast** - Complete in < 1 second for typical vaults (100-2000 notes)
-2. **Read-only** - Never modifies files or computes new embeddings
+2. **Source-note safe** - Never modifies vault source files; derived metrics may
+   be written to the managed database
 3. **Informative** - Provides actionable insights, not just numbers
 4. **Tiered output** - Summary by default, detailed with `--verbose`
 5. **Scriptable** - Optional JSON output for automation
@@ -526,7 +532,7 @@ Custom Geists (2):
 Backend Configuration:
   Vector search backend: sqlite-vec
   Embedding model: all-MiniLM-L6-v2 (384 dims + 3 temporal)
-  Timeout: 5 seconds per geist
+  Timeout: 30 seconds per geist
   Max failures before disable: 3
 ```
 
@@ -700,16 +706,18 @@ else:
 
 ### Dependencies
 
-**New dependencies** (add to `pyproject.toml`):
+**Current optional dependencies** in `pyproject.toml`:
 
 ```toml
 [project.optional-dependencies]
 stats = [
     "scikit-dimension>=0.3.0",  # Intrinsic dimensionality
-    "vendi-score>=0.1.0",       # Vendi Score
-    "hdbscan>=0.8.0",           # Clustering (already in project)
+    "vendi-score>=0.0.1",       # Vendi Score
 ]
 ```
+
+Clustering uses scikit-learn, which is a core dependency. There is no
+standalone `hdbscan` dependency.
 
 **Install:**
 ```bash
@@ -718,7 +726,12 @@ uv pip install -e ".[stats]"
 
 ### Cluster Naming Implementation
 
-**c-TF-IDF approach** (fast, default):
+**c-TF-IDF approach** (fast, configured with
+`clustering.labeling_method: tfidf`):
+
+The current default is `keybert`, which ranks TF-IDF candidate phrases using
+the bundled sentence-transformer and falls back to generic cluster labels if
+local model inference is unavailable.
 
 ```python
 from sklearn.feature_extraction.text import TfidfVectorizer

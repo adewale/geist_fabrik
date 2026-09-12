@@ -49,7 +49,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 # Bump when metric formulas, sampling, clustering, or labeling behavior changes.
-METRICS_ALGORITHM_VERSION = 1
+METRICS_ALGORITHM_VERSION = 2
 
 
 class EmbeddingMetricsComputer:
@@ -187,6 +187,7 @@ class EmbeddingMetricsComputer:
             "version": METRICS_ALGORITHM_VERSION,
             "labeling_method": self.config.clustering.labeling_method if self.config else "tfidf",
             "n_label_terms": self.config.clustering.n_label_terms if self.config else 4,
+            "min_cluster_size": self.config.clustering.min_cluster_size if self.config else 5,
             "labeling_model": MODEL_NAME,
             "capabilities": [HAS_SKLEARN, HAS_SKDIM, HAS_VENDI],
             "dependencies": dependencies,
@@ -299,7 +300,7 @@ class EmbeddingMetricsComputer:
         # Basic similarity statistics
         # Sample for efficiency if large
         if len(embeddings) > 1000:
-            indices = np.random.choice(len(embeddings), 1000, replace=False)
+            indices = np.random.default_rng(0).choice(len(embeddings), 1000, replace=False)
             sample_embeddings = embeddings[indices]
         else:
             sample_embeddings = embeddings
@@ -334,8 +335,14 @@ class EmbeddingMetricsComputer:
         metrics: dict[str, Any] = {}
 
         # Run HDBSCAN clustering
-        clusterer = HDBSCAN(min_cluster_size=5, min_samples=3)
-        labels = clusterer.fit_predict(embeddings)
+        min_size = self.config.clustering.min_cluster_size if self.config else 5
+        if len(embeddings) < min_size * 2:
+            # Insufficient data for two clusters: report all notes as unclustered.
+            # HDBSCAN itself rejects one/two samples with min_samples=3.
+            labels = np.full(len(embeddings), -1, dtype=int)
+        else:
+            clusterer = HDBSCAN(min_cluster_size=min_size, min_samples=3)
+            labels = clusterer.fit_predict(embeddings)
 
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         n_noise = np.sum(labels == -1)
@@ -348,7 +355,7 @@ class EmbeddingMetricsComputer:
         if n_clusters > 1:
             # Filter out noise points for silhouette calculation
             mask = labels != -1
-            if np.sum(mask) > 1:
+            if np.sum(mask) > n_clusters:
                 silhouette = silhouette_score(embeddings[mask], labels[mask])
                 metrics["silhouette_score"] = round(float(silhouette), 3)
 

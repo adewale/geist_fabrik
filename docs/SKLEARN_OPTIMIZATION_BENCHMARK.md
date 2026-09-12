@@ -1,5 +1,10 @@
 # sklearn Optimisation Benchmark Results
 
+> **Historical benchmark snapshot.** The global `assume_finite` configuration
+> described below was removed because importing a library must not alter the
+> host process's scikit-learn behavior. These measurements are retained as
+> historical evidence, not current configuration guidance.
+
 **Date**: 2025-11-07
 **Test Environment**: 10,000-note synthetic vault
 **Benchmark Scripts**: `scripts/benchmark_optimizations.py`, `scripts/analyze_benchmarks.py`
@@ -407,7 +412,7 @@ winner_config = next(c for c in CONFIGS if c["name"] == winner)
 ## Related Documentation
 
 - [`BENCHMARKING_GUIDE.md`](BENCHMARKING_GUIDE.md) - Comprehensive benchmarking overview
-- [`PERFORMANCE_OPTIMIZATION_RESULTS.md`](PERFORMANCE_OPTIMIZATION_RESULTS.md) - All optimisation phases
+- [`BENCHMARK_COMPARISON_2025_11_14.md`](BENCHMARK_COMPARISON_2025_11_14.md) - Historical comparison
 - [`10K_VAULT_BENCHMARK.md`](10K_VAULT_BENCHMARK.md) - 10k vault baseline
 - [`CHANGELOG.md`](../CHANGELOG.md) - BIG OPTIMISATION #3 entry
 

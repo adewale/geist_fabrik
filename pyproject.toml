@@ -23,7 +23,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "sentence-transformers>=2.2.0",
+    # local_files_only is part of the SentenceTransformer constructor from 3.0.
+    "sentence-transformers>=3.0.0",
     "pyyaml>=6.0",
     "scipy>=1.11.0",
     # scikit-learn is imported unconditionally (embeddings, vector_search,
@@ -145,6 +146,7 @@ python-version = "3.11"
 [dependency-groups]
 dev = [
     "bandit>=1.7",
+    "coverage[toml]>=7.7",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-timeout>=2.2.0",

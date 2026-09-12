@@ -739,6 +739,7 @@ class TraceryGeistLoader:
         self.default_geists_dir = default_geists_dir
         self.enabled_defaults = enabled_defaults or {}
         self.newly_discovered: list[str] = []
+        self.load_errors: list[dict[str, str]] = []
 
     def load_all(self) -> tuple[list[TraceryGeist], list[str]]:
         """Load all Tracery geists from directories.
@@ -751,6 +752,7 @@ class TraceryGeistLoader:
         """
         geists = []
         self.newly_discovered = []
+        self.load_errors = []
 
         # Load default geists first
         if self.default_geists_dir and self.default_geists_dir.exists():
@@ -795,6 +797,9 @@ class TraceryGeistLoader:
                     geist = TraceryGeist.from_yaml(yaml_file, self.seed)
                     geists.append(geist)
                 except Exception as e:
+                    self.load_errors.append(
+                        {"geist_id": geist_id, "path": str(yaml_file), "error": str(e)}
+                    )
                     logger.warning(
                         f"Failed to load Tracery geist from {yaml_file}\n"
                         f"  Error: {e}\n"
@@ -815,6 +820,9 @@ class TraceryGeistLoader:
                 geists.append(geist)
             except Exception as e:
                 yaml_file = all_geist_files[geist_id]
+                self.load_errors.append(
+                    {"geist_id": geist_id, "path": str(yaml_file), "error": str(e)}
+                )
                 logger.warning(
                     f"Failed to load Tracery geist from {yaml_file}\n"
                     f"  Error: {e}\n"

@@ -1,10 +1,12 @@
 """Property-based tests for configuration round-trip invariants."""
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from geistfabrik.config_loader import (
     ClusterConfig,
+    ConfigError,
     DateCollectionConfig,
     GeistFabrikConfig,
     VectorSearchConfig,
@@ -56,7 +58,10 @@ def filtering_config_dicts(draw: st.DrawFn) -> dict:
     minimum_length = draw(st.integers(min_value=0, max_value=maximum_length))
     threshold = st.floats(min_value=0.0, max_value=1.0)
     return {
-        "boundary": {"exclude_paths": draw(st.lists(st.text(min_size=1, max_size=30), max_size=5))},
+        "boundary": {
+            "enabled": draw(st.booleans()),
+            "exclude_paths": draw(st.lists(st.text(min_size=1, max_size=30), max_size=5)),
+        },
         "novelty": {
             "window_days": draw(st.integers(min_value=0, max_value=100_000)),
             "threshold": draw(threshold),
@@ -176,6 +181,21 @@ def test_empty_dict_uses_all_defaults() -> None:
     assert config.date_collection.enabled is True
     assert config.vector_search.backend == "in-memory"
     assert config.clustering.labeling_method == "keybert"
+
+
+@given(
+    invalid_number=st.sampled_from(
+        [10**400, -(10**400), float("nan"), float("inf"), float("-inf")]
+    )
+)
+def test_nonfinite_or_unrepresentable_thresholds_raise_config_error(
+    invalid_number: int | float,
+) -> None:
+    """All invalid numeric YAML values follow the public ConfigError contract."""
+    with pytest.raises(ConfigError):
+        GeistFabrikConfig.from_dict(
+            {"filtering": {"novelty": {"threshold": invalid_number}}}
+        )
 
 
 @given(st.text(min_size=1, max_size=50))

@@ -9,6 +9,7 @@ This module provides comprehensive vault statistics including:
 """
 
 import logging
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -61,6 +62,13 @@ class StatsCollector:
         self.config = config
         self.history_days = history_days
         self.db = vault.db
+        index = vault.link_index()
+        self._raw_links = list(self.db.execute("SELECT source_path, target FROM links"))
+        self._resolved_edges = [
+            (source, resolved)
+            for source, target in self._raw_links
+            if (resolved := index.resolve(target, source)) is not None
+        ]
 
         # Collected stats
         self.stats: VaultStats = {}
@@ -191,16 +199,8 @@ class StatsCollector:
         avg_per_note = total / note_count if note_count > 0 else 0
 
         # Bidirectional links (links where reverse link exists)
-        cursor = self.db.execute(
-            """
-            SELECT COUNT(DISTINCT l1.source_path || '|' || l1.target)
-            FROM links l1
-            INNER JOIN links l2
-                ON l1.source_path = l2.target
-                AND l1.target = l2.source_path
-            """
-        )
-        bidirectional = cursor.fetchone()[0]
+        edges = set(self._resolved_edges)
+        bidirectional = sum((target, source) in edges for source, target in edges)
         bidirectional_pct = (bidirectional / total * 100) if total > 0 else 0
 
         return {
@@ -222,14 +222,6 @@ class StatsCollector:
         if not note_paths:
             return 0
 
-        # Resolve every target form to a note path for edge construction.
-        target_to_path: dict[str, str] = {}
-        for path, title in self.db.execute("SELECT path, title FROM notes"):
-            target_to_path[path] = path
-            target_to_path[title] = path
-            if path.endswith(".md"):
-                target_to_path[path[:-3]] = path
-
         parent = {p: p for p in note_paths}
 
         def find(x: str) -> str:
@@ -245,10 +237,9 @@ class StatsCollector:
             if ra != rb:
                 parent[ra] = rb
 
-        for source_path, target in self.db.execute("SELECT source_path, target FROM links"):
-            resolved = target_to_path.get(target)
-            if resolved is not None and source_path in parent:
-                union(source_path, resolved)
+        for source_path, target in self._resolved_edges:
+            if source_path in parent:
+                union(source_path, target)
 
         sizes: dict[str, int] = {}
         for p in note_paths:
@@ -260,23 +251,7 @@ class StatsCollector:
         """Collect graph structure statistics."""
         note_count = self.stats["notes"]["total"]
 
-        # Orphans: notes with no incoming or outgoing links
-        # Optimised with LEFT JOIN instead of NOT IN subqueries (5-10x faster)
-        cursor = self.db.execute(
-            """
-            SELECT COUNT(*)
-            FROM notes n
-            LEFT JOIN links l1 ON l1.source_path = n.path
-            LEFT JOIN links l2 ON (
-                l2.target = n.path
-                OR l2.target = n.title
-                OR l2.target || '.md' = n.path
-            )
-            WHERE l1.source_path IS NULL
-              AND l2.target IS NULL
-            """
-        )
-        orphans = cursor.fetchone()[0]
+        orphans = len(self.get_orphan_notes())
         orphan_pct = (orphans / note_count * 100) if note_count > 0 else 0
 
         # Hubs: notes with >= 10 connections (outgoing)
@@ -432,15 +407,7 @@ class StatsCollector:
         )
         outgoing_counts = {row[0]: {"title": row[1], "outgoing": row[2]} for row in cursor}
 
-        # Get incoming link counts
-        cursor = self.db.execute(
-            """
-            SELECT target, COUNT(*) as incoming
-            FROM links
-            GROUP BY target
-            """
-        )
-        incoming_counts = {row[0]: row[1] for row in cursor}
+        incoming_counts = Counter(target for _, target in self._resolved_edges)
 
         # Combine and calculate total
         all_notes = []
@@ -469,22 +436,13 @@ class StatsCollector:
         Returns:
             List of dicts with path and title
         """
-        cursor = self.db.execute(
-            """
-            SELECT n.path, n.title
-            FROM notes n
-            LEFT JOIN links l1 ON l1.source_path = n.path
-            LEFT JOIN links l2 ON (
-                l2.target = n.path
-                OR l2.target = n.title
-                OR l2.target || '.md' = n.path
-            )
-            WHERE l1.source_path IS NULL
-              AND l2.target IS NULL
-            ORDER BY n.title
-            """
-        )
-        return [{"path": row[0], "title": row[1]} for row in cursor.fetchall()]
+        connected = {source for source, _ in self._raw_links}
+        connected.update(target for _, target in self._resolved_edges)
+        return [
+            {"path": path, "title": title}
+            for path, title in self.db.execute("SELECT path, title FROM notes ORDER BY title, path")
+            if path not in connected
+        ]
 
     def get_hub_notes(self, min_connections: int = 10) -> list[dict[str, Any]]:
         """Get hub notes with high connection counts.
@@ -504,8 +462,10 @@ class StatsCollector:
         row = cursor.fetchone()
         return row[0] > 0 if row else False
 
-    def get_latest_embeddings(self) -> tuple[str, np.ndarray, list[str]] | None:
-        """Get embeddings from most recent session.
+    def get_latest_embeddings(
+        self, as_of: str | None = None
+    ) -> tuple[str, np.ndarray, list[str]] | None:
+        """Get embeddings from the most recent session on or before ``as_of``.
 
         Returns:
             Tuple of (session_date, embeddings_array, note_paths) or None if no embeddings
@@ -519,9 +479,11 @@ class StatsCollector:
             SELECT DISTINCT s.date
             FROM sessions s
             INNER JOIN session_embeddings se ON s.session_id = se.session_id
+            WHERE (? IS NULL OR s.date <= ?)
             ORDER BY s.date DESC
             LIMIT 1
-            """
+            """,
+            (as_of, as_of),
         )
         row = cursor.fetchone()
         if not row:
@@ -570,7 +532,7 @@ class StatsCollector:
         from scipy.linalg import orthogonal_procrustes  # type: ignore[import-untyped]
 
         # Get current embeddings
-        current = self.get_latest_embeddings()
+        current = self.get_latest_embeddings(as_of=current_date)
         if not current:
             return None
 
@@ -697,11 +659,11 @@ class StatsCollector:
             "average_drift": round(avg_drift, 3),
             "drift_trend": drift_trend,
             "high_drift_notes": [
-                {"title": path.replace(".md", ""), "drift": round(d, 2)}
+                {"title": path.removesuffix(".md"), "drift": round(d, 2)}
                 for path, d in drift_scores[:5]
             ],
             "stable_notes": [
-                {"title": path.replace(".md", ""), "drift": round(d, 2)}
+                {"title": path.removesuffix(".md"), "drift": round(d, 2)}
                 for path, d in drift_scores[-5:]
             ],
         }

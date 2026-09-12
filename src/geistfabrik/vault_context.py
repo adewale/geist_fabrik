@@ -1,11 +1,12 @@
 """VaultContext - Rich execution context for geists."""
 
+import json
 import logging
 import random
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -20,7 +21,7 @@ import numpy as np
 from .clustering_analysis import Cluster, format_cluster_label
 from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
-from .models import Link, Note, link_target_forms
+from .models import Link, Note, NoteLinkIndex
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
 from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
@@ -298,12 +299,15 @@ class VaultContext:
 
         # Cache for notes (performance optimisation)
         self._notes_cache: list[Note] | None = None
+        self._link_index: NoteLinkIndex | None = None
+        self._link_graph_ready = False
 
         # Cache for metadata
         self._metadata_cache: dict[str, dict[str, Any]] = {}
 
         # Cache for clusters (performance optimisation - keyed by min_size)
-        self._clusters_cache: dict[int, dict[int, Cluster]] = {}
+        self._clusters_cache: dict[tuple[int, str, int], dict[int, Cluster]] = {}
+        self._persisted_cluster_key: tuple[int, str, int] | None = None
 
         # Cache for similarity scores (performance optimisation - keyed by note path pair)
         self._similarity_cache: dict[tuple[str, str], float] = {}
@@ -432,7 +436,13 @@ class VaultContext:
         """
         return self._embeddings
 
-    def resolve_link_target(self, target: str) -> Note | None:
+    def link_index(self) -> NoteLinkIndex:
+        """Resolve graph identities against this context's note snapshot."""
+        if self._link_index is None:
+            self._link_index = NoteLinkIndex.from_notes(self.notes())
+        return self._link_index
+
+    def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
         """Resolve a wiki-link target to a Note.
 
         Tries multiple resolution strategies:
@@ -446,7 +456,8 @@ class VaultContext:
         Returns:
             Note or None if not found
         """
-        return self.vault.resolve_link_target(target)
+        path = self.link_index().resolve(target, source_path)
+        return self.get_note(path) if path is not None else None
 
     def read(self, note: Note) -> str:
         """Read note content.
@@ -692,6 +703,26 @@ class VaultContext:
 
     # Graph operations
 
+    def _ensure_link_graph(self) -> None:
+        """Resolve each edge once, sharing the result in both graph directions."""
+        if self._link_graph_ready:
+            return
+        notes = self.notes()
+        by_path = {note.path: note for note in notes}
+        index = self.link_index()
+        self._backlinks_cache = {note.path: [] for note in notes}
+        self._outgoing_links_cache = {note.path: [] for note in notes}
+        for note in notes:
+            seen: set[str] = set()
+            for link in note.links:
+                path = index.resolve(link.target, note.path)
+                if path is not None:
+                    self._outgoing_links_cache[note.path].append(by_path[path])
+                    if path not in seen:
+                        self._backlinks_cache[path].append(note)
+                        seen.add(path)
+        self._link_graph_ready = True
+
     def backlinks(self, note: Note) -> list[Note]:
         """Find notes that link to this note (cached).
 
@@ -705,35 +736,8 @@ class VaultContext:
         Returns:
             List of notes with links to target
         """
-        # Check cache first
-        if note.path in self._backlinks_cache:
-            return self._backlinks_cache[note.path]
-
-        # Need to match target as: path, path without extension, or title
-        path_without_ext = note.path.rsplit(".", 1)[0] if "." in note.path else note.path
-
-        cursor = self.db.execute(
-            """
-            SELECT DISTINCT source_path FROM links
-            WHERE target = ? OR target = ? OR target = ?
-            """,
-            (note.path, path_without_ext, note.title),
-        )
-
-        # Collect all source paths, then batch load (OP-6)
-        source_paths = [row[0] for row in cursor.fetchall()]
-        notes_map = self.vault.get_notes_batch(source_paths)
-
-        # Build result list, preserving order
-        result = []
-        for path in source_paths:
-            source = notes_map.get(path)
-            if source is not None:
-                result.append(source)
-
-        # Cache the result
-        self._backlinks_cache[note.path] = result
-        return result
+        self._ensure_link_graph()
+        return self._backlinks_cache.get(note.path, [])
 
     def outgoing_links(self, note: Note) -> list[Note]:
         """Find notes that this note links to (cached outgoing links).
@@ -751,19 +755,8 @@ class VaultContext:
         Returns:
             List of notes that this note links to
         """
-        # Check cache first
-        if note.path in self._outgoing_links_cache:
-            return self._outgoing_links_cache[note.path]
-
-        result = []
-        for link in note.links:
-            target = self.resolve_link_target(link.target)
-            if target is not None:
-                result.append(target)
-
-        # Cache the result
-        self._outgoing_links_cache[note.path] = result
-        return result
+        self._ensure_link_graph()
+        return self._outgoing_links_cache.get(note.path, [])
 
     def orphans(self, count: int | None = None) -> list[Note]:
         """Find notes with no outgoing or incoming links.
@@ -779,35 +772,16 @@ class VaultContext:
         Returns:
             List of orphan notes, most recently modified first
         """
-        # One pass over links: notes with outgoing links, and every link
-        # target in the forms links may use (exact path, bare title, or
-        # path without the .md extension - checked per-note below).
-        sources = {row[0] for row in self.db.execute("SELECT DISTINCT source_path FROM links")}
-        targets = {row[0] for row in self.db.execute("SELECT DISTINCT target FROM links")}
-
-        cursor = self.db.execute("SELECT path, title FROM notes ORDER BY modified DESC")
-
-        result: list[Note] = []
-        for path, title in cursor.fetchall():
-            if path in sources:
-                continue
-            # Canonical link-target resolution (single source of truth)
-            if link_target_forms(path, title) & targets:
-                continue
-            note = self.get_note(path)
-            if note is not None:
-                result.append(note)
-                if count is not None and len(result) >= count:
-                    break
-
-        return result
+        self._ensure_link_graph()
+        result = [
+            note
+            for note in sorted(self.notes(), key=lambda n: (-n.modified.timestamp(), n.path))
+            if not note.links and not self._backlinks_cache[note.path]
+        ]
+        return result if count is None else result[:count]
 
     def hubs(self, count: int = 10) -> list[Note]:
-        """Find most-linked-to notes using optimised SQL query.
-
-        Performance optimised (OP-8): Uses JOIN to resolve link targets in SQL
-        rather than fetching k×3 candidates and resolving in Python. This is
-        15-25% faster and eliminates redundant database queries.
+        """Find most-linked-to notes using the canonical resolved link graph.
 
         Args:
             k: Number of hubs to return
@@ -815,34 +789,10 @@ class VaultContext:
         Returns:
             List of hub notes, sorted by link count descending
         """
-        cursor = self.db.execute(
-            """
-            SELECT n.path, COUNT(DISTINCT l.source_path) as link_count
-            FROM links l
-            JOIN notes n ON (
-                n.path = l.target
-                OR n.path = l.target || '.md'
-                OR n.title = l.target
-            )
-            GROUP BY n.path
-            ORDER BY link_count DESC
-            LIMIT ?
-            """,
-            (count,),
-        )
-
-        # Collect all paths, then batch load (OP-6)
-        hub_paths = [row[0] for row in cursor.fetchall()]
-        notes_map = self.vault.get_notes_batch(hub_paths)
-
-        # Build result list, preserving order
-        result = []
-        for path in hub_paths:
-            note = notes_map.get(path)
-            if note is not None:
-                result.append(note)
-
-        return result
+        self._ensure_link_graph()
+        linked = [note for note in self.notes() if self._backlinks_cache[note.path]]
+        linked.sort(key=lambda n: (-len(self._backlinks_cache[n.path]), n.path))
+        return linked[:count]
 
     def notes_grouped_by_creation_date(
         self, min_per_day: int = 1, exclude_journal: bool = True
@@ -899,7 +849,10 @@ class VaultContext:
         Returns:
             Number of sessions
         """
-        cursor = self.db.execute("SELECT COUNT(*) FROM sessions")
+        cursor = self.db.execute(
+            "SELECT COUNT(*) FROM sessions WHERE date <= ?",
+            (self.session.date.strftime("%Y-%m-%d"),),
+        )
         result = cursor.fetchone()
         return result[0] if result else 0
 
@@ -917,10 +870,10 @@ class VaultContext:
             SELECT s.date
             FROM session_embeddings se
             JOIN sessions s ON se.session_id = s.session_id
-            WHERE se.note_path = ?
+            WHERE se.note_path = ? AND s.date <= ?
             ORDER BY s.date ASC
             """,
-            (note.path,),
+            (note.path, self.session.date.strftime("%Y-%m-%d")),
         )
         dates: list[str] = []
         for row in cursor.fetchall():
@@ -943,9 +896,11 @@ class VaultContext:
         cursor = self.db.execute(
             """
             SELECT session_id, date FROM sessions
+            WHERE date <= ?
             ORDER BY date DESC
             LIMIT 5
-            """
+            """,
+            (self.session.date.strftime("%Y-%m-%d"),),
         )
         sessions = cursor.fetchall()
 
@@ -959,13 +914,15 @@ class VaultContext:
                 (session_id,),
             )
             embeddings = [np.frombuffer(row[0], dtype=np.float32) for row in emb_cursor.fetchall()]
-            if hasattr(session_date, "strftime"):
-                date_str = session_date.strftime("%Y-%m")
-            else:
-                date_str = str(session_date)
+            date_str = datetime.fromisoformat(str(session_date)).strftime("%Y-%m-%d")
             result_list.append((session_id, date_str, embeddings))
 
         return result_list
+
+    def _cluster_history_identity(self) -> list[int | str]:
+        """Version historical labels by the canonical clustering configuration."""
+        config = self.vault.config.clustering
+        return [1, config.min_cluster_size, config.labeling_method, config.n_label_terms]
 
     def persist_cluster_labels(self, assignments: dict[str, str]) -> None:
         """Record this session's cluster assignment for each note.
@@ -973,22 +930,34 @@ class VaultContext:
         Stores the label on the note's session_embeddings row so future
         sessions can compare assignments over time (the data that
         previous_cluster_label_for_note() reads and cluster_evolution_tracker
-        builds on). Notes not present in `assignments` (noise/unclustered)
-        keep a NULL label. Called automatically when clusters are computed.
+        builds on). This replaces the complete canonical assignment snapshot;
+        omitted notes (noise/unclustered) become NULL. Labels carry their
+        configuration identity so incompatible historical runs are not compared.
 
         Args:
             assignments: Mapping of note path -> cluster label for the
                 current session
         """
-        if not assignments:
-            return
         with owned_transaction(self.db, "VaultContext.persist_cluster_labels"):
+            self.db.execute(
+                "UPDATE session_embeddings SET cluster_label = NULL WHERE session_id = ?",
+                (self.session.session_id,),
+            )
             self.db.executemany(
                 """
                 UPDATE session_embeddings SET cluster_label = ?
                 WHERE session_id = ? AND note_path = ?
                 """,
-                [(label, self.session.session_id, path) for path, label in assignments.items()],
+                [
+                    (
+                        json.dumps(
+                            {"configuration": self._cluster_history_identity(), "label": label}
+                        ),
+                        self.session.session_id,
+                        path,
+                    )
+                    for path, label in assignments.items()
+                ],
             )
 
     def previous_cluster_label_for_note(self, note: Note, session_id: int) -> str | None:
@@ -1003,13 +972,26 @@ class VaultContext:
         """
         row = self.db.execute(
             """
-            SELECT cluster_label
-            FROM session_embeddings
-            WHERE session_id = ? AND note_path = ?
+            SELECT se.cluster_label
+            FROM session_embeddings se
+            JOIN sessions s ON s.session_id = se.session_id
+            WHERE se.session_id = ? AND se.note_path = ? AND s.date <= ?
             """,
-            (session_id, note.path),
+            (session_id, note.path, self.session.date.strftime("%Y-%m-%d")),
         ).fetchone()
-        return row[0] if row and row[0] else None
+        if not row or not row[0]:
+            return None
+        try:
+            record = json.loads(row[0])
+        except (ValueError, TypeError):
+            return None  # Legacy labels have no trustworthy algorithm identity.
+        if (
+            not isinstance(record, dict)
+            or record.get("configuration") != self._cluster_history_identity()
+        ):
+            return None
+        label = record.get("label")
+        return label if isinstance(label, str) else None
 
     def recent_session_ids(self, count: int = 3) -> list[int]:
         """Get the most recent session IDs.
@@ -1023,24 +1005,26 @@ class VaultContext:
         cursor = self.db.execute(
             """
             SELECT session_id FROM sessions
+            WHERE date <= ?
             ORDER BY date DESC
             LIMIT ?
             """,
-            (count,),
+            (self.session.date.strftime("%Y-%m-%d"), count),
         )
         return [row[0] for row in cursor.fetchall()]
 
-    def get_clusters(self, min_size: int = 5) -> dict[int, Cluster]:
+    def get_clusters(self, min_size: int | None = None) -> dict[int, Cluster]:
         """Get cluster assignments and labels for current session.
 
         Uses HDBSCAN clustering on embeddings, then generates labels via
         c-TF-IDF with MMR diversity filtering. Returns cluster information
         including formatted labels and member notes.
 
-        Results are cached per session by min_size parameter for performance.
+        Results are cached by size and labeling settings. Only the configured
+        cluster size writes canonical history; alternate sizes are exploratory.
 
         Args:
-            min_size: Minimum notes required to form a cluster
+            min_size: Minimum notes required to form a cluster; defaults to config
 
         Returns:
             Dictionary mapping cluster_id to cluster info:
@@ -1054,9 +1038,22 @@ class VaultContext:
                 }
             }
         """
-        # Check cache first (session-scoped caching)
-        if min_size in self._clusters_cache:
-            return self._clusters_cache[min_size]
+        config = self.vault.config.clustering
+        min_size = config.min_cluster_size if min_size is None else min_size
+        cache_key = (min_size, config.labeling_method, config.n_label_terms)
+        canonical = min_size == config.min_cluster_size
+        if cache_key in self._clusters_cache:
+            cached = self._clusters_cache[cache_key]
+            if canonical and self._persisted_cluster_key != cache_key:
+                self.persist_cluster_labels(
+                    {
+                        note.path: cluster.label
+                        for cluster in cached.values()
+                        for note in cluster.notes
+                    }
+                )
+                self._persisted_cluster_key = cache_key
+            return cached
 
         # Import optional dependency
         try:
@@ -1064,7 +1061,7 @@ class VaultContext:
         except ImportError:
             logger.warning("sklearn not available, clustering disabled")
             empty_result: dict[int, Cluster] = {}
-            self._clusters_cache[min_size] = empty_result
+            self._clusters_cache[cache_key] = empty_result
             return empty_result
 
         from . import cluster_labeling
@@ -1074,10 +1071,13 @@ class VaultContext:
 
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
             empty_result_2: dict[int, Cluster] = {}
-            self._clusters_cache[min_size] = empty_result_2
+            if canonical:
+                self.persist_cluster_labels({})
+                self._persisted_cluster_key = cache_key
+            self._clusters_cache[cache_key] = empty_result_2
             return empty_result_2
 
-        paths = list(embeddings_dict.keys())
+        paths = sorted(embeddings_dict)
         embeddings_array = np.array([embeddings_dict[p] for p in paths])
 
         # Run HDBSCAN clustering
@@ -1102,7 +1102,10 @@ class VaultContext:
 
         if not clusters:
             empty_result_3: dict[int, Cluster] = {}
-            self._clusters_cache[min_size] = empty_result_3
+            if canonical:
+                self.persist_cluster_labels({})
+                self._persisted_cluster_key = cache_key
+            self._clusters_cache[cache_key] = empty_result_3
             return empty_result_3
 
         # Generate labels using cluster_labeling module (single source of truth)
@@ -1145,16 +1148,18 @@ class VaultContext:
 
         # Persist this session's assignments so future sessions can compare
         # cluster membership over time (cluster_evolution_tracker).
-        self.persist_cluster_labels(
-            {
-                path: result[cluster_id].label
-                for cluster_id in result
-                for path in cluster_paths[cluster_id]
-            }
-        )
+        if canonical:
+            self.persist_cluster_labels(
+                {
+                    path: result[cluster_id].label
+                    for cluster_id in result
+                    for path in cluster_paths[cluster_id]
+                }
+            )
+            self._persisted_cluster_key = cache_key
 
         # Cache result for this session
-        self._clusters_cache[min_size] = result
+        self._clusters_cache[cache_key] = result
 
         return result
 
@@ -1290,15 +1295,9 @@ class VaultContext:
             List of links between the notes
         """
 
-        # Canonical link-target resolution (single source of truth)
-        a_forms = a.link_target_forms()
-        b_forms = b.link_target_forms()
-
-        # Check a -> b
-        links_ab = [link for link in a.links if link.target in b_forms]
-
-        # Check b -> a
-        links_ba = [link for link in b.links if link.target in a_forms]
+        index = self.link_index()
+        links_ab = [link for link in a.links if index.resolve(link.target, a.path) == b.path]
+        links_ba = [link for link in b.links if index.resolve(link.target, b.path) == a.path]
 
         return links_ab + links_ba
 

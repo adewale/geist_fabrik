@@ -11,6 +11,7 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
+from uuid import uuid4
 
 from .execution_timeout import GeistTimeoutError, _alarm_timeout
 from .geist_status import GeistStatusStore
@@ -106,6 +107,7 @@ class GeistExecutor:
         self.execution_log: list[dict[str, Any]] = []
         self.execution_profiles: list[GeistExecutionProfile] = []
         self.newly_discovered: list[str] = []
+        self._module_namespace = uuid4().hex
 
     def load_geists(self) -> list[str]:
         """Discover and load all geists from the geists directories.
@@ -191,6 +193,7 @@ class GeistExecutor:
                         {
                             "geist_id": geist_id,
                             "status": "load_error",
+                            "path": str(geist_file),
                             "error": str(e),
                             "traceback": traceback.format_exc(),
                         }
@@ -210,6 +213,7 @@ class GeistExecutor:
                     {
                         "geist_id": geist_id,
                         "status": "load_error",
+                        "path": str(all_geist_files[geist_id]),
                         "error": str(e),
                         "traceback": traceback.format_exc(),
                     }
@@ -239,7 +243,8 @@ class GeistExecutor:
             )
 
         # Load module dynamically
-        spec = importlib.util.spec_from_file_location(geist_id, geist_file)
+        module_key = f"_geistfabrik_geist_{self._module_namespace}_{geist_id}"
+        spec = importlib.util.spec_from_file_location(module_key, geist_file)
         if spec is None or spec.loader is None:
             raise ImportError(
                 f"Could not load module spec for {geist_file}\n"
@@ -248,30 +253,34 @@ class GeistExecutor:
             )
 
         module = importlib.util.module_from_spec(spec)
-        module_key = f"geistfabrik.user_geists.{geist_id}"
+        previous_module = sys.modules.get(module_key)
         sys.modules[module_key] = module
+        def restore_module() -> None:
+            if previous_module is None:
+                sys.modules.pop(module_key, None)
+            else:
+                sys.modules[module_key] = previous_module
+
         # Top-level plugin code is trusted Python, but on supported POSIX
         # main-thread runs the same availability deadline covers import hangs.
+        missing = object()
         try:
             with _alarm_timeout(self.timeout):
                 spec.loader.exec_module(module)
+            suggest_export: object = getattr(module, "suggest", missing)
+            if suggest_export is missing:
+                raise AttributeError(
+                    f"Geist '{geist_id}' in {geist_file} missing suggest() function\n"
+                    f"  → Add this function to your geist:\n\n"
+                    f"  def suggest(vault: VaultContext) -> List[Suggestion]:\n"
+                    f'      """Generate suggestions."""\n'
+                    f"      return []"
+                )
+            if not callable(suggest_export):
+                raise TypeError(f"Geist '{geist_id}' export 'suggest' is not callable")
         except BaseException:
-            sys.modules.pop(module_key, None)
+            restore_module()
             raise
-
-        # Get suggest function
-        if not hasattr(module, "suggest"):
-            raise AttributeError(
-                f"Geist '{geist_id}' in {geist_file} missing suggest() function\n"
-                f"  → Add this function to your geist:\n\n"
-                f"  def suggest(vault: VaultContext) -> List[Suggestion]:\n"
-                f'      """Generate suggestions."""\n'
-                f"      return []"
-            )
-
-        suggest_export: object = getattr(module, "suggest")
-        if not callable(suggest_export):
-            raise TypeError(f"Geist '{geist_id}' export 'suggest' is not callable")
         suggest_func = cast(GeistSuggest, suggest_export)
 
         # Store geist metadata

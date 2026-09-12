@@ -28,7 +28,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik import Suggestion
 
     # Get cluster assignments and labels
-    all_clusters = vault.get_clusters(min_size=5)
+    min_size = vault.vault.config.clustering.min_cluster_size
+    all_clusters = vault.get_clusters(min_size=min_size)
 
     # Filter out clusters that only contain geist journal notes
     clusters = {}
@@ -37,7 +38,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         non_journal_notes = [
             n for n in cluster_info.notes if not n.path.startswith("geist journal/")
         ]
-        if len(non_journal_notes) >= 5:  # Still meets min_size requirement
+        if len(non_journal_notes) >= min_size:
             # Cluster with the journal notes filtered out
             clusters[cluster_id] = replace(
                 cluster_info, notes=non_journal_notes, size=len(non_journal_notes)
