@@ -1,7 +1,7 @@
 # GeistFabrik Implementation Status
 
 **Last Updated**: 2026-09-12
-**Version**: 0.10.1 (Beta, Schema v10)
+**Version**: 0.11.0 (Beta, Schema v10)
 **Overall Progress**: Release-candidate hardening
 
 ---

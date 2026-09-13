@@ -295,6 +295,13 @@ violations and consider lint-banning the offending calls.
 **Impact:** `--date` replays are reproducible again; the testing template
 mandates pinned dates/seeds.
 
+**0.11.0 follow-up:** A stable seed was necessary but insufficient. Timestamp
+conversion could still select a different calendar day, and replay could still
+read sessions written after the requested date. Preview, write, replay, tests,
+Tracery, and vault functions now share one canonical calendar date, `YYYYMMDD`
+seed, and as-of history boundary. Reproducibility includes every input read by
+the computation, not only its random-number generator.
+
 ---
 
 ## Specs Are Promises: Audit the Diff Between Spec and Ship
@@ -460,6 +467,12 @@ local, testable measurements instead of sentiment classification. The new
 tests assert known-answer voice features, hostile-input totality, metamorphic
 properties, and cached/vectorised surprisal behaviour.
 
+**0.11.0 follow-up:** The same rule applies to temporal embeddings. Calendar
+features cannot establish semantic movement, and a change in representation
+cannot establish a change in understanding. Temporal geists now compare only
+semantic dimensions and name the dispersion, direction, or neighbour-set
+change they actually measure before inviting the user to inspect source notes.
+
 ---
 
 ## Vault Sync Correctness Lives In Operation Sequences
@@ -560,6 +573,78 @@ acquisition; metric caches carry exact source and algorithm provenance; Sessions
 projection lifetime; migration support has an explicit v3 floor; and CI asserts the interpreter it
 claims to test. Project-wide Hypothesis review also replaced properties whose generators or oracles
 made the claimed invariant vacuous.
+
+---
+
+## Validation and Execution Must Share One Gate
+
+**Date:** 2026-09-13
+**Context:** Standalone Tracery validation accepted definitions that runtime loading rejected
+
+**The Problem:** The validator and loader independently implemented overlapping structural and
+grammar checks. Each looked reasonable in isolation, but they disagreed on malformed identifiers,
+counts, missing origins, grammar shapes, and vault calls containing unresolved symbols. A green
+validation command therefore did not prove that the same file could execute.
+
+**The Insight:** Two implementations of one admission rule are two contracts, even when they begin
+with identical intentions. They drift because fixes land at different boundaries and because one
+path sees details the other has reconstructed differently.
+
+**The Principle:** Put every blocking check in the production preflight and make validators call it.
+Validation wrappers may add advisory policy checks, but they must not reimplement runtime
+acceptance. Run the same invalid-definition table through both entry points and assert agreement.
+
+**Impact:** `TraceryGeist.preflight_definition()` is now the canonical blocking gate used by both
+`from_yaml()` and `geistfabrik validate`; parameterized parity tests cover every structural field,
+grammar expansion, and unsafe vault-symbol case.
+
+---
+
+## Empty Is a Result; Failure Is a Different State
+
+**Date:** 2026-09-13
+**Context:** Fail-soft execution and statistics made broken geists look successfully quiet
+
+**The Problem:** Summaries counted only emitted suggestions. A geist that legitimately found
+nothing, one that failed to load, one that raised during execution, and one disabled by policy could
+all appear as zero output. That protected a batch from one plugin failure, but it removed the
+evidence needed to understand whether the engine behaved correctly.
+
+**The Insight:** Fail-soft behavior requires stronger observability, not weaker reporting. Empty,
+failed, skipped, configured-off, and automatically disabled are domain states with different causes
+and different operator actions; collapsing them creates false confidence.
+
+**The Principle:** Model execution outcomes explicitly and report aggregates without leaking note
+content. Treat healthy-empty as success, preserve failures even when execution continues, and make
+configuration state distinguishable from failure history.
+
+**Impact:** Invocation summaries now classify produced, healthy-empty, failed, and skipped geists;
+load failures affect exit status; statistics separate configuration from automatic disablement; and
+`invoke --explain` exposes selection and filter counts without printing rejected suggestions.
+
+---
+
+## Release the Bytes You Tested
+
+**Date:** 2026-09-13
+**Context:** Completing an offline, reproducible GitHub Release path
+
+**The Problem:** Passing tests in a source checkout did not prove that an installed wheel contained
+the bundled model, licenses, entry points, or correct metadata. Rebuilding packages in a later
+release job would create different bytes from the artifacts that passed smoke tests, breaking the
+evidence chain even if the source revision was unchanged.
+
+**The Insight:** A release artifact is an output under test, not a disposable by-product of source
+tests. Confidence attaches to exact bytes plus their provenance: source commit, version, build
+inputs, contents, installation behavior, and checksum.
+
+**The Principle:** Build once in the release lane, install and exercise those artifacts outside the
+checkout, retain the passing files, and promote them without rebuilding. Fail closed when the tag,
+source declarations, filenames, or required bundled resources disagree.
+
+**Impact:** Tag CI smoke-tests wheel and sdist on Python 3.11 and 3.12, performs real offline model
+inference, rebuilds a wheel from the sdist, verifies version agreement, generates `SHA256SUMS`, and
+publishes the retained Python 3.11 artifacts directly to GitHub Releases.
 
 ---
 

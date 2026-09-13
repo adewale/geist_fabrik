@@ -21,7 +21,7 @@ from .vault import Vault
 from .vault_context import ChurnResult, VaultContext
 from .voice_analysis import VoiceMetadata
 
-__version__ = "0.10.1"
+__version__ = "0.11.0"
 
 __all__ = [
     "__version__",
