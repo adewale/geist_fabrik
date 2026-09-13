@@ -54,6 +54,25 @@ wheel from the sdist, installs the wheel into a fresh environment outside the
 checkout, and performs real offline semantic inference from the bundled model.
 It is also invoked by `validate.sh`; it does not invoke `validate.sh` itself.
 
+## Release Process
+
+The GitHub Actions tag path promotes the exact wheel and source distribution
+that passed the Python 3.11 package-smoke lane; it does not rebuild them. To
+prepare a release:
+
+1. Move the relevant changelog entries out of `Unreleased` and update the
+   version in both `pyproject.toml` and `src/geistfabrik/__init__.py`.
+2. Run `./scripts/validate.sh` and merge the release commit to `main`.
+3. Create and push an annotated `v<version>` tag at that commit.
+
+The tag workflow checks that the tag, both source version declarations, wheel,
+and sdist agree. After all test and package-smoke jobs pass, it generates
+`SHA256SUMS` and creates a GitHub Release from those retained artifacts.
+
+PyPI publication is not automated. Add it only after choosing the package
+ownership, trusted-publishing environment, and release policy; the GitHub
+Release remains the supported automated destination until then.
+
 ## Other Scripts
 
 ### `detect_unused_tables.py`

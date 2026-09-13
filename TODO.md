@@ -33,6 +33,21 @@ clusters.
   `src/geistfabrik/clustering_analysis.py` (`_cluster_hdbscan`),
   `src/geistfabrik/embedding_metrics.py`.
 
+## Evidence-gated infrastructure ideas
+
+- [ ] Share only the pure HDBSCAN partitioning rule between metrics and
+  `VaultContext`; keep their caches and history-writing responsibilities
+  separate.
+- [ ] Evaluate cosine versus Euclidean clustering on real vaults before
+  changing it.
+- [ ] Measure how often the bundled model's 256-token truncation loses
+  meaningful content before proposing chunking.
+- [ ] Add exact model-artifact identity to cache provenance before changing
+  models.
+- [ ] Measure repeated model construction during invocation, then inject one
+  command-scoped model if the cost is real. Do not introduce a process-global
+  singleton.
+
 ## Engineering hardening (mechanical, lower-risk)
 
 - **`OMP_NUM_THREADS` etc.** — done for encode() via threadpoolctl; if any

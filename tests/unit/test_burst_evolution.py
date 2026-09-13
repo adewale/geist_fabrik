@@ -75,16 +75,14 @@ def test_burst_evolution_detects_burst_with_history(vault_with_sessions):
 
     suggestions = burst_evolution.suggest(context)
 
-    # Should return 1 suggestion if we have enough data
-    # May return 0 if embeddings are identical (no drift)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 1
-
-    if suggestions:
-        suggestion = suggestions[0]
-        assert suggestion.geist_id == "burst_evolution"
-        assert "2024-03-15" in suggestion.text
-        assert "drift" in suggestion.text.lower()
+    # The fixture has a five-note burst and two complete snapshots; an empty
+    # result would make all of the content assertions below vacuous.
+    assert len(suggestions) == 1
+    suggestion = suggestions[0]
+    assert suggestion.geist_id == "burst_evolution"
+    assert "2024-03-15" in suggestion.text
+    assert "semantic distance" in suggestion.text.lower()
+    assert "your understanding" not in suggestion.text.lower()
 
 
 def test_burst_evolution_no_sessions(tmp_path):
@@ -252,10 +250,10 @@ def test_burst_evolution_drift_label():
     """
     from geistfabrik.default_geists.code.burst_evolution import _drift_label
 
-    assert _drift_label(0.05) == "mostly stable"
-    assert _drift_label(0.15) == "moderate evolution"
-    assert _drift_label(0.30) == "significant shift"
-    assert _drift_label(0.50) == "major evolution"
+    assert _drift_label(0.05) == "small change"
+    assert _drift_label(0.15) == "moderate change"
+    assert _drift_label(0.30) == "large change"
+    assert _drift_label(0.50) == "very large change"
 
 
 def test_burst_evolution_includes_note_titles(vault_with_sessions):

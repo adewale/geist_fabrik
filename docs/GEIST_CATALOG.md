@@ -47,32 +47,34 @@ These geists pick a random note, extract specific content types using regex, and
 
 ### 2. Temporal Analysis Geists
 
-**Pattern**: `Time-Based Comparison → Detect Change → Question Evolution`
+**Pattern**: `Time-Based Comparison → Measure Difference → Ask for Inspection`
 
-These geists compare notes across different time periods to reveal how thinking evolves, using either creation dates or embedding drift.
+These geists compare dated note metadata or stored semantic representations.
+Those signals can point to source material worth inspecting; they do not by
+themselves establish a change in meaning, interpretation, or mental state.
 
 | Geist | Compares | Detects |
 |-------|----------|---------|
 | **temporal_drift** | Old vs recent notes | Stale but important notes |
-| **session_drift** | Embeddings across sessions | How interpretation evolves |
-| **hermeneutic_instability** | Past vs current embeddings | Notes whose meaning changed |
-| **concept_drift** | Semantic neighborhoods over time | Concept boundaries shifting |
-| **temporal_clustering** | Clusters across time periods | Thinking patterns by era |
-| **seasonal_patterns** | Notes by creation season | Seasonal thinking rhythms |
+| **session_drift** | Semantic dimensions across sessions | Changed content representations |
+| **hermeneutic_instability** | Semantic variance across snapshots | Notes whose stored vectors varied |
+| **concept_drift** | Semantic neighborhoods over time | Representation direction and neighbours |
+| **temporal_clustering** | Clusters across time periods | Content groupings by era |
+| **seasonal_patterns** | Notes by creation season | Dated topic distributions |
 | **seasonal_revisit** | Same season, different years | Yearly cycles |
 | **on_this_day** | Same calendar date | Anniversary reflections |
 | **anachronism_detector** | Temporal contradictions | Ideas out of sync with era |
-| **convergent_evolution** | Notes becoming similar | Independent paths converging |
-| **divergent_evolution** | Notes becoming different | Paths diverging over time |
+| **convergent_evolution** | Stored vectors becoming similar | Increased measured similarity |
+| **divergent_evolution** | Stored vectors becoming different | Decreased measured similarity |
 | **temporal_mirror** | Different time periods | Cross-temporal patterns |
 | **creation_burst** | Days with 3+ notes created | Productive burst days |
-| **burst_evolution** | Burst day notes over time | How burst notes evolved |
+| **burst_evolution** | Burst-day representations over time | Measured semantic distance |
 
 **Characteristics**:
 - 📊 Uses temporal metadata (creation date, modification time)
 - 🔄 Tracks change over time
 - 📈 Often requires embeddings to detect semantic drift
-- 🎯 Highlights evolution of thinking
+- 🎯 Surfaces measured patterns for inspection
 
 ---
 
@@ -474,8 +476,8 @@ All geists have comprehensive tests that:
 | Geist | Why Filter? |
 |-------|------------|
 | **creation_burst** | Tracks user-created burst days, not session generation |
-| **burst_evolution** | Tracks how user notes evolved, not system output |
-| **temporal_mirror** | Compares user thinking across time periods |
+| **burst_evolution** | Compares user-note representations, not system output |
+| **temporal_mirror** | Juxtaposes user notes from different time periods |
 | **seasonal_topic_analysis** | Finds seasonal patterns in user writing |
 | **cluster_evolution_tracker** | Tracks semantic drift of user notes |
 | **metadata_outlier_detector** | Computes statistics then filters results |

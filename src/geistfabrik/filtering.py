@@ -11,6 +11,7 @@ Each filter can be enabled/disabled via configuration.
 
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
 from typing import Any
@@ -27,6 +28,33 @@ from .config import (
 )
 from .embeddings import EmbeddingComputer
 from .models import NoteLinkIndex, Suggestion, _normalise_vault_path
+
+
+@dataclass(frozen=True)
+class FilterStageReport:
+    """Count-only account of one filtering stage."""
+
+    name: str
+    input_count: int
+    output_count: int
+
+    @property
+    def rejected_count(self) -> int:
+        """Number removed by this stage."""
+        return self.input_count - self.output_count
+
+
+@dataclass(frozen=True)
+class FilteringReport:
+    """Privacy-preserving account of a filtering pipeline run."""
+
+    input_count: int
+    stages: tuple[FilterStageReport, ...]
+
+    @property
+    def output_count(self) -> int:
+        """Number left after the final stage."""
+        return self.stages[-1].output_count if self.stages else self.input_count
 
 
 class SuggestionFilter:
@@ -84,7 +112,20 @@ class SuggestionFilter:
         Returns:
             Filtered list of suggestions
         """
+        filtered, _report = self.filter_all_with_report(suggestions, session_date)
+        return filtered
+
+    def filter_all_with_report(
+        self, suggestions: list[Suggestion], session_date: datetime
+    ) -> tuple[list[Suggestion], FilteringReport]:
+        """Apply filters and return aggregate stage counts alongside survivors.
+
+        The report deliberately contains no suggestion text or note references,
+        so diagnostics can explain pipeline behaviour without exposing vault
+        content.
+        """
         filtered = suggestions
+        stage_reports: list[FilterStageReport] = []
         configured = self.config.get("strategies", [])
         # Shape/length checks and DB-only boundaries must run before any
         # embedding allocation, regardless of legacy strategy ordering.
@@ -92,6 +133,7 @@ class SuggestionFilter:
         strategies.extend(s for s in configured if s not in {"boundary", "quality"})
 
         for strategy in strategies:
+            input_count = len(filtered)
             if strategy == "boundary":
                 filtered = self.filter_boundary(filtered)
             elif strategy == "novelty":
@@ -101,7 +143,18 @@ class SuggestionFilter:
             elif strategy == "quality":
                 filtered = self.filter_quality(filtered)
 
-        return filtered
+            stage_reports.append(
+                FilterStageReport(
+                    name=strategy,
+                    input_count=input_count,
+                    output_count=len(filtered),
+                )
+            )
+
+        return filtered, FilteringReport(
+            input_count=len(suggestions),
+            stages=tuple(stage_reports),
+        )
 
     def filter_boundary(self, suggestions: list[Suggestion]) -> list[Suggestion]:
         """Remove suggestions referencing non-existent or excluded notes.

@@ -1,7 +1,7 @@
-"""Concept Drift geist - tracks how concepts evolve over time.
+"""Concept Drift geist - tracks semantic representations over time.
 
 Maps the semantic trajectory of notes about the same concept across sessions,
-revealing how your understanding of ideas migrates and develops.
+then offers a current neighbour whose vector aligns with that trajectory.
 """
 
 from typing import TYPE_CHECKING
@@ -19,12 +19,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     which current neighbours are most aligned with the drift direction.
 
     Returns:
-        List of suggestions showing how concepts evolve
+        List of suggestions reporting measured representation changes
     """
     from geistfabrik import Suggestion
     from geistfabrik.temporal_analysis import (
         EmbeddingTrajectoryCalculator,
         TemporalPatternFinder,
+        semantic_component,
     )
 
     # Find notes with significant drift (>0.2)
@@ -60,11 +61,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 continue
 
             # Use most recent embedding
-            neighbour_emb = neighbour_snapshots[-1][1]
+            neighbour_emb = semantic_component(neighbour_snapshots[-1][1])
 
             # How aligned is neighbour with drift direction?
             # drift_vector is already a unit vector from TemporalPatternFinder
-            alignment = np.dot(drift_vector, neighbour_emb) / np.linalg.norm(neighbour_emb)
+            neighbour_norm = np.linalg.norm(neighbour_emb)
+            if neighbour_norm < 1e-10:
+                continue
+            alignment = np.dot(drift_vector, neighbour_emb) / neighbour_norm
             neighbour_alignments.append((neighbour, alignment))
 
         if not neighbour_alignments:
@@ -84,9 +88,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         last_date = snapshots[-1][0].strftime("%Y-%m")
 
         text = (
-            f"[[{note.link_text}]] has semantically migrated since {first_date}. "
-            f"It's now drifting toward [[{top_neighbour.link_text}]]—"
-            f"concept evolving from {first_date} to {last_date}?"
+            f"The semantic representation of [[{note.link_text}]] changed between "
+            f"{first_date} and {last_date}. Its measured direction aligns most with "
+            f"the current vector for [[{top_neighbour.link_text}]] among the sampled "
+            f"neighbours. Is that comparison useful on inspection?"
         )
 
         suggestions.append(

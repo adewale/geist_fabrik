@@ -35,6 +35,7 @@ from .config import (
     MODEL_NAME,
 )
 from .models import Note
+from .session_time import normalise_session_date
 from .sqlite_transaction import owned_transaction
 
 logger = logging.getLogger(__name__)
@@ -286,8 +287,10 @@ class EmbeddingComputer:
             - creation_season: sin/cos encoding of creation day-of-year
             - session_season: sin/cos encoding of session day-of-year
         """
-        # Note age in days
-        age_days = (session_date - note.created).days
+        # Sessions are calendar-day identities.  Compare calendar dates rather
+        # than elapsed 24-hour periods so time-of-day cannot move a note across
+        # an age boundary during replay.
+        age_days = (session_date.date() - note.created.date()).days
         note_age = age_days / 365.0  # Normalise to years
 
         # Creation season (cyclical encoding)
@@ -373,7 +376,7 @@ class Session:
                 embeddings for. Sessions older than this are pruned at the start of
                 each session to bound database growth. None or <= 0 retains all.
         """
-        self.date = date
+        self.date = normalise_session_date(date)
         self.db = db
         self.session_id = self._get_or_create_session()
         self._snapshot_data_version = self._read_data_version()

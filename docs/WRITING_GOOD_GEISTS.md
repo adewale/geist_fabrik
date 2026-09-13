@@ -73,7 +73,7 @@ f"How does {title} work?"  # Too obvious
 **✅ Good** (uses actual vault relationships):
 ```python
 "[[{note_a}]] and [[{note_b}]] are semantically similar (0.87) despite no links. Same pattern, different scale?"
-"[[{note}]] has been interpreted differently across your last 5 sessions—meaning unsettled?"
+"[[{note}]] changed semantically across five snapshots. What do the edits reveal?"
 "Your Q2 notes cluster around [[Flow]], but Q4 notes cluster around [[Structure]]. Different seasons?"
 ```
 
@@ -118,11 +118,11 @@ Connector vs. island?"
 ```
 
 ### Pattern 3: Temporal Awareness
-Track changes over time without prescribing action.
+Report measured changes over time without inventing a mental state or cause.
 
 ```python
-"Your understanding of [[{note}]] shifted between sessions,
-even though you haven't edited it in 127 days. What changed?"
+"The semantic representation of [[{note}]] changed between snapshots,
+although its source has not been edited in 127 days. What explains the mismatch?"
 ```
 
 ### Pattern 4: Provocative Framing
@@ -230,12 +230,13 @@ because [[{other.title}]] argues something that seems to contradict it"
 
 ---
 
-### Session Drift (Metacognitive Mirror)
+### Session Drift (Representation-Change Mirror)
 ```python
-"Your understanding of [[{note}]] shifted significantly between sessions.
-What changed in how you're reading it?"
+"The semantic representation of [[{note}]] changed between recorded sessions.
+What, if anything, do the source edits reveal?"
 ```
-**Why it's gold**: Questions interpretation, not content. Reveals temporal evolution.
+**Why it's gold**: States the measured change, avoids inventing a mental state,
+and leaves interpretation with the user.
 
 ---
 
@@ -918,7 +919,7 @@ suggestions.append(
 
 ```python
 Suggestion(
-    text="Your recent notes explore less semantic territory than older ones...",
+    text="Mean note-vector distance from the session centroid decreased...",
     notes=[],  # No specific notes - vault-level observation
     geist_id="vocabulary_expansion",
 )
@@ -1495,8 +1496,8 @@ def suggest(vault):
 ```
 
 **Available Classes**:
-- `EmbeddingTrajectoryCalculator`: Track note evolution (drift, alignment, convergence)
-- `TemporalPatternFinder`: Find patterns (converging pairs, cycling notes, aligned drift)
+- `EmbeddingTrajectoryCalculator`: Compare stored semantic representations
+- `TemporalPatternFinder`: Find measured patterns (convergence, cycles, alignment)
 - `TemporalSemanticQuery`: Fuse time + semantics (seasonal patterns, time-bounded similarity)
 
 **Example Geists**:

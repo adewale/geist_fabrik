@@ -5,6 +5,7 @@ from pathlib import Path
 from ..geist_executor import GeistExecutor
 from ..geist_status import GeistStatusStore
 from ..models import Suggestion
+from ..session_time import session_seed
 from ..tracery import TraceryGeistLoader
 from .base import BaseCommand
 
@@ -71,7 +72,7 @@ class TestCommand(BaseCommand):
 
         # Load Tracery geists
         tracery_geists_dir = exec_ctx.vault_path / "_geistfabrik" / "geists" / "tracery"
-        seed = int(session_date.timestamp())
+        seed = session_seed(session_date)
         tracery_loader = TraceryGeistLoader(
             tracery_geists_dir,
             seed=seed,

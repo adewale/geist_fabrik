@@ -292,6 +292,7 @@ class StatsCollector:
         if total == 0:
             return {
                 "total": 0,
+                "suggestion_sessions": 0,
                 "date_range": [],
                 "average_interval_days": 0,
                 "total_suggestions": 0,
@@ -317,8 +318,15 @@ class StatsCollector:
         cursor = self.db.execute("SELECT COUNT(*) FROM session_suggestions")
         total_suggestions = cursor.fetchone()[0]
 
-        # Average suggestions per session
-        avg_suggestions = total_suggestions / total if total > 0 else 0
+        # Preview and test commands create embedding sessions without writing a
+        # journal.  A suggestion average therefore uses only dates that have
+        # persisted suggestions, rather than all indexed/previewed sessions.
+        suggestion_sessions = self.db.execute(
+            "SELECT COUNT(DISTINCT session_date) FROM session_suggestions"
+        ).fetchone()[0]
+        avg_suggestions = (
+            total_suggestions / suggestion_sessions if suggestion_sessions > 0 else 0
+        )
 
         # Recent sessions
         cursor = self.db.execute(
@@ -340,6 +348,7 @@ class StatsCollector:
 
         return {
             "total": total,
+            "suggestion_sessions": suggestion_sessions,
             "date_range": date_range,
             "average_interval_days": round(avg_interval, 1),
             "total_suggestions": total_suggestions,
@@ -348,43 +357,55 @@ class StatsCollector:
         }
 
     def _collect_geist_stats(self) -> dict[str, Any]:
-        """Collect geist configuration statistics."""
-        # Count default geists
+        """Collect type-aware configured and persistent geist status."""
         from geistfabrik.default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
+        from geistfabrik.geist_status import GeistStatusStore
 
-        default_code_count = len(DEFAULT_CODE_GEISTS)
-        default_tracery_count = len(DEFAULT_TRACERY_GEISTS)
+        default_code = set(DEFAULT_CODE_GEISTS)
+        default_tracery = set(DEFAULT_TRACERY_GEISTS)
 
         # Count custom geists
         custom_code_dir = self.vault.vault_path / "_geistfabrik" / "geists" / "code"
         custom_tracery_dir = self.vault.vault_path / "_geistfabrik" / "geists" / "tracery"
 
-        custom_code_count = (
-            len(list(custom_code_dir.glob("*.py"))) if custom_code_dir.exists() else 0
+        custom_code = (
+            {path.stem for path in custom_code_dir.glob("*.py") if path.name != "__init__.py"}
+            if custom_code_dir.exists()
+            else set()
         )
-        custom_tracery_count = (
-            len(list(custom_tracery_dir.glob("*.yaml"))) if custom_tracery_dir.exists() else 0
+        custom_tracery = (
+            {path.stem for path in custom_tracery_dir.glob("*.yaml")}
+            if custom_tracery_dir.exists()
+            else set()
         )
 
-        # Count enabled/disabled from config
-        enabled_count = sum(1 for v in self.config.default_geists.values() if v)
-        disabled_count = len(self.config.default_geists) - enabled_count
+        all_geists = default_code | default_tracery | custom_code | custom_tracery
+        configured_disabled = {
+            geist_id for geist_id in all_geists if not self.config.is_geist_enabled(geist_id)
+        }
+        auto_disabled = {
+            geist_id
+            for geist_id, status in GeistStatusStore(self.db).load().items()
+            if status.disabled and geist_id in all_geists
+        }
+        disabled = configured_disabled | auto_disabled
 
-        # Find disabled geists
-        disabled_geists = [k for k, v in self.config.default_geists.items() if not v]
+        def enabled_count(geist_ids: set[str]) -> int:
+            return len(geist_ids - disabled)
 
         return {
-            "code_total": default_code_count,
-            "code_enabled": enabled_count,  # Simplified: assume all enabled are code
-            "code_disabled": disabled_count,
-            "tracery_total": default_tracery_count,
-            "tracery_enabled": default_tracery_count,  # Tracery geists always enabled
-            "custom_code": custom_code_count,
-            "custom_tracery": custom_tracery_count,
-            "total_enabled": (
-                enabled_count + default_tracery_count + custom_code_count + custom_tracery_count
-            ),
-            "disabled_geists": disabled_geists,
+            "code_total": len(default_code),
+            "code_enabled": enabled_count(default_code),
+            "code_disabled": len(default_code & disabled),
+            "tracery_total": len(default_tracery),
+            "tracery_enabled": enabled_count(default_tracery),
+            "tracery_disabled": len(default_tracery & disabled),
+            "custom_code": len(custom_code),
+            "custom_tracery": len(custom_tracery),
+            "custom_enabled": enabled_count(custom_code | custom_tracery),
+            "total_enabled": enabled_count(all_geists),
+            "disabled_geists": sorted(disabled),
+            "auto_disabled_geists": sorted(auto_disabled),
         }
 
     def get_top_linked_notes(self, limit: int = 10) -> list[dict[str, Any]]:
@@ -595,8 +616,14 @@ class StatsCollector:
         # Build aligned embedding matrices
         # Use dict lookup instead of list.index() for O(N) instead of O(N²)
         path_to_idx = {p: i for i, p in enumerate(curr_paths)}
-        curr_aligned = np.vstack([curr_emb[path_to_idx[p]] for p in common_paths])
-        past_aligned = np.vstack([past_emb_dict[p] for p in common_paths])
+        from geistfabrik.temporal_analysis import semantic_component
+
+        curr_aligned = np.vstack(
+            [semantic_component(curr_emb[path_to_idx[p]]) for p in common_paths]
+        )
+        past_aligned = np.vstack(
+            [semantic_component(past_emb_dict[p]) for p in common_paths]
+        )
 
         # Align past embeddings to current via Procrustes
         try:
@@ -623,31 +650,9 @@ class StatsCollector:
         drifts = [d for _, d in drift_scores]
         avg_drift = float(np.mean(drifts))
 
-        # Compare to previous period (if available) to detect acceleration
-        drift_trend = "stable"
-        try:
-            earlier_date = (
-                datetime.fromisoformat(past_date) - timedelta(days=days_back)
-            ).isoformat()[:10]
-            cursor = self.db.execute(
-                """
-                SELECT s.date
-                FROM sessions s
-                WHERE s.date < ? AND EXISTS (
-                    SELECT 1 FROM session_embeddings se WHERE se.session_id = s.session_id
-                )
-                ORDER BY s.date DESC
-                LIMIT 1
-                """,
-                (earlier_date,),
-            )
-            row = cursor.fetchone()
-            if row:
-                # Simplified: just check if current avg_drift is higher
-                # Full implementation would compute drift for past period too
-                drift_trend = "accelerating" if avg_drift > 0.2 else "stable"
-        except Exception:
-            logger.debug("Failed to compute drift trend", exc_info=True)
+        # One interval cannot establish a trend. Retain the field for output/API
+        # compatibility while making the measurement boundary explicit.
+        drift_trend = "not measured"
 
         return {
             "current_date": curr_date,

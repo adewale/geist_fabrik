@@ -193,6 +193,11 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
         help="Enable performance profiling and diagnostic output for geist execution",
     )
     invoke_parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Explain execution, filtering, and selection with count-only diagnostics",
+    )
+    invoke_parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress non-essential output (only show suggestions)",

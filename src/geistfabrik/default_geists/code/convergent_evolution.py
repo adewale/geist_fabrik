@@ -1,7 +1,7 @@
-"""Convergent Evolution geist - finds notes developing toward each other.
+"""Convergent Evolution geist - finds note vectors becoming more similar.
 
-Identifies pairs of notes whose embeddings have been converging across sessions,
-suggesting ideas that are independently developing in the same direction.
+Identifies unlinked note pairs whose measured semantic similarity increased
+across recorded sessions.
 """
 
 from typing import TYPE_CHECKING
@@ -11,13 +11,13 @@ if TYPE_CHECKING:
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find notes whose understanding is converging across sessions.
+    """Find note pairs whose semantic similarity increased across sessions.
 
-    Uses TemporalPatternFinder to identify converging pairs, then filters
-    for unlinked notes that are developing in the same direction.
+    Uses TemporalPatternFinder to identify pairs with increasing similarity,
+    then filters for unlinked notes.
 
     Returns:
-        List of suggestions showing convergent development
+        List of suggestions reporting increased measured similarity
     """
     from geistfabrik import Suggestion
     from geistfabrik.temporal_analysis import (
@@ -61,11 +61,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         text = (
-            f"[[{note_a.link_text}]] and "
-            f"[[{note_b.link_text}]] have been converging "
-            f"semantically across your last {session_count} sessions. "
-            f"Two ideas independently developing in the same direction—"
-            f"time to link them?"
+            f"The stored semantic representations for [[{note_a.link_text}]] and "
+            f"[[{note_b.link_text}]] became more similar across {session_count} "
+            f"recorded sessions. Does inspecting the notes reveal a useful link?"
         )
 
         suggestions.append(

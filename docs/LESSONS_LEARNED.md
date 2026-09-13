@@ -72,19 +72,21 @@ class VaultContext:
 
 ---
 
-### ✅ Temporal Embeddings = Game Changer
+### ✅ Dated Embedding Snapshots Enable Comparisons
 
 **Decision**: Compute fresh embeddings each session, store in `session_embeddings` table
 
 **Why It's Powerful**:
-- Tracks **how understanding evolves** over time
+- Tracks how stored content representations change over time
 - Enables geists like Session Drift, Hermeneutic Instability, Convergent Evolution
-- Detects semantic drift even when note content doesn't change
-- Discovers temporal patterns (intellectual seasons, rhythms)
+- Separates semantic-vector comparisons from calendar-only feature movement
+- Supports questions about dated patterns without treating them as psychological facts
 
 **Storage Cost**: ~1.5KB per note per session (~30MB for 1000 notes × 20 sessions)
 
-**Lesson**: Don't just store final state—store the **history** of derived data. Temporal dimensions unlock entirely new classes of insights.
+**Lesson**: Don't just store final state—store the **history** of derived data,
+but describe only what that data measures. Embeddings can expose changes worth
+inspection; they cannot establish how a person understood the note.
 
 ---
 

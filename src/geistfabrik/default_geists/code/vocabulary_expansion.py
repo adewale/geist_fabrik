@@ -1,7 +1,7 @@
-"""Vocabulary Expansion geist - tracks semantic space coverage over time.
+"""Vocabulary Expansion geist - tracks note-vector dispersion over time.
 
-Measures how much semantic territory your notes explore across sessions,
-detecting periods of convergence (focusing) or divergence (exploring).
+Compares the mean semantic distance from each session's note-vector centroid.
+It reports only that measured distribution change, not the user's mental state.
 """
 
 import logging
@@ -16,12 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Measure semantic territory exploration across sessions.
+    """Measure note-vector dispersion across sessions.
 
     Returns:
         List of suggestions about semantic coverage changes
     """
     from geistfabrik import Suggestion
+    from geistfabrik.temporal_analysis import semantic_component
 
     suggestions = []
 
@@ -32,22 +33,23 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if len(session_data) < 3:
             return []
 
-        # For each session, calculate semantic coverage (dispersion)
+        # For each session, calculate mean semantic distance from its centroid.
         coverage_by_session = []
 
         for _session_id, session_date_str, embeddings in session_data:
             if len(embeddings) < 10:
                 continue
 
-            # Calculate dispersion (standard deviation from centroid)
-            embeddings_array = np.array(embeddings)
+            embeddings_array = np.array(
+                [semantic_component(embedding) for embedding in embeddings]
+            )
             centroid = np.mean(embeddings_array, axis=0)
 
             # Use scipy for Euclidean distance calculation
             from scipy.spatial.distance import euclidean  # type: ignore[import-untyped]
 
             distances = [euclidean(emb, centroid) for emb in embeddings_array]
-            coverage = np.std(distances)
+            coverage = float(np.mean(distances))
 
             coverage_by_session.append((session_date_str, coverage))
 
@@ -60,17 +62,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         recent_coverage = np.mean([c for _, c in coverage_by_session[-2:]])
         older_coverage = np.mean([c for _, c in coverage_by_session[:2]])
 
-        # Detect significant changes in exploration
-
-        # Convergence (focusing on fewer topics)
+        # Describe significant changes in the measured distribution only.
         if recent_coverage < older_coverage * 0.8:
             recent_date = coverage_by_session[-1][0]
             older_date = coverage_by_session[0][0]
 
             text = (
-                f"Your recent notes (since {recent_date}) explore less semantic territory "
-                f"than earlier ones (around {older_date}). You're converging on specific topics—"
-                f"deep focus or narrowing perspective?"
+                f"The mean semantic distance of note vectors from their session centroid "
+                f"is lower in recent snapshots (through {recent_date}) than in earlier ones "
+                f"(around {older_date}). Do the source notes show a useful change in topic mix?"
             )
 
             suggestions.append(
@@ -81,15 +81,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-        # Divergence (exploring more diverse topics)
         elif recent_coverage > older_coverage * 1.2:
             recent_date = coverage_by_session[-1][0]
             older_date = coverage_by_session[0][0]
 
             text = (
-                f"Your recent notes (since {recent_date}) cover more semantic ground "
-                f"than before (around {older_date}). You're branching into new areas—"
-                f"expansion phase or intellectual restlessness?"
+                f"The mean semantic distance of note vectors from their session centroid "
+                f"is higher in recent snapshots (through {recent_date}) than in earlier ones "
+                f"(around {older_date}). Do the source notes show a useful change in topic mix?"
             )
 
             suggestions.append(

@@ -23,10 +23,10 @@ See [STATUS.md](STATUS.md) for detailed implementation status and test results, 
 ✅ **Vault Management**: Parse Obsidian vaults with incremental sync
 ✅ **Date-Collection Notes**: Automatically split journal files into virtual entries
 ✅ **Semantic Search**: 384-dim embeddings via sentence-transformers
-✅ **Temporal Embeddings**: Track how understanding evolves over time
+✅ **Temporal Embeddings**: Compare content representations across dated snapshots
 ✅ **Graph Operations**: Orphans, hubs, backlinks, unlinked pairs
 ✅ **Geist Execution**: Safe Python and Tracery grammar execution
-✅ **Filtering Pipeline**: Boundary, novelty, diversity, and quality checks
+✅ **Filtering Pipeline**: Boundary, quality, novelty, and diversity checks
 ✅ **Session Notes**: Generates linkable journal entries with suggestions
 ✅ **Stats Command**: Comprehensive vault health diagnostics and metrics
 ✅ **CLI**: Full command-line interface with multiple invocation modes
@@ -99,6 +99,11 @@ geistfabrik stats /path/to/your/vault --verbose
 # Export stats as JSON for scripting
 geistfabrik stats /path/to/your/vault --json
 ```
+
+Session statistics distinguish indexed sessions (including previews and test
+runs) from sessions with persisted suggestions. The reported suggestion
+average uses only the latter. Geist totals classify code and Tracery defaults
+separately and apply both configuration and persistent auto-disable state.
 
 ### Try on Sample Vault (Risk-Free)
 
@@ -221,6 +226,9 @@ uv run geistfabrik invoke ~/my-vault --verbose
 # Debug mode (performance profiling and diagnostics)
 uv run geistfabrik invoke ~/my-vault --debug
 
+# Explain execution outcomes, per-stage rejections, and final selection counts
+uv run geistfabrik invoke ~/my-vault --explain
+
 # Test a geist during development
 uv run geistfabrik test my_geist ~/my-vault --date 2025-01-15
 
@@ -236,12 +244,12 @@ uv run geistfabrik test-all ~/my-vault
 GeistFabrik has three invocation modes that control filtering and sampling:
 
 **Default mode** (recommended for daily use):
-- Applies 4-stage filtering (boundary, novelty, diversity, quality)
+- Applies 4-stage filtering (boundary, quality, novelty, diversity)
 - Samples ~5 suggestions
 - Balanced output
 
 **Full mode** (`--full`):
-- Applies 4-stage filtering (boundary, novelty, diversity, quality)
+- Applies 4-stage filtering (boundary, quality, novelty, diversity)
 - Returns ALL filtered suggestions (no sampling)
 - Good for seeing everything that passed quality checks
 - Typical output: 10-50 suggestions depending on vault size
@@ -268,8 +276,17 @@ When using `--write`, session notes are created at:
 Session notes:
 - Contain filtered suggestions with block IDs (`^g20250120-001`)
 - Are fully linkable and embeddable like any Obsidian note
-- Include metadata about geists, vault state, and execution time
-- Support deterministic replay (same date = same output)
+- Record the selected geist output and invocation mode
+- Support deterministic replay when the date, vault contents, configuration,
+  retained suggestion history, and model artifact are unchanged
+
+`--diff` compares against the 60 days before the requested session date, so a
+historical replay never consults later sessions or the current wall clock.
+`--explain` reports which geists produced output, completed healthily with no
+output, failed, or were skipped; it also shows aggregate rejection counts for
+each filter and the number left unselected. The explanation itself never prints
+executor error contents or rejected suggestion text; detailed failures require
+`--verbose` or `--debug`.
 
 ## Configuration
 
@@ -281,10 +298,12 @@ GeistFabrik's configuration file controls which geists run and in what order:
 
 ### Key Configuration Features
 
-**Execution Order**: Geists execute in the order they appear in `config.yaml`. This matters because:
-- All geists share a random number generator seeded by the session date
-- Execution order determines which geist gets which random numbers
-- Same order + same date = same suggestions (reproducible sessions)
+**Execution Order**: Geists execute in the order they appear in `config.yaml`.
+The shared `VaultContext` RNG is seeded from the calendar date, so code geists
+that draw from it observe that order. Each Tracery geist owns a separate engine
+seeded from the same date. Reproducibility therefore requires the same date,
+ordered configuration, vault snapshot, retained history, and model artifact;
+preview and write use the same generation path.
 
 **Enable/Disable Geists**: Set any geist to `false` to disable it:
 ```yaml
@@ -519,7 +538,7 @@ Vault Files → Vault.sync() → SQLite Database
 3. **Sample, don't rank** - Avoid preferential attachment
 4. **Intermittent invocation** - User-initiated, not continuous
 5. **Local-first** - Bundled-model operation needs no network; offline flags prohibit fallback
-6. **Deterministic randomness** - Same date + vault = same output
+6. **Deterministic randomness** - Same calendar date and unchanged inputs yield the same output
 7. **Never destructive** - Engine writes only managed DB/journal state, not source notes
 8. **Extensible at every layer** - Python extensions are trusted code, not sandboxed
 
@@ -729,6 +748,11 @@ Remaining release polish:
 - [x] Additive migration system for schema changes
 - [ ] Comprehensive user tutorials
 - [ ] API documentation
+
+The checked-in fixtures are sufficient for correctness and performance tests,
+but not for measuring whether suggestions are useful to vault owners. See the
+[local utility evaluation readiness note](docs/UTILITY_EVALUATION.md) for the
+evidence still needed.
 
 ## Contributing
 

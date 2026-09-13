@@ -1,9 +1,8 @@
-"""Attention shift geist - detects notes whose semantic context has churned.
+"""Attention shift geist - detects notes whose semantic neighbours have churned.
 
-A reflective lens over temporal embeddings: as the vault grows and your
-thinking moves, a note's nearest semantic neighbours change. High churn
-means the context you read a note in has been replaced — old companions
-departed, new ones arrived. What changed in how you see this?
+A reflective lens over stored semantic representations: a note's nearest
+neighbours can change across snapshots. High churn means that the measured
+neighbour set changed; it does not establish a change in the user's thinking.
 """
 
 from typing import TYPE_CHECKING
@@ -54,10 +53,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return [
         Suggestion(
             text=(
-                f"Your thinking around [[{note.link_text}]] has shifted. "
+                f"The measured neighbour set for [[{note.link_text}]] changed. "
                 f"Old neighbours: {old_titles}. "
                 f"New neighbours: {new_titles}. "
-                f"What changed in how you see this?"
+                f"What, if anything, do the source notes reveal?"
             ),
             notes=[note.link_text] + departed + arrived,
             geist_id="attention_shift",

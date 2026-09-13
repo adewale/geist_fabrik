@@ -3,9 +3,11 @@
 import os
 from datetime import datetime, timedelta
 
+import numpy as np
 import pytest
 
 from geistfabrik import Vault, VaultContext
+from geistfabrik.config import TOTAL_DIM
 from geistfabrik.default_geists.code import hermeneutic_instability
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
@@ -49,6 +51,21 @@ def vault_with_multiple_sessions(tmp_path):
     # Create one more session with current date
     current_session = Session(now, vault.db)
     current_session.compute_embeddings(vault.all_notes())
+
+    # Store deliberately distinct semantic snapshots. Calendar-only movement
+    # must not be the mechanism that makes this designed-to-trigger fixture pass.
+    session_ids = [
+        row[0]
+        for row in vault.db.execute("SELECT session_id FROM sessions ORDER BY date")
+    ]
+    for index, session_id in enumerate(session_ids):
+        semantic_snapshot = np.zeros(TOTAL_DIM, dtype=np.float32)
+        semantic_snapshot[index % 5] = 0.9
+        vault.db.execute(
+            "UPDATE session_embeddings SET embedding = ? WHERE session_id = ?",
+            (semantic_snapshot.tobytes(), session_id),
+        )
+    vault.db.commit()
 
     return vault, current_session
 
@@ -103,8 +120,7 @@ def test_hermeneutic_instability_returns_suggestions(vault_with_multiple_session
 
     suggestions = hermeneutic_instability.suggest(context)
 
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
+    assert suggestions
     assert len(suggestions) <= 2
 
 
@@ -127,6 +143,7 @@ def test_hermeneutic_instability_suggestion_structure(vault_with_multiple_sessio
     )
 
     suggestions = hermeneutic_instability.suggest(context)
+    assert suggestions
 
     # BEHAVIORAL: Verify geist follows output constraints
     # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
@@ -168,6 +185,7 @@ def test_hermeneutic_instability_uses_link_text(vault_with_multiple_sessions):
     )
 
     suggestions = hermeneutic_instability.suggest(context)
+    assert suggestions
 
     for suggestion in suggestions:
         # Check that text uses [[wiki-link]] format
@@ -321,13 +339,12 @@ def test_hermeneutic_instability_deterministic_with_seed(vault_with_multiple_ses
     suggestions2 = hermeneutic_instability.suggest(context2)
 
     # Same seed should produce same results
+    assert suggestions1
     assert len(suggestions1) == len(suggestions2)
 
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
+    texts1 = [s.text for s in suggestions1]
+    texts2 = [s.text for s in suggestions2]
+    assert texts1 == texts2
 
 
 def test_hermeneutic_instability_checks_interpretive_variance(vault_with_multiple_sessions):
@@ -342,11 +359,11 @@ def test_hermeneutic_instability_checks_interpretive_variance(vault_with_multipl
     )
 
     suggestions = hermeneutic_instability.suggest(context)
-
+    assert suggestions
     for suggestion in suggestions:
-        # Text should mention interpretation across sessions
-        assert "interpreted differently" in suggestion.text or "sessions" in suggestion.text
-        assert "not being edited" in suggestion.text or "days" in suggestion.text
+        assert "semantic representation" in suggestion.text
+        assert "recorded sessions" in suggestion.text
+        assert "interpreted differently" not in suggestion.text
 
 
 def test_hermeneutic_instability_handles_missing_embeddings(tmp_path):

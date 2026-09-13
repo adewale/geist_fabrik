@@ -48,11 +48,11 @@ def test_replay_bounds_every_history_reader_and_parses_trajectory_dates(replay_c
     # Explicit IDs cannot bypass the replay boundary; an empty selection stays empty.
     assert EmbeddingTrajectoryCalculator(context, note, [sessions[-1].session_id]).snapshots() == []
     assert EmbeddingTrajectoryCalculator(context, note, []).snapshots() == []
-    # This reaches the seasonal date.month consumer, which used to receive strings.
-    assert set(TemporalSemanticQuery(context).drift_direction_by_period(note)) == {
-        "winter",
-        "spring",
-    }
+    # This reaches the seasonal date.month consumer, which used to receive
+    # strings. Calendar-only vector changes must not fabricate semantic drift.
+    directions = TemporalSemanticQuery(context).drift_direction_by_period(note)
+    assert set(directions) == {"winter", "spring"}
+    assert all(np.count_nonzero(direction) == 0 for direction in directions.values())
 
 
 def test_cluster_history_rejects_future_and_incompatible_config(replay_context):

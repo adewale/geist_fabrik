@@ -1,8 +1,4 @@
-"""Hermeneutic Instability geist - finds notes with unstable interpretation.
-
-Identifies notes that are interpreted differently across sessions despite
-no content changes, suggesting the meaning is unsettled or actively evolving.
-"""
+"""Hermeneutic Instability geist - finds variable semantic representations."""
 
 from typing import TYPE_CHECKING
 
@@ -13,18 +9,21 @@ if TYPE_CHECKING:
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find notes with high interpretive variance across sessions.
+    """Find notes with high semantic-vector variance across sessions.
 
     Uses EmbeddingTrajectoryCalculator to get embedding history, then
-    calculates variance as a measure of interpretive instability.
+    calculates mean distance from the note's semantic-vector centroid.
 
     Returns:
-        List of suggestions highlighting unstable interpretations
+        List of suggestions highlighting variable semantic representations
     """
     from scipy.spatial.distance import euclidean  # type: ignore[import-untyped]
 
     from geistfabrik import Suggestion
-    from geistfabrik.temporal_analysis import EmbeddingTrajectoryCalculator
+    from geistfabrik.temporal_analysis import (
+        EmbeddingTrajectoryCalculator,
+        semantic_component,
+    )
 
     # For each note, calculate embedding variance across sessions
     notes = vault.notes()
@@ -43,7 +42,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         # Extract embeddings (discard dates)
-        embeddings = [emb for _date, emb in snapshots]
+        embeddings = [semantic_component(emb) for _date, emb in snapshots]
 
         # Calculate variance (how much embeddings differ from mean)
         embeddings_array = np.array(embeddings)
@@ -53,18 +52,19 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         distances = [euclidean(emb, mean_embedding) for emb in embeddings_array]
         instability = np.mean(distances)
 
-        # High instability = interpretive instability
+        # High variance is an embedding observation, not evidence about the
+        # author's interpretation or the cause of the movement.
         if instability > 0.2:  # Threshold for significant instability
             # Check if content is actually changing
             metadata = vault.metadata(note)
             days_since_modified = metadata.get("days_since_modified", 0)
 
-            if days_since_modified > 60:  # Stable content, unstable interpretation
+            if days_since_modified > 60:
                 text = (
-                    f"[[{note.link_text}]] has been interpreted differently in each of "
-                    f"your last {len(embeddings)} sessions, despite not being edited "
-                    f"in {days_since_modified} days. Meaning unsettled? Or does it mean "
-                    f"different things in different contexts?"
+                    f"The semantic representation of [[{note.link_text}]] varied across "
+                    f"its last {len(embeddings)} recorded sessions, while the note has "
+                    f"not been edited in {days_since_modified} days. Review the snapshots "
+                    f"before deciding whether the variation is meaningful."
                 )
 
                 suggestions.append(
