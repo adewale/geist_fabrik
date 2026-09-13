@@ -1392,20 +1392,23 @@ def test_host_handler_can_cancel_its_periodic_alarm() -> None:
         pytest.skip("SIGALRM unavailable")
     previous_handler = signal.getsignal(signal.SIGALRM)
     previous_timer = signal.getitimer(signal.ITIMER_REAL)
-    calls = 0
+    delivered = False
 
     def host_handler(signum: int, frame: object) -> None:
-        nonlocal calls
-        calls += 1
+        nonlocal delivered
+        delivered = True
         signal.setitimer(signal.ITIMER_REAL, 0.0)
 
     try:
         signal.signal(signal.SIGALRM, host_handler)
         signal.setitimer(signal.ITIMER_REAL, 0.02, 0.02)
-        with _alarm_timeout(1):
-            time.sleep(0.09)
+        with _alarm_timeout(2):
+            delivery_deadline = time.monotonic() + 1.0
+            while not delivered and time.monotonic() < delivery_deadline:
+                time.sleep(0.01)
+            delivered_in_time = delivered
         remaining, interval = signal.getitimer(signal.ITIMER_REAL)
-        assert calls >= 1
+        assert delivered_in_time
         assert remaining == 0.0
         assert interval == 0.0
     finally:
