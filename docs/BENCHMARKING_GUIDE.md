@@ -147,7 +147,7 @@ uv run geistfabrik invoke ~/my-vault --full --date 2025-01-15
 1. Vault sync (parse changed files)
 2. Embedding computation (sentence-transformers)
 3. Geist execution (all enabled geists)
-4. Filtering (boundary, novelty, diversity, quality)
+4. Filtering (boundary, quality, novelty, diversity)
 5. Output generation (session note writing)
 
 ### Individual Geist Benchmarks

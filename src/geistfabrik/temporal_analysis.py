@@ -17,9 +17,25 @@ from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
 )
 
+from .config import SEMANTIC_DIM, TOTAL_DIM
+
 if TYPE_CHECKING:
     from geistfabrik.models import Note
     from geistfabrik.vault_context import VaultContext
+
+
+def semantic_component(embedding: np.ndarray) -> np.ndarray:
+    """Return the semantic dimensions from a stored session embedding.
+
+    Production session embeddings append calendar-derived dimensions to the
+    semantic model output. Temporal trajectory claims concern content, so those
+    features must not create apparent semantic movement. Smaller vectors remain
+    supported for injected/test embeddings.
+    """
+    vector = np.asarray(embedding)
+    if vector.size == TOTAL_DIM:
+        return vector[:SEMANTIC_DIM]
+    return vector
 
 
 def get_season(date: datetime) -> str:
@@ -71,20 +87,8 @@ class EmbeddingTrajectoryCalculator:
         """
         self.vault = vault
         self.note = note
-        self.sessions = self._get_available_sessions() if sessions is None else sessions
+        self.sessions = None if sessions is None else frozenset(sessions)
         self._snapshots_cache: list[tuple[datetime, np.ndarray]] | None = None
-
-    def _get_available_sessions(self) -> list[int]:
-        """Get all available session IDs from database.
-
-        Returns:
-            List of session IDs ordered by date
-        """
-        cursor = self.vault.db.execute(
-            "SELECT session_id FROM sessions WHERE date <= ? ORDER BY date ASC",
-            (self.vault.session.date.strftime("%Y-%m-%d"),),
-        )
-        return [row[0] for row in cursor.fetchall()]
 
     def snapshots(self) -> list[tuple[datetime, np.ndarray]]:
         """Get (date, embedding) for all sessions containing this note.
@@ -102,35 +106,26 @@ class EmbeddingTrajectoryCalculator:
         Returns:
             List of (session_date, embedding) tuples
         """
-        snapshots = []
+        snapshots: list[tuple[datetime, np.ndarray]] = []
 
-        # Get session info
+        # One join replaces the former session query plus one embedding query
+        # per session. Explicit session IDs are filtered after the bounded,
+        # note-specific query so even a large retained history uses one SELECT.
         cursor = self.vault.db.execute(
             """
-            SELECT session_id, date FROM sessions
-            WHERE date <= ?
-            ORDER BY date ASC
+            SELECT s.session_id, s.date, se.embedding
+            FROM session_embeddings se
+            INNER JOIN sessions s ON s.session_id = se.session_id
+            WHERE se.note_path = ? AND s.date <= ?
+            ORDER BY s.date ASC, s.session_id ASC
             """,
-            (self.vault.session.date.strftime("%Y-%m-%d"),),
+            (self.note.path, self.vault.session.date.strftime("%Y-%m-%d")),
         )
-        sessions = cursor.fetchall()
-
-        # Load embeddings for each session
-        for session_id, session_date in sessions:
-            if session_id not in self.sessions:
+        for session_id, session_date, raw_embedding in cursor.fetchall():
+            if self.sessions is not None and session_id not in self.sessions:
                 continue
-
-            cursor = self.vault.db.execute(
-                """
-                SELECT embedding FROM session_embeddings
-                WHERE session_id = ? AND note_path = ?
-                """,
-                (session_id, self.note.path),
-            )
-            row = cursor.fetchone()
-            if row:
-                emb = np.frombuffer(row[0], dtype=np.float32)
-                snapshots.append((datetime.fromisoformat(str(session_date)), emb))
+            embedding = np.frombuffer(raw_embedding, dtype=np.float32)
+            snapshots.append((datetime.fromisoformat(str(session_date)), embedding))
 
         return snapshots
 
@@ -144,8 +139,8 @@ class EmbeddingTrajectoryCalculator:
         if len(snapshots) < 2:
             return 0.0
 
-        first_emb = snapshots[0][1]
-        last_emb = snapshots[-1][1]
+        first_emb = semantic_component(snapshots[0][1])
+        last_emb = semantic_component(snapshots[-1][1])
 
         similarity = sklearn_cosine(first_emb.reshape(1, -1), last_emb.reshape(1, -1))
         return 1.0 - float(similarity[0, 0])
@@ -158,10 +153,14 @@ class EmbeddingTrajectoryCalculator:
         """
         snapshots = self.snapshots()
         if len(snapshots) < 2:
-            return np.zeros_like(snapshots[0][1]) if snapshots else np.zeros(384)
+            return (
+                np.zeros_like(semantic_component(snapshots[0][1]))
+                if snapshots
+                else np.zeros(SEMANTIC_DIM)
+            )
 
-        first_emb = snapshots[0][1]
-        last_emb = snapshots[-1][1]
+        first_emb = semantic_component(snapshots[0][1])
+        last_emb = semantic_component(snapshots[-1][1])
 
         drift_vector = last_emb - first_emb
         norm = float(np.linalg.norm(drift_vector))
@@ -181,6 +180,7 @@ class EmbeddingTrajectoryCalculator:
             Alignment score (-1 to 1, where 1 = perfectly aligned)
         """
         drift_dir = self.drift_direction_vector()
+        direction = semantic_component(direction)
         direction_norm = np.linalg.norm(direction)
 
         if direction_norm < 1e-10:
@@ -207,8 +207,8 @@ class EmbeddingTrajectoryCalculator:
 
         drift_rates = []
         for i in range(len(snapshots) - window_size + 1):
-            window_start = snapshots[i][1]
-            window_end = snapshots[i + window_size - 1][1]
+            window_start = semantic_component(snapshots[i][1])
+            window_end = semantic_component(snapshots[i + window_size - 1][1])
 
             similarity = sklearn_cosine(window_start.reshape(1, -1), window_end.reshape(1, -1))
             drift = 1.0 - float(similarity[0, 0])
@@ -229,18 +229,20 @@ class EmbeddingTrajectoryCalculator:
         if len(snapshots) < 4:  # Need at least 4 sessions to split
             return (0.0, 0.0)
 
-        current_emb = snapshots[-1][1]
+        current_emb = semantic_component(snapshots[-1][1])
         midpoint = len(snapshots) // 2
 
         # Compute average similarity in early half
         early_sims = []
-        for _, emb in snapshots[:midpoint]:
+        for _, raw_emb in snapshots[:midpoint]:
+            emb = semantic_component(raw_emb)
             sim = sklearn_cosine(emb.reshape(1, -1), current_emb.reshape(1, -1))
             early_sims.append(float(sim[0, 0]))
 
         # Compute average similarity in late half (excluding current)
         late_sims = []
-        for _, emb in snapshots[midpoint:-1]:
+        for _, raw_emb in snapshots[midpoint:-1]:
+            emb = semantic_component(raw_emb)
             sim = sklearn_cosine(emb.reshape(1, -1), current_emb.reshape(1, -1))
             late_sims.append(float(sim[0, 0]))
 
@@ -283,11 +285,12 @@ class EmbeddingTrajectoryCalculator:
         other_snapshots = other.snapshots()
 
         # Build lookup for other's embeddings by date
-        other_by_date = {date: emb for date, emb in other_snapshots}
+        other_by_date = {date: semantic_component(emb) for date, emb in other_snapshots}
 
         similarities = []
-        for date, self_emb in self_snapshots:
+        for date, raw_self_emb in self_snapshots:
             if date in other_by_date:
+                self_emb = semantic_component(raw_self_emb)
                 other_emb = other_by_date[date]
                 sim = sklearn_cosine(self_emb.reshape(1, -1), other_emb.reshape(1, -1))
                 similarities.append(float(sim[0, 0]))
@@ -496,10 +499,11 @@ class TemporalPatternFinder:
                 continue
 
             # Check for alternating similarity to first embedding
-            first_emb = snapshots[0][1]
+            first_emb = semantic_component(snapshots[0][1])
             similarities = []
 
-            for _, emb in snapshots[1:]:
+            for _, raw_emb in snapshots[1:]:
+                emb = semantic_component(raw_emb)
                 sim = sklearn_cosine(first_emb.reshape(1, -1), emb.reshape(1, -1))
                 similarities.append(float(sim[0, 0]))
 
@@ -643,8 +647,8 @@ class TemporalSemanticQuery:
 
         for season, season_snaps in season_snapshots.items():
             if len(season_snaps) >= 2:
-                first_emb = season_snaps[0][1]
-                last_emb = season_snaps[-1][1]
+                first_emb = semantic_component(season_snaps[0][1])
+                last_emb = semantic_component(season_snaps[-1][1])
 
                 drift_vector = last_emb - first_emb
                 norm = float(np.linalg.norm(drift_vector))

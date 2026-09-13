@@ -11,7 +11,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                            USER INVOCATION                                │
 │                                                                           │
-│  $ geistfabrik invoke [--geist X] [--full] [--date YYYY-MM-DD]          │
+│  $ geistfabrik invoke [--geist X] [--full] [--explain] [--date DATE]   │
 │                                                                           │
 │  Creates session → Runs all geists → Filters → Samples → Outputs        │
 └─────────────────────────────────┬────────────────────────────────────────┘
@@ -22,9 +22,10 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │                                                                           │
 │  1. Compute embeddings for this session (temporal + semantic)            │
 │  2. Execute enabled geists serially (30s timeout each)                    │
-│  3. Apply filtering (boundary/novelty/diversity/quality)                 │
+│  3. Apply filtering (boundary/quality/novelty/diversity)                 │
 │  4. Sample ~5 suggestions (deterministic, date-seeded)                   │
 │  5. Optionally write journal/YYYY-MM-DD.md with --write                  │
+│     --explain emits count-only outcomes; it does not expose note text    │
 └───────────────────────┬──────────────────────┬───────────────────────────┘
                         │                      │
             ┌───────────┴─────────┐      ┌─────┴──────────────┐

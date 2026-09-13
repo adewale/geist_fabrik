@@ -171,7 +171,7 @@ class StatsFormatter:
         sessions = self.stats["sessions"]
         if sessions["total"] > 0:
             lines.append("Sessions:")
-            lines.append(f"  Total: {sessions['total']}")
+            lines.append(f"  Indexed sessions: {sessions['total']}")
             if sessions["date_range"]:
                 lines.append(
                     f"  Date range: {sessions['date_range'][0]} to {sessions['date_range'][1]}"
@@ -179,7 +179,11 @@ class StatsFormatter:
             lines.append(f"  Average interval: {sessions['average_interval_days']:.1f} days")
             lines.append(f"  Total suggestions: {sessions['total_suggestions']}")
             lines.append(
-                f"  Average per session: {sessions['average_suggestions_per_session']:.1f}"
+                f"  Sessions with suggestions: {sessions.get('suggestion_sessions', 0)}"
+            )
+            lines.append(
+                "  Average per session with suggestions: "
+                f"{sessions['average_suggestions_per_session']:.1f}"
             )
 
             if sessions["recent_sessions"] and self.verbose:
@@ -202,17 +206,17 @@ class StatsFormatter:
             )
             lines.append(f"  Days elapsed: {temporal['days_elapsed']}")
             lines.append(f"  Notes compared: {temporal['notes_compared']}")
-            lines.append(f"  Average drift: {temporal['average_drift']:.3f}")
+            lines.append(f"  Average semantic distance: {temporal['average_drift']:.3f}")
             lines.append(f"  Trend: {temporal['drift_trend']}")
 
             if self.verbose and temporal.get("high_drift_notes"):
                 lines.append("")
-                lines.append("  High-drift notes (evolving concepts):")
+                lines.append("  Largest representation changes:")
                 for note in temporal["high_drift_notes"]:
                     lines.append(f"    [[{note['title']}]] - drift: {note['drift']:.2f}")
 
                 lines.append("")
-                lines.append("  Stable notes (unchanging meaning):")
+                lines.append("  Smallest representation changes:")
                 for note in temporal["stable_notes"]:
                     lines.append(f"    [[{note['title']}]] - drift: {note['drift']:.2f}")
 
@@ -226,7 +230,10 @@ class StatsFormatter:
             f"  Tracery geists: {geists['tracery_total']} ({geists['tracery_enabled']} enabled)"
         )
         if geists["custom_code"] > 0 or geists["custom_tracery"] > 0:
-            lines.append(f"  Custom geists: {geists['custom_code'] + geists['custom_tracery']}")
+            lines.append(
+                f"  Custom geists: {geists['custom_code'] + geists['custom_tracery']} "
+                f"({geists.get('custom_enabled', 0)} enabled)"
+            )
         lines.append(f"  Total enabled: {geists['total_enabled']}")
 
         if geists["disabled_geists"]:
@@ -234,6 +241,11 @@ class StatsFormatter:
             lines.append("  Disabled geists:")
             for gid in geists["disabled_geists"][:5]:
                 lines.append(f"    - {gid}")
+            if geists.get("auto_disabled_geists"):
+                lines.append(
+                    "  Auto-disabled after repeated failures: "
+                    + ", ".join(geists["auto_disabled_geists"][:5])
+                )
 
         lines.append("")
 
@@ -392,8 +404,8 @@ def generate_recommendations(stats: VaultStats) -> list[dict[str, Any]]:
                     "type": "temporal",
                     "severity": "warning",
                     "message": (
-                        f"High semantic drift detected ({avg_drift:.2f}). "
-                        "Many notes changing meaning rapidly."
+                        f"High semantic-representation distance detected ({avg_drift:.2f}). "
+                        "Many stored note vectors changed between snapshots."
                     ),
                     "action": "Review high-drift notes to ensure they remain coherent",
                 }
@@ -404,7 +416,8 @@ def generate_recommendations(stats: VaultStats) -> list[dict[str, Any]]:
                     "type": "temporal",
                     "severity": "info",
                     "message": (
-                        f"Very low semantic drift ({avg_drift:.2f}). Vault may be stagnating."
+                        f"Very low semantic-representation distance ({avg_drift:.2f}) "
+                        "between the compared snapshots."
                     ),
                     "action": "Consider revisiting and expanding older notes",
                 }
@@ -412,12 +425,13 @@ def generate_recommendations(stats: VaultStats) -> list[dict[str, Any]]:
 
     # Disabled geist alert
     geists = stats["geists"]
-    if geists["code_disabled"] > 0:
+    disabled_count = len(geists.get("disabled_geists", []))
+    if disabled_count > 0:
         recommendations.append(
             {
                 "type": "configuration",
                 "severity": "info",
-                "message": f"{geists['code_disabled']} geists disabled in configuration",
+                "message": f"{disabled_count} geists disabled by configuration or failures",
                 "action": "Review config.yaml to enable or test individually",
             }
         )

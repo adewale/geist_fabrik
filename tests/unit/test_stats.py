@@ -501,7 +501,7 @@ def test_generate_recommendations_high_drift():
 
 
 def test_generate_recommendations_low_drift():
-    """Test low drift (stagnation) recommendation."""
+    """Test low snapshot-distance recommendation without a mental-state claim."""
     stats: VaultStats = {
         "notes": {"total": 100},
         "graph": {"orphan_pct": 0},
@@ -515,10 +515,11 @@ def test_generate_recommendations_low_drift():
 
     recommendations = generate_recommendations(stats)
 
-    # Should have a stagnation info
+    # Low movement is measured; whether the vault is stagnating is not.
     temporal_recs = [r for r in recommendations if r["type"] == "temporal"]
     assert len(temporal_recs) > 0
-    assert "stagnating" in temporal_recs[0]["message"].lower()
+    assert "compared snapshots" in temporal_recs[0]["message"].lower()
+    assert "stagnating" not in temporal_recs[0]["message"].lower()
 
 
 # ========== StatsFormatter Tests ==========

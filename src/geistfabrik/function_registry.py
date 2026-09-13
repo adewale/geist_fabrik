@@ -19,6 +19,7 @@ from uuid import uuid4
 from .config import DEFAULT_GEIST_TIMEOUT
 from .execution_timeout import _alarm_timeout
 from .path_safety import ensure_contained
+from .session_time import session_seed
 
 if TYPE_CHECKING:
     from .vault_context import VaultContext
@@ -319,8 +320,8 @@ class FunctionRegistry:
             # hash(): string hashing is randomised per process
             # (PYTHONHASHSEED), which silently broke "same date + vault =
             # same output" across runs.
-            session_seed = int(vault.session.date.strftime("%Y%m%d"))
-            digest = hashlib.sha256(f"cluster:{session_seed}".encode()).digest()
+            date_seed = session_seed(vault.session.date)
+            digest = hashlib.sha256(f"cluster:{date_seed}".encode()).digest()
             cluster_seed = int.from_bytes(digest[:4], "big") % (2**31)
             cluster_rng = random.Random(cluster_seed)
 

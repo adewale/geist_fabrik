@@ -3,11 +3,11 @@
 **Status**: Current explanatory companion; formulas and persistence behavior are
 defined normatively in the [embeddings specification](../specs/EMBEDDINGS_SPEC.md).
 **Version**: 1.1
-**Last verified**: 2026-09-12
+**Last verified**: 2026-09-13
 **Audience**: Users and contributors interpreting temporal suggestions.
 
-GeistFabrik combines content-derived meaning with three date features. A changed
-vector is evidence about stored content and dates; it is not a measurement of a
+GeistFabrik combines a content-derived representation with three date features. A
+changed vector is evidence about stored content and dates; it is not a measurement of a
 reader's understanding. Unchanged content reuses the same semantic vector when
 its cache entry remains valid.
 
@@ -27,7 +27,7 @@ For a note written at midnight on 2023-06-15 and a session at midnight on
 2025-01-15:
 
 ```text
-Elapsed whole days: 580
+Calendar-day difference: 580
 Age feature: 580 / 365 = 1.589041096
 Creation season: sin(2π × 166 / 365) = 0.280230675
 Session season: sin(2π × 15 / 365) = 0.255353295
@@ -37,9 +37,10 @@ Combined vector:
  0.158904110, 0.028023068, 0.025535330]
 ```
 
-Age is not capped: two years contributes about 2 before weighting, and a session
-before a note's creation can give a negative age. Both seasonal denominators are
-365, including leap years. The seasonal sine is a date signal rather than a
+Age is computed from calendar dates, not elapsed 24-hour periods, and is not
+capped: two years contributes about 2 before weighting, and a session before a
+note's creation can give a negative age. Both seasonal denominators are 365,
+including leap years. The seasonal sine is a date signal rather than a
 winter/summer classifier; June 15 is about 0.280, not 0.978.
 
 The bundled model includes a normalization layer, but application code does not
@@ -100,24 +101,25 @@ geists.
 
 ```python
 from geistfabrik import VaultContext
-from geistfabrik.embeddings import cosine_similarity
 from geistfabrik.temporal_analysis import EmbeddingTrajectoryCalculator
 
 def recent_drift(vault: VaultContext, note):
     snapshots = EmbeddingTrajectoryCalculator(vault, note).snapshots()
     if len(snapshots) < 2:
         return None
-    previous_date, previous = snapshots[-2]
-    current_date, current = snapshots[-1]
+    previous_date, _previous = snapshots[-2]
+    current_date, _current = snapshots[-1]
     return {
         "previous_date": previous_date,
         "current_date": current_date,
-        "drift": 1.0 - cosine_similarity(previous, current),
+        "semantic_drift": EmbeddingTrajectoryCalculator(vault, note).total_drift(),
     }
 ```
 
-This compares the combined semantic-plus-temporal vectors. It does not isolate
-content edits from the age and seasonal contribution.
+`snapshots()` returns the stored combined vectors for inspection, while
+trajectory comparison methods such as `total_drift()`, convergence, divergence,
+and acceleration use only the 384 content-derived dimensions. Calendar age and
+season therefore cannot create a semantic-drift result by themselves.
 
 ### Inspect a bounded set of possible connections
 
@@ -181,10 +183,10 @@ Neither a fixed cache-hit percentage nor a universal speedup is promised here.
 The in-memory and optional sqlite-vec backends serve current-session similarity
 queries; temporal analyses read retained snapshots.
 
-Geist suggestions are questions grounded in these measurements. Treat claims
-about “understanding,” “unconscious patterns,” or conceptual migration as
-interpretive prompts requiring review, not observations made directly by the
-embedding model.
+Geist suggestions are questions grounded in these measurements. The shipped
+session-drift and instability geists describe representation changes and ask
+the user to review them; they do not claim to measure “understanding,”
+“interpretation,” or a cause from embedding movement alone.
 
 Further references: [configuration](CONFIGURATION.md),
 [architecture](ARCHITECTURE.md), and

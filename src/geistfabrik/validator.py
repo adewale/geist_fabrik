@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .bounded_yaml import BoundedYAMLError, load_bounded_yaml
-from .config import DEFAULT_GEIST_TIMEOUT, MAX_TRACERY_COUNT
+from .config import DEFAULT_GEIST_TIMEOUT
 from .execution_timeout import _alarm_timeout
 from .path_safety import PathSafetyError, ensure_contained
 from .tracery import TraceryGeist
@@ -297,106 +297,29 @@ class GeistValidator:
                 issues=issues,
             )
 
-        # Validate required fields
-        if not isinstance(data, dict):
-            issues.append(
-                ValidationIssue(
-                    severity="error",
-                    message="YAML file must contain a dictionary",
-                )
+        # Runtime and standalone validation share every blocking structural
+        # check. Additional checks below are advisory only.
+        try:
+            definition_id, count, grammar = TraceryGeist.preflight_definition(
+                data, geist_file
             )
-            return ValidationResult(
-                geist_id=geist_id,
-                file_path=geist_file,
-                geist_type="tracery",
-                passed=False,
-                issues=issues,
-            )
-
-        # Check type field
-        if data.get("type") != "geist-tracery":
-            issues.append(
-                ValidationIssue(
-                    severity="error",
-                    message=f"Invalid type field: {data.get('type')} (expected 'geist-tracery')",
-                    suggestion="Add: type: geist-tracery",
-                )
-            )
-
-        # Check id field
-        if "id" not in data:
-            issues.append(
-                ValidationIssue(
-                    severity="error",
-                    message="Missing 'id' field",
-                    suggestion=f"Add: id: {geist_id}",
-                )
-            )
-        elif data["id"] != geist_id:
-            issues.append(
-                ValidationIssue(
-                    severity="warning",
-                    message=f"ID mismatch: filename is '{geist_id}' but id field is '{data['id']}'",
-                    suggestion=f"Change id to: {geist_id}",
-                )
-            )
-
-        # Check tracery grammar
-        if "tracery" not in data:
-            issues.append(
-                ValidationIssue(
-                    severity="error",
-                    message="Missing 'tracery' grammar field",
-                    suggestion="Add a tracery grammar dictionary",
-                )
-            )
-        elif not isinstance(data["tracery"], dict):
-            issues.append(
-                ValidationIssue(
-                    severity="error",
-                    message="'tracery' field must be a dictionary",
-                )
-            )
+        except ValueError as exc:
+            issues.append(ValidationIssue(severity="error", message=str(exc)))
         else:
-            grammar = data["tracery"]
-            try:
-                grammar = TraceryGeist._normalise_grammar(grammar, geist_id, geist_file)
-            except ValueError as exc:
-                issues.append(ValidationIssue(severity="error", message=str(exc)))
-            # Check for origin symbol
-            if "origin" not in grammar:
+            if definition_id != geist_id:
                 issues.append(
                     ValidationIssue(
-                        severity="error",
-                        message="Missing 'origin' symbol in tracery grammar",
-                        suggestion="Add: origin: '#yourtemplate#'",
+                        severity="warning",
+                        message=(
+                            f"ID mismatch: filename is '{geist_id}' but id field is "
+                            f"'{definition_id}'"
+                        ),
+                        suggestion=f"Change id to: {geist_id}",
                     )
                 )
-
-            # Check for undefined symbols (warning only)
             self._check_undefined_symbols(grammar, issues)
-
-            # Check for vault function calls
             self._check_vault_functions(grammar, issues)
-
-        # Check count field (optional)
-        if "count" in data:
-            count = data["count"]
-            if isinstance(count, bool) or not isinstance(count, int) or count < 1:
-                issues.append(
-                    ValidationIssue(
-                        severity="error",
-                        message=f"Invalid count value: {count} (must be positive integer)",
-                    )
-                )
-            elif count > MAX_TRACERY_COUNT:
-                issues.append(
-                    ValidationIssue(
-                        severity="error",
-                        message=f"Invalid count value: {count} (maximum {MAX_TRACERY_COUNT})",
-                    )
-                )
-            elif count > 10:
+            if count > 10:
                 issues.append(
                     ValidationIssue(
                         severity="warning",

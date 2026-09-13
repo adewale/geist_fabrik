@@ -18,6 +18,7 @@ from ..embeddings import Session
 from ..function_registry import FunctionRegistry
 from ..metadata_system import MetadataLoader
 from ..path_safety import ensure_contained
+from ..session_time import normalise_session_date
 from ..vault import Vault
 from ..vault_context import VaultContext
 
@@ -343,6 +344,7 @@ class BaseCommand(ABC):
         Returns:
             ExecutionContext with session and VaultContext ready
         """
+        session_date = normalise_session_date(session_date)
         vault = cmd_ctx.vault
         config = cmd_ctx.config
         geistfabrik_dir = cmd_ctx.geistfabrik_dir
@@ -416,7 +418,7 @@ class BaseCommand(ABC):
     # -------------------------------------------------------------------------
 
     def parse_session_date(self, date_str: str | None = None) -> datetime | None:
-        """Parse a session date from string or return current datetime.
+        """Parse a session date or return today's canonical midnight.
 
         Args:
             date_str: Date string in YYYY-MM-DD format, or None for today
@@ -425,10 +427,10 @@ class BaseCommand(ABC):
             Parsed datetime, or None if invalid format (with error printed)
         """
         if date_str is None:
-            return datetime.now()
+            return normalise_session_date(datetime.now())
 
         try:
-            return datetime.strptime(date_str, "%Y-%m-%d")
+            return normalise_session_date(datetime.strptime(date_str, "%Y-%m-%d"))
         except ValueError:
             self.print_error(f"Invalid date format '{date_str}'. Use YYYY-MM-DD.")
             return None

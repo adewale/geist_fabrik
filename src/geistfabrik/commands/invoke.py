@@ -7,11 +7,12 @@ from pathlib import Path
 from ..config import MAX_SESSION_SUGGESTIONS
 from ..config_loader import GeistFabrikConfig, save_config
 from ..embeddings import EmbeddingComputer
-from ..filtering import SuggestionFilter, select_suggestions
+from ..filtering import FilteringReport, SuggestionFilter, select_suggestions
 from ..geist_executor import GeistExecutor
 from ..geist_status import GeistStatusStore
 from ..journal_writer import JournalWriter
 from ..models import Suggestion
+from ..session_time import session_seed
 from ..tracery import TraceryGeist, TraceryGeistLoader
 from .base import BaseCommand, ExecutionContext
 
@@ -80,6 +81,12 @@ class InvokeCommand(BaseCommand):
         # Check if any geists are enabled
         total_geists = len(code_executor.geists)
         if total_geists == 0:
+            if any(
+                entry.get("status") == "load_error"
+                for entry in code_executor.get_execution_log()
+            ):
+                self._show_execution_errors(code_executor)
+                return 1
             self._print_no_geists_message(exec_ctx)
             return 0
 
@@ -92,15 +99,27 @@ class InvokeCommand(BaseCommand):
             return 1
 
         # Show execution summary
-        self._print_execution_summary(results)
+        self._print_execution_summary(results, code_executor)
 
         self.print(f"Generated {len(results.all_suggestions)} raw suggestions")
 
         # Filter suggestions
-        filtered = self._filter_suggestions(results.all_suggestions, session_date)
+        filtered, filter_report = self._filter_suggestions(
+            results.all_suggestions, session_date
+        )
 
         # Select final suggestions
         final = self._select_final_suggestions(filtered, session_date)
+
+        if getattr(self.args, "explain", False):
+            self._print_explanation(
+                results,
+                code_executor,
+                filter_report,
+                filtered_count=len(filtered),
+                selected_count=len(final),
+                session_date=session_date,
+            )
 
         # Handle --diff mode
         if self.args.diff:
@@ -177,7 +196,7 @@ class InvokeCommand(BaseCommand):
 
         # Load Tracery geists
         tracery_geists_dir = vault_path / "_geistfabrik" / "geists" / "tracery"
-        seed = int(session_date.timestamp())
+        seed = session_seed(session_date)
         tracery_loader = TraceryGeistLoader(
             tracery_geists_dir,
             seed=seed,
@@ -185,6 +204,12 @@ class InvokeCommand(BaseCommand):
             enabled_defaults=config.default_geists if config else {},
         )
         tracery_geists, newly_discovered_tracery = tracery_loader.load_all()
+        for load_error in tracery_loader.load_errors:
+            code_executor.record_load_error(
+                str(load_error["geist_id"]),
+                Path(str(load_error["path"])),
+                str(load_error["error"]),
+            )
         timeout = self.resolve_timeout(config)
         for geist in tracery_geists:
             if geist.geist_id in code_executor.geists:
@@ -248,11 +273,28 @@ class InvokeCommand(BaseCommand):
         print(f"{'=' * 60}")
         print(f"Vault: {vault_path}")
         print(f"Geists directory: {vault_path / '_geistfabrik' / 'geists'}")
-        print(f"Total geists found: {total_geists}")
+        print(f"Loaded geists: {total_geists}")
         print(f"  - Code geists: {code_geists_count} ({len(enabled_code_geists)} enabled)")
         print(f"  - Tracery geists: {len(tracery_geists)} ({len(enabled_tracery)} enabled)")
         if disabled_geists:
-            print(f"  - Disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
+            print(
+                f"  - Auto-disabled: {len(disabled_geists)} "
+                f"({', '.join(disabled_geists)})"
+            )
+        configured_off = [
+            geist_id
+            for geist_id, enabled in exec_ctx.config.default_geists.items()
+            if not enabled
+        ]
+        if configured_off:
+            print(f"  - Configured off: {len(configured_off)}")
+        load_failures = [
+            entry
+            for entry in code_executor.get_execution_log()
+            if entry.get("status") == "load_error"
+        ]
+        if load_failures:
+            print(f"  - Load failures: {len(load_failures)}")
 
         filtering_status = (
             "DISABLED (--no-filter)" if self.args.no_filter else "ENABLED (4-stage pipeline)"
@@ -389,33 +431,73 @@ class InvokeCommand(BaseCommand):
             all_suggestions.extend(all_results[geist_id][:remaining])
         return all_suggestions
 
-    def _print_execution_summary(self, results: GeistResults) -> None:
-        """Print execution summary."""
-        code_success = sum(1 for s in results.code_results.values() if s)
-        code_empty = sum(1 for s in results.code_results.values() if not s)
-        tracery_success = sum(1 for s in results.tracery_results.values() if s)
-        tracery_empty = sum(1 for s in results.tracery_results.values() if not s)
+    @staticmethod
+    def _outcome_counts(
+        result_map: dict[str, list[Suggestion]], executor: GeistExecutor
+    ) -> dict[str, int]:
+        """Classify executor outcomes without treating failures as empty output."""
+        latest: dict[str, str] = {}
+        for entry in executor.get_execution_log():
+            geist_id = str(entry.get("geist_id", ""))
+            status = str(entry.get("status", ""))
+            if geist_id in result_map and status in {"success", "error", "skipped"}:
+                latest[geist_id] = status
+
+        counts = {
+            "produced": 0,
+            "healthy_empty": 0,
+            "failed": 0,
+            "skipped": 0,
+            "unknown": 0,
+        }
+        for geist_id, suggestions in result_map.items():
+            outcome = latest.get(geist_id)
+            if outcome == "error":
+                counts["failed"] += 1
+            elif outcome == "skipped":
+                counts["skipped"] += 1
+            elif outcome == "success" and suggestions:
+                counts["produced"] += 1
+            elif outcome == "success":
+                counts["healthy_empty"] += 1
+            else:
+                counts["unknown"] += 1
+        return counts
+
+    @staticmethod
+    def _format_outcome_counts(counts: dict[str, int]) -> str:
+        """Format all outcome categories, including explicit healthy empties."""
+        return ", ".join(
+            (
+                f"{counts['produced']} produced output",
+                f"{counts['healthy_empty']} healthy empty",
+                f"{counts['failed']} failed",
+                f"{counts['skipped']} skipped",
+                f"{counts['unknown']} unknown",
+            )
+        )
+
+    def _print_execution_summary(
+        self, results: GeistResults, executor: GeistExecutor
+    ) -> None:
+        """Print an outcome-aware execution summary."""
 
         if not (results.code_results or results.tracery_results):
             return
 
         self.print("Execution summary:")
         if results.code_results:
-            self.print(
-                f"  - Code geists: {code_success} generated suggestions, "
-                f"{code_empty} returned empty"
-            )
+            counts = self._outcome_counts(results.code_results, executor)
+            self.print(f"  - Code geists: {self._format_outcome_counts(counts)}")
         if results.tracery_results:
-            self.print(
-                f"  - Tracery geists: {tracery_success} generated suggestions, "
-                f"{tracery_empty} returned empty"
-            )
+            counts = self._outcome_counts(results.tracery_results, executor)
+            self.print(f"  - Tracery geists: {self._format_outcome_counts(counts)}")
 
     def _filter_suggestions(
         self,
         suggestions: list[Suggestion],
         session_date: datetime,
-    ) -> list[Suggestion]:
+    ) -> tuple[list[Suggestion], FilteringReport | None]:
         """Filter suggestions through the filtering pipeline.
 
         Args:
@@ -427,7 +509,7 @@ class InvokeCommand(BaseCommand):
         """
         if self.args.no_filter:
             self.print("Skipping filtering pipeline (--no-filter)")
-            return suggestions
+            return suggestions, None
 
         assert self._vault is not None  # Set in execute()
         embedding_computer = EmbeddingComputer()
@@ -436,9 +518,74 @@ class InvokeCommand(BaseCommand):
         suggestion_filter = SuggestionFilter(
             self._vault.db, embedding_computer, config=filter_config
         )
-        filtered = suggestion_filter.filter_all(suggestions, session_date)
+        filtered, report = suggestion_filter.filter_all_with_report(
+            suggestions, session_date
+        )
         self.print(f"Filtered to {len(filtered)} suggestions")
-        return filtered
+        return filtered, report
+
+    def _print_explanation(
+        self,
+        results: GeistResults,
+        executor: GeistExecutor,
+        filter_report: FilteringReport | None,
+        *,
+        filtered_count: int,
+        selected_count: int,
+        session_date: datetime,
+    ) -> None:
+        """Explain a run using aggregate counts and explicit outcome states."""
+        all_results = {**results.code_results, **results.tracery_results}
+        latest: dict[str, str] = {}
+        for entry in executor.get_execution_log():
+            geist_id = str(entry.get("geist_id", ""))
+            status = str(entry.get("status", ""))
+            if status in {"success", "error", "skipped", "load_error"}:
+                latest[geist_id] = status
+
+        self.print("Explanation:")
+        for geist_id, suggestions in all_results.items():
+            status = latest.get(geist_id, "unknown")
+            if status == "success" and not suggestions:
+                detail = "healthy empty"
+            elif status == "success":
+                detail = f"success, {len(suggestions)} generated"
+            elif status == "error":
+                detail = "failed"
+            else:
+                detail = status.replace("_", " ")
+            self.print(f"  - {geist_id}: {detail}")
+
+        load_failures = [
+            entry
+            for entry in executor.get_execution_log()
+            if entry.get("status") == "load_error"
+        ]
+        for entry in load_failures:
+            self.print(f"  - {entry['geist_id']}: load failed")
+
+        self.print("  Filtering:")
+        if filter_report is None:
+            self.print(
+                f"    - bypassed (--no-filter): {len(results.all_suggestions)} kept"
+            )
+        elif not filter_report.stages:
+            self.print(f"    - no configured stages: {filter_report.input_count} kept")
+        else:
+            for stage in filter_report.stages:
+                self.print(
+                    f"    - {stage.name}: {stage.input_count} -> "
+                    f"{stage.output_count} ({stage.rejected_count} rejected)"
+                )
+
+        unselected = max(0, filtered_count - selected_count)
+        selection_mode = (
+            "all" if (self.args.full or self.args.no_filter) else "deterministic sample"
+        )
+        self.print(
+            f"  Selection ({selection_mode}, seed={session_seed(session_date)}): "
+            f"{selected_count} selected, {unselected} unselected"
+        )
 
     def _select_final_suggestions(
         self,
@@ -459,7 +606,7 @@ class InvokeCommand(BaseCommand):
         count = getattr(self.args, "count", None)
         if count is None:
             count = config.session.default_suggestions if config else 5
-        seed = int(session_date.timestamp())
+        seed = session_seed(session_date)
         final = select_suggestions(filtered, mode, count, seed)
         self.print(f"Selected {len(final)} final suggestions\n")
         return final
@@ -476,7 +623,9 @@ class InvokeCommand(BaseCommand):
             suggestions: Final suggestions
         """
         journal_writer = JournalWriter(exec_ctx.vault_path, exec_ctx.vault.db)
-        recent_suggestions = journal_writer.get_recent_suggestions(days=60)
+        recent_suggestions = journal_writer.get_recent_suggestions(
+            days=60, as_of=exec_ctx.session.date
+        )
 
         if not recent_suggestions:
             return
@@ -603,10 +752,11 @@ class InvokeCommand(BaseCommand):
         """
         log = code_executor.get_execution_log()
         errors = [entry for entry in log if entry["status"] == "error"]
+        load_errors = [entry for entry in log if entry["status"] == "load_error"]
         timeouts = [entry for entry in log if "timeout" in str(entry.get("error", "")).lower()]
         successful = [entry for entry in log if entry["status"] == "success"]
 
-        if not (errors or timeouts):
+        if not (errors or load_errors or timeouts):
             return
 
         print(f"\n{'=' * 60}")
@@ -616,7 +766,20 @@ class InvokeCommand(BaseCommand):
         if errors:
             print(f"Errors: {len(errors)} geists")
             for entry in errors:
-                print(f"  x {entry['geist_id']}: {entry['error']}")
+                if self.verbose or getattr(self.args, "debug", False):
+                    detail = entry["error"]
+                else:
+                    detail = entry.get("error_type", "execution error")
+                print(f"  x {entry['geist_id']}: {detail}")
+        if load_errors:
+            print(f"Load failures: {len(load_errors)} geists")
+            for entry in load_errors:
+                detail = (
+                    entry["error"]
+                    if (self.verbose or getattr(self.args, "debug", False))
+                    else "load error"
+                )
+                print(f"  x {entry['geist_id']}: {detail}")
         if timeouts:
             print(f"Timeouts: {len(timeouts)} geists (consider increasing --timeout)")
         print(f"{'=' * 60}\n")

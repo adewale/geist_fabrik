@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find linked notes whose understanding is diverging across sessions.
+    """Find linked notes whose semantic similarity decreased across sessions.
 
     Uses TemporalPatternFinder to identify diverging pairs from linked notes,
     suggesting connections that may have become outdated.
@@ -57,9 +57,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         text = (
             f"[[{note_a.link_text}]] and [[{note_b.link_text}]] are linked, "
-            f"but they've been semantically diverging across your last "
-            f"{session_count} sessions. They were similar when connected "
-            f"but have drifted apart—does the link still make sense?"
+            f"but their stored semantic representations became less similar across "
+            f"{session_count} recorded sessions. Does the link still make sense "
+            f"when you inspect the notes?"
         )
 
         suggestions.append(

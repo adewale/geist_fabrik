@@ -162,6 +162,17 @@ class GeistExecutor:
             raise ValueError(f"Duplicate geist ID '{geist_id}'")
         self.geists[geist_id] = GeistMetadata(id=geist_id, path=path, func=func)
 
+    def record_load_error(self, geist_id: str, path: Path, error: str) -> None:
+        """Record a non-code geist load failure in the shared outcome log."""
+        self.execution_log.append(
+            {
+                "geist_id": geist_id,
+                "status": "load_error",
+                "path": str(path),
+                "error": error,
+            }
+        )
+
     def _load_geists_from_directory(self, directory: Path, is_default: bool = False) -> None:
         """Load geists from a specific directory.
 

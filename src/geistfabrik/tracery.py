@@ -601,6 +601,56 @@ class TraceryGeist:
                     )
 
     @classmethod
+    def preflight_grammar(
+        cls, grammar: object, geist_id: str, yaml_path: Path
+    ) -> dict[str, list[str]]:
+        """Apply the exact structural checks used by runtime loading.
+
+        The CLI validator calls this same entry point, preventing a grammar
+        from passing preflight only to be rejected by ``from_yaml``.
+        """
+        normalised = cls._normalise_grammar(grammar, geist_id, yaml_path)
+        cls._validate_grammar(normalised, geist_id, yaml_path)
+        return normalised
+
+    @classmethod
+    def preflight_definition(
+        cls, data: object, yaml_path: Path
+    ) -> tuple[str, int, dict[str, list[str]]]:
+        """Validate and normalise every runtime-blocking YAML field.
+
+        Both the loader and the standalone validator use this entry point, so
+        a definition accepted by validation cannot then fail a structural
+        runtime check.
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f"Tracery YAML root must be a mapping: {yaml_path}")
+
+        if data.get("type") != "geist-tracery":
+            raise ValueError(
+                f"Invalid geist type in {yaml_path}: {data.get('type')!r}; "
+                "expected 'geist-tracery'"
+            )
+
+        geist_id = data.get("id")
+        if not isinstance(geist_id, str) or not geist_id or len(geist_id) > 256:
+            raise ValueError(
+                f"Tracery geist id must be a non-empty string of at most "
+                f"256 characters in {yaml_path}"
+            )
+
+        count = data.get("count", 1)
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, int)
+            or not 1 <= count <= MAX_TRACERY_COUNT
+        ):
+            raise ValueError(f"Tracery count must be an integer in [1, {MAX_TRACERY_COUNT}]")
+
+        grammar = cls.preflight_grammar(data.get("tracery"), geist_id, yaml_path)
+        return geist_id, count, grammar
+
+    @classmethod
     def from_yaml(cls, yaml_path: Path, seed: int | None = None) -> "TraceryGeist":
         """Load Tracery geist from YAML file.
 
@@ -623,29 +673,7 @@ class TraceryGeist:
         """
         ensure_contained(yaml_path, yaml_path.parent, must_exist=True, reject_symlinks=True)
         data = load_bounded_yaml(yaml_path)
-        if not isinstance(data, dict):
-            raise ValueError(f"Tracery YAML root must be a mapping: {yaml_path}")
-
-        if data.get("type") != "geist-tracery":
-            raise ValueError(
-                f"Invalid geist type in {yaml_path}: '{data.get('type')}'\n"
-                f"  → Expected: type: geist-tracery\n"
-                f"  → Got: type: {data.get('type')}\n"
-                f"  → Fix the YAML file to use the correct type"
-            )
-
-        geist_id = data.get("id")
-        if not isinstance(geist_id, str) or not geist_id or len(geist_id) > 256:
-            raise ValueError(f"Tracery geist id must be a non-empty string in {yaml_path}")
-        count = data.get("count", 1)
-        if (
-            isinstance(count, bool)
-            or not isinstance(count, int)
-            or not 1 <= count <= MAX_TRACERY_COUNT
-        ):
-            raise ValueError(f"Tracery count must be an integer in [1, {MAX_TRACERY_COUNT}]")
-        grammar = cls._normalise_grammar(data.get("tracery"), geist_id, yaml_path)
-        cls._validate_grammar(grammar, geist_id, yaml_path)
+        geist_id, count, grammar = cls.preflight_definition(data, yaml_path)
 
         return cls(geist_id, grammar, count, seed, yaml_path)
 

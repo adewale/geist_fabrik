@@ -1,10 +1,14 @@
 """Unit tests for vocabulary_expansion geist."""
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
+from typing import Any
 
+import numpy as np
 import pytest
 
 from geistfabrik import Vault, VaultContext
+from geistfabrik.config import TOTAL_DIM
 from geistfabrik.default_geists.code import vocabulary_expansion
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
@@ -101,6 +105,31 @@ def vault_with_insufficient_notes_per_session(tmp_path):
 # ============================================================================
 # Core Functionality Tests
 # ============================================================================
+
+
+def test_vocabulary_expansion_ignores_calendar_only_vector_changes():
+    """Temporal dimensions cannot manufacture a semantic-spread trend."""
+    semantic_vectors = []
+    for index in range(10):
+        vector = np.zeros(TOTAL_DIM, dtype=np.float32)
+        vector[index] = 0.9
+        semantic_vectors.append(vector)
+
+    sessions = []
+    for session_index in range(4):
+        embeddings = []
+        for note_index, base in enumerate(semantic_vectors):
+            vector = base.copy()
+            vector[-3:] = session_index * note_index
+            embeddings.append(vector)
+        sessions.append((session_index, f"2025-01-0{session_index + 1}", embeddings))
+
+    context: Any = SimpleNamespace(
+        session_embeddings_by_session=lambda: sessions,
+        sample=lambda values, count: values[:count],
+    )
+
+    assert vocabulary_expansion.suggest(context) == []
 
 
 def test_vocabulary_expansion_returns_suggestions(vault_with_session_history):

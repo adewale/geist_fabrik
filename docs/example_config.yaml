@@ -37,24 +37,24 @@ default_geists:
   blind_spot_detector: true       # Identifies potentially overlooked connections
   bridge_builder: true            # Connects distant but related notes
   bridge_hunter: true             # Finds notes that bridge different clusters
-  burst_evolution: true           # Tracks how burst-created notes evolve
+  burst_evolution: true           # Compares burst-day representations over time
   claim_harvester: true           # Surfaces strong claims buried in notes
   cluster_evolution_tracker: true  # Tracks notes migrating between clusters
   cluster_mirror: true            # Reveals hidden groupings via semantic clustering
   columbo: true                   # Asks probing "just one more thing" questions
   complexity_mismatch: true       # Pairs simple and complex treatments of same topic
   concept_cluster: true           # Groups notes by conceptual similarity
-  concept_drift: true             # Tracks how note meanings shift over time
-  convergent_evolution: true      # Finds notes that independently reached similar ideas
+  concept_drift: true             # Tracks semantic-representation direction over time
+  convergent_evolution: true      # Finds note vectors whose similarity increased
   creation_burst: true            # Detects bursts of note creation activity
   creative_collision: true        # Juxtaposes unrelated notes for creative sparks
   cyclical_thinking: true         # Detects notes cycling through semantic states
   definition_harvester: true      # Harvests definitions from notes
   density_inversion: true         # Pairs hub notes with isolated notes
   dialectic_triad: true           # Creates thesis-antithesis-synthesis triads
-  divergent_evolution: true       # Tracks how related notes diverged over time
-  drift_velocity_anomaly: true    # Detects notes whose drift is accelerating
-  hermeneutic_instability: true   # Highlights notes whose interpretation has shifted
+  divergent_evolution: true       # Finds note vectors whose similarity decreased
+  drift_velocity_anomaly: true    # Detects increasing semantic-change distance
+  hermeneutic_instability: true   # Highlights variance among stored representations
   hidden_hub: true                # Discovers implicit hubs (semantically central)
   hypothesis_harvester: true      # Surfaces hypotheses worth testing
   island_hopper: true             # Connects isolated note clusters
@@ -74,7 +74,7 @@ default_geists:
   seasonal_topic_analysis: true   # Analyzes seasonal patterns in topic coverage
   self_and_other: true            # Compares self-focused and collective voice
   sentence_variance: true         # Finds unusually varied sentence rhythms
-  session_drift: true             # Tracks how thinking evolved across sessions
+  session_drift: true             # Tracks semantic-representation changes across sessions
   structure_diversity_checker: true # Analyzes diversity of note structures
   stub_expander: true             # Identifies stubs that could be expanded
   surprisal: true                 # Finds semantically surprising notes
@@ -86,7 +86,7 @@ default_geists:
   this_time_last_year: true       # Revisits notes from this time last year
   todo_harvester: true            # Surfaces forgotten TODO/FIXME/HACK markers
   uncertainty_mapper: true        # Maps notes with heavy hedging or uncertainty
-  vocabulary_expansion: true      # Tracks semantic space coverage over time
+  vocabulary_expansion: true      # Tracks note-vector dispersion across sessions
   voice_absence: true             # Notices missing temporal/pronoun voices
 
   # ============================================================================

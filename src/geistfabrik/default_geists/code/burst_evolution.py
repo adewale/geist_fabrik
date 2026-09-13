@@ -1,7 +1,7 @@
-"""Burst Evolution geist - tracks how notes from burst days evolved over time.
+"""Burst Evolution geist - compares burst-day representations over time.
 
-Shows numerical drift scores for notes created together on burst days,
-revealing which ideas crystallized vs. evolved.
+Shows numerical semantic-distance scores for notes created together on burst
+days without inferring the author's mental state from those vectors.
 """
 
 from datetime import datetime
@@ -14,7 +14,7 @@ from geistfabrik.models import Suggestion
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Show how burst-day notes have evolved since creation.
+    """Show measured semantic distance for burst-day notes.
 
     Uses EmbeddingTrajectoryCalculator to track drift from creation
     to current session for notes created together on burst days.
@@ -59,13 +59,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 def _drift_label(drift: float) -> str:
     """Convert drift score to human-readable label."""
     if drift < 0.10:
-        return "mostly stable"
+        return "small change"
     elif drift < 0.25:
-        return "moderate evolution"
+        return "moderate change"
     elif drift < 0.40:
-        return "significant shift"
+        return "large change"
     else:
-        return "major evolution"
+        return "very large change"
 
 
 def _generate_drift_observation(
@@ -83,18 +83,21 @@ def _generate_drift_observation(
         if note is None:
             continue
         label = _drift_label(drift)
-        drift_lines.append(f"- [[{note.link_text}]]: {drift:.2f} drift ({label})")
+        drift_lines.append(f"- [[{note.link_text}]]: {drift:.2f} semantic distance ({label})")
 
     drift_text = "\n".join(drift_lines)
 
-    # Generate declarative interpretation
+    # Describe only the measurement; leave interpretation to the user.
     if avg_drift > 0.45:
         observation = (
-            "That burst was asking questions, not stating answers. "
-            "Early explorations that your understanding has completely transformed."
+            "This group has a high average representation change. "
+            "What do the actual edits show?"
         )
     elif avg_drift < 0.15:
-        observation = "That burst created foundational concepts that haven't needed revision."
+        observation = (
+            "This group has a low average representation change. "
+            "Does the source text still serve its purpose?"
+        )
     else:
         # Find stable anchors
         stable = [p for p, d in drifts if d < 0.15]
@@ -102,11 +105,11 @@ def _generate_drift_observation(
             stable_notes = [vault.get_note(p) for p in stable[:2]]
             stable_titles = ", ".join([f"[[{n.link_text}]]" for n in stable_notes if n is not None])
             observation = (
-                f"{stable_titles} are anchors—the stable core "
-                f"around which other ideas orbit and evolve."
+                f"{stable_titles} have the smallest measured changes in this group. "
+                f"How do they compare with the other notes on inspection?"
             )
         else:
-            observation = "Early signs of which ideas are settling vs. still moving."
+            observation = "The measured changes vary; inspect the notes for an explanation."
 
     # Calculate time elapsed
     try:

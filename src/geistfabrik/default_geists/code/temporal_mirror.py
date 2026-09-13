@@ -1,7 +1,7 @@
-"""Temporal Mirror - Compare notes from different time periods.
+"""Temporal Mirror - juxtapose notes from different time periods.
 
 Divides vault notes into 10 temporal periods and juxtaposes notes from
-different eras to reveal how thinking has evolved over time.
+different eras without claiming a relationship that was not measured.
 """
 
 from typing import TYPE_CHECKING
@@ -67,23 +67,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     period1_num = period1_idx + 1
     period2_num = period2_idx + 1
 
-    # Generate suggestion with temporal framing
-    relationships = [
-        "might answer questions raised in",
-        "contradicts assumptions from",
-        "shows how far your thinking has travelled since",
-        "reveals patterns you couldn't see when writing",
-        "completes ideas that began in",
-        "challenges the worldview of",
-        "echoes themes first explored in",
-        "represents a return to ideas from",
-    ]
-
-    relationship = vault.sample(relationships, count=1)[0]
-
     suggestion_text = (
-        f"From period {period1_num}, [[{note1.link_text}]] {relationship} "
-        f"period {period2_num}'s [[{note2.link_text}]]."
+        f"From period {period1_num}: [[{note1.link_text}]]. "
+        f"From period {period2_num}: [[{note2.link_text}]]. "
+        "What connection or contrast, if any, is visible in the source notes?"
     )
 
     return [

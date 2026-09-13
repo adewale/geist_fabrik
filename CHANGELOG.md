@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-13
+
 ### Fixed
+- Session dates now canonicalize to calendar-day midnight and all invocation,
+  test, Tracery, context, sampling, and diff paths use the same `YYYYMMDD` seed
+  and replay boundary. Preview, write, and replay therefore share one generation
+  contract instead of depending on wall-clock time or timezone conversion.
+- Temporal trajectory calculations now use a single ordered database join and
+  compare only semantic dimensions. Calendar-only feature movement no longer
+  produces claims of changed understanding. Temporal geists now describe the
+  representation, dispersion, or neighbour-set measurement they actually make
+  and ask users to inspect the source notes instead of asserting a mental state.
+- Tracery validation and runtime loading now share the same canonical grammar
+  preflight, including rejection of vault calls containing unexpanded symbols.
+- Geist/session statistics distinguish code from Tracery, configured from
+  failure-based disablement, and written journal sessions from preview sessions.
+  Invocation summaries likewise separate healthy empty runs, failures, and skips.
+- Added privacy-preserving `invoke --explain` counts for geist outcomes, each
+  filter stage, and deterministic selection without printing rejected content.
 - Vault synchronization now updates stable note paths in place, invalidates only
   current-content semantic caches, and preserves historical session embeddings;
   removed virtual-note paths still cascade cleanly. Synchronizers acquire the
@@ -56,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are examined and can produce a suggestion.
 
 ### Packaging and release engineering
+- Tag CI now retains the canonical package-smoke wheel and sdist, verifies tag,
+  source, and artifact version agreement, generates SHA-256 checksums, and
+  promotes those exact tested bytes to a GitHub Release after every required
+  lane passes. PyPI publication remains an explicit future policy decision.
 - Release wheels and source distributions now include the materialized
   Apache-2.0 `all-MiniLM-L6-v2` snapshot as an importlib resource, with
   provenance, checksums, and third-party license notice. Source-checkout and
@@ -534,7 +556,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing summary and results
 - Contributing guidelines
 
-[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/adewale/geist_fabrik/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/adewale/geist_fabrik/compare/v0.4.0...v0.9.0
 [0.4.0]: https://github.com/adewale/geist_fabrik/compare/v0.3.0...v0.4.0

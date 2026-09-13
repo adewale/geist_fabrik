@@ -237,6 +237,16 @@ def test_compute_temporal_features(sample_notes):
     assert -1 <= features[2] <= 1
 
 
+def test_compute_temporal_features_uses_calendar_days(sample_notes):
+    """Time-of-day does not make a replayed note one day younger."""
+    computer = EmbeddingComputer()
+    note = replace(sample_notes[0], created=datetime(2023, 3, 7, 23, 59))
+
+    features = computer.compute_temporal_features(note, datetime(2023, 6, 15))
+
+    assert features[0] == pytest.approx(100 / 365)
+
+
 def test_compute_temporal_embedding_mock(sample_notes, mock_embedding_computer):
     """Test combined temporal embedding computation with mocked model."""
     note = sample_notes[0]

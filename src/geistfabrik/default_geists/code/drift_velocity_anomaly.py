@@ -2,7 +2,7 @@
 
 Demonstrates the power of temporal_analysis.py abstractions. Uses
 EmbeddingTrajectoryCalculator to detect notes whose drift rate increases
-over time, potentially indicating conceptual breakthroughs or shifts.
+over time, then asks the user to inspect the underlying content.
 
 This geist showcases how trajectory analysis enables complex temporal patterns
 with minimal code (contrast with concept_drift.py's 60+ lines).
@@ -68,10 +68,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
                 if best_neighbour and best_similarity > 0.5:
                     text = (
-                        f"[[{note.link_text}]] shows accelerating drift "
+                        f"[[{note.link_text}]] shows increasing semantic-change distance "
                         f"(velocity: {initial_rate:.2f} → {final_rate:.2f}). "
-                        f"Rapidly evolving toward [[{best_neighbour.link_text}]]—"
-                        f"conceptual breakthrough?"
+                        f"It is currently similar to [[{best_neighbour.link_text}]]. "
+                        f"What do the source edits show?"
                     )
 
                     suggestions.append(

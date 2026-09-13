@@ -22,6 +22,7 @@ from .clustering_analysis import Cluster, format_cluster_label
 from .config import TOTAL_DIM
 from .embeddings import Session, cosine_similarity
 from .models import Link, Note, NoteLinkIndex
+from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
 from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
@@ -290,7 +291,7 @@ class VaultContext:
         # Deterministic randomness
         if seed is None:
             # Use session date as seed for determinism
-            seed = int(session.date.strftime("%Y%m%d"))
+            seed = session_seed(session.date)
         self.rng = random.Random(seed)
 
         # Function registry (for extensibility)
@@ -1563,14 +1564,16 @@ class VaultContext:
         session_now = self.session.date
         words = note.content.split()
         word_count = len(words)
-        days_since_modified = max(0, (session_now - note.modified).days)
+        days_since_modified = max(
+            0, (session_now.date() - note.modified.date()).days
+        )
         task_count = len(_TASK_PATTERN.findall(note.content))
         completed_task_count = len(_COMPLETED_TASK_PATTERN.findall(note.content))
         metadata = {
             "word_count": word_count,
             "link_count": len(note.links),
             "tag_count": len(note.tags),
-            "age_days": max(0, (session_now - note.created).days),
+            "age_days": max(0, (session_now.date() - note.created.date()).days),
             "days_since_modified": days_since_modified,
             # 0 (fresh) -> 1 (stale); asymptotic: 30d=0.5, 90d=0.75, 365d~0.92.
             # Same curve as examples/metadata_inference/temporal.py, which can

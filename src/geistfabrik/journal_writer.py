@@ -647,15 +647,26 @@ class JournalWriter:
             else False
         )
 
-    def get_recent_suggestions(self, days: int = 60) -> list[str]:
+    def get_recent_suggestions(
+        self, days: int = 60, *, as_of: datetime | None = None
+    ) -> list[str]:
+        """Return suggestions before the reference session within ``days``.
+
+        ``as_of`` makes replay and diff output independent of the current wall
+        clock. The current session is excluded so a forced rewrite is compared
+        with prior history rather than with the row it is replacing.
+        """
         from datetime import timedelta
 
-        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        reference = as_of or datetime.now()
+        cutoff = (reference - timedelta(days=days)).strftime("%Y-%m-%d")
+        upper_bound = reference.strftime("%Y-%m-%d")
         cursor = self.db.execute(
             """
             SELECT suggestion_text FROM session_suggestions
-            WHERE session_date >= ? ORDER BY session_date DESC
+            WHERE session_date >= ? AND session_date < ?
+            ORDER BY session_date DESC, block_id
             """,
-            (cutoff,),
+            (cutoff, upper_bound),
         )
         return [str(row[0]) for row in cursor.fetchall()]

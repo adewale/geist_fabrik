@@ -2,9 +2,11 @@
 
 from datetime import datetime, timedelta
 
+import numpy as np
 import pytest
 
 from geistfabrik import Vault, VaultContext
+from geistfabrik.config import TOTAL_DIM
 from geistfabrik.default_geists.code import session_drift
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
@@ -41,6 +43,13 @@ def vault_with_session_history(tmp_path):
         session_date = now - timedelta(days=(3 - i) * 30)  # Monthly sessions
         session = Session(session_date, vault.db)
         session.compute_embeddings(vault.all_notes())
+        semantic_snapshot = np.zeros(TOTAL_DIM, dtype=np.float32)
+        semantic_snapshot[i] = 0.9
+        vault.db.execute(
+            "UPDATE session_embeddings SET embedding = ? WHERE session_id = ?",
+            (semantic_snapshot.tobytes(), session.session_id),
+        )
+        vault.db.commit()
         sessions.append(session)
 
     # Return most recent session as active session
@@ -91,9 +100,14 @@ def test_session_drift_returns_suggestions(vault_with_session_history):
 
     suggestions = session_drift.suggest(context)
 
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
+    # The fixture deliberately stores orthogonal semantic snapshots; an empty
+    # result is a regression, not an acceptable branch of this test.
+    assert suggestions
     assert len(suggestions) <= 3
+    for suggestion in suggestions:
+        assert "semantic representation" in suggestion.text
+        assert "your understanding" not in suggestion.text.lower()
+        assert "being interpreted" not in suggestion.text.lower()
 
 
 def test_session_drift_suggestion_structure(vault_with_session_history):
@@ -115,6 +129,7 @@ def test_session_drift_suggestion_structure(vault_with_session_history):
     )
 
     suggestions = session_drift.suggest(context)
+    assert suggestions
 
     # BEHAVIORAL: Verify geist follows output constraints
     # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
@@ -156,6 +171,7 @@ def test_session_drift_uses_link_text(vault_with_session_history):
     )
 
     suggestions = session_drift.suggest(context)
+    assert suggestions
 
     for suggestion in suggestions:
         # Check that text uses [[wiki-link]] format
@@ -274,13 +290,12 @@ def test_session_drift_deterministic_with_seed(vault_with_session_history):
     suggestions2 = session_drift.suggest(context2)
 
     # Same seed should produce same results
+    assert suggestions1
     assert len(suggestions1) == len(suggestions2)
 
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
+    texts1 = [s.text for s in suggestions1]
+    texts2 = [s.text for s in suggestions2]
+    assert texts1 == texts2
 
 
 def test_session_drift_excludes_geist_journal(tmp_path):

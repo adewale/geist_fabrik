@@ -328,6 +328,8 @@ def test_temporal_mirror_divides_into_periods(vault_with_temporal_notes):
     # Suggestion should reference period numbers
     text = suggestions[0].text
     assert "period" in text.lower()
+    assert "if any" in text.lower()
+    assert "your thinking" not in text.lower()
 
     # Period numbers should be 1-10 (1-indexed)
     import re
