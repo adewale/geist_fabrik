@@ -131,11 +131,11 @@ jobs:
 
       - name: Build and smoke-test installed artifacts offline
         env:
-          PACKAGE_SMOKE_WORKDIR: ${{ github.workspace }}/.package-smoke
+          PACKAGE_SMOKE_WORKDIR: ${{ github.workspace }}/package-smoke-work
           PACKAGE_SMOKE_PYTHON: ${{ matrix.python-version }}
         run: |
           set -o pipefail
-          ./scripts/test_wheel.sh 2>&1 | tee .package-smoke.log
+          ./scripts/test_wheel.sh 2>&1 | tee package-smoke.log
 
       - name: Upload package-smoke diagnostics on failure
         if: failure()
@@ -143,8 +143,8 @@ jobs:
         with:
           name: package-smoke-${{ matrix.python-version }}-diagnostics
           path: |
-            .package-smoke/**
-            .package-smoke.log
+            package-smoke-work/**
+            package-smoke.log
           retention-days: 3
 
       - name: Retain canonical tested release artifacts
@@ -154,7 +154,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: release-artifacts
-          path: .package-smoke/run.*/dist/*
+          path: package-smoke-work/run.*/dist/*
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
