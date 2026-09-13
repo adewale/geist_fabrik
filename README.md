@@ -10,7 +10,7 @@ Inspired by Gordon Brander's work on tools for thought.
 
 ## Status
 
-**Version**: 0.10.1 (Beta)
+**Version**: 0.11.0 (Beta)
 **Default Geists**: 70 (58 code + 12 Tracery) _[programmatically verified]_
 **Tests**: `./scripts/validate.sh` passing (unit, integration, acceptance)
 **Progress**: Feature-complete, release-candidate quality
@@ -784,4 +784,4 @@ YAML inputs are size-, depth-, node-, and alias-bounded. Tracery grammars also h
 
 Markdown sources and managed `_geistfabrik`/journal paths are resolved and checked for vault containment. Escaping or broken symlinks, Markdown files over 16 MiB, and structurally dense notes above fixed link/tag/date-section quotas are skipped/rejected. Journal commits also check managed-directory identity and use descriptor-relative replacement on supported POSIX systems. These checks reduce accidental path escape but are not an OS-level sandbox against a malicious concurrent local process; Windows lacks an equivalent stdlib hardening primitive.
 
-These hardening and packaging changes are included in version 0.10.1.
+These hardening and packaging changes are included in version 0.11.0.

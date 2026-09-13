@@ -849,4 +849,4 @@ This prevents templates from being detected as journals.
 
 **Document Version**: 1.1
 **Last Updated**: 2026-09-12
-**GeistFabrik Version**: 0.10.1
+**GeistFabrik Version**: 0.11.0

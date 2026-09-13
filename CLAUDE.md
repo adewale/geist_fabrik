@@ -10,7 +10,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 ## Current Project State
 
-**Version**: 0.10.1 (Beta)
+**Version**: 0.11.0 (Beta)
 **Status**: Release-candidate hardening
 **Tests**: The canonical validation is defined by `scripts/validate.sh` and CI
 **Code**: Runtime package and bundled geists live under `src/geistfabrik`

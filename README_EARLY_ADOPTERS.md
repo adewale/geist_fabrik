@@ -2,7 +2,7 @@
 
 **Welcome, brave soul!** 🎉
 
-This guide shows you how to safely test GeistFabrik (v0.10.1 Beta) and provide valuable feedback.
+This guide shows you how to safely test GeistFabrik (v0.11.0 Beta) and provide valuable feedback.
 
 ## What to Expect
 
@@ -343,7 +343,7 @@ disable that geist.
 
 **How to report:**
 - GitHub Issues: https://github.com/adewale/geist_fabrik/issues
-- Include: OS, Python version, GeistFabrik version (0.10.1)
+- Include: OS, Python version, GeistFabrik version (0.11.0)
 - Steps to reproduce
 - Expected vs actual behaviour
 - Anonymize note titles if needed
@@ -467,7 +467,7 @@ With `--no-filter` (raw):
 
 ---
 
-## Known Limitations (v0.10.1)
+## Known Limitations (v0.11.0)
 
 1. **Command-line only** - No GUI
 2. **English-centric** - Embeddings optimised for English
@@ -943,4 +943,4 @@ Before reporting slow performance, verify:
 
 ---
 
-*Last updated: 2026-07-11 (v0.10.1)*
+*Last updated: 2026-09-13 (v0.11.0)*

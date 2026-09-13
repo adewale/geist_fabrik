@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.10.1] - 2026-09-13
+## [0.11.0] - 2026-09-13
 
 ### Fixed
 - Session dates now canonicalize to calendar-day midnight and all invocation,
@@ -146,6 +146,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clustering defaults, optional dependencies, and source-note-safe persistence
   behavior. Shipped vault-function examples now use the `count` convention,
   return Tracery-safe links, and avoid colliding with built-ins.
+
+### Documentation
+- Extended the maintained lessons with the release's durable findings about
+  deterministic history boundaries, measured temporal claims, shared
+  validation/runtime gates, explicit execution states, and promotion of the
+  exact package artifacts tested by CI.
 
 ## [0.10.0] - 2026-06-12
 
@@ -556,8 +562,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing summary and results
 - Contributing guidelines
 
-[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.10.1...HEAD
-[0.10.1]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...v0.10.1
+[unreleased]: https://github.com/adewale/geist_fabrik/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/adewale/geist_fabrik/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/adewale/geist_fabrik/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/adewale/geist_fabrik/compare/v0.4.0...v0.9.0
 [0.4.0]: https://github.com/adewale/geist_fabrik/compare/v0.3.0...v0.4.0
