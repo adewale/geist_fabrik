@@ -74,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are examined and can produce a suggestion.
 
 ### Packaging and release engineering
+- Release artifact retention now uses a visible, explicitly scoped work
+  directory so GitHub's artifact uploader can promote the wheel and sdist that
+  passed package smoke on tag builds.
 - Tag CI now retains the canonical package-smoke wheel and sdist, verifies tag,
   source, and artifact version agreement, generates SHA-256 checksums, and
   promotes those exact tested bytes to a GitHub Release after every required

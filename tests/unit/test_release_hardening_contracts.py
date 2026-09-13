@@ -313,6 +313,9 @@ def test_release_version_check_accepts_only_matching_artifacts(tmp_path: Path) -
 def test_tag_workflow_promotes_the_retained_smoke_artifacts() -> None:
     workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text()
 
+    assert "PACKAGE_SMOKE_WORKDIR: ${{ github.workspace }}/package-smoke-work" in workflow
+    assert "path: package-smoke-work/run.*/dist/*" in workflow
+    assert ".package-smoke" not in workflow
     assert "name: release-artifacts" in workflow
     assert "needs: [test, package-smoke]" in workflow
     assert 'check_release_version.py "$GITHUB_REF_NAME" --artifact-dir dist' in workflow
