@@ -314,7 +314,9 @@ def test_tag_workflow_promotes_the_retained_smoke_artifacts() -> None:
     workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text()
 
     assert "PACKAGE_SMOKE_WORKDIR: ${{ github.workspace }}/package-smoke-work" in workflow
-    assert "path: package-smoke-work/run.*/dist/*" in workflow
+    assert "cp package-smoke-work/run.*/dist/geistfabrik-*.whl release-dist/" in workflow
+    assert "cp package-smoke-work/run.*/dist/geistfabrik-*.tar.gz release-dist/" in workflow
+    assert "path: release-dist/*" in workflow
     assert ".package-smoke" not in workflow
     assert "name: release-artifacts" in workflow
     assert "needs: [test, package-smoke]" in workflow
