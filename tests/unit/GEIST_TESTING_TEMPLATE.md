@@ -28,6 +28,8 @@ trigger fixtures, deterministic time).
    permitted only AFTER a non-emptiness assertion in the same test.
    Tests that are genuinely about emptiness (empty vault, below threshold)
    keep their `== []` asserts — that is the one legitimate use.
+   `tests/unit/test_suggestion_loop_guards.py` enforces this: new unguarded
+   loops fail, and its per-file baseline of older ones may only go down.
 
 3. **Behavioral assertions about content, not just shape.** At least one test
    ties output to fixture specifics: the suggestion references the notes the
