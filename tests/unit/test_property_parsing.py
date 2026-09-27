@@ -10,6 +10,7 @@ from geistfabrik.markdown_parser import (
     extract_title,
     parse_frontmatter,
 )
+from geistfabrik.models import Link
 
 # --- Strategies ---
 
@@ -122,11 +123,35 @@ def test_extract_links_finds_all_wikilinks(targets: list[str]) -> None:
 
 
 @given(st.text(min_size=0, max_size=200))
-def test_extract_links_idempotent(content: str) -> None:
-    """Same content always produces same links."""
+def test_extract_links_is_deterministic(content: str) -> None:
+    """Same content always produces same links (determinism, not idempotence)."""
     links1 = extract_links(content)
     links2 = extract_links(content)
     assert links1 == links2
+
+
+def _render_link(link: Link) -> str:
+    """Inverse of extract_links for one link, in wikilink syntax."""
+    target = link.target if link.block_ref is None else f"{link.target}^{link.block_ref}"
+    # extract_links strips display text, so "" can only come from whitespace.
+    display = "" if link.display_text is None else f"|{link.display_text or ' '}"
+    return f"{'!' if link.is_embed else ''}[[{target}{display}]]"
+
+
+# Dense in the syntax characters, so malformed and nested links are common.
+wikilink_soup = st.lists(
+    st.sampled_from(["[[", "]]", "|", "^", "#", "!", " ", "\n", "a", "b"]), max_size=40
+).map("".join)
+
+
+@given(st.one_of(st.text(min_size=0, max_size=200), wikilink_soup))
+@example("[[Note #^block1]]")  # was target "Note " -> re-parsed as "Note"
+@example("[[Note # #^block1]]")
+@example("[[a| ]]")
+def test_reparsing_rendered_links_is_a_fixpoint(content: str) -> None:
+    """Idempotence: extract -> render -> extract returns the same links."""
+    links = extract_links(content)
+    assert extract_links(" ".join(_render_link(link) for link in links)) == links
 
 
 def test_extract_links_empty_content() -> None:
