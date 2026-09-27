@@ -80,6 +80,16 @@ run_check "Branch-only coverage gate" uv run python scripts/check_branch_coverag
 # or names a whole file while the canonical marker filter deselects some of it.
 run_check "Acceptance criteria" uv run python scripts/check_phase_completion.py || FAILED=1
 
+# 6b. Workflow lint (same pinned actionlint as CI). Needs a Go toolchain;
+# without one this local run says so and CI still enforces it.
+if command -v go >/dev/null 2>&1; then
+    run_check "Workflow lint (actionlint)" \
+        go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 || FAILED=1
+else
+    echo -e "${YELLOW}▶ Workflow lint (actionlint) not run: install Go to run it locally (CI runs it)${NC}"
+    echo ""
+fi
+
 # 7. Build and test release artifacts, including isolated real-model inference.
 # test_wheel.sh is standalone and never invokes validate.sh, avoiding recursion.
 run_check "Package smoke" ./scripts/test_wheel.sh || FAILED=1

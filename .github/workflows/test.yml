@@ -88,6 +88,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         run: uv run python scripts/check_phase_completion.py
 
+      # Pinned actionlint, built from source through the checksum-verified Go
+      # module proxy; it runs shellcheck on `run:` scripts when available.
+      # Release-path behaviour is covered by tests/unit/test_release_workflow_contract.py.
+      - name: Lint workflows (actionlint)
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
   package-smoke:
     timeout-minutes: 15
     runs-on: ubuntu-latest
