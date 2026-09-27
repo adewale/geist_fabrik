@@ -76,6 +76,8 @@ and timeouts):
    reported but non-gating). See that file's header for the contract.
 10. `./scripts/test_wheel.sh` - Builds and inspects wheel/sdist artifacts,
    rebuilds from the sdist, and runs isolated real-model offline inference.
+11. `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12` - Workflow lint
+   (pinned; validate.sh runs it when Go is installed, CI always does).
 
 **If validate.sh passes, CI will almost certainly pass. If it fails, DO NOT PUSH.**
 
@@ -90,7 +92,9 @@ tests without the explicit `production_model` marker. Marker selection does
 not rewrite `EmbeddingComputer` or depend on command spelling. The required
 `package-smoke` job and the `./scripts/test_wheel.sh` step within `validate.sh`
 build and install artifacts, then run real inference from the bundled ~88 MB
-model with empty caches and network fallback disabled.
+model with empty caches and network fallback disabled. The tiers the fast lane
+deselects (`production_model`, `slow`, `benchmark`) run weekly and on demand in
+`.github/workflows/scheduled-tiers.yml`.
 
 ### Common Mistakes to Avoid
 
