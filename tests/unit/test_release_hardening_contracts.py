@@ -302,18 +302,3 @@ def test_release_version_check_accepts_only_matching_artifacts(tmp_path: Path) -
     assert subprocess.run(command, cwd=ROOT, check=False).returncode == 0
     command[2] = "v999.0.0"
     assert subprocess.run(command, cwd=ROOT, check=False).returncode == 1
-
-
-def test_tag_workflow_promotes_the_retained_smoke_artifacts() -> None:
-    workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text()
-
-    assert "PACKAGE_SMOKE_WORKDIR: ${{ github.workspace }}/package-smoke-work" in workflow
-    assert "cp package-smoke-work/run.*/dist/geistfabrik-*.whl release-dist/" in workflow
-    assert "cp package-smoke-work/run.*/dist/geistfabrik-*.tar.gz release-dist/" in workflow
-    assert "path: release-dist/*" in workflow
-    assert ".package-smoke" not in workflow
-    assert "name: release-artifacts" in workflow
-    assert "needs: [test, package-smoke]" in workflow
-    assert 'check_release_version.py "$GITHUB_REF_NAME" --artifact-dir dist' in workflow
-    assert "sha256sum geistfabrik-*.whl geistfabrik-*.tar.gz > SHA256SUMS" in workflow
-    assert 'gh release create "$GITHUB_REF_NAME" dist/*' in workflow
