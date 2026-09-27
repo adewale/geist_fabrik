@@ -12,6 +12,7 @@ from scripts.check_phase_completion import (
     combined_pytest_targets,
     evidence_problems,
     load_selection,
+    manual_ratchet_errors,
     normalize_command,
     parse_criteria,
     partition_pytest_criteria,
@@ -276,3 +277,17 @@ def test_main_rejects_partial_and_empty_evidence_end_to_end(tmp_path: Path) -> N
     assert "deselects 1 of its tests (test_hubs_performance)" in result.stdout
     assert f"AC-1.2     EVIDENCE {hubs}::test_hubs_performance selects no tests" in result.stdout
     assert "AUTO: 2/2 passed" in result.stdout  # the tests ran green; evidence alone failed
+def test_manual_ratchet_rejects_growth_and_demands_lowering() -> None:
+    assert manual_ratchet_errors(84, ceiling=84) == []
+    grew = manual_ratchet_errors(85, ceiling=84)
+    assert len(grew) == 1 and "rose to 85" in grew[0]
+    fell = manual_ratchet_errors(83, ceiling=84)
+    assert len(fell) == 1 and "lower MANUAL_CEILING" in fell[0]
+
+
+def test_manual_ceiling_matches_the_spec() -> None:
+    """Fast, every-leg copy of the gate's ratchet (the gate runs on one CI leg)."""
+    criteria, errors = parse_criteria(AC_FILE.read_text())
+    assert errors == []
+    manual = sum(1 for criterion in criteria if not criterion.is_auto)
+    assert manual_ratchet_errors(manual) == []
