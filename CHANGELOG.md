@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `Note.created` is now the earliest of a file's modification, inode-change and
+  (where the platform records it) birth time, and re-syncing an edited note no
+  longer moves its creation date later. Previously it was `st_ctime`, which on
+  Linux and macOS is reset by every write, so edited notes looked brand new to
+  age-, anniversary- and season-based geists (BUG-4 in
+  `docs/DEEP_AUDIT_REPORT.md`). Migration is automatic: the parser revision
+  bump makes the next sync re-derive `created` for every note, keeping the
+  earlier of the stored and re-derived values. No rebuild is required.
+
+### Fixed
+- `seasonal_revisit` no longer suggests geist journal session notes as
+  "notes from this season in past years".
+
 ## [0.11.0] - 2026-09-13
 
 ### Fixed

@@ -229,7 +229,7 @@ class Vault:
                 raise _VaultSnapshotChangedError from None
             if self._stat_signature(stat) != self._stat_signature(initial_stat):
                 raise _VaultSnapshotChangedError
-            created = datetime.fromtimestamp(stat.st_ctime)
+            created = self._estimate_created(stat)
             modified = datetime.fromtimestamp(stat.st_mtime)
 
             # Check if this is a date-collection note (if enabled and not excluded)
@@ -299,6 +299,22 @@ class Vault:
         return processed_count
 
     @staticmethod
+    def _estimate_created(stat: os.stat_result) -> datetime:
+        """Best available creation time for a note file.
+
+        ``st_ctime`` is the last inode change on Linux and macOS, so on its own
+        every edit (or chmod, or checkout) would make a note look brand new.
+        A file cannot have been created after it was last modified, and
+        ``st_birthtime`` (macOS, BSD, Windows on Python 3.12+) is the real
+        creation time where the platform records one, so take the earliest.
+        """
+        candidates = [stat.st_mtime, stat.st_ctime]
+        birthtime = getattr(stat, "st_birthtime", None)
+        if birthtime is not None and birthtime > 0:
+            candidates.append(birthtime)
+        return datetime.fromtimestamp(min(candidates))
+
+    @staticmethod
     def _stat_signature(stat: os.stat_result) -> tuple[int, int, int, int, int]:
         """Return the fields that identify the bytes observed during a scan."""
         return (
@@ -314,12 +330,13 @@ class Vault:
 
         Reclassification must occur even when only date-collection settings
         change. The revision also refreshes persisted links that older parsers
-        stored without journal anchors; no schema migration is needed.
+        stored without journal anchors, and (v3) re-derives ``created`` for rows
+        stored from ``st_ctime`` alone; no schema migration is needed.
         """
         settings = json.dumps(self.config.date_collection.to_dict(), sort_keys=True)
         config_digest = hashlib.sha256(settings.encode()).hexdigest()
         stat_key = ":".join(str(value) for value in self._stat_signature(stat))
-        return f"parser-v2:{config_digest}:{stat_key}"
+        return f"parser-v3:{config_digest}:{stat_key}"
 
     def _delete_missing_notes(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> None:
         """Delete notes absent from the validated, writer-owned filesystem view."""
@@ -437,7 +454,14 @@ class Vault:
             ON CONFLICT(path) DO UPDATE SET
                 title = excluded.title,
                 content = excluded.content,
-                created = excluded.created,
+                -- A regular note's creation time never moves later on
+                -- re-sync: edits bump st_ctime, not the note's true age.
+                created = CASE
+                    WHEN excluded.is_virtual = 0 AND notes.is_virtual = 0
+                        AND notes.created < excluded.created
+                    THEN notes.created
+                    ELSE excluded.created
+                END,
                 modified = excluded.modified,
                 file_mtime = excluded.file_mtime,
                 source_fingerprint = excluded.source_fingerprint,

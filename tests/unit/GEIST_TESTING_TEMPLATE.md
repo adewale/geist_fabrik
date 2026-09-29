@@ -80,14 +80,23 @@ trigger fixtures, deterministic time).
 
 ## Stub-embedding facts you can exploit
 
-Unit tests run under `SentenceTransformerStub` (SHA256-derived, deterministic,
-unit-norm). Useful consequences when designing trigger fixtures:
+Unit tests run under `SentenceTransformerStub` (`tests/stubs.py`), a
+deterministic bag-of-words embedding. Similarity tracks shared vocabulary:
 
-- Identical text ⇒ similarity 1.0. Near-duplicate content is how you
-  guarantee a "high similarity" trigger fires under the stub.
-- Different text ⇒ effectively random similarity around 0. Do not write
-  fixtures that need two *different* texts to be "similar" — that is not
-  controllable under the stub; restructure the test or mark it `slow`.
+- Identical text ⇒ similarity 1.0.
+- Notes that share most of their content words are highly similar; notes with
+  disjoint vocabulary are near 0. To make two *different* notes "similar",
+  give them a common block of distinctive words; to keep notes apart, give
+  them disjoint vocabulary.
+- Words shorter than three characters and a few stopwords are ignored.
+
+## Backdating notes
+
+`Note.created` is the earliest of the file's mtime, ctime and (where the
+platform records it) birth time, so `os.utime(path, (t, t))` before
+`vault.sync()` backdates both `created` and `modified`. For dates relative to
+the session, or to set `created` and `modified` independently, update the
+database after syncing (see rule 5).
 
 ## Minimum viable test file (~40 lines of intent)
 

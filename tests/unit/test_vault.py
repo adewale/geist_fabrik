@@ -3,6 +3,7 @@
 import os
 import sqlite3
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -116,6 +117,52 @@ def test_sync_modified_file(tmp_path: Path) -> None:
     assert note2 is not None
     assert "v2" in note2.content
 
+    vault.close()
+
+
+def test_created_is_not_later_than_modified(tmp_path: Path) -> None:
+    """A note's age comes from its file history, not the last inode change.
+
+    Regression for BUG-4: ``created`` was read from ``st_ctime``, which on
+    Linux and macOS is reset by every write, so all notes looked brand new.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "old.md"
+    note_file.write_text("# Old\n\nWritten years ago.")
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+
+    vault = Vault(vault_path)
+    vault.sync()
+    note = vault.get_note("old.md")
+    assert note is not None
+    assert note.created == datetime(2020, 1, 1)
+    vault.close()
+
+
+def test_editing_a_note_does_not_move_its_created_date(tmp_path: Path) -> None:
+    """Re-syncing an edited note keeps the earliest creation time on record."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "idea.md"
+    note_file.write_text("# Idea\n\nFirst draft.")
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+
+    vault = Vault(vault_path)
+    vault.sync()
+
+    note_file.write_text("# Idea\n\nSecond draft.")
+    edited = datetime(2024, 6, 1).timestamp()
+    os.utime(note_file, (edited, edited))
+    assert vault.sync() == 1
+
+    note = vault.get_note("idea.md")
+    assert note is not None
+    assert "Second draft" in note.content
+    assert note.created == datetime(2020, 1, 1)
+    assert note.modified == datetime(2024, 6, 1)
     vault.close()
 
 
