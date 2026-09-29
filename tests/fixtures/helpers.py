@@ -4,11 +4,25 @@ assert_valid_suggestions() is the standard oracle for geist output: it
 asserts non-emptiness (vacuous-by-default loops over possibly-empty lists are
 how dead geists kept green tests), structural validity, and the journal-
 exclusion contract, in one call with clear failure messages.
+
+VaultBuilder builds a real on-disk vault with an in-memory database, pinned
+session dates and explicit creation/modification times, so fixtures can be
+designed to trigger a geist without wall-clock time or hand-rolled setup.
 """
 
+import os
 from collections.abc import Sequence
+from datetime import datetime
+from pathlib import Path
 
+from geistfabrik.embeddings import Session
+from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.models import Suggestion
+from geistfabrik.vault import Vault
+from geistfabrik.vault_context import VaultContext
+
+SESSION_DATE = datetime(2024, 3, 15)
+SEED = 20240315
 
 
 def assert_valid_suggestions(
@@ -59,3 +73,70 @@ def assert_valid_suggestions(
             or any(required.lower() in ref.lower() for ref in s.notes)
             for s in suggestions
         ), f"no suggestion references expected content {required!r}"
+
+
+class VaultBuilder:
+    """Declarative vault fixture: write notes, then build a VaultContext.
+
+    Example::
+
+        builder = VaultBuilder(tmp_path)
+        builder.note("Old Idea", "Gardens and soil.", created=datetime(2021, 3, 1))
+        ctx = builder.build(history=[datetime(2024, 1, 1), datetime(2024, 2, 1)])
+    """
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True)
+        self._times: dict[str, tuple[datetime | None, datetime | None]] = {}
+
+    def note(
+        self,
+        title: str,
+        body: str,
+        *,
+        folder: str = "",
+        created: datetime | None = None,
+        modified: datetime | None = None,
+    ) -> str:
+        """Write ``<folder>/<title>.md`` and return its vault-relative path.
+
+        ``created`` defaults to ``modified`` and vice versa; with neither, the
+        note keeps the filesystem's current time.
+        """
+        rel_path = f"{folder}/{title}.md" if folder else f"{title}.md"
+        path = self.root / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"# {title}\n\n{body}")
+        stamp = created or modified
+        if stamp is not None:
+            os.utime(path, (stamp.timestamp(), stamp.timestamp()))
+        self._times[rel_path] = (created, modified)
+        return rel_path
+
+    def journal(self, title: str, body: str, **times: datetime) -> str:
+        """Write a geist journal session note (must never be suggested)."""
+        return self.note(title, body, folder="geist journal", **times)
+
+    def build(
+        self,
+        *,
+        session_date: datetime = SESSION_DATE,
+        history: Sequence[datetime] = (),
+        seed: int = SEED,
+    ) -> VaultContext:
+        """Sync into an in-memory DB, compute ``history`` sessions, then the current one."""
+        vault = Vault(str(self.root), ":memory:")
+        vault.sync()
+        for rel_path, (created, modified) in self._times.items():
+            if created is not None and modified is not None:
+                vault.db.execute(
+                    "UPDATE notes SET created = ?, modified = ? WHERE path = ?",
+                    (created.isoformat(), modified.isoformat(), rel_path),
+                )
+        vault.db.commit()
+        for past in sorted(history):
+            Session(past, vault.db).compute_embeddings(vault.all_notes())
+        session = Session(session_date, vault.db)
+        session.compute_embeddings(vault.all_notes())
+        return VaultContext(vault, session, seed=seed, function_registry=FunctionRegistry())
