@@ -73,6 +73,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 | `_geistfabrik/error.log` + file logging | geistfabrik_spec.md:1107 | NOT-BUILT — superseded by console hints + `geist_status.last_error`; amend spec |
 | Real connected-components stat | STATS_COMMAND_SPEC.md:181 | BUILT (uses GraphPatternFinder.find_connected_components) |
 | `claim_harvester` / `hypothesis_harvester` geists | reuse_abstractions_spec.md (items 12-13) | BUILT (bundled default geists) |
+| Procrustes-aligned `stats` drift | STATS_COMMAND_SPEC.md:~411 | BUILT — spec amended to drop alignment (same pinned model; a rotation fitted on n << 384 notes absorbed real change) |
 | Betweenness-centrality bridge stat; "most productive day" temporal pattern | STATS_COMMAND_SPEC.md:217 | NOT-BUILT — defer; mark in spec |
 | `geistfabrik sync` / `query` commands; `--session-id` | historical spec | NOT-BUILT — current guide uses implicit invoke sync and supported diagnostics |
 | docs/CONFIGURATION.md | several | BUILT |

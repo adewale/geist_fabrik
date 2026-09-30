@@ -371,6 +371,19 @@ temporal = [
 
 ### Procrustes Alignment Utility
 
+> **Status note (not built; do not copy into drift code).** Procrustes
+> alignment is for comparing *independently trained* embedding spaces
+> (Hamilton et al. 2016 trained word2vec per period). GeistFabrik embeds every
+> session with one pinned model (`MODEL_NAME`), so snapshots already share a
+> coordinate system and need no alignment. Aligning is also harmful at vault
+> scale: a rotation fitted on n notes in d = 384 dimensions (n << d) can map
+> almost any configuration onto almost any other and absorbs the change being
+> measured (`stats` drift reported ~0 for a fully rewritten note until this
+> was removed). Alignment would only become relevant if sessions were embedded
+> with different models, which is out of scope (`embeddings.model` is
+> NOT-BUILT in SPEC_STATUS.md), and even then only on many more unchanged
+> anchor notes than dimensions.
+
 Create shared utility for multiple geists:
 
 ```python

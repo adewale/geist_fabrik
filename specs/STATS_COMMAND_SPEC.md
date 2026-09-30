@@ -408,21 +408,26 @@ Temporal Analysis:
 
 **Data sources:**
 ```python
-from scipy.linalg import orthogonal_procrustes
+from geistfabrik.temporal_analysis import semantic_component
 
-# Get embeddings from two time points (30 days apart)
+# Get embeddings from two time points (30 days apart), paired by note path
 current_date = datetime.now()
 past_date = current_date - timedelta(days=30)
 
 current_emb = session.get_embeddings(current_date)
 past_emb = session.get_embeddings(past_date)
 
-# Align embedding spaces via Procrustes
-R, scale = orthogonal_procrustes(past_emb, current_emb)
-aligned_past = past_emb @ R
+# Compare the semantic component only: calendar features (note age, season)
+# change every session and must not register as drift.
+current_sem = semantic_component(current_emb)
+past_sem = semantic_component(past_emb)
 
-# Compute drift per note
-drift_scores = 1 - cosine_similarity(aligned_past, current_emb).diagonal()
+# No alignment step. Every session embeds with the same pinned model, so both
+# snapshots share one coordinate system. (An earlier draft fitted an orthogonal
+# Procrustes rotation between the snapshots; with n notes in 384 dimensions a
+# rotation fitted to those same notes absorbs real change, and a fully
+# rewritten note scored ~0 drift.)
+drift_scores = 1 - cosine_similarity(past_sem, current_sem).diagonal()
 
 # Identify high-drift and low-drift notes
 high_drift_idx = np.argsort(drift_scores)[-5:]

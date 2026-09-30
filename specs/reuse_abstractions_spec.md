@@ -1031,7 +1031,7 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyser)
 **How do these proposed abstractions differ from existing `stats.py` functionality?**
 
 `stats.py` currently provides:
-- `get_temporal_drift()`: Vault-wide drift using Procrustes alignment
+- `get_temporal_drift()`: Vault-wide drift (semantic component, same-model snapshots, no alignment)
 - `EmbeddingMetricsComputer`: Clustering, diversity, intrinsic dimensionality
 - `_label_clusters_tfidf()` / `_label_clusters_keybert()`: Cluster labelling
 
@@ -1070,7 +1070,7 @@ stats.py ──────────┴────────────�
 - `stats.py` depends on `ClusterAnalyser` and `cluster_labeling.py`
 
 **What stats.py keeps**:
-- Vault-wide temporal drift (Procrustes alignment)
+- Vault-wide temporal drift (semantic component; no Procrustes alignment, see STATS_COMMAND_SPEC.md)
 - Embedding diversity metrics
 - Intrinsic dimensionality estimation
 - Silhouette score computation

@@ -13,6 +13,8 @@ from geistfabrik.schema import init_db
 from geistfabrik.stats import StatsCollector, VaultStats
 from geistfabrik.stats_formatter import StatsFormatter, generate_recommendations
 from geistfabrik.vault import Vault
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder
+from tests.fixtures.temporal import set_session_text
 
 # Add 5 second timeout to ALL tests to prevent hangs
 pytestmark = pytest.mark.timeout(5)
@@ -378,8 +380,7 @@ def test_temporal_drift_aligns_sessions_by_note_path(tmp_path):
     appears, shifting every row index. Aligned by path, every note has zero
     drift; paired by row position, notes are compared with their neighbours.
     Titles are under three characters so the lexical stub embeds only the
-    bodies, whose irregular word overlaps stop Procrustes from rotating a
-    misalignment away.
+    bodies, whose irregular word overlaps make row-mispaired notes differ.
     """
     bodies = {
         "N1": "amber basil cedar",
@@ -412,6 +413,67 @@ def test_temporal_drift_aligns_sessions_by_note_path(tmp_path):
     assert {n["title"] for n in reported} == set(bodies)
     assert drift["average_drift"] == 0.0
     assert all(n["drift"] == 0.0 for n in reported), reported
+
+
+# Eight notes with mutually disjoint vocabularies. Only REWRITTEN and REVISED
+# said something different in the history session; FRESH was created on the
+# history date, so its calendar tail (age, session season) moves the most.
+DRIFT_HISTORY = datetime(2022, 9, 15)
+DRIFT_BODIES = {
+    "Rewritten": "harbour lighthouse tide ferry anchor",
+    "Revised": "glacier moraine crevasse summit valley",
+    "Fresh": "pottery kiln glaze clay wheel",
+    "Ledger": "invoice receipt budget audit",
+    "Orchid": "petal stamen pollen nectar",
+    "Comet": "orbit perihelion nucleus coma",
+    "Falcon": "talon plumage hover swoop",
+    "Quartz": "crystal lattice facet mineral",
+}
+# Title word shared, bodies disjoint: 6 vs 5 content words, overlap 1.
+REWRITTEN_PAST = "# Rewritten\n\nviolin sonata rehearsal concerto"
+# Title plus three body words shared, two swapped: 6 vs 6 words, overlap 4.
+REVISED_PAST = "# Revised\n\nglacier moraine crevasse orchard vineyard"
+
+
+def test_temporal_drift_known_answers_for_rewritten_unchanged_and_calendar_only(tmp_path):
+    """Drift measures what a note says, in the pinned model's own coordinates.
+
+    Contract: a note whose text was replaced drifts by 1 - cos(old, new); an
+    unchanged note drifts 0 even when its calendar features moved; the
+    changed notes head the report and never appear among the stable ones.
+    Regressions caught: re-introducing an alignment fitted to the same few
+    notes (a rotation in 384 dims absorbs the rewrite and smears it over
+    unchanged notes), comparing the full vector including the calendar tail,
+    and reporting a rewritten note as a "smallest change" in small vaults.
+    """
+    builder = VaultBuilder(tmp_path)
+    for title, body in DRIFT_BODIES.items():
+        created = DRIFT_HISTORY if title == "Fresh" else datetime(2021, 6, 1)
+        builder.note(title, body, created=created, modified=created)
+    ctx = builder.build(history=[DRIFT_HISTORY])
+    set_session_text(ctx, "Rewritten.md", DRIFT_HISTORY, REWRITTEN_PAST)
+    set_session_text(ctx, "Revised.md", DRIFT_HISTORY, REVISED_PAST)
+
+    drift = StatsCollector(ctx.vault, GeistFabrikConfig()).get_temporal_drift(
+        SESSION_DATE.strftime("%Y-%m-%d")
+    )
+
+    assert drift is not None
+    assert drift["comparison_date"] == DRIFT_HISTORY.strftime("%Y-%m-%d")
+    assert drift["notes_compared"] == len(DRIFT_BODIES)
+    high = [(n["title"], n["drift"]) for n in drift["high_drift_notes"]]
+    rewritten = round(1 - 1 / np.sqrt(6 * 5), 2)  # 0.82
+    revised = round(1 - 4 / 6, 2)  # 0.33
+    assert high[:2] == [("Rewritten", rewritten), ("Revised", revised)]
+    # Every other note, including calendar-only FRESH, did not move.
+    stable = [(n["title"], n["drift"]) for n in drift["stable_notes"]]
+    assert not {title for title, _ in high} & {title for title, _ in stable}
+    unchanged = high[2:] + stable
+    assert {title for title, _ in unchanged} <= set(DRIFT_BODIES) - {"Rewritten", "Revised"}
+    assert "Fresh" in {title for title, _ in unchanged}
+    assert all(value == 0.0 for _, value in unchanged), unchanged
+    expected_mean = (1 - 1 / np.sqrt(30) + 1 - 4 / 6) / len(DRIFT_BODIES)
+    assert drift["average_drift"] == pytest.approx(expected_mean, abs=0.002)
 
 
 # ========== Recommendations Tests ==========
@@ -746,35 +808,3 @@ def test_isoscore_computation():
         assert 0 <= metrics["isoscore"] <= 1
 
     db.close()
-
-
-def test_procrustes_alignment():
-    """Test Procrustes alignment improves similarity."""
-    from scipy.linalg import orthogonal_procrustes  # type: ignore[import-untyped]
-
-    from geistfabrik.embeddings import cosine_similarity
-
-    # Create two sets of embeddings with rotation
-    np.random.seed(42)
-    embeddings1 = np.random.rand(10, 20).astype(np.float32)
-
-    # Create rotated version
-    angle = np.pi / 4
-    rotation_2d = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-
-    # Expand to full rotation matrix
-    rotation_full = np.eye(20)
-    rotation_full[:2, :2] = rotation_2d
-
-    embeddings2 = embeddings1 @ rotation_full.T
-
-    # Compute Procrustes alignment
-    rotation, _ = orthogonal_procrustes(embeddings2, embeddings1)
-    embeddings2_aligned = embeddings2 @ rotation
-
-    # After alignment, embeddings should be closer
-    sim_before = cosine_similarity(embeddings1[0], embeddings2[0])
-    sim_after = cosine_similarity(embeddings1[0], embeddings2_aligned[0])
-
-    # After alignment should be better (closer to 1)
-    assert sim_after >= sim_before - 0.1  # Allow small numerical error

@@ -131,7 +131,7 @@ diff <(grep "^- \[x\]" FEATURE_SPEC.md | wc -l) \
 # ✗ Advanced embedding metrics (hard - "requires dependencies")
 
 # GOOD: Tackle complex parts first
-# ✓ Temporal drift with Procrustes alignment
+# ✓ Temporal drift with known-answer tests (rewritten note large, unchanged ~0)
 # ✓ TwoNN intrinsic dimensionality
 # ✓ Vendi Score implementation
 # ✓ Then simple stats collection
