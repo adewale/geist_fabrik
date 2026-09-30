@@ -203,9 +203,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 - See `docs/WRITING_GOOD_GEISTS.md` for detailed analysis
 
 **Regression Prevention**:
-- Regression tests: `tests/integration/test_phase3b_regression.py` (Note: Some assertions outdated post-cache implementation)
+- Regression tests: `tests/integration/test_phase3b_regression.py` (pattern_finder must read every note, not a sample)
+- Cache consistency: the `batch_similarity` cache tests in `tests/unit/test_vault_context.py`
 - Performance guidance: `docs/WRITING_GOOD_GEISTS.md` (Performance Guidance section)
-- Static checks: Tests verify no `batch_similarity` in cache-sensitive geists
 
 ## Core Architecture
 

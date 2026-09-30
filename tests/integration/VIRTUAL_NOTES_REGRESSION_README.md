@@ -70,15 +70,12 @@ Runs **all current and future code geists** against a vault with virtual notes a
 
 This test is **parametrized** - it discovers all code geists dynamically and tests each one. When you add a new geist, this test automatically covers it.
 
-### 2. `test_regression_creation_burst_specific`
+### Where the creation_burst regression lives
 
-Explicit regression test for the `creation_burst` geist where this bug was originally discovered.
-
-Verifies:
-- At least 3 virtual notes in burst day
-- All use deeplink format (contain `#`)
-- No duplicates in the notes list
-- Suggestion text uses deeplinks, not plain titles
+The original bug was found in `creation_burst`. Its dedicated regression test is
+`tests/unit/test_creation_burst.py::test_creation_burst_virtual_notes_use_deeplinks`,
+which asserts that three same-date journal entries appear as distinct
+`Journal#date` deeplinks in both the suggestion text and `suggestion.notes`.
 
 ## How It Catches The Bug
 
@@ -101,19 +98,16 @@ uv run pytest tests/integration/test_virtual_notes_regression.py -v
 # Run for specific geist
 uv run pytest tests/integration/test_virtual_notes_regression.py::test_geist_uses_link_text_for_virtual_notes[creation_burst] -v
 
-# Run just the creation_burst regression test
-uv run pytest tests/integration/test_virtual_notes_regression.py::test_regression_creation_burst_specific -v
+# Run the creation_burst regression test
+uv run pytest tests/unit/test_creation_burst.py::test_creation_burst_virtual_notes_use_deeplinks -v
 ```
 
 ## When To Update This Test
 
-### Add Geists To Skip List
+### Geists That Reference No Notes
 
-If you create a geist that intentionally doesn't reference specific notes (e.g., a geist that only generates abstract prompts), add it to the skip list:
-
-```python
-skip_geists = {"abstract_prompt", "random_quote"}
-```
+There is no skip list. Suggestions with an empty `notes` list are passed over,
+so a geist that only generates abstract prompts needs no special handling.
 
 ### Modify For New Virtual Note Types
 

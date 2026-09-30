@@ -59,8 +59,32 @@ inference from the bundled model. The authoritative pre-push command
 
 - `tests/conftest.py`: shared fixtures and marker-driven external constructor stub
 - `tests/stubs.py`: deterministic `SentenceTransformerStub`
+- `tests/fixtures/helpers.py`: `VaultBuilder`, `assert_valid_suggestions`, `SESSION_DATE`, `SEED`
+- `tests/fixtures/virtual_notes.py`: `create_journal_file` for date-collection journals
 - `tests/unit/conftest.py`: unit-specific notes, embeddings, and injected models
 - `tests/integration/conftest.py`: integration fixtures
+
+### Designing fixtures that make a geist fire
+
+The stub embedding is lexical (bag of words): each content word of three or
+more characters (minus a few stopwords) adds to a hashed dimension, so notes that
+share words are similar and notes with disjoint vocabulary are near-orthogonal.
+Identical text gives similarity 1.0. Embeddings include the `# Title` line.
+Control similarity by choosing shared or disjoint words, not by hoping.
+
+`VaultBuilder(tmp_path)` writes real notes with pinned `created`/`modified`
+times, then `.build(session_date=..., history=[...], seed=...)` returns a real
+`VaultContext` on an in-memory database with the requested past sessions
+already embedded. `.journal(...)` writes a `geist journal/` note that no geist
+may suggest. Check output with `assert_valid_suggestions`, which fails on empty
+output unless you pass `min_count=0` for a test about abstention.
+
+Every test must be able to fail. Do not loop over output that may be empty or
+bound it by a cap it can never exceed. When you write or rewrite a test, break
+the product on purpose (a temporary source edit you revert, or a monkeypatch
+plugin passed with `-p`) and confirm the test fails, then passes on the real
+code. Do not let a mock or spy supply the value under test; a spy should
+delegate to the real function.
 
 ## Focused Development Commands
 
