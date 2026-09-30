@@ -74,6 +74,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   everything (NaN similarity passed the threshold check).
 - Tracery output with an empty leading or trailing placeholder (for example
   contradictor on an empty vault) was not suppressed.
+- `geistfabrik stats` temporal drift reported ~0 for notes that had been
+  completely rewritten. It fitted an orthogonal Procrustes rotation between
+  the two snapshots on the same few notes it then measured; with far fewer
+  notes than the model's 384 dimensions, that rotation absorbed the change.
+  Both snapshots come from the same pinned model, so drift is now the plain
+  `1 - cosine` between each note's past and current semantic vectors (the
+  calendar features are still excluded). In small vaults the "smallest
+  changes" list no longer repeats notes already listed as the largest changes.
 
 ### Tests
 - The test `SentenceTransformer` stub is now a bag-of-words embedding, so

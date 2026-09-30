@@ -324,9 +324,7 @@ class StatsCollector:
         suggestion_sessions = self.db.execute(
             "SELECT COUNT(DISTINCT session_date) FROM session_suggestions"
         ).fetchone()[0]
-        avg_suggestions = (
-            total_suggestions / suggestion_sessions if suggestion_sessions > 0 else 0
-        )
+        avg_suggestions = total_suggestions / suggestion_sessions if suggestion_sessions > 0 else 0
 
         # Recent sessions
         cursor = self.db.execute(
@@ -539,7 +537,13 @@ class StatsCollector:
         return session_date, embeddings, paths
 
     def get_temporal_drift(self, current_date: str, days_back: int = 30) -> dict[str, Any] | None:
-        """Analyze temporal drift between current and historical embeddings.
+        """Measure how far each note's meaning moved since an earlier session.
+
+        Drift is ``1 - cosine`` between a note's own past and current semantic
+        vectors, paired by path. Both sessions are embedded by the same pinned
+        model, so no alignment is applied, and the calendar tail of each stored
+        vector is ignored. A rewritten note therefore scores high, and an
+        unchanged note scores 0 however much time has passed.
 
         Args:
             current_date: Current session date (YYYY-MM-DD)
@@ -549,8 +553,6 @@ class StatsCollector:
             Dictionary with drift analysis or None if not enough data
         """
         from datetime import timedelta
-
-        from scipy.linalg import orthogonal_procrustes  # type: ignore[import-untyped]
 
         # Get current embeddings
         current = self.get_latest_embeddings(as_of=current_date)
@@ -613,35 +615,25 @@ class StatsCollector:
         if len(common_paths) < 5:
             return None  # Not enough overlap
 
-        # Build aligned embedding matrices
-        # Use dict lookup instead of list.index() for O(N) instead of O(N²)
-        path_to_idx = {p: i for i, p in enumerate(curr_paths)}
+        # Compare each note with its own past vector, directly. Every session
+        # embeds with the same pinned model (MODEL_NAME), so both sessions share
+        # one coordinate system and there is nothing to align. Do NOT fit a
+        # Procrustes rotation here: with n notes in 384 dimensions (n << d) an
+        # orthogonal map can carry almost any configuration onto almost any
+        # other, so it absorbs the very change being measured (a fully
+        # rewritten note scored ~0). Only the semantic component is compared,
+        # so calendar features (note age, season) cannot register as drift.
+        from geistfabrik.embeddings import cosine_similarity
         from geistfabrik.temporal_analysis import semantic_component
 
-        curr_aligned = np.vstack(
-            [semantic_component(curr_emb[path_to_idx[p]]) for p in common_paths]
-        )
-        past_aligned = np.vstack(
-            [semantic_component(past_emb_dict[p]) for p in common_paths]
-        )
-
-        # Align past embeddings to current via Procrustes
-        try:
-            rotation_matrix, _ = orthogonal_procrustes(past_aligned, curr_aligned)
-            past_rotated = past_aligned @ rotation_matrix
-        except Exception:
-            # Procrustes can fail
-            logger.debug("Procrustes alignment failed", exc_info=True)
-            past_rotated = past_aligned
-
-        # Compute drift per note (1 - cosine similarity)
-        from geistfabrik.embeddings import cosine_similarity
-
+        path_to_idx = {p: i for i, p in enumerate(curr_paths)}
         drift_scores = []
-        for i in range(len(common_paths)):
-            sim = cosine_similarity(past_rotated[i], curr_aligned[i])
-            drift = 1.0 - sim
-            drift_scores.append((common_paths[i], drift))
+        for path in common_paths:
+            sim = cosine_similarity(
+                semantic_component(past_emb_dict[path]),
+                semantic_component(curr_emb[path_to_idx[path]]),
+            )
+            drift_scores.append((path, max(0.0, 1.0 - sim)))  # no "-0.00"
 
         # Sort by drift
         drift_scores.sort(key=lambda x: x[1], reverse=True)
@@ -669,7 +661,8 @@ class StatsCollector:
             ],
             "stable_notes": [
                 {"title": path.removesuffix(".md"), "drift": round(d, 2)}
-                for path, d in drift_scores[-5:]
+                # Never repeat a high-drift note as "stable" in small vaults.
+                for path, d in drift_scores[max(5, len(drift_scores) - 5) :]
             ],
         }
 
