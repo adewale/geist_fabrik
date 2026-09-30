@@ -936,7 +936,7 @@ $vault.contrarian_to(title, k)    # ❌ Tracery: requires expanded note title
 
 **Why the limitation**: Tracery preprocessing executes vault functions before symbol expansion. When you write `$vault.neighbours(#seed#, 3)`, the literal string `"#seed#"` is passed to the function instead of an expanded note title.
 
-**Workaround**: Use cluster functions like `semantic_clusters()` that bundle related data with delimiters, then extract parts using Tracery modifiers (`.split_seed`, `.split_neighbours`). See `specs/tracery_research.md` for details.
+**Workaround**: Use cluster functions like `semantic_clusters()` that bundle related data with delimiters, save one expansion with a Tracery save action (`[picked:#cluster#]`) and extract parts from the saved value using modifiers (`#picked.split_seed#`, `#picked.split_neighbours#`), so both parts come from the same cluster. See `specs/tracery_research.md` for details.
 
 ### Example Extended Functions
 

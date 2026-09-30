@@ -294,18 +294,24 @@ $vault.neighbours(#note#, 3)  # ✗ Fails - #note# not expanded during preproces
 # Solution: Cluster functions bundle seed + related notes with delimiters
 semantic_clusters(2, 3) → ["[[Seed]]|||[[N1]], [[N2]]"]
 
-# Custom modifiers extract parts:
+# Save ONE expansion, then split it with custom modifiers:
 cluster: ["$vault.semantic_clusters(2, 3)"]
-seed: ["#cluster.split_seed#"]           # Extracts "[[Seed]]"
-neighbours: ["#cluster.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+origin: "#[picked:#cluster#]template#"      # [key:rule] saves one draw
+seed: ["#picked.split_seed#"]               # Extracts "[[Seed]]"
+neighbours: ["#picked.split_neighbours#"]   # Extracts "[[N1]], [[N2]]"
 
 # Template uses extracted values (already bracketed):
-origin: "#seed# shares space with #neighbours#"
+template: "#seed# shares space with #neighbours#"
+
+# ✗ Wrong: "#cluster.split_seed#" and "#cluster.split_neighbours#" each
+# re-expand #cluster#, so the seed and neighbours can come from different
+# clusters.
 ```
 
 **Implementation locations**:
 - Pattern implementation: `src/geistfabrik/function_registry.py::semantic_clusters()`
 - Custom modifiers: `src/geistfabrik/tracery.py::_split_seed()`, `_split_neighbours()`
+- Save actions (`[key:rule]`, `[key:POP]`): `src/geistfabrik/tracery.py`
 - Validation: `src/geistfabrik/tracery.py::_validate_grammar()`
 - Documentation: `specs/tracery_research.md` (Designing Tracery-Safe Vault Functions section)
 - Tests: `tests/unit/test_tracery.py::test_tracery_split_*_modifier()`, `tests/unit/test_tracery_geists.py::test_semantic_clusters_*`
