@@ -1,427 +1,162 @@
-"""Unit tests for recent_focus geist."""
+"""Tests for the recent_focus geist.
 
-import os
-from datetime import datetime, timedelta
+Trigger: the 5 most recently modified non-journal notes (>= 2 needed); for
+each of the top 3, the most similar of its 10 nearest neighbours that has not
+been modified for > 60 days becomes "your older note". Under the lexical
+test stub, shared body vocabulary makes notes nearest neighbours.
+"""
 
-import pytest
+from datetime import timedelta
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import recent_focus
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+COMPOST = "compost worms soil mulch humus"
 
 
-@pytest.fixture
-def vault_with_recent_and_old_similar(tmp_path):
-    """Create a vault with recent notes and old similar notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-    old_date = now - timedelta(days=90)
-
-    # Create recent notes (within last few days)
-    recent_topics = [
-        "Machine Learning",
-        "Neural Networks",
-        "Deep Learning",
-        "AI Ethics",
-        "Computer Vision",
-    ]
-    for i, topic in enumerate(recent_topics):
-        path = vault_path / f"recent_{topic.replace(' ', '_')}.md"
-        path.write_text(f"# {topic}\n\nRecent content about {topic.lower()}.")
-        path.touch()
-        recent_time = (now - timedelta(days=i)).timestamp()
-        os.utime(path, (recent_time, recent_time))
-
-    # Create old similar notes (>60 days old)
-    old_topics = [
-        "Artificial Intelligence",
-        "Machine Learning History",
-        "Neural Net Theory",
-        "AI Safety",
-        "Image Recognition",
-    ]
-    for i, topic in enumerate(old_topics):
-        path = vault_path / f"old_{topic.replace(' ', '_')}.md"
-        path.write_text(f"# {topic}\n\nOld content about {topic.lower()}.")
-        path.touch()
-        old_time = (old_date - timedelta(days=i * 5)).timestamp()
-        os.utime(path, (old_time, old_time))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _note(
+    builder: VaultBuilder, title: str, body: str, days: int, *, journal: bool = False
+) -> None:
+    """A note last modified ``days`` before SESSION_DATE."""
+    when = SESSION_DATE - timedelta(days=days)
+    created = when - timedelta(days=10)
+    if journal:
+        builder.journal(title, body, created=created, modified=when)
+    else:
+        builder.note(title, body, created=created, modified=when)
 
 
-@pytest.fixture
-def vault_insufficient_recent_notes(tmp_path):
-    """Create a vault with only one recent note."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def test_recent_focus_links_recent_note_to_similar_old_note(tmp_path):
+    # Trigger arithmetic: "Compost Today" (2 days) and "Kettle" (3 days) are
+    # the recent notes; "Compost Archive" shares the compost vocabulary and
+    # was last modified 200 days ago (> 60).
+    builder = VaultBuilder(tmp_path)
+    _note(builder, "Compost Today", COMPOST, 2)
+    _note(builder, "Kettle", "boiling water teapot", 3)
+    _note(builder, "Compost Archive", COMPOST, 200)
+    ctx = builder.build()
 
-    now = datetime.now()
-    path = vault_path / "recent_note.md"
-    path.write_text("# Recent Note\n\nContent.")
-    path.touch()
+    suggestions = recent_focus.suggest(ctx)
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_recent_focus_returns_suggestions(vault_with_recent_and_old_similar):
-    """Test that recent_focus returns suggestions.
-
-    Setup:
-        Vault with recently modified notes.
-
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_recent_and_old_similar
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(suggestions, "recent_focus")
+    assert [s.notes for s in suggestions] == [["Compost Today", "Compost Archive"]]
+    assert suggestions[0].text.startswith(
+        "What if your recent work on [[Compost Today]] connects to your older note "
+        "[[Compost Archive]]?"
     )
 
-    suggestions = recent_focus.suggest(context)
 
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
+def test_recent_focus_old_means_more_than_sixty_days(tmp_path):
+    """Boundary pair: a 60-day-old twin is not "older", a 61-day-old twin is."""
+    results = {}
+    for days in (60, 61):
+        builder = VaultBuilder(tmp_path / str(days))
+        _note(builder, "Compost Today", COMPOST, 2)
+        _note(builder, "Kettle", "boiling water teapot", 3)
+        _note(builder, "Compost Archive", COMPOST, days)
+        results[days] = recent_focus.suggest(builder.build())
+
+    assert results[60] == []
+    assert_valid_suggestions(results[61], "recent_focus", must_reference=["Compost Archive"])
 
 
-def test_recent_focus_suggestion_structure(vault_with_recent_and_old_similar):
-    """Test that suggestions have correct structure.
+def test_recent_focus_picks_the_most_similar_old_note(tmp_path):
+    """Two old candidates above the similarity floor (0.71 and 0.50): the closer wins."""
+    builder = VaultBuilder(tmp_path)
+    _note(builder, "Compost Today", COMPOST, 2)
+    _note(builder, "Kettle", "boiling water teapot", 3)
+    _note(builder, "Close Archive", COMPOST + " bins", 200)
+    _note(builder, "Far Archive", "compost worms soil railway tickets", 200)
+    ctx = builder.build()
 
-    Setup:
-        Vault with recent activity.
+    suggestions = recent_focus.suggest(ctx)
 
-    Verifies:
-        - Has required fields
-        - References recently modified notes"""
-    vault, session = vault_with_recent_and_old_similar
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "recent_focus",
+        must_reference=["Close Archive"],
+        must_not_reference=["geist journal", "Far Archive"],
     )
 
-    suggestions = recent_focus.suggest(context)
 
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
+def test_recent_focus_checks_only_the_three_most_recent_notes(tmp_path):
+    """Cap: five recent notes each with an old twin -> exactly the 3 newest are used."""
+    topics = ["compost worms", "violin bowing", "sourdough starter", "tide pools", "kite string"]
+    builder = VaultBuilder(tmp_path)
+    for i, topic in enumerate(topics):
+        _note(builder, f"Recent {i}", f"{topic} practice notes {topic}", 1 + i)
+        _note(builder, f"Archive {i}", f"{topic} {topic} early notes", 300 + i)
+    ctx = builder.build()
 
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "recent_focus"
+    suggestions = recent_focus.suggest(ctx)
 
-        # Should reference 2 notes (recent and old)
-        assert len(suggestion.notes) == 2
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
+    assert len(suggestions) == 3
+    assert [s.notes[0] for s in suggestions] == ["Recent 0", "Recent 1", "Recent 2"]
+    assert [s.notes[1] for s in suggestions] == ["Archive 0", "Archive 1", "Archive 2"]
 
 
-def test_recent_focus_uses_link_text(vault_with_recent_and_old_similar):
-    """Test that recent_focus uses link_text for note references.
+def test_recent_focus_needs_two_recent_notes(tmp_path):
+    """Boundary pair: one recent note (with an old twin) is not yet a focus; two are."""
+    one = VaultBuilder(tmp_path / "one")
+    _note(one, "Compost Today", COMPOST, 2)
+    _note(one, "Compost Archive", COMPOST, 200)
+    two = VaultBuilder(tmp_path / "two")
+    _note(two, "Compost Today", COMPOST, 2)
+    _note(two, "Kettle", "boiling water teapot", 3)
+    _note(two, "Compost Archive", COMPOST, 200)
 
-    Setup:
-        Vault with recent notes.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_recent_and_old_similar
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = recent_focus.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_recent_focus_empty_vault(tmp_path):
-    """Test that recent_focus handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = recent_focus.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_recent_focus_insufficient_recent_notes(vault_insufficient_recent_notes):
-    """Test that recent_focus handles insufficient recent notes gracefully."""
-    vault, session = vault_insufficient_recent_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = recent_focus.suggest(context)
-
-    # Should return empty list when < 2 recent notes
-    assert len(suggestions) == 0
-
-
-def test_recent_focus_no_old_similar_notes(tmp_path):
-    """Test that recent_focus handles vault with only recent notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-    # Create only recent notes
-    for i in range(10):
-        path = vault_path / f"recent_{i}.md"
-        path.write_text(f"# Recent Note {i}\n\nContent.")
-        path.touch()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = recent_focus.suggest(context)
-
-    # May return empty if no old notes found
-    assert isinstance(suggestions, list)
-
-
-def test_recent_focus_max_suggestions(vault_with_recent_and_old_similar):
-    """Test that recent_focus never returns more than 3 suggestions.
-
-    Setup:
-        Vault with many recent notes.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_recent_and_old_similar
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = recent_focus.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_recent_focus_deterministic_with_seed(vault_with_recent_and_old_similar):
-    """Test that recent_focus returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_recent_and_old_similar
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = recent_focus.suggest(context1)
-    suggestions2 = recent_focus.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_recent_focus_connects_recent_to_old(vault_with_recent_and_old_similar):
-    """Test that recent_focus connects recent work to old similar notes."""
-    vault, session = vault_with_recent_and_old_similar
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = recent_focus.suggest(context)
-
-    for suggestion in suggestions:
-        # Text should mention recent work connecting to old notes
-        text_lower = suggestion.text.lower()
-        assert "recent" in text_lower or "work" in text_lower
-        assert "older" in text_lower or "old" in text_lower
-        assert "similar" in text_lower or "connect" in text_lower
+    assert recent_focus.suggest(one.build()) == []
+    assert_valid_suggestions(recent_focus.suggest(two.build()), "recent_focus")
 
 
 def test_recent_focus_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
+    """Session notes are neither "recent work" nor "older notes".
 
-    Setup:
-        Vault with journal + regular notes.
+    Both directions: twelve session notes modified after every user note must
+    not crowd the user's recent notes out, and an old session note that
+    matches the recent note even better than the user's archive note must not
+    be offered as "your older note".
+    """
+    builder = VaultBuilder(tmp_path)
+    _note(builder, "Compost Today", COMPOST, 20)
+    _note(builder, "Kettle", "boiling water teapot", 21)
+    _note(builder, "Compost Archive", COMPOST + " garden beds", 200)
+    _note(builder, "Old Session", f"Compost Today {COMPOST}", 150, journal=True)
+    for i in range(12):
+        _note(builder, f"Session {i:02d}", f"suggestions batch {i}", i, journal=True)
+    ctx = builder.build()
 
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+    suggestions = recent_focus.suggest(ctx)
 
-    # Create geist journal directory with session notes
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"""# Session {i}
-
-Recent focus on machine learning topics. Neural networks and deep learning.
-
-^g20240315-{i}"""
-        )
-
-    now = datetime.now()
-    old_date = now - timedelta(days=90)
-
-    # Create regular recent notes that should trigger suggestions
-    recent_topics = [
-        "Machine Learning",
-        "Neural Networks",
-        "Deep Learning",
-        "AI Ethics",
-        "Computer Vision",
-    ]
-    for i, topic in enumerate(recent_topics):
-        path = vault_path / f"recent_{topic.replace(' ', '_')}.md"
-        path.write_text(f"# {topic}\n\nRecent content about {topic.lower()}.")
-        recent_time = (now - timedelta(days=i)).timestamp()
-        os.utime(path, (recent_time, recent_time))
-
-    # Create old similar notes
-    old_topics = [
-        "Artificial Intelligence",
-        "Machine Learning History",
-        "Neural Net Theory",
-        "AI Safety",
-        "Image Recognition",
-    ]
-    for i, topic in enumerate(old_topics):
-        path = vault_path / f"old_{topic.replace(' ', '_')}.md"
-        path.write_text(f"# {topic}\n\nOld content about {topic.lower()}.")
-        old_time = (old_date - timedelta(days=i * 5)).timestamp()
-        os.utime(path, (old_time, old_time))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "recent_focus",
+        must_reference=["Compost Today", "Compost Archive"],
+        must_not_reference=["geist journal", "Session"],
     )
 
-    suggestions = recent_focus.suggest(context)
 
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()
+def test_recent_focus_does_not_call_unrelated_notes_similar(tmp_path):
+    """Regression: in a small vault every note is among the 10 nearest
+    neighbours, so an unrelated old note was offered as "semantically similar".
+    Recent notes with no vocabulary in common with the old note give nothing.
+    """
+    builder = VaultBuilder(tmp_path)
+    _note(builder, "Compost Today", COMPOST, 2)
+    _note(builder, "Kettle", "boiling water teapot", 3)
+    _note(builder, "Railway Archive", "timetable platform signal carriage", 200)
+
+    assert recent_focus.suggest(builder.build()) == []
+
+
+def test_recent_focus_old_notes_are_not_recent_work(tmp_path):
+    """Regression: "recent" was simply the 5 latest-modified notes, so in a vault
+    untouched for 200 days one old note became "your recent work" and its
+    equally old twin "your older note". Nothing modified in 60 days -> nothing.
+    """
+    builder = VaultBuilder(tmp_path)
+    _note(builder, "Compost Draft", COMPOST, 200)
+    _note(builder, "Compost Archive", COMPOST, 210)
+    _note(builder, "Kettle", "boiling water teapot", 220)
+
+    assert recent_focus.suggest(builder.build()) == []

@@ -1,425 +1,132 @@
-"""Unit tests for seasonal_revisit geist."""
+"""Tests for the seasonal_revisit geist.
 
-import os
+Trigger: a non-journal note created in the session date's (Northern
+Hemisphere) season of an EARLIER season-year. Seasons are Mar-May, Jun-Aug,
+Sep-Nov and Dec-Feb; a winter runs from December into the next year, so
+December belongs to the following year's winter. The geist keeps the 3 most
+recent matches and samples 2.
+"""
+
 from datetime import datetime
+from pathlib import Path
 
-import pytest
-
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import seasonal_revisit
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+# SESSION_DATE (VaultBuilder default) is 2024-03-15: Spring.
 
 
-@pytest.fixture
-def vault_with_past_seasonal_notes(tmp_path):
-    """Create a vault with notes from same season in previous years."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-    current_month = now.month
-
-    # Create notes from same season in previous years
-    # If current month is March (Spring), create March notes from past years
-    for year_offset in range(1, 4):  # 1, 2, 3 years ago
-        for i in range(5):
-            path = vault_path / f"seasonal_{year_offset}y_ago_{i}.md"
-            content = f"""# Seasonal Note {year_offset} Years Ago {i}
-
-Content from the same season {year_offset} year(s) ago."""
-            path.write_text(content)
-            # Set creation time to same month, previous years
-            past_date = datetime(now.year - year_offset, current_month, min(15 + i, 28))
-            os.utime(path, (past_date.timestamp(), past_date.timestamp()))
-
-    # Add current year notes (should be excluded)
-    for i in range(5):
-        path = vault_path / f"current_season_{i}.md"
-        content = f"""# Current Season Note {i}
-
-Content from current year."""
-        path.write_text(content)
-
-    # Add notes from different seasons
-    for i in range(10):
-        path = vault_path / f"other_season_{i}.md"
-        # Use a different month (6 months offset)
-        other_month = (current_month + 6) % 12 or 12
-        content = f"""# Other Season Note {i}
-
-Content from different season."""
-        path.write_text(content)
-        other_date = datetime(now.year - 1, other_month, 15)
-        os.utime(path, (other_date.timestamp(), other_date.timestamp()))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _vault(
+    root: Path, created: dict[str, datetime], session_date: datetime = SESSION_DATE
+) -> VaultContext:
+    builder = VaultBuilder(root)
+    for title, when in created.items():
+        builder.note(title, f"Thoughts about {title.lower()}.", created=when)
+    return builder.build(session_date=session_date)
 
 
-@pytest.fixture
-def vault_no_past_seasonal_notes(tmp_path):
-    """Create a vault with no notes from same season in previous years."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def test_seasonal_revisit_surfaces_last_springs_note(tmp_path):
+    # Trigger arithmetic: 2023-04-20 is Spring (April) of 2023 < 2024.
+    ctx = _vault(tmp_path, {"Spring Planting": datetime(2023, 4, 20)})
 
-    now = datetime.now()
-    current_month = now.month
+    suggestions = seasonal_revisit.suggest(ctx)
 
-    # Only create notes from different seasons
-    for i in range(15):
-        path = vault_path / f"note_{i}.md"
-        # Use a different month (6 months offset)
-        other_month = (current_month + 6) % 12 or 12
-        content = f"""# Note {i}
-
-Content from different season."""
-        path.write_text(content)
-        other_date = datetime(now.year - 1, other_month, 15)
-        os.utime(path, (other_date.timestamp(), other_date.timestamp()))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_seasonal_revisit_returns_suggestions(vault_with_past_seasonal_notes):
-    """Test that seasonal_revisit returns suggestions with past seasonal notes.
-
-    Setup:
-        Vault with notes from same season in past years.
-
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_past_seasonal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(suggestions, "seasonal_revisit", must_reference=["Spring Planting"])
+    assert suggestions[0].text == (
+        "**Spring again**. Last year in spring, you wrote [[Spring Planting]]. "
+        "What patterns repeat with the seasons?"
     )
 
-    suggestions = seasonal_revisit.suggest(context)
 
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
+def test_seasonal_revisit_season_edges(tmp_path):
+    """Boundary pairs at both ends of Spring: Feb 28 / Mar 1 and May 31 / Jun 1."""
+    outside = {
+        "Late February": datetime(2023, 2, 28, 12),
+        "First Of June": datetime(2023, 6, 1, 12),
+    }
+    inside = {"First Of March": datetime(2023, 3, 1, 12), "End Of May": datetime(2023, 5, 31, 12)}
 
+    assert seasonal_revisit.suggest(_vault(tmp_path / "outside", outside)) == []
 
-def test_seasonal_revisit_suggestion_structure(vault_with_past_seasonal_notes):
-    """Test that suggestions have correct structure.
+    suggestions = seasonal_revisit.suggest(_vault(tmp_path / "inside", inside))
 
-    Setup:
-        Vault with historical seasonal notes.
-
-    Verifies:
-        - Has required fields
-        - References notes from same season"""
-    vault, session = vault_with_past_seasonal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions, "seasonal_revisit", min_count=2, must_reference=list(inside)
     )
 
-    suggestions = seasonal_revisit.suggest(context)
 
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
+def test_seasonal_revisit_ignores_this_years_season(tmp_path):
+    """A note from earlier this spring is not a memory of a past spring."""
+    ctx = _vault(tmp_path, {"This Spring": datetime(2024, 3, 2)})
 
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "seasonal_revisit"
-
-        # Should reference 1 note
-        assert len(suggestion.notes) == 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
+    assert seasonal_revisit.suggest(ctx) == []
 
 
-def test_seasonal_revisit_uses_link_text(vault_with_past_seasonal_notes):
-    """Test that seasonal_revisit uses link_text for note references.
+def test_seasonal_revisit_december_belongs_to_the_current_winter(tmp_path):
+    """Winter straddles New Year: in January 2024, December 2023 is THIS winter.
 
-    Setup:
-        Vault with seasonal notes.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_past_seasonal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Regression: the geist compared calendar years, so a note written three
+    weeks earlier was announced as "Last year in winter". Last winter's notes
+    (January 2023 and December 2022) are still one season-year back.
+    """
+    ctx = _vault(
+        tmp_path,
+        {
+            "Three Weeks Ago": datetime(2023, 12, 20),
+            "Last January": datetime(2023, 1, 10),
+            "Last December": datetime(2022, 12, 20),
+        },
+        session_date=datetime(2024, 1, 10),
     )
 
-    suggestions = seasonal_revisit.suggest(context)
+    suggestions = seasonal_revisit.suggest(ctx)
 
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_seasonal_revisit_empty_vault(tmp_path):
-    """Test that seasonal_revisit handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "seasonal_revisit",
+        min_count=2,
+        must_reference=["Last January", "Last December"],
+        must_not_reference=["geist journal", "Three Weeks Ago"],
     )
-
-    suggestions = seasonal_revisit.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
+    assert all("Last year in winter" in s.text for s in suggestions)
 
 
-def test_seasonal_revisit_no_past_seasonal(vault_no_past_seasonal_notes):
-    """Test that seasonal_revisit handles vault with no past seasonal notes."""
-    vault, session = vault_no_past_seasonal_notes
+def test_seasonal_revisit_caps_at_two_of_the_three_most_recent(tmp_path):
+    """Cap: 14 past springs (2010-2023) give exactly 2 suggestions, both from 2021-2023."""
+    ctx = _vault(tmp_path, {f"Spring {y}": datetime(y, 4, 1) for y in range(2010, 2024)})
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
+    suggestions = seasonal_revisit.suggest(ctx)
 
-    suggestions = seasonal_revisit.suggest(context)
-
-    # Should return empty list when no past seasonal notes
-    assert len(suggestions) == 0
-
-
-def test_seasonal_revisit_only_current_year(tmp_path):
-    """Test that seasonal_revisit ignores notes from current year."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-
-    # Only create notes from current year (should be excluded)
-    for i in range(15):
-        path = vault_path / f"current_{i}.md"
-        content = f"# Current {i}\n\nContent."
-        path.write_text(content)
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = seasonal_revisit.suggest(context)
-
-    # Should return empty when only current year notes exist
-    assert len(suggestions) == 0
-
-
-def test_seasonal_revisit_max_suggestions(vault_with_past_seasonal_notes):
-    """Test that seasonal_revisit never returns more than 2 suggestions.
-
-    Setup:
-        Vault with many seasonal notes.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_past_seasonal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = seasonal_revisit.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_seasonal_revisit_deterministic_with_seed(vault_with_past_seasonal_notes):
-    """Test that seasonal_revisit returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_past_seasonal_notes
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = seasonal_revisit.suggest(context1)
-    suggestions2 = seasonal_revisit.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
+    assert len(suggestions) == 2
+    assert_valid_suggestions(suggestions, "seasonal_revisit")
+    referenced = {ref for s in suggestions for ref in s.notes}
+    assert referenced <= {"Spring 2021", "Spring 2022", "Spring 2023"}, referenced
 
 
 def test_seasonal_revisit_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
+    """Both directions: last spring's note is surfaced, last spring's session note is not."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Real Spring", "Garden.", created=datetime(2023, 4, 2))
+    builder.journal("2023-04-02", "Session output.", created=datetime(2023, 4, 2))
+    ctx = builder.build()
 
-    Setup:
-        Vault with journal + regular notes.
+    suggestions = seasonal_revisit.suggest(ctx)
 
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with seasonal content
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    now = datetime.now()
-    current_month = now.month
-
-    for i in range(5):
-        path = journal_dir / f"2024-03-{15 + i:02d}.md"
-        content = f"""# Session {i}
-
-Content from the same season years ago. Seasonal patterns.
-
-^g20240315-{i}"""
-        path.write_text(content)
-        # Set creation time to same season, previous year
-        past_date = datetime(now.year - 1, current_month, min(15 + i, 28))
-        os.utime(path, (past_date.timestamp(), past_date.timestamp()))
-
-    # Create notes from same season in previous years
-    for year_offset in range(1, 4):  # 1, 2, 3 years ago
-        for i in range(5):
-            path = vault_path / f"seasonal_{year_offset}y_ago_{i}.md"
-            content = f"""# Seasonal Note {year_offset} Years Ago {i}
-
-Content from the same season {year_offset} year(s) ago."""
-            path.write_text(content)
-            past_date = datetime(now.year - year_offset, current_month, min(15 + i, 28))
-            os.utime(path, (past_date.timestamp(), past_date.timestamp()))
-
-    # Add current year notes
-    for i in range(5):
-        path = vault_path / f"current_season_{i}.md"
-        content = f"""# Current Season Note {i}
-
-Content from current year."""
-        path.write_text(content)
-
-    # Add notes from different seasons
-    for i in range(10):
-        path = vault_path / f"other_season_{i}.md"
-        other_month = (current_month + 6) % 12 or 12
-        content = f"""# Other Season Note {i}
-
-Content from different season."""
-        path.write_text(content)
-        other_date = datetime(now.year - 1, other_month, 15)
-        os.utime(path, (other_date.timestamp(), other_date.timestamp()))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "seasonal_revisit",
+        must_reference=["Real Spring"],
+        must_not_reference=["geist journal", "2023-04-02"],
     )
+    assert len(suggestions) == 1
 
-    suggestions = seasonal_revisit.suggest(context)
 
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()
+def test_seasonal_revisit_is_deterministic_for_a_seed(tmp_path):
+    created = {f"Spring {y}": datetime(y, 4, 1) for y in (2021, 2022, 2023)}
+
+    first = seasonal_revisit.suggest(_vault(tmp_path / "a", created))
+    second = seasonal_revisit.suggest(_vault(tmp_path / "b", created))
+
+    assert len(first) == 2
+    assert [s.text for s in first] == [s.text for s in second]

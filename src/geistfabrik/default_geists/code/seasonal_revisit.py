@@ -5,6 +5,7 @@ as the current date, revealing seasonal patterns in your thinking and
 encouraging reflection on yearly rhythms.
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -12,6 +13,11 @@ if TYPE_CHECKING:
 
 from geistfabrik import Suggestion
 from geistfabrik.temporal_analysis import get_season
+
+
+def _season_year(date: datetime) -> int:
+    """Year a date's season belongs to: December starts the next year's winter."""
+    return date.year + 1 if date.month == 12 else date.year
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -29,7 +35,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Session date, not wall-clock: keeps --date replays deterministic
     today = vault.session.date
     current_season = get_season(today)
-    current_year = today.year
+    current_year = _season_year(today)
 
     # Find notes from same season in previous years
     seasonal_notes = []
@@ -37,9 +43,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     all_notes = vault.notes_excluding_journal()
     for note in all_notes:
         note_season = get_season(note.created)
-        note_year = note.created.year
+        note_year = _season_year(note.created)
 
-        # Same season, but not current year (looking back)
+        # Same season of an earlier season-year (looking back); December and
+        # the following January/February are the same winter.
         if note_season == current_season and note_year < current_year:
             years_ago = current_year - note_year
             seasonal_notes.append((note, years_ago))

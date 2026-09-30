@@ -25,7 +25,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     try:
-        notes = vault.notes()
+        # Geist journal session notes are output, not an intellectual period.
+        notes = vault.notes_excluding_journal()
 
         if len(notes) < 20:
             return []
@@ -36,12 +37,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Session date, not wall-clock: keeps --date replays deterministic
         now = vault.session.date
 
-        # Define time windows (quarters going back 2 years)
+        # Define time windows (90-day periods going back 2 years). They roll
+        # back from the session date rather than following calendar quarters,
+        # so label each by the months it spans ("Dec 2023 to Mar 2024").
         quarters = []
         for i in range(8):  # 8 quarters = 2 years
             end_date = now - timedelta(days=i * 90)
             start_date = end_date - timedelta(days=90)
-            quarters.append((start_date, end_date, f"Q{(i % 4) + 1}-{end_date.year}"))
+            quarters.append((start_date, end_date, f"{start_date:%b %Y} to {end_date:%b %Y}"))
 
         # Group notes by quarter and find if distinct semantic clusters emerge
         quarter_groups: dict[str, list[Note]] = {}

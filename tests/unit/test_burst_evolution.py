@@ -1,302 +1,177 @@
-"""Tests for burst_evolution geist."""
+"""Tests for the burst_evolution geist.
 
+Trigger: a burst day (>= 3 non-journal notes created that day) on which >= 3
+notes have >= 2 session snapshots. For each such note the geist reports
+drift = 1 - cos(first snapshot, last snapshot) over the SEMANTIC dimensions,
+labelled small (< 0.10) / moderate (< 0.25) / large (< 0.40) / very large.
+One suggestion, listing at most 7 notes, highest drift first.
+
+History vectors are injected with ``set_session_text`` (see
+tests/fixtures/temporal.py): the note's current file content is the last
+snapshot, the injected text is what it said in the earlier session.
+"""
+
+import re
 from datetime import datetime
+from pathlib import Path
 
-import pytest
-
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import burst_evolution
-from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
+from tests.fixtures.temporal import BASE16, set_session_text
+
+BURST_DAY = datetime(2023, 6, 10, 9, 0)
+HISTORY = datetime(2023, 9, 1)  # one earlier session -> 2 snapshots per note
+# Session 2024-03-15 is 279 days after BURST_DAY -> "9 months later".
+
+EXTRA9 = "quebec romeo sierra tango uniform victor whiskey xray yankee"
+BASE4 = "alpha bravo charlie delta"
+EXTRA8 = "quebec romeo sierra tango uniform victor whiskey xray"
+
+# title -> (earlier body, current body). Stub drift (title words included):
+# Stable 0.0, Moderate 0.18, Large 0.35, Rewritten 0.60.
+NOTES = {
+    "Stable Note": ("steady unchanging text", "steady unchanging text"),
+    "Moderate Note": (BASE16, f"{BASE16} {EXTRA9}"),
+    "Large Note": (BASE4, f"{BASE4} {EXTRA8}"),
+    "Rewritten Note": ("gardens soil compost", "rockets orbit fuel"),
+}
 
 
-@pytest.fixture
-def vault_with_sessions(tmp_path):
-    """Create a test vault with burst days and multiple sessions."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _burst(
+    root: Path,
+    notes: dict[str, tuple[str, str]],
+    *,
+    day: datetime = BURST_DAY,
+    history: bool = True,
+    builder: VaultBuilder | None = None,
+) -> VaultContext:
+    builder = builder or VaultBuilder(root)
+    for title, (_, current) in notes.items():
+        builder.note(title, current, created=day)
+    ctx = builder.build(history=[HISTORY] if history else [])
+    if history:
+        for title, (earlier, _) in notes.items():
+            set_session_text(ctx, f"{title}.md", HISTORY, f"# {title}\n\n{earlier}")
+    return ctx
 
-    # Create burst day: 2024-03-15 with 5 notes
-    burst_date = datetime(2024, 3, 15, 10, 0, 0)
-    note_titles = []
-    for i in range(5):
-        title = f"Burst Note {i}"
-        note_titles.append(title)
-        note_path = vault_path / f"burst_note_{i}.md"
-        # Create notes with different content to get different embeddings
-        content = f"# {title}\n\n{'Content ' * (i + 1)} about topic {i}."
-        note_path.write_text(content)
 
-    # Initialise vault and sync
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set created dates
-    for i in range(5):
-        vault.db.execute(
-            "UPDATE notes SET created = ? WHERE title = ?",
-            (burst_date.isoformat(), f"Burst Note {i}"),
+def _lines(text: str) -> list[tuple[str, float, str]]:
+    return [
+        (title, float(drift), label)
+        for title, drift, label in re.findall(
+            r"- \[\[([^\]]+)\]\]: ([\d.]+) semantic distance \(([a-z ]+)\)", text
         )
-    vault.db.commit()
-
-    # Create initial session (creation session)
-    session1_date = datetime(2024, 3, 16)  # Day after creation
-    session1 = Session(session1_date, vault.db)
-    notes = vault.all_notes()
-    session1.compute_embeddings(notes)
-
-    # Create second session (current session) with slightly modified embeddings
-    # This simulates notes evolving
-    session2_date = datetime(2024, 6, 15)  # 3 months later
-    session2 = Session(session2_date, vault.db)
-
-    # For testing, we'll just compute embeddings again
-    # In real usage, notes would have changed and embeddings would differ
-    session2.compute_embeddings(notes)
-
-    return vault, session1, session2
+    ]
 
 
-def test_burst_evolution_detects_burst_with_history(vault_with_sessions):
-    """Test that burst_evolution detects semantic drift in burst day notes.
+def test_burst_evolution_reports_measured_drift_per_burst_note(tmp_path):
+    ctx = _burst(tmp_path, NOTES)
 
-    Uses vault with 5-note burst day (2024-03-15) and two sessions 3 months apart.
-    Verifies geist returns at most 1 suggestion with burst date and "drift" language.
-    """
-    vault, session1, session2 = vault_with_sessions
+    suggestions = burst_evolution.suggest(ctx)
 
-    function_registry = FunctionRegistry()
-    context = VaultContext(
-        vault=vault,
-        session=session2,
-        seed=20240615,
-        function_registry=function_registry,
+    assert_valid_suggestions(suggestions, "burst_evolution", must_reference=list(NOTES))
+    [suggestion] = suggestions
+    assert suggestion.text.startswith("On 2023-06-10, you created 4 notes. 9 months later:\n")
+    lines = _lines(suggestion.text)
+    assert [(title, label) for title, _, label in lines] == [
+        ("Rewritten Note", "very large change"),
+        ("Large Note", "large change"),
+        ("Moderate Note", "moderate change"),
+        ("Stable Note", "small change"),
+    ]
+    assert lines[-1][1] == 0.0
+    # Average drift 0.28 is mid-range: the stable note is named as the anchor.
+    assert "[[Stable Note]] have the smallest measured changes" in suggestion.text
+    assert sorted(suggestion.notes) == sorted(NOTES)
+
+
+def test_burst_evolution_ignores_calendar_only_movement(tmp_path):
+    """Unchanged notes drift 0 even though every session adds a new calendar tail."""
+    unchanged = {f"Steady {i}": ("same words here", "same words here") for i in range(3)}
+    ctx = _burst(tmp_path, unchanged)
+
+    [suggestion] = burst_evolution.suggest(ctx)
+
+    assert [drift for _, drift, _ in _lines(suggestion.text)] == [0.0, 0.0, 0.0]
+    assert "This group has a low average representation change." in suggestion.text
+
+
+def test_burst_evolution_low_average_observation(tmp_path):
+    # Stub drift per note is 0.10 (17 words kept, 4 added), mean < 0.15.
+    nudged = {f"Low {i}": (BASE16, f"{BASE16} quebec romeo sierra tango") for i in range(3)}
+    ctx = _burst(tmp_path, nudged)
+
+    [suggestion] = burst_evolution.suggest(ctx)
+
+    assert [label for _, _, label in _lines(suggestion.text)] == ["moderate change"] * 3
+    assert "This group has a low average representation change." in suggestion.text
+
+
+def test_burst_evolution_high_average_observation(tmp_path):
+    # Stub drift per note is 0.67 ("rewrite" is the only word kept), mean > 0.45.
+    rewritten = {f"Rewrite {i}": ("gardens soil", "rockets orbit") for i in range(3)}
+    ctx = _burst(tmp_path, rewritten)
+
+    [suggestion] = burst_evolution.suggest(ctx)
+
+    assert "This group has a high average representation change." in suggestion.text
+
+
+def test_burst_evolution_needs_a_second_snapshot(tmp_path):
+    """Boundary pair: 1 snapshot per note -> no drift to report; 2 -> reported."""
+    assert burst_evolution.suggest(_burst(tmp_path / "one", NOTES, history=False)) == []
+    assert_valid_suggestions(
+        burst_evolution.suggest(_burst(tmp_path / "two", NOTES)), "burst_evolution"
     )
 
-    suggestions = burst_evolution.suggest(context)
 
-    # The fixture has a five-note burst and two complete snapshots; an empty
-    # result would make all of the content assertions below vacuous.
-    assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "burst_evolution"
-    assert "2024-03-15" in suggestion.text
-    assert "semantic distance" in suggestion.text.lower()
-    assert "your understanding" not in suggestion.text.lower()
+def test_burst_evolution_needs_three_notes_on_the_day(tmp_path):
+    """Boundary pair: 2 notes with history is not a burst; 3 is."""
+    two = dict(list(NOTES.items())[:2])
+    three = dict(list(NOTES.items())[:3])
 
-
-def test_burst_evolution_no_sessions(tmp_path):
-    """Test that burst_evolution returns empty when no historical embeddings exist.
-
-    Creates vault with 5-note burst day but deletes session_embeddings table.
-    Verifies geist returns [] since drift detection requires embedding history.
-    """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create burst day with notes
-    for i in range(5):
-        note_path = vault_path / f"note_{i}.md"
-        note_path.write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    burst_date = datetime(2024, 3, 15)
-    vault.db.execute("UPDATE notes SET created = ?", (burst_date.isoformat(),))
-    vault.db.commit()
-
-    # Create session WITHOUT populating session_embeddings
-    # (just current embeddings, no history)
-    session = Session(datetime(2024, 3, 16), vault.db)
-    notes = vault.all_notes()
-    session.compute_embeddings(notes)
-
-    # Delete session_embeddings to simulate no history
-    vault.db.execute("DELETE FROM session_embeddings")
-    vault.db.commit()
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240316,
-        function_registry=FunctionRegistry(),
+    assert burst_evolution.suggest(_burst(tmp_path / "two", two)) == []
+    assert_valid_suggestions(
+        burst_evolution.suggest(_burst(tmp_path / "three", three)), "burst_evolution"
     )
 
-    suggestions = burst_evolution.suggest(context)
 
-    # Should return empty list (no historical embeddings)
-    assert len(suggestions) == 0
+def test_burst_evolution_lists_at_most_seven_notes(tmp_path):
+    """Display cap: a 9-note burst lists 7 drift lines but references all 9 notes."""
+    nine = {f"Idea {i}": (f"early words {i}", f"early words {i}") for i in range(9)}
+    ctx = _burst(tmp_path, nine)
+
+    [suggestion] = burst_evolution.suggest(ctx)
+
+    assert len(_lines(suggestion.text)) == 7
+    assert sorted(suggestion.notes) == sorted(nine)
 
 
-def test_burst_evolution_no_bursts(tmp_path):
-    """Test that burst_evolution returns empty when vault has no burst days.
+def test_burst_evolution_ignores_geist_journal(tmp_path):
+    """Journal notes neither form a burst nor count towards one.
 
-    Creates vault with only 2 notes (below 3-note burst threshold).
-    Verifies geist returns [] since no burst days exist to analyze for drift.
+    Day A: 3 regular notes (a burst). Day B: 2 regular notes plus 3 session
+    notes, all with history (not a burst). Whatever day order a seed samples,
+    only day A is reported, and no session note is listed.
     """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create only 2 notes per day (below burst threshold)
+    day_b = datetime(2023, 7, 1, 9, 0)
+    builder = VaultBuilder(tmp_path)
     for i in range(2):
-        note_path = vault_path / f"note_{i}.md"
-        note_path.write_text(f"# Note {i}\n\nContent.")
+        builder.note(f"Near Miss {i}", "near miss words", created=day_b)
+    for i in range(3):
+        builder.journal(f"Session {i}", "session output words", created=day_b)
+    ctx = _burst(tmp_path, dict(list(NOTES.items())[:3]), builder=builder)
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = burst_evolution.suggest(context)
-
-    # Should return empty list (no bursts)
-    assert len(suggestions) == 0
-
-
-def test_burst_evolution_insufficient_drift_data(vault_with_sessions):
-    """Test that burst_evolution returns empty when insufficient notes have drift history.
-
-    Uses vault with 5-note burst but deletes session_embeddings for 3 notes (keeps 2).
-    Verifies geist returns [] since drift detection requires at least 3 notes with history.
-    """
-    vault, session1, session2 = vault_with_sessions
-
-    # Delete session_embeddings for most notes, keeping only 2
-    paths = [note.path for note in vault.all_notes()]
-    paths_to_keep = paths[:2]
-
-    vault.db.execute(
-        """
-        DELETE FROM session_embeddings
-        WHERE note_path NOT IN ({})
-        """.format(",".join("?" * len(paths_to_keep))),
-        paths_to_keep,
-    )
-    vault.db.commit()
-
-    context = VaultContext(
-        vault=vault,
-        session=session2,
-        seed=20240615,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = burst_evolution.suggest(context)
-
-    # Should return empty (need at least 3 notes with drift data)
-    assert len(suggestions) == 0
-
-
-def test_burst_evolution_excludes_geist_journal(tmp_path):
-    """Test that burst_evolution excludes geist journal notes from analysis.
-
-    Creates vault with 10 journal notes + 2 regular notes (all on same day).
-    Verifies geist returns [] since journal notes are excluded and only 2 regular notes remain.
-    """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    # Create 10 journal notes
-    for i in range(10):
-        note_path = journal_dir / f"2024-03-{15 + i:02d}.md"
-        note_path.write_text(f"# Session {i}\n\nJournal entry.")
-
-    # Create only 2 regular notes (below threshold)
-    for i in range(2):
-        note_path = vault_path / f"note_{i}.md"
-        note_path.write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    burst_date = datetime(2024, 3, 15)
-    vault.db.execute("UPDATE notes SET created = ?", (burst_date.isoformat(),))
-    vault.db.commit()
-
-    session = Session(burst_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = burst_evolution.suggest(context)
-
-    # Should return empty (journal excluded, only 2 regular notes)
-    assert len(suggestions) == 0
-
-
-def test_burst_evolution_drift_label():
-    """Test that _drift_label() classifies drift magnitudes correctly.
-
-    Tests internal helper function with known drift values (0.05, 0.15, 0.30, 0.50).
-    Verifies each magnitude maps to correct label (stable/moderate/significant/major).
-    """
-    from geistfabrik.default_geists.code.burst_evolution import _drift_label
-
-    assert _drift_label(0.05) == "small change"
-    assert _drift_label(0.15) == "moderate change"
-    assert _drift_label(0.30) == "large change"
-    assert _drift_label(0.50) == "very large change"
-
-
-def test_burst_evolution_includes_note_titles(vault_with_sessions):
-    """Test that burst_evolution includes note titles in suggestion.notes field.
-
-    Uses vault with 5-note burst day and two sessions.
-    Verifies suggestion (if generated) includes at least 3 note titles as strings.
-    """
-    vault, session1, session2 = vault_with_sessions
-
-    context = VaultContext(
-        vault=vault,
-        session=session2,
-        seed=20240615,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = burst_evolution.suggest(context)
-
-    if suggestions:
-        # Should have note titles
-        assert len(suggestions[0].notes) >= 3
-        # All should be note titles
-        for note_title in suggestions[0].notes:
-            assert isinstance(note_title, str)
-
-
-def test_burst_evolution_single_suggestion(vault_with_sessions):
-    """Test that burst_evolution never returns more than 1 suggestion.
-
-    Uses vault with 5-note burst day and two sessions.
-    Verifies geist returns 0 or 1 suggestions (never 2+), respecting output limit.
-    """
-    vault, session1, session2 = vault_with_sessions
-
-    context = VaultContext(
-        vault=vault,
-        session=session2,
-        seed=20240615,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = burst_evolution.suggest(context)
-
-    # Should return 0 or 1, never more
-    assert len(suggestions) <= 1
+    for seed in range(6):
+        seeded = VaultContext(
+            ctx.vault, ctx.session, seed=seed, function_registry=FunctionRegistry()
+        )
+        suggestions = burst_evolution.suggest(seeded)
+        assert_valid_suggestions(
+            suggestions,
+            "burst_evolution",
+            must_reference=["Stable Note"],
+            must_not_reference=["geist journal", "Session", "Near Miss"],
+        )

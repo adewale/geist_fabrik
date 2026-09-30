@@ -25,8 +25,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         semantic_component,
     )
 
-    # For each note, calculate embedding variance across sessions
-    notes = vault.notes()
+    # For each note, calculate embedding variance across sessions. Geist
+    # journal session notes are output, not notes with an interpretation.
+    notes = vault.notes_excluding_journal()
     suggestions = []
 
     for note in vault.sample(notes, min(50, len(notes))):

@@ -1,377 +1,165 @@
-"""Unit tests for temporal_clustering geist."""
+"""Tests for the temporal_clustering geist.
 
-import os
-from datetime import datetime, timedelta
+Trigger: >= 20 non-journal notes; notes are grouped into eight consecutive
+90-day windows ending at the session date (2 years). A window with >= 5 notes
+whose (sampled) average pairwise similarity is > 0.5 is a coherent period.
+With >= 2 coherent periods, ONE suggestion contrasts the two most coherent,
+naming 3 notes from each.
 
-import pytest
+Session 2024-03-15 windows: #0 2023-12-16..2024-03-15, #1 2023-09-17..
+2023-12-16, #2 2023-06-19..2023-09-17, ... #7 ends 2022-03-26.
+"""
 
-from geistfabrik import Vault, VaultContext
+from datetime import datetime
+from pathlib import Path
+
 from geistfabrik.default_geists.code import temporal_clustering
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+WINTER, AUTUMN, SUMMER = datetime(2024, 2, 1), datetime(2023, 11, 1), datetime(2023, 8, 1)
+LONG_AGO = datetime(2021, 6, 1)  # outside the 2-year horizon
 
-
-@pytest.fixture
-def vault_with_temporal_notes(tmp_path):
-    """Create a vault with notes spread across different time periods."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-
-    # Create notes in different quarters (over 2 years)
-    for quarter in range(8):
-        for i in range(7):  # 7 notes per quarter (56 total)
-            date = now - timedelta(days=quarter * 90 + i * 10)
-            path = vault_path / f"q{quarter}_note_{i}.md"
-            path.write_text(f"# Q{quarter} Note {i}\n\nContent from quarter {quarter}.")
-            # Set file times to match the quarter
-            timestamp = date.timestamp()
-            os.utime(path, (timestamp, timestamp))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+# Each note is "<theme words> <one unique word>" under a "<Theme> i" title, so
+# notes of one period share all but one word: pairwise similarity 8/9 = 0.89
+# (garden), 7/8 = 0.88 (rocket), 2/3 = 0.67 (violin).
+THEMES = {
+    "Garden": "gardens soil compost mulch seeds worms rain",
+    "Rocket": "rockets orbit fuel launch booster payload",
+    "Violin": "rosin",
+}
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes for clustering."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 15 notes (below minimum of 20)
-    for i in range(15):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _unique(prefix: str, i: int) -> str:
+    return " ".join(f"{prefix}{i}{suffix}" for suffix in ("alpha", "bravo", "charlie"))
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _vault(
+    root: Path, periods: list[tuple[str, datetime, int]], *, scattered: int = 0
+) -> VaultContext:
+    """``periods``: (theme, created, count) coherent groups; plus ``scattered``
+    notes with unique vocabulary created in the SUMMER window."""
+    builder = VaultBuilder(root)
+    for theme, created, count in periods:
+        for i in range(count):
+            builder.note(f"{theme} {i}", f"{THEMES[theme]} {theme.lower()}{i}x", created=created)
+    for i in range(scattered):
+        builder.note(f"Scattered {i}", _unique("scatter", i), created=SUMMER)
+    return builder.build()
 
 
-def test_temporal_clustering_returns_suggestions(vault_with_temporal_notes):
-    """Test that temporal_clustering returns suggestions with temporal notes.
+def test_temporal_clustering_contrasts_two_coherent_periods(tmp_path):
+    # Trigger arithmetic: 6 garden notes in window #0 and 6 rocket notes in
+    # window #1 are coherent (> 0.5); 8 scattered notes (~0) in window #2 are
+    # not. 20 notes in total.
+    ctx = _vault(tmp_path, [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6)], scattered=8)
 
-    Setup:
-        Vault with notes clustered by time.
+    suggestions = temporal_clustering.suggest(ctx)
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_temporal_notes
+    assert_valid_suggestions(
+        suggestions,
+        "temporal_clustering",
+        must_reference=["Garden", "Rocket"],
+        must_not_reference=["geist journal", "Scattered"],
+    )
+    [suggestion] = suggestions
+    assert len(suggestion.notes) == 6
+    assert sum(ref.startswith("Garden") for ref in suggestion.notes) == 3
+    assert sum(ref.startswith("Rocket") for ref in suggestion.notes) == 3
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+def test_temporal_clustering_labels_periods_by_their_dates(tmp_path):
+    """Regression: windows were labelled "Q{i % 4 + 1}-{year}" by their index,
+    so November 2023 notes (window #1) were called "Q2-2023". Labels name the
+    months each window spans."""
+    ctx = _vault(tmp_path, [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6)], scattered=8)
+
+    [suggestion] = temporal_clustering.suggest(ctx)
+
+    assert suggestion.text.startswith(
+        "Your Dec 2023 to Mar 2024 notes form a distinct semantic cluster"
+    )
+    assert "separate from your Sep 2023 to Dec 2023 notes" in suggestion.text
+    assert "Q2-2023" not in suggestion.text
+
+
+def test_temporal_clustering_needs_twenty_notes(tmp_path):
+    """Boundary pair: 19 notes -> nothing; 20 -> contrasted."""
+    periods = [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6)]
+
+    assert temporal_clustering.suggest(_vault(tmp_path / "19", periods, scattered=7)) == []
+    assert_valid_suggestions(
+        temporal_clustering.suggest(_vault(tmp_path / "20", periods, scattered=8)),
+        "temporal_clustering",
     )
 
-    suggestions = temporal_clustering.suggest(context)
 
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
+def test_temporal_clustering_period_needs_five_notes(tmp_path):
+    """Boundary pair: a coherent 4-note period does not count; 5 notes does."""
+    four = _vault(tmp_path / "4", [("Garden", WINTER, 6), ("Rocket", AUTUMN, 4)], scattered=10)
+    five = _vault(tmp_path / "5", [("Garden", WINTER, 6), ("Rocket", AUTUMN, 5)], scattered=9)
 
-
-def test_temporal_clustering_suggestion_structure(vault_with_temporal_notes):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with temporal clusters.
-
-    Verifies:
-        - Has required fields
-        - References notes from same time period"""
-    vault, session = vault_with_temporal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert temporal_clustering.suggest(four) == []
+    assert_valid_suggestions(
+        temporal_clustering.suggest(five), "temporal_clustering", must_reference=["Rocket"]
     )
 
-    suggestions = temporal_clustering.suggest(context)
 
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "temporal_clustering"
-
-        # Should reference multiple notes (samples from 2 clusters)
-        assert len(suggestion.notes) >= 2
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_temporal_clustering_uses_link_text(vault_with_temporal_notes):
-    """Test that temporal_clustering uses link_text for note references.
-
-    Setup:
-        Vault with temporal clusters.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_temporal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+def test_temporal_clustering_reports_only_the_two_most_coherent_periods(tmp_path):
+    """Three coherent periods yield one suggestion about the top two; the least
+    coherent (violin, 0.67) is left out."""
+    ctx = _vault(
+        tmp_path,
+        [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6), ("Violin", SUMMER, 8)],
     )
 
-    suggestions = temporal_clustering.suggest(context)
+    suggestions = temporal_clustering.suggest(ctx)
 
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_temporal_clustering_empty_vault(tmp_path):
-    """Test that temporal_clustering handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "temporal_clustering",
+        must_reference=["Garden", "Rocket"],
+        must_not_reference=["geist journal", "Violin"],
     )
-
-    suggestions = temporal_clustering.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
+    assert len(suggestions) == 1
 
 
-def test_temporal_clustering_insufficient_notes(vault_insufficient_notes):
-    """Test that temporal_clustering handles insufficient notes gracefully.
+def test_temporal_clustering_ignores_periods_older_than_two_years(tmp_path):
+    """A coherent period from 2021 is outside the eight windows."""
+    ctx = _vault(tmp_path, [("Garden", WINTER, 6), ("Rocket", LONG_AGO, 6)], scattered=8)
 
-    Setup:
-        Vault with < 15 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = temporal_clustering.suggest(context)
-
-    # Should return empty list when < 20 notes
-    assert len(suggestions) == 0
-
-
-def test_temporal_clustering_max_suggestions(vault_with_temporal_notes):
-    """Test that temporal_clustering never returns more than 2 suggestions.
-
-    Setup:
-        Vault with temporal clusters.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_temporal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = temporal_clustering.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_temporal_clustering_deterministic_with_seed(vault_with_temporal_notes):
-    """Test that temporal_clustering returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_temporal_notes
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = temporal_clustering.suggest(context1)
-    suggestions2 = temporal_clustering.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_temporal_clustering_groups_by_quarter(tmp_path):
-    """Test that temporal_clustering correctly groups notes by quarter."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-
-    # Create notes in distinct time periods
-    for i in range(30):
-        # All in recent quarter
-        date = now - timedelta(days=i)
-        path = vault_path / f"recent_{i}.md"
-        path.write_text(f"# Recent {i}\n\nRecent content.")
-        timestamp = date.timestamp()
-        os.utime(path, (timestamp, timestamp))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = temporal_clustering.suggest(context)
-
-    # With only one quarter populated, should not find multiple clusters
-    # (need at least 2 quarters with >= 5 notes each)
-    assert isinstance(suggestions, list)
+    assert temporal_clustering.suggest(ctx) == []
 
 
 def test_temporal_clustering_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
+    """Session notes are near-identical, so they form the most coherent
+    "period" of all. Both directions: the two user periods are contrasted and
+    no session note is named."""
+    builder = VaultBuilder(tmp_path)
+    for theme, created in (("Garden", WINTER), ("Rocket", AUTUMN)):
+        for i in range(6):
+            builder.note(f"{theme} {i}", f"{THEMES[theme]} {theme.lower()}{i}x", created=created)
+    for i in range(8):
+        builder.journal(f"2023-08-{i + 1:02d}", "geist session suggestions output", created=SUMMER)
+    for i in range(8):
+        builder.note(f"Scattered {i}", _unique("scatter", i), created=datetime(2023, 3, 1))
+    ctx = builder.build()
 
-    Setup:
-        Vault with journal + regular notes.
+    suggestions = temporal_clustering.suggest(ctx)
 
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    now = datetime.now()
-
-    for i in range(5):
-        date = now - timedelta(days=i)
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\nClustering patterns across temporal quarters."
-        )
-        # Set file times
-        timestamp = (now - timedelta(days=90 * i)).timestamp()
-        os.utime(journal_dir / f"2024-03-{15 + i:02d}.md", (timestamp, timestamp))
-
-    # Create notes across different quarters (over 2 years)
-    for quarter in range(8):
-        for i in range(7):  # 7 notes per quarter (56 total)
-            date = now - timedelta(days=quarter * 90 + i * 10)
-            path = vault_path / f"q{quarter}_note_{i}.md"
-            path.write_text(f"# Q{quarter} Note {i}\n\nContent from quarter {quarter}.")
-            # Set file times to match the quarter
-            timestamp = date.timestamp()
-            os.utime(path, (timestamp, timestamp))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "temporal_clustering",
+        must_reference=["Garden", "Rocket"],
+        must_not_reference=["geist journal", "2023-08-"],
     )
 
-    suggestions = temporal_clustering.suggest(context)
 
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()
+def test_temporal_clustering_is_deterministic_for_a_seed(tmp_path):
+    periods = [("Garden", WINTER, 8), ("Rocket", AUTUMN, 8)]
+
+    first = temporal_clustering.suggest(_vault(tmp_path / "a", periods, scattered=4))
+    second = temporal_clustering.suggest(_vault(tmp_path / "b", periods, scattered=4))
+
+    assert len(first) == 1
+    assert [s.text for s in first] == [s.text for s in second]

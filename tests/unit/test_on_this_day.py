@@ -1,424 +1,143 @@
-"""Unit tests for on_this_day geist."""
+"""Tests for the on_this_day geist.
+
+Trigger: a non-journal note whose ``created`` has the session date's month and
+day in an earlier year. The geist keeps the 3 most recent such notes and
+samples 2 of them.
+"""
 
 from datetime import datetime
+from pathlib import Path
 
-import pytest
-
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import on_this_day
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+# SESSION_DATE is 2024-03-15, so every note below created on 03-15 of an
+# earlier year is an anniversary note.
 
 
-@pytest.fixture
-def vault_with_anniversary_notes(tmp_path):
-    """Create a vault with notes from same calendar date in different years."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _vault(root: Path, created: dict[str, datetime]) -> VaultContext:
+    builder = VaultBuilder(root)
+    for title, when in created.items():
+        builder.note(title, f"Thoughts about {title.lower()}.", created=when)
+    return builder.build()
 
-    # Create notes
-    (vault_path / "note1.md").write_text("# Note 1\n\nFirst anniversary note.")
-    (vault_path / "note2.md").write_text("# Note 2\n\nSecond anniversary note.")
-    (vault_path / "note3.md").write_text("# Note 3\n\nThird anniversary note.")
-    (vault_path / "other.md").write_text("# Other\n\nDifferent date.")
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
+def test_on_this_day_surfaces_note_from_same_date_last_year(tmp_path):
+    # Trigger arithmetic: 2023-03-15 matches month 3 / day 15 and 2023 < 2024.
+    ctx = _vault(tmp_path, {"Anniversary": datetime(2023, 3, 15, 8, 0)})
 
-    # Set creation dates - all on March 15 but different years
-    # Current "today" will be March 15, 2024
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2023, 3, 15, 10, 0).isoformat(), "Note 1"),  # 1 year ago
+    suggestions = on_this_day.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "on_this_day", must_reference=["Anniversary"])
+    assert suggestions[0].text == (
+        "One year ago today, you wrote [[Anniversary]]. What's changed since then?"
     )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2022, 3, 15, 10, 0).isoformat(), "Note 2"),  # 2 years ago
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2021, 3, 15, 10, 0).isoformat(), "Note 3"),  # 3 years ago
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2023, 5, 20, 10, 0).isoformat(), "Other"),  # Different date
-    )
-    vault.db.commit()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+    assert suggestions[0].notes == ["Anniversary"]
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def test_on_this_day_names_years_for_older_anniversaries(tmp_path):
+    ctx = _vault(tmp_path, {"Old Anniversary": datetime(2021, 3, 15, 8, 0)})
+
+    suggestions = on_this_day.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "on_this_day")
+    assert suggestions[0].text.startswith("3 years ago today, you wrote [[Old Anniversary]].")
 
 
-def test_on_this_day_finds_anniversary_notes(vault_with_anniversary_notes):
-    """Test that on_this_day finds notes from same date in previous years."""
-    vault, session = vault_with_anniversary_notes
-
-    # Mock today as March 15, 2024
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+def test_on_this_day_requires_exact_month_and_day(tmp_path):
+    """Boundary: the day before and after, and the same day in another month, never match."""
+    ctx = _vault(
+        tmp_path,
+        {
+            "Day Before": datetime(2023, 3, 14, 23, 0),
+            "Day After": datetime(2023, 3, 16, 0, 30),
+            "Other Month": datetime(2023, 4, 15, 12, 0),
+        },
     )
 
-    suggestions = on_this_day.suggest(context)
-
-    # Should return suggestions (at most 2)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
-    assert len(suggestions) > 0  # Should find at least one
-
-    # Verify suggestion structure
-    for suggestion in suggestions:
-        assert suggestion.geist_id == "on_this_day"
-        assert "ago today" in suggestion.text
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
+    assert on_this_day.suggest(ctx) == []
 
 
-def test_on_this_day_suggestion_structure(vault_with_anniversary_notes):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with historical same-day notes.
-
-    Verifies:
-        - Has required fields
-        - References notes from same calendar day"""
-    vault, session = vault_with_anniversary_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+def test_on_this_day_skips_current_and_future_years(tmp_path):
+    """Earlier-year boundary: 2024-03-15 (today's year) and 2025-03-15 are not history."""
+    ctx = _vault(
+        tmp_path,
+        {
+            "Written Today": datetime(2024, 3, 15, 7, 0),
+            "Future Dated": datetime(2025, 3, 15, 7, 0),
+        },
     )
 
-    suggestions = on_this_day.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "on_this_day"
-
-        # Should reference exactly 1 note
-        assert len(suggestion.notes) == 1
-
-        # Note reference should be string
-        assert isinstance(suggestion.notes[0], str)
+    assert on_this_day.suggest(ctx) == []
 
 
-def test_on_this_day_uses_link_text(vault_with_anniversary_notes):
-    """Test that on_this_day uses link_text for note references.
-
-    Setup:
-        Vault with dated notes.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_anniversary_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+def test_on_this_day_caps_at_two_of_the_three_most_recent_years(tmp_path):
+    """Cap: 14 anniversaries (2010-2023) give exactly 2 suggestions, both from 2021-2023."""
+    ctx = _vault(
+        tmp_path, {f"Year {year}": datetime(year, 3, 15, 9, 0) for year in range(2010, 2024)}
     )
 
-    suggestions = on_this_day.suggest(context)
+    suggestions = on_this_day.suggest(ctx)
 
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
+    assert len(suggestions) == 2
+    assert_valid_suggestions(suggestions, "on_this_day")
+    referenced = {ref for s in suggestions for ref in s.notes}
+    assert referenced <= {"Year 2021", "Year 2022", "Year 2023"}, referenced
 
 
-def test_on_this_day_year_phrase(vault_with_anniversary_notes):
-    """Test correct phrasing for 1 year vs multiple years."""
-    vault, session = vault_with_anniversary_notes
+def test_on_this_day_excludes_geist_journal(tmp_path):
+    """A session note written on 2023-03-15 is output, not something the user wrote.
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Both directions: the regular anniversary note is surfaced, the journal
+    note created on the same date is not.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Real Memory", "Spring walk.", created=datetime(2023, 3, 15, 9, 0))
+    builder.journal("2023-03-15", "Suggestions.", created=datetime(2023, 3, 15, 9, 0))
+    ctx = builder.build()
+
+    suggestions = on_this_day.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "on_this_day",
+        must_reference=["Real Memory"],
+        must_not_reference=["geist journal", "2023-03-15"],
     )
-
-    suggestions = on_this_day.suggest(context)
-
-    # Should have suggestions
-    assert len(suggestions) > 0
-
-    # Check for year phrasing
-    texts = [s.text for s in suggestions]
-    all_text = " ".join(texts)
-
-    # Should have either "One year ago" or "X years ago"
-    assert "One year ago today" in all_text or "years ago today" in all_text
+    assert len(suggestions) == 1
 
 
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_on_this_day_empty_vault(tmp_path):
-    """Test that on_this_day handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+def test_on_this_day_links_journal_file_entries_by_deeplink(tmp_path):
+    """A date-collection entry headed 2023-03-15 is linked as File#heading."""
+    (tmp_path / "Journal.md").write_text(
+        "## 2023-03-15\n\nCherry blossoms.\n\n## 2023-03-16\n\nRain.\n"
     )
+    ctx = VaultBuilder(tmp_path).build()
 
-    suggestions = on_this_day.suggest(context)
+    suggestions = on_this_day.suggest(ctx)
 
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
+    assert_valid_suggestions(suggestions, "on_this_day")
+    assert [s.notes for s in suggestions] == [["Journal#2023-03-15"]]
+    assert "[[Journal#2023-03-15]]" in suggestions[0].text
 
 
-def test_on_this_day_no_matching_dates(tmp_path):
-    """Test when no notes match the current date."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def test_on_this_day_is_deterministic_for_a_seed(tmp_path):
+    """Same vault, date and seed choose the same 2 of 3 candidates."""
+    created = {f"Year {year}": datetime(year, 3, 15, 9, 0) for year in (2021, 2022, 2023)}
+    first = on_this_day.suggest(_vault(tmp_path / "a", created))
+    second = on_this_day.suggest(_vault(tmp_path / "b", created))
 
-    # Create notes on different dates
-    (vault_path / "note1.md").write_text("# Note 1\n\nContent.")
-    (vault_path / "note2.md").write_text("# Note 2\n\nContent.")
+    assert len(first) == 2
+    assert [s.text for s in first] == [s.text for s in second]
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
 
-    # Set dates to NOT match March 15
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2023, 5, 20, 10, 0).isoformat(), "Note 1"),
+def test_on_this_day_uses_session_date_not_wall_clock(tmp_path):
+    """Replaying another session date finds that date's anniversaries."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Autumn Note", "Leaves.", created=datetime(2022, 10, 3, 9, 0))
+    ctx = builder.build(session_date=datetime(2023, 10, 3))
+
+    assert_valid_suggestions(
+        on_this_day.suggest(ctx), "on_this_day", must_reference=["Autumn Note"]
     )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2022, 7, 10, 10, 0).isoformat(), "Note 2"),
-    )
-    vault.db.commit()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    # Today is March 15 - no notes match
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = on_this_day.suggest(context)
-
-    # Should return empty when no matches
-    assert len(suggestions) == 0
-
-
-def test_on_this_day_excludes_current_year(tmp_path):
-    """Test that notes from current year are excluded."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create note on same date in current year
-    (vault_path / "this_year.md").write_text("# This Year\n\nCurrent year note.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set date to March 15, 2024 (current year when "today" is 2024)
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2024, 3, 15, 8, 0).isoformat(), "This Year"),
-    )
-    vault.db.commit()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    # Today is also March 15, 2024
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = on_this_day.suggest(context)
-
-    # Should exclude notes from current year
-    assert len(suggestions) == 0
-
-
-def test_on_this_day_excludes_future_dates(tmp_path):
-    """Test that notes with future dates are excluded."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create note with future date
-    (vault_path / "future.md").write_text("# Future\n\nFuture note.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set date to March 15, 2025 (future)
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2025, 3, 15, 10, 0).isoformat(), "Future"),
-    )
-    vault.db.commit()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    # Today is March 15, 2024
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = on_this_day.suggest(context)
-
-    # Should exclude future notes
-    assert len(suggestions) == 0
-
-
-# ============================================================================
-# Limit Tests
-# ============================================================================
-
-
-def test_on_this_day_max_two_suggestions(vault_with_anniversary_notes):
-    """Test that on_this_day returns at most 2 suggestions."""
-    vault, session = vault_with_anniversary_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = on_this_day.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_on_this_day_sorts_by_recency(vault_with_anniversary_notes):
-    """Test that on_this_day prefers more recent years."""
-    vault, session = vault_with_anniversary_notes
-
-    # Use deterministic seed
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = on_this_day.suggest(context)
-
-    # Should prioritize 1-year-ago over 2-years-ago over 3-years-ago
-    if len(suggestions) > 0:
-        # Check that suggestions mention recent years
-        texts = [s.text for s in suggestions]
-        all_text = " ".join(texts)
-
-        # Should include year references
-        assert "year" in all_text.lower() or "years" in all_text.lower()
-
-
-# ============================================================================
-# Virtual Notes Tests
-# ============================================================================
-
-
-def test_on_this_day_with_virtual_notes(tmp_path):
-    """Test that on_this_day works with virtual notes from journals."""
-    from tests.fixtures.virtual_notes import create_journal_file
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create journal with entry on March 15 in previous year
-    create_journal_file(
-        vault_path / "Journal.md",
-        dates=["2023-03-15", "2023-03-16"],
-        content_template="Journal entry for {date}.",
-    )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    # Today is March 15, 2024
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = on_this_day.suggest(context)
-
-    # Should find the virtual note from March 15, 2023
-    assert len(suggestions) > 0
-
-    # Check that virtual notes use deeplinks (contain '#')
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            # Virtual notes should have deeplink format
-            if "Journal" in note_ref:
-                assert "#" in note_ref, f"Virtual note missing deeplink: {note_ref}"

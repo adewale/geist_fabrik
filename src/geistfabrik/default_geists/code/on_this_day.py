@@ -31,8 +31,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     today = vault.session.date
     same_date_notes = []
 
-    all_notes = vault.notes()
-    for note in all_notes:
+    # Session output is not something the user wrote on this day.
+    for note in vault.notes_excluding_journal():
         created = note.created
         # Same month and day, different year, and in the past
         if created.month == today.month and created.day == today.day and created.year < today.year:
