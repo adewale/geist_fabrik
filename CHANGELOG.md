@@ -82,6 +82,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `1 - cosine` between each note's past and current semantic vectors (the
   calendar features are still excluded). In small vaults the "smallest
   changes" list no longer repeats notes already listed as the largest changes.
+- metadata_driven_discovery called any short unlinked note a "complex topic
+  with few connections", and any short old note a "buried gem" of "rich
+  language": the built-in `lexical_diversity` is raw type-token ratio, which
+  is about 1.0 for a few distinct words. The geist now counts it as evidence
+  only for notes of at least 100 words. The `lexical_diversity` metadata key
+  itself is unchanged (still raw TTR, a float in [0, 1]).
 
 ### Tests
 - The test `SentenceTransformer` stub is now a bag-of-words embedding, so

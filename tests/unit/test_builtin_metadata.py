@@ -105,6 +105,26 @@ class TestBuiltinMetadataKeys:
         for md in by_path.values():
             assert 0.0 < md["lexical_diversity"] <= 1.0
 
+    def test_lexical_diversity_is_raw_case_insensitive_ttr(self):
+        """Public key contract: raw type-token ratio, a float in [0, 1], never None.
+
+        It is not length-corrected: a short stub of distinct words scores 1.0.
+        Consumers that read it as vocabulary richness must apply their own
+        minimum length (metadata_driven_discovery.MIN_WORDS_FOR_DIVERSITY).
+        User plugins compare it with `.get("lexical_diversity", 0) > x`, so
+        turning it into None or an unbounded length-corrected score would
+        break them silently.
+        """
+        ctx = _build_context(
+            # Tokens: "#", "K", "alpha", "beta", "Alpha", "BETA" -> 4 types / 6.
+            {"k.md": "# K\nalpha beta Alpha BETA", "s.md": "# S\nquartz lichen harbour"},
+            backdate_days=10,
+        )
+        by_path = {n.path: ctx.metadata(n)["lexical_diversity"] for n in ctx.notes()}
+        assert by_path["k.md"] == pytest.approx(4 / 6, abs=1e-3)
+        assert by_path["s.md"] == 1.0
+        assert all(isinstance(v, float) for v in by_path.values())
+
     def test_user_modules_can_still_override(self):
         """Inference modules run after the builtins, so their keys win."""
 
