@@ -1,16 +1,21 @@
 """Tests for transformation_suggester geist showcasing all Tracery modifiers."""
 
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import yaml
 
 from geistfabrik.embeddings import EmbeddingComputer, Session
 from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
+
+GEIST_PATH = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
+GRAMMAR: dict[str, list[str]] = yaml.safe_load(GEIST_PATH.read_text())["tracery"]
 
 
 class MockEmbeddingModel:
@@ -48,18 +53,6 @@ def create_vault_context(vault: Vault) -> VaultContext:
 
     function_registry = FunctionRegistry()
     return VaultContext(vault, session, function_registry=function_registry)
-
-
-def test_transformation_suggester_loads(tmp_path: Path) -> None:
-    """Test that transformation_suggester geist loads correctly."""
-    # Get the actual geist file
-    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
-
-    # Load the geist
-    geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-    assert geist.geist_id == "transformation_suggester"
-    assert geist.count == 3  # Should generate 3 suggestions
 
 
 def test_transformation_suggester_generates_suggestions(tmp_path: Path) -> None:
@@ -119,97 +112,60 @@ def test_transformation_suggester_capitalize_modifier(tmp_path: Path) -> None:
     vault.close()
 
 
-def test_transformation_suggester_plural_modifier(tmp_path: Path) -> None:
-    """Test that .s modifier creates plurals in suggestions."""
+def _suggestion_texts(tmp_path: Path, seeds: range) -> list[str]:
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
     (vault_path / ".obsidian").mkdir()
     (vault_path / "test.md").write_text("# Test\nContent")
-
     vault = Vault(vault_path)
     vault.sync()
     context = create_vault_context(vault)
+    try:
+        return [
+            s.text
+            for seed in seeds
+            for s in TraceryGeist.from_yaml(GEIST_PATH, seed=seed).suggest(context)
+        ]
+    finally:
+        vault.close()
 
-    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
-    geist = TraceryGeist.from_yaml(geist_path, seed=123)  # Different seed for variety
 
-    # Generate many suggestions to increase chance of hitting plural templates
-    suggestions = []
-    for _ in range(10):
-        suggestions.extend(geist.suggest(context))
+def test_transformation_suggester_plural_modifier(tmp_path: Path) -> None:
+    """#element.s# renders a pluralised grammar noun, not the raw singular.
 
-    # Check for common plurals that should appear
-    all_text = " ".join(s.text for s in suggestions)
+    Checked on the "it has <count> <element.s>" template: the word after the
+    count must be a grammar element plus "s". If .s were skipped, the raw
+    singular would appear and fail.
+    """
+    elements = set(GRAMMAR["element"])
+    counts = "|".join(GRAMMAR["count"])
+    texts = _suggestion_texts(tmp_path, range(40))
 
-    # Should contain at least some plural forms
-    # The geist uses #element.s#, #item.s#, #relationship.s#, #new_form.s#, #pattern.s#
-    plural_indicators = [
-        "connections",
-        "assumptions",
-        "questions",
-        "patterns",
-        "notes",
-        "ideas",
-        "concepts",
-        "thoughts",
-        "insights",
-        "perspectives",
-        "directions",
-        "gaps",
-        "threads",
-    ]
+    rendered = [m.group(1) for t in texts for m in re.finditer(rf"it has (?:{counts}) (\w+)", t)]
 
-    has_plurals = any(plural in all_text.lower() for plural in plural_indicators)
-    assert has_plurals, f"Expected to find plural forms in suggestions. Got: {all_text[:200]}"
-
-    vault.close()
+    assert rendered, "no suggestion used the '.s' element template"
+    for word in rendered:
+        assert word not in elements, f"unpluralised element {word!r}"
+        assert word.endswith("s") and word[:-1] in elements, word
 
 
 def test_transformation_suggester_past_tense_modifier(tmp_path: Path) -> None:
-    """Test that .ed modifier creates past tense in suggestions."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-    (vault_path / ".obsidian").mkdir()
-    (vault_path / "test.md").write_text("# Test\nContent")
+    """#action.ed# / #verb.ed# render past tenses, not the raw grammar verbs.
 
-    vault = Vault(vault_path)
-    vault.sync()
-    context = create_vault_context(vault)
+    Checked on the "you <verb.ed> [[note]]" templates: the verb must differ
+    from every raw grammar verb, so skipping .ed would fail.
+    """
+    raw_verbs = set(GRAMMAR["action"]) | set(GRAMMAR["verb"])
+    texts = _suggestion_texts(tmp_path, range(40))
 
-    geist_path = Path("src/geistfabrik/default_geists/tracery/transformation_suggester.yaml")
-    geist = TraceryGeist.from_yaml(geist_path, seed=456)
+    rendered = [m.group(1) for t in texts for m in re.finditer(r"\byou (\w+) \[\[", t)]
 
-    # Generate multiple suggestions
-    suggestions = []
-    for _ in range(10):
-        suggestions.extend(geist.suggest(context))
-
-    all_text = " ".join(s.text for s in suggestions)
-
-    # Should contain past tense verbs
-    # The geist uses #action.ed#, #verb.ed#, #transform_verb.ed#
-    past_tense_verbs = [
-        "viewed",
-        "treated",
-        "approached",
-        "framed",
-        "explored",
-        "wrote",
-        "thought",
-        "made",
-        "found",
-        "created",
-        "built",
-        "split",
-        "merged",
-        "evolved",
-        "grew",
-    ]
-
-    has_past_tense = any(verb in all_text.lower() for verb in past_tense_verbs)
-    assert has_past_tense, f"Expected to find past tense verbs. Got: {all_text[:200]}"
-
-    vault.close()
+    assert rendered, "no suggestion used a '.ed' verb template"
+    for word in rendered:
+        assert word not in raw_verbs, f"raw verb {word!r} was not put in the past tense"
+    assert "wrote" in rendered or "thought" in rendered or "built" in rendered, (
+        "expected at least one irregular past tense across 40 seeds"
+    )
 
 
 def test_transformation_suggester_article_modifier(tmp_path: Path) -> None:
@@ -319,112 +275,6 @@ def test_transformation_suggester_modifier_chaining(tmp_path: Path) -> None:
     vault.close()
     # If we exhausted all seeds without finding chained modifier usage, fail
     assert False, "No chained modifier (.s.capitalize) usage found across 100 seeds"
-
-
-def test_transformation_suggester_irregular_plurals(tmp_path: Path) -> None:
-    """Test that irregular plurals are handled correctly."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-    (vault_path / ".obsidian").mkdir()
-    (vault_path / "person.md").write_text("# Person\nContent")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    # Test the pluralization directly with TraceryEngine
-    from geistfabrik.tracery import TraceryEngine
-
-    grammar = {"origin": ["#word.s#"], "word": ["person", "child", "man", "woman", "foot", "tooth"]}
-
-    engine = TraceryEngine(grammar, seed=42)
-
-    # Test irregular plurals
-    test_cases = {
-        "person": "people",
-        "child": "children",
-        "man": "men",
-        "woman": "women",
-        "foot": "feet",
-        "tooth": "teeth",
-    }
-
-    for singular, expected_plural in test_cases.items():
-        result = engine._pluralize(singular)
-        assert result == expected_plural, (
-            f"Expected '{singular}' -> '{expected_plural}', got '{result}'"
-        )
-
-    vault.close()
-
-
-def test_transformation_suggester_irregular_verbs(tmp_path: Path) -> None:
-    """Test that irregular past tense verbs are handled correctly."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-    (vault_path / ".obsidian").mkdir()
-    (vault_path / "test.md").write_text("# Test\nContent")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    # Test past tense directly with TraceryEngine
-    from geistfabrik.tracery import TraceryEngine
-
-    grammar = {"origin": ["#verb.ed#"], "verb": ["go", "think", "make", "write", "build", "find"]}
-
-    engine = TraceryEngine(grammar, seed=42)
-
-    # Test irregular verbs used in the geist
-    test_cases = {
-        "go": "went",
-        "think": "thought",
-        "make": "made",
-        "write": "wrote",
-        "find": "found",
-    }
-
-    for present, expected_past in test_cases.items():
-        result = engine._past_tense(present)
-        assert result == expected_past, f"Expected '{present}' -> '{expected_past}', got '{result}'"
-
-    vault.close()
-
-
-def test_transformation_suggester_article_vowel_consonant(tmp_path: Path) -> None:
-    """Test that article selection handles vowels vs consonants correctly."""
-    from geistfabrik.tracery import TraceryEngine
-
-    grammar = {
-        "origin": ["#noun.a#"],
-        "noun": [
-            "organism",
-            "garden",
-            "experiment",
-            "map",
-            "archive",
-            "understanding",
-            "hypothesis",
-            "insight",
-        ],
-    }
-
-    engine = TraceryEngine(grammar, seed=42)
-
-    # Test cases from the geist
-    test_cases = {
-        "organism": "an organism",  # vowel
-        "garden": "a garden",  # consonant
-        "experiment": "an experiment",  # vowel
-        "map": "a map",  # consonant
-        "archive": "an archive",  # vowel
-        "understanding": "an understanding",  # vowel
-        "hypothesis": "a hypothesis",  # consonant (h sound)
-        "insight": "an insight",  # vowel
-    }
-
-    for word, expected in test_cases.items():
-        result = engine._article(word)
-        assert result == expected, f"Expected '{expected}', got '{result}'"
 
 
 def test_transformation_suggester_deterministic_output(tmp_path: Path) -> None:

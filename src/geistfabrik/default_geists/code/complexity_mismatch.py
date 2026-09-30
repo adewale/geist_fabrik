@@ -28,7 +28,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Get metrics
         word_count = metadata.get("word_count", 0)
         link_count = metadata.get("link_count", 0)
-        backlinks = len(vault.backlinks(note))
+        # Journal sessions wikilink every note they suggest; counting those
+        # would make the geist's own output look like user connections.
+        backlinks = sum(1 for b in vault.backlinks(note) if not b.path.startswith("geist journal/"))
 
         # Importance score (based on connectivity)
         importance = (link_count + backlinks * 2) / max(1, len(notes))

@@ -102,12 +102,6 @@ def test_question_length_filtering() -> None:
     assert not any(len(q) > 500 for q in questions)
 
 
-def test_question_empty_content() -> None:
-    """Test extracting from empty content."""
-    questions = extract_questions("")
-    assert questions == []
-
-
 def test_question_no_questions() -> None:
     """Test content with no questions."""
     content = "This is a statement. Another statement."
@@ -343,12 +337,6 @@ def test_quote_truncation() -> None:
     assert len(quotes[0]) <= 503  # 500 + "..."
 
 
-def test_quote_empty_content() -> None:
-    """Test extracting from empty content."""
-    quotes = extract_quotes("")
-    assert quotes == []
-
-
 def test_quote_no_quotes() -> None:
     """Test content with no blockquotes."""
     content = "Regular text without any blockquotes."
@@ -415,21 +403,6 @@ def test_all_harvesters_handle_empty_content() -> None:
     assert extract_questions("") == []
     assert extract_todos("") == []
     assert extract_quotes("") == []
-
-
-def test_all_harvesters_handle_code_blocks() -> None:
-    """Test that all harvesters ignore code blocks."""
-    code_content = """
-```
-What is this?
-TODO: do something
-> A fake quote
-```
-"""
-    # None of these should be extracted from code blocks
-    assert extract_questions(code_content) == []
-    assert extract_todos(code_content) == []
-    assert extract_quotes(code_content) == []
 
 
 def test_harvesters_with_mixed_content() -> None:

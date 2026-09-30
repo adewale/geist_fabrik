@@ -43,7 +43,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         content = vault.read(note).lower()
         words = content.split()
 
-        # Extract 2-3 word phrases
+        # Extract 2-3 word phrases, counting each phrase once per note so a
+        # note repeating itself is not mistaken for several notes. (A dict,
+        # not a set: insertion order keeps output independent of hash seeds.)
+        note_phrases: dict[str, None] = {}
         for i in range(len(words) - 2):
             # Skip common words
             phrase = " ".join(words[i : i + 3])
@@ -52,7 +55,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if len(phrase) > 15 and not any(
                 common in phrase for common in ["the", "and", "but", "with", "from", "this", "that"]
             ):
-                phrase_to_notes[phrase].append(note)
+                note_phrases[phrase] = None
+        for phrase in note_phrases:
+            phrase_to_notes[phrase].append(note)
 
     # Find phrases that appear in multiple unlinked notes
     for phrase, phrase_notes in phrase_to_notes.items():
@@ -93,18 +98,20 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Also look for semantic clusters of unlinked notes
     # Group notes by semantic similarity
     clusters = []
-    # Use set for O(1) remove operations instead of O(N) list remove
-    unclustered_set = set(notes)
+    # Dict keyed by path: O(1) removal like a set, but iteration follows vault
+    # order, so seed choice does not depend on PYTHONHASHSEED (same date +
+    # vault = same output across processes).
+    unclustered = {note.path: note for note in notes}
 
-    while len(unclustered_set) > 5:
+    while len(unclustered) > 5:
         # Pick a seed note
-        seed = vault.sample(list(unclustered_set), count=1)[0]
-        unclustered_set.remove(seed)  # O(1) set remove
+        seed = vault.sample(list(unclustered.values()), count=1)[0]
+        del unclustered[seed.path]
 
         # Find similar notes
         cluster = [seed]
         to_remove = []
-        candidates = list(unclustered_set)
+        candidates = list(unclustered.values())
         for start in range(0, len(candidates), 256):
             batch = candidates[start : start + 256]
             similarities = vault.batch_similarity([seed], batch)[0]
@@ -121,7 +128,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Remove clustered notes from unclustered set
         for note in to_remove:
-            unclustered_set.remove(note)  # O(1) set remove
+            del unclustered[note.path]
 
         if len(cluster) >= 3:
             clusters.append(cluster)

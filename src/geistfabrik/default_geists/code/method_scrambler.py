@@ -77,7 +77,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         )
 
     # Also generate SCAMPER questions for unlinked but similar pairs
-    pairs = vault.unlinked_pairs(count=10)
+    # unlinked_pairs() scans every note, so drop pairs touching the journal.
+    pairs = [
+        (a, b)
+        for a, b in vault.unlinked_pairs(count=10)
+        if not a.path.startswith("geist journal/") and not b.path.startswith("geist journal/")
+    ]
 
     for note_a, note_b in pairs:
         operation, template = vault.sample(scamper_operations, count=1)[0]

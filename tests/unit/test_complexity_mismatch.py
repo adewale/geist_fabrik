@@ -1,359 +1,164 @@
-"""Unit tests for complexity_mismatch geist."""
+"""Unit tests for complexity_mismatch geist.
 
-from datetime import datetime
+Trigger arithmetic (see the geist source), with N = non-journal note count:
+- importance = (outgoing links + 2 * backlinks) / N;
+- "expand" fires when importance > 0.1 and word_count < 100;
+- "simplify" fires when importance < 0.05, word_count > 300 and fewer than
+  2 outgoing links;
+- word_count counts whitespace tokens of the whole note, including the
+  "# Title" heading VaultBuilder writes (2 tokens for a one-word title);
+- output is capped at 3 suggestions.
+"""
+
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import complexity_mismatch
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+GEIST = "complexity_mismatch"
+CAP = 3
 
 
-@pytest.fixture
-def vault_with_complexity_mismatches(tmp_path):
-    """Create a vault with complexity/importance mismatches."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create highly connected but short notes (underdeveloped)
-    for i in range(5):
-        links = " ".join([f"[[important_{j}]]" for j in range(5) if j != i])
-        (vault_path / f"important_{i}.md").write_text(
-            f"# Important Note {i}\n\nShort note. {links}"
-        )
-
-    # Create long but isolated notes (overcomplicated)
-    for i in range(5):
-        long_content = " ".join([f"Word{j}" for j in range(500)])
-        (vault_path / f"isolated_{i}.md").write_text(f"# Isolated Note {i}\n\n{long_content}")
-
-    # Create balanced notes (filler)
-    for i in range(10):
-        content = " ".join([f"Content{j}" for j in range(100)])
-        (vault_path / f"balanced_{i}.md").write_text(
-            f"# Balanced Note {i}\n\n{content} [[balanced_{(i + 1) % 10}]]"
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _words(count: int) -> str:
+    return " ".join(f"term{i}" for i in range(count))
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with too few notes for analysis."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    for i in range(3):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _fillers(builder: VaultBuilder, count: int) -> None:
+    for i in range(count):
+        builder.note(f"Filler {i}", "Brief plain remark.")
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def test_connected_stub_and_long_isolated_note_are_both_flagged(tmp_path: Path) -> None:
+    # 10 notes. "Hub" has two backlinks: importance (0 + 2*2)/10 = 0.4 > 0.1
+    # with 4 words -> expand. "Tome" has 2 + 400 words and no links:
+    # importance 0 -> simplify. The linkers have importance 1/10 = 0.1, which
+    # is not > 0.1, so they stay silent.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Hub", "Seed idea.")
+    builder.note("Linker A", "See [[Hub]].")
+    builder.note("Linker B", "See [[Hub]].")
+    builder.note("Tome", _words(400))
+    _fillers(builder, 6)
+
+    suggestions = complexity_mismatch.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=2)
+    by_note = {s.notes[0]: s.text for s in suggestions}
+    assert set(by_note) == {"Hub", "Tome"}
+    assert by_note["Hub"].startswith("What if you expanded [[Hub]]?")
+    assert "402 words" in by_note["Tome"]
+    assert by_note["Tome"].startswith("What if you simplified [[Tome]]?")
 
 
-def test_complexity_mismatch_returns_suggestions(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch returns suggestions with mismatches.
+@pytest.mark.parametrize(("outgoing_links", "fires"), [(2, False), (3, True)])
+def test_importance_boundary_for_expand(tmp_path: Path, outgoing_links: int, fires: bool) -> None:
+    # 20 notes: importance = links / 20, so 2 links = 0.1 (not > 0.1) and
+    # 3 links = 0.15. Each linked filler gets 1 backlink = 2/20 = 0.1: silent.
+    builder = VaultBuilder(tmp_path)
+    links = " ".join(f"[[Filler {i}]]" for i in range(outgoing_links))
+    builder.note("Stub", f"Short. {links}")
+    _fillers(builder, 19)
 
-    Setup:
-        Vault with varying note complexity levels.
+    suggestions = complexity_mismatch.suggest(builder.build())
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_complexity_mismatches
+    assert [s.notes for s in suggestions] == ([["Stub"]] if fires else [])
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+def test_backlinks_weigh_double_in_importance(tmp_path: Path) -> None:
+    # 15 notes: one backlink gives importance 2/15 = 0.13 > 0.1 because
+    # backlinks count twice; the linker's single outgoing link gives 1/15.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Stub", "Seed idea.")
+    builder.note("Linker", "See [[Stub]].")
+    _fillers(builder, 13)
+
+    suggestions = complexity_mismatch.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == [["Stub"]]
+    assert "(1 links)" in suggestions[0].text
+
+
+@pytest.mark.parametrize(("body_words", "fires"), [(298, False), (299, True)])
+def test_word_count_boundary_for_simplify(tmp_path: Path, body_words: int, fires: bool) -> None:
+    # word_count = 2 heading tokens + body: 300 is not > 300, 301 is.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Tome", _words(body_words))
+    _fillers(builder, 9)
+
+    suggestions = complexity_mismatch.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == ([["Tome"]] if fires else [])
+
+
+@pytest.mark.parametrize(("outgoing_links", "fires"), [(1, True), (2, False)])
+def test_link_count_boundary_for_simplify(tmp_path: Path, outgoing_links: int, fires: bool) -> None:
+    # 41 notes keep importance below 0.05 for both cases (2/41 = 0.049), so
+    # only the "fewer than 2 links" rule separates them. Linked fillers get
+    # importance 2/41 and are short, so they never fire either way.
+    builder = VaultBuilder(tmp_path)
+    links = " ".join(f"[[Filler {i}]]" for i in range(outgoing_links))
+    builder.note("Tome", f"{_words(400)} {links}")
+    _fillers(builder, 40)
+
+    suggestions = complexity_mismatch.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == ([["Tome"]] if fires else [])
+
+
+def test_output_is_capped_when_more_notes_qualify(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    planted = [f"Tome {i}" for i in range(6)]
+    for title in planted:
+        builder.note(title, _words(400))
+    _fillers(builder, 4)
+
+    suggestions = complexity_mismatch.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
+    assert len(suggestions) == CAP
+    referenced = [ref for s in suggestions for ref in s.notes]
+    assert len(set(referenced)) == CAP
+    assert set(referenced) <= set(planted)
+
+
+def test_geist_journal_notes_are_never_flagged(tmp_path: Path) -> None:
+    # Journal notes are long and unlinked, exactly like the regular "Tome".
+    builder = VaultBuilder(tmp_path)
+    builder.note("Tome", _words(400))
+    for i in range(4):
+        builder.journal(f"Session Log {i}", _words(400))
+    _fillers(builder, 9)
+
+    suggestions = complexity_mismatch.suggest(builder.build())
+
+    assert_valid_suggestions(
+        suggestions, GEIST, must_reference=["Tome"], must_not_reference=["Session Log"]
     )
 
-    suggestions = complexity_mismatch.suggest(context)
 
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
-
-
-def test_complexity_mismatch_suggestion_structure(vault_with_complexity_mismatches):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with simple and complex notes.
-
-    Verifies:
-        - Has required fields
-        - References 2 notes with complexity mismatch"""
-    vault, session = vault_with_complexity_mismatches
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = complexity_mismatch.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "complexity_mismatch"
-
-        # Should mention complexity/simplification/expansion
-        assert any(
-            keyword in suggestion.text.lower()
-            for keyword in ["expanded", "simplified", "words", "links", "depth", "focused"]
-        )
-
-        # Should reference exactly 1 note
-        assert len(suggestion.notes) == 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_complexity_mismatch_uses_link_text(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch uses link_text for note references.
-
-    Setup:
-        Vault with varying complexity.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_complexity_mismatches
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = complexity_mismatch.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_complexity_mismatch_empty_vault(tmp_path):
-    """Test that complexity_mismatch handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = complexity_mismatch.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_complexity_mismatch_balanced_vault(tmp_path):
-    """Test that complexity_mismatch returns few/no suggestions for balanced vault."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create notes with balanced complexity and importance
-    for i in range(20):
-        content = " ".join([f"Word{j}" for j in range(150)])  # Medium length
-        links = " ".join([f"[[note_{(i + j) % 20}]]" for j in range(1, 4)])  # Medium links
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\n{content} {links}")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = complexity_mismatch.suggest(context)
-
-    # Should return few or no suggestions for balanced vault
-    assert len(suggestions) <= 3
-
-
-def test_complexity_mismatch_max_suggestions(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch never returns more than 3 suggestions.
-
-    Setup:
-        Vault with varying complexity.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_complexity_mismatches
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = complexity_mismatch.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_complexity_mismatch_deterministic_with_seed(vault_with_complexity_mismatches):
-    """Test that complexity_mismatch returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_complexity_mismatches
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = complexity_mismatch.suggest(context1)
-    suggestions2 = complexity_mismatch.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_complexity_mismatch_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    # Create journal notes with complexity mismatches (high links, low words)
-    for i in range(5):
-        links = " ".join([f"[[note_{j}]]" for j in range(10)])
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\nShort note. {links}"
-        )
-
-    # Create regular notes with complexity mismatches
-    # Underdeveloped notes (high links, low words)
-    for i in range(5):
-        links = " ".join([f"[[important_{j}]]" for j in range(5) if j != i])
-        (vault_path / f"important_{i}.md").write_text(
-            f"# Important Note {i}\n\nShort note. {links}"
-        )
-
-    # Overcomplicated notes (high words, low links)
-    for i in range(5):
-        long_content = " ".join([f"Word{j}" for j in range(500)])
-        (vault_path / f"isolated_{i}.md").write_text(f"# Isolated Note {i}\n\n{long_content}")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault, session=session, seed=20240315, function_registry=FunctionRegistry()
-    )
-
-    suggestions = complexity_mismatch.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    journal_notes = [note for note in vault.all_notes() if "geist journal" in note.path.lower()]
-    journal_titles = {note.title.lower() for note in journal_notes}
-
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert note_ref.lower() not in journal_titles, (
-                f"Found journal note reference: {note_ref}"
-            )
+def test_journal_mentions_do_not_make_a_note_important(tmp_path: Path) -> None:
+    # Regression: session journals wikilink every note they suggest. Counted
+    # as backlinks, two journal mentions gave "Mentioned" importance 4/10 and
+    # a "highly connected" expand prompt built on the geist's own output.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Mentioned", "Seed idea.")
+    builder.journal("Session Log 0", "Suggested [[Mentioned]].")
+    builder.journal("Session Log 1", "Suggested [[Mentioned]] again.")
+    _fillers(builder, 9)
+
+    assert complexity_mismatch.suggest(builder.build()) == []
+
+
+def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(6):
+        builder.note(f"Tome {i}", _words(400))
+    _fillers(builder, 4)
+
+    first = [s.text for s in complexity_mismatch.suggest(builder.build())]
+    second = [s.text for s in complexity_mismatch.suggest(builder.build())]
+
+    assert first
+    assert first == second

@@ -1,407 +1,164 @@
-"""Unit tests for metadata_driven_discovery geist."""
+"""Unit tests for metadata_driven_discovery geist.
 
-from datetime import datetime, timedelta
+Trigger arithmetic (see the geist source; metadata is VaultContext's
+built-in set, with "now" = the session date):
+- complex-but-isolated: (lexical_diversity > 0.5 or reading_time > 3) and
+  links + backlinks < 2; the pattern needs >= 3 such notes;
+- buried gems: lexical_diversity > 0.6 and days_since_modified > 90; >= 2;
+- abandoned tasks: an open "- [ ]" task and days_since_modified > 60; >= 2;
+- each pattern yields at most one suggestion and output is capped at 2.
+
+lexical_diversity counts every whitespace token, so a body of distinct words
+scores ~1.0 and a body of one repeated word scores low. Background notes use
+the repeated-word body and 2 links so no pattern can pick them up.
+"""
+
+from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import metadata_driven_discovery
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_metadata_patterns(tmp_path):
-    """Create a vault with diverse metadata patterns."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-
-    # Pattern 1: Complex but isolated notes (high complexity, few connections)
-    for i in range(5):
-        path = vault_path / f"complex_isolated_{i}.md"
-        # High lexical diversity - varied vocabulary
-        content = f"""# Complex Isolated {i}
-
-This note contains sophisticated terminology, elaborate explanations,
-multifaceted perspectives, comprehensive analysis, nuanced distinctions,
-paradigmatic frameworks, systematic methodologies, theoretical foundations,
-empirical observations, and sophisticated argumentation. The vocabulary
-demonstrates substantial lexical diversity.
-
-Additional paragraphs to increase reading time and complexity."""
-        path.write_text(content)
-
-    # Pattern 2: Buried gems (high diversity, old)
-    old_date = now - timedelta(days=120)
-    for i in range(5):
-        path = vault_path / f"buried_gem_{i}.md"
-        content = f"""# Buried Gem {i}
-
-Exceptional vocabulary, remarkable insights, extraordinary perspectives,
-phenomenal analysis, outstanding clarity, magnificent structure,
-superb articulation, brilliant synthesis, marvelous connections,
-exemplary documentation."""
-        path.write_text(content)
-        import os
-
-        old_time = (old_date - timedelta(days=i * 5)).timestamp()
-        os.utime(path, (old_time, old_time))
-
-    # Pattern 3: Abandoned task notes (tasks, old)
-    task_date = now - timedelta(days=90)
-    for i in range(5):
-        path = vault_path / f"abandoned_project_{i}.md"
-        content = f"""# Abandoned Project {i}
-
-Project notes with tasks:
-- [ ] Incomplete task 1
-- [ ] Incomplete task 2
-- [x] Completed task 1
-- [ ] Incomplete task 3"""
-        path.write_text(content)
-        import os
-
-        task_time = (task_date - timedelta(days=i * 10)).timestamp()
-        os.utime(path, (task_time, task_time))
-
-    # Add some regular notes to reach minimum
-    for i in range(10):
-        path = vault_path / f"regular_{i}.md"
-        content = f"""# Regular {i}
-
-Regular note with normal content and [[link_{i}]]."""
-        path.write_text(content)
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+GEIST = "metadata_driven_discovery"
+CAP = 2
+DIVERSE = "quartz lichen harbour violin saffron glacier meadow lantern cobalt thistle"
+LINKED_BACKGROUND = "echo echo echo echo echo echo echo echo echo echo [[Anchor A]] [[Anchor B]]"
+OPEN_TASKS = "- [ ] echo\n- [ ] echo\n- [x] echo\n[[Anchor A]] [[Anchor B]]"
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes for pattern detection."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 5 notes (below minimum for patterns)
-    for i in range(5):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _note(builder: VaultBuilder, title: str, body: str, *, age_days: int = 0) -> None:
+    stamp = SESSION_DATE - timedelta(days=age_days)
+    builder.note(title, body, created=stamp, modified=stamp)
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _background(builder: VaultBuilder, count: int = 4) -> None:
+    _note(builder, "Anchor A", LINKED_BACKGROUND)
+    _note(builder, "Anchor B", LINKED_BACKGROUND)
+    for i in range(count):
+        _note(builder, f"Background {i}", LINKED_BACKGROUND)
 
 
-def test_metadata_driven_discovery_returns_suggestions(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery returns suggestions with metadata patterns.
+@pytest.mark.parametrize(("planted", "fires"), [(2, False), (3, True)])
+def test_complex_isolated_pattern_needs_three_notes(
+    tmp_path: Path, planted: int, fires: bool
+) -> None:
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Complex {i}" for i in range(planted)]
+    for title in titles:
+        _note(builder, title, DIVERSE)
+    _background(builder)
 
-    Setup:
-        Vault with rich metadata.
+    suggestions = metadata_driven_discovery.suggest(builder.build())
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_metadata_patterns
+    if not fires:
+        assert suggestions == []
+        return
+    assert_valid_suggestions(suggestions, GEIST, must_reference=titles)
+    assert [sorted(s.notes) for s in suggestions] == [titles]
+    assert "complex topics with few connections" in suggestions[0].text
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+@pytest.mark.parametrize(("age_days", "fires"), [(90, False), (91, True)])
+def test_buried_gems_need_more_than_ninety_days(tmp_path: Path, age_days: int, fires: bool) -> None:
+    # Linked, so the diverse gems cannot be read as complex-and-isolated.
+    builder = VaultBuilder(tmp_path)
+    gems = ["Gem 1", "Gem 2"]
+    for title in gems:
+        _note(builder, title, f"{DIVERSE} [[Anchor A]] [[Anchor B]]", age_days=age_days)
+    _background(builder)
+
+    suggestions = metadata_driven_discovery.suggest(builder.build())
+
+    if not fires:
+        assert suggestions == []
+        return
+    assert_valid_suggestions(suggestions, GEIST)
+    assert [sorted(s.notes) for s in suggestions] == [gems]
+    assert "high lexical diversity" in suggestions[0].text
+
+
+@pytest.mark.parametrize(("age_days", "fires"), [(60, False), (61, True)])
+def test_abandoned_task_notes_need_more_than_sixty_days(
+    tmp_path: Path, age_days: int, fires: bool
+) -> None:
+    builder = VaultBuilder(tmp_path)
+    projects = ["Project 1", "Project 2"]
+    for title in projects:
+        _note(builder, title, OPEN_TASKS, age_days=age_days)
+    _background(builder)
+
+    suggestions = metadata_driven_discovery.suggest(builder.build())
+
+    if not fires:
+        assert suggestions == []
+        return
+    assert_valid_suggestions(suggestions, GEIST)
+    assert [sorted(s.notes) for s in suggestions] == [projects]
+    assert "[[Project 1]] (2 incomplete tasks)" in suggestions[0].text
+
+
+def test_completed_task_notes_are_not_abandoned(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    for title in ["Project 1", "Project 2"]:
+        _note(builder, title, OPEN_TASKS.replace("[ ]", "[x]"), age_days=200)
+    _background(builder)
+
+    assert metadata_driven_discovery.suggest(builder.build()) == []
+
+
+def test_output_is_capped_when_all_three_patterns_fire(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(3):
+        _note(builder, f"Complex {i}", DIVERSE)
+    for i in range(2):
+        _note(builder, f"Gem {i}", f"{DIVERSE} [[Anchor A]] [[Anchor B]]", age_days=120)
+        _note(builder, f"Project {i}", OPEN_TASKS, age_days=70)
+    _background(builder)
+
+    suggestions = metadata_driven_discovery.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
+    assert len(suggestions) == CAP
+    assert len({s.text for s in suggestions}) == CAP
+
+
+def test_geist_journal_notes_never_complete_a_pattern(tmp_path: Path) -> None:
+    # Two regular complex notes are one short of the pattern; three diverse,
+    # unlinked journal notes would complete it if the journal were scanned.
+    # The abandoned-task pattern fires on regular notes as the positive side.
+    builder = VaultBuilder(tmp_path)
+    for i in range(2):
+        _note(builder, f"Complex {i}", DIVERSE)
+        _note(builder, f"Project {i}", OPEN_TASKS, age_days=70)
+    for i in range(3):
+        stamp = SESSION_DATE - timedelta(days=1)
+        builder.journal(f"Session Log {i}", DIVERSE, created=stamp, modified=stamp)
+    _background(builder)
+
+    suggestions = metadata_driven_discovery.suggest(builder.build())
+
+    assert_valid_suggestions(
+        suggestions,
+        GEIST,
+        must_reference=["Project 0", "Project 1"],
+        must_not_reference=["Session Log"],
     )
-
-    suggestions = metadata_driven_discovery.suggest(context)
-
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
-
-
-def test_metadata_driven_discovery_suggestion_structure(vault_with_metadata_patterns):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with metadata patterns.
-
-    Verifies:
-        - Has required fields
-        - References notes with interesting metadata"""
-    vault, session = vault_with_metadata_patterns
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = metadata_driven_discovery.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "metadata_driven_discovery"
-
-        # Should reference at least 2 notes
-        assert len(suggestion.notes) >= 2
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_metadata_driven_discovery_uses_link_text(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery uses link_text for note references.
-
-    Setup:
-        Vault with metadata.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_metadata_patterns
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = metadata_driven_discovery.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_metadata_driven_discovery_empty_vault(tmp_path):
-    """Test that metadata_driven_discovery handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = metadata_driven_discovery.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_metadata_driven_discovery_insufficient_patterns(vault_insufficient_notes):
-    """Test that metadata_driven_discovery handles insufficient patterns gracefully."""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = metadata_driven_discovery.suggest(context)
-
-    # Should return empty list or minimal suggestions
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
-
-
-def test_metadata_driven_discovery_max_suggestions(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery never returns more than 2 suggestions.
-
-    Setup:
-        Vault with metadata patterns.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_metadata_patterns
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = metadata_driven_discovery.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_metadata_driven_discovery_deterministic_with_seed(vault_with_metadata_patterns):
-    """Test that metadata_driven_discovery returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_metadata_patterns
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = metadata_driven_discovery.suggest(context1)
-    suggestions2 = metadata_driven_discovery.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_metadata_driven_discovery_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    now = datetime.now()
-    old_date = now - timedelta(days=120)
-
-    # Create journal notes with metadata patterns (complex, old, with tasks)
-    for i in range(5):
-        content = f"""# Session {i}
-
-Exceptional vocabulary, remarkable insights, extraordinary perspectives,
-phenomenal analysis, outstanding clarity, magnificent structure.
-
-- [ ] Incomplete task 1
-- [ ] Incomplete task 2
-- [x] Completed task 1
-"""
-        path = journal_dir / f"2024-03-{15 + i:02d}.md"
-        path.write_text(content)
-        import os
-
-        old_time = (old_date - timedelta(days=i * 10)).timestamp()
-        os.utime(path, (old_time, old_time))
-
-    # Create regular notes with metadata patterns
-    # Complex but isolated notes
-    for i in range(5):
-        content = f"""# Complex Isolated {i}
-
-This note contains sophisticated terminology, elaborate explanations,
-multifaceted perspectives, comprehensive analysis, nuanced distinctions."""
-        (vault_path / f"complex_{i}.md").write_text(content)
-
-    # Buried gems (high diversity, old)
-    for i in range(5):
-        content = f"""# Buried Gem {i}
-
-Exceptional vocabulary, remarkable insights, extraordinary perspectives."""
-        path = vault_path / f"buried_{i}.md"
-        path.write_text(content)
-        import os
-
-        old_time = (old_date - timedelta(days=i * 5)).timestamp()
-        os.utime(path, (old_time, old_time))
-
-    # Regular notes to reach minimum
-    for i in range(10):
-        (vault_path / f"regular_{i}.md").write_text(f"# Regular {i}\n\nRegular content.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault, session=session, seed=20240315, function_registry=FunctionRegistry()
-    )
-
-    suggestions = metadata_driven_discovery.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    journal_notes = [note for note in vault.all_notes() if "geist journal" in note.path.lower()]
-    journal_titles = {note.title.lower() for note in journal_notes}
-
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert note_ref.lower() not in journal_titles, (
-                f"Found journal note reference: {note_ref}"
-            )
+    assert len(suggestions) == 1
+
+
+def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(3):
+        _note(builder, f"Complex {i}", DIVERSE)
+    for i in range(2):
+        _note(builder, f"Gem {i}", f"{DIVERSE} [[Anchor A]] [[Anchor B]]", age_days=120)
+        _note(builder, f"Project {i}", OPEN_TASKS, age_days=70)
+    _background(builder)
+
+    first = [s.text for s in metadata_driven_discovery.suggest(builder.build())]
+    second = [s.text for s in metadata_driven_discovery.suggest(builder.build())]
+
+    assert first
+    assert first == second

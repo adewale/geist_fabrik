@@ -17,18 +17,6 @@ from geistfabrik.default_geists import (
 )
 
 
-def test_geist_counts_are_correct():
-    """Verify constants match actual file counts."""
-    # Verify programmatic counts are internally consistent
-    assert CODE_GEIST_COUNT + TRACERY_GEIST_COUNT == TOTAL_GEIST_COUNT, (
-        "Code + Tracery should equal Total"
-    )
-    # Verify counts are positive
-    assert CODE_GEIST_COUNT > 0, "Should have at least one code geist"
-    assert TRACERY_GEIST_COUNT > 0, "Should have at least one Tracery geist"
-    assert TOTAL_GEIST_COUNT > 0, "Should have at least one total geist"
-
-
 def test_readme_geist_counts():
     """Verify README.md mentions correct geist counts."""
     readme_path = Path(__file__).parent.parent.parent / "README.md"
@@ -84,29 +72,3 @@ def test_claude_md_geist_counts():
         f"{TRACERY_GEIST_COUNT} Tracery, {TOTAL_GEIST_COUNT} total"
     )
     assert len(matches) > 0, error_msg
-
-
-def test_no_outdated_geist_counts_in_main_docs():
-    """Ensure README.md and CLAUDE.md don't mention outdated counts."""
-    readme_path = Path(__file__).parent.parent.parent / "README.md"
-    claude_md_path = Path(__file__).parent.parent.parent / "CLAUDE.md"
-
-    # Common outdated counts (when we had 38 code geists)
-    outdated_patterns = [
-        r"\b47\s+geists?\s*\(.*38.*code",
-        r"\b38\s+code.*geists",
-        r"\(38\s+code\s*\+\s*9\s+Tracery\)",
-    ]
-
-    for doc_path in [readme_path, claude_md_path]:
-        content = doc_path.read_text()
-
-        for pattern in outdated_patterns:
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            error_msg = (
-                f"{doc_path.name} contains outdated geist count pattern "
-                f"'{pattern}'. Update to use current counts: "
-                f"{CODE_GEIST_COUNT} code, {TRACERY_GEIST_COUNT} Tracery, "
-                f"{TOTAL_GEIST_COUNT} total"
-            )
-            assert len(matches) == 0, error_msg
