@@ -4,6 +4,7 @@ Tests each Tracery geist's variables, modifiers, and vault function integration.
 These are fast unit tests using minimal test vaults, not integration tests.
 """
 
+import re
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock
@@ -16,7 +17,7 @@ from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
-from tests.fixtures.helpers import VaultBuilder
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
 # Path to default bundled geists
 GEISTS_DIR = (
@@ -582,27 +583,6 @@ class TestSemanticNeighbours:
         assert geist.geist_id == "semantic_neighbours"
         assert geist.count == 2
 
-    def test_semantic_neighbours_generates_suggestions(self, tmp_path: Path):
-        """Test that semantic_neighbours generates valid suggestions."""
-        context = create_test_vault_context(tmp_path)
-        geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        suggestions = geist.suggest(context)
-
-        assert len(suggestions) == 2
-
-    def test_semantic_neighbours_uses_vault_neighbours(self, tmp_path: Path):
-        """Test that semantic_neighbours uses vault.neighbours() function."""
-        context = create_test_vault_context(tmp_path)
-        geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        suggestions = geist.suggest(context)
-
-        # Should reference notes
-        assert any("[[" in s.text for s in suggestions)
-
     def test_semantic_neighbours_uses_different_prompts(self, tmp_path: Path):
         """Test that prompt and question variables have multiple options."""
         geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
@@ -613,84 +593,60 @@ class TestSemanticNeighbours:
         assert len(geist.engine.grammar["prompt"]) >= 4
         assert len(geist.engine.grammar["question"]) >= 4
 
-    def test_semantic_neighbours_all_notes_properly_bracketed(self, tmp_path: Path):
-        """Regression test: All note references should have [[...]] brackets."""
-        import re
+    def test_seed_and_neighbours_come_from_the_same_cluster(self, tmp_path: Path) -> None:
+        """Each suggestion names ONE cluster: its seed and that seed's own neighbours.
 
-        context = create_test_vault_context(tmp_path)
+        Contract: ``$vault.semantic_clusters`` bundles "[[Seed]]|||[[N1]], ..." so
+        that one cluster can be split into its two halves. The grammar must split
+        a single saved expansion of ``#cluster#``, not re-draw a cluster for the
+        seed and another for the neighbours.
+
+        Regression: with ``seed: #cluster.split_seed#`` and
+        ``neighbours: #cluster.split_neighbours#`` each reference re-expands
+        ``#cluster#`` independently, pairing seed A with seed B's neighbours
+        (observed: "around [[Note 1]]: [[Note 0]], [[Note 1]]", the seed listed
+        among its own neighbours).
+
+        Fixture: three groups of four notes with disjoint vocabulary, so each
+        note's three nearest neighbours are exactly the rest of its group. The
+        loop varies the session date (which seeds semantic_clusters samples) and
+        the geist seed (which cluster each template draws).
+        """
+        vocab = {
+            "Astronomy": "telescope galaxy nebula comet starlight orbit",
+            "Baking": "flour yeast dough oven crust knead",
+            "Sailing": "mast rudder harbour tide keel anchor",
+        }
+        builder = VaultBuilder(tmp_path)
+        group_of: dict[str, set[str]] = {}
+        for topic, words in vocab.items():
+            titles = {f"{topic} {label}" for label in ("One", "Two", "Three", "Four")}
+            for title in titles:
+                builder.note(title, f"{words} {words}", created=datetime(2024, 1, 1))
+                group_of[title] = titles
+
         geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
+        for day in (1, 9, 20):
+            context = builder.build(session_date=datetime(2024, 3, day))
+            # Fixture sanity: the lexical stub puts each note's neighbours in its group.
+            for note in context.notes():
+                found = {n.title for n in context.neighbours(note, 3)}
+                assert found == group_of[note.title] - {note.title}, note.title
 
-        suggestions = geist.suggest(context)
+            for seed in range(30):
+                geist = TraceryGeist.from_yaml(geist_path, seed=seed)
+                suggestions = geist.suggest(context)
+                assert_valid_suggestions(suggestions, "semantic_neighbours", min_count=2)
 
-        for suggestion in suggestions:
-            text = suggestion.text
-
-            # Find all properly formatted wikilinks
-            wikilinks = re.findall(r"\[\[([^\]]+)\]\]", text)
-
-            # Should have at least seed + 1 neighbour
-            assert len(wikilinks) >= 2, f"Expected >= 2 wikilinks, got {len(wikilinks)} in: {text}"
-
-            # Check for orphaned note references (note titles without brackets)
-            # Pattern matches "Word#YYYY Month Day" or "Word Word#YYYY Month Day"
-            # that are NOT inside [[ ]]
-            orphaned = re.findall(r"(?<!\[)\b([\w\s]+#\d{4}[^,.\]]*?)(?=[\s,.]|$)", text)
-
-            # Filter out false positives (things already in brackets)
-            actual_orphaned = [o for o in orphaned if o not in " ".join(wikilinks)]
-
-            assert len(actual_orphaned) == 0, (
-                f"Found unbracketed note references: {actual_orphaned} in '{text}'"
-            )
-
-    def test_semantic_neighbours_consistent_formatting(self, tmp_path: Path):
-        """Regression test: Seed and neighbours should have consistent formatting."""
-        import re
-
-        context = create_test_vault_context(tmp_path)
-        geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        suggestions = geist.suggest(context)
-
-        for suggestion in suggestions:
-            text = suggestion.text
-
-            # All wikilinks should be properly closed
-            open_brackets = text.count("[[")
-            close_brackets = text.count("]]")
-            assert open_brackets == close_brackets, (
-                f"Mismatched brackets: {open_brackets} [[ vs {close_brackets} ]] in '{text}'"
-            )
-
-            # Should not have partial brackets like "[[Note" or "Note]]"
-            assert not re.search(r"\[\[[^\]]*$", text), "Found unclosed [["
-            assert not re.search(r"^[^\[]*\]\]", text), "Found unmatched ]]"
-
-    def test_semantic_neighbours_structure_matches_pattern(self, tmp_path: Path):
-        """Regression test: Output should match expected structure."""
-        import re
-
-        context = create_test_vault_context(tmp_path)
-        geist_path = GEISTS_DIR / "semantic_neighbours.yaml"
-        geist = TraceryGeist.from_yaml(geist_path, seed=42)
-
-        suggestions = geist.suggest(context)
-
-        for suggestion in suggestions:
-            text = suggestion.text
-
-            # Extract all wikilinks
-            wikilinks = re.findall(r"\[\[([^\]]+)\]\]", text)
-
-            # Verify structure: should have seed (first mention) + neighbours
-            assert len(wikilinks) >= 2, (
-                f"Expected seed + neighbours (>=2 links), got {len(wikilinks)}"
-            )
-
-            # All wikilinks should be non-empty
-            assert all(link.strip() for link in wikilinks), f"Found empty wikilink in: {text}"
+                for suggestion in suggestions:
+                    links = re.findall(r"\[\[([^\]]+)\]\]", suggestion.text)
+                    assert suggestion.text.count("[[") == suggestion.text.count("]]") == 4
+                    seed_title, neighbours = links[0], links[1:]
+                    assert seed_title not in neighbours, suggestion.text
+                    assert set(neighbours) == group_of[seed_title] - {seed_title}, (
+                        f"neighbours drawn from another cluster: {suggestion.text}"
+                    )
+                    assert suggestion.notes == links
 
 
 # ============================================================================

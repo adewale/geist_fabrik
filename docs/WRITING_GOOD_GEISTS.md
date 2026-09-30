@@ -1052,14 +1052,27 @@ hub:
 orphan:
   - "$vault.orphans(1)"
 
-# Context-sensitive pairs must be bundled before Tracery expands symbols
+# Context-sensitive pairs must be bundled before Tracery expands symbols,
+# then split from ONE saved draw: each #cluster# reference draws anew.
+origin:
+  - "#[picked:#cluster#]template#"
+template:
+  - "#seed# shares conceptual space with #neighbours#."
 cluster:
   - "$vault.semantic_clusters(2, 3)"
 seed:
-  - "#cluster.split_seed#"
+  - "#picked.split_seed#"
 neighbours:
-  - "#cluster.split_neighbours#"
+  - "#picked.split_neighbours#"
 ```
+
+### Saving a Draw for Reuse
+
+Every `#symbol#` reference picks a fresh rule. To mention the same draw twice,
+save it with a Tracery action: `[key:#symbol#]` saves one expansion for the
+rest of the suggestion, `#[key:#symbol#]other#` saves it only while `#other#`
+expands, and `[key:POP]` discards it. `#key#` (with any modifiers) then reuses
+the saved text. See `specs/tracery_research.md` ("Save actions") for details.
 
 ### Template Variation
 

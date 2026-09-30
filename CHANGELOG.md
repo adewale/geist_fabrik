@@ -65,6 +65,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   everything (NaN similarity passed the threshold check).
 - Tracery output with an empty leading or trailing placeholder (for example
   contradictor on an empty vault) was not suppressed.
+- semantic_neighbours could pair one cluster's seed with another cluster's
+  neighbours, even listing the seed among its own "neighbours" ("around
+  [[Note 1]]: [[Note 0]], [[Note 1]]"): its seed and neighbours each
+  re-expanded `#cluster#`. The Tracery engine now supports Tracery's save
+  actions (`[key:#symbol#]`, `[key:POP]`, `#[key:#symbol#]other#`), and the
+  geist splits one saved cluster. Grammar preflight (shared by loading and
+  `geistfabrik validate`) rejects malformed actions, and `validate` no longer
+  reports saved keys as undefined symbols.
 
 ### Tests
 - The test `SentenceTransformer` stub is now a bag-of-words embedding, so
