@@ -21,7 +21,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes()
+    # Geist journal notes are session output: never hubs, never counted neighbours
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 20:
         return []
@@ -33,7 +34,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         total_links = outgoing + incoming
 
         # Find semantic neighbours with scores
-        neighbours_with_scores = vault.neighbours(note, count=30, return_scores=True)
+        neighbours_with_scores = [
+            (n, sim)
+            for n, sim in vault.neighbours(note, count=30, return_scores=True)
+            if not n.path.startswith("geist journal/")
+        ]
 
         # Filter to only high-similarity neighbours
         high_similarity_count = sum(

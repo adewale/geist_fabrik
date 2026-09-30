@@ -21,7 +21,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes()
+    # Geist journal notes are session output: never theses, never antitheses
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 10:
         return []
@@ -65,7 +66,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # Check if an antithesis note already exists
         # Look for semantically opposite notes
-        similar = vault.neighbours(note, count=20)
+        similar = [
+            n for n in vault.neighbours(note, count=20) if not n.path.startswith("geist journal/")
+        ]
 
         # Look for negation words in similar notes
         negation_words = ["not", "no", "never", "contra", "anti", "against", "opposite", "reverse"]
@@ -130,7 +133,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if suggestion_count >= max_suggestions:
             break
         # Find potential antithesis (OP-9: get scores to avoid recomputation)
-        similar_with_scores = vault.neighbours(note, count=10, return_scores=True)
+        similar_with_scores = [
+            (n, sim)
+            for n, sim in vault.neighbours(note, count=10, return_scores=True)
+            if not n.path.startswith("geist journal/")
+        ]
 
         for other, similarity in similar_with_scores:
             # Check if they seem opposed (already have similarity from neighbours)

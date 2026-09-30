@@ -20,8 +20,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
+    # Seeds from the same group find the same cluster; report each set once
+    reported: set[frozenset[str]] = set()
 
-    notes = vault.notes()
+    # Geist journal notes are session output, not concepts
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 5:
         return []
@@ -30,8 +33,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     seed_notes = vault.sample(notes, count=5)
 
     for seed in seed_notes:
-        # Get neighbours of this note
-        neighbours = vault.neighbours(seed, count=5)
+        # Get neighbours of this note (over-fetch so journal notes cannot crowd out real ones)
+        neighbours = [
+            n for n in vault.neighbours(seed, count=10) if not n.path.startswith("geist journal/")
+        ][:5]
 
         if len(neighbours) < 3:
             continue
@@ -39,6 +44,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Check if these neighbours are also similar to each other
         # (indicating a cluster, not just a hub-and-spoke)
         cluster_notes = [seed] + neighbours[:3]
+        cluster_key = frozenset(n.path for n in cluster_notes)
+        if cluster_key in reported:
+            continue
 
         # Calculate average pairwise similarity within cluster
         # Use individual similarity() calls to benefit from session cache
@@ -52,6 +60,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         # If average similarity is high, this is a real cluster
         if avg_similarity > SimilarityLevel.HIGH:
+            reported.add(cluster_key)
             note_titles = [n.link_text for n in cluster_notes]
             formatted_titles = "]], [[".join(note_titles)
 

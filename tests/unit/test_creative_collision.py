@@ -1,404 +1,152 @@
-"""Unit tests for creative_collision geist."""
+"""Unit tests for the creative_collision geist.
+
+creative_collision draws 10 random note pairs and suggests combining any
+unlinked pair whose similarity is in the "different but not unrelated"
+window SimilarityLevel.NOISE (0.15) < sim < SimilarityLevel.MODERATE (0.5).
+It returns at most 3 suggestions.
+
+Fixtures use the bag-of-words test stub. Each note has a 2-word unique
+title, 5 unique body words and 3 words shared by every note, so any two notes
+have cosine ~3/10 = 0.3: inside the window.
+"""
+
+from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import creative_collision
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.similarity_analysis import SimilarityLevel
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_diverse_notes(tmp_path):
-    """Create a vault with notes from different domains."""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create notes from different domains
-    domains = {
-        "Science": ["Physics", "Biology", "Chemistry", "Astronomy", "Geology"],
-        "Art": ["Painting", "Sculpture", "Music", "Dance", "Theatre"],
-        "Philosophy": ["Ethics", "Metaphysics", "Logic", "Aesthetics", "Epistemology"],
-        "Technology": ["AI", "Blockchain", "IoT", "Cloud", "Quantum"],
-    }
-
-    for domain, topics in domains.items():
-        for topic in topics:
-            path = vault_path / f"{domain}_{topic}.md"
-            path.write_text(f"# {topic}\n\nContent about {topic.lower()} in {domain.lower()}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+CAP = 3
+CREATED = datetime(2024, 1, 1)
+SHARED = "lantern compass harbour"
+UNIQUE = [
+    "orchard pruning grafting cider scion",
+    "glacier moraine crevasse serac firn",
+    "violin bowing rosin vibrato luthier",
+    "sourdough levain crumb proofing banneton",
+    "comet orbit perihelion nucleus coma",
+    "beehive honeycomb pollen nectar apiary",
+    "loom weaving warp weft heddle",
+    "volcano magma caldera fumarole tephra",
+]
+TITLES = [
+    "Apple Grove",
+    "Ice Field",
+    "String Craft",
+    "Bread Baking",
+    "Sky Watch",
+    "Bee Keeping",
+    "Cloth Making",
+    "Fire Mountain",
+]
 
 
-@pytest.fixture
-def vault_with_linked_notes(tmp_path):
-    """Create a vault where most notes are linked."""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create notes with cross-links
-    for i in range(10):
-        path = vault_path / f"note_{i}.md"
-        # Link to next note
-        next_i = (i + 1) % 10
-        path.write_text(f"# Note {i}\n\nContent linking to [[note_{next_i}]].")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _note(builder: VaultBuilder, i: int, body: str | None = None) -> str:
+    builder.note(TITLES[i], body or f"{UNIQUE[i]} {SHARED}", created=CREATED)
+    return TITLES[i]
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with only one note."""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "single_note.md").write_text("# Single Note\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _sim(ctx: VaultContext, a: str, b: str) -> float:
+    na, nb = ctx.resolve_link_target(a), ctx.resolve_link_target(b)
+    assert na is not None and nb is not None
+    return ctx.similarity(na, nb)
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def test_creative_collision_pairs_moderately_related_notes(tmp_path: Path) -> None:
+    """Contract: an unlinked pair inside the similarity window is suggested once.
+
+    Two notes: every random draw is the same pair, which must be reported
+    once, not once per draw.
+    """
+    builder = VaultBuilder(tmp_path)
+    a, b = _note(builder, 0), _note(builder, 1)
+    ctx = builder.build()
+    assert SimilarityLevel.NOISE < _sim(ctx, a, b) < SimilarityLevel.MODERATE
+
+    suggestions = creative_collision.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "creative_collision", must_reference=[a, b])
+    assert len(suggestions) == 1
+    assert set(suggestions[0].notes) == {a, b}
+    assert f"[[{a}]]" in suggestions[0].text and f"[[{b}]]" in suggestions[0].text
 
 
-def test_creative_collision_returns_suggestions(vault_with_diverse_notes):
-    """Test that creative_collision returns suggestions.
+def test_creative_collision_caps_at_three_distinct_pairs(tmp_path: Path) -> None:
+    """Contract: with 28 qualifying pairs (8 notes), exactly 3 distinct pairs return."""
+    builder = VaultBuilder(tmp_path)
+    titles = [_note(builder, i) for i in range(len(TITLES))]
+    ctx = builder.build()
 
-    Setup:
-        Vault with notes from different domains.
+    suggestions = creative_collision.suggest(ctx)
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_diverse_notes
+    assert_valid_suggestions(suggestions, "creative_collision", min_count=CAP)
+    assert len(suggestions) == CAP
+    pairs = {frozenset(s.notes) for s in suggestions}
+    assert len(pairs) == CAP
+    assert all(pair <= set(titles) for pair in pairs)
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+@pytest.mark.parametrize(
+    ("body_b", "reason"),
+    [
+        # Same body as note A: cosine ~0.8 >= MODERATE (too similar to collide).
+        (f"{UNIQUE[0]} {SHARED}", "too similar"),
+        # Disjoint vocabulary: cosine ~0 <= NOISE (unrelated, not a collision).
+        ("marmot quokka platypus echidna wombat", "unrelated"),
+    ],
+    ids=["too_similar", "unrelated"],
+)
+def test_creative_collision_rejects_pairs_outside_window(
+    tmp_path: Path, body_b: str, reason: str
+) -> None:
+    """Contract: pairs at or beyond either end of the window are never suggested."""
+    builder = VaultBuilder(tmp_path)
+    a, b = _note(builder, 0), _note(builder, 1, body=body_b)
+    ctx = builder.build()
+    sim = _sim(ctx, a, b)
+    if reason == "too similar":
+        assert sim >= SimilarityLevel.MODERATE
+    else:
+        assert sim <= SimilarityLevel.NOISE
+
+    assert creative_collision.suggest(ctx) == []
+
+
+def test_creative_collision_skips_linked_pairs(tmp_path: Path) -> None:
+    """Contract: an in-window pair that is already linked is not a collision."""
+    builder = VaultBuilder(tmp_path)
+    a = _note(builder, 0)
+    b = _note(builder, 1, body=f"{UNIQUE[1]} {SHARED} [[{TITLES[0]}]]")
+    ctx = builder.build()
+    assert SimilarityLevel.NOISE < _sim(ctx, a, b) < SimilarityLevel.MODERATE
+
+    assert creative_collision.suggest(ctx) == []
+
+
+def test_creative_collision_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are never collided with.
+
+    Four journal notes share the same 3 words, so every journal/regular pair
+    is inside the window; unfiltered, 14 of the 15 pairs involve one.
+    """
+    builder = VaultBuilder(tmp_path)
+    a, b = _note(builder, 0), _note(builder, 1)
+    journal = []
+    for i in range(2, 6):
+        title = f"Session {i}"
+        builder.journal(title, f"{UNIQUE[i]} {SHARED}", created=CREATED)
+        journal.append(title)
+    ctx = builder.build()
+
+    suggestions = creative_collision.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "creative_collision",
+        must_reference=[a, b],
+        must_not_reference=["geist journal", *journal],
     )
-
-    suggestions = creative_collision.suggest(context)
-
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
-
-
-def test_creative_collision_suggestion_structure(vault_with_diverse_notes):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with cross-domain notes.
-
-    Verifies:
-        - Has required fields
-        - References 2+ notes from different domains"""
-    vault, session = vault_with_diverse_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "creative_collision"
-
-        # Should reference 2 notes (the collision pair)
-        assert len(suggestion.notes) == 2
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_creative_collision_uses_link_text(vault_with_diverse_notes):
-    """Test that creative_collision uses link_text for note references.
-
-    Setup:
-        Vault with cross-domain notes.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_diverse_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_creative_collision_empty_vault(tmp_path):
-    """Test that creative_collision handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_creative_collision_insufficient_notes(vault_insufficient_notes):
-    """Test that creative_collision handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 15 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    # Should return empty list when < 2 notes
-    assert len(suggestions) == 0
-
-
-def test_creative_collision_all_linked_notes(vault_with_linked_notes):
-    """Test that creative_collision handles vault where all notes are linked."""
-    vault, session = vault_with_linked_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    # May return empty if all notes are already linked
-    assert isinstance(suggestions, list)
-
-
-def test_creative_collision_max_suggestions(vault_with_diverse_notes):
-    """Test that creative_collision never returns more than 3 suggestions.
-
-    Setup:
-        Vault with many cross-domain pairs.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_diverse_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_creative_collision_deterministic_with_seed(vault_with_diverse_notes):
-    """Test that creative_collision returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_diverse_notes
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = creative_collision.suggest(context1)
-    suggestions2 = creative_collision.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_creative_collision_suggests_unlinked_pairs(vault_with_diverse_notes):
-    """Test that creative_collision suggests combining unlinked notes."""
-    vault, session = vault_with_diverse_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    for suggestion in suggestions:
-        # Text should suggest combining ideas
-        assert "combined" in suggestion.text.lower() or "combine" in suggestion.text.lower()
-        assert "different domains" in suggestion.text.lower()
-
-
-def test_creative_collision_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with sessions
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
-        journal_note.write_text(
-            f"# Session {i}\n\n"
-            "## Suggestions\n\n"
-            "What if Physics and Music combined created new insights?\n\n"
-            "Different domains colliding might reveal unexpected patterns."
-        )
-
-    # Create regular notes from different domains
-    domains = {
-        "Science": ["Physics", "Biology", "Chemistry"],
-        "Art": ["Painting", "Music", "Dance"],
-    }
-
-    for domain, topics in domains.items():
-        for topic in topics:
-            path = vault_path / f"{domain}_{topic}.md"
-            path.write_text(f"# {topic}\n\nContent about {topic.lower()} in {domain.lower()}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creative_collision.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern

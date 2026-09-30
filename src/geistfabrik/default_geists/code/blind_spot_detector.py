@@ -37,13 +37,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # For each recent note, find its semantic opposite
     for note in recent[:3]:  # Check top 3 recent notes
         # Get contrarian note titles (contrarian_to returns List[str])
-        contrarian_titles = vault.call_function("contrarian_to", note.title, 3)
+        # (over-fetch: journal notes are skipped below and must not use up the list)
+        contrarian_titles = vault.call_function("contrarian_to", note.title, 10)
 
         if not contrarian_titles:
             continue
 
         # Check if contrarian notes are sparse or old
-        for contrarian_title in contrarian_titles[:1]:  # Take the most contrarian
+        # Take the most contrarian note that is not geist journal output
+        for contrarian_title in contrarian_titles:
             # contrarian_to returns bracketed links ("[[Title]]"); strip the
             # brackets and resolve by title/path. (Passing the bracketed
             # string to get_note() - an exact-path lookup - always returned
@@ -75,8 +77,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
                 )
 
-                # Only one suggestion per recent note
-                break
+            # Only the most contrarian (non-journal) note is considered
+            break
 
     # Limit to 2 suggestions to avoid overwhelming
     return vault.sample(suggestions, min(2, len(suggestions)))

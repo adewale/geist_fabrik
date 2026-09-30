@@ -1209,7 +1209,7 @@ class VaultContext:
         return [note for note, _ in similarities[:count]]
 
     def unlinked_pairs(
-        self, count: int = 10, candidate_limit: int = 200
+        self, count: int = 10, candidate_limit: int = 200, exclude_journal: bool = False
     ) -> list[tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
 
@@ -1220,16 +1220,22 @@ class VaultContext:
         Args:
             k: Number of pairs to return
             candidate_limit: Maximum number of notes to consider (to avoid O(n²) on large vaults)
+            exclude_journal: If True, leave "geist journal/" notes out BEFORE the
+                top-``count`` cut. (Filtering the result afterwards is not
+                equivalent: templated journal notes are highly similar to each
+                other and can fill every one of the ``count`` slots.)
 
         Returns:
             List of (note_a, note_b) tuples sorted by similarity
         """
-        all_notes = self.notes()
+        all_notes = self.notes_excluding_journal() if exclude_journal else self.notes()
 
         # Optimise for large vaults by limiting candidate set
         if len(all_notes) > candidate_limit:
             # Sample a diverse set: recent notes + random notes
             recent = self.recent_notes(count=candidate_limit // 2)
+            if exclude_journal:
+                recent = [n for n in recent if not n.path.startswith("geist journal/")]
             # Use set for O(1) membership check instead of O(N) list membership
             recent_set = set(recent)
             remaining = [n for n in all_notes if n not in recent_set]

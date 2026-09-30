@@ -1,475 +1,163 @@
-"""Unit tests for columbo geist."""
+"""Unit tests for the columbo geist.
+
+columbo looks for a note with assertion language whose top-5 semantic
+neighbour has similarity > SimilarityLevel.HIGH (0.65) and the opposite
+polarity: > 2 "positive" markers (always/all/must/should, substring match)
+on one side and > 2 "negative" markers (never/no/not/cannot/but/however/
+except) on the other. It returns at most 3 suggestions.
+
+Fixtures use the bag-of-words test stub. A claim and its doubt repeat the
+same 12 topic words twice (count 2 per dimension) and differ only in their
+marker words, so their cosine is ~0.9 > 0.65. Topic words are checked to
+contain no marker substrings, so marker counts are exactly what is planted.
+"""
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import columbo
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.similarity_analysis import SimilarityLevel
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+CAP = 3
+CREATED = datetime(2024, 1, 1)
+POSITIVE = "always must should"  # "always" also contains "all": 4 positive markers
+NEGATIVE = "never cannot however except"  # plus "no"/"not" inside "cannot": 6 negative
+MARKERS = ["all", "always", "must", "should", "never", "no", "not", "cannot", "but", "however"]
+TOPICS = {
+    "Beacon": "lighthouse keeper beacon lantern foghorn harbour "
+    "tides reef shipwreck gull cliff rocks",
+    "Loom": "loom weaving warp weft shuttle heddle yarn tapestry spindle wool dye fibre",
+    "Comet": "comet orbit perihelion nucleus coma tail "
+    "telescope dust ice sungrazer ecliptic kuiper",
+    "Honey": "beehive honeycomb pollen nectar queen drone worker wax apiary swarm smoker frame",
+}
 
 
-@pytest.fixture
-def vault_with_contradictions(tmp_path):
-    """Create a vault with contradictory notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _topic_body(name: str, markers: str) -> str:
+    topic = TOPICS[name]
+    return f"{topic} {markers} {topic}"
 
-    # Note with strong positive claims
-    (vault_path / "positive.md").write_text("""# Positive Claims
 
-All software must be tested. Testing is always important.
-We should always write tests first.
+def _add_pair(builder: VaultBuilder, name: str, *, claim: str = POSITIVE) -> tuple[str, str]:
+    builder.note(f"{name} Claim", _topic_body(name, claim), created=CREATED)
+    builder.note(f"{name} Doubt", _topic_body(name, NEGATIVE), created=CREATED)
+    return f"{name} Claim", f"{name} Doubt"
 
-Links: [[testing]], [[quality]]
-""")
 
-    # Note with contradictory negative claims (semantically similar topic)
-    (vault_path / "negative.md").write_text("""# Testing Skepticism
+def test_fixture_topics_contain_no_marker_substrings() -> None:
+    """Guard for the fixture itself: marker counts must come only from planted words."""
+    for name, topic in TOPICS.items():
+        text = f"{name} claim doubt {topic}"
+        assert not [m for m in MARKERS if m in text], name
 
-Testing is never sufficient. No amount of testing can prove correctness.
-However, formal verification is not practical except for critical systems.
 
-Links: [[testing]], [[verification]]
-""")
+def test_columbo_flags_similar_notes_with_opposite_polarity(tmp_path: Path) -> None:
+    """Contract: a claim and a near-identical doubt are reported as a contradiction.
 
-    # Supporting note (linked from both)
-    (vault_path / "testing.md").write_text("""# Testing Philosophy
-
-Different approaches to software quality.
-""")
-
-    # Supporting note
-    (vault_path / "quality.md").write_text("""# Quality Assurance
-
-Notes on quality.
-""")
-
-    # Supporting note
-    (vault_path / "verification.md").write_text("""# Formal Verification
-
-Formal methods.
-""")
-
-    # Initialize vault
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Compute embeddings
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_without_contradictions(tmp_path):
-    """Create a vault without contradictory patterns."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Notes without strong claims or contradictions
-    (vault_path / "note1.md").write_text("# Note 1\n\nSome observations.")
-    (vault_path / "note2.md").write_text("# Note 2\n\nMore observations.")
-    (vault_path / "note3.md").write_text("# Note 3\n\nFinal observations.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_columbo_returns_suggestions(vault_with_contradictions):
-    """Test that columbo returns suggestions when contradictions exist.
-
-    Setup:
-        Vault with isolated notes (low link density).
-
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_contradictions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # Should return suggestions (at most 3)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
-
-
-def test_columbo_suggestion_structure(vault_with_contradictions):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with isolated notes.
-
-    Verifies:
-        - Has required fields
-        - References 1 isolated note"""
-    vault, session = vault_with_contradictions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "columbo"
-
-        # Should reference 2 notes (the contradicting pair)
-        assert len(suggestion.notes) == 2
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-        # Should contain "lying" or "contradict" language
-        assert "lying" in suggestion.text.lower() or "contradict" in suggestion.text.lower()
-
-
-def test_columbo_uses_link_text(vault_with_contradictions):
-    """Test that columbo uses link_text for note references.
-
-    Setup:
-        Vault with isolated notes.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_contradictions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            # Should be a plain string (link_text format)
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_columbo_empty_vault(tmp_path):
-    """Test that columbo handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_columbo_insufficient_notes(tmp_path):
-    """Test that columbo handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 10 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create only 2 notes (below minimum of 3)
-    (vault_path / "note1.md").write_text("# Note 1\n\nContent.")
-    (vault_path / "note2.md").write_text("# Note 2\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # Should return empty list when < 3 notes
-    assert len(suggestions) == 0
-
-
-def test_columbo_requires_claim_language(tmp_path):
-    """Test that columbo returns empty when notes lack strong claim language.
-
-    Creates vault with descriptive notes (no 'always', 'never', 'must', etc.).
-    Verifies geist returns [] since no claim language exists to analyze.
+    Trigger: 3 notes (>= 3), similarity ~0.9 > 0.65, 4 positive vs 6 negative.
     """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+    builder = VaultBuilder(tmp_path)
+    claim, doubt = _add_pair(builder, "Beacon")
+    builder.note("Loom Filler", TOPICS["Loom"], created=CREATED)
+    ctx = builder.build()
+    a, b = ctx.resolve_link_target(claim), ctx.resolve_link_target(doubt)
+    assert a is not None and b is not None
+    assert ctx.similarity(a, b) > SimilarityLevel.HIGH
 
-    # Notes without strong claim indicators - just descriptive content
-    (vault_path / "note1.md").write_text("""# Note 1
+    suggestions = columbo.suggest(ctx)
 
-Software testing is useful. It helps find bugs.
-""")
-
-    (vault_path / "note2.md").write_text("""# Note 2
-
-Code reviews can be helpful. They sometimes catch issues.
-""")
-
-    (vault_path / "note3.md").write_text("""# Note 3
-
-Documentation is beneficial. It makes code easier to understand.
-""")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # Should return empty when no claim language exists
-    assert len(suggestions) == 0
+    assert_valid_suggestions(suggestions, "columbo", must_reference=[claim, doubt])
+    assert all(set(s.notes) == {claim, doubt} for s in suggestions)
+    assert "Loom Filler" not in {n for s in suggestions for n in s.notes}
 
 
-def test_columbo_requires_contradictions(tmp_path):
-    """Test that columbo returns empty when claims agree (no contradictions).
+def test_columbo_reports_each_contradiction_once(tmp_path: Path) -> None:
+    """Contract: a contradicting pair is one suggestion, not one per direction.
 
-    Creates vault with multiple notes containing only positive, aligned claims:
-    - All about testing being important
-    - No negations or opposing views
-    - All claims support each other
-
-    Verifies geist returns [] since no linguistic contradictions exist.
+    Both notes pass the claim-language gate, so each finds the other as a
+    contradicting neighbour; the pair must still be reported once.
     """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+    builder = VaultBuilder(tmp_path)
+    _add_pair(builder, "Beacon")
+    builder.note("Loom Filler", TOPICS["Loom"], created=CREATED)
+    ctx = builder.build()
 
-    # Notes with ONLY positive aligned claims (no negations at all)
-    (vault_path / "note1.md").write_text("""# Note 1
+    suggestions = columbo.suggest(ctx)
 
-All software must be tested thoroughly. Testing is always crucial.
-Quality should be our top priority.
-""")
+    assert_valid_suggestions(suggestions, "columbo")
+    assert len(suggestions) == 1
 
-    (vault_path / "note2.md").write_text("""# Note 2
 
-Testing should always be comprehensive. We must write excellent tests.
-Quality must be maintained at all times.
-""")
+def test_columbo_caps_at_three_distinct_contradictions(tmp_path: Path) -> None:
+    """Contract: 4 contradicting pairs -> exactly 3 suggestions, 3 distinct pairs."""
+    builder = VaultBuilder(tmp_path)
+    pairs = {frozenset(_add_pair(builder, name)) for name in TOPICS}
+    ctx = builder.build()
 
-    (vault_path / "note3.md").write_text("""# Note 3
+    suggestions = columbo.suggest(ctx)
 
-Quality is always important. All code must be reviewed carefully.
-Testing is essential for every project.
-""")
+    assert_valid_suggestions(suggestions, "columbo", min_count=CAP)
+    assert len(suggestions) == CAP
+    found = {frozenset(s.notes) for s in suggestions}
+    assert len(found) == CAP
+    assert found <= pairs
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
 
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
+@pytest.mark.parametrize(
+    ("claim_markers", "fires"),
+    [
+        ("must should", False),  # 2 positive markers: not > 2
+        ("must should all", True),  # 3 positive markers: > 2
+    ],
+)
+def test_columbo_positive_marker_threshold(tmp_path: Path, claim_markers: str, fires: bool) -> None:
+    """Contract: the claim side needs MORE than 2 polarity markers."""
+    builder = VaultBuilder(tmp_path)
+    claim, doubt = _add_pair(builder, "Beacon", claim=claim_markers)
+    builder.note("Loom Filler", TOPICS["Loom"], created=CREATED)
+    ctx = builder.build()
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    suggestions = columbo.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, "columbo", must_reference=[claim, doubt])
+    else:
+        assert suggestions == []
+
+
+def test_columbo_ignores_dissimilar_opposites(tmp_path: Path) -> None:
+    """Contract: opposite polarity alone is not a contradiction without similarity."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Beacon Claim", _topic_body("Beacon", POSITIVE), created=CREATED)
+    builder.note("Loom Doubt", _topic_body("Loom", NEGATIVE), created=CREATED)
+    builder.note("Comet Filler", TOPICS["Comet"], created=CREATED)
+    ctx = builder.build()
+
+    assert columbo.suggest(ctx) == []
+
+
+def test_columbo_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are never cited as contradictions.
+
+    Three journal notes carry the Beacon doubt text, so unfiltered they would
+    contribute most of the candidate contradictions.
+    """
+    builder = VaultBuilder(tmp_path)
+    claim, doubt = _add_pair(builder, "Beacon")
+    builder.note("Loom Filler", TOPICS["Loom"], created=CREATED)
+    journal = ["Session One", "Session Two", "Session Three"]
+    for title in journal:
+        builder.journal(title, _topic_body("Beacon", NEGATIVE), created=CREATED)
+    ctx = builder.build()
+
+    suggestions = columbo.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "columbo",
+        must_reference=[claim, doubt],
+        must_not_reference=["geist journal", *journal],
     )
-
-    suggestions = columbo.suggest(context)
-
-    # Should return empty when claims exist but don't contradict
-    # All notes agree that testing/quality is important (no opposing claims)
-    assert len(suggestions) == 0
-
-
-# ============================================================================
-# Exclusion Tests
-# ============================================================================
-
-
-def test_columbo_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from analysis.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    # Create journal notes with contradictory claims
-    for i in range(5):
-        note_path = journal_dir / f"2024-03-{15 + i:02d}.md"
-        note_path.write_text(f"""# Session {i}
-
-All testing must be automated. Testing is always critical.
-Never skip tests. No untested code should be deployed.
-""")
-
-    # Create regular notes
-    (vault_path / "note1.md").write_text("# Note 1\n\nAll tests are important.")
-    (vault_path / "note2.md").write_text("# Note 2\n\nNever skip testing.")
-    (vault_path / "note3.md").write_text("# Note 3\n\nMust test everything.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # Verify that journal notes don't appear in suggestions
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()
-
-
-# ============================================================================
-# Limit Tests
-# ============================================================================
-
-
-def test_columbo_max_three_suggestions(vault_with_contradictions):
-    """Test that columbo returns at most 3 suggestions."""
-    vault, session = vault_with_contradictions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = columbo.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_columbo_deterministic_with_seed(vault_with_contradictions):
-    """Test that columbo returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_contradictions
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = columbo.suggest(context1)
-    suggestions2 = columbo.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2

@@ -1,385 +1,143 @@
-"""Unit tests for cluster_mirror geist."""
+"""Unit tests for the cluster_mirror geist.
 
+cluster_mirror runs HDBSCAN clustering (min_cluster_size from config, default
+5), drops geist journal notes from every cluster (discarding clusters left
+below min size), needs at least 2 clusters, and returns ONE suggestion that
+shows up to 3 sampled clusters with 3 representative notes each.
+
+Fixtures use the bag-of-words test stub: each topic group is 6 notes sharing
+the same 8 words (cosine ~0.8 within a group, ~0 across groups), so HDBSCAN
+finds one dense cluster per group.
+"""
+
+from collections.abc import Sequence
 from datetime import datetime
+from pathlib import Path
 
-import numpy as np
 import pytest
 
-from geistfabrik import Vault, VaultContext
-from geistfabrik.clustering_analysis import Cluster
 from geistfabrik.default_geists.code import cluster_mirror
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
-from geistfabrik.models import Note
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_clusters(tmp_path):
-    """Create a vault with semantically distinct groups of notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create cluster 1: Python programming notes
-    for i in range(8):
-        (vault_path / f"python_{i}.md").write_text(
-            f"# Python Note {i}\n\n"
-            f"Python programming language topics: classes, functions, decorators, "
-            f"generators, comprehensions, async, typing, testing."
-        )
-
-    # Create cluster 2: Machine learning notes
-    for i in range(8):
-        (vault_path / f"ml_{i}.md").write_text(
-            f"# ML Note {i}\n\n"
-            f"Machine learning concepts: neural networks, training, optimization, "
-            f"backpropagation, gradient descent, loss functions, regularization."
-        )
-
-    # Create cluster 3: Cooking notes
-    for i in range(8):
-        (vault_path / f"cooking_{i}.md").write_text(
-            f"# Cooking Note {i}\n\n"
-            f"Cooking techniques and recipes: sautéing, roasting, baking, "
-            f"braising, grilling, seasoning, marinating, preparation."
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+CREATED = datetime(2024, 1, 1)
+SHOWN_CLUSTERS = 3
+REPRESENTATIVES = 3
+TOPICS = {
+    "Orchard": "orchard pruning grafting apple blossom cider rootstock scion",
+    "Glacier": "glacier moraine crevasse icefall serac firn cirque tarn",
+    "Violin": "violin bowing rosin fingerboard vibrato luthier spruce purfling",
+    "Bakery": "bakery sourdough levain crumb proofing banneton flour oven",
+}
+GROUP_SIZE = 6
 
 
-@pytest.fixture
-def vault_insufficient_clusters(tmp_path):
-    """Create a vault with too few notes to form meaningful clusters."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 6 notes (need at least min_size=5 per cluster × 2 clusters)
-    for i in range(6):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nSome content.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _add_group(builder: VaultBuilder, name: str, *, journal: bool = False) -> list[str]:
+    titles = [f"{name} {'Session' if journal else 'Note'} {chr(65 + i)}" for i in range(GROUP_SIZE)]
+    for title in titles:
+        add = builder.journal if journal else builder.note
+        add(title, TOPICS[name], created=CREATED)
+    return titles
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _build(tmp_path: Path, regular: Sequence[str], journal: Sequence[str] = ()) -> VaultContext:
+    builder = VaultBuilder(tmp_path)
+    for name in regular:
+        _add_group(builder, name)
+    for name in journal:
+        _add_group(builder, name, journal=True)
+    return builder.build()
 
 
-def test_cluster_mirror_returns_suggestions(vault_with_clusters):
-    """Test that cluster_mirror returns suggestions with clusterable notes.
-
-    Setup:
-        Vault with semantic note clusters.
-
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_clusters
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = cluster_mirror.suggest(context)
-
-    # Should return at most 1 suggestion showing clusters
-    # Note: HDBSCAN can be non-deterministic in edge cases, so we check for 0 or 1
-    # The fixture has clear clusters, so we should get 1, but allow 0 in rare cases
-    assert isinstance(suggestions, list)
-    assert len(suggestions) in [0, 1], f"Expected 0 or 1 suggestions, got {len(suggestions)}"
+def _shown_groups(text: str) -> set[str]:
+    """Topic names whose notes appear in a '→ [[...]]' representatives line."""
+    return {name for name in TOPICS if f"[[{name} " in text}
 
 
-def test_cluster_mirror_suggestion_structure(vault_with_clusters):
-    """Test that suggestions have correct structure.
+def test_cluster_mirror_shows_each_planted_cluster(tmp_path: Path) -> None:
+    """Contract: two planted topic clusters are both shown with 3 representatives.
 
-    Setup:
-        Vault with note clusters.
+    Trigger: 12 notes (>= 2 x min_size 5) in 2 disjoint-vocabulary groups of 6.
+    """
+    ctx = _build(tmp_path, ["Orchard", "Glacier"])
 
-    Verifies:
-        - Has required fields
-        - References 3+ clustered notes"""
-    vault, session = vault_with_clusters
+    suggestions = cluster_mirror.suggest(ctx)
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = cluster_mirror.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "cluster_mirror"
-
-        # Should end with the muse question
-        assert "What do these clusters remind you of?" in suggestion.text
-
-        # Should have note references
-        assert len(suggestion.notes) > 0
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_cluster_mirror_uses_link_text(vault_with_clusters):
-    """Test that cluster_mirror uses link_text for note references.
-
-    Setup:
-        Vault with note clusters.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_clusters
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = cluster_mirror.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_cluster_mirror_shows_multiple_clusters(
-    vault_with_clusters, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Render multiple clusters from a deterministic clustering boundary."""
-    vault, session = vault_with_clusters
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-    notes = context.notes()
-    clusters = {
-        cluster_id: Cluster(
-            cluster_id=cluster_id,
-            label=f"topic {cluster_id}",
-            formatted_label=f"Notes about topic {cluster_id}",
-            notes=cluster_notes,
-            size=len(cluster_notes),
-            centroid=np.zeros(384),
-        )
-        for cluster_id, cluster_notes in enumerate((notes[:6], notes[6:12]))
-    }
-
-    def fixed_clusters(min_size: int = 5) -> dict[int, Cluster]:
-        assert min_size == 5
-        return clusters
-
-    def fixed_representatives(
-        cluster_id: int,
-        count: int = 3,
-        clusters: dict[int, Cluster] | None = None,
-    ) -> list[Note]:
-        assert clusters is not None
-        return clusters[cluster_id].notes[:count]
-
-    monkeypatch.setattr(context, "get_clusters", fixed_clusters)
-    monkeypatch.setattr(context, "get_cluster_representatives", fixed_representatives)
-    suggestions = cluster_mirror.suggest(context)
-
+    assert_valid_suggestions(suggestions, "cluster_mirror", must_reference=["Orchard", "Glacier"])
     assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.text.count("→") == 2
-    assert len(suggestion.notes) == 6
+    text = suggestions[0].text
+    assert text.endswith("What do these clusters remind you of?")
+    assert text.count("→") == 2
+    assert len(suggestions[0].notes) == 2 * REPRESENTATIVES
+    for line in (ln for ln in text.splitlines() if ln.startswith("→")):
+        # Each representatives line lists notes of exactly one planted group.
+        assert len(_shown_groups(line)) == 1
+        assert line.count("[[") == REPRESENTATIVES
 
 
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
+def test_cluster_mirror_shows_at_most_three_clusters(tmp_path: Path) -> None:
+    """Contract: with 4 clusters, exactly 3 distinct clusters are shown."""
+    ctx = _build(tmp_path, list(TOPICS))
+    assert len(ctx.get_clusters()) == 4
+
+    suggestions = cluster_mirror.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "cluster_mirror")
+    assert len(suggestions) == 1
+    assert suggestions[0].text.count("→") == SHOWN_CLUSTERS
+    assert len(_shown_groups(suggestions[0].text)) == SHOWN_CLUSTERS
+    assert len(set(suggestions[0].notes)) == SHOWN_CLUSTERS * REPRESENTATIVES
 
 
-def test_cluster_mirror_empty_vault(tmp_path):
-    """Test that cluster_mirror handles empty vault gracefully.
+@pytest.mark.parametrize(("regular_in_second", "fires"), [(4, False), (5, True)])
+def test_cluster_mirror_needs_two_clusters_of_min_size_after_journal_removal(
+    tmp_path: Path, regular_in_second: int, fires: bool
+) -> None:
+    """Contract: a cluster counts only if >= min_size (5) regular notes remain,
+    and fewer than 2 counted clusters -> [].
 
-    Setup:
-        Empty vault.
+    HDBSCAN finds two 6-note clusters (the second group mixes regular and
+    journal notes with identical vocabulary). With 4 regular notes left the
+    second cluster is dropped, leaving 1 cluster -> []; with 5 it survives.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_group(builder, "Orchard")
+    for i in range(GROUP_SIZE):
+        title = f"Glacier Mixed {chr(65 + i)}"
+        add = builder.note if i < regular_in_second else builder.journal
+        add(title, TOPICS["Glacier"], created=CREATED)
+    ctx = builder.build()
+    assert sorted(c.size for c in ctx.get_clusters().values()) == [GROUP_SIZE, GROUP_SIZE]
 
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+    suggestions = cluster_mirror.suggest(ctx)
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = cluster_mirror.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_cluster_mirror_insufficient_clusters(vault_insufficient_clusters):
-    """Test that cluster_mirror handles insufficient clusters gracefully."""
-    vault, session = vault_insufficient_clusters
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = cluster_mirror.suggest(context)
-
-    # Should return empty list when < 2 clusters found
-    assert len(suggestions) == 0
-
-
-def test_cluster_mirror_deterministic_with_seed(vault_with_clusters):
-    """Test that cluster_mirror returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_clusters
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = cluster_mirror.suggest(context1)
-    suggestions2 = cluster_mirror.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_cluster_mirror_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with clusterable content
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\n"
-            f"Python programming language topics: classes, functions, decorators, "
-            f"generators, comprehensions, async, typing, testing."
+    if not fires:
+        assert suggestions == []
+    else:
+        assert_valid_suggestions(
+            suggestions, "cluster_mirror", must_reference=["Orchard", "Glacier"]
         )
+        journal_titles = [
+            f"Glacier Mixed {chr(65 + i)}" for i in range(regular_in_second, GROUP_SIZE)
+        ]
+        assert not set(suggestions[0].notes) & set(journal_titles)
 
-    # Create regular notes with clusterable patterns
-    # Create cluster 1: Python programming notes
-    for i in range(8):
-        (vault_path / f"python_{i}.md").write_text(
-            f"# Python Note {i}\n\n"
-            f"Python programming language topics: classes, functions, decorators, "
-            f"generators, comprehensions, async, typing, testing."
-        )
 
-    # Create cluster 2: Machine learning notes
-    for i in range(8):
-        (vault_path / f"ml_{i}.md").write_text(
-            f"# ML Note {i}\n\n"
-            f"Machine learning concepts: neural networks, training, optimization, "
-            f"backpropagation, gradient descent, loss functions, regularization."
-        )
+def test_cluster_mirror_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal-only clusters are dropped and never shown.
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
+    Two regular clusters plus one all-journal cluster: unfiltered, all 3 fit
+    under the 3-cluster display limit, so a leak would always be visible.
+    """
+    ctx = _build(tmp_path, ["Orchard", "Glacier"], journal=["Violin"])
+    assert len(ctx.get_clusters()) == 3
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    suggestions = cluster_mirror.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "cluster_mirror",
+        must_reference=["Orchard", "Glacier"],
+        must_not_reference=["geist journal", "Violin"],
     )
-
-    suggestions = cluster_mirror.suggest(context)
-
-    # Get all journal note titles to check against
-    journal_notes = [n for n in vault.all_notes() if "geist journal" in n.path.lower()]
-    journal_titles = {n.title for n in journal_notes}
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert note_ref not in journal_titles, (
-                f"Geist journal note '{note_ref}' was included in suggestions. "
-                f"Expected only non-journal notes."
-            )
+    assert suggestions[0].text.count("→") == 2
