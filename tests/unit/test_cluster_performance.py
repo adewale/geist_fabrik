@@ -151,35 +151,6 @@ class TestClusterCaching:
             # This 4x reduction in operations yields 3-30x wall-clock speedup
             assert mock_clusterer.fit_predict.call_count == 1
 
-    def test_timing_baseline_without_caching(self, vault_with_notes: "VaultContext") -> None:
-        """Baseline timing test WITHOUT caching (for comparison).
-
-        This documents the before-optimisation behaviour for regression testing.
-        """
-
-        vault = vault_with_notes
-
-        # Simulate old behaviour: call get_clusters() 4 times
-        start_time = time.perf_counter()
-
-        clusters1 = vault.get_clusters(min_size=5)
-        clusters2 = vault.get_clusters(min_size=5)
-        clusters3 = vault.get_clusters(min_size=5)
-        clusters4 = vault.get_clusters(min_size=5)
-
-        end_time = time.perf_counter()
-        total_time = end_time - start_time
-
-        # Document timing for baseline
-        # With caching: should be 3-30x faster than this baseline
-        # (actual speedup depends on machine specs and HDBSCAN performance)
-        print(f"\nBaseline (4 calls): {total_time:.3f}s")
-
-        # Verify all calls return same cluster structure
-        # (Note: can't use == due to numpy arrays in centroid)
-        assert len(clusters1) == len(clusters2) == len(clusters3) == len(clusters4)
-        assert set(clusters1.keys()) == set(clusters2.keys())
-
 
 @pytest.fixture
 def vault_with_notes(tmp_path):

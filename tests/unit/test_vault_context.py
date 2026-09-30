@@ -1,6 +1,7 @@
 """Tests for VaultContext."""
 
 from datetime import datetime
+from itertools import combinations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -9,6 +10,7 @@ import pytest
 from geistfabrik import Session, Vault
 from geistfabrik.models import Note
 from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder
 
 
 @pytest.fixture
@@ -477,19 +479,99 @@ def test_vault_functions_adapter_layer():
         vault.close()
 
 
-def test_unlinked_pairs(vault_with_notes):
-    """Test finding similar but unlinked note pairs."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
+def _unlinked_fixture(tmp_path: Path) -> VaultContext:
+    """Six garden notes (three linked pairs) plus two music notes.
 
-    pairs = ctx.unlinked_pairs(count=3)
+    Under the lexical stub, notes sharing vocabulary score ~1.0 and the two
+    topics score ~0, so both the similarity threshold and the link filter
+    have work to do.
+    """
+    builder = VaultBuilder(tmp_path)
+    garden = "gardens soil compost seedlings"
+    builder.note("Garden A", f"{garden} [[Garden B]]")
+    builder.note("Garden B", garden)
+    builder.note("Garden C", f"{garden} [[Garden D|the plot]]")  # alias link
+    builder.note("Garden D", garden)
+    builder.note("Garden E", garden)
+    builder.note("Garden F", f"{garden} [[Garden E.md]]")  # link by path, F -> E
+    builder.note("Music A", "violin concerto orchestra rehearsal")
+    builder.note("Music B", "violin concerto orchestra rehearsal")
+    return builder.build()
 
-    assert len(pairs) <= 3
-    for a, b in pairs:
-        assert isinstance(a, Note)
-        assert isinstance(b, Note)
-        # Verify no links between them
-        assert len(ctx.links_between(a, b)) == 0
+
+def test_unlinked_pairs_matches_bruteforce_oracle(tmp_path: Path) -> None:
+    """unlinked_pairs returns exactly the unlinked pairs with similarity > 0.5,
+    most similar first.
+
+    Regressions caught: a wrong similarity matrix (unnormalised, NaN), a link
+    filter that misses aliased/path links or only checks one direction, and
+    dropped or duplicated pairs.
+    """
+    ctx = _unlinked_fixture(tmp_path)
+    linked = {
+        frozenset(("Garden A", "Garden B")),
+        frozenset(("Garden C", "Garden D")),
+        frozenset(("Garden E", "Garden F")),
+    }
+    oracle = {
+        frozenset((a.title, b.title))
+        for a, b in combinations(ctx.notes(), 2)
+        if ctx.similarity(a, b) > 0.5 and frozenset((a.title, b.title)) not in linked
+    }
+    by_title = {n.title: n for n in ctx.notes()}
+    assert all(ctx.similarity(*(by_title[t] for t in pair)) > 0.5 for pair in linked)
+    assert frozenset(("Music A", "Music B")) in oracle
+    assert not any("Music" in a and "Garden" in b for a, b in map(sorted, oracle))
+
+    got = ctx.unlinked_pairs(count=100)
+
+    keys = [frozenset((a.title, b.title)) for a, b in got]
+    assert len(keys) == len(set(keys))
+    assert set(keys) == oracle
+    sims = [ctx.similarity(a, b) for a, b in got]
+    assert sims == sorted(sims, reverse=True)
+    assert len(ctx.unlinked_pairs(count=3)) == 3
+
+
+def test_unlinked_pairs_sampling_never_pairs_a_note_with_itself(tmp_path: Path) -> None:
+    """With more notes than candidate_limit, the recent + random sample must
+    not contain a note twice, or the note is "paired" with itself (sim 1.0,
+    trivially unlinked).
+    """
+    builder = VaultBuilder(tmp_path)
+    for i in range(30):
+        builder.note(f"Note {i}", "Shared idea about gardens.", modified=datetime(2024, 1, 1 + i))
+    ctx = builder.build()
+
+    got = ctx.unlinked_pairs(count=1000, candidate_limit=10)
+
+    assert got, "identical notes are all similar; the sampling branch must yield pairs"
+    assert all(a.path != b.path for a, b in got)
+    keys = [frozenset((a.path, b.path)) for a, b in got]
+    assert len(keys) == len(set(keys))
+    # 10 distinct candidates, all mutually similar and unlinked: C(10, 2) pairs.
+    assert len(got) == 45
+
+
+def test_notes_excluding_journal_drops_only_the_session_journal(tmp_path: Path) -> None:
+    """Session output under "geist journal/" is excluded; every user note,
+    including one whose name merely starts with "geist journal", is kept.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Ideas", "garden plans")
+    builder.note("geist journal ideas", "notes about the journal, written by the user")
+    builder.note("Daily", "a nested note", folder="Archive")
+    builder.journal("2024-03-14", "yesterday's suggestions")
+    builder.journal("2024-03-15", "today's suggestions")
+    ctx = builder.build()
+
+    kept = {n.path for n in ctx.notes_excluding_journal()}
+
+    assert kept == {"Ideas.md", "geist journal ideas.md", "Archive/Daily.md"}
+    assert {n.path for n in ctx.notes()} - kept == {
+        "geist journal/2024-03-14.md",
+        "geist journal/2024-03-15.md",
+    }
 
 
 def test_links_between(vault_with_notes):
@@ -727,6 +809,39 @@ def test_batch_similarity_cache_consistency_with_individual(vault_with_notes):
     cache_size_after = len(ctx._similarity_cache)
     ctx.similarity(notes[0], notes[2])  # Same pair again
     assert len(ctx._similarity_cache) == cache_size_after
+
+
+def test_batch_similarity_matches_scalar_similarity_on_cold_caches(vault_with_notes):
+    """batch_similarity's matrix equals similarity() computed independently.
+
+    Two fresh contexts, so neither result can come from the other's cache.
+    Stored embeddings are not unit-norm (0.9-weighted semantic + temporal),
+    so a matrix that skips normalisation on either side fails here. A note
+    absent from the session scores 0.0 in both APIs (a zero row, never NaN).
+    """
+    import numpy as np
+
+    vault, session = vault_with_notes
+    batch_ctx = VaultContext(vault, session)
+    scalar_ctx = VaultContext(vault, session)
+    notes = batch_ctx.notes()
+    ghost = Note(
+        path="ghost.md",
+        title="Ghost",
+        content="# Ghost",
+        links=[],
+        tags=[],
+        created=datetime(2023, 1, 1),
+        modified=datetime(2023, 1, 1),
+    )
+    rows = [*notes, ghost]
+
+    result = batch_ctx.batch_similarity(rows, notes)
+
+    expected = np.array([[scalar_ctx.similarity(a, b) for b in notes] for a in rows])
+    np.testing.assert_allclose(result, expected, rtol=0, atol=1e-6)
+    assert np.all(result[-1] == 0.0)
+    assert np.any((expected > 0.05) & (expected < 0.95)), "fixture must not be all 0/1"
 
 
 def test_batch_similarity_100_percent_cache_hit(vault_with_notes):

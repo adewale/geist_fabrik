@@ -518,7 +518,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 
 | ID | Status | Criteria | Verification |
 |----|--------|----------|--------------|
-| AC-11.1 | ⬜ | Performance benchmarks pass | `uv run pytest tests/unit/test_performance_regression.py tests/unit/test_phase1_benchmarks.py tests/unit/test_phase2_batch_loading.py tests/unit/test_phase2_hubs_optimization.py tests/unit/test_phase2_return_scores.py tests/unit/test_cluster_performance.py tests/integration/test_phase3b_regression.py tests/integration/test_scenarios.py -v -m benchmark` |
+| AC-11.1 | ⬜ | Performance benchmarks pass | `uv run pytest tests/unit/test_phase1_benchmarks.py tests/unit/test_phase2_batch_loading.py tests/unit/test_phase2_hubs_optimization.py tests/unit/test_phase2_return_scores.py tests/unit/test_cluster_performance.py tests/integration/test_phase3b_regression.py tests/integration/test_scenarios.py -v -m benchmark` |
 | AC-11.2 | ⬜ | Test coverage target | Manual: validation and CI enforce at least 70% combined branch coverage across the fast unit/integration lanes |
 | AC-11.3 | ⬜ | All E2E tests pass | `uv run pytest tests/integration/test_scenarios.py -v` |
 | AC-11.4 | ⬜ | Large vault performance | 1000 notes processable in <3 minutes |

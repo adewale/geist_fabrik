@@ -1,12 +1,11 @@
 """Tests for cluster labelling methods (c-TF-IDF and KeyBERT)."""
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
-if TYPE_CHECKING:
-    pass
+from geistfabrik.cluster_labeling import apply_mmr
 
 
 @pytest.fixture
@@ -191,42 +190,104 @@ class TestClusterLabelingComparison:
             assert len(tfidf_result[cluster_id]) > 0
             assert len(keybert_result[cluster_id]) > 0
 
-    def test_keybert_uses_longer_ngrams(self, mock_db):
-        """Verify KeyBERT can produce longer phrases than c-TF-IDF."""
+    def test_keybert_labels_use_trigrams_tfidf_labels_do_not(self, mock_db):
+        """KeyBERT draws candidates from 1-3 word n-grams, c-TF-IDF from 1-2.
 
+        Under the lexical stub a trigram of central words sits closest to the
+        cluster centroid, so KeyBERT picks one; narrowing its ngram_range
+        (or routing it through the c-TF-IDF candidates) fails this test.
+        """
         from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 
         metrics = EmbeddingMetricsComputer(mock_db)
+        paths = ["note1.md", "note2.md", "note3.md", "note4.md", "note5.md", "note6.md"]
+        labels = np.array([0, 0, 0, 1, 1, 1])
 
-        # Note: This test is more observational - KeyBERT uses ngram_range=(1,3)
-        # while c-TF-IDF uses (1,2), so KeyBERT *can* produce longer phrases,
-        # though it's not guaranteed every time
+        keybert = metrics._label_clusters_keybert(paths, labels, n_terms=3)
+        tfidf = metrics._label_clusters_tfidf(paths, labels, n_terms=3)
 
-        paths = ["note1.md", "note2.md", "note3.md"]
-        labels = np.array([0, 0, 0])
+        def ngram_lengths(label: str) -> list[int]:
+            return [len(term.split()) for term in label.split(", ")]
 
-        keybert_result = metrics._label_clusters_keybert(paths, labels, n_terms=3)
+        for cluster_id in (0, 1):
+            assert max(ngram_lengths(keybert[cluster_id])) == 3, keybert
+            assert max(ngram_lengths(tfidf[cluster_id])) <= 2, tfidf
 
-        # Just verify it produces a valid label
-        assert 0 in keybert_result
-        assert isinstance(keybert_result[0], str)
-        assert len(keybert_result[0]) > 0
+
+def _naive_mmr(terms: list[str], scores: list[float], lambda_param: float, k: int) -> list[str]:
+    """Textbook greedy MMR with word-set Jaccard as the redundancy measure."""
+    if len(terms) <= k:
+        return terms
+
+    def jaccard(x: str, y: str) -> float:
+        a, b = set(x.lower().split()), set(y.lower().split())
+        return len(a & b) / len(a | b) if a and b else 0.0
+
+    selected: list[str] = []
+    while len(selected) < k:
+        best_term, best_score = "", float("-inf")
+        for term, relevance in zip(terms, scores, strict=True):
+            if term in selected:
+                continue
+            redundancy = max((jaccard(term, s) for s in selected), default=0.0)
+            score = lambda_param * relevance - (1 - lambda_param) * redundancy
+            if score > best_score:  # first maximum wins, like np.argmax
+                best_term, best_score = term, score
+        selected.append(best_term)
+    return selected
+
+
+_WORDS = ["neural", "network", "deep", "learning", "model", "graph", "garden"]
+_terms = st.lists(
+    st.lists(st.sampled_from(_WORDS), min_size=1, max_size=3).map(" ".join),
+    min_size=1,
+    max_size=10,
+    unique=True,
+)
+
+
+@given(
+    data=st.data(),
+    terms=_terms,
+    lambda_param=st.sampled_from([0.0, 0.3, 0.5, 0.7, 1.0]),
+    k=st.integers(min_value=1, max_value=6),
+)
+@settings(max_examples=100, deadline=None)
+def test_apply_mmr_matches_naive_reference(
+    data: st.DataObject, terms: list[str], lambda_param: float, k: int
+) -> None:
+    """apply_mmr selects exactly what greedy MMR selects, in order.
+
+    Regressions caught: penalising by the least (not most) similar selected
+    term, dropping the diversity term or the lambda weighting, re-selecting a
+    term, and an exception silently degrading to plain top-k by score.
+    """
+    scores = data.draw(
+        st.lists(
+            st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
+            min_size=len(terms),
+            max_size=len(terms),
+        )
+    )
+
+    got = apply_mmr(terms, np.array(scores), lambda_param=lambda_param, k=k)
+
+    assert got == _naive_mmr(terms, scores, lambda_param, k)
+
+
+def test_apply_mmr_prefers_diverse_term_over_redundant_one() -> None:
+    """Known answer: the runner-up shares a word with the winner, so a less
+    relevant but unrelated term is picked second."""
+    terms = ["neural network", "neural model", "garden soil"]
+    scores = np.array([0.9, 0.85, 0.6])
+
+    assert apply_mmr(terms, scores, lambda_param=0.5, k=2) == ["neural network", "garden soil"]
+    # Pure relevance ignores redundancy.
+    assert apply_mmr(terms, scores, lambda_param=1.0, k=2) == ["neural network", "neural model"]
 
 
 class TestClusterConfig:
     """Test cluster configuration integration."""
-
-    def test_config_has_clustering_section(self):
-        """Verify GeistFabrikConfig includes clustering settings."""
-        from geistfabrik.config_loader import ClusterConfig, GeistFabrikConfig
-
-        config = GeistFabrikConfig()
-
-        assert hasattr(config, "clustering")
-        assert isinstance(config.clustering, ClusterConfig)
-        assert hasattr(config.clustering, "labeling_method")
-        assert hasattr(config.clustering, "min_cluster_size")
-        assert hasattr(config.clustering, "n_label_terms")
 
     def test_config_defaults(self):
         """Verify clustering config has sensible defaults."""
@@ -237,36 +298,3 @@ class TestClusterConfig:
         assert config.labeling_method == "keybert"
         assert config.min_cluster_size == 5
         assert config.n_label_terms == 4
-
-    def test_config_from_dict(self):
-        """Test loading clustering config from dictionary."""
-        from geistfabrik.config_loader import GeistFabrikConfig
-
-        config_dict = {
-            "clustering": {
-                "labeling_method": "tfidf",
-                "min_cluster_size": 10,
-                "n_label_terms": 3,
-            }
-        }
-
-        config = GeistFabrikConfig.from_dict(config_dict)
-
-        assert config.clustering.labeling_method == "tfidf"
-        assert config.clustering.min_cluster_size == 10
-        assert config.clustering.n_label_terms == 3
-
-    def test_config_to_dict(self):
-        """Test serializing clustering config to dictionary."""
-        from geistfabrik.config_loader import ClusterConfig, GeistFabrikConfig
-
-        config = GeistFabrikConfig(
-            clustering=ClusterConfig(labeling_method="tfidf", min_cluster_size=10, n_label_terms=3)
-        )
-
-        config_dict = config.to_dict()
-
-        assert "clustering" in config_dict
-        assert config_dict["clustering"]["labeling_method"] == "tfidf"
-        assert config_dict["clustering"]["min_cluster_size"] == 10
-        assert config_dict["clustering"]["n_label_terms"] == 3

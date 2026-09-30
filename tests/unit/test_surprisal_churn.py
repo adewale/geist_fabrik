@@ -13,24 +13,64 @@ from hypothesis import strategies as st
 
 from geistfabrik import Vault, VaultContext
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
+from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.vault_context import (
     ChurnResult,
     _jaccard_churn,
     _surprisal_blocked,
-    _surprisal_naive,
     _topk_neighbour_sets,
 )
 
 pytestmark = pytest.mark.timeout(60)
 
 
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
+def _surprisal_naive(embeddings: dict[str, np.ndarray], k_neighbours: int) -> dict[str, float]:
+    """Readable reference implementation of surprisal (plain Python loops).
+
+    Test oracle defining correctness for the blocked production
+    implementation (_surprisal_blocked). O(N²) Python-level work.
+
+    Args:
+        embeddings: Mapping of note path to embedding vector
+        k_neighbours: Number of nearest neighbours forming the centroid
+
+    Returns:
+        Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
+        fewer than k_neighbours + 1 notes are available
+    """
+    paths = sorted(embeddings)
+    n = len(paths)
+    if k_neighbours < 1 or n < k_neighbours + 1:
+        return {}
+
+    # Normalise each vector (zero vectors stay zero)
+    normed: dict[str, np.ndarray] = {}
+    for path in paths:
+        vector = np.asarray(embeddings[path], dtype=np.float64)
+        norm = float(np.linalg.norm(vector))
+        normed[path] = vector / norm if norm > 0 else vector
+
+    scores: dict[str, float] = {}
+    for path in paths:
+        # Rank all other notes by cosine similarity
+        sims = []
+        for other in paths:
+            if other == path:
+                continue
+            sims.append((float(np.dot(normed[path], normed[other])), other))
+        sims.sort(key=lambda pair: pair[0], reverse=True)
+        top_paths = [other for _, other in sims[:k_neighbours]]
+
+        # Centroid of the top-k neighbours, normalised (zero-norm guarded)
+        centroid = np.mean([normed[other] for other in top_paths], axis=0)
+        norm = float(np.linalg.norm(centroid))
+        if norm > 0:
+            centroid = centroid / norm
+
+        surprisal = 1.0 - float(np.dot(normed[path], centroid))
+        scores[path] = float(min(max(surprisal, 0.0), 2.0))
+
+    return scores
 
 
 def _random_embeddings(n: int, d: int, seed: int) -> dict[str, np.ndarray]:

@@ -16,7 +16,7 @@ from weakref import finalize
 import pytest
 
 from geistfabrik import Session, Vault
-from geistfabrik.graph_analysis import GraphPatternFinder, _are_linked
+from geistfabrik.graph_analysis import GraphPatternFinder
 from geistfabrik.models import link_target_forms
 from geistfabrik.vault_context import VaultContext
 
@@ -69,16 +69,6 @@ class TestLinkTargetForms:
 
 class TestLinkResolutionAgreement:
     """Every 'are these linked' code path must agree with link_target_forms."""
-
-    def test_are_linked_matches_links_between(self, linked_vault):
-        notes = {n.path: n for n in linked_vault.notes()}
-        for x in notes.values():
-            for y in notes.values():
-                if x.path >= y.path:
-                    continue
-                assert _are_linked(x, y, linked_vault.link_index()) == bool(
-                    linked_vault.links_between(x, y)
-                ), f"_are_linked and links_between disagree for {x.path} / {y.path}"
 
     def test_backlinks_agree_with_forms(self, linked_vault):
         notes = {n.path: n for n in linked_vault.notes()}
