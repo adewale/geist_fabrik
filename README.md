@@ -418,8 +418,11 @@ def infer(note, vault):
 Access in code geists via `vault.metadata(note)`:
 ```python
 def suggest(vault):
+    # Type-token ratio is ~1.0 for any short note, so only trust it on
+    # notes long enough for it to mean something.
     complex_notes = [n for n in vault.notes()
-                     if vault.metadata(n).get("lexical_diversity", 0) > 0.7]
+                     if vault.metadata(n).get("word_count", 0) >= 100
+                     and vault.metadata(n).get("lexical_diversity", 0) > 0.7]
     return [...]
 ```
 

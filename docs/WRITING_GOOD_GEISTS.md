@@ -708,7 +708,7 @@ metadata = vault.metadata(note)
 
 # Available properties
 word_count = metadata.get("word_count", 0)
-lexical_diversity = metadata.get("lexical_diversity", 0.0)
+lexical_diversity = metadata.get("lexical_diversity", 0.0)  # raw TTR: ~1.0 for short notes
 staleness = metadata.get("staleness", 0)
 days_since_modified = metadata.get("days_since_modified", 0)
 task_count = metadata.get("task_count", 0)
