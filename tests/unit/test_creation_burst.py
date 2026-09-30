@@ -1,535 +1,143 @@
-"""Tests for creation_burst geist."""
+"""Tests for the creation_burst geist.
 
-from datetime import datetime, timedelta
+Trigger: notes_grouped_by_creation_date(min_per_day=3, exclude_journal=True)
+returns at least one day with >= 3 non-journal notes created on it. The geist
+samples ONE such day and returns one suggestion naming the day, the count and
+(up to 8 of) its notes; 6+ notes ask "What was special about that day?",
+3-5 ask "Does today feel generative?".
+"""
 
-import pytest
+from datetime import datetime
+from pathlib import Path
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import creation_burst
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
+
+BURST_DAY = datetime(2024, 2, 10, 9, 0)
+OTHER_DAY = datetime(2024, 1, 5, 9, 0)
+LARGE_QUESTION = "What was special about that day?"
+SMALL_QUESTION = "Does today feel generative?"
 
 
-@pytest.fixture
-def vault_with_bursts(tmp_path):
-    """Create a vault with 2 burst days (6 notes + 4 notes) and 1 normal day (2 notes).
+def _burst_vault(root: Path, counts: dict[datetime, int]) -> VaultContext:
+    """One note per slot; ``counts`` maps a creation day to its note count."""
+    builder = VaultBuilder(root)
+    for day, count in counts.items():
+        for i in range(count):
+            builder.note(f"Burst {day:%m%d} {i}", f"Idea {i} from {day:%B}.", created=day)
+    return builder.build()
 
-    Structure:
-    - Burst day 2024-03-15: 6 notes (large burst)
-    - Burst day 2024-03-16: 4 notes (small burst)
-    - Normal day 2024-03-17: 2 notes (below threshold)
 
-    Returns:
-        tuple[Vault, Session]: Initialized vault with embeddings for session 2024-03-20
+def test_creation_burst_fires_on_three_notes_created_the_same_day(tmp_path):
+    # Trigger arithmetic: 3 notes share BURST_DAY (== min_per_day=3).
+    ctx = _burst_vault(tmp_path, {BURST_DAY: 3})
+
+    suggestions = creation_burst.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "creation_burst", must_reference=["Burst 0210 0"])
+    [suggestion] = suggestions
+    assert suggestion.text.startswith("On 2024-02-10, you created 3 notes in one day:")
+    assert sorted(suggestion.notes) == [f"Burst 0210 {i}" for i in range(3)]
+    assert SMALL_QUESTION in suggestion.text
+
+
+def test_creation_burst_two_notes_on_a_day_is_not_a_burst(tmp_path):
+    # Boundary partner of the test above: 2 < min_per_day=3.
+    ctx = _burst_vault(tmp_path, {BURST_DAY: 2, OTHER_DAY: 2})
+
+    assert creation_burst.suggest(ctx) == []
+
+
+def test_creation_burst_question_switches_at_six_notes(tmp_path):
+    """5 notes is a small burst, 6 is a large one (the count >= 6 boundary)."""
+    five = creation_burst.suggest(_burst_vault(tmp_path / "five", {BURST_DAY: 5}))
+    six = creation_burst.suggest(_burst_vault(tmp_path / "six", {BURST_DAY: 6}))
+
+    assert_valid_suggestions(five, "creation_burst")
+    assert_valid_suggestions(six, "creation_burst")
+    assert SMALL_QUESTION in five[0].text and LARGE_QUESTION not in five[0].text
+    assert LARGE_QUESTION in six[0].text and SMALL_QUESTION not in six[0].text
+
+
+def test_creation_burst_lists_eight_links_then_counts_the_rest(tmp_path):
+    """Display cap: 10 notes show 8 wikilinks plus "and 2 more"; notes keeps all 10."""
+    ctx = _burst_vault(tmp_path, {BURST_DAY: 10})
+
+    [suggestion] = creation_burst.suggest(ctx)
+
+    assert suggestion.text.count("[[") == 8
+    assert ", and 2 more." in suggestion.text
+    assert sorted(suggestion.notes) == sorted(f"Burst 0210 {i}" for i in range(10))
+
+
+def test_creation_burst_returns_one_suggestion_for_one_sampled_day(tmp_path):
+    """Several burst days still produce exactly one suggestion, about one day only."""
+    ctx = _burst_vault(tmp_path, {BURST_DAY: 3, OTHER_DAY: 4})
+
+    suggestions = creation_burst.suggest(ctx)
+
+    assert len(suggestions) == 1
+    notes = set(suggestions[0].notes)
+    day_one = {f"Burst 0210 {i}" for i in range(3)}
+    day_two = {f"Burst 0105 {i}" for i in range(4)}
+    assert notes in (day_one, day_two)
+
+
+def test_creation_burst_ignores_geist_journal_notes(tmp_path):
+    """Journal notes neither form a burst nor count towards one.
+
+    Day A: 3 regular notes (a real burst). Day B: 3 journal notes only (not a
+    burst). Day C: 2 regular + 2 journal notes (not a burst: 2 < 3 regular).
     """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create burst day: 2024-03-15 with 6 notes
-    burst_date = datetime(2024, 3, 15, 10, 0, 0)
-    for i in range(6):
-        note_path = vault_path / f"burst_note_{i}.md"
-        note_path.write_text(f"# Burst Note {i}\n\nContent from the burst day.")
-
-    # Create small burst day: 2024-03-16 with 4 notes
-    small_burst_date = datetime(2024, 3, 16, 10, 0, 0)
-    for i in range(4):
-        note_path = vault_path / f"small_burst_note_{i}.md"
-        note_path.write_text(f"# Small Burst Note {i}\n\nContent from small burst.")
-
-    # Create normal day: 2024-03-17 with 2 notes (below threshold)
-    normal_date = datetime(2024, 3, 17, 10, 0, 0)
+    day_a, day_b, day_c = BURST_DAY, OTHER_DAY, datetime(2023, 12, 1, 9, 0)
+    builder = VaultBuilder(tmp_path)
+    for i in range(3):
+        builder.note(f"Regular {i}", "Real work.", created=day_a)
+        builder.journal(f"2024-01-0{i + 1}", "Session output.", created=day_b)
     for i in range(2):
-        note_path = vault_path / f"normal_note_{i}.md"
-        note_path.write_text(f"# Normal Note {i}\n\nRegular note.")
+        builder.note(f"Almost {i}", "Almost a burst.", created=day_c)
+        builder.journal(f"2023-12-0{i + 1}", "Session output.", created=day_c)
+    ctx = builder.build()
 
-    # Initialise vault and sync
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
+    suggestions = creation_burst.suggest(ctx)
 
-    # Set created dates in database (using file mtime as proxy)
-    for i in range(6):
-        vault.db.execute(
-            "UPDATE notes SET created = ? WHERE title = ?",
-            (burst_date.isoformat(), f"Burst Note {i}"),
-        )
-    for i in range(4):
-        vault.db.execute(
-            "UPDATE notes SET created = ? WHERE title = ?",
-            (small_burst_date.isoformat(), f"Small Burst Note {i}"),
-        )
-    for i in range(2):
-        vault.db.execute(
-            "UPDATE notes SET created = ? WHERE title = ?",
-            (normal_date.isoformat(), f"Normal Note {i}"),
-        )
-    vault.db.commit()
-
-    # Compute embeddings for session
-    session_date = datetime(2024, 3, 20)
-    session = Session(session_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-def test_creation_burst_detects_burst_day(vault_with_bursts):
-    """Test that burst days with 3+ notes are detected.
-
-    Setup:
-        Vault with 5-note burst on 2024-03-15.
-
-    Verifies:
-        - Returns 1 suggestion
-        - References burst date 2024-03-15"""
-    vault, session = vault_with_bursts
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240320,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "creation_burst",
+        must_reference=["Regular 0"],
+        must_not_reference=["geist journal", "2024-01-0", "2023-12-0", "Almost"],
     )
-
-    suggestions = creation_burst.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    # Should return exactly 1 suggestion
-    assert len(suggestions) == 1
-
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "creation_burst"
-    assert "2024-03-" in suggestion.text  # Date should be present
-    assert len(suggestion.notes) >= 3  # At least 3 notes (burst threshold)
-
-
-def test_creation_burst_large_burst_question(vault_with_bursts):
-    """Test that 6+ notes use 'What was special about that day?' question.
-
-    Setup:
-        Vault with 5-note burst.
-
-    Verifies:
-        - Suggestion asks about large burst (5+ notes)"""
-    vault, session = vault_with_bursts
-
-    # Set seed to select the larger burst (6 notes)
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=1,  # Try different seed
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    if suggestions and len(suggestions[0].notes) >= 6:
-        # If we got the large burst, check question
-        assert "What was special about that day?" in suggestions[0].text
-
-
-def test_creation_burst_small_burst_question(vault_with_bursts):
-    """Test that 3-5 notes use 'Does today feel generative?' question.
-
-    Setup:
-        Vault with 3-note burst.
-
-    Verifies:
-        - Suggestion asks about small burst (3-5 notes)"""
-    vault, session = vault_with_bursts
-
-    # Set seed to select the smaller burst (4 notes)
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=2,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    if suggestions and 3 <= len(suggestions[0].notes) <= 5:
-        # If we got the small burst, check question
-        assert "Does today feel generative?" in suggestions[0].text
-
-
-def test_creation_burst_large_burst_guaranteed_question(tmp_path):
-    """Test that large bursts (6+ notes) always use 'What was special about that day?' question.
-
-    Creates vault with ONLY one large burst day (6 notes), ensuring it gets selected.
-    Verifies question text matches expected template for large bursts.
-
-
-    Setup:
-        Vault with 6-note burst (threshold=5).
-
-    Verifies:
-        - Always returns question for 6+ notes"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create burst day with exactly 6 notes (large burst threshold)
-    burst_date = datetime(2024, 3, 15, 10, 0, 0)
-    for i in range(6):
-        note_path = vault_path / f"burst_note_{i}.md"
-        note_path.write_text(f"# Burst Note {i}\n\nContent from the burst day.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set created dates
-    for i in range(6):
-        vault.db.execute(
-            "UPDATE notes SET created = ? WHERE title = ?",
-            (burst_date.isoformat(), f"Burst Note {i}"),
-        )
-    vault.db.commit()
-
-    session = Session(burst_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    assert len(suggestions) == 1
-    assert len(suggestions[0].notes) == 6
-    # Large burst (6+ notes) should use this specific question
-    assert "What was special about that day?" in suggestions[0].text
-
-
-def test_creation_burst_small_burst_guaranteed_question(tmp_path):
-    """Test that small bursts (3-5 notes) always use 'Does today feel generative?' question.
-
-    Creates vault with ONLY one small burst day (4 notes), ensuring it gets selected.
-    Verifies question text matches expected template for small bursts.
-
-
-    Setup:
-        Vault with 3-note burst.
-
-    Verifies:
-        - Returns question for 3-note burst"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create burst day with exactly 4 notes (small burst: 3-5 notes)
-    burst_date = datetime(2024, 3, 16, 10, 0, 0)
-    for i in range(4):
-        note_path = vault_path / f"burst_note_{i}.md"
-        note_path.write_text(f"# Burst Note {i}\n\nContent from the burst day.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set created dates
-    for i in range(4):
-        vault.db.execute(
-            "UPDATE notes SET created = ? WHERE title = ?",
-            (burst_date.isoformat(), f"Burst Note {i}"),
-        )
-    vault.db.commit()
-
-    session = Session(burst_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240316,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    assert len(suggestions) == 1
-    assert len(suggestions[0].notes) == 4
-    # Small burst (3-5 notes) should use this specific question
-    assert "Does today feel generative?" in suggestions[0].text
-
-
-def test_creation_burst_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from burst detection.
-
-    Setup:
-        Vault with journal + regular burst notes.
-
-    Verifies:
-        - No journal notes in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    # Create 10 journal notes on same day (should be ignored)
-    burst_date = datetime(2024, 3, 15, 10, 0, 0)
-    for i in range(10):
-        note_path = journal_dir / f"2024-03-{15 + i:02d}.md"
-        note_path.write_text(f"# Session {i}\n\nJournal entry.")
-
-    # Create only 2 regular notes (below threshold)
-    for i in range(2):
-        note_path = vault_path / f"note_{i}.md"
-        note_path.write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set all to same date
-    vault.db.execute("UPDATE notes SET created = ?", (burst_date.isoformat(),))
-    vault.db.commit()
-
-    session = Session(burst_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    # Should return empty list (journal notes excluded, only 2 regular notes)
-    assert len(suggestions) == 0
-
-
-def test_creation_burst_no_bursts(tmp_path):
-    """Test that geist returns empty list when no burst days exist.
-
-    Setup:
-        Vault with scattered notes (no burst days).
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create only a few notes per day (below threshold)
-    base_date = datetime(2024, 3, 1, 10, 0, 0)
-    for day in range(5):
-        for i in range(2):  # Only 2 notes per day (below 3 threshold)
-            note_path = vault_path / f"note_{day}_{i}.md"
-            note_path.write_text(f"# Note {day}-{i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set created dates
-    for day in range(5):
-        for i in range(2):
-            note_date = base_date + timedelta(days=day)
-            vault.db.execute(
-                "UPDATE notes SET created = ? WHERE title = ?",
-                (note_date.isoformat(), f"Note {day}-{i}"),
-            )
-    vault.db.commit()
-
-    session = Session(base_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240301,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    # Should return empty list (no bursts)
-    assert len(suggestions) == 0
-
-
-def test_creation_burst_limits_display_titles(tmp_path):
-    """Test that only first 8 titles are shown in suggestion text.
-
-    Setup:
-        Vault with 20-note burst.
-
-    Verifies:
-        - Limits displayed titles to 10 max"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create burst with 15 notes
-    burst_date = datetime(2024, 3, 15, 10, 0, 0)
-    for i in range(15):
-        note_path = vault_path / f"note_{i}.md"
-        note_path.write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    vault.db.execute("UPDATE notes SET created = ?", (burst_date.isoformat(),))
-    vault.db.commit()
-
-    session = Session(burst_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    # Text should show first 8 + "and 7 more"
-    assert "and 7 more" in suggestions[0].text
-
-    # But notes list should contain all 15
-    assert len(suggestions[0].notes) == 15
-
-
-def test_creation_burst_includes_date(vault_with_bursts):
-    """Test that suggestion includes the burst day date.
-
-    Setup:
-        Vault with burst day.
-
-    Verifies:
-        - Suggestion includes burst date"""
-    vault, session = vault_with_bursts
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240320,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    assert len(suggestions) == 1
-    # Date should be in YYYY-MM-DD format
-    assert "2024-03-" in suggestions[0].text
-
-
-def test_creation_burst_returns_single_suggestion(vault_with_bursts):
-    """Test that geist returns exactly 1 suggestion.
-
-    Setup:
-        Vault with burst day.
-
-    Verifies:
-        - Returns exactly 1 suggestion"""
-    vault, session = vault_with_bursts
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240320,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    # Should return exactly 1, not a list of many
-    assert len(suggestions) == 1
+    assert sorted(suggestions[0].notes) == ["Regular 0", "Regular 1", "Regular 2"]
 
 
 def test_creation_burst_virtual_notes_use_deeplinks(tmp_path):
-    """Test that virtual notes from journal files use deeplink format.
+    """Journal-file entries count by their heading date and link as File#heading.
 
-    When multiple journal entries exist for the same date (e.g., from different
-    journal files), the suggestion should show distinct deeplinks like
-    "Journal#2024-03-15" instead of duplicate titles.
+    Three date-collection files each have a 2024-03-15 entry, plus one regular
+    note created that day: a 4-note burst. Every other heading date has at most
+    two entries, so it is not a burst. Virtual entries must be listed as distinct
+    deeplinks ("Work Journal#2024-03-15"), not three copies of "2024-03-15".
     """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+    builder = VaultBuilder(tmp_path)
+    for name, other_day in (("Work", 16), ("Personal", 16), ("Research", 14)):
+        (tmp_path / f"{name} Journal.md").write_text(
+            f"## 2024-03-15\n\n{name} thoughts.\n\n## 2024-03-{other_day}\n\nMore {name} notes.\n"
+        )
+    builder.note("Regular Note", "Some content.", created=datetime(2024, 3, 15, 10, 0))
+    ctx = builder.build(session_date=datetime(2024, 3, 20))
 
-    # Create multiple journal files with entries for the same date
-    burst_date = datetime(2024, 3, 15, 10, 0, 0)
-    date_heading = "2024-03-15"
+    suggestions = creation_burst.suggest(ctx)
 
-    # Journal 1 - Use H2 headings (##) for date-collection detection
-    journal1 = vault_path / "Work Journal.md"
-    journal1.write_text(f"""## {date_heading}
-
-Work meeting about project planning.
-
-## 2024-03-16
-
-Another day of work.
-""")
-
-    # Journal 2 - Use H2 headings (##) for date-collection detection
-    journal2 = vault_path / "Personal Journal.md"
-    journal2.write_text(f"""## {date_heading}
-
-Had a great idea about productivity.
-
-## 2024-03-16
-
-Continued thinking about it.
-""")
-
-    # Journal 3 - Use H2 headings (##) for date-collection detection
-    journal3 = vault_path / "Research Journal.md"
-    journal3.write_text(f"""## {date_heading}
-
-Found interesting paper on embeddings.
-
-## 2024-03-16
-
-More research notes.
-""")
-
-    # Add regular note on same day to reach 4 total notes (above threshold)
-    note = vault_path / "regular_note.md"
-    note.write_text("# Regular Note\n\nSome content.")
-
-    # Initialize vault
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Set created dates
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE path LIKE '%Journal%'",
-        (burst_date.isoformat(),),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (burst_date.isoformat(), "Regular Note"),
-    )
-    vault.db.commit()
-
-    session = Session(burst_date, vault.db)
-    session.compute_embeddings(vault.all_notes())
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = creation_burst.suggest(context)
-
-    assert len(suggestions) == 1
-    suggestion = suggestions[0]
-
-    # Check that suggestion text contains deeplinks (filename#heading format)
-    # Virtual notes should show as "Work Journal#2024-03-15" etc., not just "2024-03-15"
-    assert any(
-        journal in suggestion.text
-        for journal in ["Work Journal#", "Personal Journal#", "Research Journal#"]
-    )
-
-    # Check that notes list contains deeplinks for virtual entries
-    # Virtual notes should use deeplink format in the notes list
-    virtual_note_refs = [n for n in suggestion.notes if "#" in n]
-    assert len(virtual_note_refs) >= 3, (
-        f"Expected at least 3 virtual note refs with deeplinks, got {len(virtual_note_refs)}: "
-        f"{suggestion.notes}"
-    )
-
-    # Verify all notes are distinct (no duplicates like "2024-03-15" repeated)
-    assert len(suggestion.notes) == len(set(suggestion.notes)), (
-        f"Found duplicate note references: {suggestion.notes}"
-    )
+    assert_valid_suggestions(suggestions, "creation_burst")
+    [suggestion] = suggestions
+    expected = [
+        "Personal Journal#2024-03-15",
+        "Regular Note",
+        "Research Journal#2024-03-15",
+        "Work Journal#2024-03-15",
+    ]
+    assert sorted(suggestion.notes) == expected
+    assert suggestion.text.startswith("On 2024-03-15, you created 4 notes in one day:")
+    for link in expected:
+        assert f"[[{link}]]" in suggestion.text

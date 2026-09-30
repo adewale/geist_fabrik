@@ -824,6 +824,10 @@ class VaultContext:
     ) -> list[tuple[int, str, list[np.ndarray]]]:
         """Get embeddings grouped by session for temporal analysis.
 
+        Geist journal notes are excluded: each session writes one after it
+        runs, so counting them would make later sessions look different
+        simply because more session output exists.
+
         Returns:
             List of (session_id, date_str, embeddings) tuples
             ordered by date DESC, limited to 5 most recent sessions.
@@ -844,7 +848,7 @@ class VaultContext:
             emb_cursor = self.db.execute(
                 """
                 SELECT embedding FROM session_embeddings
-                WHERE session_id = ?
+                WHERE session_id = ? AND note_path NOT LIKE 'geist journal/%'
                 """,
                 (session_id,),
             )

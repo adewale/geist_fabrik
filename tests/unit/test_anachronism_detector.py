@@ -1,427 +1,170 @@
-"""Unit tests for anachronism_detector geist."""
+"""Tests for the anachronism_detector geist.
 
-import os
+Trigger: >= 30 non-journal notes, of which >= 5 are recent (created within
+90 days of the session) and >= 5 old (created more than 365 days before).
+Two findings, capped at 2 overall:
+- a recent note whose best match among (up to 10 sampled) old notes beats its
+  average similarity to other recent notes by > 0.15;
+- an old note whose best recent match has similarity > 0.80.
+
+Every filler note below has its own vocabulary (similarity ~0 to the rest),
+while "Echo" repeats "Origin"'s 8-word body: similarity 8/9 = 0.89.
+"""
+
 from datetime import datetime, timedelta
+from pathlib import Path
 
-import pytest
+import numpy as np
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import anachronism_detector
-from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
+from tests.stubs import lexical_embedding
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_temporal_notes(tmp_path):
-    """Create a vault with notes across different time periods."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-    old_date = now - timedelta(days=400)
-    recent_date = now - timedelta(days=30)
-
-    # Create old notes (>1 year ago)
-    for i in range(10):
-        path = vault_path / f"old_{i}.md"
-        path.write_text(f"# Old Note {i}\n\nContent about vintage topic {i}.")
-        path.touch()
-        # Set mtime to simulate old creation
-        old_time = (old_date - timedelta(days=i * 10)).timestamp()
-        os.utime(path, (old_time, old_time))
-
-    # Create recent notes (last 90 days)
-    for i in range(10):
-        path = vault_path / f"recent_{i}.md"
-        path.write_text(f"# Recent Note {i}\n\nContent about modern topic {i}.")
-        path.touch()
-        recent_time = (recent_date + timedelta(days=i)).timestamp()
-        os.utime(path, (recent_time, recent_time))
-
-    # Create middle-aged notes (6 months ago) to get >30 total
-    mid_date = now - timedelta(days=180)
-    for i in range(12):
-        path = vault_path / f"middle_{i}.md"
-        path.write_text(f"# Middle Note {i}\n\nContent about intermediate topic {i}.")
-        path.touch()
-        mid_time = (mid_date + timedelta(days=i * 5)).timestamp()
-        os.utime(path, (mid_time, mid_time))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+RECENT, MIDDLE, OLD = datetime(2024, 2, 1), datetime(2023, 6, 1), datetime(2021, 5, 1)
+IDEA = "lantern harbour ferry gulls tide ropes fog bells"
+IDEAS = [
+    IDEA,
+    "violin rosin bowing scales etude sonata vibrato bridge",
+    "kiln glaze clay wheel slip bisque raku trim",
+]
+_RESERVED = lexical_embedding(" ".join([*IDEAS, "echo origin"]))
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes for anachronism detection."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 10 notes (below minimum of 30)
-    for i in range(10):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _filler_words(prefix: str, start: int, count: int) -> str:
+    """``count`` made-up words whose stub vectors are orthogonal to every idea,
+    so fillers never match Echo/Origin by a hash collision."""
+    words: list[str] = []
+    i = start * 50
+    while len(words) < count:
+        word = f"{prefix}{chr(97 + i // 26 % 26)}{chr(97 + i % 26)}"
+        i += 1
+        if abs(float(np.dot(lexical_embedding(word), _RESERVED))) < 1e-6:
+            words.append(word)
+    return " ".join(words)
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _builder(
+    root: Path,
+    *,
+    recent: int = 5,
+    old: int = 5,
+    middle: int = 18,
+    echoes: int = 1,
+    echo_created: datetime = RECENT,
+    origin_created: datetime = OLD,
+) -> VaultBuilder:
+    """Fillers plus ``echoes`` Echo/Origin pairs (Origin old, Echo recent)."""
+    builder = VaultBuilder(root)
+    for kind, count, when in (
+        ("Recent", recent, RECENT),
+        ("Old", old, OLD),
+        ("Mid", middle, MIDDLE),
+    ):
+        for i in range(count):
+            builder.note(f"{kind} {i}", _filler_words(kind.lower(), i, 3), created=when)
+    for i in range(echoes):
+        suffix = "" if i == 0 else f" {'ii' if i == 1 else 'iii'}"
+        builder.note(f"Origin{suffix}", IDEAS[i], created=origin_created)
+        builder.note(f"Echo{suffix}", IDEAS[i], created=echo_created)
+    return builder
 
 
-def test_anachronism_detector_returns_suggestions(vault_with_temporal_notes):
-    """Test that anachronism_detector returns suggestions with temporal notes.
+def test_anachronism_detector_finds_recent_note_echoing_old_thinking(tmp_path):
+    # Trigger arithmetic: 30 notes = 6 recent (5 fillers + Echo), 6 old
+    # (5 fillers + Origin), 18 middle. Echo vs Origin 0.89 > avg recent ~0 + 0.15,
+    # and > 0.80 from Origin's side.
+    ctx = _builder(tmp_path, middle=18).build()
 
-    Setup:
-        Vault with 32 notes across 3 time periods (old, middle, recent).
+    suggestions = anachronism_detector.suggest(ctx)
 
-    Verifies:
-        - Returns list of suggestions (max 2)
+    assert_valid_suggestions(suggestions, "anachronism_detector", min_count=2)
+    texts = sorted(s.text for s in suggestions)
+    assert texts == [
+        "[[Echo]] (written recently) semantically resembles [[Origin]] from 3 years ago more "
+        "than it resembles your current thinking. Circling back to old ideas?",
+        "[[Origin]] from 3 years ago feels remarkably contemporary—it's very similar to your "
+        "recent [[Echo]]. Some ideas are timeless?",
+    ]
+
+
+def test_anachronism_detector_needs_thirty_notes(tmp_path):
+    """Boundary pair: 29 notes -> nothing; 30 -> flagged."""
+    assert anachronism_detector.suggest(_builder(tmp_path / "29", middle=17).build()) == []
+    assert_valid_suggestions(
+        anachronism_detector.suggest(_builder(tmp_path / "30", middle=18).build()),
+        "anachronism_detector",
+    )
+
+
+def test_anachronism_detector_needs_five_recent_and_five_old(tmp_path):
+    """Boundary pairs: 4 recent (or 4 old) notes -> nothing; 5 -> flagged."""
+    four_recent = _builder(tmp_path / "r4", recent=3, middle=20).build()
+    four_old = _builder(tmp_path / "o4", old=3, middle=20).build()
+    five_each = _builder(tmp_path / "55", recent=4, old=4, middle=20).build()
+
+    assert anachronism_detector.suggest(four_recent) == []
+    assert anachronism_detector.suggest(four_old) == []
+    assert_valid_suggestions(anachronism_detector.suggest(five_each), "anachronism_detector")
+
+
+def test_anachronism_detector_age_windows(tmp_path):
+    """Recent means created within 90 days; old means more than 365 days ago.
+
+    With Echo 91 days old it is neither recent nor old; with Origin 364 days
+    old it is not old; either way the pair is not an anachronism. At 89 and
+    366 days the pair is found.
     """
-    vault, session = vault_with_temporal_notes
+    day = timedelta(days=1)
+    not_recent = _builder(tmp_path / "a", echo_created=SESSION_DATE - 91 * day, recent=6).build()
+    not_old = _builder(tmp_path / "b", origin_created=SESSION_DATE - 364 * day, old=6).build()
+    both = _builder(
+        tmp_path / "c",
+        echo_created=SESSION_DATE - 89 * day,
+        origin_created=SESSION_DATE - 366 * day,
+    ).build()
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert anachronism_detector.suggest(not_recent) == []
+    assert anachronism_detector.suggest(not_old) == []
+    assert_valid_suggestions(
+        anachronism_detector.suggest(both), "anachronism_detector", must_reference=["Echo"]
     )
 
-    suggestions = anachronism_detector.suggest(context)
 
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
+def test_anachronism_detector_caps_at_two(tmp_path):
+    """Cap: three Echo/Origin pairs yield six findings; exactly two are returned."""
+    ctx = _builder(tmp_path, echoes=3, recent=5, old=5, middle=14).build()
 
+    suggestions = anachronism_detector.suggest(ctx)
 
-def test_anachronism_detector_suggestion_structure(vault_with_temporal_notes):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with 32 notes across 3 time periods.
-
-    Verifies:
-        - Suggestion has required fields (text, notes, geist_id)
-        - References exactly 2 notes (old and recent pair)
-        - All note references are strings
-    """
-    vault, session = vault_with_temporal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = anachronism_detector.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "anachronism_detector"
-
-        # Should reference 2 notes (old and recent pair)
-        assert len(suggestion.notes) == 2
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_anachronism_detector_uses_link_text(vault_with_temporal_notes):
-    """Test that anachronism_detector uses link_text for note references.
-
-    Setup:
-        Vault with 32 notes across 3 time periods.
-
-    Verifies:
-        - Suggestion text uses [[wiki-link]] format
-        - Note references use link_text property
-    """
-    vault, session = vault_with_temporal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = anachronism_detector.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_anachronism_detector_empty_vault(tmp_path):
-    """Test that anachronism_detector handles empty vault gracefully.
-
-    Setup:
-        Empty vault with no notes.
-
-    Verifies:
-        - Returns empty list without crashing
-    """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = anachronism_detector.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_anachronism_detector_insufficient_notes(vault_insufficient_notes):
-    """Test that anachronism_detector handles insufficient notes gracefully.
-
-    Setup:
-        Vault with only 10 notes (minimum is 30).
-
-    Verifies:
-        - Returns empty list when note count too low
-    """
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = anachronism_detector.suggest(context)
-
-    # Should return empty list when < 30 notes
-    assert len(suggestions) == 0
-
-
-def test_anachronism_detector_no_old_notes(tmp_path):
-    """Test that anachronism_detector handles vault with only recent notes.
-
-    Setup:
-        Vault with 35 recent notes (all within last month).
-
-    Verifies:
-        - Returns empty list when no old notes exist
-    """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create 35 recent notes (all within last month)
-    now = datetime.now()
-    for i in range(35):
-        path = vault_path / f"recent_{i}.md"
-        path.write_text(f"# Recent Note {i}\n\nContent.")
-        path.touch()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = anachronism_detector.suggest(context)
-
-    # Should return empty when no old notes exist
-    assert len(suggestions) == 0
-
-
-def test_anachronism_detector_max_suggestions(vault_with_temporal_notes):
-    """Test that anachronism_detector never returns more than 2 suggestions.
-
-    Setup:
-        Vault with 32 notes across 3 time periods.
-
-    Verifies:
-        - Returns at most 2 suggestions (output limit)
-    """
-    vault, session = vault_with_temporal_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = anachronism_detector.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_anachronism_detector_deterministic_with_seed(vault_with_temporal_notes):
-    """Test that anachronism_detector returns same results with same seed.
-
-    Setup:
-        Vault with 32 notes, tested with identical seed twice.
-
-    Verifies:
-        - Same seed produces identical suggestions
-        - Suggestion count and text match exactly
-    """
-    vault, session = vault_with_temporal_notes
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = anachronism_detector.suggest(context1)
-    suggestions2 = anachronism_detector.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
+    assert len(suggestions) == 2
+    assert_valid_suggestions(suggestions, "anachronism_detector")
 
 
 def test_anachronism_detector_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
+    """A recent session note that quotes an old note is output, not the user
+    circling back. Both directions, across seeds: Echo/Origin is found and the
+    session note never appears (neither as the recent side nor as a match)."""
+    builder = _builder(tmp_path)
+    builder.journal("2024-03-10", IDEA, created=datetime(2024, 3, 10))
+    ctx = builder.build()
 
-    Setup:
-        Vault with journal notes (old) + regular old/recent notes (32 total).
-
-    Verifies:
-        - No journal notes appear in suggestions
-        - Only regular notes are suggested
-    """
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with old-looking content
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    now = datetime.now()
-    old_date = now - timedelta(days=400)
-
-    for i in range(5):
-        path = journal_dir / f"2024-03-{15 + i:02d}.md"
-        path.write_text(
-            f"# Session {i}\n\n"
-            f"Old journal content from the past. "
-            f"This should not be detected as anachronism."
+    for seed in range(6):
+        seeded = VaultContext(
+            ctx.vault, ctx.session, seed=seed, function_registry=FunctionRegistry()
         )
-        path.touch()
-        os.utime(path, (old_date.timestamp(), old_date.timestamp()))
+        assert_valid_suggestions(
+            anachronism_detector.suggest(seeded),
+            "anachronism_detector",
+            must_reference=["Echo", "Origin"],
+            must_not_reference=["geist journal", "2024-03-10"],
+        )
 
-    # Create regular old notes
-    for i in range(10):
-        path = vault_path / f"old_{i}.md"
-        path.write_text(f"# Old Note {i}\n\nContent about vintage topic {i}.")
-        path.touch()
-        old_time = (old_date - timedelta(days=i * 10)).timestamp()
-        os.utime(path, (old_time, old_time))
 
-    # Create regular recent notes
-    recent_date = now - timedelta(days=30)
-    for i in range(10):
-        path = vault_path / f"recent_{i}.md"
-        path.write_text(f"# Recent Note {i}\n\nContent about modern topic {i}.")
-        path.touch()
-        recent_time = (recent_date + timedelta(days=i)).timestamp()
-        os.utime(path, (recent_time, recent_time))
+def test_anachronism_detector_is_deterministic_for_a_seed(tmp_path):
+    first = anachronism_detector.suggest(_builder(tmp_path / "a", echoes=3, middle=14).build())
+    second = anachronism_detector.suggest(_builder(tmp_path / "b", echoes=3, middle=14).build())
 
-    # Create middle-aged notes to reach minimum
-    mid_date = now - timedelta(days=180)
-    for i in range(12):
-        path = vault_path / f"middle_{i}.md"
-        path.write_text(f"# Middle Note {i}\n\nContent about intermediate topic {i}.")
-        path.touch()
-        mid_time = (mid_date + timedelta(days=i * 5)).timestamp()
-        os.utime(path, (mid_time, mid_time))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = anachronism_detector.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()
+    assert len(first) == 2
+    assert [s.text for s in first] == [s.text for s in second]

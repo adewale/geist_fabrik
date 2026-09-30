@@ -25,12 +25,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         TemporalPatternFinder,
     )
 
-    # Find linked note pairs
-    notes = vault.notes()
+    # Find linked note pairs. Geist journal session notes link to every note
+    # they suggest; those links are output, not connections the user made.
+    notes = vault.notes_excluding_journal()
     linked_pairs = []
 
     for note in vault.sample(notes, min(30, len(notes))):
-        for target_note in vault.outgoing_links(note)[:5]:  # Check first 5 links
+        targets = [t for t in vault.outgoing_links(note) if not t.path.startswith("geist journal/")]
+        for target_note in targets[:5]:  # Check first 5 links
             linked_pairs.append((note, target_note))
 
     if len(linked_pairs) < 2:

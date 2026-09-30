@@ -17,26 +17,32 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         List of suggestions based on recent activity
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
 
-    # Get recently modified notes
-    # recent_notes() includes geist-journal output; exclude session notes.
-    recent = [n for n in vault.recent_notes(count=10) if not n.path.startswith("geist journal/")][
-        :5
-    ]
+    # The most recently modified notes. Geist journal session notes are
+    # output, not work: filter them before ranking, or accumulated session
+    # notes crowd every user note out of the window.
+    ranked = sorted(vault.notes_excluding_journal(), key=lambda n: n.modified, reverse=True)
+    # A note untouched for more than 60 days is "older", never "recent work"
+    # (ranked is newest first, so filtering the top 5 is enough).
+    recent = [n for n in ranked[:5] if vault.metadata(n)["days_since_modified"] <= 60]
 
     if len(recent) < 2:
         return []
 
     # For each recent note, find old notes that are similar
     for recent_note in recent[:3]:  # Just check top 3
-        # Find semantically similar notes
-        similar = vault.neighbours(recent_note, count=10)
+        # Nearest neighbours come back even when nothing is close; the
+        # suggestion claims similarity, so require at least a weak match.
+        similar = vault.neighbours(recent_note, count=10, return_scores=True)
 
         # Filter to only old notes (not modified recently)
         old_similar = []
-        for note in similar:
+        for note, score in similar:
+            if note.path.startswith("geist journal/") or score < SimilarityLevel.WEAK:
+                continue
             metadata = vault.metadata(note)
             days_since_modified = metadata.get("days_since_modified", 0)
 

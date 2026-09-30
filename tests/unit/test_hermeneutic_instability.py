@@ -1,480 +1,177 @@
-"""Unit tests for hermeneutic_instability geist."""
+"""Tests for the hermeneutic_instability geist.
 
-import os
+Trigger: a non-journal note with >= 3 snapshots whose SEMANTIC vectors over
+its last 5 sessions have mean Euclidean distance from their centroid > 0.2,
+while the note itself has not been edited for > 60 days. Capped at 2.
+
+History vectors are injected with ``set_history``: a note's current file
+content is its latest snapshot. Stub instability values quoted below were
+computed from the lexical stub (semantic weight 0.9, title words included).
+"""
+
 from datetime import datetime, timedelta
+from pathlib import Path
 
-import numpy as np
-import pytest
-
-from geistfabrik import Vault, VaultContext
-from geistfabrik.config import TOTAL_DIM
 from geistfabrik.default_geists.code import hermeneutic_instability
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
+from tests.fixtures.temporal import BASE16, set_history
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_multiple_sessions(tmp_path):
-    """Create a vault with multiple sessions and varying embeddings."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create notes
-    for i in range(20):
-        path = vault_path / f"note_{i}.md"
-        path.write_text(f"# Note {i}\n\nStable content {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Create multiple sessions with embeddings
-    now = datetime.now()
-    for i in range(5):
-        session_date = now - timedelta(days=i * 10)
-        session = Session(session_date, vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-    # Touch some files to make them old
-    old_date = now - timedelta(days=90)
-    for i in range(10):
-        path = vault_path / f"note_{i}.md"
-        old_time = old_date.timestamp()
-        os.utime(path, (old_time, old_time))
-
-    # Re-sync to update modification times
-    vault.sync()
-
-    # Create one more session with current date
-    current_session = Session(now, vault.db)
-    current_session.compute_embeddings(vault.all_notes())
-
-    # Store deliberately distinct semantic snapshots. Calendar-only movement
-    # must not be the mechanism that makes this designed-to-trigger fixture pass.
-    session_ids = [
-        row[0]
-        for row in vault.db.execute("SELECT session_id FROM sessions ORDER BY date")
-    ]
-    for index, session_id in enumerate(session_ids):
-        semantic_snapshot = np.zeros(TOTAL_DIM, dtype=np.float32)
-        semantic_snapshot[index % 5] = 0.9
-        vault.db.execute(
-            "UPDATE session_embeddings SET embedding = ? WHERE session_id = ?",
-            (semantic_snapshot.tobytes(), session_id),
-        )
-    vault.db.commit()
-
-    return vault, current_session
+H1, H2 = datetime(2023, 10, 1), datetime(2023, 12, 1)
+CURRENT = "violin bow rosin"
 
 
-@pytest.fixture
-def vault_with_insufficient_sessions(tmp_path):
-    """Create a vault with only 2 sessions (below minimum of 3)."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create notes
-    for i in range(10):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Create only 2 sessions
-    now = datetime.now()
-    for i in range(2):
-        session_date = now - timedelta(days=i * 10)
-        session = Session(session_date, vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-    current_session = Session(now, vault.db)
-    current_session.compute_embeddings(vault.all_notes())
-
-    return vault, current_session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _vault(
+    root: Path,
+    notes: dict[str, dict[datetime, str]],
+    *,
+    current: dict[str, str] | None = None,
+    history: list[datetime] | None = None,
+    unedited_days: int = 200,
+    journal: dict[str, dict[datetime, str]] | None = None,
+) -> VaultContext:
+    """``notes`` maps title -> {history date: earlier body}; current body defaults to CURRENT."""
+    current = current or {}
+    modified = SESSION_DATE - timedelta(days=unedited_days)
+    created = datetime(2022, 1, 1)
+    builder = VaultBuilder(root)
+    for title in notes:
+        builder.note(title, current.get(title, CURRENT), created=created, modified=modified)
+    for title in journal or {}:
+        builder.journal(title, CURRENT, created=created, modified=modified)
+    ctx = builder.build(history=[H1, H2] if history is None else history)
+    for folder, entries in (("", notes), ("geist journal/", journal or {})):
+        for title, texts in entries.items():
+            set_history(
+                ctx, f"{folder}{title}.md", {d: f"# {title}\n\n{b}" for d, b in texts.items()}
+            )
+    return ctx
 
 
-def test_hermeneutic_instability_returns_suggestions(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability returns suggestions.
+UNSTABLE = {H1: "gardens soil compost", H2: "rockets orbit fuel"}  # instability 0.57
 
-    Setup:
-        Vault with notes changing interpretation.
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_multiple_sessions
+def test_hermeneutic_instability_flags_unedited_note_with_varying_vectors(tmp_path):
+    # Trigger arithmetic: three mutually disjoint bodies -> instability 0.57 > 0.2;
+    # unedited for 200 days > 60.
+    ctx = _vault(tmp_path, {"Unstable Note": UNSTABLE, "Constant Note": {}})
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    suggestions = hermeneutic_instability.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "hermeneutic_instability",
+        must_reference=["Unstable Note"],
+        must_not_reference=["geist journal", "Constant Note"],
+    )
+    assert suggestions[0].text == (
+        "The semantic representation of [[Unstable Note]] varied across its last 3 recorded "
+        "sessions, while the note has not been edited in 200 days. Review the snapshots "
+        "before deciding whether the variation is meaningful."
     )
 
-    suggestions = hermeneutic_instability.suggest(context)
 
-    assert suggestions
-    assert len(suggestions) <= 2
+def test_hermeneutic_instability_needs_three_snapshots(tmp_path):
+    """Boundary pair: 2 snapshots (1 history session) -> nothing; 3 -> flagged."""
+    two = _vault(tmp_path / "two", {"Unstable Note": {H2: "rockets orbit fuel"}}, history=[H2])
+    three = _vault(tmp_path / "three", {"Unstable Note": UNSTABLE})
+
+    assert hermeneutic_instability.suggest(two) == []
+    assert_valid_suggestions(hermeneutic_instability.suggest(three), "hermeneutic_instability")
 
 
-def test_hermeneutic_instability_suggestion_structure(vault_with_multiple_sessions):
-    """Test that suggestions have correct structure.
+def test_hermeneutic_instability_requires_more_than_sixty_unedited_days(tmp_path):
+    """Boundary pair: edited 60 days ago -> explained by edits; 61 days -> flagged."""
+    at_60 = _vault(tmp_path / "60", {"Unstable Note": UNSTABLE}, unedited_days=60)
+    at_61 = _vault(tmp_path / "61", {"Unstable Note": UNSTABLE}, unedited_days=61)
 
-    Setup:
-        Vault with unstable interpretations.
+    assert hermeneutic_instability.suggest(at_60) == []
+    assert_valid_suggestions(hermeneutic_instability.suggest(at_61), "hermeneutic_instability")
 
-    Verifies:
-        - Has required fields
-        - References notes with interpretation shifts"""
-    vault, session = vault_with_multiple_sessions
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+def test_hermeneutic_instability_threshold_boundary(tmp_path):
+    """Instability 0.19 (2 words swapped in each session) is ignored; 0.23 (3 words) is flagged."""
+    ctx = _vault(
+        tmp_path,
+        {
+            "Slight Wobble": {H1: BASE16, H2: f"{BASE16} quebec romeo"},
+            "Real Wobble": {H1: BASE16, H2: f"{BASE16} quebec romeo sierra"},
+        },
+        current={
+            "Slight Wobble": f"{BASE16} sierra tango",
+            "Real Wobble": f"{BASE16} tango uniform victor",
+        },
     )
 
-    suggestions = hermeneutic_instability.suggest(context)
-    assert suggestions
+    suggestions = hermeneutic_instability.suggest(ctx)
 
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "hermeneutic_instability"
-
-        # Should reference 1 note (the unstable note)
-        assert len(suggestion.notes) == 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_hermeneutic_instability_uses_link_text(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability uses link_text for note references.
-
-    Setup:
-        Vault with interpretation changes.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_multiple_sessions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "hermeneutic_instability",
+        must_reference=["Real Wobble"],
+        must_not_reference=["geist journal", "Slight Wobble"],
     )
 
-    suggestions = hermeneutic_instability.suggest(context)
-    assert suggestions
 
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
+def test_hermeneutic_instability_looks_at_last_five_sessions_only(tmp_path):
+    """Six snapshots: a change in the oldest one falls outside the 5-session window.
 
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_hermeneutic_instability_empty_vault(tmp_path):
-    """Test that hermeneutic_instability handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    "Early Change" differs only in the first of 6 sessions (last 5 identical);
+    "Late Change" differs only in the 2nd, which is inside the window
+    (instability 0.32).
+    """
+    dates = [datetime(2023, month, 1) for month in (4, 6, 8, 10, 12)]
+    ctx = _vault(
+        tmp_path,
+        {
+            "Early Change": {dates[0]: "gardens soil compost"},
+            "Late Change": {dates[1]: "gardens soil compost"},
+        },
+        history=dates,
     )
 
-    suggestions = hermeneutic_instability.suggest(context)
+    suggestions = hermeneutic_instability.suggest(ctx)
 
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_hermeneutic_instability_insufficient_sessions(vault_with_insufficient_sessions):
-    """Test that hermeneutic_instability handles insufficient sessions gracefully."""
-    vault, session = vault_with_insufficient_sessions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "hermeneutic_instability",
+        must_reference=["Late Change"],
+        must_not_reference=["geist journal", "Early Change"],
     )
-
-    suggestions = hermeneutic_instability.suggest(context)
-
-    # Should return empty list when < 3 sessions
-    assert len(suggestions) == 0
+    assert "its last 5 recorded sessions" in suggestions[0].text
 
 
-def test_hermeneutic_instability_no_old_notes(tmp_path):
-    """Test that hermeneutic_instability handles vault with only recent notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def test_hermeneutic_instability_caps_at_two(tmp_path):
+    """Cap: four unstable notes produce exactly two suggestions."""
+    ctx = _vault(tmp_path, {f"Unstable {i}": UNSTABLE for i in range(4)})
 
-    # Create notes
-    for i in range(20):
-        (vault_path / f"recent_{i}.md").write_text(f"# Recent {i}\n\nContent.")
+    suggestions = hermeneutic_instability.suggest(ctx)
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Create multiple sessions
-    now = datetime.now()
-    for i in range(5):
-        session_date = now - timedelta(days=i * 10)
-        session = Session(session_date, vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-    current_session = Session(now, vault.db)
-    current_session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=current_session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hermeneutic_instability.suggest(context)
-
-    # May return empty if no notes meet the criteria (old + unstable)
-    assert isinstance(suggestions, list)
-
-
-def test_hermeneutic_instability_max_suggestions(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability never returns more than 2 suggestions.
-
-    Setup:
-        Vault with multiple unstable notes.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_multiple_sessions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hermeneutic_instability.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_hermeneutic_instability_deterministic_with_seed(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_multiple_sessions
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = hermeneutic_instability.suggest(context1)
-    suggestions2 = hermeneutic_instability.suggest(context2)
-
-    # Same seed should produce same results
-    assert suggestions1
-    assert len(suggestions1) == len(suggestions2)
-
-    texts1 = [s.text for s in suggestions1]
-    texts2 = [s.text for s in suggestions2]
-    assert texts1 == texts2
-
-
-def test_hermeneutic_instability_checks_interpretive_variance(vault_with_multiple_sessions):
-    """Test that hermeneutic_instability identifies notes with unstable interpretation."""
-    vault, session = vault_with_multiple_sessions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hermeneutic_instability.suggest(context)
-    assert suggestions
-    for suggestion in suggestions:
-        assert "semantic representation" in suggestion.text
-        assert "recorded sessions" in suggestion.text
-        assert "interpreted differently" not in suggestion.text
-
-
-def test_hermeneutic_instability_handles_missing_embeddings(tmp_path):
-    """Test that hermeneutic_instability handles notes with missing embeddings."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create notes
-    for i in range(10):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Create complete session snapshots, then simulate historical row loss for
-    # half the notes. Session.compute_embeddings itself requires a complete
-    # vault snapshot so production cannot accidentally publish partial history.
-    now = datetime.now()
-    all_notes = vault.all_notes()
-    missing_paths = [note.path for note in all_notes[5:]]
-    for i in range(5):
-        session_date = now - timedelta(days=i * 10)
-        session = Session(session_date, vault.db)
-        session.compute_embeddings(all_notes)
-        vault.db.executemany(
-            "DELETE FROM session_embeddings WHERE session_id = ? AND note_path = ?",
-            ((session.session_id, path) for path in missing_paths),
-        )
-        vault.db.commit()
-
-    current_session = Session(now, vault.db)
-    current_session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=current_session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hermeneutic_instability.suggest(context)
-
-    # Should not crash with missing embeddings
-    assert isinstance(suggestions, list)
+    assert len(suggestions) == 2
+    assert_valid_suggestions(suggestions, "hermeneutic_instability")
+    assert suggestions[0].notes != suggestions[1].notes
 
 
 def test_hermeneutic_instability_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
+    """Both directions: an unstable user note is flagged, an equally unstable
+    (rewritten) session note is not."""
+    ctx = _vault(tmp_path, {"Unstable Note": UNSTABLE}, journal={"2023-12-01": UNSTABLE})
 
-    Setup:
-        Vault with journal + regular notes.
+    suggestions = hermeneutic_instability.suggest(ctx)
 
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with sessions
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
-        journal_note.write_text(
-            f"# Session {i}\n\n"
-            "## Suggestions\n\n"
-            "[[note_5]] has been interpreted differently across sessions "
-            "despite not being edited.\n\n"
-            "The hermeneutic instability suggests evolving understanding."
-        )
-
-    # Create regular notes
-    for i in range(20):
-        path = vault_path / f"note_{i}.md"
-        path.write_text(f"# Note {i}\n\nStable content {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Create multiple sessions with embeddings
-    now = datetime.now()
-    for i in range(5):
-        session_date = now - timedelta(days=i * 10)
-        session = Session(session_date, vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-    # Touch some files to make them old
-    old_date = now - timedelta(days=90)
-    for i in range(10):
-        path = vault_path / f"note_{i}.md"
-        old_time = old_date.timestamp()
-        os.utime(path, (old_time, old_time))
-
-    # Re-sync to update modification times
-    vault.sync()
-
-    # Create current session
-    current_session = Session(now, vault.db)
-    current_session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=current_session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "hermeneutic_instability",
+        must_reference=["Unstable Note"],
+        must_not_reference=["geist journal", "2023-12-01"],
     )
 
-    suggestions = hermeneutic_instability.suggest(context)
 
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern
+def test_hermeneutic_instability_is_deterministic_for_a_seed(tmp_path):
+    notes = {f"Unstable {i}": UNSTABLE for i in range(4)}
+
+    first = hermeneutic_instability.suggest(_vault(tmp_path / "a", notes))
+    second = hermeneutic_instability.suggest(_vault(tmp_path / "b", notes))
+
+    assert len(first) == 2
+    assert [s.text for s in first] == [s.text for s in second]

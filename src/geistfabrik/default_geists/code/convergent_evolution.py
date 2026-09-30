@@ -25,7 +25,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         TemporalPatternFinder,
     )
 
-    notes = vault.notes()
+    # Geist journal session notes quote the notes they suggest; converging
+    # with session output is not a connection worth linking.
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 10:
         return []
