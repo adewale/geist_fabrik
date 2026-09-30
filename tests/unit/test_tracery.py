@@ -516,88 +516,77 @@ def test_tracery_capitalize_all_modifier() -> None:
     assert result in ["Hello World", "Foo Bar"]
 
 
-def test_tracery_pluralize_modifier() -> None:
-    """Test .s modifier pluralizes words correctly."""
-    grammar = {
-        "origin": ["#animal.s#"],
-        "animal": ["cat", "dog", "fox", "box", "city", "person"],
-    }
-
-    engine = TraceryEngine(grammar, seed=42)
-
-    # Test various pluralization rules
-    test_cases = {
-        "cat": "cats",
-        "dog": "dogs",
-        "fox": "foxes",
-        "box": "boxes",
-        "city": "cities",
-        "person": "people",
-    }
-
-    for singular, expected_plural in test_cases.items():
-        grammar = {"origin": ["#word.s#"], "word": [singular]}
-        engine = TraceryEngine(grammar, seed=42)
-        result = engine.expand("#origin#")
-        assert result == expected_plural, f"Expected {expected_plural}, got {result}"
+def _expand_modifier(word: str, modifier: str) -> str:
+    """Expand ``#word.<modifier>#`` through the public engine boundary."""
+    engine = TraceryEngine({"origin": [f"#word.{modifier}#"], "word": [word]}, seed=42)
+    return engine.expand("#origin#")
 
 
-def test_tracery_past_tense_modifier() -> None:
-    """Test .ed modifier converts to past tense."""
-    test_cases = {
-        "walk": "walked",
-        "run": "ran",  # Note: 'ran' not in our irregulars, will be 'runned'
-        "create": "created",
-        "try": "tried",
-        "go": "went",
-        "think": "thought",
-    }
-
-    for present, expected_past in test_cases.items():
-        grammar = {"origin": ["#verb.ed#"], "verb": [present]}
-        engine = TraceryEngine(grammar, seed=42)
-        result = engine.expand("#origin#")
-
-        # Skip irregular verbs not in our list
-        if present in [
-            "be",
-            "have",
-            "do",
-            "say",
-            "go",
-            "get",
-            "make",
-            "know",
-            "think",
-            "take",
-            "see",
-            "come",
-            "find",
-            "give",
-            "tell",
-            "feel",
-            "become",
-            "leave",
-            "put",
-        ]:
-            assert result == expected_past, f"Expected {expected_past}, got {result}"
+@pytest.mark.parametrize(
+    ("singular", "plural"),
+    [
+        ("cat", "cats"),
+        ("dog", "dogs"),
+        ("fox", "foxes"),
+        ("box", "boxes"),
+        ("city", "cities"),
+        # Irregulars (several used by transformation_suggester)
+        ("person", "people"),
+        ("child", "children"),
+        ("man", "men"),
+        ("woman", "women"),
+        ("foot", "feet"),
+        ("tooth", "teeth"),
+    ],
+)
+def test_tracery_pluralize_modifier(singular: str, plural: str) -> None:
+    """The .s modifier pluralizes regular and irregular nouns."""
+    assert _expand_modifier(singular, "s") == plural
 
 
-def test_tracery_article_modifier() -> None:
-    """Test .a modifier adds correct article."""
-    test_cases = {
-        "cat": "a cat",
-        "owl": "an owl",
-        "house": "a house",
-        "hour": "an hour",
-        "university": "a university",
-    }
+@pytest.mark.parametrize(
+    ("present", "past"),
+    [
+        ("walk", "walked"),
+        ("create", "created"),
+        ("try", "tried"),
+        ("stop", "stopped"),
+        # Irregulars (several used by transformation_suggester)
+        ("go", "went"),
+        ("think", "thought"),
+        ("make", "made"),
+        ("write", "wrote"),
+        ("find", "found"),
+        ("build", "built"),
+    ],
+)
+def test_tracery_past_tense_modifier(present: str, past: str) -> None:
+    """The .ed modifier forms regular and irregular past tenses."""
+    assert _expand_modifier(present, "ed") == past
 
-    for word, expected in test_cases.items():
-        grammar = {"origin": ["#noun.a#"], "noun": [word]}
-        engine = TraceryEngine(grammar, seed=42)
-        result = engine.expand("#origin#")
-        assert result == expected, f"Expected '{expected}', got '{result}'"
+
+@pytest.mark.parametrize(
+    ("word", "expected"),
+    [
+        ("cat", "a cat"),
+        ("owl", "an owl"),
+        ("house", "a house"),
+        ("hour", "an hour"),
+        ("university", "a university"),
+        # Nouns used by transformation_suggester
+        ("organism", "an organism"),
+        ("garden", "a garden"),
+        ("experiment", "an experiment"),
+        ("map", "a map"),
+        ("archive", "an archive"),
+        ("understanding", "an understanding"),
+        ("hypothesis", "a hypothesis"),
+        ("insight", "an insight"),
+    ],
+)
+def test_tracery_article_modifier(word: str, expected: str) -> None:
+    """The .a modifier picks "a" or "an" by sound."""
+    assert _expand_modifier(word, "a") == expected
 
 
 def test_tracery_modifier_chaining() -> None:

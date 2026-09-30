@@ -10,11 +10,13 @@ from unittest.mock import Mock
 
 import numpy as np
 
+from geistfabrik.default_geists import DEFAULT_TRACERY_GEISTS
 from geistfabrik.embeddings import EmbeddingComputer, Session
 from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder
 
 # Path to default bundled geists
 GEISTS_DIR = (
@@ -766,35 +768,32 @@ class TestWhatIf:
 class TestAllTraceryGeists:
     """Tests that apply to all Tracery geists."""
 
-    def test_all_geists_load_without_errors(self):
-        """Test that all Tracery geists can be loaded."""
-        geist_files = list(GEISTS_DIR.glob("*.yaml"))
-
-        # Should have 12 Tracery geists
-        assert len(geist_files) == 12
-
-        for geist_file in geist_files:
-            geist = TraceryGeist.from_yaml(geist_file, seed=42)
-            assert geist.geist_id is not None
-            assert geist.count >= 1
-
     def test_all_geists_are_deterministic(self, tmp_path: Path):
-        """Test geists with same seed produce same count (full text tested in integration)."""
-        context = create_test_vault_context(tmp_path)
-        geist_files = list(GEISTS_DIR.glob("*.yaml"))
+        """Same seed + same vault + same session date => identical texts.
 
-        for geist_file in geist_files:
-            geist1 = TraceryGeist.from_yaml(geist_file, seed=999)
-            geist2 = TraceryGeist.from_yaml(geist_file, seed=999)
+        Each run gets its own VaultContext built from the same files: sharing
+        one context would let the first run advance the vault RNG. (Loading
+        every bundled YAML with id == filename is owned by
+        test_default_geists.test_default_geist_directories_load_exactly_the_default_lists.)
+        """
+        builder = VaultBuilder(tmp_path)
+        builder.note("Hub Note", "This is a hub.")
+        for i in range(10):
+            builder.note(f"Note {i:02d}", f"Test note {i} about gardens. [[Hub Note]]")
+        builder.note("Orphan Note", "No links here.")
+        builder.note("Questions", "What is this? How does it work? Why does it matter? When?")
+        builder.note("Past Reflection", "I walked to the store. I bought groceries. I returned.")
+        builder.note("Future Plans", "I will build this. I shall succeed. It will work.")
+        assert DEFAULT_TRACERY_GEISTS, "no bundled Tracery geists discovered"
 
-            suggestions1 = geist1.suggest(context)
-            suggestions2 = geist2.suggest(context)
-
-            # At minimum, same seed should produce same number of suggestions
-            assert len(suggestions1) == len(suggestions2), f"Different counts in {geist_file.name}"
-
-            # Note: Full text determinism is tested in integration tests
-            # Unit tests use mock vaults which may have file creation order issues
+        for geist_id in DEFAULT_TRACERY_GEISTS:
+            geist_file = GEISTS_DIR / f"{geist_id}.yaml"
+            runs = [
+                [s.text for s in TraceryGeist.from_yaml(geist_file, seed=999).suggest(ctx)]
+                for ctx in (builder.build(), builder.build())
+            ]
+            assert runs[0], f"{geist_id} produced nothing on a populated vault"
+            assert runs[0] == runs[1], f"{geist_id} is not deterministic"
 
     def test_all_geists_respect_count_parameter(self, tmp_path: Path):
         """Test that all geists respect their count parameter."""

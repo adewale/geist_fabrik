@@ -727,6 +727,11 @@ class TraceryGeist:
         if "  " in text:
             return True
 
+        # Leading/trailing whitespace: an empty symbol at either end of the
+        # template (e.g. "#note# exists." -> " exists.")
+        if text != text.strip():
+            return True
+
         # Check for space before common punctuation
         if " ." in text or " ," in text or " !" in text or " ?" in text:
             return True

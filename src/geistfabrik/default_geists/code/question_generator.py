@@ -20,7 +20,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes()
+    notes = vault.notes_excluding_journal()
 
     for note in notes:
         # Skip notes that are already questions
@@ -47,15 +47,17 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # Pick one question frame
             question = vault.sample(question_frames, count=1)[0]
 
+            # link_text, not title: a date-collection entry's title is its
+            # heading, which is not a linkable note name on its own.
             text = (
-                f'What if you reframed [[{title}]] as a question: "{question}"? '
+                f'What if you reframed [[{note.link_text}]] as a question: "{question}"? '
                 f"Questions invite exploration where statements invite acceptance."
             )
 
             suggestions.append(
                 Suggestion(
                     text=text,
-                    notes=[title],
+                    notes=[note.link_text],
                     geist_id="question_generator",
                     title=question,
                 )

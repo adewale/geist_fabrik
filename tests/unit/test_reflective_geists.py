@@ -1,10 +1,11 @@
 """Unit tests for the 8 reflective lens code geists.
 
-Covers a shared conformance battery (return types, wikilink hygiene,
-empty/minimal vault handling, determinism) plus per-geist behaviour
-tests against a controlled "voice vault" whose notes deliberately trip
-the voice metadata thresholds (temporal orientation, pronouns, hedging,
-question density, sentence variance).
+Covers a shared conformance battery (well-formed output, wikilink hygiene,
+3-note vault handling, determinism), run for each geist on a vault designed
+to make it fire, plus per-geist behaviour tests against a controlled "voice
+vault" whose notes deliberately trip the voice metadata thresholds
+(temporal orientation, pronouns, hedging, question density, sentence
+variance). Empty-vault behaviour is owned by test_code_geists_empty_data.py.
 """
 
 from datetime import datetime
@@ -26,6 +27,7 @@ from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
 from geistfabrik.models import Suggestion
 from geistfabrik.voice_analysis import count_hedges
+from tests.fixtures.helpers import assert_valid_suggestions
 
 GEIST_MODULES = [
     attention_shift,
@@ -41,14 +43,6 @@ GEIST_MODULES = [
 
 def _geist_name(module) -> str:
     return module.__name__.rsplit(".", 1)[-1]
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 # ============================================================================
@@ -194,6 +188,106 @@ def _make_context(vault, session, seed=20250615) -> VaultContext:
     )
 
 
+def _set_created(vault, title: str, created: datetime) -> None:
+    vault.db.execute("UPDATE notes SET created = ? WHERE title = ?", (created.isoformat(), title))
+    vault.db.commit()
+
+
+def _build_anniversary_vault(vault_path, created: datetime) -> tuple:
+    """Three notes; only "Anniversary Note" can fall in a 1-3 year window.
+
+    The session date is 2024-03-15, so the 1-year window is 2023-03-08 to
+    2023-03-22 inclusive. The other two notes sit outside every window.
+    """
+    vault_path.mkdir()
+    _write_notes(
+        vault_path,
+        {
+            "Anniversary Note": "A thought captured in the early spring.",
+            "Other Note": "A thought from a different season entirely.",
+            "Recent Note": "A thought from just a few days back.",
+        },
+    )
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    _set_created(vault, "Anniversary Note", created)
+    _set_created(vault, "Other Note", datetime(2023, 9, 1, 10, 0))
+    _set_created(vault, "Recent Note", datetime(2024, 3, 10, 10, 0))
+    session = Session(datetime(2024, 3, 15), vault.db)
+    session.compute_embeddings(vault.all_notes())
+    return vault, session
+
+
+ALPHA_WORDS = "quartz lichen harbour violin saffron glacier"
+BETA_WORDS = "meadow lantern cobalt thistle walnut falcon"
+
+
+def _build_shifted_vault(vault_path) -> tuple:
+    """A note whose vocabulary moved from one topic group to another.
+
+    Ten "Alpha" notes share one vocabulary and ten "Beta" notes another. In
+    the historical session (2024-06-01, over 180 days before the current
+    one) "Pivot" used the Alpha words, so its 10 nearest neighbours were the
+    Alpha notes; it was then rewritten with the Beta words, so its current
+    neighbours are the Beta notes: churn 1.0 > 0.6.
+    """
+    vault_path.mkdir()
+    for i in range(10):
+        _write_notes(vault_path, {f"Alpha {i}": f"{ALPHA_WORDS} a{i}x"})
+        _write_notes(vault_path, {f"Beta {i}": f"{BETA_WORDS} b{i}x"})
+    _write_notes(vault_path, {"Pivot": ALPHA_WORDS})
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    Session(datetime(2024, 6, 1), vault.db).compute_embeddings(vault.all_notes())
+
+    _write_notes(vault_path, {"Pivot": BETA_WORDS})
+    vault.sync()
+    session = Session(datetime(2025, 6, 15), vault.db)
+    session.compute_embeddings(vault.all_notes())
+    return vault, session
+
+
+def _build_voiceless_vault(vault_path) -> tuple:
+    """20 neutral present-tense notes: no past, no future, no "we" and no
+    questions, so all four voice_absence checks fire (and the pick among
+    them is a seeded sample)."""
+    fillers = {
+        f"Plain {i}": f"The room {i} is quiet today. The desk is tidy. The lamp is on."
+        for i in range(20)
+    }
+    return _build_vault(vault_path, [fillers])
+
+
+def _build_choppy_vault(vault_path) -> tuple:
+    """Ten uniform notes plus one note mixing very short and very long sentences."""
+    uniform_sentence = "The quiet {word} square fills with morning light."
+    notes = {
+        f"Uniform {word.title()}": " ".join([uniform_sentence.format(word=word)] * 3)
+        for word in _FILLER_WORDS[:10]
+    }
+    notes["Choppy Note"] = (
+        "Stop. The committee deliberated for eleven hours across two long days "
+        "about the proposed water treatment facility and its complicated "
+        "funding arrangement before reaching any decision. No. The vote "
+        "happened anyway."
+    )
+    return _build_vault(vault_path, [notes])
+
+
+def _firing_vault(geist, voice_vault, tmp_path) -> tuple:
+    """A vault on which ``geist`` is designed to fire (see each builder)."""
+    name = _geist_name(geist)
+    if name == "attention_shift":
+        return _build_shifted_vault(tmp_path / "vault")
+    if name == "this_time_last_year":
+        return _build_anniversary_vault(tmp_path / "vault", datetime(2023, 3, 18, 10, 0))
+    if name == "voice_absence":
+        return _build_voiceless_vault(tmp_path / "vault")
+    if name == "sentence_variance":
+        return _build_choppy_vault(tmp_path / "vault")
+    return voice_vault
+
+
 # ============================================================================
 # Fixtures
 # ============================================================================
@@ -240,52 +334,37 @@ def tiny_vault(tmp_path):
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_returns_suggestion_list_on_voice_vault(geist, voice_vault):
-    """Every geist returns a list of well-formed Suggestions."""
-    vault, session = voice_vault
+def test_returns_well_formed_suggestions_when_firing(geist, voice_vault, tmp_path):
+    """On its designed-to-trigger vault every geist fires with well-formed
+    output that references only real notes."""
+    vault, session = _firing_vault(geist, voice_vault, tmp_path)
     context = _make_context(vault, session)
+    real_notes = {n.link_text for n in vault.all_notes()}
 
     suggestions = geist.suggest(context)
 
-    assert isinstance(suggestions, list)
+    assert_valid_suggestions(suggestions, _geist_name(geist))
     for suggestion in suggestions:
-        assert isinstance(suggestion, Suggestion)
-        assert suggestion.geist_id == _geist_name(geist)
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        for ref in suggestion.notes:
-            assert isinstance(ref, str)
-            assert len(ref) > 0
+        assert set(suggestion.notes) <= real_notes
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_wikilinks_well_formed(geist, voice_vault):
-    """Wikilinks in suggestion text are balanced and not double-bracketed."""
-    vault, session = voice_vault
+def test_wikilinks_well_formed(geist, voice_vault, tmp_path):
+    """Wikilinks in suggestion text are balanced, not double-bracketed, and
+    every referenced note is linked in the text."""
+    vault, session = _firing_vault(geist, voice_vault, tmp_path)
     context = _make_context(vault, session)
 
     suggestions = geist.suggest(context)
 
-    assert isinstance(suggestions, list)
+    assert suggestions, "fixture is designed to trigger"
     for suggestion in suggestions:
         text = suggestion.text
         assert text.count("[[") == text.count("]]")
         assert "[[[[" not in text
         assert "[[]]" not in text
-
-
-@pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_empty_vault_returns_empty(geist, empty_vault):
-    """Every geist returns [] on an empty vault."""
-    vault, session = empty_vault
-    context = _make_context(vault, session)
-
-    suggestions = geist.suggest(context)
-
-    assert isinstance(suggestions, list)
-    assert suggestions == []
-    assert len(vault.all_notes()) == 0
+        for ref in suggestion.notes:
+            assert f"[[{ref}]]" in text
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
@@ -303,16 +382,15 @@ def test_three_note_vault_no_crash(geist, tiny_vault):
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_deterministic_output(geist, voice_vault):
-    """Same vault + session + seed produces identical suggestions."""
-    vault, session = voice_vault
+def test_deterministic_output(geist, voice_vault, tmp_path):
+    """Same vault + session + seed produces identical, non-empty suggestions."""
+    vault, session = _firing_vault(geist, voice_vault, tmp_path)
 
     first = geist.suggest(_make_context(vault, session, seed=777))
     _GLOBAL_REGISTRY.clear()  # Reset before creating second context
     second = geist.suggest(_make_context(vault, session, seed=777))
 
-    assert isinstance(first, list)
-    assert isinstance(second, list)
+    assert first
     assert first == second
 
 
@@ -457,8 +535,22 @@ def test_attention_shift_empty_without_old_session(voice_vault):
 
     suggestions = attention_shift.suggest(context)
 
-    assert isinstance(suggestions, list)
     assert suggestions == []
+
+
+def test_attention_shift_names_the_note_whose_neighbours_moved(tmp_path):
+    vault, session = _build_shifted_vault(tmp_path / "vault")
+    context = _make_context(vault, session)
+
+    suggestions = attention_shift.suggest(context)
+
+    assert_valid_suggestions(suggestions, "attention_shift")
+    assert len(suggestions) == 1
+    pivot, *moved = suggestions[0].notes
+    assert pivot == "Pivot"
+    departed, arrived = moved[:3], moved[3:]
+    assert departed and all(t.startswith("Alpha") for t in departed)
+    assert arrived and all(t.startswith("Beta") for t in arrived)
 
 
 # ============================================================================
@@ -466,62 +558,28 @@ def test_attention_shift_empty_without_old_session(voice_vault):
 # ============================================================================
 
 
-def test_this_time_last_year_finds_anniversary_note(tmp_path):
-    """this_time_last_year surfaces a note created ~1 year before the session."""
-    vault_path = tmp_path / "vault"
-    notes = {
-        "Anniversary Note": "A thought captured in the early spring.",
-        "Other Note": "A thought from a different season entirely.",
-        "Recent Note": "A thought from just a few days back.",
-    }
-    vault_path.mkdir()
-    _write_notes(vault_path, notes)
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Session date is 2024-03-15; the anniversary note sits inside the
-    # +/- 7 day window around 2023-03-15. The others do not match any window.
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2023, 3, 18, 10, 0).isoformat(), "Anniversary Note"),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2023, 9, 1, 10, 0).isoformat(), "Other Note"),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2024, 3, 10, 10, 0).isoformat(), "Recent Note"),
-    )
-    vault.db.commit()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
+@pytest.mark.parametrize(
+    ("created", "fires"),
+    [
+        (datetime(2023, 3, 8, 10, 0), True),  # 7 days before the anniversary
+        (datetime(2023, 3, 22, 10, 0), True),  # 7 days after
+        (datetime(2023, 3, 7, 10, 0), False),  # 8 days before: outside
+        (datetime(2023, 3, 23, 10, 0), False),  # 8 days after: outside
+    ],
+)
+def test_this_time_last_year_window_boundaries(tmp_path, created, fires):
+    """A note created within +/- 7 days of a 1-year anniversary is resurfaced."""
+    vault, session = _build_anniversary_vault(tmp_path / "vault", created)
     context = _make_context(vault, session, seed=20240315)
 
     suggestions = this_time_last_year.suggest(context)
 
-    assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "this_time_last_year"
-    assert suggestion.notes == ["Anniversary Note"]
-    assert "Around this time a year ago" in suggestion.text
-    assert "[[Anniversary Note]]" in suggestion.text
-
-
-def test_this_time_last_year_empty_without_anniversaries(voice_vault):
-    """No notes near any anniversary window means no suggestion."""
-    vault, session = voice_vault
-    context = _make_context(vault, session)
-
-    # Notes were created at sync time (today), not 1-3 years before the
-    # 2025-06-15 session date, so no window matches.
-    suggestions = this_time_last_year.suggest(context)
-
-    assert isinstance(suggestions, list)
-    assert suggestions == []
-    assert len(vault.all_notes()) >= 25
+    if not fires:
+        assert suggestions == []
+        return
+    assert_valid_suggestions(suggestions, "this_time_last_year")
+    assert [s.notes for s in suggestions] == [["Anniversary Note"]]
+    assert "Around this time a year ago" in suggestions[0].text
 
 
 # ============================================================================
@@ -531,19 +589,7 @@ def test_this_time_last_year_empty_without_anniversaries(voice_vault):
 
 def test_sentence_variance_fires_on_choppy_note(tmp_path):
     """A single high-variance note among uniform notes is flagged."""
-    uniform_sentence = "The quiet {word} square fills with morning light."
-    notes = {
-        f"Uniform {word.title()}": " ".join([uniform_sentence.format(word=word)] * 3)
-        for word in _FILLER_WORDS[:10]
-    }
-    notes["Choppy Note"] = (
-        "Stop. The committee deliberated for eleven hours across two long days "
-        "about the proposed water treatment facility and its complicated "
-        "funding arrangement before reaching any decision. No. The vote "
-        "happened anyway."
-    )
-
-    vault, session = _build_vault(tmp_path / "vault", [notes])
+    vault, session = _build_choppy_vault(tmp_path / "vault")
     context = _make_context(vault, session)
 
     suggestions = sentence_variance.suggest(context)
@@ -595,15 +641,14 @@ def test_voice_absence_fires_on_missing_future_voice(tmp_path):
     assert "of your 20 notes" in suggestion.text
 
 
-def test_voice_absence_returns_at_most_one(voice_vault):
-    """voice_absence never returns more than one suggestion."""
-    vault, session = voice_vault
+def test_voice_absence_names_exactly_one_of_several_absences(tmp_path):
+    """With four voices missing, voice_absence still names exactly one."""
+    vault, session = _build_voiceless_vault(tmp_path / "vault")
     context = _make_context(vault, session)
 
     suggestions = voice_absence.suggest(context)
 
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 1
-    for suggestion in suggestions:
-        assert suggestion.notes == []
-        assert suggestion.geist_id == "voice_absence"
+    assert_valid_suggestions(suggestions, "voice_absence")
+    assert len(suggestions) == 1
+    assert suggestions[0].notes == []
+    assert suggestions[0].text.startswith("Only 0 of your 20 notes")

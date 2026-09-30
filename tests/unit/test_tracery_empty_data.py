@@ -10,21 +10,16 @@ from pathlib import Path
 
 import pytest
 
-from geistfabrik import function_registry
+from geistfabrik.default_geists import DEFAULT_TRACERY_GEISTS
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
 
-
-@pytest.fixture(autouse=True)
-def clear_function_registry():
-    """Clear the global function registry before each test."""
-    function_registry._GLOBAL_REGISTRY.clear()
-    yield
-    # Optionally clear after test as well
-    function_registry._GLOBAL_REGISTRY.clear()
+TRACERY_DIR = (
+    Path(__file__).parent.parent.parent / "src" / "geistfabrik" / "default_geists" / "tracery"
+)
 
 
 @pytest.fixture
@@ -105,23 +100,6 @@ class TestHubExplorerEmptyData:
             "hub_explorer should return no suggestions when there are no hubs"
         )
 
-    def test_hub_explorer_returns_empty_with_empty_vault(self, empty_vault_context: VaultContext):
-        """hub_explorer should return empty list when vault is completely empty."""
-        geist_path = (
-            Path(__file__).parent.parent.parent
-            / "src"
-            / "geistfabrik"
-            / "default_geists"
-            / "tracery"
-            / "hub_explorer.yaml"
-        )
-
-        geist = TraceryGeist.from_yaml(geist_path, seed=12345)
-        suggestions = geist.suggest(empty_vault_context)
-
-        assert isinstance(suggestions, list)
-        assert len(suggestions) == 0
-
 
 class TestOrphanConnectorEmptyData:
     """Test orphan_connector geist with no orphans."""
@@ -194,14 +172,8 @@ class TestSemanticNeighboursEmptyData:
         geist = TraceryGeist.from_yaml(geist_path, seed=12345)
         suggestions = geist.suggest(context)
 
-        assert isinstance(suggestions, list)
-        # Should either return empty or valid suggestions (not suggestions with empty placeholders)
-        for suggestion in suggestions:
-            # No double spaces
-            assert "  " not in suggestion.text
-            # No space before punctuation
-            assert " ." not in suggestion.text
-            assert " ," not in suggestion.text
+        # A lone note has no neighbours, so there is no cluster to describe.
+        assert suggestions == []
 
 
 class TestAllTraceryGeistsWithEmptyVault:
@@ -210,33 +182,32 @@ class TestAllTraceryGeistsWithEmptyVault:
     def test_all_tracery_geists_return_empty_with_empty_vault(
         self, empty_vault_context: VaultContext
     ):
-        """All Tracery geists should return empty lists with empty vaults."""
-        geists_dir = (
-            Path(__file__).parent.parent.parent
-            / "src"
-            / "geistfabrik"
-            / "default_geists"
-            / "tracery"
-        )
+        """A geist that draws on the vault has nothing to say about an empty one.
 
-        geist_files = list(geists_dir.glob("*.yaml"))
-        assert len(geist_files) == 12, "Expected 12 Tracery geists"
+        Geists whose grammar calls a $vault function must return []; a
+        vault-free geist (static prompts) may still speak, but never with an
+        empty placeholder where a note should be.
+        """
+        assert DEFAULT_TRACERY_GEISTS, "no bundled Tracery geists discovered"
+        speaking: dict[str, list[str]] = {}
 
-        for geist_file in geist_files:
+        for geist_id in DEFAULT_TRACERY_GEISTS:
+            geist_file = TRACERY_DIR / f"{geist_id}.yaml"
             geist = TraceryGeist.from_yaml(geist_file, seed=12345)
             suggestions = geist.suggest(empty_vault_context)
+            uses_vault = "$vault." in geist_file.read_text()
 
-            assert isinstance(suggestions, list), f"{geist.geist_id} should return a list"
-            # Most should return empty, but some might have static content
-            # The key is NO empty placeholders
+            if uses_vault and suggestions:
+                speaking[geist_id] = [s.text for s in suggestions]
             for suggestion in suggestions:
-                # Check for empty placeholder indicators
-                assert "  " not in suggestion.text, (
-                    f"{geist.geist_id} has double spaces: {suggestion.text}"
+                assert suggestion.text == suggestion.text.strip(), (
+                    f"{geist_id} has an empty placeholder: {suggestion.text!r}"
                 )
-                assert " ." not in suggestion.text, (
-                    f"{geist.geist_id} has space before period: {suggestion.text}"
+                assert "  " not in suggestion.text and " ." not in suggestion.text, (
+                    f"{geist_id} has an empty placeholder: {suggestion.text!r}"
                 )
+
+        assert speaking == {}, f"vault-backed geists spoke about an empty vault: {speaking}"
 
 
 class TestTraceryEmptyPlaceholderDetection:

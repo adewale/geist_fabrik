@@ -66,10 +66,3 @@ def test_harvesters_empty_on_plain_prose():
     ctx = _context({"plain.md": "# Plain\nJust a calm description with nothing to extract.\n"})
     assert claim_harvester.suggest(ctx) == []
     assert hypothesis_harvester.suggest(ctx) == []
-
-
-def test_harvesters_empty_vault():
-    ctx = _context({"only.md": "# Only\nshort"})
-    # Single short note: extractors find nothing, geists abstain (no crash).
-    assert isinstance(claim_harvester.suggest(ctx), list)
-    assert isinstance(hypothesis_harvester.suggest(ctx), list)

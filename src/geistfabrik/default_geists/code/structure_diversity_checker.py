@@ -5,6 +5,7 @@ when your writing patterns become too repetitive. It suggests breaking
 out of structural ruts by pointing to notes with different structures.
 """
 
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,6 +17,9 @@ from geistfabrik import Suggestion
 # metadata call per note) only a bounded, date-seeded sample rather than the
 # whole vault.
 MAX_STRUCTURE_CANDIDATES = 50
+
+_HEADING = re.compile(r"^#{1,6}\s+", re.MULTILINE)
+_LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+", re.MULTILINE)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -29,8 +33,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     suggestions = []
 
-    # Get recent notes
-    recent = vault.recent_notes(count=8)
+    # The user's most recently modified notes. Journal session notes are the
+    # engine's own output (and always the newest), so they are left out.
+    user_notes = vault.notes_excluding_journal()
+    recent = sorted(user_notes, key=lambda n: (n.modified, n.path), reverse=True)[:8]
     if len(recent) < 5:
         return []
 
@@ -85,11 +91,15 @@ def _classify_structure(vault: "VaultContext", note: "Note") -> str:
         "code-heavy", or "mixed"
     """
     metadata = vault.metadata(note)
+    content = note.content
 
-    list_count = metadata.get("list_item_count", 0)
+    # Built-in metadata has task_count but no list/code/heading counts (those
+    # come from the optional examples/metadata_inference/structure.py), so
+    # count them from the markdown unless a metadata module supplies them.
+    list_count = metadata.get("list_item_count", len(_LIST_ITEM.findall(content)))
     task_count = metadata.get("task_count", 0)
-    code_block_count = metadata.get("code_block_count", 0)
-    heading_count = metadata.get("heading_count", 0)
+    code_block_count = metadata.get("code_block_count", content.count("```") // 2)
+    heading_count = metadata.get("heading_count", len(_HEADING.findall(content)))
     word_count = len(note.content.split())
 
     # Normalise by word count to get density
@@ -121,7 +131,7 @@ def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note |
         A note with different structure, or None if not found
     """
     # Look through a bounded sample of notes for different structures.
-    all_notes = vault.notes()
+    all_notes = vault.notes_excluding_journal()
     candidates = vault.sample(all_notes, min(len(all_notes), MAX_STRUCTURE_CANDIDATES))
 
     different_notes = []

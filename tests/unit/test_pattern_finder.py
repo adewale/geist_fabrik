@@ -1,484 +1,244 @@
-"""Unit tests for pattern_finder geist."""
+"""Unit tests for pattern_finder geist.
 
-from datetime import datetime
+Trigger arithmetic (see the geist source):
+- the vault needs >= 15 non-journal notes, otherwise the geist returns [];
+- phrase route: a 3-token phrase longer than 15 characters, free of common
+  words ("the", "and", "with", ...), found in >= 3 notes of which >= 3 have
+  no link to another note of the group;
+- cluster route: a seed plus notes with similarity > 0.80 to it (at most 5
+  per cluster, at most 3 clusters), reported when >= 3 notes and no
+  internal links;
+- output is capped at 2 suggestions.
+
+Fixture vocabulary: phrase-route notes share one long phrase and otherwise
+use distinct words, so they are not similar enough to cluster. Cluster-route
+notes use identical bags of 3-letter words (similarity ~1.0 under the
+lexical stub) whose 3-token windows are <= 15 characters, so the phrase
+route ignores them. Fillers use distinct short words and match neither.
+"""
+
+from pathlib import Path
+from typing import Any
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import pattern_finder
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.models import Note
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_repeated_phrases(tmp_path):
-    """Create a vault with repeated phrases across unlinked notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create notes with repeated phrase "emergent behaviour patterns"
-    for i in range(5):
-        (vault_path / f"emergent_{i}.md").write_text(
-            f"# Emergent Note {i}\n\n"
-            f"This discusses emergent behaviour patterns in complex systems. "
-            f"Various phenomena exhibit these characteristics."
-        )
-
-    # Create notes with repeated phrase "distributed consensus algorithms"
-    for i in range(5):
-        (vault_path / f"consensus_{i}.md").write_text(
-            f"# Consensus Note {i}\n\n"
-            f"Exploring distributed consensus algorithms for fault tolerance. "
-            f"These protocols ensure agreement."
-        )
-
-    # Create filler notes to reach minimum count
-    for i in range(10):
-        (vault_path / f"filler_{i}.md").write_text(
-            f"# Filler Note {i}\n\nUnrelated content about topic {i}."
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+GEIST = "pattern_finder"
+CAP = 2
+PHRASE = "velvet copper lantern"
+CLUSTER_BODY = "ash elm oak fig yew ivy"
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with too few notes for pattern detection."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 10 notes (need at least 15)
-    for i in range(10):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _fillers(builder: VaultBuilder, count: int) -> None:
+    for i in range(count):
+        builder.note(f"Filler {i}", f"q{i}a q{i}b q{i}c")
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _phrase_note(builder: VaultBuilder, title: str, index: int, extra: str = "") -> None:
+    builder.note(title, f"p{index}x p{index}y {PHRASE} p{index}z {extra}")
 
 
-def test_pattern_finder_returns_suggestions(vault_with_repeated_phrases):
-    """Test that pattern_finder returns suggestions with repeated patterns.
+def test_phrase_shared_by_three_unlinked_notes_is_reported(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    group = ["Echo A", "Echo B", "Echo C"]
+    for i, title in enumerate(group):
+        _phrase_note(builder, title, i)
+    _fillers(builder, 12)
 
-    Setup:
-        Vault with repeated phrases across notes.
+    suggestions = pattern_finder.suggest(builder.build())
 
-    Verifies:
-        - Returns suggestions (max 2)
-        - Detects repeated patterns"""
-    vault, session = vault_with_repeated_phrases
+    assert_valid_suggestions(suggestions, GEIST, must_reference=group)
+    assert [sorted(s.notes) for s in suggestions] == [group]
+    assert f'The phrase "{PHRASE}"' in suggestions[0].text
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+@pytest.mark.parametrize(("group_size", "fires"), [(2, False), (3, True)])
+def test_phrase_needs_three_notes(tmp_path: Path, group_size: int, fires: bool) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(group_size):
+        _phrase_note(builder, f"Echo {i}", i)
+    _fillers(builder, 15 - group_size)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert (suggestions != []) is fires
+
+
+def test_phrase_repeated_within_one_note_is_not_a_pattern(tmp_path: Path) -> None:
+    # Regression: phrases were counted once per occurrence, not per note, so
+    # one note repeating a phrase three times was reported as "multiple
+    # unconnected notes: [[Echo]], [[Echo]], [[Echo]]".
+    builder = VaultBuilder(tmp_path)
+    builder.note("Echo", f"{PHRASE} p1 {PHRASE} p2 {PHRASE}")
+    _fillers(builder, 14)
+
+    assert pattern_finder.suggest(builder.build()) == []
+
+
+@pytest.mark.parametrize(("linked", "fires"), [(False, True), (True, False)])
+def test_linked_phrase_notes_do_not_count_as_isolated(
+    tmp_path: Path, linked: bool, fires: bool
+) -> None:
+    # Four notes share the phrase. Linking A to B leaves only C and D
+    # isolated: 2 < 3, so the phrase is no longer an unconnected pattern.
+    builder = VaultBuilder(tmp_path)
+    for i, title in enumerate(["Echo A", "Echo B", "Echo C", "Echo D"]):
+        extra = "[[Echo B]]" if linked and title == "Echo A" else ""
+        _phrase_note(builder, title, i, extra)
+    _fillers(builder, 11)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert (suggestions != []) is fires
+
+
+@pytest.mark.parametrize(("vault_size", "fires"), [(14, False), (15, True)])
+def test_minimum_vault_size_boundary(tmp_path: Path, vault_size: int, fires: bool) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(3):
+        _phrase_note(builder, f"Echo {i}", i)
+    _fillers(builder, vault_size - 3)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert (suggestions != []) is fires
+
+
+def test_unlinked_semantic_cluster_is_reported(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    group = ["Kiln 1", "Kiln 2", "Kiln 3"]
+    for title in group:
+        builder.note(title, CLUSTER_BODY)
+    _fillers(builder, 12)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, must_reference=group)
+    assert [sorted(s.notes) for s in suggestions] == [group]
+    assert "semantic cluster" in suggestions[0].text
+
+
+@pytest.mark.parametrize(("cluster_size", "fires"), [(2, False), (3, True)])
+def test_cluster_needs_three_notes(tmp_path: Path, cluster_size: int, fires: bool) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(cluster_size):
+        builder.note(f"Kiln {i}", CLUSTER_BODY)
+    _fillers(builder, 15 - cluster_size)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert (suggestions != []) is fires
+
+
+@pytest.mark.parametrize(("linked", "fires"), [(False, True), (True, False)])
+def test_internally_linked_cluster_is_not_reported(
+    tmp_path: Path, linked: bool, fires: bool
+) -> None:
+    builder = VaultBuilder(tmp_path)
+    builder.note("Kiln 1", f"{CLUSTER_BODY} [[Kiln 2]]" if linked else CLUSTER_BODY)
+    builder.note("Kiln 2", CLUSTER_BODY)
+    builder.note("Kiln 3", CLUSTER_BODY)
+    _fillers(builder, 12)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert (suggestions != []) is fires
+
+
+def _twelve_kilns(tmp_path: Path) -> VaultBuilder:
+    builder = VaultBuilder(tmp_path)
+    for i in range(12):
+        builder.note(f"Kiln {i}", CLUSTER_BODY)
+    _fillers(builder, 3)
+    return builder
+
+
+def test_clusters_are_disjoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every note lands in at most one cluster.
+
+    Twelve near-identical notes exceed the 5-note cluster limit, so the
+    geist must build a second cluster from what is left (with only 3
+    fillers, a second cluster seed is always drawn before the pool shrinks
+    to 5). The seed and the
+    members of each cluster must leave the unclustered pool; otherwise a note
+    reappears in a later cluster (or the seed matches itself and appears
+    twice in its own cluster). The spy records each cluster as the geist
+    hands it to vault.sample(cluster, count=3) for display, then delegates.
+    """
+    builder = _twelve_kilns(tmp_path)
+    ctx = builder.build()
+    clusters: list[list[str]] = []
+    real_sample = ctx.sample
+
+    def spy_sample(items: Any, count: int) -> Any:
+        if count == 3 and items and all(isinstance(n, Note) for n in items):
+            clusters.append([n.title for n in items])
+        return real_sample(items, count)
+
+    monkeypatch.setattr(ctx, "sample", spy_sample)
+
+    suggestions = pattern_finder.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=2)
+    assert len(clusters) >= 2, f"fixture should form two clusters, got {clusters}"
+    for cluster in clusters:
+        assert len(cluster) == len(set(cluster)), f"note repeated inside {cluster}"
+    flat = [title for cluster in clusters for title in cluster]
+    assert len(flat) == len(set(flat)), f"note shared between clusters: {clusters}"
+    assert set(flat) <= {f"Kiln {i}" for i in range(12)}
+
+
+def test_output_is_capped_when_more_patterns_qualify(tmp_path: Path) -> None:
+    # Three phrase groups qualify (none contains a common-word substring such
+    # as "this" in "thistle"): three suggestions for a cap of 2.
+    builder = VaultBuilder(tmp_path)
+    phrases = [PHRASE, "saffron glacier harbour", "walnut falcon orchid"]
+    for g, phrase in enumerate(phrases):
+        for i in range(3):
+            builder.note(f"Echo {g}{i}", f"p{g}{i}x p{g}{i}y {phrase} p{g}{i}z")
+    _fillers(builder, 6)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
+    assert len(suggestions) == CAP
+    assert len({s.text for s in suggestions}) == CAP
+
+
+def test_geist_journal_notes_never_join_a_pattern(tmp_path: Path) -> None:
+    # Journal notes repeat the regular group's phrase and also form their own
+    # three-note phrase group; neither may surface.
+    builder = VaultBuilder(tmp_path)
+    group = ["Echo A", "Echo B", "Echo C"]
+    for i, title in enumerate(group):
+        _phrase_note(builder, title, i)
+    for i in range(3):
+        builder.journal(f"Session Log {i}", f"s{i}x {PHRASE} s{i}y saffron glacier harbour")
+    _fillers(builder, 12)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert_valid_suggestions(
+        suggestions, GEIST, must_reference=group, must_not_reference=["Session Log"]
     )
 
-    suggestions = pattern_finder.suggest(context)
 
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
-
-    # BEHAVIORAL: Verify fixture patterns are detected
-    if len(suggestions) > 0:
-        all_texts = " ".join(s.text.lower() for s in suggestions)
-
-        # Fixture has repeated phrases "emergent behaviour patterns"
-        # and "distributed consensus algorithms"
-        assert any(
-            [
-                "emergent" in all_texts,
-                "consensus" in all_texts,
-                "behaviour" in all_texts,
-                "algorithm" in all_texts,
-            ]
-        ), "Pattern finder should detect repeated phrases from fixture"
-
-        # Verify at least one suggestion references emergent or consensus notes
-        all_note_refs = [note.lower() for s in suggestions for note in s.notes]
-        assert any("emergent" in note or "consensus" in note for note in all_note_refs), (
-            "Suggestions should reference notes with repeated patterns"
-        )
-
-
-def test_pattern_finder_suggestion_structure(vault_with_repeated_phrases):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with pattern notes.
-
-    Verifies:
-        - Has required fields
-        - References 3+ notes sharing pattern
-        - Notes are unlinked"""
-    vault, session = vault_with_repeated_phrases
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = pattern_finder.suggest(context)
-
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "pattern_finder"
-
-        # Should mention patterns or themes
-        assert any(
-            keyword in suggestion.text.lower()
-            for keyword in ["phrase", "pattern", "theme", "cluster", "similar"]
-        )
-
-        # Should reference at least 3 notes
-        assert len(suggestion.notes) >= 3
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-        # BEHAVIORAL: Verify suggested notes are actually unlinked (core pattern_finder logic)
-        for i, note1_ref in enumerate(suggestion.notes):
-            for note2_ref in suggestion.notes[i + 1 :]:
-                note1 = next((n for n in vault.all_notes() if n.link_text == note1_ref), None)
-                note2 = next((n for n in vault.all_notes() if n.link_text == note2_ref), None)
-
-                if note1 and note2:
-                    links = context.links_between(note1, note2)
-                    assert len(links) == 0, (
-                        f"Pattern finder should only suggest unlinked notes, "
-                        f"but [[{note1_ref}]] and [[{note2_ref}]] are linked"
-                    )
-
-        # BEHAVIORAL: If suggestion mentions a phrase, verify it appears in suggested notes
-        if "phrase" in suggestion.text.lower() and '"' in suggestion.text:
-            # Extract phrase from suggestion text (between quotes)
-            import re
-
-            match = re.search(r'"([^"]+)"', suggestion.text)
-            if match:
-                phrase = match.group(1).lower()
-                # Verify phrase appears in at least 3 suggested notes
-                phrase_count = 0
-                for note_ref in suggestion.notes:
-                    note = next(
-                        (n for n in vault.all_notes() if n.link_text == note_ref),
-                        None,
-                    )
-                    if note:
-                        content = context.read(note).lower()
-                        if phrase in content:
-                            phrase_count += 1
-
-                assert phrase_count >= 3, (
-                    f"Phrase '{phrase}' should appear in 3+ notes, found in {phrase_count}"
-                )
-
-
-def test_pattern_finder_uses_link_text(vault_with_repeated_phrases):
-    """Test that pattern_finder uses link_text for note references.
-
-    Setup:
-        Vault with patterns.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_repeated_phrases
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = pattern_finder.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_pattern_finder_detects_semantic_clusters(vault_with_repeated_phrases):
-    """Test that pattern_finder identifies semantically similar unlinked note clusters.
-
-    Pattern finder has two detection modes: phrase-based and semantic clusters.
-    This test verifies the semantic cluster logic works correctly.
-
-
-    Setup:
-        Vault with semantically similar notes.
-
-    Verifies:
-        - Detects semantic clusters (>0.6 avg similarity)"""
-    vault, session = vault_with_repeated_phrases
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = pattern_finder.suggest(context)
-
-    # BEHAVIORAL: Verify semantic cluster detection mode
-    if len(suggestions) > 0:
-        # Check for semantic cluster suggestions (mention "semantic", "cluster", or "similar")
-        cluster_suggestions = [
-            s
-            for s in suggestions
-            if any(keyword in s.text.lower() for keyword in ["semantic", "cluster", "similar"])
-        ]
-
-        for suggestion in cluster_suggestions:
-            # Verify cluster notes have high semantic similarity (>0.7 from line 107)
-            note_objs = []
-            for ref in suggestion.notes:
-                note = next((n for n in vault.all_notes() if n.link_text == ref), None)
-                if note:
-                    note_objs.append(note)
-
-            if len(note_objs) >= 2:
-                # Check pairwise similarity
-                similarities = []
-                for i in range(len(note_objs)):
-                    for j in range(i + 1, len(note_objs)):
-                        sim = context.similarity(note_objs[i], note_objs[j])
-                        similarities.append(sim)
-
-                if similarities:
-                    avg_similarity = sum(similarities) / len(similarities)
-                    assert avg_similarity > 0.6, (
-                        f"Semantic cluster should have high avg similarity, "
-                        f"got {avg_similarity:.2f}"
-                    )
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_pattern_finder_empty_vault(tmp_path):
-    """Test that pattern_finder handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = pattern_finder.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_pattern_finder_insufficient_notes(vault_insufficient_notes):
-    """Test that pattern_finder handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 15 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = pattern_finder.suggest(context)
-
-    # Should return empty list when < 15 notes
-    assert len(suggestions) == 0
-
-
-def test_pattern_finder_max_suggestions(vault_with_repeated_phrases):
-    """Test that pattern_finder never returns more than 2 suggestions.
-
-    Setup:
-        Vault with multiple patterns.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_repeated_phrases
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = pattern_finder.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_pattern_finder_deterministic_with_seed(vault_with_repeated_phrases):
-    """Test that pattern_finder returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_repeated_phrases
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = pattern_finder.suggest(context1)
-    suggestions2 = pattern_finder.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_pattern_finder_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with repeated phrases
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\n"
-            f"This discusses emergent behaviour patterns in complex systems. "
-            f"Various phenomena exhibit these characteristics."
-        )
-
-    # Create regular notes with repeated phrases
-    # Create notes with repeated phrase "emergent behaviour patterns"
-    for i in range(5):
-        (vault_path / f"emergent_{i}.md").write_text(
-            f"# Emergent Note {i}\n\n"
-            f"This discusses emergent behaviour patterns in complex systems. "
-            f"Various phenomena exhibit these characteristics."
-        )
-
-    # Create notes with repeated phrase "distributed consensus algorithms"
-    for i in range(5):
-        (vault_path / f"consensus_{i}.md").write_text(
-            f"# Consensus Note {i}\n\n"
-            f"Exploring distributed consensus algorithms for fault tolerance. "
-            f"These protocols ensure agreement."
-        )
-
-    # Create filler notes to reach minimum count
-    for i in range(10):
-        (vault_path / f"filler_{i}.md").write_text(
-            f"# Filler Note {i}\n\nUnrelated content about topic {i}."
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = pattern_finder.suggest(context)
-
-    # Get all journal note titles to check against
-    journal_notes = [n for n in vault.all_notes() if "geist journal" in n.path.lower()]
-    journal_titles = {n.title for n in journal_notes}
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert note_ref not in journal_titles, (
-                f"Geist journal note '{note_ref}' was included in suggestions. "
-                f"Expected only non-journal notes."
-            )
+def test_output_does_not_depend_on_hash_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same date + vault = same output, whatever PYTHONHASHSEED a process has.
+
+    Regression: the clustering pool was a set of Notes, so seed choice
+    followed string-hash order and varied between processes. Salting
+    Note.__hash__ stands in for a different hash seed within one process.
+    """
+    builder = _twelve_kilns(tmp_path)
+    baseline = [s.text for s in pattern_finder.suggest(builder.build())]
+    assert baseline
+
+    for salt in ("a", "b", "c", "d"):
+        monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))
+        assert [s.text for s in pattern_finder.suggest(builder.build())] == baseline, salt
