@@ -90,6 +90,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   itself is unchanged (still raw TTR, a float in [0, 1]).
 
 ### Tests
+- Acceptance criteria AC-5.3 (write session note), AC-5.6 (multi-day
+  sessions), AC-6.6 (Tracery integration with a vault), AC-7.5 (temporal
+  geists) and AC-11.3 (E2E) all ran `tests/integration/test_scenarios.py`,
+  which under the fast marker filter executed only an empty-vault sync, so the
+  gate reported them verified while nothing tested them. New end-to-end
+  scenarios drive `geistfabrik invoke --write` on a real vault and read back
+  the journal; each criterion (and AC-5.4, previously manual) now names its
+  scenario.
 - The test `SentenceTransformer` stub is now a bag-of-words embedding, so
   fixtures can make different notes similar by sharing vocabulary; new
   `VaultBuilder` and `tests/fixtures/temporal.py` helpers build pinned-date,

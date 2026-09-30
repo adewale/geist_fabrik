@@ -252,10 +252,10 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 |----|--------|----------|--------------|
 | AC-5.1 | ⬜ | Filtering tests pass | `uv run pytest tests/unit/test_filtering.py -v` (15+ tests) |
 | AC-5.2 | ⬜ | Session tests pass | Manual: session-note writing exercised end-to-end by the integration scenarios; no dedicated journal_writer unit suite |
-| AC-5.3 | ⬜ | Write session note | `uv run pytest tests/integration/test_scenarios.py -v` |
-| AC-5.4 | ⬜ | Session note format correct | Verify title, block IDs in format `^gYYYYMMDD-NNN` |
+| AC-5.3 | ⬜ | Write session note | `uv run pytest tests/integration/test_scenarios.py::test_scenario_daily_invocation_writes_the_session_note -v` |
+| AC-5.4 | ⬜ | Session note format correct | `uv run pytest tests/integration/test_scenarios.py::test_scenario_daily_invocation_writes_the_session_note -v` (title, heading, `^gYYYYMMDD-NNN` block ID) |
 | AC-5.5 | ⬜ | Filtering works | Verify duplicates and short suggestions filtered |
-| AC-5.6 | ⬜ | Multi-day sessions | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-5.6 | ⬜ | Multi-day sessions | `uv run pytest tests/integration/test_scenarios.py::test_scenario_multi_day_sessions_do_not_read_their_own_journal -v` |
 
 ### Edge Cases & Error Handling
 
@@ -301,7 +301,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-6.3 | ⬜ | Expand grammar | Verify grammar expansion includes `[[links]]` |
 | AC-6.4 | ⬜ | Vault function calls work | `uv run pytest tests/unit/test_tracery.py -v` |
 | AC-6.5 | ⬜ | Deterministic expansion | Same seed = same expansion text |
-| AC-6.6 | ⬜ | Integration with vault | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-6.6 | ⬜ | Integration with vault | `uv run pytest tests/integration/test_scenarios.py::test_scenario_tracery_geist_links_a_real_note -v` |
 
 ### Edge Cases & Error Handling
 
@@ -344,7 +344,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-7.2 | ⬜ | Session embeddings computed | Verify all notes have session embeddings |
 | AC-7.3 | ⬜ | Temporal features included | Verify embeddings are 387 dims (384+3) |
 | AC-7.4 | ⬜ | Multi-session tracking | `uv run pytest tests/unit/test_embeddings.py -v` |
-| AC-7.5 | ⬜ | Temporal geists work | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-7.5 | ⬜ | Temporal geists work | `uv run pytest tests/integration/test_scenarios.py::test_scenario_temporal_geist_finds_last_years_note -v` |
 
 ### Edge Cases & Error Handling
 
