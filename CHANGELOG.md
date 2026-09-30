@@ -17,9 +17,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bump makes the next sync re-derive `created` for every note, keeping the
   earlier of the stored and re-derived values. No rebuild is required.
 
+- `VaultContext.unlinked_pairs()` gains `exclude_journal=False`, which drops
+  geist journal notes before the top-`count` cut; `bridge_hunter` and
+  `method_scrambler` use it.
+- `Session.compute_embeddings()` and `EmbeddingComputer.compute_temporal_embedding()`
+  now share one `combine_embedding()` implementation of the semantic/temporal
+  weighting (no change to stored values).
+- Removed dead code: `SqliteVecBackend._get_or_create_vec_id`,
+  `EmbeddingMetricsComputer._apply_mmr_filtering`, `graph_analysis._are_linked`
+  (now `VaultContext.has_link`), and the test-only `_surprisal_naive` oracle.
+
 ### Fixed
-- `seasonal_revisit` no longer suggests geist journal session notes as
-  "notes from this season in past years".
+- Geist journal session notes leaked into suggestions (as the subject, a
+  neighbour, a cluster member, a bridge, a "past" note or a link) in
+  anachronism_detector, antithesis_generator, assumption_challenger,
+  bridge_builder, bridge_hunter, columbo, complexity_mismatch, concept_cluster,
+  concept_drift, convergent_evolution, creative_collision, density_inversion,
+  dialectic_triad, divergent_evolution, hermeneutic_instability, hidden_hub,
+  island_hopper, method_scrambler, on_this_day, question_generator,
+  scale_shifter, seasonal_revisit, session_drift, structure_diversity_checker,
+  stub_expander and temporal_clustering. `VaultContext.session_embeddings_by_session()`
+  also excludes them, so accumulating session notes no longer manufacture a
+  "higher vocabulary" trend in vocabulary_expansion.
+- Geists that filtered journal notes only after taking the top N (bridge_hunter,
+  recent_focus, temporal_drift) went silent once enough session notes existed;
+  blind_spot_detector went silent when the most contrarian note was a journal
+  note.
+- dialectic_triad rendered links as `[[[[Title]]]]` and stored bracketed
+  titles in `Suggestion.notes`.
+- columbo, concept_cluster and creative_collision emitted duplicate
+  suggestions for the same pair or cluster.
+- pattern_finder counted a phrase once per occurrence rather than once per
+  note, and its clustering depended on `PYTHONHASHSEED`.
+- question_generator linked date-collection entries as `[[2024-01-10]]`
+  instead of `[[Diary#2024-01-10]]`.
+- structure_diversity_checker classified list, code and mixed notes as prose
+  unless the optional example structure metadata module was installed.
+- recent_focus called unrelated notes "semantically similar" (it now requires
+  at least `SimilarityLevel.WEAK`) and could treat a 200-day-old note as recent
+  work (recent now means edited within 60 days).
+- temporal_clustering labelled periods with wrong, colliding quarter names
+  (November 2023 as "Q2-2023"); periods are now labelled by the months they
+  span.
+- seasonal_revisit announced December notes as "last year's winter" in
+  January.
+- `VaultContext.unlinked_pairs()` treated a zero-norm embedding as similar to
+  everything (NaN similarity passed the threshold check).
+- Tracery output with an empty leading or trailing placeholder (for example
+  contradictor on an empty vault) was not suppressed.
+
+### Tests
+- The test `SentenceTransformer` stub is now a bag-of-words embedding, so
+  fixtures can make different notes similar by sharing vocabulary; new
+  `VaultBuilder` and `tests/fixtures/temporal.py` helpers build pinned-date,
+  in-memory vaults with controlled session histories.
+- Per-geist tests are rebuilt around designed-to-trigger fixtures: exact output
+  caps with more candidates than the cap, threshold boundary pairs, and journal
+  exclusion checked in both directions. Tests that could not fail (assertions
+  inside loops over empty output, `len <= cap` on output below the cap,
+  reimplementations that never imported GeistFabrik, git-history greps) were
+  rewritten or removed; each rewritten test was checked against a deliberately
+  broken product.
 
 ## [0.11.0] - 2026-09-13
 

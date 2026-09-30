@@ -553,6 +553,24 @@ def test_unlinked_pairs_sampling_never_pairs_a_note_with_itself(tmp_path: Path) 
     assert len(got) == 45
 
 
+def test_unlinked_pairs_can_exclude_the_journal_before_the_count_cut(tmp_path: Path) -> None:
+    """Templated session notes are near-identical, so their pairs outrank every
+    user pair: filtering the journal after the top-``count`` cut leaves nothing.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Soil A", "compost soil worms mulch garden")
+    builder.note("Soil B", "compost soil worms mulch beds")
+    for i in range(6):  # C(6, 2) = 15 identical-journal pairs > count
+        builder.journal(f"Session {i}", "geist suggestions for today")
+    ctx = builder.build()
+
+    everything = ctx.unlinked_pairs(count=10)
+    user_only = ctx.unlinked_pairs(count=10, exclude_journal=True)
+
+    assert all(a.path.startswith("geist journal/") for a, _ in everything)
+    assert [{a.title, b.title} for a, b in user_only] == [{"Soil A", "Soil B"}]
+
+
 def test_notes_excluding_journal_drops_only_the_session_journal(tmp_path: Path) -> None:
     """Session output under "geist journal/" is excluded; every user note,
     including one whose name merely starts with "geist journal", is kept.

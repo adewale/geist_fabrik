@@ -25,13 +25,6 @@ from tests.fixtures.helpers import assert_valid_suggestions
 
 SESSION_DATE = datetime(2025, 1, 20)
 
-# Known product bug outside this file's lane: dialectic_triad stores the
-# already-bracketed result of contrarian_to() ("[[Note 1]]") in
-# Suggestion.notes, and doubles the brackets in its text. Any other offender
-# fails _assert_well_formed; fixing this one fails the "still present" test.
-KNOWN_DANGLING_REFS = {"dialectic_triad"}
-
-
 def _context(tmp_path: Path, notes: dict[str, str]) -> VaultContext:
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
@@ -93,7 +86,7 @@ def _assert_well_formed(outputs: dict[str, list[Suggestion]], ctx: VaultContext)
             assert s.title is None or (isinstance(s.title, str) and s.title), name
             if not set(s.notes) <= real_notes:
                 dangling.setdefault(name, set()).update(set(s.notes) - real_notes)
-    assert set(dangling) <= KNOWN_DANGLING_REFS, f"dangling note refs: {dangling}"
+    assert not dangling, f"dangling note refs: {dangling}"
 
 
 def test_all_code_geists_handle_minimal_vault(tmp_path: Path) -> None:
@@ -114,18 +107,3 @@ def test_suggestions_have_required_fields(tmp_path: Path) -> None:
     outputs = _run_all(ctx)
 
     _assert_well_formed(outputs, ctx)
-
-
-def test_known_dangling_ref_bugs_are_still_present(tmp_path: Path) -> None:
-    """Fails once a KNOWN_DANGLING_REFS bug is fixed, so the allowance is removed."""
-    ctx = _context(tmp_path, SMALL_UNLINKED_VAULT)
-    real_notes = {note.link_text for note in ctx.notes()}
-
-    outputs = _run_all(ctx)
-
-    still_dangling = {
-        name
-        for name in KNOWN_DANGLING_REFS
-        if any(not set(s.notes) <= real_notes for s in outputs[name])
-    }
-    assert still_dangling == KNOWN_DANGLING_REFS
