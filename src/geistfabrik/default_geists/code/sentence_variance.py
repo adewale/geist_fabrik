@@ -30,7 +30,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     note_variances = []
 
-    for note in vault.notes_excluding_journal():
+    for note in vault.notes():
         voice = vault.voice(note)
         variance = voice.sentence_length_variance
         mean_len = voice.mean_sentence_length

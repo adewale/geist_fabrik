@@ -20,7 +20,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 10:
         return []
@@ -56,8 +56,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Deduplicate by combining into a set
         all_candidates = list(set(linked_notes + similar))
 
-        # Filter out geist journal notes
-        candidates = [n for n in all_candidates if not n.path.startswith("geist journal/")]
+        candidates = all_candidates
 
         if len(candidates) < 2:
             continue
@@ -77,9 +76,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         )
 
     # Also generate SCAMPER questions for unlinked but similar pairs
-    # Exclude the journal before the top-10 cut: templated session notes are
-    # near-identical and would otherwise take every slot.
-    pairs = vault.unlinked_pairs(count=10, exclude_journal=True)
+    pairs = vault.unlinked_pairs(count=10)
 
     for note_a, note_b in pairs:
         operation, template = vault.sample(scamper_operations, count=1)[0]

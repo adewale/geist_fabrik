@@ -25,16 +25,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     hubs = vault.hubs(count=10)
 
     for hub in hubs:
-        # Geist journal notes are session output, not bridge material
-        if hub.path.startswith("geist journal/"):
-            continue
-
         # Find notes similar to this hub but not linked
         neighbours_with_scores = vault.neighbours(hub, count=10, return_scores=True)
 
         for neighbour, similarity in neighbours_with_scores:
-            if neighbour.path.startswith("geist journal/"):
-                continue
             if vault.links_between(hub, neighbour):
                 continue
 

@@ -25,7 +25,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         At most one suggestion naming the most heavily hedged note
     """
     hedgy_notes = []
-    for note in vault.notes_excluding_journal():
+    for note in vault.notes():
         hedging = vault.voice(note).hedging_ratio
         if hedging > 0.3:  # More than 0.3 hedges per sentence
             hedgy_notes.append((note, hedging))

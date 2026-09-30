@@ -29,11 +29,11 @@ class _RecordingPatternContext:
     """Minimal deterministic context for the full-corpus regression oracle."""
 
     def __init__(self, notes: list[Note]) -> None:
-        self.notes = notes
+        self._notes = notes
         self.read_paths: list[str] = []
 
-    def notes_excluding_journal(self) -> list[Note]:
-        return self.notes
+    def notes(self) -> list[Note]:
+        return self._notes
 
     def outgoing_links(self, note: Note) -> list[Note]:
         return []

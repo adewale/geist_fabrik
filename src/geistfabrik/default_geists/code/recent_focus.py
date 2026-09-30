@@ -21,10 +21,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    # The most recently modified notes. Geist journal session notes are
-    # output, not work: filter them before ranking, or accumulated session
-    # notes crowd every user note out of the window.
-    ranked = sorted(vault.notes_excluding_journal(), key=lambda n: n.modified, reverse=True)
+    # The most recently modified notes
+    ranked = sorted(vault.notes(), key=lambda n: n.modified, reverse=True)
     # A note untouched for more than 60 days is "older", never "recent work"
     # (ranked is newest first, so filtering the top 5 is enough).
     recent = [n for n in ranked[:5] if vault.metadata(n)["days_since_modified"] <= 60]
@@ -41,7 +39,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Filter to only old notes (not modified recently)
         old_similar = []
         for note, score in similar:
-            if note.path.startswith("geist journal/") or score < SimilarityLevel.WEAK:
+            if score < SimilarityLevel.WEAK:
                 continue
             metadata = vault.metadata(note)
             days_since_modified = metadata.get("days_since_modified", 0)

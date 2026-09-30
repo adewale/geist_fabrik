@@ -28,9 +28,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         semantic_component,
     )
 
-    # Find notes with significant drift (>0.2). Geist journal session notes
-    # are output: they neither drift as concepts nor serve as comparisons.
-    notes = vault.notes_excluding_journal()
+    # Find notes with significant drift (>0.2)
+    notes = vault.notes()
     finder = TemporalPatternFinder(vault)
     drifting = finder.find_high_drift_notes(notes, min_drift=0.2)
 
@@ -51,7 +50,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Find which neighbours are most aligned with the drift direction
         neighbour_alignments = []
         for neighbour in current_neighbours:
-            if neighbour.path == note.path or neighbour.path.startswith("geist journal/"):
+            if neighbour.path == note.path:
                 continue
 
             # Get neighbour's current embedding from their trajectory

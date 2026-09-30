@@ -26,32 +26,27 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Get recent notes to understand current focus
-    # recent_notes() includes geist-journal output; session notes are not
-    # "current focus", so drop them before analysing.
-    recent = [n for n in vault.recent_notes(count=10) if not n.path.startswith("geist journal/")][
-        :5
-    ]
+    recent = vault.recent_notes(count=5)
     if len(recent) < 2:
         return []
 
     # For each recent note, find its semantic opposite
     for note in recent[:3]:  # Check top 3 recent notes
         # Get contrarian note titles (contrarian_to returns List[str])
-        # (over-fetch: journal notes are skipped below and must not use up the list)
         contrarian_titles = vault.call_function("contrarian_to", note.title, 10)
 
         if not contrarian_titles:
             continue
 
         # Check if contrarian notes are sparse or old
-        # Take the most contrarian note that is not geist journal output
+        # Take the most contrarian note that still resolves
         for contrarian_title in contrarian_titles:
             # contrarian_to returns bracketed links ("[[Title]]"); strip the
             # brackets and resolve by title/path. (Passing the bracketed
             # string to get_note() - an exact-path lookup - always returned
             # None, which left this geist permanently inert.)
             contrarian = vault.resolve_link_target(contrarian_title.strip("[]"))
-            if contrarian is None or contrarian.path.startswith("geist journal/"):
+            if contrarian is None:
                 continue
 
             metadata = vault.metadata(contrarian)
@@ -77,7 +72,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
                 )
 
-            # Only the most contrarian (non-journal) note is considered
+            # Only the most contrarian note is considered
             break
 
     # Limit to 2 suggestions to avoid overwhelming

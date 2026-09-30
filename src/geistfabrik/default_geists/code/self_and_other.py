@@ -23,7 +23,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         At most one suggestion contrasting "I" notes with "we" notes
     """
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
     i_notes = [n for n in notes if vault.voice(n).self_focus_ratio > 0.85]
     we_notes = [n for n in notes if vault.voice(n).first_person_plural > 2.0]
 

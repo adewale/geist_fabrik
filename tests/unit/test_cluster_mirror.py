@@ -93,12 +93,12 @@ def test_cluster_mirror_shows_at_most_three_clusters(tmp_path: Path) -> None:
 def test_cluster_mirror_needs_two_clusters_of_min_size_after_journal_removal(
     tmp_path: Path, regular_in_second: int, fires: bool
 ) -> None:
-    """Contract: a cluster counts only if >= min_size (5) regular notes remain,
-    and fewer than 2 counted clusters -> [].
+    """Contract: a cluster needs >= min_size (5) regular notes, and fewer than
+    2 clusters -> [].
 
-    HDBSCAN finds two 6-note clusters (the second group mixes regular and
-    journal notes with identical vocabulary). With 4 regular notes left the
-    second cluster is dropped, leaving 1 cluster -> []; with 5 it survives.
+    The second group mixes regular and journal notes with identical
+    vocabulary. Journal notes never take part in clustering, so with 4
+    regular notes the group cannot form a cluster (-> []); with 5 it does.
     """
     builder = VaultBuilder(tmp_path)
     _add_group(builder, "Orchard")
@@ -107,7 +107,11 @@ def test_cluster_mirror_needs_two_clusters_of_min_size_after_journal_removal(
         add = builder.note if i < regular_in_second else builder.journal
         add(title, TOPICS["Glacier"], created=CREATED)
     ctx = builder.build()
-    assert sorted(c.size for c in ctx.get_clusters().values()) == [GROUP_SIZE, GROUP_SIZE]
+    sizes = sorted(c.size for c in ctx.get_clusters().values())
+    if fires:
+        assert sizes == [regular_in_second, GROUP_SIZE]
+    else:
+        assert len(sizes) < 2 and regular_in_second not in sizes
 
     suggestions = cluster_mirror.suggest(ctx)
 
@@ -124,13 +128,14 @@ def test_cluster_mirror_needs_two_clusters_of_min_size_after_journal_removal(
 
 
 def test_cluster_mirror_excludes_geist_journal(tmp_path: Path) -> None:
-    """Contract: journal-only clusters are dropped and never shown.
+    """Contract: a group of journal notes never becomes a shown cluster.
 
-    Two regular clusters plus one all-journal cluster: unfiltered, all 3 fit
-    under the 3-cluster display limit, so a leak would always be visible.
+    Two regular groups plus one all-journal group: were the journal group
+    clustered, all 3 would fit under the 3-cluster display limit, so a leak
+    would always be visible.
     """
     ctx = _build(tmp_path, ["Orchard", "Glacier"], journal=["Violin"])
-    assert len(ctx.get_clusters()) == 3
+    assert len(ctx.get_clusters()) == 2
 
     suggestions = cluster_mirror.suggest(ctx)
 

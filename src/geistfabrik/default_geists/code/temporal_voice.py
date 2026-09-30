@@ -27,7 +27,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         At most one suggestion pairing a past-focused and a future-focused note
     """
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
     past_notes = [n for n in notes if vault.voice(n).temporal_orientation == "past"]
     future_notes = [n for n in notes if vault.voice(n).temporal_orientation == "future"]
 

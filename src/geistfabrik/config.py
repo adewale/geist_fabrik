@@ -18,6 +18,10 @@ This model produces 384-dimensional semantic vectors. The model is bundled
 with GeistFabrik to enable offline operation.
 """
 
+# Folder (relative to the vault root) where each session's journal note is
+# written. Its notes are engine output, not the user's writing.
+GEIST_JOURNAL_DIR = "geist journal"
+
 SEMANTIC_DIM = 384
 """int: Dimension of semantic embeddings from sentence-transformers.
 

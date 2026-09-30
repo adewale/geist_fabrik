@@ -33,9 +33,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     suggestions = []
 
-    # The user's most recently modified notes. Journal session notes are the
-    # engine's own output (and always the newest), so they are left out.
-    user_notes = vault.notes_excluding_journal()
+    # The user's most recently modified notes
+    user_notes = vault.notes()
     recent = sorted(user_notes, key=lambda n: (n.modified, n.path), reverse=True)[:8]
     if len(recent) < 5:
         return []
@@ -131,7 +130,7 @@ def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note |
         A note with different structure, or None if not found
     """
     # Look through a bounded sample of notes for different structures.
-    all_notes = vault.notes_excluding_journal()
+    all_notes = vault.notes()
     candidates = vault.sample(all_notes, min(len(all_notes), MAX_STRUCTURE_CANDIDATES))
 
     different_notes = []

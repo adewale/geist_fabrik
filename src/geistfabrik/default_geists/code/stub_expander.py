@@ -20,18 +20,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     for note in notes:
         metadata = vault.metadata(note)
 
         word_count = metadata.get("word_count", 0)
         link_count = metadata.get("link_count", 0)
-        # Journal sessions wikilink every note they suggest; counting those
-        # would make the geist's own output look like user connections.
-        backlink_count = sum(
-            1 for b in vault.backlinks(note) if not b.path.startswith("geist journal/")
-        )
+        backlink_count = len(vault.backlinks(note))
 
         # Look for short notes with connections (stubs)
         if word_count < 50 and (link_count > 0 or backlink_count > 0):

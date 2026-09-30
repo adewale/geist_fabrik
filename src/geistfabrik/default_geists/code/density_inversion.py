@@ -20,17 +20,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    # Geist journal notes are session output: never analysed, never neighbours
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 20:
         return []
 
     for note in vault.sample(notes, min(30, len(notes))):
         # Get graph neighbours (notes linked to/from this note)
-        graph_neighbours = [
-            n for n in vault.graph_neighbours(note) if not n.path.startswith("geist journal/")
-        ]
+        graph_neighbours = vault.graph_neighbours(note)
 
         if len(graph_neighbours) < 3:
             continue

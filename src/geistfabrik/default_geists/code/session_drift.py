@@ -25,9 +25,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         semantic_component,
     )
 
-    # For each note, compare embeddings across recent sessions. Geist journal
-    # session notes are output, not notes whose meaning drifts.
-    notes = vault.notes_excluding_journal()
+    # For each note, compare embeddings across recent sessions
+    notes = vault.notes()
     suggestions = []
 
     for note in vault.sample(notes, min(50, len(notes))):

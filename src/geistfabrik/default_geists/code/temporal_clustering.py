@@ -25,8 +25,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     try:
-        # Geist journal session notes are output, not an intellectual period.
-        notes = vault.notes_excluding_journal()
+        notes = vault.notes()
 
         if len(notes) < 20:
             return []

@@ -20,7 +20,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     for note in notes:
         # Skip notes that are already questions

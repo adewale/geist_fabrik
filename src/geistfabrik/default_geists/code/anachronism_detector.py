@@ -23,8 +23,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    # Geist journal session notes are output, not thinking that circles back.
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 30:
         return []

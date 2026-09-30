@@ -553,9 +553,10 @@ def test_unlinked_pairs_sampling_never_pairs_a_note_with_itself(tmp_path: Path) 
     assert len(got) == 45
 
 
-def test_unlinked_pairs_can_exclude_the_journal_before_the_count_cut(tmp_path: Path) -> None:
-    """Templated session notes are near-identical, so their pairs outrank every
-    user pair: filtering the journal after the top-``count`` cut leaves nothing.
+def test_unlinked_pairs_ignores_the_journal_before_the_count_cut(tmp_path: Path) -> None:
+    """Templated session notes are near-identical, so their pairs would outrank
+    every user pair: journal notes must be gone before the top-``count`` cut,
+    not filtered from the result afterwards.
     """
     builder = VaultBuilder(tmp_path)
     builder.note("Soil A", "compost soil worms mulch garden")
@@ -564,32 +565,80 @@ def test_unlinked_pairs_can_exclude_the_journal_before_the_count_cut(tmp_path: P
         builder.journal(f"Session {i}", "geist suggestions for today")
     ctx = builder.build()
 
-    everything = ctx.unlinked_pairs(count=10)
-    user_only = ctx.unlinked_pairs(count=10, exclude_journal=True)
+    pairs = ctx.unlinked_pairs(count=10)
 
-    assert all(a.path.startswith("geist journal/") for a, _ in everything)
-    assert [{a.title, b.title} for a, b in user_only] == [{"Soil A", "Soil B"}]
+    assert [{a.title, b.title} for a, b in pairs] == [{"Soil A", "Soil B"}]
 
 
-def test_notes_excluding_journal_drops_only_the_session_journal(tmp_path: Path) -> None:
-    """Session output under "geist journal/" is excluded; every user note,
-    including one whose name merely starts with "geist journal", is kept.
+def test_notes_excludes_only_the_session_journal(tmp_path: Path) -> None:
+    """Session output under "geist journal/" is not the user's writing; every
+    user note, including one whose name merely starts with "geist journal", is
+    kept, and a journal note is still reachable when asked for by path.
     """
     builder = VaultBuilder(tmp_path)
     builder.note("Ideas", "garden plans")
     builder.note("geist journal ideas", "notes about the journal, written by the user")
     builder.note("Daily", "a nested note", folder="Archive")
     builder.journal("2024-03-14", "yesterday's suggestions")
-    builder.journal("2024-03-15", "today's suggestions")
+    journal = builder.journal("2024-03-15", "today's suggestions")
     ctx = builder.build()
 
-    kept = {n.path for n in ctx.notes_excluding_journal()}
+    kept = {n.path for n in ctx.notes()}
 
     assert kept == {"Ideas.md", "geist journal ideas.md", "Archive/Daily.md"}
-    assert {n.path for n in ctx.notes()} - kept == {
-        "geist journal/2024-03-14.md",
-        "geist journal/2024-03-15.md",
-    }
+    assert ctx.notes_excluding_journal() == ctx.notes()
+    assert ctx.get_note(journal) is not None
+
+
+def test_no_vault_wide_lookup_returns_a_journal_note(tmp_path: Path) -> None:
+    """Every lookup that ranges over the vault skips session journal notes.
+
+    The journal note is built to win each lookup were it visible: it shares
+    all of Seed's vocabulary (nearest neighbour, unlinked pair, cluster
+    member, contrarian candidate), links to Seed and Target (backlinks, hub
+    count, graph neighbours), is the oldest and newest edit in turn, and is
+    linked from Seed (outgoing link). The user's link to it still resolves.
+    """
+    old, new = datetime(2020, 1, 1), datetime(2024, 3, 1)
+    builder = VaultBuilder(tmp_path)
+    builder.note("Seed", "orchard cider apples pruning [[Target]] [[Echo]]", created=new)
+    builder.note("Twin", "orchard cider apples pruning grafting", created=new)
+    builder.note("Target", "glacier moraine crevasse", created=new)
+    for i in range(3):
+        builder.note(f"Cluster {i}", "violin bow rosin strings", created=new)
+    for i in range(3):
+        builder.note(f"More {i}", "orchard cider apples pruning", created=new)
+    builder.journal(
+        "Echo", "orchard cider apples pruning [[Seed]] [[Target]]", created=old, modified=old
+    )
+    ctx = builder.build()
+    by_title = {n.title: n for n in ctx.notes()}
+    seed, target = by_title["Seed"], by_title["Target"]
+
+    def journal(notes: list[Note]) -> list[str]:
+        return [n.path for n in notes if n.path.startswith("geist journal/")]
+
+    assert "Echo" not in by_title
+    assert journal(ctx.neighbours(seed, count=20)) == []
+    assert journal([n for n, _ in ctx.neighbours(seed, count=20, return_scores=True)]) == []
+    assert len(ctx.neighbours(seed, count=5)) == 5
+    assert journal(ctx.backlinks(target)) == [] and ctx.backlinks(target) == [seed]
+    assert journal(ctx.backlinks(seed)) == []
+    assert journal(ctx.outgoing_links(seed)) == [] and ctx.outgoing_links(seed) == [target]
+    assert journal(ctx.graph_neighbours(seed)) == []
+    assert journal(ctx.hubs(10)) == [] and journal(ctx.orphans()) == []
+    assert journal(ctx.old_notes(1)) == [] and journal(ctx.recent_notes(20)) == []
+    assert journal(ctx.random_notes(20)) == []
+    assert journal([n for pair in ctx.unlinked_pairs(count=100) for n in pair]) == []
+    assert not any(p.startswith("geist journal/") for p in ctx.get_all_embeddings())
+    assert not any(p.startswith("geist journal/") for p in ctx.surprisal_scores(k_neighbours=3))
+    clustered = [n for c in ctx.get_clusters(min_size=3).values() for n in c.notes]
+    assert clustered and journal(clustered) == []
+    assert ctx.call_function("contrarian_to", "Target", 20)
+    assert not any("Echo" in ref for ref in ctx.call_function("contrarian_to", "Target", 20))
+    # Explicit access still works: a user's link to a session note resolves.
+    echo = ctx.resolve_link_target("Echo", seed.path)
+    assert echo is not None and echo.path == "geist journal/Echo.md"
 
 
 def test_links_between(vault_with_notes):

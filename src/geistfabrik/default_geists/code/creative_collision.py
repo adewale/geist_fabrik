@@ -23,8 +23,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Random draws can repeat a pair; suggest each pair at most once
     seen_pairs: set[frozenset[str]] = set()
 
-    # Get random pairs of notes (session journal output is not collision material)
-    notes = vault.notes_excluding_journal()
+    # Get random pairs of notes
+    notes = vault.notes()
 
     if len(notes) < 2:
         return []

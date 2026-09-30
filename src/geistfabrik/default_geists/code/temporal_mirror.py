@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Compare notes from different temporal periods.
 
-    Divides all notes (excluding geist journal) into 10 time periods based on
+    Divides all notes into 10 time periods based on
     creation date, then randomly selects 2 periods and 1 note from each to
     create a temporal juxtaposition.
 
@@ -25,8 +25,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         Single suggestion comparing notes from different time periods
     """
-    # Get all notes excluding geist journal
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 2:
         return []

@@ -21,8 +21,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Uses TemporalSemanticQuery to find notes created in specific seasons
     that are semantically similar, suggesting seasonal thinking patterns.
     """
-    # Exclude geist journal to avoid analyzing session output
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 20:
         return []
@@ -48,7 +47,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Try to find seasonal clusters for each season
     for season_name, (start_date, end_date) in seasons.items():
-        # Get notes created in this season (excluding geist journal)
+        # Get notes created in this season
         seasonal_notes = [n for n in notes if start_date <= n.created <= end_date]
 
         if len(seasonal_notes) < 3:
@@ -64,11 +63,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             end_date=end_date,
             min_similarity=0.60,
         )
-
-        # Filter out geist journal from results (query uses all vault notes)
-        similar_in_season = [
-            n for n in similar_in_season if not n.path.startswith("geist journal/")
-        ]
 
         if len(similar_in_season) >= 2:
             # Found a seasonal pattern!

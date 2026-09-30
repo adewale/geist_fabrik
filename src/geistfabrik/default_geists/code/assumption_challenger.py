@@ -20,8 +20,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    # Geist journal notes are the engine's own output, never the user's claims.
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 10:
         return []
@@ -60,11 +59,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
         if assumption_count >= 2:
             # Find related notes that might challenge these assumptions
-            similar = [
-                n
-                for n in vault.neighbours(note, count=10)
-                if not n.path.startswith("geist journal/")
-            ]
+            similar = vault.neighbours(note, count=10)
 
             # Look for notes with contrasting language (hedging, uncertainty)
             contrast_phrases = [

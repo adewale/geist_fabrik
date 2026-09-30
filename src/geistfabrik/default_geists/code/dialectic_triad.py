@@ -24,19 +24,19 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     suggestions = []
 
-    # Sample some notes to use as thesis (session journal output is not a thesis)
-    all_notes = vault.notes_excluding_journal()
+    # Sample some notes to use as thesis
+    all_notes = vault.notes()
     candidate_notes = vault.sample(all_notes, min(5, len(all_notes)))
 
     for note in candidate_notes[:2]:  # Create up to 2 triads
-        # Find the most contrarian non-journal note (antithesis). contrarian_to
+        # Find the most contrarian note (antithesis). contrarian_to
         # returns bracketed links ("[[Title]]"), so resolve them to notes and
         # render with link_text - interpolating the raw link produced
-        # "[[[[Title]]]]". Over-fetch so journal notes cannot use up the list.
+        # "[[[[Title]]]]".
         antithesis: Note | None = None
         for link in vault.call_function("contrarian_to", note.title, 10):
             candidate = vault.resolve_link_target(link.strip("[]"))
-            if candidate is not None and not candidate.path.startswith("geist journal/"):
+            if candidate is not None:
                 antithesis = candidate
                 break
 

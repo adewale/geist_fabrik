@@ -40,7 +40,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Find notes from same season in previous years
     seasonal_notes = []
     # Session output is not part of the vault's history.
-    all_notes = vault.notes_excluding_journal()
+    all_notes = vault.notes()
     for note in all_notes:
         note_season = get_season(note.created)
         note_year = _season_year(note.created)

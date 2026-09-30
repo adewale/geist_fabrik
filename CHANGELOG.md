@@ -17,9 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bump makes the next sync re-derive `created` for every note, keeping the
   earlier of the stored and re-derived values. No rebuild is required.
 
-- `VaultContext.unlinked_pairs()` gains `exclude_journal=False`, which drops
-  geist journal notes before the top-`count` cut; `bridge_hunter` and
-  `method_scrambler` use it.
+- `VaultContext` now excludes geist journal session notes from every
+  vault-wide lookup: `notes()`, `neighbours()`, `backlinks()`,
+  `outgoing_links()`, `graph_neighbours()`, `hubs()`, `orphans()`,
+  `recent_notes()`, `old_notes()`, `random_notes()`, `unlinked_pairs()`,
+  `get_clusters()`, `get_all_embeddings()`, `surprisal_scores()` and
+  `neighbour_churn()` (and so every vault function built on them). Journal
+  notes are dropped before any top-N cut and never count as a link endpoint.
+  `get_note()`, `get_embedding()` and `resolve_link_target()` still return a
+  journal note when asked for it explicitly; `notes_excluding_journal()` is now
+  an alias of `notes()`. Custom geists that relied on seeing session notes in
+  these lookups must read them by path instead. The per-geist journal filters
+  in the bundled geists were removed.
 - `Session.compute_embeddings()` and `EmbeddingComputer.compute_temporal_embedding()`
   now share one `combine_embedding()` implementation of the semantic/temporal
   weighting (no change to stored values).

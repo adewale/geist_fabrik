@@ -123,7 +123,9 @@ def test_blind_spot_detector_skips_journal_contrarians(tmp_path: Path) -> None:
     assert garden is not None and glacier is not None
     opposite = -(garden + glacier)
     ctx = _with_embedding(ctx, journal_path, opposite / np.linalg.norm(opposite))
-    assert ctx.call_function("contrarian_to", "Garden", 1) == ["[[Session Echo]]"]
+    # By embedding the journal note is the most contrarian; the shared lookup
+    # must still never offer it.
+    assert ctx.call_function("contrarian_to", "Garden", 1) == ["[[Glacier]]"]
 
     suggestions = blind_spot_detector.suggest(ctx)
 

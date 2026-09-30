@@ -32,7 +32,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     has_questions = 0
     total = 0
 
-    for note in vault.notes_excluding_journal():
+    for note in vault.notes():
         voice = vault.voice(note)
         total += 1
 

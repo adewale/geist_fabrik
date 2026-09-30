@@ -18,10 +18,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     Uses MetadataAnalyser to compute statistical distributions and identify
     notes that are unusually high or low on various metadata dimensions.
-
-    Note: MetadataAnalyser computes statistics across all vault notes
-    (including geist journal). This is acceptable because journal notes
-    will typically be identified as outliers and filtered out below.
     """
     # Require minimum notes for meaningful statistics
     notes = vault.notes()
@@ -34,10 +30,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     # Check for word_count outliers (unusually long/short notes)
     word_count_outliers = analyser.outliers("word_count", threshold=2.0)
-    # Filter out geist journal from results
-    word_count_outliers = [
-        n for n in word_count_outliers if not n.path.startswith("geist journal/")
-    ]
 
     if word_count_outliers:
         # Get the most extreme outlier
@@ -75,10 +67,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Check for link_density outliers (unusually connected/isolated)
     if len(suggestions) < 2:
         link_density_outliers = analyser.outliers("link_density", threshold=2.0)
-        # Filter out geist journal from results
-        link_density_outliers = [
-            n for n in link_density_outliers if not n.path.startswith("geist journal/")
-        ]
 
         if link_density_outliers:
             note = link_density_outliers[0]

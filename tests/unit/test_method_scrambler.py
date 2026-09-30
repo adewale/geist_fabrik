@@ -84,12 +84,10 @@ def test_output_is_capped_when_more_prompts_qualify(tmp_path: Path) -> None:
 def test_geist_journal_is_excluded_from_both_routes(tmp_path: Path) -> None:
     # Each journal note joins two topics (similarity > 0.5 to both topic
     # notes, and higher to journal notes sharing a topic); every topic
-    # appears in 6 journal notes. So every topic note's 5
-    # nearest neighbours are journal notes (route 1 yields nothing for them)
-    # and every unlinked pair above 0.5 involves a journal note (route 2).
-    # Only "Linker", with two outgoing links, has non-journal candidates.
-    # "Session Linker" is a journal note with the same shape: it must not be
-    # used as the subject of a prompt either.
+    # appears in 6 journal notes. Were journal notes visible, every topic
+    # note's 5 nearest neighbours would be journal notes (route 1) and every
+    # unlinked pair above 0.5 would involve one (route 2). "Session Linker" is
+    # a journal note shaped like "Linker": it must not be a prompt's subject.
     builder = VaultBuilder(tmp_path)
     titles = _topic_notes(builder, 10)
     builder.note("Linker", "zephyr [[Topic 0]] [[Topic 1]]")
@@ -103,7 +101,6 @@ def test_geist_journal_is_excluded_from_both_routes(tmp_path: Path) -> None:
     assert_valid_suggestions(
         suggestions,
         GEIST,
-        must_reference=["Linker"],
         must_not_reference=["Session Log", "Session Linker"],
     )
     assert all(set(s.notes) <= {"Linker", *titles} for s in suggestions)

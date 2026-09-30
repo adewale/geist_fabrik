@@ -29,7 +29,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         At most one suggestion resurfacing an anniversary note
     """
     today = vault.session.date
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
     candidates = []
 
     for years_ago in (1, 2, 3):

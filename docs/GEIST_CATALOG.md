@@ -460,59 +460,31 @@ All geists have comprehensive tests that:
 
 ## Implementation Patterns
 
-### Geist Journal Filtering
+### Geist Journal Exclusion
 
-**Pattern**: Historical analysis geists must exclude geist journal notes to avoid circular references and statistical skew.
+**Pattern**: Geist journal notes (`geist journal/`) are the engine's own session output, not the user's writing. `VaultContext` excludes them from every vault-wide lookup, so geists need no filtering of their own.
 
-**The Problem**: Geist journal notes are ephemeral session output, not persistent user knowledge. Including them when analyzing vault history causes:
-- **Circular references**: Analyzing system output as user input
-- **Statistical skew**: Journal notes have predictable structure (generated text, consistent metadata)
-- **False patterns**: Session creation dates create misleading temporal clusters
+**Why**: Journal notes quote and wikilink every note they suggest. Treated as vault content they caused circular references (the engine suggesting its own output), statistical skew (templated text and metadata), false patterns (session dates forming "bursts" and "periods"), inflated backlinks (every suggested note became a hub) and crowding (near-identical session notes filling top-N results such as `unlinked_pairs()` and `recent_notes()`).
 
-**The Solution**: Use `vault.notes_excluding_journal()` instead of `vault.notes()` when analyzing history.
-
-**When to Filter** (6 geists currently implement this):
-
-| Geist | Why Filter? |
-|-------|------------|
-| **creation_burst** | Tracks user-created burst days, not session generation |
-| **burst_evolution** | Compares user-note representations, not system output |
-| **temporal_mirror** | Juxtaposes user notes from different time periods |
-| **seasonal_topic_analysis** | Finds seasonal patterns in user writing |
-| **cluster_evolution_tracker** | Tracks semantic drift of user notes |
-| **metadata_outlier_detector** | Computes statistics then filters results |
-
-**When NOT to Filter** (remaining geists generally include journal):
-
-- **Content analysis**: question_harvester, pattern_finder (no circular reference risk)
-- **Semantic queries**: creative_collision, bridge_builder (point-in-time analysis)
-- **Single-note ops**: stub_expander, task_archaeology (metadata-driven)
-- **Intentional inclusion**: Computing vault-wide statistics where journal is relevant
+**Behaviour**:
+- `notes()`, `neighbours()`, `backlinks()`, `outgoing_links()`, `graph_neighbours()`, `hubs()`, `orphans()`, `recent_notes()`, `old_notes()`, `random_notes()`, `unlinked_pairs()`, `get_clusters()`, `get_all_embeddings()`, `surprisal_scores()`, `neighbour_churn()` and `session_embeddings_by_session()` never return or count journal notes. Vault functions built on them (for example `contrarian_to`, `sample_notes`) inherit this.
+- Journal notes are dropped *before* any top-N cut, so they cannot crowd out user notes.
+- Explicit access still works: `get_note(path)`, `get_embedding(path)` and `resolve_link_target()` return a journal note when asked for it, so a user's own link to a session note still resolves.
+- `notes_excluding_journal()` is kept as an alias of `notes()` for older geists.
 
 **Implementation**:
 ```python
-# ✅ Correct - excludes geist journal for historical analysis
-def suggest(vault: VaultContext) -> list[Suggestion]:
-    notes = vault.notes_excluding_journal()
-    # ... analyze creation dates, track evolution, compute statistics ...
-
-# ✅ Also correct - filter SQL results
-cursor = vault.db.execute("""
-    SELECT DATE(created), COUNT(*)
-    FROM notes
-    WHERE NOT path LIKE 'geist journal/%'
-    GROUP BY DATE(created)
-""")
-
-# ❌ Wrong - includes journal in historical analysis
+# ✅ Correct - VaultContext already excludes the geist journal
 def suggest(vault: VaultContext) -> list[Suggestion]:
     notes = vault.notes()
-    # ... risk of analyzing system output as user notes ...
+    for note in notes:
+        similar = vault.neighbours(note, count=5)  # no journal notes here either
+
+# ❌ Unnecessary - filtering again is dead code
+similar = [n for n in vault.neighbours(note) if not n.path.startswith("geist journal/")]
 ```
 
-**The Rule**: If your geist analyzes creation dates, modification times, or tracks notes over multiple sessions, filter geist journal. If it analyzes content or performs point-in-time semantic queries, don't filter.
-
----
+**Tests**: `tests/unit/test_vault_context.py::test_no_vault_wide_lookup_returns_a_journal_note` owns the contract; each geist's `*_excludes_geist_journal` test plants journal notes that would otherwise qualify.
 
 ## Conclusion
 

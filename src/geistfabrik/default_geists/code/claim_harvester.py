@@ -26,7 +26,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         LengthFilter,
     )
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
     if not notes:
         return []
 

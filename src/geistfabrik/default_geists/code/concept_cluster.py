@@ -23,8 +23,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Seeds from the same group find the same cluster; report each set once
     reported: set[frozenset[str]] = set()
 
-    # Geist journal notes are session output, not concepts
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 5:
         return []
@@ -33,10 +32,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     seed_notes = vault.sample(notes, count=5)
 
     for seed in seed_notes:
-        # Get neighbours of this note (over-fetch so journal notes cannot crowd out real ones)
-        neighbours = [
-            n for n in vault.neighbours(seed, count=10) if not n.path.startswith("geist journal/")
-        ][:5]
+        # Get neighbours of this note
+        neighbours = vault.neighbours(seed, count=5)
 
         if len(neighbours) < 3:
             continue

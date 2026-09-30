@@ -19,7 +19,7 @@ from typing import (
 import numpy as np
 
 from .clustering_analysis import Cluster, format_cluster_label
-from .config import TOTAL_DIM
+from .config import GEIST_JOURNAL_DIR, TOTAL_DIM
 from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
 from .models import Link, Note, NoteLinkIndex
 from .session_time import session_seed
@@ -32,6 +32,14 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 # Markdown checkbox tasks: "- [ ] open" / "- [x] done" (also * and + bullets)
+_JOURNAL_PREFIX = f"{GEIST_JOURNAL_DIR}/"
+
+
+def is_geist_journal_path(path: str) -> bool:
+    """True for session output written by the engine under ``geist journal/``."""
+    return path.startswith(_JOURNAL_PREFIX)
+
+
 _TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[ xX]\]", re.MULTILINE)
 _COMPLETED_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[xX]\]", re.MULTILINE)
 
@@ -249,6 +257,7 @@ class VaultContext:
         self._function_registry = function_registry
 
         # Cache for notes (performance optimisation)
+        self._all_notes_cache: list[Note] | None = None
         self._notes_cache: list[Note] | None = None
         self._link_index: NoteLinkIndex | None = None
         self._link_graph_ready = False
@@ -310,47 +319,52 @@ class VaultContext:
         for row in cursor.fetchall():
             note_path, embedding_bytes = row
             self._embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+        # The population every vault-wide lookup works over: session journal
+        # notes are the engine's own output, so they never count as the
+        # user's notes, neighbours, links, clusters or history.
+        self._user_embeddings: dict[str, np.ndarray] = {
+            path: vec for path, vec in self._embeddings.items() if not is_geist_journal_path(path)
+        }
 
     # Direct vault access (delegated)
 
-    def notes(self) -> list[Note]:
-        """Get all notes in vault (cached).
+    def _all_notes(self) -> list[Note]:
+        """Every synced note, including session journal notes (cached).
 
-        Performance optimisation: Notes are loaded once and cached
-        for the duration of the VaultContext session.
+        Only link resolution needs these: a user's link to a journal note must
+        resolve to it rather than to some other note of the same name.
+        """
+        if self._all_notes_cache is None:
+            self._all_notes_cache = self.vault.all_notes()
+        return self._all_notes_cache
+
+    def notes(self) -> list[Note]:
+        """Get the user's notes (cached for the session).
+
+        Session journal notes under ``geist journal/`` are excluded here and
+        from every other vault-wide lookup (neighbours, backlinks, outgoing
+        links, hubs, orphans, recent/old notes, random notes, unlinked pairs,
+        clusters, surprisal, churn, embeddings), so geists never mistake the
+        engine's own output for the user's writing. ``get_note()`` and
+        ``resolve_link_target()`` still return a journal note when asked for
+        it explicitly.
 
         Returns:
-            List of all notes
+            List of all non-journal notes
         """
         if self._notes_cache is None:
-            self._notes_cache = self.vault.all_notes()
+            self._notes_cache = [
+                note for note in self._all_notes() if not is_geist_journal_path(note.path)
+            ]
         return self._notes_cache
 
     def notes_excluding_journal(self) -> list[Note]:
-        """Get all notes except geist journal entries.
+        """Same as ``notes()``, which already excludes session journal notes.
 
-        Convenience method for geists that analyze vault history.
-        Geist journal notes are ephemeral session output and should
-        typically be excluded from historical analysis to avoid:
-        - Circular references (analyzing system output as user notes)
-        - Statistical skew (session notes have different characteristics)
-        - False patterns (journal structure is predictable)
-
-        When to use:
-        - Analyzing vault history or temporal patterns
-        - Computing statistical distributions
-        - Tracking note evolution over time
-        - Building cohort analysis
-
-        When NOT to use:
-        - Point-in-time content analysis (pattern extraction)
-        - Semantic similarity queries (no risk of circular reference)
-        - Single-note operations
-
-        Returns:
-            List of notes excluding those in "geist journal/" directory
+        Kept for geists and plugins written before journal exclusion moved
+        into VaultContext itself.
         """
-        return [n for n in self.notes() if not n.path.startswith("geist journal/")]
+        return self.notes()
 
     def get_note(self, path: str) -> Note | None:
         """Get specific note by path.
@@ -385,12 +399,12 @@ class VaultContext:
             READ-ONLY views shared with every other caller this session (see
             get_embedding); call .copy() before mutating.
         """
-        return self._embeddings
+        return self._user_embeddings
 
     def link_index(self) -> NoteLinkIndex:
         """Resolve graph identities against this context's note snapshot."""
         if self._link_index is None:
-            self._link_index = NoteLinkIndex.from_notes(self.notes())
+            self._link_index = NoteLinkIndex.from_notes(self._all_notes())
         return self._link_index
 
     def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
@@ -474,15 +488,17 @@ class VaultContext:
         except KeyError:
             return [] if not return_scores else []
 
-        # Find similar notes (request k+1 to exclude self)
-        similar = self._backend.find_similar(query_embedding, count=count + 1)
+        # Find similar notes: request k+1 to exclude self, plus one per
+        # journal note so dropping them cannot leave fewer than k results
+        journal_count = len(self._embeddings) - len(self._user_embeddings)
+        similar = self._backend.find_similar(query_embedding, count=count + 1 + journal_count)
 
         # Convert paths to notes using batch loading (OP-6)
         # Collect paths first (excluding self)
         paths_to_load = []
         path_score_map = {}
         for path, score in similar:
-            if path != note.path:
+            if path != note.path and not is_geist_journal_path(path):
                 paths_to_load.append(path)
                 # Clip score to [0, 1] range (handle floating-point precision errors)
                 path_score_map[path] = _clip_similarity(score)
@@ -642,16 +658,22 @@ class VaultContext:
         """Resolve each edge once, sharing the result in both graph directions."""
         if self._link_graph_ready:
             return
-        notes = self.notes()
+        # Resolve against every note (so a link to a journal note cannot
+        # mis-resolve), but never publish a journal note as a link endpoint:
+        # journal suggestions link to the notes they mention, and counting
+        # those as backlinks would turn every suggested note into a hub.
+        notes = self._all_notes()
         by_path = {note.path: note for note in notes}
         index = self.link_index()
         self._backlinks_cache = {note.path: [] for note in notes}
         self._outgoing_links_cache = {note.path: [] for note in notes}
         for note in notes:
+            if is_geist_journal_path(note.path):
+                continue
             seen: set[str] = set()
             for link in note.links:
                 path = index.resolve(link.target, note.path)
-                if path is not None:
+                if path is not None and not is_geist_journal_path(path):
                     self._outgoing_links_cache[note.path].append(by_path[path])
                     if path not in seen:
                         self._backlinks_cache[path].append(note)
@@ -745,7 +767,7 @@ class VaultContext:
             Dictionary mapping date strings (YYYY-MM-DD) to lists of notes
             created on that date, sorted by note count descending
         """
-        journal_filter = "WHERE NOT path LIKE 'geist journal/%'" if exclude_journal else ""
+        journal_filter = f"WHERE NOT path LIKE '{_JOURNAL_PREFIX}%'" if exclude_journal else ""
 
         cursor = self.db.execute(
             f"""
@@ -848,9 +870,9 @@ class VaultContext:
             emb_cursor = self.db.execute(
                 """
                 SELECT embedding FROM session_embeddings
-                WHERE session_id = ? AND note_path NOT LIKE 'geist journal/%'
+                WHERE session_id = ? AND note_path NOT LIKE ?
                 """,
-                (session_id,),
+                (session_id, f"{_JOURNAL_PREFIX}%"),
             )
             embeddings = [np.frombuffer(row[0], dtype=np.float32) for row in emb_cursor.fetchall()]
             date_str = datetime.fromisoformat(str(session_date)).strftime("%Y-%m-%d")
@@ -1006,7 +1028,7 @@ class VaultContext:
         from . import cluster_labeling
 
         # Use cached session embeddings instead of re-querying DB
-        embeddings_dict = self._embeddings
+        embeddings_dict = self._user_embeddings
 
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
             empty_result_2: dict[int, Cluster] = {}
@@ -1147,7 +1169,7 @@ class VaultContext:
         return [note for note, _ in similarities[:count]]
 
     def unlinked_pairs(
-        self, count: int = 10, candidate_limit: int = 200, exclude_journal: bool = False
+        self, count: int = 10, candidate_limit: int = 200
     ) -> list[tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
 
@@ -1158,22 +1180,16 @@ class VaultContext:
         Args:
             k: Number of pairs to return
             candidate_limit: Maximum number of notes to consider (to avoid O(n²) on large vaults)
-            exclude_journal: If True, leave "geist journal/" notes out BEFORE the
-                top-``count`` cut. (Filtering the result afterwards is not
-                equivalent: templated journal notes are highly similar to each
-                other and can fill every one of the ``count`` slots.)
 
         Returns:
             List of (note_a, note_b) tuples sorted by similarity
         """
-        all_notes = self.notes_excluding_journal() if exclude_journal else self.notes()
+        all_notes = self.notes()
 
         # Optimise for large vaults by limiting candidate set
         if len(all_notes) > candidate_limit:
             # Sample a diverse set: recent notes + random notes
             recent = self.recent_notes(count=candidate_limit // 2)
-            if exclude_journal:
-                recent = [n for n in recent if not n.path.startswith("geist journal/")]
             # Use set for O(1) membership check instead of O(N) list membership
             recent_set = set(recent)
             remaining = [n for n in all_notes if n not in recent_set]
@@ -1303,7 +1319,10 @@ class VaultContext:
         Returns:
             List of old notes, sorted by modification time ascending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified ASC LIMIT ?", (count,))
+        cursor = self.db.execute(
+            "SELECT path FROM notes WHERE path NOT LIKE ? ORDER BY modified ASC LIMIT ?",
+            (f"{_JOURNAL_PREFIX}%", count),
+        )
 
         result = []
         for row in cursor.fetchall():
@@ -1322,7 +1341,10 @@ class VaultContext:
         Returns:
             List of recent notes, sorted by modification time descending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified DESC LIMIT ?", (count,))
+        cursor = self.db.execute(
+            "SELECT path FROM notes WHERE path NOT LIKE ? ORDER BY modified DESC LIMIT ?",
+            (f"{_JOURNAL_PREFIX}%", count),
+        )
 
         result = []
         for row in cursor.fetchall():
@@ -1363,7 +1385,7 @@ class VaultContext:
         if k_neighbours in self._surprisal_cache:
             return self._surprisal_cache[k_neighbours]
 
-        scores = _surprisal_blocked(self._embeddings, k_neighbours)
+        scores = _surprisal_blocked(self._user_embeddings, k_neighbours)
         self._surprisal_cache[k_neighbours] = scores
         return scores
 
@@ -1457,9 +1479,10 @@ class VaultContext:
         )
         historical: dict[str, np.ndarray] = {}
         for note_path, embedding_bytes in cursor.fetchall():
-            historical[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+            if not is_geist_journal_path(note_path):
+                historical[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
 
-        if not historical or not self._embeddings:
+        if not historical or not self._user_embeddings:
             return {}
 
         # Top-k neighbour path sets per epoch (same blocked helper)
@@ -1467,8 +1490,8 @@ class VaultContext:
         old_matrix = np.stack([historical[p] for p in old_paths])
         old_sets = _topk_neighbour_sets(old_matrix, old_paths, k)
 
-        new_paths = sorted(self._embeddings)
-        new_matrix = np.stack([self._embeddings[p] for p in new_paths])
+        new_paths = sorted(self._user_embeddings)
+        new_matrix = np.stack([self._user_embeddings[p] for p in new_paths])
         new_sets = _topk_neighbour_sets(new_matrix, new_paths, k)
 
         # Jaccard churn for notes present in BOTH epochs

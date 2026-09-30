@@ -22,8 +22,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
 
     # Find disconnected clusters (notes with lots of internal links, few external)
-    # Geist journal notes are session output: never hubs, members or bridges
-    all_notes = vault.notes_excluding_journal()
+    all_notes = vault.notes()
 
     if len(all_notes) < 10:
         return []
@@ -32,12 +31,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     hubs = vault.hubs(count=5)
 
     for hub in hubs:
-        if hub.path.startswith("geist journal/"):
-            continue
-
-        # A cluster is the hub + notes that link to it (session notes link to
-        # many notes, but they are not part of the user's cluster)
-        backlinks = [n for n in vault.backlinks(hub) if not n.path.startswith("geist journal/")]
+        # A cluster is the hub + notes that link to it
+        backlinks = vault.backlinks(hub)
         cluster = [hub] + backlinks
 
         if len(cluster) < 3:

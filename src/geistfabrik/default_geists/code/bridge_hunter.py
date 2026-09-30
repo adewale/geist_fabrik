@@ -21,10 +21,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    # Get unlinked pairs, excluding geist journal notes before the top-20 cut
-    # (templated journal notes are similar to each other and would otherwise
-    # fill every slot, leaving no pairs of the user's own notes)
-    pairs = vault.unlinked_pairs(count=20, exclude_journal=True)
+    pairs = vault.unlinked_pairs(count=20)
 
     if len(pairs) < 2:
         return []
@@ -60,22 +57,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return vault.sample(suggestions, count=2)
 
 
-def _filter_journal_notes(
-    candidates_with_scores: list[tuple["Note", float]],
-) -> list[tuple["Note", float]]:
-    """Filter out geist journal notes from candidate list.
-
-    Args:
-        candidates_with_scores: List of (note, score) tuples
-
-    Returns:
-        Filtered list excluding journal notes
-    """
-    return [
-        (n, score) for n, score in candidates_with_scores if not n.path.startswith("geist journal/")
-    ]
-
-
 def _find_semantic_path(
     vault: "VaultContext",
     start: "Note",
@@ -93,8 +74,7 @@ def _find_semantic_path(
         # Find notes similar to start (get scores to avoid recomputation)
         all_candidates_with_scores = vault.neighbours(start, count=10, return_scores=True)
 
-        # Filter out geist journal notes
-        candidates_with_scores = _filter_journal_notes(all_candidates_with_scores)
+        candidates_with_scores = all_candidates_with_scores
 
         best_path = None
         best_score = 0.0
@@ -120,9 +100,8 @@ def _find_semantic_path(
         all_candidates1_with_scores = vault.neighbours(start, count=10, return_scores=True)
         all_candidates2_with_scores = vault.neighbours(end, count=10, return_scores=True)
 
-        # Filter out geist journal notes
-        candidates1_with_scores = _filter_journal_notes(all_candidates1_with_scores)
-        candidates2_with_scores = _filter_journal_notes(all_candidates2_with_scores)
+        candidates1_with_scores = all_candidates1_with_scores
+        candidates2_with_scores = all_candidates2_with_scores
 
         best_path = None
         best_score = 0.0
