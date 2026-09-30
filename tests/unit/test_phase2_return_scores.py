@@ -1,9 +1,8 @@
 """Tests for Phase 2 Optimisation: OP-9 neighbours() with return_scores.
 
-Tests the return_scores parameter and its usage in geists.
+Tests the return_scores parameter, its caching and its scores.
 """
 
-import importlib.util
 from datetime import datetime
 from pathlib import Path
 
@@ -13,19 +12,6 @@ from geistfabrik.embeddings import Session
 from geistfabrik.models import Note
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
-
-
-def load_geist(geist_name: str):
-    """Dynamically load a geist module."""
-    repo_root = Path(__file__).parent.parent.parent
-    geist_path = repo_root / "src" / "geistfabrik" / "default_geists" / "code" / f"{geist_name}.py"
-
-    spec = importlib.util.spec_from_file_location(geist_name, geist_path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 @pytest.fixture
@@ -195,61 +181,6 @@ class TestReturnScoresCaching:
 
         assert cache_key_false in context_with_embeddings._neighbours_cache
         assert cache_key_true in context_with_embeddings._neighbours_cache
-
-
-class TestReturnScoresUsageInGeists:
-    """Test that geists using return_scores work correctly."""
-
-    def test_hidden_hub_uses_return_scores(self, context_with_embeddings: VaultContext):
-        """Test that hidden_hub geist uses return_scores correctly."""
-        hidden_hub = load_geist("hidden_hub")
-
-        # This geist uses return_scores=True
-        suggestions = hidden_hub.suggest(context_with_embeddings)
-
-        # Should not raise errors and should return suggestions
-        assert isinstance(suggestions, list)
-        # May be empty if vault doesn't meet criteria, but shouldn't error
-
-    def test_bridge_hunter_uses_return_scores(self, context_with_embeddings: VaultContext):
-        """Test that bridge_hunter geist uses return_scores correctly."""
-        bridge_hunter = load_geist("bridge_hunter")
-
-        # This geist uses return_scores=True
-        suggestions = bridge_hunter.suggest(context_with_embeddings)
-
-        # Should not raise errors and should return suggestions
-        assert isinstance(suggestions, list)
-
-    def test_columbo_uses_return_scores(self, context_with_embeddings: VaultContext):
-        """Test that columbo geist uses return_scores correctly."""
-        columbo = load_geist("columbo")
-
-        # This geist uses return_scores=True
-        suggestions = columbo.suggest(context_with_embeddings)
-
-        # Should not raise errors and should return suggestions
-        assert isinstance(suggestions, list)
-
-    def test_bridge_builder_uses_return_scores(self, context_with_embeddings: VaultContext):
-        """Test that bridge_builder geist uses return_scores correctly."""
-        bridge_builder = load_geist("bridge_builder")
-
-        # This geist uses return_scores=True
-        suggestions = bridge_builder.suggest(context_with_embeddings)
-
-        # Should not raise errors and should return suggestions
-        assert isinstance(suggestions, list)
-
-    def test_antithesis_generator_uses_return_scores(self, context_with_embeddings: VaultContext):
-        """Test that antithesis_generator geist uses return_scores correctly."""
-        antithesis_generator = load_geist("antithesis_generator")
-
-        # This geist uses return_scores=True
-        suggestions = antithesis_generator.suggest(context_with_embeddings)
-
-        # Should not raise errors and should return suggestions
-        assert isinstance(suggestions, list)
 
 
 class TestReturnScoresPerformance:

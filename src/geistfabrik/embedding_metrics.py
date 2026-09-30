@@ -385,23 +385,6 @@ class EmbeddingMetricsComputer:
 
         return metrics
 
-    def _apply_mmr_filtering(
-        self,
-        terms: list[str],
-        tfidf_scores: np.ndarray,
-        lambda_param: float = 0.5,
-        k: int = 4,
-    ) -> list[str]:
-        """Apply Maximal Marginal Relevance to select diverse terms.
-
-        Thin wrapper around the shared cluster_labeling.apply_mmr implementation
-        so the MMR algorithm lives in a single place (previously this logic was
-        duplicated here and in cluster_labeling). See apply_mmr for details.
-        """
-        from .cluster_labeling import apply_mmr
-
-        return apply_mmr(terms, tfidf_scores, lambda_param=lambda_param, k=k)
-
     def _label_clusters_tfidf(
         self, paths: list[str], labels: np.ndarray, n_terms: int = 4
     ) -> dict[int, str]:

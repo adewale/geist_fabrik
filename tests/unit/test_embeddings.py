@@ -14,7 +14,6 @@ from geistfabrik.embeddings import (
     EmbeddingComputer,
     Session,
     _bundled_model_path,
-    cosine_similarity,
     find_similar_notes,
 )
 from geistfabrik.models import Note
@@ -247,15 +246,38 @@ def test_compute_temporal_features_uses_calendar_days(sample_notes):
     assert features[0] == pytest.approx(100 / 365)
 
 
-def test_compute_temporal_embedding_mock(sample_notes, mock_embedding_computer):
-    """Test combined temporal embedding computation with mocked model."""
-    note = sample_notes[0]
-    session_date = datetime(2023, 6, 15)
+def test_session_stores_weighted_semantic_and_temporal_parts(
+    db_with_notes, mock_embedding_computer, sample_notes
+):
+    """Stored session vectors are concat(0.9 * semantic, 0.1 * temporal), as
+    EMBEDDINGS_SPEC.md specifies, on both the fresh-encode path and the
+    semantic-cache path (the second session reuses cached semantics).
 
-    embedding = mock_embedding_computer.compute_temporal_embedding(note, session_date)
+    Expected values come from the model stub and the spec's temporal formula,
+    not from product helpers, so a changed weight, a swapped order, an unscaled
+    part or a cache path that skips weighting fails here.
+    """
+    import math
 
-    assert isinstance(embedding, np.ndarray)
-    assert embedding.shape == (387,)  # 384 semantic + 3 temporal
+    note = sample_notes[0]  # created 2023-01-01
+    semantic = mock_embedding_computer.model.encode(note.content)
+
+    for session_date in (datetime(2023, 6, 15), datetime(2023, 12, 31)):
+        session = Session(session_date, db_with_notes, computer=mock_embedding_computer)
+        session.compute_embeddings(sample_notes)
+        stored = session.get_embedding(note.path)
+
+        age_years = (session_date.date() - note.created.date()).days / 365.0
+        temporal = np.array(
+            [
+                age_years,
+                math.sin(2 * math.pi * 1 / 365.0),
+                math.sin(2 * math.pi * session_date.timetuple().tm_yday / 365.0),
+            ]
+        )
+        expected = np.concatenate([0.9 * semantic, 0.1 * temporal]).astype(np.float32)
+        assert stored is not None
+        np.testing.assert_allclose(stored, expected, rtol=1e-6, atol=1e-7)
 
 
 def test_session_creation(db_with_notes):
@@ -379,23 +401,32 @@ def test_compute_embeddings_failure_rolls_back_and_retry_succeeds(
         failing_session.compute_embeddings(changed_notes)
 
     assert db.in_transaction is False
-    assert db.execute(
-        "SELECT vault_state_hash FROM sessions WHERE session_id = ?",
-        (baseline_session.session_id,),
-    ).fetchone() == before_hash
-    assert db.execute(
-        "SELECT note_path, embedding FROM session_embeddings "
-        "WHERE session_id = ? ORDER BY note_path",
-        (baseline_session.session_id,),
-    ).fetchall() == before_rows
-
-    uri = f"{db_path.resolve().as_uri()}?mode=ro"
-    with closing(sqlite3.connect(uri, uri=True)) as observer:
-        assert observer.execute(
+    assert (
+        db.execute(
+            "SELECT vault_state_hash FROM sessions WHERE session_id = ?",
+            (baseline_session.session_id,),
+        ).fetchone()
+        == before_hash
+    )
+    assert (
+        db.execute(
             "SELECT note_path, embedding FROM session_embeddings "
             "WHERE session_id = ? ORDER BY note_path",
             (baseline_session.session_id,),
-        ).fetchall() == before_rows
+        ).fetchall()
+        == before_rows
+    )
+
+    uri = f"{db_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as observer:
+        assert (
+            observer.execute(
+                "SELECT note_path, embedding FROM session_embeddings "
+                "WHERE session_id = ? ORDER BY note_path",
+                (baseline_session.session_id,),
+            ).fetchall()
+            == before_rows
+        )
 
     db.execute(
         "UPDATE notes SET content = ? WHERE path = ?",
@@ -493,17 +524,18 @@ def test_compute_embeddings_rejects_incomplete_vault_snapshot(
     mock_embedding_computer: EmbeddingComputer,
 ) -> None:
     """A session snapshot cannot silently omit committed vault notes."""
-    session = Session(
-        datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer
-    )
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
 
     with pytest.raises(RuntimeError, match="do not match the committed vault snapshot"):
         session.compute_embeddings(sample_notes[:1])
 
     assert db_with_notes.in_transaction is False
-    assert db_with_notes.execute(
-        "SELECT 1 FROM session_embeddings WHERE session_id = ?", (session.session_id,)
-    ).fetchone() is None
+    assert (
+        db_with_notes.execute(
+            "SELECT 1 FROM session_embeddings WHERE session_id = ?", (session.session_id,)
+        ).fetchone()
+        is None
+    )
 
 
 def test_compute_embeddings_rejects_snapshot_stale_before_method_entry(
@@ -544,9 +576,12 @@ def test_compute_embeddings_rejects_snapshot_stale_before_method_entry(
     assert db.execute(
         "SELECT content FROM notes WHERE path = ?", (stale_note.path,)
     ).fetchone() == ("newer content",)
-    assert db.execute(
-        "SELECT 1 FROM session_embeddings WHERE session_id = ?", (session.session_id,)
-    ).fetchone() is None
+    assert (
+        db.execute(
+            "SELECT 1 FROM session_embeddings WHERE session_id = ?", (session.session_id,)
+        ).fetchone()
+        is None
+    )
     external.close()
     db.close()
 
@@ -605,50 +640,48 @@ def test_compute_embeddings_mid_write_failure_rolls_back_snapshot(
         session.compute_embeddings(changed_notes)
 
     assert db.in_transaction is False
-    assert db.execute(
-        "SELECT vault_state_hash FROM sessions WHERE session_id = ?", (session.session_id,)
-    ).fetchone() == before_hash
-    assert db.execute(
-        "SELECT note_path, embedding FROM session_embeddings "
-        "WHERE session_id = ? ORDER BY note_path",
-        (session.session_id,),
-    ).fetchall() == before_rows
-    assert db.execute(
-        "SELECT note_path, embedding, model_version FROM embeddings ORDER BY note_path"
-    ).fetchall() == before_cache
-    uri = f"{db_path.resolve().as_uri()}?mode=ro"
-    with closing(sqlite3.connect(uri, uri=True)) as observer:
-        assert observer.execute(
+    assert (
+        db.execute(
+            "SELECT vault_state_hash FROM sessions WHERE session_id = ?", (session.session_id,)
+        ).fetchone()
+        == before_hash
+    )
+    assert (
+        db.execute(
             "SELECT note_path, embedding FROM session_embeddings "
             "WHERE session_id = ? ORDER BY note_path",
             (session.session_id,),
-        ).fetchall() == before_rows
-        assert observer.execute(
+        ).fetchall()
+        == before_rows
+    )
+    assert (
+        db.execute(
             "SELECT note_path, embedding, model_version FROM embeddings ORDER BY note_path"
-        ).fetchall() == before_cache
+        ).fetchall()
+        == before_cache
+    )
+    uri = f"{db_path.resolve().as_uri()}?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as observer:
+        assert (
+            observer.execute(
+                "SELECT note_path, embedding FROM session_embeddings "
+                "WHERE session_id = ? ORDER BY note_path",
+                (session.session_id,),
+            ).fetchall()
+            == before_rows
+        )
+        assert (
+            observer.execute(
+                "SELECT note_path, embedding, model_version FROM embeddings ORDER BY note_path"
+            ).fetchall()
+            == before_cache
+        )
 
     db.execute("DROP TRIGGER fail_session_embedding_insert")
     db.commit()
     session.compute_embeddings(changed_notes)
     assert session.get_embedding(sample_notes[0].path) is not None
     db.close()
-
-
-def test_cosine_similarity():
-    """Test cosine similarity computation."""
-    a = np.array([1.0, 0.0, 0.0])
-    b = np.array([1.0, 0.0, 0.0])
-    c = np.array([0.0, 1.0, 0.0])
-
-    # Identical vectors should have similarity 1.0
-    assert abs(cosine_similarity(a, b) - 1.0) < 1e-6
-
-    # Orthogonal vectors should have similarity 0.0
-    assert abs(cosine_similarity(a, c)) < 1e-6
-
-    # Zero vector should have similarity 0.0
-    zero = np.array([0.0, 0.0, 0.0])
-    assert cosine_similarity(a, zero) == 0.0
 
 
 def test_find_similar_notes(fixed_embeddings):

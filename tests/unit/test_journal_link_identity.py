@@ -17,7 +17,7 @@ from geistfabrik.date_collection import (
 )
 from geistfabrik.embeddings import EmbeddingComputer, Session
 from geistfabrik.filtering import SuggestionFilter
-from geistfabrik.graph_analysis import GraphPatternFinder, _are_linked
+from geistfabrik.graph_analysis import GraphPatternFinder
 from geistfabrik.models import Note, NoteLinkIndex, Suggestion
 from geistfabrik.stats import StatsCollector
 from geistfabrik.vault import Vault
@@ -190,7 +190,6 @@ def test_persisted_links_resolve_consistently_across_consumers(tmp_path: Path) -
         assert ctx.backlinks(first) == [reader]
         assert ctx.backlinks(second) == [first]
         assert len(ctx.links_between(first, second)) == 2
-        assert _are_linked(first, second, ctx.link_index())
         assert GraphPatternFinder(ctx).shortest_path(reader, second) == [reader, first, second]
 
         stats = StatsCollector(vault, vault.config)

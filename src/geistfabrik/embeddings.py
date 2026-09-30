@@ -153,6 +153,27 @@ SKLEARN_OPTIMIZATIONS = {
 }
 
 
+def combine_embedding(
+    semantic: np.ndarray,
+    temporal: np.ndarray,
+    semantic_weight: float = DEFAULT_SEMANTIC_WEIGHT,
+) -> np.ndarray:
+    """Weight and concatenate semantic and temporal features.
+
+    The single implementation of session-embedding composition, used by
+    ``Session.compute_embeddings`` and ``EmbeddingComputer.compute_temporal_embedding``.
+
+    Args:
+        semantic: Semantic embedding (384 dims in production)
+        temporal: Temporal features (3 dims)
+        semantic_weight: Weight for the semantic part; temporal gets 1 - weight
+
+    Returns:
+        ``concat(semantic * w, temporal * (1 - w))``
+    """
+    return np.concatenate([semantic * semantic_weight, temporal * (1.0 - semantic_weight)])
+
+
 class EmbeddingComputer:
     """Handles embedding computation using sentence-transformers."""
 
@@ -316,20 +337,11 @@ class EmbeddingComputer:
         Returns:
             387-dimensional embedding (384 semantic + 3 temporal)
         """
-        # Compute semantic embedding
-        semantic = self.compute_semantic(note.content)
-
-        # Compute temporal features
-        temporal = self.compute_temporal_features(note, session_date)
-
-        # Weight and combine
-        temporal_weight = 1.0 - semantic_weight
-        semantic_scaled = semantic * semantic_weight
-        temporal_scaled = temporal * temporal_weight
-
-        # Concatenate
-        embedding = np.concatenate([semantic_scaled, temporal_scaled])
-        return embedding
+        return combine_embedding(
+            self.compute_semantic(note.content),
+            self.compute_temporal_features(note, session_date),
+            semantic_weight,
+        )
 
     def close(self) -> None:
         """Clean up model resources."""
@@ -645,13 +657,7 @@ class Session:
         for note in notes:
             semantic = semantic_embeddings[note.path]
             temporal = self.computer.compute_temporal_features(note, self.date)
-
-            # Weight and combine (matching compute_temporal_embedding logic)
-            semantic_weight = DEFAULT_SEMANTIC_WEIGHT
-            temporal_weight = 1.0 - DEFAULT_SEMANTIC_WEIGHT
-            semantic_scaled = semantic * semantic_weight
-            temporal_scaled = temporal * temporal_weight
-            embedding = np.concatenate([semantic_scaled, temporal_scaled])
+            embedding = combine_embedding(semantic, temporal)
 
             # Serialise embedding to bytes using numpy's native format (safe)
             # Store as float32 to reduce storage size (sufficient precision for embeddings)
@@ -857,6 +863,31 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     # accumulation can drift a few ulps outside the range, so clamp the result.
     similarity = float(np.dot(scaled_a, scaled_b) / (scaled_norm_a * scaled_norm_b))
     return max(-1.0, min(1.0, similarity))
+
+
+def cosine_similarity_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Compute pairwise cosine similarity between the rows of two matrices.
+
+    Vectorised counterpart of :func:`cosine_similarity`, shared by every
+    VaultContext similarity matrix (``batch_similarity`` and
+    ``unlinked_pairs``). Computed in float64; a zero row has similarity 0.0
+    with every row (never NaN), and results are clamped to [-1, 1].
+
+    Args:
+        a: (N, d) matrix
+        b: (M, d) matrix
+
+    Returns:
+        (N, M) matrix where element [i, j] is cosine(a[i], b[j])
+    """
+    a64 = np.asarray(a, dtype=np.float64)
+    b64 = np.asarray(b, dtype=np.float64)
+    norms_a = np.linalg.norm(a64, axis=1, keepdims=True)
+    norms_b = np.linalg.norm(b64, axis=1, keepdims=True)
+    unit_a = a64 / np.where(norms_a == 0, 1.0, norms_a)
+    unit_b = b64 / np.where(norms_b == 0, 1.0, norms_b)
+    result: np.ndarray = np.clip(unit_a @ unit_b.T, -1.0, 1.0)
+    return result
 
 
 def find_similar_notes(

@@ -503,32 +503,6 @@ Second.
     assert len(paths) == 2
 
 
-def test_detect_virtual_path():
-    """Test can identify virtual vs regular paths."""
-    virtual_path = "journal.md/2025-01-15"
-    regular_path = "journal.md"
-
-    assert "/" in virtual_path
-    assert "/" not in regular_path
-
-
-def test_extract_source_file():
-    """Test extract source file from virtual path."""
-    virtual_path = "Daily Journal.md/2025-01-15"
-    source_file = virtual_path.split("/")[0]
-
-    assert source_file == "Daily Journal.md"
-
-
-def test_extract_entry_date():
-    """Test extract entry date from virtual path."""
-    virtual_path = "journal.md/2025-01-15"
-    date_str = virtual_path.split("/")[1]
-
-    assert date_str == "2025-01-15"
-    assert date.fromisoformat(date_str) == date(2025, 1, 15)
-
-
 # Helper Function Tests
 
 

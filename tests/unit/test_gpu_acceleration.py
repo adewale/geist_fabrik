@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from geistfabrik import embeddings
 from geistfabrik.embeddings import EmbeddingComputer
+from tests.stubs import SentenceTransformerStub
 
 
 class TestDeviceDetection:
@@ -87,14 +88,22 @@ class TestDeviceDetection:
 
         assert any("Using device:" in record.message for record in caplog.records)
 
-    def test_device_only_detected_once(self):
-        """Test that device detection only happens once."""
+    def test_device_detected_once_and_reused_after_model_reload(self, monkeypatch, tmp_path):
+        """Device probing runs once per computer: reloading the model after
+        close() reuses the detected device instead of probing torch again,
+        and the model is constructed on that device."""
+        monkeypatch.setattr(embeddings, "_bundled_model_path", lambda _name: tmp_path)
         computer = EmbeddingComputer()
+        detect = MagicMock(return_value="mps")
+        monkeypatch.setattr(computer, "_detect_device", detect)
 
-        # First access
-        device1 = computer._detect_device()
+        first = computer.model
+        _ = computer.model
+        computer.close()
+        second = computer.model
 
-        # Second access should return same device
-        device2 = computer._detect_device()
-
-        assert device1 == device2
+        assert detect.call_count == 1
+        assert second is not first  # close() really forced a reload
+        assert isinstance(first, SentenceTransformerStub)
+        assert isinstance(second, SentenceTransformerStub)
+        assert first.device == second.device == "mps"

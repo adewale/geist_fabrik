@@ -377,24 +377,6 @@ class SqliteVecBackend(VectorSearchBackend):
                 "sqlite-vec extension not available. Install with: pip install sqlite-vec"
             ) from error
 
-    def _get_or_create_vec_id(self, path: str) -> int:
-        """Get or create a vec_id for a note path.
-
-        Args:
-            path: Note path
-
-        Returns:
-            Integer ID for use as vec_search rowid
-        """
-        # Check cache first
-        if path in self._path_to_id:
-            return self._path_to_id[path]
-
-        vec_id = self._lookup_or_create_vec_id(path)
-        self._path_to_id[path] = vec_id
-        self._id_to_path[vec_id] = path
-        return vec_id
-
     def _lookup_or_create_vec_id(self, path: str) -> int:
         """Resolve durable mapping without publishing it to instance caches."""
         cursor = self.db.execute("SELECT vec_id FROM vec_path_mapping WHERE note_path = ?", (path,))

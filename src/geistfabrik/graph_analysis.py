@@ -10,22 +10,9 @@ island_hopper, hidden_hub, and other geists.
 from collections import deque
 from typing import TYPE_CHECKING
 
-from .models import NoteLinkIndex
-
 if TYPE_CHECKING:
     from geistfabrik.models import Note
     from geistfabrik.vault_context import VaultContext
-
-
-def _are_linked(a: "Note", b: "Note", index: NoteLinkIndex) -> bool:
-    """True if either note links directly to the other.
-
-    Pass the complete vault index so duplicate aliases cannot
-    be resolved differently just because only two notes were considered.
-    """
-    return any(index.resolve(link.target, a.path) == b.path for link in a.links) or any(
-        index.resolve(link.target, b.path) == a.path for link in b.links
-    )
 
 
 class GraphPatternFinder:
@@ -139,7 +126,7 @@ class GraphPatternFinder:
                 for j in range(i + 1, len(connected_list)):
                     note_b = connected_list[j]
                     # Cheap link check first, similarity lookup second
-                    if _are_linked(note_a, note_b, self.vault.link_index()):
+                    if self.vault.has_link(note_a, note_b):
                         continue
                     if float(sim_matrix[i, j]) >= min_similarity:
                         # Found a bridge!

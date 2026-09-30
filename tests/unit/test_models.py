@@ -8,22 +8,6 @@ from geistfabrik.models import Link, Note, Suggestion
 class TestNote:
     """Tests for Note hashability and equality."""
 
-    def test_note_is_hashable(self):
-        """Test that Note objects can be hashed."""
-        note = Note(
-            path="test.md",
-            title="Test",
-            content="Content",
-            links=[],
-            tags=[],
-            created=datetime(2023, 1, 1),
-            modified=datetime(2023, 1, 1),
-        )
-
-        # Should not raise TypeError
-        hash_value = hash(note)
-        assert isinstance(hash_value, int)
-
     def test_notes_in_set(self):
         """Test that Notes can be added to sets (the bug that broke before).
 
@@ -158,34 +142,6 @@ class TestNote:
         paths = {n.path for n in unique_notes}
         assert paths == {"note.md", "other.md"}
 
-    def test_notes_as_dict_keys(self):
-        """Test that Notes can be used as dictionary keys."""
-        note1 = Note(
-            path="note1.md",
-            title="Note 1",
-            content="Content",
-            links=[],
-            tags=[],
-            created=datetime(2023, 1, 1),
-            modified=datetime(2023, 1, 1),
-        )
-
-        note2 = Note(
-            path="note2.md",
-            title="Note 2",
-            content="Content",
-            links=[],
-            tags=[],
-            created=datetime(2023, 1, 1),
-            modified=datetime(2023, 1, 1),
-        )
-
-        # Should work as dict keys
-        note_metadata = {note1: "metadata1", note2: "metadata2"}
-
-        assert note_metadata[note1] == "metadata1"
-        assert note_metadata[note2] == "metadata2"
-
     def test_note_equality_with_non_note(self):
         """Test that comparing Note with non-Note returns NotImplemented."""
         note = Note(
@@ -202,60 +158,9 @@ class TestNote:
         assert note != 123
         assert note != None  # noqa: E711
 
-    def test_set_operations_on_notes(self):
-        """Test set operations like union, intersection, difference."""
-        note1 = Note(
-            path="note1.md",
-            title="Note 1",
-            content="",
-            links=[],
-            tags=[],
-            created=datetime(2023, 1, 1),
-            modified=datetime(2023, 1, 1),
-        )
-
-        note2 = Note(
-            path="note2.md",
-            title="Note 2",
-            content="",
-            links=[],
-            tags=[],
-            created=datetime(2023, 1, 1),
-            modified=datetime(2023, 1, 1),
-        )
-
-        note3 = Note(
-            path="note3.md",
-            title="Note 3",
-            content="",
-            links=[],
-            tags=[],
-            created=datetime(2023, 1, 1),
-            modified=datetime(2023, 1, 1),
-        )
-
-        set_a = {note1, note2}
-        set_b = {note2, note3}
-
-        # Union
-        assert set_a | set_b == {note1, note2, note3}
-
-        # Intersection
-        assert set_a & set_b == {note2}
-
-        # Difference
-        assert set_a - set_b == {note1}
-        assert set_b - set_a == {note3}
-
 
 class TestLink:
     """Tests for Link model."""
-
-    def test_link_is_hashable(self):
-        """Test that Link objects can be hashed (frozen dataclass)."""
-        link = Link(target="test.md")
-        hash_value = hash(link)
-        assert isinstance(hash_value, int)
 
     def test_links_in_set(self):
         """Test that Links can be added to sets."""

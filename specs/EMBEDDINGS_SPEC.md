@@ -140,10 +140,12 @@ These are coordinate scaling factors, not a guarantee that 90% of a cosine
 score comes from semantics. In particular, unbounded age can eventually make
 the temporal contribution large.
 
-The direct `EmbeddingComputer.compute_temporal_embedding()` helper accepts a
-`semantic_weight` argument with the same default. It returns the NumPy
-concatenation without forcing float32; the session persistence boundary performs
-that cast. The CLI session pipeline uses the default weight.
+`embeddings.combine_embedding()` is the single implementation of this
+composition. `Session.compute_embeddings()` calls it with the default weight
+for every note (fresh and semantic-cache hits alike) and casts the result to
+float32 when persisting. The direct `EmbeddingComputer.compute_temporal_embedding()`
+helper delegates to the same function, accepts a `semantic_weight` argument with
+the same default, and returns the NumPy concatenation without forcing float32.
 
 ## Session persistence and ownership
 

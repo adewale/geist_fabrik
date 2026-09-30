@@ -20,7 +20,7 @@ import numpy as np
 
 from .clustering_analysis import Cluster, format_cluster_label
 from .config import TOTAL_DIM
-from .embeddings import Session, cosine_similarity
+from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
 from .models import Link, Note, NoteLinkIndex
 from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
@@ -205,56 +205,6 @@ def _surprisal_blocked(
 
         for offset in range(end - start):
             scores[paths[start + offset]] = float(surprisal[offset])
-
-    return scores
-
-
-def _surprisal_naive(embeddings: dict[str, np.ndarray], k_neighbours: int) -> dict[str, float]:
-    """Readable reference implementation of surprisal (plain Python loops).
-
-    Used by the differential test to define correctness for the blocked
-    implementation (_surprisal_blocked). O(N²) Python-level work — do NOT
-    use in production code.
-
-    Args:
-        embeddings: Mapping of note path to embedding vector
-        k_neighbours: Number of nearest neighbours forming the centroid
-
-    Returns:
-        Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
-        fewer than k_neighbours + 1 notes are available
-    """
-    paths = sorted(embeddings)
-    n = len(paths)
-    if k_neighbours < 1 or n < k_neighbours + 1:
-        return {}
-
-    # Normalise each vector (zero vectors stay zero)
-    normed: dict[str, np.ndarray] = {}
-    for path in paths:
-        vector = np.asarray(embeddings[path], dtype=np.float64)
-        norm = float(np.linalg.norm(vector))
-        normed[path] = vector / norm if norm > 0 else vector
-
-    scores: dict[str, float] = {}
-    for path in paths:
-        # Rank all other notes by cosine similarity
-        sims = []
-        for other in paths:
-            if other == path:
-                continue
-            sims.append((float(np.dot(normed[path], normed[other])), other))
-        sims.sort(key=lambda pair: pair[0], reverse=True)
-        top_paths = [other for _, other in sims[:k_neighbours]]
-
-        # Centroid of the top-k neighbours, normalised (zero-norm guarded)
-        centroid = np.mean([normed[other] for other in top_paths], axis=0)
-        norm = float(np.linalg.norm(centroid))
-        if norm > 0:
-            centroid = centroid / norm
-
-        surprisal = 1.0 - float(np.dot(normed[path], centroid))
-        scores[path] = float(min(max(surprisal, 0.0), 2.0))
 
     return scores
 
@@ -670,24 +620,8 @@ class VaultContext:
         matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), 387)
         matrix_b = np.stack(embeddings_b)  # shape: (len(notes_b), 387)
 
-        # Normalise rows to unit vectors for cosine similarity
-        # ||a|| = sqrt(sum(a^2)) for each row
-        norms_a = np.linalg.norm(matrix_a, axis=1, keepdims=True)
-        norms_b = np.linalg.norm(matrix_b, axis=1, keepdims=True)
-
-        # Avoid division by zero
-        norms_a = np.where(norms_a == 0, 1, norms_a)
-        norms_b = np.where(norms_b == 0, 1, norms_b)
-
-        matrix_a_normalised = matrix_a / norms_a
-        matrix_b_normalised = matrix_b / norms_b
-
-        # Compute cosine similarity matrix: A @ B.T
-        # Result shape: (len(notes_a), len(notes_b))
-        similarity_matrix = matrix_a_normalised @ matrix_b_normalised.T
-
-        # Clip to [0, 1] range (numerical errors can cause slight overshoot)
-        similarity_matrix = np.clip(similarity_matrix, 0.0, 1.0)
+        # Cosine similarity matrix, clipped to [0, 1] like similarity()
+        similarity_matrix = np.clip(cosine_similarity_matrix(matrix_a, matrix_b), 0.0, 1.0)
 
         # Phase 3: Populate cache for newly computed pairs
         for i in range(len(notes_a)):
@@ -1254,12 +1188,7 @@ class VaultContext:
         # Vectorised: Compute all pairwise similarities at once
         embeddings_matrix = np.array(embeddings_list)
 
-        # Matrix multiplication: X @ X^T gives all dot products
-        similarity_matrix = np.dot(embeddings_matrix, embeddings_matrix.T)
-
-        # Normalise to get cosine similarities
-        norms = np.linalg.norm(embeddings_matrix, axis=1)
-        similarity_matrix = similarity_matrix / np.outer(norms, norms)
+        similarity_matrix = cosine_similarity_matrix(embeddings_matrix, embeddings_matrix)
 
         # Extract high-similarity pairs (upper triangle only, threshold > 0.5)
         pairs = []
@@ -1564,9 +1493,7 @@ class VaultContext:
         session_now = self.session.date
         words = note.content.split()
         word_count = len(words)
-        days_since_modified = max(
-            0, (session_now.date() - note.modified.date()).days
-        )
+        days_since_modified = max(0, (session_now.date() - note.modified.date()).days)
         task_count = len(_TASK_PATTERN.findall(note.content))
         completed_task_count = len(_COMPLETED_TASK_PATTERN.findall(note.content))
         metadata = {
