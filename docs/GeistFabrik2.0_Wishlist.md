@@ -468,9 +468,10 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 
 **Tracery Usage**:
 ```yaml
+origin: ["#[picked:#cluster#]template#"]  # split ONE saved cluster
 cluster: ["$vault.semantic_clusters(2, 3)"]
-seed: ["#cluster.split_seed#"]
-neighbours: ["#cluster.split_neighbours#"]
+seed: ["#picked.split_seed#"]
+neighbours: ["#picked.split_neighbours#"]
 ```
 
 **Additional Cluster Functions Needed** (post-1.0):
@@ -479,39 +480,40 @@ neighbours: ["#cluster.split_neighbours#"]
    ```yaml
    # Enables contradictor-style Tracery geists
    cluster: ["$vault.contrarian_clusters(2, 3)"]
-   note: ["#cluster.split_seed#"]
-   opposites: ["#cluster.split_contrarians#"]
+   note: ["#picked.split_seed#"]  # with origin "#[picked:#cluster#]template#"
+   opposites: ["#picked.split_contrarians#"]
    ```
 
 2. **`temporal_clusters(count, k)`** - Pairs notes with temporally distant neighbours
    ```yaml
    # Enables time-based provocations
    cluster: ["$vault.temporal_clusters(2, 3)"]
-   old_note: ["#cluster.split_seed#"]
-   recent_similar: ["#cluster.split_temporal_neighbours#"]
+   old_note: ["#picked.split_seed#"]  # with origin "#[picked:#cluster#]template#"
+   recent_similar: ["#picked.split_temporal_neighbours#"]
    ```
 
 3. **`bridge_clusters(count)`** - Identifies note pairs that bridge clusters
    ```yaml
    # Enables bridge-finding in Tracery
    cluster: ["$vault.bridge_clusters(2)"]
-   cluster_a: ["#cluster.split_cluster_a#"]
-   cluster_b: ["#cluster.split_cluster_b#"]
-   bridge: ["#cluster.split_bridge_note#"]
+   cluster_a: ["#picked.split_cluster_a#"]  # with origin "#[picked:#cluster#]template#"
+   cluster_b: ["#picked.split_cluster_b#"]
+   bridge: ["#picked.split_bridge_note#"]
    ```
 
 4. **`tag_clusters(count, k)`** - Samples tags and their associated notes
    ```yaml
    # Enables tag-based provocations
    cluster: ["$vault.tag_clusters(2, 3)"]
-   tag: ["#cluster.split_tag#"]
-   tagged_notes: ["#cluster.split_notes#"]
+   tag: ["#picked.split_tag#"]  # with origin "#[picked:#cluster#]template#"
+   tagged_notes: ["#picked.split_notes#"]
    ```
 
 **Design Principles**:
 - All parameters must be resolvable at preprocessing (integers, string literals)
 - Return structured strings with delimiters (|||, ::, |)
-- Add matching Tracery modifiers to extract parts
+- Add matching Tracery modifiers to extract parts, applied to ONE saved draw
+  (`#[picked:#cluster#]template#`) so every part comes from the same cluster
 - Format lists using Tracery conventions ("A, B, and C")
 
 **Validation**: Static analysis prevents unsafe patterns (`$vault.neighbours(#symbol#, 3)` raises error at load time)

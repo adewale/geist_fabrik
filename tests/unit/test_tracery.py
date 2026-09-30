@@ -1186,23 +1186,158 @@ tracery:
     assert geist.geist_id == "safe_geist"
 
 
-def test_validation_allows_semantic_clusters_pattern(tmp_path: Path) -> None:
-    """Validation should allow the semantic_clusters pattern."""
-    yaml_content = """type: geist-tracery
-id: semantic_neighbours
-tracery:
-  origin: "[[#seed#]] connects to #neighbours#"
-  cluster:
-    - "$vault.semantic_clusters(2, 3)"
-  seed:
-    - "#cluster.split_seed#"
-  neighbours:
-    - "#cluster.split_neighbours#"
-"""
+# ============================================================================
+# Save actions: [key:rule], [key:POP], #[key:rule]symbol#
+# ============================================================================
 
-    yaml_file = tmp_path / "clusters.yaml"
-    yaml_file.write_text(yaml_content)
+NAMES = ["alder", "birch", "cedar", "damson", "elm", "fir", "gorse", "hazel"]
 
-    # Should not raise any error (no vault function with symbol args)
-    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
-    assert geist.geist_id == "semantic_neighbours"
+
+def test_saved_symbol_expands_once_and_is_reused() -> None:
+    """``[hero:#name#]`` draws ONE name; every later ``#hero#`` repeats it.
+
+    Contract: a save action expands its rule exactly once and later references
+    reuse that text (with modifiers applied to it), across many seeds.
+    Regression: re-expanding ``#name#`` per reference (the semantic_neighbours
+    bug) yields different names within one sentence.
+    """
+    draws = 0
+
+    def counted(text: str) -> str:
+        nonlocal draws
+        draws += 1
+        return text
+
+    for seed in range(40):
+        draws = 0
+        engine = TraceryEngine(
+            {
+                "origin": ["[hero:#name.counted#]#hero# met #hero.capitalize#, then #hero#"],
+                "name": NAMES,
+            },
+            seed=seed,
+        )
+        engine.add_modifier("counted", counted)
+        first, second, third = engine.expand("#origin#").replace(",", "").split(" ")[::2]
+        assert draws == 1
+        assert first in NAMES
+        assert second == first.capitalize()
+        assert third == first
+
+
+def test_two_saved_symbols_stay_independent() -> None:
+    """Two saves from the same rule keep their own values.
+
+    Regression: one shared slot for every key would make ``#a#`` and ``#b#``
+    always equal; independent draws must differ for some seed.
+    """
+    grammar = {"origin": ["[a:#name#][b:#name#]#a#|#b#|#a#|#b#"], "name": NAMES}
+    pairs = set()
+    for seed in range(40):
+        a1, b1, a2, b2 = TraceryEngine(grammar, seed=seed).expand("#origin#").split("|")
+        assert (a1, b1) == (a2, b2)
+        pairs.add((a1, b1))
+    assert any(a != b for a, b in pairs)
+    assert len({a for a, _ in pairs}) > 1
+
+
+@pytest.mark.parametrize(
+    ("rule", "expected"),
+    [
+        # A later push shadows an earlier one; POP restores it.
+        ("[x:alpha][x:beta]#x# #x#[x:POP] #x#", "beta beta alpha"),
+        # A saved key shadows the grammar symbol of the same name.
+        ("[word:saved]#word#", "saved"),
+        # A tag preaction lasts only while that tag expands.
+        ("#[x:inner]show# #x#", "inner #x#"),
+        ("[x:outer]#[x:inner]show# #x#", "inner outer"),
+        # Modifiers apply to the saved text.
+        ("[x:#word#]#x.capitalize#", "Word"),
+        # An unterminated action (e.g. in vault data) is literal; later tags still expand.
+        ("[x: never closed #word#", "[x: never closed word"),
+        # Wikilinks, markdown links and non-action brackets stay literal.
+        ("[[Todo: list]] and [text](url) [see this]", "[[Todo: list]] and [text](url) [see this]"),
+    ],
+)
+def test_save_action_known_answers(rule: str, expected: str) -> None:
+    """Known answers for push, POP, shadowing, tag scope, and literal brackets."""
+    engine = TraceryEngine({"origin": [rule], "show": ["#x#"], "word": ["word"]}, seed=1)
+    assert engine.expand("#origin#") == expected
+
+
+def test_saved_values_do_not_leak_between_top_level_expansions() -> None:
+    """Each suggestion starts clean: a save from one expansion is gone in the next."""
+    engine = TraceryEngine({"origin": ["[x:first]#x#"]}, seed=1)
+    assert engine.expand("#origin#") == "first"
+    assert engine.expand("#x#") == "#x#"
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "[pair:#cluster#]#pair.split_seed# and #pair.split_neighbours#",
+        "#[pair:#cluster#]story#",
+        "#[a:#cluster#][b:#cluster#]story#",
+        "[pair:#cluster#]#pair#[pair:POP]",
+        "[[Wikilink: with colon]] [not an action] [text](url) C# #story#",
+    ],
+)
+def test_preflight_accepts_valid_actions(rule: str) -> None:
+    """The shared load/validate preflight accepts well-formed action syntax."""
+    grammar = {"origin": [rule], "cluster": ["[[A]]|||[[B]]"], "story": ["#pair#"]}
+    TraceryGeist.preflight_grammar(grammar, "ok", Path("ok.yaml"))
+
+
+@pytest.mark.parametrize(
+    ("rule", "problem"),
+    [
+        ("[pair:#cluster# never closed", "unterminated action"),
+        ("#[pair:#cluster#]#", "has actions but no symbol"),
+        ("#[pair]story#", "malformed preaction"),
+        ("#[pair:#cluster#", "unterminated preaction"),
+        ("#[pair:#cluster#]story", "unterminated tag"),
+        ("#story[pair:x]#", "actions must come before the symbol"),
+        ("[pair:$vault.sample_notes(1)]#pair#", "contains a $vault call"),
+        ("[outer:#[bad]story#]#outer#", "malformed preaction"),
+    ],
+)
+def test_preflight_rejects_malformed_actions(rule: str, problem: str) -> None:
+    """Malformed actions fail at load time instead of degrading to literal text."""
+    grammar = {"origin": [rule], "cluster": ["[[A]]|||[[B]]"], "story": ["x"]}
+    with pytest.raises(ValueError, match="Malformed Tracery action") as exc_info:
+        TraceryGeist.preflight_grammar(grammar, "bad", Path("bad.yaml"))
+    assert problem in str(exc_info.value)
+
+
+def test_preflight_rejects_deep_action_nesting_as_a_value_error() -> None:
+    """Pathological nesting is a load error, not a RecursionError crash."""
+    rule = "[a:" * 2000 + "x" + "]" * 2000
+    with pytest.raises(ValueError, match="nested deeper than"):
+        TraceryGeist.preflight_grammar({"origin": [rule]}, "deep", Path("deep.yaml"))
+
+
+def test_validator_treats_saved_keys_as_defined_symbols(tmp_path: Path) -> None:
+    """Strict ``geistfabrik validate`` passes a grammar that reads a saved key.
+
+    Regression: the undefined-symbol check only knew grammar keys, so ``#hero#``
+    was reported as undefined (blocking in strict mode) although it runs.
+    """
+    from geistfabrik.validator import GeistValidator
+
+    geist_file = tmp_path / "saver.yaml"
+    geist_file.write_text(
+        "type: geist-tracery\n"
+        "id: saver\n"
+        "description: saves a name\n"
+        "tracery:\n"
+        '  origin: ["#[hero:#name#]story#"]\n'
+        '  story: ["#hero# and #hero#"]\n'
+        '  name: ["alder", "birch"]\n'
+    )
+    result = GeistValidator(strict=True).validate_tracery_geist(geist_file, root=tmp_path)
+    assert result.passed, [issue.message for issue in result.issues]
+
+    geist_file.write_text(geist_file.read_text().replace("#[hero:#name#]story#", "#story#"))
+    result = GeistValidator(strict=True).validate_tracery_geist(geist_file, root=tmp_path)
+    # Control: without the save, the same reference really is undefined.
+    assert "Undefined symbols referenced: hero" in [i.message for i in result.issues]

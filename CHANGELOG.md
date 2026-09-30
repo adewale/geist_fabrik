@@ -88,6 +88,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is about 1.0 for a few distinct words. The geist now counts it as evidence
   only for notes of at least 100 words. The `lexical_diversity` metadata key
   itself is unchanged (still raw TTR, a float in [0, 1]).
+- semantic_neighbours could pair one cluster's seed with another cluster's
+  neighbours, even listing the seed among its own "neighbours" ("around
+  [[Note 1]]: [[Note 0]], [[Note 1]]"): its seed and neighbours each
+  re-expanded `#cluster#`. The Tracery engine now supports Tracery's save
+  actions (`[key:#symbol#]`, `[key:POP]`, `#[key:#symbol#]other#`), and the
+  geist splits one saved cluster. Grammar preflight (shared by loading and
+  `geistfabrik validate`) rejects malformed actions, and `validate` no longer
+  reports saved keys as undefined symbols.
 
 ### Tests
 - Acceptance criteria AC-5.3 (write session note), AC-5.6 (multi-day

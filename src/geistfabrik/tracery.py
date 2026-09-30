@@ -10,6 +10,7 @@ import re
 import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import Literal, NamedTuple
 
 from .bounded_yaml import load_bounded_yaml
 from .config import (
@@ -40,6 +41,174 @@ class TraceryLimitError(TraceryExecutionError):
     """Raised when a grammar exceeds an invocation resource limit."""
 
 
+# Tracery save actions: ``[key:rule]`` expands ``rule`` once and pushes the
+# result onto ``key``; ``[key:POP]`` pops it. A rule-level action lasts until
+# the end of the top-level expansion; a preaction inside a tag
+# (``#[key:rule]symbol#``) is popped again once that tag has expanded.
+# ``[[wikilinks]]`` and brackets not followed by ``key:`` stay literal text.
+_SAVE_KEY = r"[A-Za-z_][A-Za-z0-9_]*"
+_ACTION_START = re.compile(rf"\[({_SAVE_KEY}):")
+_SAVE_KEY_RE = re.compile(_SAVE_KEY)
+_VAULT_CALL_RE = re.compile(r"\$vault\.\w+\(")
+_BRACKET_RE = re.compile(r"[\[\]]")
+_SPECIAL_RE = re.compile(r"[\[#]")
+# Preflight rejects deeper nesting of actions inside action rules; this bounds
+# its recursion (runtime expansion is bounded by TraceryEngine.max_depth).
+_MAX_ACTION_NESTING = 50
+
+
+class _Section(NamedTuple):
+    """One parsed piece of a rule: literal text, an action, or a tag."""
+
+    kind: Literal["text", "action", "tag"]
+    text: str  # literal text, action body ("key:rule"), or tag symbol+modifiers
+    preactions: tuple[str, ...] = ()  # action bodies preceding a tag's symbol
+    raw: str = ""  # original tag text between the '#' delimiters
+
+
+def _bracket_pairs(rule: str) -> dict[int, int]:
+    """Map the index of each matched ``[`` to its closing ``]`` in one pass."""
+    pairs: dict[int, int] = {}
+    opened: list[int] = []
+    for match in _BRACKET_RE.finditer(rule):
+        if match.group() == "[":
+            opened.append(match.start())
+        elif opened:
+            pairs[opened.pop()] = match.start()
+    return pairs
+
+
+def _parse_action(body: str) -> tuple[str, str] | None:
+    """Split an action body into ``(key, rule)``; None if it is not ``key:rule``."""
+    key, sep, value = body.partition(":")
+    if not sep or not _SAVE_KEY_RE.fullmatch(key):
+        return None
+    return key, value
+
+
+def _scan_rule(rule: str) -> tuple[tuple[_Section, ...], tuple[str, ...]]:
+    """Split a rule into sections, collecting action syntax errors.
+
+    Runtime expansion and grammar preflight share this scanner, so a rule
+    that preflight accepts is parsed identically when it runs. Malformed
+    actions degrade to literal text at runtime (vault data must never crash
+    expansion); preflight turns the collected errors into load failures.
+    Tags keep the historical ``#symbol#`` semantics: a lone ``#`` is literal.
+    """
+    sections: list[_Section] = []
+    errors: list[str] = []
+    literal: list[str] = []
+    pairs = _bracket_pairs(rule)
+    index = 0
+
+    def flush() -> None:
+        if literal:
+            sections.append(_Section("text", "".join(literal)))
+            literal.clear()
+
+    while index < len(rule):
+        special = _SPECIAL_RE.search(rule, index)
+        if special is None:
+            literal.append(rule[index:])
+            break
+        if special.start() > index:
+            literal.append(rule[index : special.start()])
+            index = special.start()
+        char = rule[index]
+        if char == "[":
+            # [[wikilinks]] and brackets not followed by "key:" are literal.
+            if (index > 0 and rule[index - 1] == "[") or not _ACTION_START.match(rule, index):
+                literal.append(char)
+                index += 1
+                continue
+            close = pairs.get(index, -1)
+            if close == -1:
+                errors.append(f"unterminated action {rule[index : index + 40]!r}")
+                literal.append(char)
+                index += 1
+                continue
+            flush()
+            sections.append(_Section("action", rule[index + 1 : close]))
+            index = close + 1
+            continue
+
+        # char == "#": a tag, optionally led by [key:rule] preactions.
+        cursor = index + 1
+        preactions: list[str] = []
+        malformed = False
+        while cursor < len(rule) and rule[cursor] == "[":
+            close = pairs.get(cursor, -1)
+            if close == -1:
+                errors.append(f"unterminated preaction in tag {rule[index : index + 40]!r}")
+                malformed = True
+                break
+            body = rule[cursor + 1 : close]
+            if _parse_action(body) is None:
+                errors.append(f"malformed preaction [{body}]: expected [key:rule]")
+            preactions.append(body)
+            cursor = close + 1
+        end = -1 if malformed else rule.find("#", cursor)
+        if end == -1:
+            if preactions and not malformed:
+                errors.append(f"unterminated tag {rule[index : index + 40]!r}")
+            literal.append(char)  # A lone '#' is literal text.
+            index += 1
+            continue
+        symbol = rule[cursor:end]
+        if not symbol and not preactions:
+            literal.append(char)  # "##" is not a tag; the 2nd '#' may open one.
+            index += 1
+            continue
+        if not symbol:
+            errors.append(f"tag {rule[index : end + 1]!r} has actions but no symbol")
+        elif _ACTION_START.search(symbol):
+            errors.append(f"tag {rule[index : end + 1]!r}: actions must come before the symbol")
+        flush()
+        sections.append(_Section("tag", symbol, tuple(preactions), raw=rule[index + 1 : end]))
+        index = end + 1
+    flush()
+    return tuple(sections), tuple(errors)
+
+
+def _action_bodies(section: _Section) -> tuple[str, ...]:
+    return (section.text,) if section.kind == "action" else section.preactions
+
+
+def _action_errors(rule: str, nesting: int = 0) -> list[str]:
+    """Return every action-syntax error in ``rule``, including nested rules."""
+    sections, scan_errors = _scan_rule(rule)
+    errors = list(scan_errors)
+    for section in sections:
+        for body in _action_bodies(section):
+            parsed = _parse_action(body)
+            if parsed is None or parsed[1] == "POP":
+                continue
+            key, value = parsed
+            if _VAULT_CALL_RE.search(value):
+                errors.append(
+                    f"[{key}:...] contains a $vault call; vault functions run before "
+                    f"expansion, so define a symbol for the call and save #symbol#"
+                )
+            if nesting >= _MAX_ACTION_NESTING:
+                errors.append(f"actions nested deeper than {_MAX_ACTION_NESTING} levels")
+                return errors
+            errors.extend(_action_errors(value, nesting + 1))
+    return errors
+
+
+def saved_symbol_names(rule: str, nesting: int = 0) -> set[str]:
+    """Return the keys that ``rule`` saves with ``[key:...]`` actions."""
+    names: set[str] = set()
+    for section in _scan_rule(rule)[0]:
+        for body in _action_bodies(section):
+            parsed = _parse_action(body)
+            if parsed is not None:
+                names.add(parsed[0])
+                if nesting < _MAX_ACTION_NESTING:
+                    names |= saved_symbol_names(parsed[1], nesting + 1)
+    return names
+
+
 class TraceryEngine:
     """Simple Tracery grammar engine with vault function support."""
 
@@ -62,6 +231,9 @@ class TraceryEngine:
         self.expansions_remaining = MAX_TRACERY_EXPANSIONS
         self.vault_calls_remaining = MAX_TRACERY_VAULT_CALLS
         self.vault_items_remaining = MAX_TRACERY_VAULT_ITEMS
+        # Stacks of values saved by [key:rule] actions; reset per top-level expand.
+        self._saved: dict[str, list[str]] = {}
+        self._saved_bytes = 0
 
     def begin_invocation(self, timeout: int) -> None:
         """Reset cooperative per-invocation budgets."""
@@ -399,26 +571,30 @@ class TraceryEngine:
     def expand(self, text: str, depth: int = 0) -> str:
         """Expand a text template using grammar rules.
 
+        A call with ``depth == 0`` is a top-level expansion: it starts with no
+        saved ``[key:rule]`` values, so nothing leaks between suggestions.
+
         Args:
-            text: Template text with #symbols# to expand
+            text: Template text with #symbols# and [key:rule] actions
             depth: Current recursion depth (for infinite loop prevention)
 
         Returns:
             Expanded text
 
         Raises:
-            RecursionError: If expansion exceeds max depth
+            TraceryLimitError: If expansion exceeds max depth or a budget
         """
         self._consume("expansion")
         if depth > self.max_depth:
             raise TraceryLimitError(f"Tracery expansion exceeded max depth ({self.max_depth})")
+        if depth == 0:
+            self._saved = {}
+            self._saved_bytes = 0
 
         # Expand incrementally so amplification is rejected before a large
         # intermediate string is allocated.
-        pattern = r"#([^#]+)#"
         pieces: list[str] = []
         output_bytes = 0
-        cursor = 0
 
         def append_piece(piece: str) -> None:
             nonlocal output_bytes
@@ -427,18 +603,66 @@ class TraceryEngine:
                 raise TraceryLimitError(f"Tracery output exceeds {MAX_TRACERY_OUTPUT_BYTES} bytes")
             pieces.append(piece)
 
-        for match in re.finditer(pattern, text):
-            append_piece(text[cursor : match.start()])
-            append_piece(self._expand_symbol(match.group(1), depth + 1))
-            cursor = match.end()
-        append_piece(text[cursor:])
+        sections, _ = _scan_rule(text)
+        for section in sections:
+            if section.kind == "text":
+                append_piece(section.text)
+            elif section.kind == "action":
+                self._run_action(section.text, depth + 1)
+            else:
+                append_piece(self._expand_tag(section, depth + 1))
         return "".join(pieces)
+
+    def _run_action(self, body: str, depth: int) -> str | None:
+        """Run a ``[key:rule]`` push or ``[key:POP]``; return the pushed key.
+
+        The rule is expanded once and its text saved verbatim: later ``#key#``
+        references reuse that exact text instead of re-expanding it.
+        """
+        parsed = _parse_action(body)
+        if parsed is None:
+            return None  # Preflight rejects these; runtime ignores them.
+        key, value = parsed
+        if value == "POP":
+            self._pop(key)
+            return None
+        saved = self.expand(value, depth)
+        self._saved_bytes += len(saved.encode("utf-8"))
+        if self._saved_bytes > MAX_TRACERY_OUTPUT_BYTES:
+            raise TraceryLimitError(f"Tracery saved values exceed {MAX_TRACERY_OUTPUT_BYTES} bytes")
+        self._saved.setdefault(key, []).append(saved)
+        return key
+
+    def _pop(self, key: str) -> None:
+        stack = self._saved.get(key)
+        if not stack:
+            return
+        self._saved_bytes -= len(stack.pop().encode("utf-8"))
+        if not stack:
+            del self._saved[key]
+
+    def _expand_tag(self, section: _Section, depth: int) -> str:
+        """Expand a ``#[key:rule]symbol.mods#`` tag, popping its preactions after."""
+        if any(_parse_action(body) is None for body in section.preactions):
+            return f"#{section.raw}#"  # Malformed: leave it visible, like unknown symbols.
+        pushed = [self._run_action(body, depth) for body in section.preactions]
+        try:
+            if not section.text:
+                return ""
+            return self._expand_symbol(section.text, depth)
+        finally:
+            for key in reversed(pushed):
+                if key is not None:
+                    self._pop(key)
 
     def _expand_symbol(self, symbol: str, depth: int) -> str:
         """Expand a single symbol with optional modifiers.
 
         Supports syntax: symbol.modifier1.modifier2
         For example: animal.s.capitalize -> pluralize then capitalize
+
+        A value saved by ``[symbol:rule]`` takes precedence over (shadows) the
+        grammar's rules for ``symbol`` and is used as-is, not re-expanded.
 
         Args:
             symbol: Symbol name with optional .modifiers
@@ -452,19 +676,17 @@ class TraceryEngine:
         symbol_name = parts[0]
         modifier_names = parts[1:] if len(parts) > 1 else []
 
-        # Check if symbol exists in grammar
-        if symbol_name not in self.grammar:
+        saved = self._saved.get(symbol_name)
+        if saved:
+            expanded = saved[-1]
+        elif symbol_name not in self.grammar:
             return f"#{symbol}#"  # Return unchanged if not in grammar
-
-        rules = self.grammar[symbol_name]
-        if not rules:
-            return ""
-
-        # Select random rule
-        selected = self.rng.choice(rules)
-
-        # Recursively expand the selected rule
-        expanded = self.expand(selected, depth)
+        else:
+            rules = self.grammar[symbol_name]
+            if not rules:
+                return ""
+            # Select a random rule and recursively expand it
+            expanded = self.expand(self.rng.choice(rules), depth)
 
         # Apply modifiers in order
         result = expanded
@@ -600,6 +822,20 @@ class TraceryGeist:
                         f"(Designing Tracery-Safe Vault Functions)"
                     )
 
+                action_errors = _action_errors(rule)
+                if action_errors:
+                    raise ValueError(
+                        f"Malformed Tracery action in {yaml_path}\n"
+                        f"  → Geist: {geist_id}\n"
+                        f"  → Symbol: {symbol}\n"
+                        f"  → Problem: {action_errors[0]}\n"
+                        f"  → Syntax: [key:#symbol#] expands #symbol# once and saves it; "
+                        f"#key# (with any .modifiers) reuses the saved text; "
+                        f"[key:POP] discards it; #[key:#symbol#]other# saves it "
+                        f"only while #other# expands\n"
+                        f"  → See: specs/tracery_research.md (Push-Pop Stack Memory)"
+                    )
+
     @classmethod
     def preflight_grammar(
         cls, grammar: object, geist_id: str, yaml_path: Path
@@ -628,8 +864,7 @@ class TraceryGeist:
 
         if data.get("type") != "geist-tracery":
             raise ValueError(
-                f"Invalid geist type in {yaml_path}: {data.get('type')!r}; "
-                "expected 'geist-tracery'"
+                f"Invalid geist type in {yaml_path}: {data.get('type')!r}; expected 'geist-tracery'"
             )
 
         geist_id = data.get("id")

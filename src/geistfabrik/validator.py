@@ -11,7 +11,7 @@ from .bounded_yaml import BoundedYAMLError, load_bounded_yaml
 from .config import DEFAULT_GEIST_TIMEOUT
 from .execution_timeout import _alarm_timeout
 from .path_safety import PathSafetyError, ensure_contained
-from .tracery import TraceryGeist
+from .tracery import TraceryGeist, saved_symbol_names
 
 
 @dataclass
@@ -300,9 +300,7 @@ class GeistValidator:
         # Runtime and standalone validation share every blocking structural
         # check. Additional checks below are advisory only.
         try:
-            definition_id, count, grammar = TraceryGeist.preflight_definition(
-                data, geist_file
-            )
+            definition_id, count, grammar = TraceryGeist.preflight_definition(data, geist_file)
         except ValueError as exc:
             issues.append(ValidationIssue(severity="error", message=str(exc)))
         else:
@@ -360,6 +358,11 @@ class GeistValidator:
         symbol_pattern = r"#([a-zA-Z_][a-zA-Z0-9_]*)#"
         referenced_symbols = set()
         defined_symbols = set(grammar.keys())
+        # Symbols saved at runtime by [key:rule] actions are defined too.
+        for rules in grammar.values():
+            for rule in rules if isinstance(rules, list) else [rules]:
+                if isinstance(rule, str):
+                    defined_symbols |= saved_symbol_names(rule)
 
         for symbol, rules in grammar.items():
             if isinstance(rules, list):

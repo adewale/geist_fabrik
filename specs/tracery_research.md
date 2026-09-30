@@ -41,6 +41,9 @@ Tracery grammars are JSON objects where keys are symbols and values are arrays o
 ```
 Syntax: `[variable:value]` saves generated text for reuse within the expansion.
 
+GeistFabrik's engine supports this syntax (see "Save actions" under
+GeistFabrik Implementation below for its exact semantics).
+
 #### Built-in Modifiers
 - `.capitalize` - Capitalizes first letter
 - `.s` - Pluralizes
@@ -68,8 +71,34 @@ Example: `#animal.a.capitalize#` might produce "An Owl" or "A Fox"
 - **Core features**: Symbol expansion, modifiers, deterministic randomness
 - **Built-in modifiers**: `.capitalize`, `.capitalizeAll`, `.s` (pluralize), `.ed` (past tense), `.a` (article)
 - **Custom modifiers**: `.split_seed`, `.split_neighbours` (for cluster functions)
+- **Save actions**: `[key:#symbol#]`, `[key:POP]` and tag preactions `#[key:#symbol#]other#`
 - **Vault integration**: `$vault.*` function preprocessing
 - **Safety features**: Anti-pattern validation, recursion limits (`max_depth = 50`)
+
+#### Save actions
+
+Every `#symbol#` reference draws a fresh rule. When two parts of one sentence
+must describe the same draw, save it once and reuse it:
+
+| Syntax | Effect |
+|--------|--------|
+| `[key:#symbol#]` in a rule | Expands `#symbol#` once and pushes the text onto `key`, for the rest of this suggestion |
+| `#key#`, `#key.modifier#` | Reuses the saved text verbatim (it is not re-expanded); modifiers apply to it |
+| `[key:POP]` | Discards the latest saved value, restoring the previous one |
+| `#[key:#symbol#]other#` | Saves `key` only while `#other#` expands, then pops it |
+
+GeistFabrik specifics, compared with tracery.js:
+
+- A saved key shadows a grammar symbol of the same name.
+- The pushed rule is one value; commas in it are literal text (no `a,b` choice lists).
+- Saved values reset at the start of every suggestion, so nothing leaks between them.
+- Only `[identifier:` starts an action. `[[wikilinks]]`, `[text](url)` and other
+  brackets remain literal text.
+- `$vault.*` calls cannot appear inside an action (they run before expansion):
+  give the call its own symbol and save `#symbol#`.
+- Load-time preflight, shared by the loader and `geistfabrik validate`, rejects
+  malformed actions: an unterminated `[key:...`, a preaction that is not
+  `key:rule`, a tag with actions but no symbol, or an action after the symbol.
 
 The custom implementation was chosen over pytracery to:
 - Integrate deeply with VaultContext and vault functions
@@ -562,6 +591,7 @@ def execute_tracery_geist(geist_id: str, grammar: dict, count: int,
 - Validation catches unsafe patterns at load time
 - Deterministic randomness via `seed` parameter
 - Custom modifiers (`.split_seed`, `.split_neighbours`) for cluster functions
+- Save actions (`[key:#symbol#]`, `[key:POP]`, `#[key:#symbol#]other#`); saved text is reused verbatim
 
 ### Metadata Bridge Pattern
 
@@ -714,12 +744,19 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 
 **Tracery Usage**:
 ```yaml
-# ✓ WORKS - Bundles seed + neighbours in preprocessing
-# Template uses extracted values as-is (already bracketed)
-origin: "#seed# shares space with #neighbours#. What connects them?"
+# ✓ WORKS - Bundles seed + neighbours in preprocessing, then splits ONE
+# saved cluster. Template uses extracted values as-is (already bracketed).
+origin: "#[picked:#cluster#]template#"   # Draw one cluster, save it as `picked`
+template: "#seed# shares space with #neighbours#. What connects them?"
 cluster: ["$vault.semantic_clusters(2, 3)"]
-seed: ["#cluster.split_seed#"]           # Extracts "[[Seed Note]]"
-neighbours: ["#cluster.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+seed: ["#picked.split_seed#"]           # Extracts "[[Seed Note]]"
+neighbours: ["#picked.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+
+# ❌ WRONG - Splitting two separate references to #cluster#
+# seed: ["#cluster.split_seed#"]
+# neighbours: ["#cluster.split_neighbours#"]
+# Each #cluster# reference draws its own cluster, so the seed can be paired
+# with another seed's neighbours (even listed among its own "neighbours").
 
 # ❌ WRONG - Don't add brackets, they're already in the extracted values
 # origin: "[[#seed#]] shares space with [[#neighbours#]]"
@@ -743,6 +780,7 @@ This design provides:
 2. **Parameters must be resolvable at preprocessing** - Only integers, strings (quoted literals), not symbols
 3. **Return structured strings** (for cluster functions) - Use delimiters (|||, |, ::, etc.) to bundle related data
 4. **Add matching modifiers** (for cluster functions) - Custom Tracery modifiers to extract parts
+   from ONE saved expansion (`#[picked:#cluster#]template#`), never from separate `#cluster#` references
 5. **Format like Tracery** - Use same comma/and patterns for lists
 6. **Test the preprocessing** - Functions execute once before any symbol expansion
 
