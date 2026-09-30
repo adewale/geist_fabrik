@@ -20,9 +20,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
+    # Random draws can repeat a pair; suggest each pair at most once
+    seen_pairs: set[frozenset[str]] = set()
 
-    # Get random pairs of notes
-    notes = vault.notes()
+    # Get random pairs of notes (session journal output is not collision material)
+    notes = vault.notes_excluding_journal()
 
     if len(notes) < 2:
         return []
@@ -34,6 +36,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         note_a, note_b = pair
+        pair_key = frozenset((note_a.path, note_b.path))
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
 
         # Check if they're unlinked and dissimilar
         if vault.links_between(note_a, note_b):

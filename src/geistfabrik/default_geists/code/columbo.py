@@ -21,9 +21,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik import Suggestion
 
     suggestions = []
+    # Each contradiction is reported once, whichever note of the pair is seen first
+    reported_pairs: set[frozenset[str]] = set()
 
-    # Sample notes to check for contradictions
-    notes = vault.notes()
+    # Sample notes to check for contradictions (session journal output is not a claim)
+    notes = vault.notes_excluding_journal()
     if len(notes) < 3:
         return []
 
@@ -44,7 +46,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         similar_with_scores = vault.neighbours(note, count=5, return_scores=True)
 
         for other, similarity in similar_with_scores:
-            if other.path == note.path:
+            if other.path == note.path or other.path.startswith("geist journal/"):
+                continue
+            pair = frozenset((note.path, other.path))
+            if pair in reported_pairs:
                 continue
 
             other_content = vault.read(other).lower()
@@ -101,6 +106,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         f"to contradict each other—what gives?"
                     )
 
+                reported_pairs.add(pair)
                 suggestions.append(
                     Suggestion(
                         text=text,

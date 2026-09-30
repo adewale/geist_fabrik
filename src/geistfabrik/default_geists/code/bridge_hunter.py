@@ -21,15 +21,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    # Get unlinked pairs
-    all_pairs = vault.unlinked_pairs(count=20)
-
-    # Filter out pairs involving geist journal notes
-    pairs = [
-        (a, b)
-        for a, b in all_pairs
-        if not a.path.startswith("geist journal/") and not b.path.startswith("geist journal/")
-    ]
+    # Get unlinked pairs, excluding geist journal notes before the top-20 cut
+    # (templated journal notes are similar to each other and would otherwise
+    # fill every slot, leaving no pairs of the user's own notes)
+    pairs = vault.unlinked_pairs(count=20, exclude_journal=True)
 
     if len(pairs) < 2:
         return []

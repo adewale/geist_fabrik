@@ -1,385 +1,184 @@
-"""Unit tests for island_hopper geist."""
+"""Unit tests for the island_hopper geist.
+
+island_hopper needs >= 10 notes. For each of the top 5 hubs it forms a
+cluster of the hub plus its backlinkers (>= 3 notes), then picks the
+non-member whose AVERAGE similarity to the cluster is inside the bridge window
+SimilarityLevel.MODERATE (0.5) < avg < SimilarityLevel.HIGH (0.65): close
+enough to bridge, not so close it belongs in the cluster. One suggestion per
+hub, at most 3 in total.
+
+Fixtures use the bag-of-words test stub. Cluster members carry the same 16
+topic words; a bridge carries 9 of them plus 7 words of its own, so its
+average cosine to the cluster is ~0.57 (inside the window). A near-copy
+carrying 14 of them is ~0.8 (too close).
+"""
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import island_hopper
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.similarity_analysis import SimilarityLevel
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_clusters(tmp_path):
-    """Create a vault with disconnected clusters that could be bridged."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create cluster A: AI hub with backlinks
-    (vault_path / "ai_hub.md").write_text(
-        "# AI Hub\n\nCentral hub for artificial intelligence topics."
-    )
-    (vault_path / "neural_networks.md").write_text(
-        "# Neural Networks\n\nDeep learning networks. See [[ai_hub]]."
-    )
-    (vault_path / "machine_learning.md").write_text(
-        "# Machine Learning\n\nLearning algorithms. See [[ai_hub]]."
-    )
-    (vault_path / "deep_learning.md").write_text(
-        "# Deep Learning\n\nMulti-layer networks. See [[ai_hub]]."
-    )
-
-    # Create cluster B: Cognition hub with backlinks
-    (vault_path / "cognition_hub.md").write_text(
-        "# Cognition Hub\n\nCentral hub for cognitive science topics."
-    )
-    (vault_path / "thinking.md").write_text(
-        "# Thinking\n\nCognitive processes. See [[cognition_hub]]."
-    )
-    (vault_path / "reasoning.md").write_text(
-        "# Reasoning\n\nLogical reasoning. See [[cognition_hub]]."
-    )
-    (vault_path / "mental_models.md").write_text(
-        "# Mental Models\n\nThought frameworks. See [[cognition_hub]]."
-    )
-
-    # Create potential bridge notes (semantically related to clusters but not linked)
-    (vault_path / "artificial_intelligence.md").write_text(
-        "# Artificial Intelligence\n\n"
-        "Intelligent systems using neural networks and machine learning."
-    )
-    (vault_path / "cognitive_computing.md").write_text(
-        "# Cognitive Computing\n\nComputing inspired by thinking and reasoning."
-    )
-
-    # Add unrelated notes to increase vault size
-    for i in range(5):
-        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+CAP = 3
+MIN_NOTES = 10
+CREATED = datetime(2024, 1, 1)
+TOPICS = {
+    "Orchard": "orchard pruning grafting apple blossom cider rootstock scion "
+    "espalier codling russet pippin quince medlar perry windfall",
+    "Glacier": "glacier moraine crevasse icefall serac firn cirque tarn "
+    "nunatak drumlin esker arete bergschrund ablation calving sastrugi",
+    "Violin": "violin bowing rosin fingerboard vibrato luthier spruce purfling "
+    "scroll pegbox tailpiece chinrest soundpost fholes varnish maple",
+    "Bakery": "bakery sourdough levain crumb proofing banneton flour oven "
+    "brioche baguette focaccia ciabatta starter lame couche hydration",
+}
+BRIDGES = {"Orchard": "Wayfarer", "Glacier": "Pilgrim", "Violin": "Nomad", "Bakery": "Drifter"}
+BRIDGE_SHARED = 9  # avg cosine ~0.57
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes for cluster detection."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 8 notes (below minimum of 10)
-    for i in range(8):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _bridge_body(name: str, shared: int) -> str:
+    words = TOPICS[name].split()
+    own = [f"{name.lower()}bridge{i}" for i in range(len(words) - shared)]
+    return " ".join(words[:shared] + own)
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _add_island(
+    builder: VaultBuilder, name: str, *, linkers: int = 2, bridge_shared: int = BRIDGE_SHARED
+) -> str:
+    """Hub ``name`` plus ``linkers`` backlinkers on the same topic, and a bridge note."""
+    builder.note(name, TOPICS[name], created=CREATED)
+    for i in range(linkers):
+        builder.note(f"{name} Linker {i}", f"{TOPICS[name]} [[{name}]]", created=CREATED)
+    bridge = BRIDGES[name]
+    builder.note(bridge, _bridge_body(name, bridge_shared), created=CREATED)
+    return bridge
 
 
-def test_island_hopper_returns_suggestions(vault_with_clusters):
-    """Test that island_hopper returns suggestions with disconnected clusters.
+def _add_fillers(builder: VaultBuilder, count: int) -> None:
+    for i in range(count):
+        builder.note(f"Filler {i}", f"filler{i} loose{i} idle{i}", created=CREATED)
 
-    Setup:
-        Vault with disconnected note clusters.
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_clusters
+def _avg_sim_to_cluster(ctx: VaultContext, title: str, hub: str) -> float:
+    note, hub_note = ctx.resolve_link_target(title), ctx.resolve_link_target(hub)
+    assert note is not None and hub_note is not None
+    cluster = [hub_note, *ctx.backlinks(hub_note)]
+    return float(ctx.batch_similarity([note], cluster).mean())
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+def test_island_hopper_proposes_bridge_to_hub_cluster(tmp_path: Path) -> None:
+    """Contract: a note moderately close to a hub's cluster is proposed as its bridge.
+
+    Trigger: hub + 2 backlinkers (cluster of 3 >= 3), bridge avg ~0.57 in
+    (0.5, 0.65), 10 notes total.
+    """
+    builder = VaultBuilder(tmp_path)
+    bridge = _add_island(builder, "Orchard")
+    _add_fillers(builder, MIN_NOTES - 4)
+    ctx = builder.build()
+    avg = _avg_sim_to_cluster(ctx, bridge, "Orchard")
+    assert SimilarityLevel.MODERATE < avg < SimilarityLevel.HIGH
+
+    suggestions = island_hopper.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "island_hopper", must_reference=[bridge, "Orchard"])
+    assert len(suggestions) == 1
+    assert suggestions[0].notes[:2] == [bridge, "Orchard"]
+    assert set(suggestions[0].notes[2:]) <= {"Orchard", "Orchard Linker 0", "Orchard Linker 1"}
+    assert suggestions[0].text.startswith(
+        f"[[{bridge}]] could bridge your cluster around [[Orchard]]"
     )
 
-    suggestions = island_hopper.suggest(context)
 
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
+def test_island_hopper_caps_at_three_distinct_hubs(tmp_path: Path) -> None:
+    """Contract: 4 hubs each with a bridge -> exactly 3 suggestions, distinct hubs."""
+    builder = VaultBuilder(tmp_path)
+    bridges = {name: _add_island(builder, name) for name in TOPICS}
+    ctx = builder.build()
+
+    suggestions = island_hopper.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "island_hopper", min_count=CAP)
+    assert len(suggestions) == CAP
+    hubs = [s.notes[1] for s in suggestions]
+    assert len(set(hubs)) == CAP
+    assert all(s.notes[0] == bridges[s.notes[1]] for s in suggestions)
 
 
-def test_island_hopper_suggestion_structure(vault_with_clusters):
-    """Test that suggestions have correct structure.
+@pytest.mark.parametrize(("linkers", "fires"), [(1, False), (2, True)])
+def test_island_hopper_needs_cluster_of_three(tmp_path: Path, linkers: int, fires: bool) -> None:
+    """Contract: hub + 1 backlinker (cluster of 2) -> []; hub + 2 -> bridge proposed."""
+    builder = VaultBuilder(tmp_path)
+    _add_island(builder, "Orchard", linkers=linkers)
+    _add_fillers(builder, MIN_NOTES - 2 - linkers)
+    ctx = builder.build()
 
-    Setup:
-        Vault with isolated clusters.
+    suggestions = island_hopper.suggest(ctx)
 
-    Verifies:
-        - Has required fields
-        - References notes from different clusters"""
-    vault, session = vault_with_clusters
+    if fires:
+        assert_valid_suggestions(suggestions, "island_hopper", must_reference=[BRIDGES["Orchard"]])
+    else:
+        assert suggestions == []
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+def test_island_hopper_rejects_notes_too_close_to_the_cluster(tmp_path: Path) -> None:
+    """Contract: a note above the HIGH bound belongs in the cluster, not bridging it."""
+    builder = VaultBuilder(tmp_path)
+    bridge = _add_island(builder, "Orchard", bridge_shared=14)
+    _add_fillers(builder, MIN_NOTES - 4)
+    ctx = builder.build()
+    assert _avg_sim_to_cluster(ctx, bridge, "Orchard") >= SimilarityLevel.HIGH
+
+    assert island_hopper.suggest(ctx) == []
+
+
+def test_island_hopper_picks_the_closest_in_window_bridge(tmp_path: Path) -> None:
+    """Contract: of several in-window candidates, the most similar one is proposed."""
+    builder = VaultBuilder(tmp_path)
+    weaker = _add_island(builder, "Orchard")  # ~0.57
+    builder.note("Stronger", _bridge_body("Orchard", BRIDGE_SHARED + 1), created=CREATED)  # ~0.61
+    _add_fillers(builder, MIN_NOTES - 5)
+    ctx = builder.build()
+    assert (
+        SimilarityLevel.MODERATE
+        < _avg_sim_to_cluster(ctx, weaker, "Orchard")
+        < _avg_sim_to_cluster(ctx, "Stronger", "Orchard")
+        < SimilarityLevel.HIGH
     )
 
-    suggestions = island_hopper.suggest(context)
+    suggestions = island_hopper.suggest(ctx)
 
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "island_hopper"
-
-        # Should reference multiple notes (bridge + hub + cluster sample)
-        assert len(suggestion.notes) >= 3
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
+    assert_valid_suggestions(suggestions, "island_hopper", must_reference=["Stronger"])
+    assert suggestions[0].notes[0] == "Stronger"
 
 
-def test_island_hopper_uses_link_text(vault_with_clusters):
-    """Test that island_hopper uses link_text for note references.
+def test_island_hopper_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are neither cluster members nor bridges.
 
-    Setup:
-        Vault with isolated clusters.
+    Two journal sessions link to the hub (so, unfiltered, they join its
+    cluster and can be sampled as members), and a journal note with 10 shared
+    topic words is a closer in-window bridge candidate (~0.61) than the
+    regular one (~0.57).
+    """
+    builder = VaultBuilder(tmp_path)
+    bridge = _add_island(builder, "Orchard")
+    journal = ["Session Alpha", "Session Beta"]
+    for title in journal:
+        builder.journal(title, f"[[Orchard]] {TOPICS['Orchard']}", created=CREATED)
+    builder.journal("Session Gamma", _bridge_body("Orchard", BRIDGE_SHARED + 1), created=CREATED)
+    journal.append("Session Gamma")
+    _add_fillers(builder, MIN_NOTES - 4)
+    ctx = builder.build()
 
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_clusters
+    suggestions = island_hopper.suggest(ctx)
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "island_hopper",
+        must_reference=[bridge, "Orchard"],
+        must_not_reference=["geist journal", *journal],
     )
-
-    suggestions = island_hopper.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_island_hopper_empty_vault(tmp_path):
-    """Test that island_hopper handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = island_hopper.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_island_hopper_insufficient_notes(vault_insufficient_notes):
-    """Test that island_hopper handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 15 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = island_hopper.suggest(context)
-
-    # Should return empty list when < 10 notes
-    assert len(suggestions) == 0
-
-
-def test_island_hopper_max_suggestions(vault_with_clusters):
-    """Test that island_hopper never returns more than 3 suggestions.
-
-    Setup:
-        Vault with multiple islands.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_clusters
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = island_hopper.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_island_hopper_deterministic_with_seed(vault_with_clusters):
-    """Test that island_hopper returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_clusters
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = island_hopper.suggest(context1)
-    suggestions2 = island_hopper.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_island_hopper_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\nJournal content with potential clusters and connections."
-        )
-
-    # Create cluster A: AI hub with backlinks
-    (vault_path / "ai_hub.md").write_text(
-        "# AI Hub\n\nCentral hub for artificial intelligence topics."
-    )
-    (vault_path / "neural_networks.md").write_text(
-        "# Neural Networks\n\nDeep learning networks. See [[ai_hub]]."
-    )
-    (vault_path / "machine_learning.md").write_text(
-        "# Machine Learning\n\nLearning algorithms. See [[ai_hub]]."
-    )
-
-    # Create cluster B: Cognition hub with backlinks
-    (vault_path / "cognition_hub.md").write_text(
-        "# Cognition Hub\n\nCentral hub for cognitive science topics."
-    )
-    (vault_path / "thinking.md").write_text(
-        "# Thinking\n\nCognitive processes. See [[cognition_hub]]."
-    )
-    (vault_path / "reasoning.md").write_text(
-        "# Reasoning\n\nLogical reasoning. See [[cognition_hub]]."
-    )
-
-    # Create bridge notes
-    (vault_path / "artificial_intelligence.md").write_text(
-        "# Artificial Intelligence\n\n"
-        "Intelligent systems using neural networks and machine learning."
-    )
-
-    # Add additional notes
-    for i in range(5):
-        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = island_hopper.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()

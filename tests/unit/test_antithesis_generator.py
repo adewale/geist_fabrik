@@ -1,488 +1,177 @@
-"""Unit tests for antithesis_generator geist."""
+"""Unit tests for the antithesis_generator geist.
+
+antithesis_generator needs >= 10 notes. A note "makes strong claims" when at
+least 3 claim indicators (is, are, must, should, always, never, ...) occur in
+it as substrings. For each such note it looks among its 20 nearest
+neighbours for an existing antithesis (>= 2 negation substrings such as not,
+no, never, against; "anti"/"contra" in the title counts double):
+  - found: suggest developing the thesis/antithesis pair;
+  - none: suggest writing one, with a suggested title "Anti-<title>" (or
+    "Against <title>" when the title contains "the").
+A second pass suggests a synthesis for similar (> 0.5) opposed pairs. At most
+2 suggestions are returned.
+
+Fixtures use the bag-of-words test stub. Every fixture word is checked to
+contain none of the indicator substrings, so claim and negation counts are
+exactly the planted marker words.
+"""
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import antithesis_generator
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+CAP = 2
+MIN_NOTES = 10
+CREATED = datetime(2024, 1, 1)
+CLAIMS = "must should always"  # 3 claim indicators
+INDICATORS = (
+    "is are must should always never will cannot impossible necessary essential fundamental "
+    "critical key important proves not no contra anti against opposite reverse yes"
+).split()
+TOPICS = {
+    "Tern": "tern plover curlew dunlin godwit sanderling",
+    "Kiln": "kiln glaze porcelain celadon slip raku",
+    "Fjord": "fjord skerry sound strait headland cove",
+}
+FILLER_WORDS = "quokka wombat platypus echidna dugong"
+TITLE_WORDS = ["claims", "counter", "filler", "session", "weather"]
 
 
-@pytest.fixture
-def vault_with_claims(tmp_path):
-    """Create a vault with notes containing strong claims."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _add_fillers(builder: VaultBuilder, count: int) -> None:
+    for i in range(count):
+        builder.note(f"Filler {chr(65 + i)}", FILLER_WORDS, created=CREATED)
 
-    # Create notes with strong claims (high claim indicators)
-    claim_notes = [
-        (
-            "Strong Position.md",
-            "This is fundamental. It must be essential. This will always prove critical.",
-        ),
-        (
-            "Absolute View.md",
-            "This cannot be changed. It is impossible to deny. This proves everything.",
-        ),
-        (
-            "Necessary Truth.md",
-            "This should always be important. It is key that we never forget this.",
-        ),
-    ]
 
-    for filename, content in claim_notes:
-        (vault_path / filename).write_text(f"# {filename.replace('.md', '')}\n\n{content}")
+def test_fixture_words_contain_no_indicator_substrings() -> None:
+    """Guard for the fixture itself: counts must come only from planted marker words."""
+    vocabulary = [*" ".join(TOPICS.values()).split(), *FILLER_WORDS.split(), *TITLE_WORDS]
+    assert not [(v, w) for v in vocabulary for w in INDICATORS if w in v]
 
-    # Create regular notes with fewer claim indicators
-    for i in range(8):
-        (vault_path / f"regular_{i}.md").write_text(
-            f"# Regular Note {i}\n\nSome general content here."
+
+@pytest.mark.parametrize(
+    ("title", "suggested_title"),
+    [("Tern Claims", "Anti-Tern Claims"), ("Weather Claims", "Against Weather Claims")],
+)
+def test_antithesis_generator_proposes_antithesis_for_strong_claim(
+    tmp_path: Path, title: str, suggested_title: str
+) -> None:
+    """Contract: a strong-claim note with no counterpart gets an antithesis proposal.
+
+    Trigger: 10 notes; the claim note has 3 indicators; fillers have none and
+    no negations, so no existing antithesis is found.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(title, f"{TOPICS['Tern']} {CLAIMS}", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 1)
+    ctx = builder.build()
+
+    suggestions = antithesis_generator.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "antithesis_generator", must_reference=[title])
+    assert len(suggestions) == 1
+    assert suggestions[0].notes == [title]
+    assert suggestions[0].title == suggested_title
+    assert "What if you wrote its antithesis" in suggestions[0].text
+
+
+def test_antithesis_generator_recognises_existing_antithesis(tmp_path: Path) -> None:
+    """Contract: a similar note with >= 2 negations is offered as the antithesis."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Tern Claims", f"{TOPICS['Tern']} {CLAIMS}", created=CREATED)
+    builder.note("Tern Counter", f"{TOPICS['Tern']} never against", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 2)
+    ctx = builder.build()
+
+    suggestions = antithesis_generator.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions, "antithesis_generator", must_reference=["Tern Claims", "Tern Counter"]
+    )
+    assert suggestions[0].notes == ["Tern Claims", "Tern Counter"]
+    assert "seems to challenge it" in suggestions[0].text
+
+
+def test_antithesis_generator_proposes_synthesis_for_opposed_pair(tmp_path: Path) -> None:
+    """Contract: similar notes with opposed polarity get a titled synthesis proposal.
+
+    The claim has 2 positive markers (must, always); its neighbour (cosine
+    > 0.5) has 3 negative ones (never, not, and "no" inside "not").
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Tern Claims", f"{TOPICS['Tern']} {CLAIMS}", created=CREATED)
+    builder.note("Tern Counter", f"{TOPICS['Tern']} never not", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 2)
+    ctx = builder.build()
+
+    suggestions = antithesis_generator.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "antithesis_generator")
+    synthesis = [s for s in suggestions if s.title == "Synthesis: Tern Claims + Tern Counter"]
+    assert len(synthesis) == 1
+    assert synthesis[0].notes == ["Tern Claims", "Tern Counter"]
+    assert "dialectically opposed" in synthesis[0].text
+
+
+def test_antithesis_generator_caps_at_two_distinct_notes(tmp_path: Path) -> None:
+    """Contract: 3 strong-claim notes -> exactly 2 suggestions about distinct notes."""
+    builder = VaultBuilder(tmp_path)
+    claims = [f"{topic} Claims" for topic in TOPICS]
+    for topic, title in zip(TOPICS, claims):
+        builder.note(title, f"{TOPICS[topic]} {CLAIMS}", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - len(claims))
+    ctx = builder.build()
+
+    suggestions = antithesis_generator.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "antithesis_generator", min_count=CAP)
+    assert len(suggestions) == CAP
+    assert len({s.notes[0] for s in suggestions}) == CAP
+    assert {s.notes[0] for s in suggestions} <= set(claims)
+
+
+@pytest.mark.parametrize(("markers", "fires"), [("must should", False), (CLAIMS, True)])
+def test_antithesis_generator_claim_threshold(tmp_path: Path, markers: str, fires: bool) -> None:
+    """Contract: 2 claim indicators are not a strong claim; 3 are."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Tern Claims", f"{TOPICS['Tern']} {markers}", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 1)
+    ctx = builder.build()
+
+    suggestions = antithesis_generator.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(
+            suggestions, "antithesis_generator", must_reference=["Tern Claims"]
         )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+    else:
+        assert suggestions == []
 
 
-@pytest.fixture
-def vault_with_antithesis_pairs(tmp_path):
-    """Create a vault with thesis/antithesis pairs."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def test_antithesis_generator_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are neither theses nor antitheses.
 
-    # Thesis note with strong claims
-    (vault_path / "thesis.md").write_text(
-        "# Thesis\n\nThis is fundamental. It must be essential. This will always be true."
+    Three journal notes make strong claims (they would be theses), and one is
+    a close negating counterpart of the regular claim (it would be offered as
+    its antithesis).
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Tern Claims", f"{TOPICS['Tern']} {CLAIMS}", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 1)
+    journal = ["Session Kiln", "Session Fjord", "Session Weather"]
+    builder.journal(journal[0], f"{TOPICS['Kiln']} {CLAIMS}", created=CREATED)
+    builder.journal(journal[1], f"{TOPICS['Fjord']} {CLAIMS}", created=CREATED)
+    builder.journal(journal[2], f"{TOPICS['Tern']} never against", created=CREATED)
+    ctx = builder.build()
+
+    suggestions = antithesis_generator.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "antithesis_generator",
+        must_reference=["Tern Claims"],
+        must_not_reference=["geist journal", *journal],
     )
-
-    # Antithesis note with negation words
-    (vault_path / "antithesis.md").write_text(
-        "# Anti-Thesis\n\n"
-        "This is not correct. We should never accept this. It's against the evidence."
-    )
-
-    # Fill out with more notes
-    for i in range(10):
-        (vault_path / f"filler_{i}.md").write_text(f"# Filler {i}\n\nContent here.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only 5 notes (below minimum of 10)
-    for i in range(5):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_antithesis_generator_returns_suggestions(vault_with_claims):
-    """Test that antithesis_generator returns suggestions with claim notes.
-
-    Setup:
-        Vault with 3 claim notes + 8 regular notes.
-
-    Verifies:
-        - Returns list of suggestions (max 2)"""
-    vault, session = vault_with_claims
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
-
-
-def test_antithesis_generator_suggestion_structure(vault_with_claims):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with 3 claim notes + 8 regular notes.
-
-    Verifies:
-        - Suggestion has required fields (text, notes, geist_id, title)
-        - References exactly 1 note (thesis)
-        - Suggests new antithesis note title"""
-    vault, session = vault_with_claims
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "antithesis_generator"
-
-        # Should reference at least 1 note
-        assert len(suggestion.notes) >= 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_antithesis_generator_uses_link_text(vault_with_claims):
-    """Test that antithesis_generator uses link_text for note references.
-
-    Setup:
-        Vault with 3 claim notes + 8 regular notes.
-
-    Verifies:
-        - Suggestion text uses [[wiki-link]] format
-        - Note references use link_text property"""
-    vault, session = vault_with_claims
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_antithesis_generator_suggests_titles(vault_with_claims):
-    """Test that antithesis_generator suggests titles for new antithesis notes.
-
-    Setup:
-        Vault with 3 claim notes + 8 regular notes.
-
-    Verifies:
-        - Suggestion includes suggested_title field
-        - Title indicates antithesis nature"""
-    vault, session = vault_with_claims
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # Some suggestions should have title field
-    title_suggestions = [s for s in suggestions if hasattr(s, "title") and s.title]
-
-    if title_suggestions:
-        for suggestion in title_suggestions:
-            # Title should contain "Anti-" or "Against"
-            assert suggestion.title is not None
-            assert "Anti-" in suggestion.title or "Against" in suggestion.title
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_antithesis_generator_empty_vault(tmp_path):
-    """Test that antithesis_generator handles empty vault gracefully.
-
-    Setup:
-        Empty vault with no notes.
-
-    Verifies:
-        - Returns empty list without crashing"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_antithesis_generator_insufficient_notes(vault_insufficient_notes):
-    """Test that antithesis_generator handles insufficient notes gracefully.
-
-    Setup:
-        Vault with only 5 notes (minimum is 10).
-
-    Verifies:
-        - Returns empty list when note count too low"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # Should return empty list when < 10 notes
-    assert len(suggestions) == 0
-
-
-def test_antithesis_generator_no_strong_claims(tmp_path):
-    """Test that antithesis_generator handles vault without strong claims.
-
-    Setup:
-        Vault with 15 notes but no strong claims.
-
-    Verifies:
-        - Returns empty list when no claims detected"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create 15 notes with weak/no claims
-    for i in range(15):
-        (vault_path / f"note_{i}.md").write_text(
-            f"# Note {i}\n\nSome content without strong claims."
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # May return empty list if no notes pass claim threshold
-    assert isinstance(suggestions, list)
-
-
-def test_antithesis_generator_max_suggestions(vault_with_claims):
-    """Test that antithesis_generator never returns more than 2 suggestions.
-
-    Setup:
-        Vault with 3 claim notes + 8 regular notes.
-
-    Verifies:
-        - Returns at most 2 suggestions (output limit)"""
-    vault, session = vault_with_claims
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_antithesis_generator_deterministic_with_seed(vault_with_claims):
-    """Test that antithesis_generator returns same results with same seed.
-
-    Setup:
-        Vault with 11 notes, tested with identical seed twice.
-
-    Verifies:
-        - Same seed produces identical suggestions
-        - Suggestion count and text match exactly"""
-    vault, session = vault_with_claims
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = antithesis_generator.suggest(context1)
-    suggestions2 = antithesis_generator.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_antithesis_generator_recognizes_existing_antithesis(vault_with_antithesis_pairs):
-    """Test that antithesis_generator recognizes existing antithesis notes.
-
-    Setup:
-        Vault with thesis/antithesis pair already present.
-
-    Verifies:
-        - Recognizes existing antithesis relationships
-        - May return fewer suggestions when pairs exist"""
-    vault, session = vault_with_antithesis_pairs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # Should generate suggestions (either about existing pair or new antithesis)
-    assert isinstance(suggestions, list)
-
-
-def test_antithesis_generator_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal notes + regular claim notes.
-
-    Verifies:
-        - No journal notes appear in suggestions
-        - Only regular notes are suggested"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with strong claims
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\n"
-            f"This is fundamental. It must be essential. "
-            f"This will always prove critical. This cannot be denied."
-        )
-
-    # Create regular notes with strong claims
-    claim_notes = [
-        (
-            "Strong Position.md",
-            "This is fundamental. It must be essential. This will always prove critical.",
-        ),
-        (
-            "Absolute View.md",
-            "This cannot be changed. It is impossible to deny. This proves everything.",
-        ),
-        (
-            "Necessary Truth.md",
-            "This should always be important. It is key that we never forget this.",
-        ),
-    ]
-
-    for filename, content in claim_notes:
-        (vault_path / filename).write_text(f"# {filename.replace('.md', '')}\n\n{content}")
-
-    # Create regular notes
-    for i in range(8):
-        (vault_path / f"regular_{i}.md").write_text(
-            f"# Regular Note {i}\n\nSome general content here."
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = antithesis_generator.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()

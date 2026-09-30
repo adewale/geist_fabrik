@@ -69,7 +69,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Highly abstract note - suggest zooming in
         if abstract_score >= 3 and concrete_score <= 1:
             # Find more concrete similar notes
-            similar = vault.neighbours(note, count=10)
+            similar = [
+                n
+                for n in vault.neighbours(note, count=10)
+                if not n.path.startswith("geist journal/")
+            ]
 
             concrete_neighbours = []
             for other in similar:
@@ -98,7 +102,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Highly concrete note - suggest zooming out
         elif concrete_score >= 3 and abstract_score <= 1:
             # Find more abstract similar notes
-            similar = vault.neighbours(note, count=10)
+            similar = [
+                n
+                for n in vault.neighbours(note, count=10)
+                if not n.path.startswith("geist journal/")
+            ]
 
             abstract_neighbours = []
             for other in similar:
