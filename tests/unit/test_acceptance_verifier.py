@@ -1,5 +1,7 @@
 """Tests for the executable acceptance-criteria batching contract."""
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,9 +12,11 @@ from scripts.check_phase_completion import (
     combined_pytest_targets,
     evidence_problems,
     load_selection,
+    normalize_command,
     parse_criteria,
     partition_pytest_criteria,
     pytest_targets,
+    skipped_targets,
     uses_canonical_selection,
     with_selection_report,
 )
@@ -49,6 +53,45 @@ def test_marker_specific_benchmark_criterion_is_never_fast_batched() -> None:
     batchable, standalone = partition_pytest_criteria([ordinary, benchmark])
     assert batchable == [ordinary]
     assert standalone == [benchmark]
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        "-k nonexistent",
+        "--deselect tests/unit/test_cli.py::test_main_no_args_shows_help",
+        "-x",
+        "--lf",
+    ],
+)
+def test_selection_changing_options_are_never_dropped_into_the_batch(options: str) -> None:
+    """The batch rebuilds the command from targets only, so any option would be lost."""
+    criterion = _criterion("AC-1.3", f"uv run pytest tests/unit/test_cli.py {options} -v")
+    assert partition_pytest_criteria([criterion]) == ([], [criterion])
+
+
+def test_output_only_flags_and_brace_lists_stay_batchable() -> None:
+    criterion = _criterion("AC-1.4", "uv run pytest tests/unit/test_cli.py::test_{a,b} -v -q -s")
+    assert partition_pytest_criteria([criterion]) == ([criterion], [])
+
+
+def test_chained_or_targetless_pytest_commands_run_standalone() -> None:
+    chained = _criterion("AC-1.5", "cd tests && uv run pytest tests/unit/test_cli.py -v")
+    targetless = _criterion("AC-1.6", "uv run pytest --collect-only")
+    assert partition_pytest_criteria([chained, targetless]) == ([], [chained, targetless])
+
+
+@pytest.mark.parametrize(
+    "marker",
+    ["-m benchmark", '-m "benchmark"', '-m"benchmark"', "-mbenchmark", "-m=benchmark"],
+)
+def test_every_marker_spelling_is_standalone_and_not_canonical(marker: str) -> None:
+    """One predicate decides both batching and the canonical filter (no -m"x" gap)."""
+    command = f"uv run pytest tests/integration/test_scenarios.py {marker} -v"
+    criterion = _criterion("AC-11.1", command)
+    assert partition_pytest_criteria([criterion]) == ([], [criterion])
+    assert "not production_model" not in normalize_command(command)
+    assert not uses_canonical_selection(command)
 
 
 def test_benchmark_acceptance_criterion_names_every_benchmark_file() -> None:
@@ -126,6 +169,16 @@ def test_targetless_pytest_command_must_select_something() -> None:
     assert evidence_problems("uv run pytest --collect-only", _SELECTED, [], canonical=True) == []
 
 
+def test_target_whose_selected_tests_all_skipped_is_reported() -> None:
+    command = f"uv run pytest {_SCENARIOS} tests/unit/test_cli.py::test_a -v"
+    selected = [*_SELECTED, "tests/unit/test_cli.py::test_a"]
+    # One skip in a file that also ran a test is fine; a node that only skipped is not.
+    assert skipped_targets(command, selected, [_SELECTED[0], "tests/unit/test_cli.py::test_a"]) == [
+        "tests/unit/test_cli.py::test_a is not evidence: all 1 selected test(s) were skipped"
+    ]
+    assert skipped_targets(command, selected, [_SELECTED[0]]) == []
+
+
 def test_selection_report_option_is_added_to_the_pytest_invocation(tmp_path: Path) -> None:
     report = tmp_path / "r.json"
     command = with_selection_report("cd x && uv run pytest tests/unit/test_cli.py -q", report)
@@ -158,4 +211,68 @@ def test_selection_report_plugin_records_marker_deselection(pytester: pytest.Pyt
     assert load_selection(report) == (
         ["test_mixed.py::test_fast"],
         ["test_mixed.py::test_timing"],
+        [],  # nothing ran, so nothing was skipped
     )
+
+
+def test_selection_report_plugin_records_tests_that_only_skipped(
+    pytester: pytest.Pytester,
+) -> None:
+    pytester.makepyfile(
+        test_skips=(
+            "import pytest\n\n"
+            "def test_runs():\n    assert 2 > 1\n\n"
+            "@pytest.mark.skipif(True, reason='setup skip')\n"
+            "def test_skipif():\n    assert 2 > 1\n\n"
+            "def test_call_skip():\n    pytest.skip('call skip')\n\n"
+            "@pytest.mark.xfail(reason='expected')\n"
+            "def test_xfail():\n    assert 1 > 2\n"
+        )
+    )
+    report = pytester.path / "selection.json"
+
+    result = pytester.runpytest(
+        "-p", "tests.plugins.selection_report", f"--selection-report={report}", "-q"
+    )
+
+    result.assert_outcomes(passed=1, skipped=2, xfailed=1)
+    selection = load_selection(report)
+    assert selection is not None
+    assert selection[2] == [
+        "test_skips.py::test_call_skip",
+        "test_skips.py::test_skipif",
+        "test_skips.py::test_xfail",
+    ]
+
+
+def test_main_rejects_partial_and_empty_evidence_end_to_end(tmp_path: Path) -> None:
+    """The evidence checks are wired into main(): one real batched pytest run, exit 1."""
+    hubs = "tests/unit/test_phase2_hubs_optimization.py"  # small; one benchmark test
+    table = tmp_path / "ac.md"
+    table.write_text(
+        "## Phase 1: Demo\n\n"
+        "| ID | Status | Criteria | Verification |\n"
+        "|----|--------|----------|--------------|\n"
+        f"| AC-1.1 | ✅ | whole file | `uv run pytest {hubs} -v` |\n"
+        f"| AC-1.2 | ✅ | benchmark node | `uv run pytest {hubs}::test_hubs_performance -v` |\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(  # noqa: S603 - repo-local script, fixed arguments
+        [
+            sys.executable,
+            str(AC_FILE.parents[1] / "scripts/check_phase_completion.py"),
+            "--ac-file",
+            str(table),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert f"AC-1.1     EVIDENCE {hubs} is partial evidence" in result.stdout
+    assert "deselects 1 of its tests (test_hubs_performance)" in result.stdout
+    assert f"AC-1.2     EVIDENCE {hubs}::test_hubs_performance selects no tests" in result.stdout
+    assert "AUTO: 2/2 passed" in result.stdout  # the tests ran green; evidence alone failed

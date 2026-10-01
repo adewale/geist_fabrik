@@ -19,6 +19,7 @@ from tests.plugins.hygiene_scan import (
     collect_test_ids,
     scan_source,
     scan_tree,
+    stale_entries,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -37,15 +38,28 @@ def test_no_test_is_shaped_so_it_cannot_fail() -> None:
 
 
 def test_allowlist_entries_are_not_stale() -> None:
-    violations = {(v.test_id, v.rule) for v in scan_tree(TESTS_ROOT, REPO_ROOT)}
-    existing = collect_test_ids(TESTS_ROOT, REPO_ROOT)
-    stale = [
-        f"{test_id} [{rule}]: " + ("test no longer exists" if test_id not in existing else "fixed")
-        for test_id, rule in ALLOWLIST
-        if (test_id, rule) not in violations
-    ]
+    violations = [(v.test_id, v.rule) for v in scan_tree(TESTS_ROOT, REPO_ROOT)]
+    stale = stale_entries(ALLOWLIST, violations, collect_test_ids(TESTS_ROOT, REPO_ROOT))
     assert not stale, "Remove stale hygiene allowlist entries:\n" + "\n".join(stale)
     assert all(len(reason) > 30 for reason in ALLOWLIST.values())
+
+
+def test_stale_entries_names_fixed_and_vanished_tests_but_keeps_live_ones() -> None:
+    allowlist = [
+        ("t.py::test_live", NO_ASSERT),
+        ("t.py::test_fixed", LOOP_ONLY),
+        ("t.py::test_live", ALWAYS_TRUE),  # same test, rule it no longer breaks
+        ("t.py::test_gone", NO_ASSERT),
+    ]
+    violations = [("t.py::test_live", NO_ASSERT), ("t.py::test_other", LOOP_ONLY)]
+    existing = ["t.py::test_live", "t.py::test_fixed", "t.py::test_other"]
+
+    assert stale_entries(allowlist, violations, existing) == [
+        "t.py::test_fixed [loop-only]: fixed",
+        "t.py::test_live [always-true]: fixed",
+        "t.py::test_gone [no-assert]: test no longer exists",
+    ]
+    assert stale_entries([("t.py::test_live", NO_ASSERT)], violations, existing) == []
 
 
 def _rules(source: str) -> list[tuple[str, str]]:
@@ -90,14 +104,45 @@ def test_checked_subprocess():
 def test_unchecked_subprocess():
     subprocess.run(["x"])
 
+def test_assert_in_uncalled_nested_def():
+    def check():
+        assert compute() == 2
+    compute()
+
+def test_fail_in_uncalled_lambda():
+    on_error = lambda: pytest.fail("boom")
+    compute(on_error)
+
+def test_called_nested_helper():
+    def check(value):
+        assert value == 2
+    check(compute())
+
+def test_assert_lookalike_name():
+    assertions_disabled()
+
+def test_unittest_style(self):
+    self.assertEqual(compute(), 2)
+
 class TestThing:
     def test_method_bad(self):
         compute()
+
+    class TestNested:
+        def test_nested_bad(self):
+            compute()
+
+        def test_nested_good(self):
+            assert compute() == 2
 """
     assert _rules(source) == [
         ("test_bad", NO_ASSERT),
         ("test_unchecked_subprocess", NO_ASSERT),
+        ("test_assert_in_uncalled_nested_def", NO_ASSERT),
+        ("test_fail_in_uncalled_lambda", NO_ASSERT),
+        ("test_assert_lookalike_name", NO_ASSERT),
         ("TestThing::test_method_bad", NO_ASSERT),
+        ("TestThing::TestNested::test_nested_bad", NO_ASSERT),
     ]
 
 
@@ -107,6 +152,11 @@ class TestThing:
 )
 def test_always_true_rule_flags(expression: str) -> None:
     assert _rules(f"def test_x():\n    assert {expression}\n") == [("test_x", ALWAYS_TRUE)]
+
+
+@pytest.mark.parametrize("call", ["self.assertTrue(True)", "self.assertFalse(0)"])
+def test_always_true_rule_flags_constant_unittest_assertions(call: str) -> None:
+    assert _rules(f"def test_x(self):\n    {call}\n") == [("test_x", ALWAYS_TRUE)]
 
 
 @pytest.mark.parametrize(
@@ -142,8 +192,56 @@ def test_guarded_by_helper():
 def test_loop_over_inputs():
     for name in ["a", "b"]:
         assert name
+
+def test_bad_if_only():
+    suggestions = geist.suggest(vault)
+    if suggestions:
+        assert suggestions[0].text == "x"
+
+def test_bad_not_any():
+    suggestions = geist.suggest(vault)
+    assert not any(s.text == "" for s in suggestions)
+
+def test_bad_loop_over_renamed_output():
+    out = geist.suggest(vault)
+    for item in out:
+        assert item.text
+
+def test_bad_weak_guards():
+    out = geist.suggest(vault)
+    assert isinstance(out, list)
+    assert len(out) <= 3
+    for item in out:
+        assert item.text
+
+def test_guarded_if():
+    suggestions = geist.suggest(vault)
+    assert suggestions
+    if suggestions:
+        assert suggestions[0].text == "x"
+
+def test_if_output_fails():
+    result = run()
+    if result.errors:
+        pytest.fail("errors")
+
+def test_any_requires_output():
+    out = geist.suggest(vault)
+    assert any(item.text for item in out)
+
+def test_loop_over_unrelated_name():
+    out = geist.suggest(vault)
+    for item in other:
+        assert item
 """
-    assert _rules(source) == [("test_bad", LOOP_ONLY), ("test_bad_all", LOOP_ONLY)]
+    assert _rules(source) == [
+        ("test_bad", LOOP_ONLY),
+        ("test_bad_all", LOOP_ONLY),
+        ("test_bad_if_only", LOOP_ONLY),
+        ("test_bad_not_any", LOOP_ONLY),
+        ("test_bad_loop_over_renamed_output", LOOP_ONLY),
+        ("test_bad_weak_guards", LOOP_ONLY),
+    ]
 
 
 def test_isinstance_list_only_rule() -> None:
