@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+- `VaultContext` now excludes geist journal session notes (`geist journal/`)
+  from every vault-wide lookup: `notes()`, `neighbours()`, `backlinks()`,
+  `outgoing_links()`, `graph_neighbours()`, `hubs()`, `orphans()`,
+  `recent_notes()`, `old_notes()`, `random_notes()`, `unlinked_pairs()`,
+  `get_clusters()`, `get_all_embeddings()`, `surprisal_scores()` and
+  `neighbour_churn()`, and so from every vault function built on them. Journal
+  notes are dropped before any top-N cut, never count as a link endpoint, and
+  no longer make a user's link ambiguous (a session note named `2025-01-15`
+  used to leave the user's `[[2025-01-15]]` unresolved). **Custom geists**
+  that relied on seeing session notes in these lookups should call the new
+  `VaultContext.journal_notes()`; `get_note()`, `get_embedding()` and
+  `resolve_link_target()` still return a journal note when asked for it
+  explicitly. `notes_excluding_journal()` is now an alias of `notes()`. The
+  per-geist journal filters in the bundled geists were removed.
+
+### Added
+- Tracery save actions: `[key:rule]` expands a rule once and saves it,
+  `[key:POP]` discards it, and `#[key:rule]symbol#` saves it only while that
+  tag expands. Only `[identifier:` starts an action, so `[[wikilinks]]` stay
+  literal. Grammar preflight (loading and `geistfabrik validate`) rejects
+  malformed actions.
+- `$vault.note_pairs(count)` vault function: pairs of two different notes as
+  `"[[A]]|||[[B]]"`, for use with save actions and `.split_seed` /
+  `.split_neighbours`.
+- `VaultContext.journal_notes()`: the explicit accessor for session notes.
+- Test-suite quality gates in `validate.sh` and CI: a geist firing gate
+  (`--require-geist-firing`), a suite-hygiene scan, and an acceptance-criteria
+  evidence check (see the Tests section).
+
 ### Changed
 - `Note.created` is now the earliest of a file's modification, inode-change and
   (where the platform records it) birth time, and re-syncing an edited note no
@@ -15,20 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   age-, anniversary- and season-based geists (BUG-4 in
   `docs/DEEP_AUDIT_REPORT.md`). Migration is automatic: the parser revision
   bump makes the next sync re-derive `created` for every note, keeping the
-  earlier of the stored and re-derived values. No rebuild is required.
-
-- `VaultContext` now excludes geist journal session notes from every
-  vault-wide lookup: `notes()`, `neighbours()`, `backlinks()`,
-  `outgoing_links()`, `graph_neighbours()`, `hubs()`, `orphans()`,
-  `recent_notes()`, `old_notes()`, `random_notes()`, `unlinked_pairs()`,
-  `get_clusters()`, `get_all_embeddings()`, `surprisal_scores()` and
-  `neighbour_churn()` (and so every vault function built on them). Journal
-  notes are dropped before any top-N cut and never count as a link endpoint.
-  `get_note()`, `get_embedding()` and `resolve_link_target()` still return a
-  journal note when asked for it explicitly; `notes_excluding_journal()` is now
-  an alias of `notes()`. Custom geists that relied on seeing session notes in
-  these lookups must read them by path instead. The per-geist journal filters
-  in the bundled geists were removed.
+  earlier of the stored and re-derived values. No rebuild is required, and
+  cached semantic embeddings of unchanged notes are kept, so the one-time
+  reprocess does not re-embed the vault.
 - `Session.compute_embeddings()` and `EmbeddingComputer.compute_temporal_embedding()`
   now share one `combine_embedding()` implementation of the semantic/temporal
   weighting (no change to stored values).
@@ -38,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from `vault_context.py` into `tests/unit/test_surprisal_churn.py`.
 
 ### Fixed
+- Tracery geists written with YAML block scalars (`- |`) produced nothing:
+  the empty-placeholder check treated their trailing newline as an empty
+  symbol.
+- Tracery parsed `$vault` results as grammar, so a note title containing
+  `[key:...]` or `#symbol#` could overwrite saved values or expand symbols.
+  Vault data is now inserted verbatim.
+- method_scrambler's output depended on `PYTHONHASHSEED` (candidates were
+  deduplicated through a set).
 - Geist journal session notes leaked into suggestions (as the subject, a
   neighbour, a cluster member, a bridge, a "past" note or a link) in
   anachronism_detector, antithesis_generator, assumption_challenger,
