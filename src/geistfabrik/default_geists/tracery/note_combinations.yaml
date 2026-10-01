@@ -3,16 +3,25 @@ id: note_combinations
 description: Suggests combining random notes in creative ways
 
 tracery:
+  # Expand ONE pair per suggestion and save it as `picked`, so note1 and note2
+  # are split from the same "[[A]]|||[[B]]" string and always differ.
+  # (Two independent sample_notes() draws could combine a note with itself.)
   origin:
+    - "#[picked:#pair#]template#"
+
+  template:
     - "What if you combined #note1# with #note2#? #reason#"
     - "Consider connecting #note1# and #note2#. #reason#"
     - "#note1# and #note2# might #relationship# in interesting ways."
 
+  pair:
+    - "$vault.note_pairs(2)"
+
   note1:
-    - "$vault.sample_notes(2)"
+    - "#picked.split_seed#"
 
   note2:
-    - "$vault.sample_notes(2)"
+    - "#picked.split_neighbours#"
 
   reason:
     - "They might reveal unexpected patterns."

@@ -22,24 +22,6 @@ def _stripped(items: list[str]) -> list[str]:
     return [i.strip() for i in items]
 
 
-class TestRemoveCodeBlocks:
-    def test_removes_fenced_code_blocks(self):
-        content = "Before\n```\nWhat is this?\n```\nAfter"
-        result = ExtractionPipeline._remove_code_blocks(content)
-        assert "What is this?" not in result
-        assert "Before" in result and "After" in result
-
-    def test_removes_inline_code(self):
-        content = "Use `len(x)?` carefully here"
-        result = ExtractionPipeline._remove_code_blocks(content)
-        assert "len(x)?" not in result
-        assert "carefully here" in result
-
-    def test_preserves_plain_text(self):
-        content = "No code here at all."
-        assert ExtractionPipeline._remove_code_blocks(content) == content
-
-
 class TestQuestionExtractor:
     def test_extracts_sentence_question(self):
         result = _stripped(QuestionExtractor().extract("What is recursion?"))
@@ -124,12 +106,16 @@ class TestFilters:
 
 
 class TestExtractionPipeline:
-    def test_ignores_questions_inside_code_blocks(self):
+    def test_ignores_questions_inside_code(self):
+        """Fenced blocks and inline code are code, not prose, and yield nothing."""
         pipeline = ExtractionPipeline(strategies=[QuestionExtractor()])
-        content = "```\nWhat is hidden in code?\n```\nWhat is visible in prose?"
+        content = (
+            "```\nWhat is hidden in code?\n```\n"
+            "Call `is_this_inline_code_hidden()?` first. What is visible in prose?"
+        )
         result = pipeline.extract(content)
         assert any("visible in prose" in q for q in result)
-        assert not any("hidden in code" in q for q in result)
+        assert not any("hidden in code" in q or "inline_code" in q for q in result)
 
     def test_deduplicates_case_insensitively(self):
         pipeline = ExtractionPipeline(

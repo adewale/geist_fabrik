@@ -76,7 +76,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         f"related ideas: {pattern_text}. "
                         f"What seasonal pattern might this reflect?"
                     ),
-                    notes=[n.title for n in similar_in_season[:3]],
+                    notes=[n.link_text for n in similar_in_season[:3]],
                     geist_id="seasonal_topic_analysis",
                 )
             )

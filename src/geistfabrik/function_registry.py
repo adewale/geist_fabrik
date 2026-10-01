@@ -358,6 +358,26 @@ class FunctionRegistry:
 
             return results
 
+        @vault_function("note_pairs")
+        def note_pairs(vault: "VaultContext", count: int = 2) -> list[str]:
+            """Sample count pairs of two different notes.
+
+            Two separate sample_notes() draws can pick the same note twice;
+            a pair is drawn without replacement, so its notes always differ.
+
+            Returns:
+                List of "[[A]]|||[[B]]" strings for the .split_seed and
+                .split_neighbours modifiers, or [] with fewer than two notes
+            """
+            notes = vault.notes()
+            if len(notes) < 2:
+                return []
+            pairs = []
+            for _ in range(count):
+                first, second = vault.sample(notes, 2)
+                pairs.append(f"[[{first.link_text}]]|||[[{second.link_text}]]")
+            return pairs
+
         # --- Reflective lens functions (voice metadata + embedding drift) ---
 
         @vault_function("past_focused_notes")
