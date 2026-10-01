@@ -11,9 +11,14 @@ How attribution works (and why it is done this way):
 * ``Suggestion.__init__`` is wrapped for the duration of the session. After a
   Suggestion is successfully constructed, the wrapper walks the calling stack
   and attributes it to the *nearest* frame that is either
-  - code whose file lives directly in ``default_geists/code/<geist>.py``, or
-  - ``TraceryGeist.suggest`` running a grammar loaded from
-    ``default_geists/tracery/<geist>.yaml``.
+  - the module-level ``suggest`` function of a file that lives directly in
+    ``default_geists/code/<geist>.py`` (a test that calls a geist's private
+    helper directly gets no credit: the geist's own entry point never ran), or
+  - ``TraceryGeist.suggest`` on an instance that ``TraceryGeist.from_yaml``
+    loaded from ``default_geists/tracery/<geist>.yaml`` and whose id is
+    ``<geist>``. ``from_yaml`` is wrapped too, to remember those instances; a
+    hand-built grammar whose ``yaml_path`` merely points at a bundled file
+    gets no credit.
 * Wrapping imported geist modules would not work: ``GeistExecutor`` loads code
   geists by file path, which creates fresh module objects. Every load path,
   though, ends in the one ``Suggestion`` class, and ``co_filename`` of the
@@ -34,6 +39,7 @@ from __future__ import annotations
 import functools
 import os
 import sys
+import weakref
 from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
 from types import FrameType
@@ -76,9 +82,12 @@ class GeistFiringRecorder:
         self.tracery_dir = Path(os.path.realpath(tracery_dir))
         self._tracery_suggest_code = TraceryGeist.suggest.__code__
         self._file_cache: dict[str, str | None] = {}
+        # TraceryGeist instances loaded from their own bundled YAML, by from_yaml.
+        self._bundled_tracery: weakref.WeakSet[Any] = weakref.WeakSet()
         self.fired: dict[str, str] = {}  # geist id -> first test node id
         self.current_nodeid = "<outside any test>"
         self._original_init: Callable[..., None] | None = None
+        self._original_from_yaml: Any = None
 
     def _code_geist_for(self, filename: str) -> str | None:
         if filename not in self._file_cache:
@@ -89,29 +98,31 @@ class GeistFiringRecorder:
             self._file_cache[filename] = path.stem if is_geist else None
         return self._file_cache[filename]
 
-    def _tracery_geist_for(self, frame: FrameType) -> str | None:
-        yaml_path = getattr(frame.f_locals.get("self"), "yaml_path", None)
-        if yaml_path is None:
-            return None
-        path = Path(os.path.realpath(yaml_path))
+    def _bundled_yaml_stem(self, yaml_path: object) -> str | None:
+        path = Path(os.path.realpath(str(yaml_path)))
         if path.parent == self.tracery_dir and path.suffix == ".yaml":
             return path.stem
         return None
 
     def attribute(self, frame: FrameType | None) -> str | None:
-        """Return the bundled geist owning the nearest relevant frame, if any."""
+        """Return the bundled geist whose entry point is the nearest relevant frame."""
         while frame is not None:
             code = frame.f_code
             if code is self._tracery_suggest_code:
-                return self._tracery_geist_for(frame)
-            geist = self._code_geist_for(code.co_filename)
-            if geist is not None:
-                return geist
+                geist = frame.f_locals.get("self")
+                if geist is not None and geist in self._bundled_tracery:
+                    return str(geist.geist_id)
+                return None
+            if code.co_qualname == "suggest":
+                geist_id = self._code_geist_for(code.co_filename)
+                if geist_id is not None:
+                    return geist_id
             frame = frame.f_back
         return None
 
     def install(self) -> None:
         from geistfabrik.models import Suggestion
+        from geistfabrik.tracery import TraceryGeist
 
         original: Callable[..., None] = Suggestion.__init__
         recorder = self
@@ -126,12 +137,29 @@ class GeistFiringRecorder:
         self._original_init = original
         type.__setattr__(Suggestion, "__init__", recording_init)
 
+        original_from_yaml = TraceryGeist.__dict__["from_yaml"]
+        load = original_from_yaml.__func__
+
+        def recording_from_yaml(cls: Any, yaml_path: Path, *args: Any, **kwargs: Any) -> Any:
+            geist = load(cls, yaml_path, *args, **kwargs)
+            if recorder._bundled_yaml_stem(yaml_path) == geist.geist_id:
+                recorder._bundled_tracery.add(geist)
+            return geist
+
+        functools.update_wrapper(recording_from_yaml, load)
+        self._original_from_yaml = original_from_yaml
+        type.__setattr__(TraceryGeist, "from_yaml", classmethod(recording_from_yaml))
+
     def uninstall(self) -> None:
         from geistfabrik.models import Suggestion
+        from geistfabrik.tracery import TraceryGeist
 
         if self._original_init is not None:
             type.__setattr__(Suggestion, "__init__", self._original_init)
             self._original_init = None
+        if self._original_from_yaml is not None:
+            type.__setattr__(TraceryGeist, "from_yaml", self._original_from_yaml)
+            self._original_from_yaml = None
 
 
 def evaluate(

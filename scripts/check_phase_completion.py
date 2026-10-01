@@ -34,7 +34,13 @@ This version is **verify, never trust**:
   canonical filter that file ran only an empty-vault test, yet the gate
   reported all five verified.) Selection is read from a JSON report written by
   ``tests/plugins/selection_report.py`` during the same pytest run, so this
-  costs no extra pytest process.
+  costs no extra pytest process. A target whose selected tests were *all*
+  skipped proved nothing either: it fails the gate when ``CI`` is set and is
+  printed as a warning otherwise (a skip can be environmental, e.g. a
+  permission test run as root).
+* Only commands of the exact form ``uv run pytest <targets> [-v|-q|-s]`` share
+  the one batched run. Any other option (``-k``, ``-m``, ``--deselect``, …)
+  would be silently dropped by the batch, so such a command runs on its own.
 
 Usage:
     python scripts/check_phase_completion.py            # gate (CI/validate.sh)
@@ -46,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shlex
 import shutil
@@ -109,7 +116,7 @@ def normalize_command(cmd: str) -> str:
     if not PYTEST_INVOCATION.search(cmd):
         return cmd
     cmd = expand_braces(cmd)
-    if " -m" not in cmd:  # tolerate -m "x", -m"x", -m=x already present
+    if not pins_markers(cmd):
         cmd = f"{cmd} {STD_MARKER}"
     return cmd
 
@@ -122,6 +129,45 @@ TARGET = re.compile(r"^tests/[\w./-]+\.py(::\S+)?$")
 def pytest_targets(cmd: str) -> list[str]:
     """The ``tests/…`` file/node targets named by a pytest command (braces expanded)."""
     return [tok for tok in expand_braces(cmd).split() if TARGET.match(tok)]
+
+
+def _tokens(cmd: str) -> list[str]:
+    try:
+        return shlex.split(cmd)
+    except ValueError:  # unbalanced quotes: fall back to whitespace
+        return cmd.split()
+
+
+def pins_markers(cmd: str) -> bool:
+    """True when the pytest invocation in ``cmd`` chooses its own marker filter.
+
+    The single predicate for "has ``-m``": it decides whether the canonical
+    filter is appended, and therefore whether the partial-evidence check
+    applies. Covers ``-m x``, ``-m"x"``, ``-mx`` and ``-m=x``. Batching needs no
+    marker test of its own: :func:`is_batchable` rejects every ``-m`` spelling
+    because it admits no option outside :data:`BATCHABLE_FLAGS`.
+    """
+    tokens = _tokens(cmd)
+    if "pytest" in tokens:
+        tokens = tokens[tokens.index("pytest") + 1 :]
+    return any(tok.startswith("-m") for tok in tokens)
+
+
+# Output-only flags. Anything else (-k, -m, --deselect, -x, …) changes which
+# tests run or how, so a command carrying it is run on its own, never folded
+# into the batch where the option would silently be dropped.
+BATCHABLE_FLAGS = frozenset({"-v", "-q", "-s"})
+
+
+def is_batchable(cmd: str) -> bool:
+    """True iff ``cmd`` is exactly ``uv run pytest <targets> [-v|-q|-s]``."""
+    tokens = _tokens(expand_braces(cmd))
+    if tokens[:3] != ["uv", "run", "pytest"]:
+        return False
+    args = tokens[3:]
+    return any(TARGET.match(a) for a in args) and all(
+        TARGET.match(a) or a in BATCHABLE_FLAGS for a in args
+    )
 
 
 @dataclass(frozen=True)
@@ -138,12 +184,11 @@ class Criterion:
 def partition_pytest_criteria(
     criteria: list[Criterion],
 ) -> tuple[list[Criterion], list[Criterion]]:
-    """Separate compatible fast pytest commands from marker-specific commands."""
+    """Separate plain target-only pytest commands from every other command."""
     batchable: list[Criterion] = []
     standalone: list[Criterion] = []
     for criterion in criteria:
-        command = criterion.command or ""
-        if pytest_targets(command) and not re.search(r"(?:^|\s)-m(?:\s|=)", command):
+        if is_batchable(criterion.command or ""):
             batchable.append(criterion)
         else:
             standalone.append(criterion)
@@ -204,12 +249,34 @@ def evidence_problems(
     return problems
 
 
-def load_selection(report: Path) -> tuple[list[str], list[str]] | None:
+def skipped_targets(command: str, selected: list[str], skipped: list[str]) -> list[str]:
+    """Targets whose every selected test was skipped: they ran, but proved nothing.
+
+    A skip is environment-dependent (a missing optional extra, running as root),
+    so ``main`` fails on these only under ``CI`` and warns elsewhere.
+    """
+    skipped_set = set(skipped)
+    problems: list[str] = []
+    for target in pytest_targets(command):
+        chosen = [n for n in selected if _under(n, target)]
+        if chosen and all(n in skipped_set for n in chosen):
+            problems.append(
+                f"{target} is not evidence: all {len(chosen)} selected test(s) were skipped"
+            )
+    return problems
+
+
+def load_selection(report: Path) -> tuple[list[str], list[str], list[str]] | None:
+    """(selected, deselected, skipped) node ids from a selection report."""
     try:
         payload = json.loads(report.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return list(payload.get("selected", [])), list(payload.get("deselected", []))
+    return (
+        list(payload.get("selected", [])),
+        list(payload.get("deselected", [])),
+        list(payload.get("skipped", [])),
+    )
 
 
 def parse_criteria(text: str) -> tuple[list[Criterion], list[str]]:
@@ -374,6 +441,10 @@ def main() -> int:
     batchable, standalone = partition_pytest_criteria(auto)
 
     evidence: list[tuple[Criterion, str]] = []
+    warnings: list[tuple[Criterion, str]] = []
+    # CLAUDE.md "Fail loudly in CI": locally a skip may be legitimate (e.g. a
+    # permission test run as root); in CI an all-skipped target is a hard error.
+    strict_skips = bool(os.environ.get("CI"))
     report_dir = Path(tempfile.mkdtemp(prefix="ac-selection-"))
 
     def check_evidence(group: list[Criterion], report: Path, ran_ok: bool) -> None:
@@ -383,12 +454,14 @@ def main() -> int:
                 for c in group:
                     evidence.append((c, "pytest wrote no selection report"))
             return
-        selected, deselected = selection
+        selected, deselected, skipped = selection
         for c in group:
             command = c.command or ""
             canonical = uses_canonical_selection(command)
             for problem in evidence_problems(command, selected, deselected, canonical):
                 evidence.append((c, problem))
+            for problem in skipped_targets(command, selected, skipped):
+                (evidence if strict_skips else warnings).append((c, problem))
 
     if batchable:
         # Keep explicit node selectors even when another criterion names the
@@ -437,6 +510,8 @@ def main() -> int:
 
     for c, problem in evidence:
         print(f"  ✗ {c.ac_id:<10} EVIDENCE {problem}")
+    for c, problem in warnings:
+        print(f"  ! {c.ac_id:<10} WARNING  {problem} (fails the gate when CI is set)")
 
     print()
     print("=" * 80)
@@ -462,7 +537,8 @@ def main() -> int:
         print("Gate FAILED. Fix the criterion or its verification command, or — if the")
         print("criterion is genuinely not machine-verifiable — reword its Verification")
         print("cell as prose (it will be reported as MANUAL). For partial evidence, name")
-        print("the node IDs that carry the criterion (a {a,b} brace list is fine).")
+        print("the node IDs that carry the criterion (a {a,b} brace list is fine). For an")
+        print("all-skipped target, make its test run in CI or name a test that does.")
         return 1
 
     print(f"✓ All {len(auto)} AUTO criteria pass. {len(manual)} criteria are MANUAL.")
