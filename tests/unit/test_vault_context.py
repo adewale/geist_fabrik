@@ -236,17 +236,6 @@ def test_orphans_detects_exactly_two_orphans():
         vault.close()
 
 
-def test_hubs(vault_with_notes):
-    """Test finding hub notes."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
-
-    hubs = ctx.hubs(count=2)
-
-    # Should find notes that are linked to
-    assert len(hubs) <= 2
-
-
 def test_hubs_returns_actual_notes_not_empty():
     """Test that hubs() returns actual Note objects with titles, not empty results.
 
@@ -657,30 +646,16 @@ def test_links_between(vault_with_notes):
     assert len(links) > 0
 
 
-def test_old_notes(vault_with_notes):
-    """Test finding oldest notes."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
+def test_old_and_recent_notes_order_by_modification_time(tmp_path: Path) -> None:
+    """old_notes() is the least recently modified first, recent_notes() the
+    most recently modified first, each cut to ``count``."""
+    builder = VaultBuilder(tmp_path)
+    for title, day in [("March", 3), ("January", 1), ("April", 4), ("February", 2)]:
+        builder.note(title, f"Notes from {title}.", modified=datetime(2024, day, 10))
+    ctx = builder.build()
 
-    old = ctx.old_notes(count=2)
-
-    assert len(old) <= 2
-    # Should be sorted by modification time ascending
-    if len(old) >= 2:
-        assert old[0].modified <= old[1].modified
-
-
-def test_recent_notes(vault_with_notes):
-    """Test finding most recent notes."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
-
-    recent = ctx.recent_notes(count=2)
-
-    assert len(recent) <= 2
-    # Should be sorted by modification time descending
-    if len(recent) >= 2:
-        assert recent[0].modified >= recent[1].modified
+    assert [n.title for n in ctx.old_notes(count=2)] == ["January", "February"]
+    assert [n.title for n in ctx.recent_notes(count=3)] == ["April", "March", "February"]
 
 
 def test_metadata(vault_with_notes):

@@ -223,8 +223,9 @@ uv run pytest tests/unit tests/integration -m "$MARKERS"
   - the unit lane runs with `--require-geist-firing`, so a new bundled geist
     needs a unit test whose fixture makes it produce a `Suggestion`;
   - `tests/unit/test_suite_hygiene.py` rejects assertion-free tests,
-    always-true asserts, assertions only inside loops over output, and
-    `isinstance(x, list)` as the only check;
+    always-true asserts, and checks of output that only run where it may be
+    empty (in a loop over it, under `if output:`, or behind an
+    `isinstance`/`len(x) <= N` guard);
   - `scripts/check_phase_completion.py` rejects acceptance criteria that select
     no tests or name a file the canonical marker filter only partly selects.
 

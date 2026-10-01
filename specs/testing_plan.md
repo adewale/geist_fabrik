@@ -116,8 +116,7 @@ tests/
 - **test_graph_neighbors**: Find all notes connected by links
 
 #### Temporal Queries
-- **test_old_notes**: Find least recently modified notes
-- **test_recent_notes**: Find most recently modified notes
+- **test_old_and_recent_notes_order_by_modification_time**: Least and most recently modified notes, in order
 - **test_notes_by_date_range**: Filter notes by creation date range
 - **test_temporal_ordering**: Verify date ordering is correct
 

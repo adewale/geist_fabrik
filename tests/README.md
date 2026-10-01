@@ -97,7 +97,7 @@ CI run them identically.
 | Gate | Where | Fails when |
 |------|-------|------------|
 | Geist firing | `--require-geist-firing` on the unit lane; `tests/plugins/geist_firing.py` | a bundled geist (code or Tracery) never built a `Suggestion` during the lane |
-| Suite hygiene | `tests/unit/test_suite_hygiene.py`; `tests/plugins/hygiene_scan.py` | a test asserts nothing, asserts something always true, asserts only inside a loop over suggestions/results, or only checks `isinstance(x, list)` |
+| Suite hygiene | `tests/unit/test_suite_hygiene.py`; `tests/plugins/hygiene_scan.py` | a test asserts nothing, asserts something always true, or checks output only where it may be empty: inside a loop over it, under `if output:`, as `not any(...)` over it, or behind a guard that does not prove it is non-empty (`isinstance(x, list)`, `len(x) <= N`) |
 | Acceptance evidence | `scripts/check_phase_completion.py`; `tests/plugins/selection_report.py` | an AUTO pytest criterion selects no tests, or names a file the canonical marker filter only partly selects |
 
 How the geist firing gate attributes output: it wraps `Suggestion.__init__`

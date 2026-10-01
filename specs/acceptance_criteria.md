@@ -179,7 +179,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-3.2 | ⬜ | Semantic search via context | Verify neighbours() via VaultContext returns ≤k results |
 | AC-3.3 | ⬜ | Graph operations work | Verify orphans(), hubs(), unlinked_pairs() return correct types |
 | AC-3.4 | ⬜ | Deterministic sampling | Same seed = same sample results |
-| AC-3.5 | ⬜ | Temporal queries | `uv run pytest tests/unit/test_vault_context.py::test_{old_notes,recent_notes} -v` |
+| AC-3.5 | ⬜ | Temporal queries | `uv run pytest tests/unit/test_vault_context.py::test_old_and_recent_notes_order_by_modification_time -v` |
 
 ### Edge Cases & Error Handling
 

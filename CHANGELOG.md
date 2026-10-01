@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (now `VaultContext.has_link`). The test-only `_surprisal_naive` oracle moved
   from `vault_context.py` into `tests/unit/test_surprisal_churn.py`.
 
+- Development dependency floor raised to `pytest>=8.0`: the geist firing
+  plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
+
 ### Fixed
 - Tracery geists written with YAML block scalars (`- |`) produced nothing:
   the empty-placeholder check treated their trailing newline as an empty

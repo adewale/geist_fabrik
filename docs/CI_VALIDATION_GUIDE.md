@@ -128,16 +128,20 @@ the tests:
 
 - **Geist firing** (`--require-geist-firing`, `tests/plugins/geist_firing.py`):
   the unit lane fails unless every bundled geist built at least one
-  `Suggestion` from its own source file (or, for Tracery, from its bundled
-  YAML). A test that constructs `Suggestion(geist_id=...)` itself does not
+  `Suggestion` inside its own `suggest()` (or, for Tracery, a geist loaded
+  from its bundled YAML under its own id). A test that constructs `Suggestion(geist_id=...)` itself does not
   count. The flag only makes sense on the full unit lane; on a partial run it
   lists every geist the selection did not exercise.
 - **Suite hygiene** (`tests/unit/test_suite_hygiene.py`): an AST scan rejects
-  tests with no assertion, always-true asserts (`len(x) >= 0`), tests whose
-  every assertion sits in a loop over possibly-empty suggestions or results,
-  and tests whose only assertion is `isinstance(x, list)`.
+  tests with no assertion, always-true asserts (`len(x) >= 0`,
+  `assertTrue(True)`), and tests whose checks of output only run where it may
+  be empty: in a loop over it, under `if output:`, as `not any(...)`, or
+  behind a guard that does not prove it non-empty (`isinstance(x, list)`,
+  `len(x) <= N`).
 - **Acceptance evidence** (`scripts/check_phase_completion.py`): every AUTO
-  pytest criterion must select at least one test. A criterion that names a
+  pytest criterion must select at least one test, and in CI (`CI` set) at
+  least one that runs rather than skips (locally an all-skipped target, such
+  as a permission test run as root, is a warning). A criterion that names a
   whole file while the canonical marker filter deselects part of it is
   rejected; name the node IDs instead.
 
