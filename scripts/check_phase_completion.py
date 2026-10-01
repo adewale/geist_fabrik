@@ -360,10 +360,11 @@ def main() -> int:
 
     # Run every pytest target in ONE process. conftest imports the embedding
     # stack (~5s) once per process, so spawning ~60 separate pytest runs would
-    # cost minutes; batching pays that once, exactly like scripts/validate.sh. A
-    # renamed/removed target still fails the batch (pytest exits non-zero on an
-    # unmatched node), so drift is still caught. Only on a red batch do we re-run
-    # each criterion to attribute the failure.
+    # cost minutes; batching pays that once, exactly like scripts/validate.sh.
+    # A renamed/removed node is NOT reliably a pytest error (pytest silently
+    # drops an unmatched node when its file is also a target), so drift is caught
+    # by the selection report instead: every target must select >= 1 test. Only
+    # on a red batch do we re-run each criterion to attribute the failure.
     #
     # Only criteria whose targets actually go INTO the batch may be vouched for
     # by it. A pytest command with no extractable ``tests/…`` target (e.g.

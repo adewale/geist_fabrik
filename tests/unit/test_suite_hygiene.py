@@ -24,19 +24,8 @@ from tests.plugins.hygiene_scan import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TESTS_ROOT = REPO_ROOT / "tests"
 
-_TG = "tests/unit/test_tracery_geists.py"
-_LOOP_REASON = (
-    "TEMPORARY (round 3, d2ee08f): assertions only run per suggestion, so empty output "
-    "passes; needs a non-empty assertion outside the loop (test-audit lane owns this file)"
-)
-
 # (test id, rule) -> reason. Keep reasons specific; "legacy" is not a reason.
 ALLOWLIST: dict[tuple[str, str], str] = {
-    (
-        "tests/unit/test_tracery.py::test_preflight_accepts_valid_actions",
-        NO_ASSERT,
-    ): "contract is 'preflight does not raise' on valid syntax; preflight raises ValueError "
-    "on rejection, and test_preflight_rejects_malformed_actions asserts that twin",
     (
         "tests/unit/test_cluster_label_persistence.py::TestPersistAndRead::"
         "test_cluster_evolution_tracker_runs_without_error",
@@ -44,23 +33,6 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ): "TEMPORARY (round 3, d2ee08f): crash regression for a sqlite OperationalError; the "
     "geist never fires on the fixture, so the result type is the only observable "
     "(cluster_evolution_tracker is also on the geist-firing allowlist)",
-    (f"{_TG}::TestNoteCombinations::test_note_combinations_references_two_notes", LOOP_ONLY): (
-        _LOOP_REASON
-    ),
-    (f"{_TG}::TestRandomPrompts::test_random_prompts_starts_with_what_if", LOOP_ONLY): (
-        _LOOP_REASON
-    ),
-    (f"{_TG}::TestWhatIf::test_what_if_starts_with_what_if", LOOP_ONLY): _LOOP_REASON,
-    (f"{_TG}::TestAllTraceryGeists::test_all_geists_have_valid_suggestion_text", LOOP_ONLY): (
-        _LOOP_REASON
-    ),
-    (f"{_TG}::test_all_tracery_geists_have_consistent_wikilink_formatting", LOOP_ONLY): (
-        _LOOP_REASON
-    ),
-    (f"{_TG}::test_all_tracery_geists_extract_notes_metadata_correctly", LOOP_ONLY): (_LOOP_REASON),
-    (f"{_TG}::test_semantic_neighbours_notes_metadata_includes_all_links", LOOP_ONLY): (
-        _LOOP_REASON
-    ),
 }
 
 

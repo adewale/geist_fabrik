@@ -1273,19 +1273,28 @@ def test_saved_values_do_not_leak_between_top_level_expansions() -> None:
 
 
 @pytest.mark.parametrize(
-    "rule",
+    ("rule", "story", "expected"),
     [
-        "[pair:#cluster#]#pair.split_seed# and #pair.split_neighbours#",
-        "#[pair:#cluster#]story#",
-        "#[a:#cluster#][b:#cluster#]story#",
-        "[pair:#cluster#]#pair#[pair:POP]",
-        "[[Wikilink: with colon]] [not an action] [text](url) C# #story#",
+        (
+            "[pair:#cluster#]#pair.split_seed# and #pair.split_neighbours#",
+            "x",
+            "[[A]] and [[B]]",
+        ),
+        ("#[pair:#cluster#]story#", "#pair#", "[[A]]|||[[B]]"),
+        ("#[a:#cluster#][b:#cluster#]story#", "#a# + #b#", "[[A]]|||[[B]] + [[A]]|||[[B]]"),
+        ("[pair:#cluster#]#pair#[pair:POP]", "x", "[[A]]|||[[B]]"),
+        ("[[Wikilink: with colon]] [not an action] [text](url)", "x", None),
     ],
 )
-def test_preflight_accepts_valid_actions(rule: str) -> None:
-    """The shared load/validate preflight accepts well-formed action syntax."""
-    grammar = {"origin": [rule], "cluster": ["[[A]]|||[[B]]"], "story": ["#pair#"]}
+def test_preflight_accepts_valid_actions(rule: str, story: str, expected: str | None) -> None:
+    """Well-formed actions pass the shared load/validate preflight and expand
+    as actions; brackets that are not actions stay literal text."""
+    grammar = {"origin": [rule], "cluster": ["[[A]]|||[[B]]"], "story": [story]}
+
     TraceryGeist.preflight_grammar(grammar, "ok", Path("ok.yaml"))
+    expanded = TraceryEngine(grammar, seed=1).expand("#origin#")
+
+    assert expanded == (rule if expected is None else expected)
 
 
 @pytest.mark.parametrize(

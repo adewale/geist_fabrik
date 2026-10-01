@@ -103,7 +103,7 @@ uv run pytest tests/integration/test_embeddings_integration.py -m production_mod
 uv run pytest tests/unit/test_tracery_geists.py -v
 
 # Run specific test
-uv run pytest tests/unit/test_tracery_geists.py::TestContradictor::test_contradictor_is_deterministic -xvs
+uv run pytest tests/unit/test_tracery_geists.py::test_all_geists_are_deterministic -xvs
 
 # Run an explicit one-process coverage report
 uv run pytest tests/unit tests/integration --cov=geistfabrik --cov-branch --cov-report=term-missing
@@ -111,7 +111,7 @@ uv run pytest tests/unit tests/integration --cov=geistfabrik --cov-branch --cov-
 # Run tests multiple times to check for flakiness
 for i in {1..10}; do
   echo "Run $i:"
-  uv run pytest tests/unit/test_tracery_geists.py::TestContradictor::test_contradictor_is_deterministic -q || exit 1
+  uv run pytest tests/unit/test_tracery_geists.py::test_all_geists_are_deterministic -q || exit 1
 done
 ```
 
