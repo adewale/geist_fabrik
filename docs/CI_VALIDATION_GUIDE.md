@@ -40,9 +40,9 @@ mypy src/geistfabrik --ignore-missing-imports
 3. `mypy src/ --strict` - Production type checking with strict mode
 4. `ty check src tests --error-on-warning` - Additive whole-project type checking
 5. `python scripts/detect_unused_tables.py` and Bandit - Data/security checks
-5. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60` - Unit coverage pass
+5. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60 --require-geist-firing` - Unit coverage pass, geist firing gate, suite hygiene
 6. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Appended integration coverage and measured 70% branch gate
-7. `python scripts/check_phase_completion.py` - Acceptance criteria
+7. `python scripts/check_phase_completion.py` - Acceptance criteria, including the evidence gate
 8. `./scripts/test_wheel.sh` - Wheel/sdist, installation, entry-point, and real-model smoke
 
 Fast lanes set `GEISTFABRIK_OFFLINE=1`; their marker-selected fixture replaces
@@ -116,9 +116,33 @@ git push
 | Linting | `ruff check src/ tests/` | Code style, imports, line length |
 | Type checking | `mypy src/ --strict`; `ty check src tests --error-on-warning` | Strict production checking plus additive whole-project checking |
 | DB/security | `detect_unused_tables.py`; Bandit | Data and security regressions |
-| Unit tests | `pytest tests/unit ... --timeout=60` | First branch-coverage pass |
+| Unit tests | `pytest tests/unit ... --timeout=60 --require-geist-firing` | First branch-coverage pass; geist firing and suite hygiene gates |
 | Integration tests | `pytest tests/integration ... --timeout=300` | Appended coverage; measured 70% gate |
-| Acceptance | `check_phase_completion.py` | Executable spec criteria |
+| Acceptance | `check_phase_completion.py` | Executable spec criteria; rejects partial or empty evidence |
+
+### Gates That Check the Tests Themselves
+
+Coverage measures execution, not verification. The suite once passed for
+months while it could not fail, so three cheap, deterministic gates check
+the tests:
+
+- **Geist firing** (`--require-geist-firing`, `tests/plugins/geist_firing.py`):
+  the unit lane fails unless every bundled geist built at least one
+  `Suggestion` from its own source file (or, for Tracery, from its bundled
+  YAML). A test that constructs `Suggestion(geist_id=...)` itself does not
+  count. The flag only makes sense on the full unit lane; on a partial run it
+  lists every geist the selection did not exercise.
+- **Suite hygiene** (`tests/unit/test_suite_hygiene.py`): an AST scan rejects
+  tests with no assertion, always-true asserts (`len(x) >= 0`), tests whose
+  every assertion sits in a loop over possibly-empty suggestions or results,
+  and tests whose only assertion is `isinstance(x, list)`.
+- **Acceptance evidence** (`scripts/check_phase_completion.py`): every AUTO
+  pytest criterion must select at least one test. A criterion that names a
+  whole file while the canonical marker filter deselects part of it is
+  rejected; name the node IDs instead.
+
+Each gate has an allowlist of exact ids with written reasons. Entries fail
+when stale, so the lists can only shrink.
 
 ## Common Type Errors with --strict
 

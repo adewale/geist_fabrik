@@ -9,7 +9,7 @@ Use the same four-marker exclusion as validation and CI:
 
 ```bash
 MARKERS="not slow and not benchmark and not artifact and not production_model"
-uv run pytest tests/unit -v -m "$MARKERS" --timeout=60
+uv run pytest tests/unit -v -m "$MARKERS" --timeout=60 --require-geist-firing
 uv run pytest tests/integration -v -m "$MARKERS" --timeout=300
 ```
 
@@ -57,7 +57,8 @@ inference from the bundled model. The authoritative pre-push command
 
 ## Fixtures
 
-- `tests/conftest.py`: shared fixtures and marker-driven external constructor stub
+- `tests/conftest.py`: shared fixtures, marker-driven external constructor stub,
+  and registration of the `tests/plugins/` gate options
 - `tests/stubs.py`: deterministic `SentenceTransformerStub`
 - `tests/fixtures/helpers.py`: `VaultBuilder`, `assert_valid_suggestions`, `SESSION_DATE`, `SEED`
 - `tests/fixtures/virtual_notes.py`: `create_journal_file` for date-collection journals
@@ -85,6 +86,33 @@ the product on purpose (a temporary source edit you revert, or a monkeypatch
 plugin passed with `-p`) and confirm the test fails, then passes on the real
 code. Do not let a mock or spy supply the value under test; a spy should
 delegate to the real function.
+
+## Quality Gates
+
+Coverage shows that code ran, not that a test checked it. These gates check
+the tests themselves. They are cheap and deterministic, and `validate.sh` and
+CI run them identically.
+
+| Gate | Where | Fails when |
+|------|-------|------------|
+| Geist firing | `--require-geist-firing` on the unit lane; `tests/plugins/geist_firing.py` | a bundled geist (code or Tracery) never built a `Suggestion` during the lane |
+| Suite hygiene | `tests/unit/test_suite_hygiene.py`; `tests/plugins/hygiene_scan.py` | a test asserts nothing, asserts something always true, asserts only inside a loop over suggestions/results, or only checks `isinstance(x, list)` |
+| Acceptance evidence | `scripts/check_phase_completion.py`; `tests/plugins/selection_report.py` | an AUTO pytest criterion selects no tests, or names a file the canonical marker filter only partly selects |
+
+How the geist firing gate attributes output: it wraps `Suggestion.__init__`
+for the session and credits the nearest calling frame that lives in
+`default_geists/code/<geist>.py`, or `TraceryGeist.suggest` for a grammar
+loaded from `default_geists/tracery/<geist>.yaml`. This works for direct
+`module.suggest(vault)` calls and for `GeistExecutor`, which loads geists by
+file path. `Suggestion(geist_id="x", ...)` written in a test is not credited.
+Pass the flag only on the full unit lane; on a partial run it lists every
+geist the selection did not exercise.
+
+Each gate has an allowlist with exact ids and written reasons:
+`ALLOWLIST` in `tests/plugins/geist_firing.py` (geist ids) and in
+`tests/unit/test_suite_hygiene.py` (`(test id, rule)` pairs). A stale entry
+fails: one whose geist now fires, or whose test was fixed or removed. To clear
+an entry, fix the test and delete the entry.
 
 ## Focused Development Commands
 

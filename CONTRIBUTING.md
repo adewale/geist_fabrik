@@ -123,7 +123,7 @@ uv run ty check src tests --error-on-warning
 
 # Fast test lanes (same canonical selection used by validation/CI)
 MARKERS="not slow and not benchmark and not artifact and not production_model"
-uv run pytest tests/unit -v -m "$MARKERS"
+uv run pytest tests/unit -v -m "$MARKERS" --require-geist-firing
 uv run pytest tests/integration -v -m "$MARKERS"
 
 # Full release-artifact checks, including the real bundled model
@@ -218,6 +218,15 @@ uv run pytest tests/unit tests/integration -m "$MARKERS"
 - The autouse fixture stubs only the external `SentenceTransformer` constructor
   unless a test has the `production_model` marker; command spelling does not
   activate stubbing.
+- **Every test must be able to fail.** Three gates enforce this (see
+  `tests/README.md` → "Quality Gates"):
+  - the unit lane runs with `--require-geist-firing`, so a new bundled geist
+    needs a unit test whose fixture makes it produce a `Suggestion`;
+  - `tests/unit/test_suite_hygiene.py` rejects assertion-free tests,
+    always-true asserts, assertions only inside loops over output, and
+    `isinstance(x, list)` as the only check;
+  - `scripts/check_phase_completion.py` rejects acceptance criteria that select
+    no tests or name a file the canonical marker filter only partly selects.
 
 ### Running Tests
 
