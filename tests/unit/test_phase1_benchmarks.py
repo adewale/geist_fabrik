@@ -4,6 +4,9 @@ These tests measure actual performance improvements from:
 - Session-scoped caching (backlinks, outgoing_links, graph_neighbours)
 - Vectorized operations (contrarian_to, unlinked_pairs)
 
+The timing benchmarks are marked ``benchmark`` and excluded from the fast
+lane; the backlink query-count test is deterministic and always runs.
+
 Run benchmarks with:
     pytest tests/unit/test_phase1_benchmarks.py -m benchmark -v -s
 
@@ -45,12 +48,12 @@ def benchmark_vault():
         yield vault_path
 
 
-@pytest.mark.benchmark
 def test_backlinks_caching_benchmark(benchmark_vault):
     """Repeated backlink traversal performs a bounded number of SQL reads.
 
     A query-count contract is stable across runners and detects the original
-    per-note SQL implementation without relying on sub-millisecond timings.
+    per-note SQL implementation without relying on sub-millisecond timings,
+    so unlike the timing benchmarks below it runs in the fast lane.
     """
     vault = Vault(benchmark_vault)
     vault.sync()
@@ -70,9 +73,7 @@ def test_backlinks_caching_benchmark(benchmark_vault):
         vault.db.set_trace_callback(None)
 
     reads = [
-        statement
-        for statement in statements
-        if statement.lstrip().upper().startswith("SELECT")
+        statement for statement in statements if statement.lstrip().upper().startswith("SELECT")
     ]
     assert len(reads) <= 3, f"backlink traversal issued {len(reads)} SQL reads"
 
@@ -188,11 +189,6 @@ def test_phase1_integrated_benchmark(benchmark_vault):
 
     Simulates typical geist execution pattern using all optimised operations.
     """
-    # Clear global registry to avoid test pollution
-    from geistfabrik.function_registry import _GLOBAL_REGISTRY
-
-    _GLOBAL_REGISTRY.clear()
-
     vault = Vault(benchmark_vault)
     vault.sync()
 

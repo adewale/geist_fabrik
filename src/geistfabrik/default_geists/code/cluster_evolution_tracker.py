@@ -69,7 +69,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                             f"'{prev_label}' cluster to '{current_label}' cluster. "
                             f"What conceptual shift occurred?"
                         ),
-                        notes=[note.title],
+                        notes=[note.link_text],
                         geist_id="cluster_evolution_tracker",
                     )
                 )

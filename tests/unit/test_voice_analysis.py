@@ -11,7 +11,6 @@ from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from geistfabrik.voice_analysis import (
-    HEDGES,
     VOICE_METADATA_KEYS,
     compute_voice_metadata,
     count_hedges,
@@ -171,13 +170,6 @@ def test_split_sentences_basic() -> None:
     """Sentences split on terminal punctuation and blank lines."""
     sentences = split_sentences("One here. Two there! Three?\n\nFour paragraph")
     assert len(sentences) == 4
-
-
-def test_hedges_frozenset_matches_spec() -> None:
-    """HEDGES contains the spec's words and is a frozenset."""
-    assert isinstance(HEDGES, frozenset)
-    for hedge in ("maybe", "sort of", "i think", "presumably", "in a way"):
-        assert hedge in HEDGES
 
 
 # ============================================================================

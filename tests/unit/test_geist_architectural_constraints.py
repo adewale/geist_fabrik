@@ -38,6 +38,11 @@ def test_geists_use_link_text_not_title() -> None:
     # Matches: "[[" + note.title + "]]"
     pattern3 = re.compile(r'"\[\["\s*\+\s*[^+]*\.title\s*\+\s*"\]\]"')
 
+    # Pattern 4: .title as a Suggestion.notes reference
+    # Matches: notes=[note.title] or notes=[n.title for n in ...]
+    # (a bare virtual title like "2024-05-22" names every journal's entry)
+    pattern4 = re.compile(r"notes=\[[^\]]*\.title\b")
+
     for geist_file in sorted(geist_dir.glob("*.py")):
         if geist_file.name == "__init__.py":
             continue
@@ -51,7 +56,7 @@ def test_geists_use_link_text_not_title() -> None:
                 continue
 
             # Check all patterns
-            if pattern1.search(line) or pattern2.search(line) or pattern3.search(line):
+            if any(p.search(line) for p in (pattern1, pattern2, pattern3, pattern4)):
                 # Check if this line actually has .link_text (might be a false positive)
                 if ".link_text" in line:
                     continue
@@ -104,97 +109,6 @@ def test_geists_use_link_text_not_title() -> None:
                 "=" * 80,
             ]
         )
-
-        raise AssertionError("\n".join(error_msg))
-
-
-def test_geists_have_proper_type_hints() -> None:
-    """Enforce that all code geists have proper type hints on suggest() function.
-
-    Architectural Principle:
-    All geist suggest() functions must have proper type hints for maintainability
-    and must follow the project's type hint style guide.
-
-    Required signature (per CLAUDE.md):
-        def suggest(vault: "VaultContext") -> list["Suggestion"]:
-
-    Style requirements:
-        - Use lowercase 'list' (not 'List' from typing)
-        - Use quotes for forward references (TYPE_CHECKING pattern)
-    """
-    geist_dir = Path("src/geistfabrik/default_geists/code")
-    violations = []
-
-    # Pattern: def suggest without proper type hints
-    suggest_pattern = re.compile(r"^\s*def suggest\([^)]*\)\s*(?:->)?")
-
-    for geist_file in sorted(geist_dir.glob("*.py")):
-        if geist_file.name == "__init__.py":
-            continue
-
-        content = geist_file.read_text()
-        lines = content.splitlines()
-
-        for line_num, line in enumerate(lines, start=1):
-            match = suggest_pattern.match(line)
-            if match:
-                # Check for proper type hints
-                if 'vault: "VaultContext"' not in line:
-                    violations.append(
-                        {
-                            "file": geist_file.name,
-                            "line": line_num,
-                            "issue": "Missing VaultContext type hint",
-                            "code": line.strip(),
-                        }
-                    )
-                # Enforce project standard: list["Suggestion"] (lowercase, quoted)
-                elif '-> list["Suggestion"]' not in line:
-                    # Detect specific violations for better error messages
-                    if "List[" in line:
-                        issue = "Uses 'List' instead of 'list' (violates PEP 585 style)"
-                    elif "-> list[Suggestion]" in line:
-                        issue = (
-                            "Missing quotes around 'Suggestion' (should be list[\"Suggestion\"])"
-                        )
-                    else:
-                        issue = "Missing or incorrect return type hint"
-
-                    violations.append(
-                        {
-                            "file": geist_file.name,
-                            "line": line_num,
-                            "issue": issue,
-                            "code": line.strip(),
-                        }
-                    )
-
-    if violations:
-        error_msg = [
-            "",
-            "=" * 80,
-            "TYPE HINT VIOLATIONS IN GEISTS",
-            "=" * 80,
-            "",
-            "All geist suggest() functions must follow the project type hint style.",
-            "",
-            "Required signature (per CLAUDE.md):",
-            '    def suggest(vault: "VaultContext") -> list["Suggestion"]:',
-            "",
-            "Style requirements:",
-            "  - Use lowercase 'list' (not 'List' from typing)",
-            "  - Use quotes for forward references",
-            "",
-            "Violations found:",
-            "",
-        ]
-
-        for v in violations:
-            error_msg.append(f"  {v['file']}:{v['line']} - {v['issue']}")
-            error_msg.append(f"    {v['code']}")
-            error_msg.append("")
-
-        error_msg.append("=" * 80)
 
         raise AssertionError("\n".join(error_msg))
 

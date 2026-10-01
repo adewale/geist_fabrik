@@ -1,7 +1,10 @@
 """Integration tests for embeddings module (real models).
 
 These tests use the actual SentenceTransformer model and are slower.
-They verify end-to-end behaviour with real embeddings.
+They cover what only real weights can show: a semantic known answer, and
+end-to-end session storage, empty and over-length inputs through the real
+tokenizer. Model-independent behaviour (temporal composition, semantic cache)
+is owned by tests/unit/test_embeddings.py with the stub.
 
 Run separately with: pytest -v tests/integration/test_embeddings_integration.py
 The required package-smoke CI job also verifies real offline inference from an installed wheel.
@@ -90,25 +93,6 @@ def db_with_notes(sample_notes):
     db.close()
 
 
-def test_real_model_loading():
-    """Test that the real SentenceTransformer model loads successfully.
-
-    This test verifies:
-    - Model can be downloaded/loaded from cache
-    - Model produces embeddings of correct shape
-    - Model loading doesn't hang indefinitely
-    """
-    computer = EmbeddingComputer()
-
-    # Trigger lazy loading
-    text = "Test sentence for model loading."
-    embedding = computer.compute_semantic(text)
-
-    assert isinstance(embedding, np.ndarray)
-    assert embedding.shape == (384,)
-    assert computer._model is not None
-
-
 def test_real_semantic_embeddings(sample_notes):
     """Test that real model produces semantically meaningful embeddings.
 
@@ -134,25 +118,6 @@ def test_real_semantic_embeddings(sample_notes):
     assert sim_ai > sim_cooking_2, "AI notes should be more similar to each other than to cooking"
 
 
-def test_real_temporal_embeddings(sample_notes):
-    """Test that temporal embeddings combine semantic and temporal correctly."""
-    computer = EmbeddingComputer()
-    session_date = datetime(2023, 6, 15)
-
-    embedding = computer.compute_temporal_embedding(sample_notes[0], session_date)
-
-    # Verify shape
-    assert embedding.shape == (387,)
-
-    # Verify semantic portion is non-zero (first 384 dims)
-    semantic_portion = embedding[:384]
-    assert np.any(semantic_portion != 0), "Semantic portion should be non-zero"
-
-    # Verify temporal portion is non-zero (last 3 dims)
-    temporal_portion = embedding[384:]
-    assert np.any(temporal_portion != 0), "Temporal portion should be non-zero"
-
-
 def test_real_session_embeddings(db_with_notes, sample_notes):
     """Test end-to-end session embedding computation with real model."""
     session = Session(datetime(2023, 6, 15), db_with_notes)
@@ -169,83 +134,6 @@ def test_real_session_embeddings(db_with_notes, sample_notes):
     for path, embedding in embeddings.items():
         assert embedding.shape == (387,)
         assert np.any(embedding != 0), f"Embedding for {path} should be non-zero"
-
-
-def test_real_semantic_cache(db_with_notes, sample_notes):
-    """Test that semantic embeddings are cached correctly with real model."""
-    # First session computes embeddings
-    session1 = Session(datetime(2023, 6, 15), db_with_notes)
-    session1.compute_embeddings(sample_notes)
-
-    # Get embedding for note1
-    embedding1 = session1.get_embedding(sample_notes[0].path)
-
-    # Second session on different date should reuse cached semantic embeddings
-    session2 = Session(datetime(2023, 6, 16), db_with_notes)
-
-    # Check cache before computing
-    cached_semantic = session2._get_cached_semantic_embedding(sample_notes[0])
-    assert cached_semantic is not None, "Semantic embedding should be cached"
-
-    # Compute embeddings for session 2
-    session2.compute_embeddings(sample_notes)
-
-    # Get embedding for note1 in session 2
-    embedding2 = session2.get_embedding(sample_notes[0].path)
-
-    # Temporal embeddings will differ (different session dates)
-    # but they should both be valid
-    assert embedding1 is not None
-    assert embedding2 is not None
-    assert embedding1.shape == embedding2.shape
-
-
-def test_real_batch_computation(db_with_notes, sample_notes):
-    """Test batch embedding computation with real model."""
-    # Create multiple notes
-    notes = []
-    for i in range(10):
-        note = Note(
-            path=f"batch_{i}.md",
-            title=f"Batch Note {i}",
-            content=f"This is test content for batch note number {i}.",
-            links=[],
-            tags=[],
-            created=datetime(2023, 1, 1),
-            modified=datetime(2023, 1, 1),
-        )
-        notes.append(note)
-
-        # Insert into database
-        db_with_notes.execute(
-            """
-            INSERT INTO notes (path, title, content, created, modified, file_mtime)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                note.path,
-                note.title,
-                note.content,
-                note.created.isoformat(),
-                note.modified.isoformat(),
-                note.modified.timestamp(),
-            ),
-        )
-    db_with_notes.commit()
-
-    # Compute the complete committed vault snapshot in batch.
-    session = Session(datetime(2023, 6, 15), db_with_notes)
-    session.compute_embeddings([*sample_notes, *notes])
-
-    # Verify all embeddings were computed through the public vector backend.
-    backend = session.get_backend()
-    embeddings = {note.path: backend.get_embedding(note.path) for note in notes}
-    assert len(embeddings) == len(notes)
-
-    for note in notes:
-        embedding = session.get_embedding(note.path)
-        assert embedding is not None
-        assert embedding.shape == (387,)
 
 
 def test_real_empty_content_handling(db_with_notes, sample_notes):

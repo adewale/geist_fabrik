@@ -96,6 +96,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   geist splits one saved cluster. Grammar preflight (shared by loading and
   `geistfabrik validate`) rejects malformed actions, and `validate` no longer
   reports saved keys as undefined symbols.
+- note_combinations could pair a note with itself ("combine [[A]] with [[A]]")
+  because note1 and note2 were two independent `sample_notes` draws; it now
+  splits one pair from the new `$vault.note_pairs(count)` function, and
+  abstains on a one-note vault. random_prompts likewise no longer connects a
+  concept with itself ("between emergence and emergence").
+- cluster_evolution_tracker, metadata_outlier_detector and
+  seasonal_topic_analysis put `note.title` into `Suggestion.notes`, so a
+  journal entry was referenced by its bare date, which names every journal's
+  entry for that date; they now use `note.link_text` (`Journal#date`).
 
 ### Tests
 - Acceptance criteria AC-5.3 (write session note), AC-5.6 (multi-day

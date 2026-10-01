@@ -2,7 +2,7 @@
 
 from contextlib import closing
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -134,18 +134,29 @@ def test_small_vault_metrics_report_unclustered_notes_without_crashing(count):
         db.close()
 
 
-def test_stats_clustering_uses_configured_minimum():
+@pytest.mark.parametrize(("min_cluster_size", "clusters"), [(2, 2), (5, 0)])
+def test_stats_clustering_uses_configured_minimum(min_cluster_size: int, clusters: int) -> None:
+    """Two tight triples form two clusters only when the configured minimum allows it.
+
+    With the default minimum of 5, six notes cannot hold two clusters, so all
+    are reported as gaps; with a configured minimum of 2 HDBSCAN finds both.
+    """
+    triples = np.array(
+        [[1, 0, 0], [0.99, 0.01, 0], [0.98, 0.02, 0], [0, 1, 0], [0.01, 0.99, 0], [0.02, 0.98, 0]],
+        dtype=np.float32,
+    )
     db = init_db()
     try:
+        db.execute("INSERT INTO sessions (date, created_at) VALUES ('2024-01-01', '2024-01-01')")
+        db.commit()
         config = GeistFabrikConfig()
-        config.clustering.min_cluster_size = 2
+        config.clustering.min_cluster_size = min_cluster_size
         config.clustering.labeling_method = "tfidf"
-        computer = EmbeddingMetricsComputer(db, config)
-        constructor = Mock()
-        constructor.return_value.fit_predict.return_value = np.array([-1] * 4)
-        with patch("geistfabrik.embedding_metrics.HDBSCAN", constructor):
-            computer._compute_clustering_metrics(np.eye(4), ["a", "b", "c", "d"])
-        constructor.assert_called_once_with(min_cluster_size=2, min_samples=3)
+        result = EmbeddingMetricsComputer(db, config).compute_metrics(
+            "2024-01-01", triples, list("abcdef")
+        )
+        assert result["n_clusters"] == clusters
+        assert result["n_gaps"] == (0 if clusters else 6)
     finally:
         db.close()
 

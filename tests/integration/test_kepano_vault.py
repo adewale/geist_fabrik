@@ -9,8 +9,10 @@ import pytest
 
 from geistfabrik import Vault
 from geistfabrik.embeddings import Session
+from geistfabrik.models import Note
 
 KEPANO_VAULT_PATH = Path(__file__).parent.parent.parent / "testdata" / "kepano-obsidian-main"
+EVERGREEN = "Evergreen notes turn ideas into objects that you can manipulate.md"
 
 
 @pytest.fixture
@@ -24,85 +26,70 @@ def kepano_vault() -> Generator[Vault, None, None]:
     vault.close()
 
 
+KEPANO_TITLES = {
+    "2023 Japan Trip",
+    "2023-09-12 Meeting with Steph",
+    "2023-09-12",
+    "2023-09-30",
+    "Evergreen notes turn ideas into objects that you can manipulate",
+    "Isolated thought",
+    "Minimal Theme",
+    "Obsidian",
+    "Product usage analysis",
+    "Readme",
+}
+
+
 def test_load_kepano_vault(kepano_vault: Vault) -> None:
-    """Test loading the kepano vault."""
+    """Every committed note loads, titled after its file, with its body."""
     notes = kepano_vault.all_notes()
 
-    # Kepano vault should have 8 markdown files
-    assert len(notes) >= 8
+    assert {note.title for note in notes} == KEPANO_TITLES
+    assert all(note.content.strip() for note in notes)
+    assert not any(note.is_virtual for note in notes)
 
-    # Verify we can access each note
-    for note in notes:
-        assert note.path
-        assert note.title
-        assert note.content
+
+def _note(vault: Vault, title: str) -> Note:
+    return next(n for n in vault.all_notes() if n.title == title)
 
 
 def test_parse_evergreen_notes(kepano_vault: Vault) -> None:
-    """Test parsing evergreen note from kepano vault."""
-    # Find the evergreen note
-    notes = kepano_vault.all_notes()
-    evergreen = None
-    for note in notes:
-        if "Evergreen notes" in note.title:
-            evergreen = note
-            break
+    """A clipping keeps its frontmatter links and its emoji and plain tags."""
+    note = _note(kepano_vault, Path(EVERGREEN).stem)
 
-    assert evergreen is not None, "Committed Evergreen notes fixture is missing"
-
-    # Verify structure
-    assert evergreen.title
-    assert evergreen.content
-    # Evergreen notes typically have links
-    assert len(evergreen.links) > 0
+    targets = {link.target for link in note.links}
+    assert {"Clippings", "Steph Ango", "Evergreen", "Obsidian"} <= targets
+    assert note.tags == ["0🌲", "clippings"]
 
 
 def test_parse_daily_note(kepano_vault: Vault) -> None:
-    """Test parsing daily note from kepano vault."""
-    notes = kepano_vault.all_notes()
+    """A date-titled daily note is an ordinary note (no H2 date sections)."""
+    note = _note(kepano_vault, "2023-09-12")
 
-    # Find a daily note (format: YYYY-MM-DD)
-    daily_notes = [n for n in notes if n.path.startswith("2023-")]
-
-    assert daily_notes, "Committed daily-note fixtures are missing"
-    daily = daily_notes[0]
-    assert daily.title
-    assert daily.content
+    assert not note.is_virtual
+    assert [link.target for link in note.links] == ["Daily.base"]
+    assert note.tags == ["daily"]
 
 
 def test_parse_meeting_note(kepano_vault: Vault) -> None:
-    """Test parsing meeting note from kepano vault."""
-    notes = kepano_vault.all_notes()
+    note = _note(kepano_vault, "2023-09-12 Meeting with Steph")
 
-    # Find meeting note
-    meeting = None
-    for note in notes:
-        if "Meeting" in note.title or "Meeting" in note.path:
-            meeting = note
-            break
-
-    assert meeting is not None, "Committed meeting-note fixture is missing"
-
-    assert meeting.title
-    assert meeting.content
+    assert {"Meetings", "Steph Ango", "Emergence", "Out of Control"} <= {
+        link.target for link in note.links
+    }
+    assert note.tags == ["meetings"]
 
 
 def test_kepano_link_graph(kepano_vault: Vault) -> None:
-    """Test link graph structure in kepano vault."""
-    notes = kepano_vault.all_notes()
+    """Body links, frontmatter property links and heading anchors all become links."""
+    targets = {n.title: {link.target for link in n.links} for n in kepano_vault.all_notes()}
 
-    # Count total links
-    total_links = sum(len(note.links) for note in notes)
-
-    # Should have some links in the vault
-    assert total_links > 0
-
-    # Verify link structure
-    for note in notes:
-        for link in note.links:
-            assert link.target
-            # Target should be a string
-            assert isinstance(link.target, str)
+    # A body "Related:" line alongside frontmatter property links.
+    assert {"Tools", "Active", "Minimal Theme", Path(EVERGREEN).stem} <= targets["Obsidian"]
+    assert {"Trips", "Kyoto", "Japan"} <= targets["2023 Japan Trip"]
+    # Heading anchors stay part of the target.
+    assert "Products.base#Cost per use" in targets["Product usage analysis"]
+    assert targets["Isolated thought"] == set()
 
 
 def test_kepano_embeddings(kepano_vault: Vault) -> None:

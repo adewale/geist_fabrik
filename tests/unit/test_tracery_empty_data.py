@@ -210,44 +210,34 @@ class TestAllTraceryGeistsWithEmptyVault:
         assert speaking == {}, f"vault-backed geists spoke about an empty vault: {speaking}"
 
 
-class TestTraceryEmptyPlaceholderDetection:
-    """Test the _has_empty_placeholder method."""
+@pytest.mark.parametrize(
+    "template",
+    [
+        "#hub# connects many ideas.",  # leading whitespace
+        "Ask about #hub#",  # trailing whitespace
+        "What about #hub# and its links?",  # double space
+        "Many connections lead through #hub#. Is it still clearly defined?",  # " ."
+        "Is anything linked to #hub#?",  # " ?"
+    ],
+)
+def test_suggestion_with_an_empty_expansion_is_dropped(tmp_path: Path, template: str) -> None:
+    """A symbol that expands to "" leaves a gap; suggest() drops that suggestion.
 
-    def test_detects_double_spaces(self):
-        """Should detect double spaces."""
-        from geistfabrik.tracery import TraceryGeist
+    String-returning vault functions (random_note_title on an empty vault) and
+    split modifiers (split_neighbours of a seed with no neighbours) yield ""
+    rather than an empty rule list, so the gap must be caught in the text.
+    The same template with a real value must survive, so the drop is caused by
+    the gap and not by the template.
+    """
+    (tmp_path / "Hub.md").write_text("# Hub\nA note.")
+    vault = Vault(tmp_path)
+    vault.sync()
+    session = Session(datetime(2025, 1, 20), vault.db)
+    context = VaultContext(vault, session, seed=1, function_registry=FunctionRegistry())
 
-        geist = TraceryGeist("test", {}, count=1, seed=42)
+    def run(value: str) -> list[str]:
+        geist = TraceryGeist("gap", {"origin": [template], "hub": [value]}, count=1, seed=1)
+        return [s.text for s in geist.suggest(context)]
 
-        assert geist._has_empty_placeholder("word  word") is True
-        assert geist._has_empty_placeholder("normal text") is False
-
-    def test_detects_space_before_punctuation(self):
-        """Should detect space before punctuation."""
-        from geistfabrik.tracery import TraceryGeist
-
-        geist = TraceryGeist("test", {}, count=1, seed=42)
-
-        assert geist._has_empty_placeholder("word . word") is True
-        assert geist._has_empty_placeholder("word, word") is False
-        assert geist._has_empty_placeholder("word . Word") is True
-
-    def test_detects_missing_content_pattern(self):
-        """Should detect pattern like 'through . Is'."""
-        from geistfabrik.tracery import TraceryGeist
-
-        geist = TraceryGeist("test", {}, count=1, seed=42)
-
-        # The actual failing text from hub_explorer
-        assert (
-            geist._has_empty_placeholder(
-                "Many connections lead through . Is it still clearly defined?"
-            )
-            is True
-        )
-
-        # Valid text should pass
-        assert (
-            geist._has_empty_placeholder("[[Note]] connects many ideas—what's the common thread?")
-            is False
-        )
+    assert run("") == []
+    assert run("[[Hub]]") == [template.replace("#hub#", "[[Hub]]")]
