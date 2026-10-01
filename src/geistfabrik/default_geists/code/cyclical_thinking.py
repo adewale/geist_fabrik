@@ -23,8 +23,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik import Suggestion
     from geistfabrik.temporal_analysis import TemporalPatternFinder
 
-    # Need multiple sessions for cycle detection
-    if vault.session_count() < 6:  # Need at least 6 sessions for 2 cycles
+    # Two cycles need 5 snapshots: the first state, then low, high, low, high
+    # (TemporalPatternFinder requires 2 * min_cycles + 1).
+    if vault.session_count() < 5:
         return []
 
     notes = vault.notes()

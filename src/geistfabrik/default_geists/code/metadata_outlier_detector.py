@@ -47,7 +47,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         f"({int(wc)} words vs median {int(median)}). "
                         f"Does this depth signal importance?"
                     ),
-                    notes=[note.title],
+                    notes=[note.link_text],
                     geist_id="metadata_outlier_detector",
                 )
             )
@@ -59,7 +59,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         f"({int(wc)} words vs median {int(median)}). "
                         f"Does this note need development?"
                     ),
-                    notes=[note.title],
+                    notes=[note.link_text],
                     geist_id="metadata_outlier_detector",
                 )
             )
@@ -83,7 +83,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                             f"link density ({density:.2f}). "
                             f"Is this a hub or an over-connected note?"
                         ),
-                        notes=[note.title],
+                        notes=[note.link_text],
                         geist_id="metadata_outlier_detector",
                     )
                 )
@@ -95,7 +95,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                             f"link density ({density:.2f}). "
                             f"Could this isolated note connect to others?"
                         ),
-                        notes=[note.title],
+                        notes=[note.link_text],
                         geist_id="metadata_outlier_detector",
                     )
                 )
