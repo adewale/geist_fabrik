@@ -115,3 +115,24 @@ def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
 
     assert first
     assert first == second
+
+
+def test_output_does_not_depend_on_hash_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same date + vault = same output, whatever PYTHONHASHSEED a process has.
+
+    Regression: candidates were deduplicated through a set of Notes, so the
+    order fed to vault.sample followed string-hash order. Salting
+    Note.__hash__ stands in for a different hash seed within one process.
+    """
+    from geistfabrik.models import Note
+
+    builder = VaultBuilder(tmp_path)
+    _topic_notes(builder, 10)
+    baseline = [s.text for s in method_scrambler.suggest(builder.build())]
+    assert baseline
+
+    for salt in ("a", "b", "c", "d", "e", "f"):
+        monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))
+        assert [s.text for s in method_scrambler.suggest(builder.build())] == baseline, salt

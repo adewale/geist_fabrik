@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .config import MAX_NOTE_BYTES
+from .config import MAX_NOTE_BYTES, semantic_cache_key
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
 from .markdown_parser import MarkdownLimitError, parse_markdown
@@ -441,9 +441,14 @@ class Vault:
             file_mtime: File modification time
         """
         # Semantic embeddings are a cache of current content and must be
-        # invalidated on a processed update. Session embeddings are historical
-        # records and deliberately survive same-path updates.
-        self.db.execute("DELETE FROM embeddings WHERE note_path = ?", (note.path,))
+        # invalidated on a processed update, unless the content is unchanged
+        # (a parser-revision reprocess must not force re-embedding the whole
+        # vault). Session embeddings are historical records and
+        # deliberately survive same-path updates.
+        self.db.execute(
+            "DELETE FROM embeddings WHERE note_path = ? AND model_version != ?",
+            (note.path, semantic_cache_key(note.content)),
+        )
         self.db.execute(
             """
             INSERT INTO notes (

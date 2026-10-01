@@ -419,8 +419,9 @@ past_emb = session.get_embeddings(past_date)
 
 # Compare the semantic component only: calendar features (note age, season)
 # change every session and must not register as drift.
-current_sem = semantic_component(current_emb)
-past_sem = semantic_component(past_emb)
+# (semantic_component works on one stored vector, so apply it per row.)
+current_sem = np.vstack([semantic_component(v) for v in current_emb])
+past_sem = np.vstack([semantic_component(v) for v in past_emb])
 
 # No alignment step. Every session embeds with the same pinned model, so both
 # snapshots share one coordinate system. (An earlier draft fitted an orthogonal

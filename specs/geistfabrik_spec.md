@@ -466,7 +466,7 @@ Temporal embeddings unlock two powerful dimensions:
 
 **Temporal Clustering** - Automatic periods
 - Notes naturally cluster by era due to temporal features
-- "Your Q2-2023 notes form a distinct semantic cluster separate from Q4-2023"
+- "Your Apr 2023 to Jun 2023 notes form a distinct semantic cluster separate from Oct 2023 to Dec 2023"
 - Discovers intellectual "seasons" without manual tagging
 
 **Anachronism Detector** - Temporal outliers
@@ -920,6 +920,7 @@ $vault.orphans(k)                # k notes with no links
 $vault.hubs(k)                   # k most linked-to notes
 $vault.random_note_title()       # Single random note
 $vault.semantic_clusters(n, k)   # n seeds paired with k neighbours each
+$vault.note_pairs(k)             # k pairs of two different notes ("[[A]]|||[[B]]")
 ```
 
 **Note**: Functions requiring note titles as parameters cannot be used in Tracery (see "Code-Only Functions" below).

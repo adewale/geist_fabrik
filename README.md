@@ -492,13 +492,15 @@ Create YAML geists in `_geistfabrik/geists/tracery/`:
 
 ```yaml
 type: geist-tracery
-id: creative_collision
-description: Pair unrelated notes for creative collision
+id: my_collisions
+description: Pair two different notes for a creative collision
 
 tracery:
-  origin: "What if you combined #note1# with #note2#?"
-  note1: "$vault.sample_notes(1)"
-  note2: "$vault.sample_notes(1)"
+  # Expand one pair and save it, so both halves come from the same draw
+  # (two separate sample_notes calls can pick the same note twice).
+  origin: "#[pair:#pairs#]template#"
+  template: "What if you combined #pair.split_seed# with #pair.split_neighbours#?"
+  pairs: "$vault.note_pairs(3)"
 ```
 
 ## Architecture

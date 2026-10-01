@@ -58,8 +58,9 @@ trigger fixtures, deterministic time).
    Never `datetime.now()` in fixtures: session embeddings include a
    session-season feature, so wall-clock fixtures literally compute
    different embeddings depending on the calendar day the tests run.
-   Backdate notes via `UPDATE notes SET created = ?, modified = ?` relative
-   to SESSION_DATE (see tests/unit/test_builtin_metadata.py for the pattern).
+   Backdate notes with `VaultBuilder.note(..., created=..., modified=...)`
+   (`tests/fixtures/helpers.py`), relative to `SESSION_DATE`; session history
+   comes from `.build(history=[...])` and `tests/fixtures/temporal.py`.
 
 6. **Boundary pair for thresholds.** If the geist needs N of something,
    write the pair: N-1 → `[]`, N → non-empty. This turns "insufficient data"
@@ -103,49 +104,34 @@ database after syncing (see rule 5).
 ```python
 """Tests for my_geist."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
-from geistfabrik import Session, Vault
 from geistfabrik.default_geists.code import my_geist
-from geistfabrik.vault_context import VaultContext
-from tests.fixtures.helpers import assert_valid_suggestions
-
-SESSION_DATE = datetime(2024, 3, 15)
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
 
 
-def make_context(notes: dict[str, str], backdate_days: int = 0) -> VaultContext:
-    tmpdir = TemporaryDirectory()
-    vault_path = Path(tmpdir.name)
-    for name, content in notes.items():
-        (vault_path / name).write_text(content)
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-    if backdate_days:
-        old = SESSION_DATE - timedelta(days=backdate_days)
-        vault.db.execute(
-            "UPDATE notes SET created = ?, modified = ?", (old.isoformat(), old.isoformat())
-        )
-        vault.db.commit()
-    session = Session(SESSION_DATE, vault.db)
-    session.compute_embeddings(vault.all_notes())
-    ctx = VaultContext(vault, session, seed=20240315)
-    ctx._tmpdir = tmpdir  # keep tempdir alive
-    return ctx
+def test_fires_on_designed_trigger(tmp_path: Path) -> None:
+    # Trigger arithmetic: my_geist needs >= 3 stale linked notes; a 300-day
+    # backdate gives staleness ~0.91 (> 0.7 threshold).
+    old = SESSION_DATE - timedelta(days=300)
+    builder = VaultBuilder(tmp_path)
+    for i in range(3):
+        builder.note(f"Planted {i}", f"Old idea {i} [[Planted {(i + 1) % 3}]]", created=old)
+    builder.journal("2024-03-14", "Session output that must never be suggested")
+
+    suggestions = my_geist.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, "my_geist", must_reference=["Planted 0"])
 
 
-def test_fires_on_designed_trigger():
-    # Trigger arithmetic: my_geist needs >= 3 stale linked notes;
-    # 300-day backdate gives staleness ~0.91 (> 0.7 threshold).
-    ctx = make_context({...}, backdate_days=300)
-    suggestions = my_geist.suggest(ctx)
-    assert_valid_suggestions(suggestions, "my_geist", must_reference=["Planted Note"])
+def test_below_threshold_is_empty(tmp_path: Path) -> None:
+    old = SESSION_DATE - timedelta(days=300)
+    builder = VaultBuilder(tmp_path)
+    for i in range(2):  # one short of the trigger
+        builder.note(f"Planted {i}", f"Old idea {i} [[Planted {1 - i}]]", created=old)
 
-
-def test_below_threshold_is_empty():
-    ctx = make_context({...two notes only...})
-    assert my_geist.suggest(ctx) == []
+    assert my_geist.suggest(builder.build()) == []
 ```
 
 ## Self-check before committing

@@ -692,9 +692,9 @@ journal exclusion.
 
 **The Problem:** In June the testing template was rewritten to forbid the
 vacuous patterns, and `assert_valid_suggestions()` was added to require
-non-empty output. By September the helper had zero callers. Forty per-geist
-files still carried the old eight-test template (one seed, 20240315, appeared
-353 times). Separately, BUG-4 (`st_ctime` is not creation time) sat in an
+non-empty output. By September the helper had zero callers. Thirty-nine
+per-geist files still carried the old eight-test template (one seed,
+20240315, appeared about 400 times across 43 files). Separately, BUG-4 (`st_ctime` is not creation time) sat in an
 audit report, unfixed.
 
 **The Insight:** Fixing the generator, the guidance or the report is not
@@ -732,8 +732,8 @@ the exception. Exclusion tests must plant both the excluded item and a
 qualifying item, and assert both directions.
 
 **Impact:** `VaultContext` excludes journal notes from every vault-wide
-lookup before any cut; per-geist filters were deleted. With the central rule
-disabled, 44 journal tests fail.
+lookup before any cut; per-geist filters were deleted. When the change
+landed, disabling the central rule failed 44 journal tests.
 
 ---
 
@@ -780,9 +780,9 @@ algorithms written inline in the test, never importing GeistFabrik, outlived
 the migration and kept counting as tests.
 
 **The Insight:** Passing is not evidence of protection. Mutation testing would
-measure it, but we rejected it: automated mutants routinely create runaway
-tests (infinite loops and hangs that stall the suite), which costs more than
-it finds here.
+measure it, but we rejected it, automated or hand-made: mutants routinely
+create runaway tests (infinite loops and hangs that stall the suite), which
+costs more than it finds here.
 
 **The Principle:** Use cheap, deterministic proofs instead:
 - a regression test must fail on the pre-fix code (a control run) before the
@@ -794,10 +794,12 @@ it finds here.
   status instead of "returned a list";
 - delete scaffolding tests once the change they proved has landed.
 
-**Impact:** Firing and hygiene gates run in `validate.sh` and CI; the
-executor-backed crash test asserts every execution-log entry succeeded;
-migration-proof files were replaced by oracle and property tests of the real
-functions.
+**Impact:** Firing and hygiene gates run in `validate.sh` and CI with empty
+allowlists: all bundled geists fire (writing the missing firing tests exposed
+six more product bugs). The acceptance gate rejects criteria whose pytest
+target selects nothing or is partly deselected. The executor-backed crash test
+asserts every execution-log entry succeeded; migration-proof files were
+replaced by oracle and property tests of the real functions.
 
 ---
 

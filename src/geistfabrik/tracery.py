@@ -57,6 +57,15 @@ _SPECIAL_RE = re.compile(r"[\[#]")
 _MAX_ACTION_NESTING = 50
 
 
+class _VaultText(str):
+    """A rule produced by a ``$vault.*`` call: vault data, never grammar.
+
+    Note titles and content can contain ``#word#`` or ``[key:...]``. Parsing
+    them as grammar would let a title expand symbols or overwrite saved
+    values, so these rules are inserted verbatim (modifiers still apply).
+    """
+
+
 class _Section(NamedTuple):
     """One parsed piece of a rule: literal text, an action, or a tag."""
 
@@ -517,7 +526,7 @@ class TraceryEngine:
         has_empty = False
         preprocessed_bytes = 0
 
-        def append_rule(rules: list[str], value: object) -> None:
+        def append_rule(rules: list[str], value: object, *, from_vault: bool = False) -> None:
             nonlocal preprocessed_bytes
             text = str(value)
             size = len(text.encode("utf-8"))
@@ -530,7 +539,7 @@ class TraceryEngine:
                 raise TraceryLimitError(
                     f"Preprocessed Tracery grammar exceeds {MAX_TRACERY_PREPROCESSED_BYTES} bytes"
                 )
-            rules.append(text)
+            rules.append(_VaultText(text) if from_vault else text)
 
         try:
             for symbol, rules in self.grammar.items():
@@ -553,10 +562,10 @@ class TraceryEngine:
                         if not result:
                             has_empty = True
                         for item in result:
-                            append_rule(expanded_rules, item)
+                            append_rule(expanded_rules, item, from_vault=True)
                     else:
                         self._consume("vault_item")
-                        append_rule(expanded_rules, result)
+                        append_rule(expanded_rules, result, from_vault=True)
                 new_grammar[symbol] = expanded_rules
         except TraceryLimitError:
             raise
@@ -685,8 +694,10 @@ class TraceryEngine:
             rules = self.grammar[symbol_name]
             if not rules:
                 return ""
-            # Select a random rule and recursively expand it
-            expanded = self.expand(self.rng.choice(rules), depth)
+            # Select a random rule and recursively expand it (vault data is
+            # inserted verbatim, never parsed as grammar)
+            rule = self.rng.choice(rules)
+            expanded = rule if isinstance(rule, _VaultText) else self.expand(rule, depth)
 
         # Apply modifiers in order
         result = expanded
@@ -962,9 +973,11 @@ class TraceryGeist:
         if "  " in text:
             return True
 
-        # Leading/trailing whitespace: an empty symbol at either end of the
-        # template (e.g. "#note# exists." -> " exists.")
-        if text != text.strip():
+        # Leading/trailing spaces: an empty symbol at either end of the
+        # template (e.g. "#note# exists." -> " exists."). Line breaks are not
+        # a sign of an empty symbol: YAML block scalars (``- |``) end in "\n".
+        line = text.strip("\n")
+        if line != line.strip():
             return True
 
         # Check for space before common punctuation

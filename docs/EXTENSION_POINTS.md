@@ -30,7 +30,8 @@ These functions are registered automatically in `FunctionRegistry` and available
 
 | Function | Purpose | Used By | Usage Example |
 |----------|---------|---------|---------------|
-| `sample_notes(k)` | Random sample of notes | **note_combinations**, **what_if** | `$vault.sample_notes(1)` |
+| `sample_notes(k)` | Random sample of notes | **what_if** | `$vault.sample_notes(1)` |
+| `note_pairs(k)` | k pairs of two different notes, `"[[A]]\|\|\|[[B]]"` | **note_combinations** | `$vault.note_pairs(3)` |
 | `old_notes(k)` | Oldest notes by creation | **temporal_mirror** | `$vault.old_notes(1)` |
 | `recent_notes(k)` | Most recent notes | **temporal_mirror** | `$vault.recent_notes(1)` |
 | `orphans()` | Notes with no links | ❌ **Unused** | - |

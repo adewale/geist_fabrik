@@ -1009,3 +1009,35 @@ def test_list_functions_includes_registry_builtins(vault_with_notes):
 
     ctx.register_function("my_local", lambda vault: [])
     assert "my_local" in ctx.list_functions()
+
+
+def test_a_session_note_never_makes_a_users_link_ambiguous(tmp_path: Path) -> None:
+    """Session notes are named YYYY-MM-DD, like many daily notes. A user's
+    ``[[2025-01-15]]`` must still resolve to their daily note, so its
+    backlinks, hub status and orphan status ignore the journal entirely."""
+    builder = VaultBuilder(tmp_path)
+    daily = builder.note("2025-01-15", "Daily log.", folder="Daily")
+    builder.note("Ideas", "See [[2025-01-15]].")
+    builder.note("Other", "Also [[2025-01-15]].")
+    builder.note("Lonely", "Only mentions a session: [[2024-03-14]].")
+    builder.journal("2025-01-15", "Session output mentioning [[Ideas]].")
+    builder.journal("2024-03-14", "Older session output.")
+    ctx = builder.build()
+    by_title = {n.title: n for n in ctx.notes()}
+    daily_note = ctx.get_note(daily)
+    assert daily_note is not None
+
+    assert {n.title for n in ctx.backlinks(daily_note)} == {"Ideas", "Other"}
+    assert ctx.hubs(1) == [daily_note]
+    assert ctx.has_link(by_title["Ideas"], daily_note)
+    resolved = ctx.resolve_link_target("2025-01-15", by_title["Ideas"].path)
+    assert resolved is not None and resolved.path == daily
+    # A note whose only link points at a session note is still an orphan.
+    assert {n.title for n in ctx.orphans()} == {"Lonely"}
+    # The journal stays reachable on purpose, never by accident.
+    assert {n.path for n in ctx.journal_notes()} == {
+        "geist journal/2025-01-15.md",
+        "geist journal/2024-03-14.md",
+    }
+    session = ctx.resolve_link_target("geist journal/2024-03-14")
+    assert session is not None and session.path == "geist journal/2024-03-14.md"

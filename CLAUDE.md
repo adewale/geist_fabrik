@@ -66,7 +66,7 @@ and timeouts):
 4. `ty check src tests --error-on-warning` - Additive whole-project type checking
 5. `python scripts/detect_unused_tables.py` - Database validation
 6. `bandit -c pyproject.toml -r src/geistfabrik -ll -q` - Security scan
-7. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60` - Unit tests plus first coverage pass
+7. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60 --require-geist-firing` - Unit tests plus first coverage pass, suite-hygiene checks, and the geist firing gate (every bundled geist must produce a suggestion in some test)
 8. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Integration tests, appended coverage, measured 70% branch gate
 9. `python scripts/check_phase_completion.py` - Acceptance-criteria gate: *runs*
    every machine-verifiable criterion in `specs/acceptance_criteria.md` (it does

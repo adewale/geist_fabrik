@@ -54,7 +54,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         similar = vault.neighbours(note, count=5)
 
         # Deduplicate by combining into a set
-        all_candidates = list(set(linked_notes + similar))
+        # dict.fromkeys keeps first-seen order; a set would order by string
+        # hash, which varies per process and breaks same-seed replay.
+        all_candidates = list(dict.fromkeys(linked_notes + similar))
 
         candidates = all_candidates
 

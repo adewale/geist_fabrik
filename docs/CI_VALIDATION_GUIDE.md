@@ -40,10 +40,10 @@ mypy src/geistfabrik --ignore-missing-imports
 3. `mypy src/ --strict` - Production type checking with strict mode
 4. `ty check src tests --error-on-warning` - Additive whole-project type checking
 5. `python scripts/detect_unused_tables.py` and Bandit - Data/security checks
-5. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60 --require-geist-firing` - Unit coverage pass, geist firing gate, suite hygiene
-6. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Appended integration coverage and measured 70% branch gate
-7. `python scripts/check_phase_completion.py` - Acceptance criteria, including the evidence gate
-8. `./scripts/test_wheel.sh` - Wheel/sdist, installation, entry-point, and real-model smoke
+6. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60 --require-geist-firing` - Unit coverage pass, geist firing gate, suite hygiene
+7. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Appended integration coverage and measured 70% branch gate
+8. `python scripts/check_phase_completion.py` - Acceptance criteria, including the evidence gate
+9. `./scripts/test_wheel.sh` - Wheel/sdist, installation, entry-point, and real-model smoke
 
 Fast lanes set `GEISTFABRIK_OFFLINE=1`; their marker-selected fixture replaces
 only the external SentenceTransformer constructor. The final validation step
@@ -141,8 +141,9 @@ the tests:
   whole file while the canonical marker filter deselects part of it is
   rejected; name the node IDs instead.
 
-Each gate has an allowlist of exact ids with written reasons. Entries fail
-when stale, so the lists can only shrink.
+The firing and hygiene gates each have an allowlist of exact ids with written
+reasons (both are currently empty). Entries fail when stale, so the lists can
+only shrink. The acceptance-evidence gate has no allowlist: fix the criterion.
 
 ## Common Type Errors with --strict
 

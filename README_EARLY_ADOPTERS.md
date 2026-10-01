@@ -597,7 +597,7 @@ uv run pytest tests/unit/test_performance_regression.py -v
 
 # Real-world benchmarks (slower, manual)
 uv run pytest tests/unit/test_cluster_performance.py::test_cluster_caching_benchmark -v -s
-uv run pytest tests/unit/test_performance_regression.py::test_stats_vectorized_performance -v -s
+uv run pytest tests/unit/test_phase2_batch_loading.py -m benchmark -v -s
 ```
 
 These tests validate:

@@ -81,11 +81,12 @@ may suggest. Check output with `assert_valid_suggestions`, which fails on empty
 output unless you pass `min_count=0` for a test about abstention.
 
 Every test must be able to fail. Do not loop over output that may be empty or
-bound it by a cap it can never exceed. When you write or rewrite a test, break
-the product on purpose (a temporary source edit you revert, or a monkeypatch
-plugin passed with `-p`) and confirm the test fails, then passes on the real
-code. Do not let a mock or spy supply the value under test; a spy should
-delegate to the real function.
+bound it by a cap it can never exceed. A regression test for a bug must fail
+on the pre-fix code (a control run: check the old code out from git and run
+the test with `--timeout`) and pass after the fix. Do not use mutation testing,
+automated or hand-made: mutants routinely produce runaway tests. Do not let a
+mock or spy supply the value under test; a spy should delegate to the real
+function.
 
 ## Quality Gates
 

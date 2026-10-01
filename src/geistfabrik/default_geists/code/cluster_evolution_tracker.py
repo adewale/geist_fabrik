@@ -79,7 +79,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         current_label = current_assignments[note.path]
-        if current_label != successor[prev_label]:
+        # A note whose label string is unchanged did not visibly move, even if
+        # most of its old cluster went elsewhere.
+        if current_label != successor[prev_label] and current_label != prev_label:
             suggestions.append(
                 Suggestion(
                     text=(

@@ -60,7 +60,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  ┌─────────────────────────────────────────────────────────────────┐   ┃
 ┃  │ VAULT ACCESS (returns Note objects)                             │   ┃
 ┃  ├─────────────────────────────────────────────────────────────────┤   ┃
-┃  │  • notes() -> List[Note]          All notes in vault            │   ┃
+┃  │  • notes() -> List[Note]          User notes (no geist journal) │   ┃
 ┃  │  • get_note(path) -> Note         Get specific note             │   ┃
 ┃  │  • read(note) -> str              Read note.content             │   ┃
 ┃  │  • resolve_link_target(target)    Resolve [[wikilink]] to Note  │   ┃

@@ -260,6 +260,7 @@ class VaultContext:
         self._all_notes_cache: list[Note] | None = None
         self._notes_cache: list[Note] | None = None
         self._link_index: NoteLinkIndex | None = None
+        self._full_link_index: NoteLinkIndex | None = None
         self._link_graph_ready = False
 
         # Cache for metadata
@@ -366,6 +367,14 @@ class VaultContext:
         """
         return self.notes()
 
+    def journal_notes(self) -> list[Note]:
+        """Get the engine's own session notes under ``geist journal/``.
+
+        Every other vault-wide lookup leaves these out. Use this only when a
+        geist deliberately reasons about past sessions.
+        """
+        return [note for note in self._all_notes() if is_geist_journal_path(note.path)]
+
     def get_note(self, path: str) -> Note | None:
         """Get specific note by path.
 
@@ -402,10 +411,22 @@ class VaultContext:
         return self._user_embeddings
 
     def link_index(self) -> NoteLinkIndex:
-        """Resolve graph identities against this context's note snapshot."""
+        """Resolve graph identities among the user's notes (no geist journal).
+
+        Journal notes are left out of the index, not just out of results:
+        session notes are named YYYY-MM-DD, like many daily notes, and an
+        index that contained both would make the user's ``[[2025-01-15]]``
+        ambiguous and leave it unresolved.
+        """
         if self._link_index is None:
-            self._link_index = NoteLinkIndex.from_notes(self._all_notes())
+            self._link_index = NoteLinkIndex.from_notes(self.notes())
         return self._link_index
+
+    def _all_notes_link_index(self) -> NoteLinkIndex:
+        """Index over every note, journal included, for explicit lookups."""
+        if self._full_link_index is None:
+            self._full_link_index = NoteLinkIndex.from_notes(self._all_notes())
+        return self._full_link_index
 
     def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
         """Resolve a wiki-link target to a Note.
@@ -421,7 +442,11 @@ class VaultContext:
         Returns:
             Note or None if not found
         """
+        # The user's notes win; only a target that names no user note falls
+        # back to the journal, so an explicit link to a session note resolves.
         path = self.link_index().resolve(target, source_path)
+        if path is None:
+            path = self._all_notes_link_index().resolve(target, source_path)
         return self.get_note(path) if path is not None else None
 
     def read(self, note: Note) -> str:
@@ -495,10 +520,12 @@ class VaultContext:
 
         # Convert paths to notes using batch loading (OP-6)
         # Collect paths first (excluding self)
-        paths_to_load = []
+        paths_to_load: list[str] = []
         path_score_map = {}
         for path, score in similar:
             if path != note.path and not is_geist_journal_path(path):
+                if len(paths_to_load) >= count:
+                    break
                 paths_to_load.append(path)
                 # Clip score to [0, 1] range (handle floating-point precision errors)
                 path_score_map[path] = _clip_similarity(score)
@@ -658,22 +685,20 @@ class VaultContext:
         """Resolve each edge once, sharing the result in both graph directions."""
         if self._link_graph_ready:
             return
-        # Resolve against every note (so a link to a journal note cannot
-        # mis-resolve), but never publish a journal note as a link endpoint:
-        # journal suggestions link to the notes they mention, and counting
-        # those as backlinks would turn every suggested note into a hub.
-        notes = self._all_notes()
+        # Only user notes are sources or targets: journal suggestions link to
+        # the notes they mention, and counting those as backlinks would turn
+        # every suggested note into a hub. link_index() holds user notes only,
+        # so a link to a journal note simply does not resolve here.
+        notes = self.notes()
         by_path = {note.path: note for note in notes}
         index = self.link_index()
         self._backlinks_cache = {note.path: [] for note in notes}
         self._outgoing_links_cache = {note.path: [] for note in notes}
         for note in notes:
-            if is_geist_journal_path(note.path):
-                continue
             seen: set[str] = set()
             for link in note.links:
                 path = index.resolve(link.target, note.path)
-                if path is not None and not is_geist_journal_path(path):
+                if path is not None:
                     self._outgoing_links_cache[note.path].append(by_path[path])
                     if path not in seen:
                         self._backlinks_cache[path].append(note)
@@ -730,10 +755,20 @@ class VaultContext:
             List of orphan notes, most recently modified first
         """
         self._ensure_link_graph()
+        full_index = self._all_notes_link_index()
+
+        def has_outgoing(note: Note) -> bool:
+            # A link counts unless it resolves to a geist journal note
+            # (unresolved links still count, as they always have).
+            return any(
+                not is_geist_journal_path(full_index.resolve(link.target, note.path) or "")
+                for link in note.links
+            )
+
         result = [
             note
             for note in sorted(self.notes(), key=lambda n: (-n.modified.timestamp(), n.path))
-            if not note.links and not self._backlinks_cache[note.path]
+            if not has_outgoing(note) and not self._backlinks_cache[note.path]
         ]
         return result if count is None else result[:count]
 
@@ -767,7 +802,7 @@ class VaultContext:
             Dictionary mapping date strings (YYYY-MM-DD) to lists of notes
             created on that date, sorted by note count descending
         """
-        journal_filter = f"WHERE NOT path LIKE '{_JOURNAL_PREFIX}%'" if exclude_journal else ""
+        journal_filter = f"WHERE NOT path GLOB '{_JOURNAL_PREFIX}*'" if exclude_journal else ""
 
         cursor = self.db.execute(
             f"""
@@ -870,9 +905,9 @@ class VaultContext:
             emb_cursor = self.db.execute(
                 """
                 SELECT embedding FROM session_embeddings
-                WHERE session_id = ? AND note_path NOT LIKE ?
+                WHERE session_id = ? AND note_path NOT GLOB ?
                 """,
-                (session_id, f"{_JOURNAL_PREFIX}%"),
+                (session_id, f"{_JOURNAL_PREFIX}*"),
             )
             embeddings = [np.frombuffer(row[0], dtype=np.float32) for row in emb_cursor.fetchall()]
             date_str = datetime.fromisoformat(str(session_date)).strftime("%Y-%m-%d")
@@ -1320,8 +1355,8 @@ class VaultContext:
             List of old notes, sorted by modification time ascending
         """
         cursor = self.db.execute(
-            "SELECT path FROM notes WHERE path NOT LIKE ? ORDER BY modified ASC LIMIT ?",
-            (f"{_JOURNAL_PREFIX}%", count),
+            "SELECT path FROM notes WHERE path NOT GLOB ? ORDER BY modified ASC LIMIT ?",
+            (f"{_JOURNAL_PREFIX}*", count),
         )
 
         result = []
@@ -1342,8 +1377,8 @@ class VaultContext:
             List of recent notes, sorted by modification time descending
         """
         cursor = self.db.execute(
-            "SELECT path FROM notes WHERE path NOT LIKE ? ORDER BY modified DESC LIMIT ?",
-            (f"{_JOURNAL_PREFIX}%", count),
+            "SELECT path FROM notes WHERE path NOT GLOB ? ORDER BY modified DESC LIMIT ?",
+            (f"{_JOURNAL_PREFIX}*", count),
         )
 
         result = []

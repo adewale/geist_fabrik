@@ -1350,3 +1350,55 @@ def test_validator_treats_saved_keys_as_defined_symbols(tmp_path: Path) -> None:
     result = GeistValidator(strict=True).validate_tracery_geist(geist_file, root=tmp_path)
     # Control: without the save, the same reference really is undefined.
     assert "Undefined symbols referenced: hero" in [i.message for i in result.issues]
+
+
+def test_block_scalar_templates_still_produce_suggestions(tmp_path: Path) -> None:
+    """A YAML literal block (``- |``) always ends in a newline; that newline is
+    not an empty placeholder, so the suggestion must survive the filter.
+
+    Regression: the empty-edge-placeholder check rejected every suggestion
+    whose text ended in a line break, silencing such user geists."""
+    from tests.fixtures.helpers import VaultBuilder
+
+    yaml_file = tmp_path / "block.yaml"
+    yaml_file.write_text(
+        "type: geist-tracery\n"
+        "id: block\n"
+        "count: 2\n"
+        "tracery:\n"
+        "  origin:\n"
+        "    - |\n"
+        "      What if #note# were different?\n"
+        "      Consider it today.\n"
+        "  note: ['$vault.sample_notes(1)']\n"
+    )
+    builder = VaultBuilder(tmp_path / "vault")
+    builder.note("Garden", "Soil and seeds.")
+    ctx = builder.build()
+
+    suggestions = TraceryGeist.from_yaml(yaml_file, seed=42).suggest(ctx)
+
+    assert [s.text for s in suggestions] == [
+        "What if [[Garden]] were different?\nConsider it today.\n"
+    ] * 2
+
+
+def test_vault_text_is_never_parsed_as_grammar(tmp_path: Path) -> None:
+    """Titles from $vault calls are data: a title containing ``[key:...]`` or
+    ``#symbol#`` is inserted verbatim and cannot overwrite saved values or
+    expand grammar symbols."""
+    from tests.fixtures.helpers import VaultBuilder
+
+    builder = VaultBuilder(tmp_path / "vault")
+    builder.note("Meeting [ref:2024] notes #ref#", "Agenda items.")
+    ctx = builder.build()
+    geist = TraceryGeist(
+        "literal",
+        {"origin": ["#note# then #ref#"], "note": ["$vault.sample_notes(1)"], "ref": ["REF"]},
+        count=1,
+        seed=1,
+    )
+
+    [suggestion] = geist.suggest(ctx)
+
+    assert suggestion.text == "[[Meeting [ref:2024] notes #ref#]] then REF"

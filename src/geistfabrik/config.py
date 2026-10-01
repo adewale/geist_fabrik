@@ -5,6 +5,7 @@ used throughout the application. These serve as default values that can
 be overridden by user configuration files or CLI arguments.
 """
 
+import hashlib
 from typing import Any
 
 # Embedding Configuration
@@ -17,6 +18,16 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 This model produces 384-dimensional semantic vectors. The model is bundled
 with GeistFabrik to enable offline operation.
 """
+
+
+def semantic_cache_key(content: str) -> str:
+    """Key of a cached semantic embedding: the model plus a hash of the content.
+
+    The one definition shared by the embedding cache writer/reader and by vault
+    sync, which keeps a cached embedding exactly while its content is unchanged.
+    """
+    return f"{MODEL_NAME}:{hashlib.sha256(content.encode()).hexdigest()}"
+
 
 # Folder (relative to the vault root) where each session's journal note is
 # written. Its notes are engine output, not the user's writing.

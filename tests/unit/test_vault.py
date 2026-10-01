@@ -226,9 +226,10 @@ def test_sync_update_preserves_temporal_history_and_invalidates_semantic_cache(
     os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
 
     assert vault.sync() == 1
-    assert vault.db.execute(
-        "SELECT 1 FROM embeddings WHERE note_path = ?", ("test.md",)
-    ).fetchone() is None
+    assert (
+        vault.db.execute("SELECT 1 FROM embeddings WHERE note_path = ?", ("test.md",)).fetchone()
+        is None
+    )
     historical = vault.db.execute(
         "SELECT embedding FROM session_embeddings WHERE session_id = ? AND note_path = ?",
         (session_id[0], "test.md"),
@@ -305,9 +306,7 @@ def test_date_collection_update_preserves_only_stable_path_history(tmp_path: Pat
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
     journal_path = vault_path / "journal.md"
-    journal_path.write_text(
-        "# Journal\n\n## 2024-01-01\n\nOriginal\n\n## 2024-01-02\n\nRemoved"
-    )
+    journal_path.write_text("# Journal\n\n## 2024-01-01\n\nOriginal\n\n## 2024-01-02\n\nRemoved")
     vault = Vault(vault_path)
     assert vault.sync() == 2
 
@@ -326,22 +325,17 @@ def test_date_collection_update_preserves_only_stable_path_history(tmp_path: Pat
             (path, b"semantic", "test", "2024-02-01T00:00:00"),
         )
         vault.db.execute(
-            "INSERT INTO session_embeddings (session_id, note_path, embedding) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
             (session_id[0], path, path.encode()),
         )
     vault.db.commit()
 
     previous_mtime = journal_path.stat().st_mtime
-    journal_path.write_text(
-        "# Journal\n\n## 2024-01-01\n\nUpdated\n\n## 2024-01-03\n\nAdded"
-    )
+    journal_path.write_text("# Journal\n\n## 2024-01-01\n\nUpdated\n\n## 2024-01-03\n\nAdded")
     os.utime(journal_path, (previous_mtime + 2, previous_mtime + 2))
 
     assert vault.sync() == 2
-    assert vault.db.execute(
-        "SELECT note_path FROM embeddings ORDER BY note_path"
-    ).fetchall() == []
+    assert vault.db.execute("SELECT note_path FROM embeddings ORDER BY note_path").fetchall() == []
     assert vault.db.execute(
         "SELECT note_path FROM session_embeddings ORDER BY note_path"
     ).fetchall() == [("journal.md/2024-01-01",)]
@@ -593,4 +587,65 @@ def test_large_note(tmp_path: Path) -> None:
     assert note is not None
     assert len(note.content) > 1024 * 1024
 
+    vault.close()
+
+
+def test_sync_rederives_created_dates_stored_by_an_older_parser(tmp_path: Path) -> None:
+    """Migration for the creation-date fix: rows written by parser-v2 (which
+    stored st_ctime, i.e. the last write) are reprocessed once, and their
+    ``created`` moves back to the file's real age. No rebuild is needed."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "old.md"
+    note_file.write_text("# Old\n\nWritten long ago.")
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+    vault = Vault(vault_path)
+    vault.sync()
+    # Simulate a database written before the fix: a late created date and a
+    # parser-v2 fingerprint.
+    vault.db.execute(
+        "UPDATE notes SET created = ?, source_fingerprint = 'parser-v2:legacy' WHERE path = ?",
+        (datetime(2026, 9, 1).isoformat(), "old.md"),
+    )
+    vault.db.commit()
+
+    assert vault.sync() == 1
+
+    note = vault.get_note("old.md")
+    assert note is not None
+    assert note.created == datetime(2020, 1, 1)
+    vault.close()
+
+
+def test_reprocessing_unchanged_content_keeps_its_semantic_embedding(tmp_path: Path) -> None:
+    """A parser-revision reprocess must not discard cached semantic embeddings
+    for unchanged notes (that would re-embed the whole vault); a content edit
+    still invalidates them."""
+    from geistfabrik.config import semantic_cache_key
+
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "test.md"
+    note_file.write_text("# Same\n\nUnchanged body")
+    vault = Vault(vault_path)
+    vault.sync()
+    content = note_file.read_text()
+    vault.db.execute(
+        "INSERT INTO embeddings (note_path, embedding, model_version, computed_at) "
+        "VALUES (?, ?, ?, ?)",
+        ("test.md", b"\x00" * 8, semantic_cache_key(content), "2026-01-01"),
+    )
+    vault.db.execute("UPDATE notes SET source_fingerprint = 'parser-v2:legacy'")
+    vault.db.commit()
+
+    assert vault.sync() == 1  # reprocessed, content unchanged
+    cached = vault.db.execute("SELECT model_version FROM embeddings WHERE note_path = 'test.md'")
+    assert cached.fetchall() == [(semantic_cache_key(content),)]
+
+    previous_mtime = note_file.stat().st_mtime
+    note_file.write_text("# Same\n\nEdited body")
+    os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
+    assert vault.sync() == 1
+    assert vault.db.execute("SELECT 1 FROM embeddings WHERE note_path = 'test.md'").fetchall() == []
     vault.close()

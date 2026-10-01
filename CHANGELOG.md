@@ -34,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weighting (no change to stored values).
 - Removed dead code: `SqliteVecBackend._get_or_create_vec_id`,
   `EmbeddingMetricsComputer._apply_mmr_filtering`, `graph_analysis._are_linked`
-  (now `VaultContext.has_link`), and the test-only `_surprisal_naive` oracle.
+  (now `VaultContext.has_link`). The test-only `_surprisal_naive` oracle moved
+  from `vault_context.py` into `tests/unit/test_surprisal_churn.py`.
 
 ### Fixed
 - Geist journal session notes leaked into suggestions (as the subject, a
@@ -138,8 +139,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exclusion checked in both directions. Tests that could not fail (assertions
   inside loops over empty output, `len <= cap` on output below the cap,
   reimplementations that never imported GeistFabrik, git-history greps) were
-  rewritten or removed; each rewritten test was checked against a deliberately
-  broken product.
+  rewritten or removed. New gates keep it that way: every bundled geist must
+  produce a suggestion somewhere in the unit lane (`--require-geist-firing`),
+  a suite-hygiene scan rejects assertion-free tests, always-true asserts and
+  asserts that only run inside loops over possibly-empty output, and the
+  acceptance-criteria gate rejects criteria whose pytest target selects
+  nothing or is partly deselected.
 
 ## [0.11.0] - 2026-09-13
 

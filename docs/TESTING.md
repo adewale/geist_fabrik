@@ -35,7 +35,7 @@ export TOKENIZERS_PARALLELISM=false
 export GEISTFABRIK_OFFLINE=1
 MARKERS="not slow and not benchmark and not artifact and not production_model"
 uv sync --frozen --extra vector-search
-uv run pytest tests/unit -v -m "$MARKERS" --timeout=60
+uv run pytest tests/unit -v -m "$MARKERS" --timeout=60 --require-geist-firing
 uv run pytest tests/integration -v -m "$MARKERS" --timeout=300
 ```
 

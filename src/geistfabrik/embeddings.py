@@ -33,6 +33,7 @@ from .config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_SEMANTIC_WEIGHT,
     MODEL_NAME,
+    semantic_cache_key,
 )
 from .models import Note
 from .session_time import normalise_session_date
@@ -482,17 +483,6 @@ class Session:
                 hasher.update(encoded)
         return hasher.hexdigest()
 
-    def _compute_content_hash(self, content: str) -> str:
-        """Compute hash of note content for cache invalidation.
-
-        Args:
-            content: Note content
-
-        Returns:
-            SHA256 hash of content
-        """
-        return hashlib.sha256(content.encode()).hexdigest()
-
     def _get_cached_semantic_embedding(self, note: Note) -> np.ndarray | None:
         """Get cached semantic embedding if available and valid.
 
@@ -502,14 +492,12 @@ class Session:
         Returns:
             Cached semantic embedding or None if not found/invalid
         """
-        content_hash = self._compute_content_hash(note.content)
-
         cursor = self.db.execute(
             """
             SELECT embedding FROM embeddings
             WHERE note_path = ? AND model_version = ?
             """,
-            (note.path, f"{MODEL_NAME}:{content_hash}"),
+            (note.path, semantic_cache_key(note.content)),
         )
         row = cursor.fetchone()
 
@@ -527,7 +515,6 @@ class Session:
             note: Note to cache embedding for
             embedding: Semantic embedding to cache
         """
-        content_hash = self._compute_content_hash(note.content)
         # Serialise using numpy's native format (safe, no code execution risk)
         # Store as float32 to reduce storage size (sufficient precision)
         embedding_bytes = embedding.astype(np.float32).tobytes()
@@ -544,7 +531,7 @@ class Session:
             (
                 note.path,
                 embedding_bytes,
-                f"{MODEL_NAME}:{content_hash}",
+                semantic_cache_key(note.content),
                 datetime.now().isoformat(),
             ),
         )
