@@ -105,6 +105,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   seasonal_topic_analysis put `note.title` into `Suggestion.notes`, so a
   journal entry was referenced by its bare date, which names every journal's
   entry for that date; they now use `note.link_text` (`Journal#date`).
+- cluster_evolution_tracker reported every member of a cluster as having
+  "migrated" whenever one note joined it, because it compared c-TF-IDF label
+  strings (which change with membership). It now matches each previous
+  cluster to the current cluster holding most of its members.
+- cyclical_thinking required 6 sessions although two cycles need only 5
+  snapshots, so a note that cycled twice in 5 sessions was never reported.
+- seasonal_topic_analysis looked for winter notes in the coming winter (after
+  the session date) for sessions from March on, and its season windows ended
+  at midnight at the start of their last day. Each season now resolves to its
+  most recent occurrence on or before the session date, through its last day.
+- question_harvester glued a heading (or any unpunctuated line before a blank
+  line) onto the next question, and harvested list-item questions twice.
+- definition_harvester misquoted "X is a Y" and "X is defined as Y"
+  definitions as "X is Y".
 
 ### Tests
 - Acceptance criteria AC-5.3 (write session note), AC-5.6 (multi-day

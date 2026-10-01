@@ -84,8 +84,15 @@ def extract_questions(content: str) -> list[str]:
     questions = []
 
     # Strategy 2: Sentence-ending questions
-    # Match text ending with '?' (handles multi-line)
-    sentence_questions = re.findall(r"([^.!?\n][^.!?]*\?)", content_no_code, re.MULTILINE)
+    # Match text ending with '?'. A question may wrap across lines of one
+    # paragraph, but never across a blank line, out of a heading, or across
+    # list items: those lines end without punctuation, so "# Heading" followed
+    # by "Why?" would otherwise be harvested as one question.
+    sentence_questions = [
+        question
+        for segment in _segments(content_no_code)
+        for question in re.findall(r"([^.!?\n][^.!?]*\?)", segment)
+    ]
 
     # Strategy 3: List item questions
     # Match Markdown list items ending with '?'
@@ -109,6 +116,33 @@ def extract_questions(content: str) -> list[str]:
             seen.add(q_normalized)
 
     return questions
+
+
+def _segments(content: str) -> list[str]:
+    """Split content into runs of lines a single sentence may span.
+
+    A blank line ends a run; a heading or list-item line starts a new one
+    (and a heading also ends its own run). Heading and list markers are
+    dropped so "- Why?" and "## Why?" harvest as "Why?".
+    """
+    segments: list[str] = []
+    current: list[str] = []
+    for line in content.split("\n"):
+        heading = re.match(r"\s*#{1,6}\s+", line)
+        item = re.match(r"\s*[-*+]\s+", line)
+        if not line.strip() or heading or item:
+            if current:
+                segments.append("\n".join(current))
+            current = []
+        if heading:
+            segments.append(line[heading.end() :])
+        elif item:
+            current.append(line[item.end() :])
+        elif line.strip():
+            current.append(line)
+    if current:
+        segments.append("\n".join(current))
+    return segments
 
 
 def is_valid_question(q: str) -> bool:

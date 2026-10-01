@@ -5,7 +5,7 @@ Finds topics that appear seasonally by analyzing notes created in specific
 time periods with semantic similarity.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from geistfabrik.models import Suggestion
@@ -13,6 +13,29 @@ from geistfabrik.temporal_analysis import TemporalSemanticQuery
 
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
+
+# Season start (month, day), Northern Hemisphere; each season ends where the
+# next one starts, so winter runs from December 21 into the following year.
+_SEASON_STARTS = (("winter", 12, 21), ("spring", 3, 21), ("summer", 6, 21), ("fall", 9, 21))
+
+
+def _latest_season_windows(today: datetime) -> dict[str, tuple[datetime, datetime]]:
+    """Each season's most recent occurrence that began on or before ``today``.
+
+    Returns name -> (start, end), end inclusive to the last microsecond of the
+    season's final day. A December 21+ session is in the winter that runs into
+    the following year; earlier sessions look back to the previous winter.
+    """
+    windows: dict[str, tuple[datetime, datetime]] = {}
+    for name, month, day in _SEASON_STARTS:
+        start = datetime(today.year, month, day)
+        if start > today:
+            start = start.replace(year=today.year - 1)
+        next_month = month % 12 + 3
+        next_year = start.year + 1 if month == 12 else start.year
+        next_start = datetime(next_year, next_month, day)
+        windows[name] = (start, next_start - timedelta(microseconds=1))
+    return windows
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -29,19 +52,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Initialize temporal-semantic query helper
     tsq = TemporalSemanticQuery(vault)
 
-    # Define seasons (Northern Hemisphere)
-    current_date = vault.session.date
-    current_year = current_date.year
-
-    # Winter wraps across year boundary: determine which year's winter based on current month
-    winter_year = current_year if current_date.month >= 3 else current_year - 1
-
-    seasons = {
-        "winter": (datetime(winter_year, 12, 21), datetime(winter_year + 1, 3, 20)),
-        "spring": (datetime(current_year, 3, 21), datetime(current_year, 6, 20)),
-        "summer": (datetime(current_year, 6, 21), datetime(current_year, 9, 20)),
-        "fall": (datetime(current_year, 9, 21), datetime(current_year, 12, 20)),
-    }
+    seasons = _latest_season_windows(vault.session.date)
 
     suggestions = []
 

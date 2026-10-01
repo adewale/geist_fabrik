@@ -1,5 +1,16 @@
 """Unit tests for harvester family geists."""
 
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+
+from geistfabrik.default_geists.code import (
+    definition_harvester,
+    question_harvester,
+    quote_harvester,
+    todo_harvester,
+)
 from geistfabrik.default_geists.code.question_harvester import (
     extract_questions,
     is_valid_question,
@@ -9,6 +20,8 @@ from geistfabrik.default_geists.code.quote_harvester import (
     is_valid_quote,
 )
 from geistfabrik.default_geists.code.todo_harvester import extract_todos, is_valid_todo
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
 # ============================================================================
 # Question Harvester Tests
@@ -35,18 +48,18 @@ we do this?"""
 
 
 def test_extract_list_item_questions() -> None:
-    """Test extracting questions from markdown lists."""
+    """List-item questions are harvested once each, without their markers.
+
+    Regression: each item was harvested twice, once with its marker by the
+    sentence pattern ("- What is A?") and once without by the list pattern.
+    """
     content = """
     - What is A?
     - What is B?
     * What is C?
     + What is D?
     """
-    questions = extract_questions(content)
-    assert len(questions) >= 3
-    # Check that at least some list questions were found
-    question_texts = " ".join(questions)
-    assert "What is A?" in question_texts or "What is A" in question_texts
+    assert extract_questions(content) == ["What is A?", "What is B?", "What is C?", "What is D?"]
 
 
 def test_ignore_code_block_questions() -> None:
@@ -422,16 +435,150 @@ FIXME: clarify argument
 
 > Another insightful quote here.
 """
-    questions = extract_questions(mixed_content)
-    todos = extract_todos(mixed_content)
-    quotes = extract_quotes(mixed_content)
+    # Each harvester finds exactly its own artifacts. Regression: the "# My
+    # Note" heading has no closing punctuation, so it was glued onto the first
+    # question ("# My Note What is the purpose of this?").
+    assert extract_questions(mixed_content) == [
+        "What is the purpose of this?",
+        "How does this apply?",
+    ]
+    assert extract_todos(mixed_content) == ["TODO: research more", "FIXME: clarify argument"]
+    assert extract_quotes(mixed_content) == [
+        '"The only true wisdom is in knowing you know nothing." - Socrates',
+        "Another insightful quote here.",
+    ]
 
-    # Each harvester should find its own artifacts
-    assert len(questions) >= 1
-    assert len(todos) >= 1
-    assert len(quotes) >= 1
 
-    # Verify they're independent
-    assert any("purpose" in q for q in questions)
-    assert any("research" in t or "clarify" in t for t in todos)
-    assert any("wisdom" in q or "insightful" in q for q in quotes)
+# ============================================================================
+# suggest(): the harvester family through the real VaultContext
+# ============================================================================
+#
+# Trigger: every harvester reads ONE note picked by vault.random_notes(1) and
+# turns each extracted item into a suggestion, sampling up to 3. A vault whose
+# only user note holds planted items therefore triggers deterministically.
+# Each row plants five items (more than the cap of 3); the item strings are
+# what the extractor must return verbatim.
+
+HARVEST_NOTE = "Harvest Note"
+
+HARVESTERS = [
+    pytest.param(
+        question_harvester,
+        [
+            "What is soil made of?",
+            "Why do seeds sprout in spring?",
+            "How deep should compost go?",
+            "When do worms surface after rain?",
+            "Where do bees overwinter safely?",
+        ],
+        "\n".join,
+        "What if you revisited this question now?",
+        id="question_harvester",
+    ),
+    pytest.param(
+        quote_harvester,
+        [
+            "The soil is alive and breathing.",
+            "A garden is never finished, only abandoned.",
+            "Plant the seed and trust the season.",
+            "Compost is the memory of the garden.",
+            "Every weed is a flower out of place.",
+        ],
+        lambda items: "\n\n".join(f"> {item}" for item in items),
+        "What if you reflected on this again?",
+        id="quote_harvester",
+    ),
+    pytest.param(
+        todo_harvester,
+        [
+            "TODO: sharpen the trowel blades",
+            "FIXME: the gate latch sticks",
+            "HACK: tape holds the hose together",
+            "NOTE: frost arrives mid October",
+            "XXX: the shed roof leaks",
+        ],
+        "\n".join,
+        "What if you tackled this now?",
+        id="todo_harvester",
+    ),
+    pytest.param(
+        definition_harvester,
+        [
+            "Compost is a mix of rotted leaves and scraps.",
+            "Humus means the dark stable fraction of soil.",
+            "Tilth refers to the crumbly structure of worked soil.",
+            "Mulch is defined as any layer spread over soil.",
+            "Loam is an even blend of sand, silt and clay.",
+        ],
+        "\n".join,
+        "What if you explored this definition further?",
+        id="definition_harvester",
+    ),
+]
+HARVEST_ARGS = ("geist", "items", "render", "prompt")
+
+
+def _harvest_vault(root: Path, body: str, *, journal: dict[str, str] | None = None) -> VaultContext:
+    builder = VaultBuilder(root)
+    builder.note(HARVEST_NOTE, body)
+    for title, journal_body in (journal or {}).items():
+        builder.journal(title, journal_body)
+    return builder.build()
+
+
+def _geist_id(geist: ModuleType) -> str:
+    return geist.__name__.rsplit(".", 1)[-1]
+
+
+@pytest.mark.parametrize(HARVEST_ARGS, HARVESTERS)
+def test_harvester_quotes_the_planted_item(tmp_path, geist, items, render, prompt) -> None:
+    """Happy path and the abstain boundary: one planted item gives exactly one
+    suggestion quoting it verbatim; the same note without it gives nothing.
+
+    Regressions: question_harvester glued the "# Harvest Note" heading onto
+    the first question, and definition_harvester dropped the article ("Compost
+    is mix of ..."), so both misquoted the note.
+    """
+    item = items[0]
+    planted = _harvest_vault(tmp_path / "planted", render([item]))
+    empty = _harvest_vault(tmp_path / "empty", "Plain soil notes without anything to harvest")
+
+    suggestions = geist.suggest(planted)
+
+    assert_valid_suggestions(suggestions, _geist_id(geist), must_reference=[HARVEST_NOTE])
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (f'From [[{HARVEST_NOTE}]]: "{item}" {prompt}', [HARVEST_NOTE])
+    ]
+    assert geist.suggest(empty) == []
+
+
+@pytest.mark.parametrize(HARVEST_ARGS, HARVESTERS)
+def test_harvester_caps_at_three(tmp_path, geist, items, render, prompt) -> None:
+    """Cap: five planted items yield exactly three suggestions, each quoting a
+    different planted item."""
+    ctx = _harvest_vault(tmp_path, render(items))
+
+    suggestions = geist.suggest(ctx)
+
+    assert len(suggestions) == 3
+    assert_valid_suggestions(suggestions, _geist_id(geist))
+    prefix = f'From [[{HARVEST_NOTE}]]: "'
+    quoted = {s.text.removeprefix(prefix).removesuffix(f'" {prompt}') for s in suggestions}
+    assert len(quoted) == 3 and quoted <= set(items)
+
+
+@pytest.mark.parametrize(HARVEST_ARGS, HARVESTERS)
+def test_harvester_excludes_geist_journal(tmp_path, geist, items, render, prompt) -> None:
+    """Both directions: eight session notes full of harvestable items are never
+    picked; the one user note always is."""
+    journal = {f"2024-03-{day:02d}": render(items[1:]) for day in range(1, 9)}
+    ctx = _harvest_vault(tmp_path, render(items[:1]), journal=journal)
+
+    suggestions = geist.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        _geist_id(geist),
+        must_reference=[items[0]],
+        must_not_reference=["geist journal", "2024-03-0", *items[1:]],
+    )

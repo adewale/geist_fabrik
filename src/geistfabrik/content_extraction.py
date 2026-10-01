@@ -201,7 +201,7 @@ class DefinitionExtractor:
 
         # Pattern 1: "X is Y" definitions
         is_definitions = re.findall(
-            r"^([^.\n]+?)\s+is\s+(?:defined as|a|an)\s+([^.\n]+\.?)",
+            r"^([^.\n]+?)\s+is\s+((?:defined as|a|an)\s+[^.\n]+\.?)",
             content,
             re.MULTILINE | re.IGNORECASE,
         )

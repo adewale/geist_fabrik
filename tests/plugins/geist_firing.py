@@ -51,20 +51,7 @@ OPTION = "--require-geist-firing"
 # predates this gate. Remove an entry when its geist gets a designed-to-fire
 # unit test; the stale check will force the removal.
 _NO_UNIT_SUGGEST_TEST = "no unit test calls suggest() with a fixture that makes it fire"
-ALLOWLIST: dict[str, str] = {
-    "cluster_evolution_tracker": f"{_NO_UNIT_SUGGEST_TEST}; only architecture/label tests",
-    "cyclical_thinking": f"{_NO_UNIT_SUGGEST_TEST}; only architecture constraint tests",
-    "definition_harvester": f"{_NO_UNIT_SUGGEST_TEST}; no test names it at all",
-    "drift_velocity_anomaly": f"{_NO_UNIT_SUGGEST_TEST}; needs multi-session history",
-    "metadata_outlier_detector": f"{_NO_UNIT_SUGGEST_TEST}; no test names it at all",
-    "question_harvester": f"{_NO_UNIT_SUGGEST_TEST}; unit tests cover extract_questions only "
-    "(tests/integration/test_example_geists.py exercises suggest())",
-    "quote_harvester": f"{_NO_UNIT_SUGGEST_TEST}; unit tests cover extract_quotes only "
-    "(tests/integration/test_example_geists.py exercises suggest())",
-    "seasonal_topic_analysis": f"{_NO_UNIT_SUGGEST_TEST}; no test names it at all",
-    "todo_harvester": f"{_NO_UNIT_SUGGEST_TEST}; unit tests cover extract_todos only "
-    "(tests/integration/test_example_geists.py exercises suggest())",
-}
+ALLOWLIST: dict[str, str] = {}
 
 
 def bundled_geists() -> set[str]:
