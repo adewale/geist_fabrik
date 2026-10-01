@@ -25,15 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TESTS_ROOT = REPO_ROOT / "tests"
 
 # (test id, rule) -> reason. Keep reasons specific; "legacy" is not a reason.
-ALLOWLIST: dict[tuple[str, str], str] = {
-    (
-        "tests/unit/test_cluster_label_persistence.py::TestPersistAndRead::"
-        "test_cluster_evolution_tracker_runs_without_error",
-        ISINSTANCE_LIST_ONLY,
-    ): "TEMPORARY (round 3, d2ee08f): crash regression for a sqlite OperationalError; the "
-    "geist never fires on the fixture, so the result type is the only observable "
-    "(cluster_evolution_tracker is also on the geist-firing allowlist)",
-}
+ALLOWLIST: dict[tuple[str, str], str] = {}
 
 
 def test_no_test_is_shaped_so_it_cannot_fail() -> None:
