@@ -22,6 +22,7 @@ from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
 
 SESSION_DATE = datetime(2024, 3, 15)
+DEFAULT_NOTE_DATE = datetime(2024, 3, 1)
 SEED = 20240315
 
 
@@ -102,15 +103,16 @@ class VaultBuilder:
         """Write ``<folder>/<title>.md`` and return its vault-relative path.
 
         ``created`` defaults to ``modified`` and vice versa; with neither, the
-        note keeps the filesystem's current time.
+        note is dated ``DEFAULT_NOTE_DATE`` (never the wall clock).
         """
         rel_path = f"{folder}/{title}.md" if folder else f"{title}.md"
         path = self.root / rel_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"# {title}\n\n{body}")
-        stamp = created or modified
-        if stamp is not None:
-            os.utime(path, (stamp.timestamp(), stamp.timestamp()))
+        # Undated notes get a fixed date, never the wall clock: the
+        # creation-season feature is part of every embedding.
+        stamp = created or modified or DEFAULT_NOTE_DATE
+        os.utime(path, (stamp.timestamp(), stamp.timestamp()))
         self._times[rel_path] = (created, modified)
         return rel_path
 

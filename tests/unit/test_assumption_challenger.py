@@ -161,3 +161,17 @@ def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
 
     assert first
     assert first == second
+
+
+def test_unrelated_hedging_note_is_not_called_similar(tmp_path: Path) -> None:
+    # Control for the pairing test on similarity: the hedging note has two
+    # hedges but shares no vocabulary with the certain note. The vault has the
+    # minimum 10 notes, so every other note is among the 10 nearest
+    # neighbours; only a similarity floor keeps the geist from calling the
+    # unrelated note "semantically similar".
+    builder = VaultBuilder(tmp_path)
+    builder.note("Certain Orchard", "Obviously orchard pruning clearly raises yield.")
+    builder.note("Hedging Glacier", "Maybe glacier moraine perhaps shifts crevasses.")
+    _fillers(builder, 8)
+
+    assert assumption_challenger.suggest(builder.build()) == []

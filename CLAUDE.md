@@ -641,7 +641,8 @@ from geistfabrik.default_geists import (
 - `src/geistfabrik/default_geists/__init__.py` counts files programmatically using `Path.glob()`
 - These constants are the single source of truth for all geist counts
 - Automated tests verify that documentation stays synchronised (see `tests/unit/test_geist_count_consistency.py`)
-- Tests will fail if README.md or CLAUDE.md mention outdated counts
+- Tests verify that README.md and CLAUDE.md state the current counts (a stale
+  count elsewhere in a doc is not detected, so don't write counts at all)
 
 **When adding/removing geists**:
 1. Add/remove the geist file (*.py or *.yaml)

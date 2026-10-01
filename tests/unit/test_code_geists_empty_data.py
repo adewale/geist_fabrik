@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 from geistfabrik.default_geists import DEFAULT_CODE_GEISTS
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
@@ -24,6 +26,7 @@ from geistfabrik.vault_context import VaultContext
 from tests.fixtures.helpers import assert_valid_suggestions
 
 SESSION_DATE = datetime(2025, 1, 20)
+
 
 def _context(tmp_path: Path, notes: dict[str, str]) -> VaultContext:
     vault_path = tmp_path / "vault"
@@ -107,3 +110,34 @@ def test_suggestions_have_required_fields(tmp_path: Path) -> None:
     outputs = _run_all(ctx)
 
     _assert_well_formed(outputs, ctx)
+
+
+def test_code_geist_output_does_not_depend_on_hash_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same date + vault = same output, whatever PYTHONHASHSEED a process has.
+
+    Salting Note.__hash__ reorders every set of Notes, as a different hash
+    seed would in another process. Per-geist determinism tests run in one
+    process and cannot see this; this sweep covers every geist that fires on
+    a small linked vault (geist-specific fixtures cover the rest).
+    """
+    from geistfabrik.models import Note
+
+    notes = {
+        f"Note {i}.md": (
+            f"# Note {i}\nOrchard idea {i} [[Note {(i + 1) % 8}]] [[Note {(i + 3) % 8}]]"
+        )
+        for i in range(8)
+    }
+    def run(label: str) -> dict[str, list[str]]:
+        root = tmp_path / label
+        root.mkdir()
+        return {n: [s.text for s in out] for n, out in _run_all(_context(root, notes)).items()}
+
+    baseline = run("v0")
+    assert sum(1 for out in baseline.values() if out) >= 5
+
+    for salt in ("a", "b", "c"):
+        monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))
+        assert run(f"v{salt}") == baseline, salt

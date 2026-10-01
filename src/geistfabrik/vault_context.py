@@ -1327,17 +1327,10 @@ class VaultContext:
         if note.path in self._graph_neighbours_cache:
             return self._graph_neighbours_cache[note.path]
 
-        neighbours = set()
-
-        # Add outgoing link targets (now cached)
-        for target in self.outgoing_links(note):
-            neighbours.add(target)
-
-        # Add incoming link sources (now cached)
-        for source in self.backlinks(note):
-            neighbours.add(source)
-
-        result = list(neighbours)
+        # Outgoing targets then backlink sources, deduplicated in first-seen
+        # order. (A set would order Notes by string hash, which changes per
+        # process and broke same-seed replay for geists that sample this list.)
+        result = list(dict.fromkeys([*self.outgoing_links(note), *self.backlinks(note)]))
 
         # Cache the result
         self._graph_neighbours_cache[note.path] = result

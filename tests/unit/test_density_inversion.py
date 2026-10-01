@@ -169,3 +169,25 @@ def test_density_inversion_excludes_geist_journal(tmp_path: Path) -> None:
         must_not_reference=["geist journal", *journal],
     )
     assert all(set(s.notes) <= set(regular) for s in suggestions)
+
+
+def test_density_inversion_output_does_not_depend_on_hash_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same date + vault = same output, whatever PYTHONHASHSEED a process has.
+
+    Regression: graph_neighbours() came from a set of Notes, so the list the
+    geist samples from followed string-hash order. Salting Note.__hash__
+    stands in for a different hash seed within one process.
+    """
+    from geistfabrik.models import Note
+
+    builder = VaultBuilder(tmp_path)
+    _add_clique(builder, CLIQUE)
+    _add_fillers(builder, MIN_NOTES - len(CLIQUE))
+    baseline = [s.text for s in density_inversion.suggest(builder.build())]
+    assert baseline
+
+    for salt in ("a", "b", "c", "d", "e", "f"):
+        monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))
+        assert [s.text for s in density_inversion.suggest(builder.build())] == baseline, salt

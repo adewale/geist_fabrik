@@ -27,10 +27,11 @@ def test_thresholds_are_distinct_strictly_decreasing_and_in_unit_interval() -> N
 
 
 def test_profile_over_real_context_finds_the_lexical_neighbour(tmp_path: Path) -> None:
-    """Only "ML" shares words with "AI" (similarity ~0.52); the rest sit near 0.09."""
+    """Only "ML" shares words with "AI" (similarity ~0.60, between MODERATE and
+    HIGH); the rest share none (~0.02)."""
     builder = VaultBuilder(tmp_path)
     builder.note("AI", "Artificial intelligence and machine learning concepts.")
-    builder.note("ML", "Machine learning, deep learning and neural networks.")
+    builder.note("ML", "Machine learning concepts, deep learning and neural networks.")
     builder.note("Cooking", "Recipes, food and meal preparation.")
     builder.note("Baking", "Bread, pastries and dough techniques.")
     builder.note("Travel", "Trains, flights and itineraries.")

@@ -17,6 +17,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         List of suggestions challenging assumptions
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
 
@@ -58,8 +59,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         assumption_count = sum(1 for phrase in assumption_phrases if phrase in content)
 
         if assumption_count >= 2:
-            # Find related notes that might challenge these assumptions
-            similar = vault.neighbours(note, count=10)
+            # Find related notes that might challenge these assumptions. The
+            # suggestion calls them "semantically similar", so a hedging note
+            # must actually be related, not merely among the 10 nearest.
+            similar = [
+                other
+                for other, score in vault.neighbours(note, count=10, return_scores=True)
+                if score >= SimilarityLevel.WEAK
+            ]
 
             # Look for notes with contrasting language (hedging, uncertainty)
             contrast_phrases = [

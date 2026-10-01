@@ -69,12 +69,20 @@ def test_hubs_handles_vault_without_links(tmp_path: Path) -> None:
     assert context.hubs(count=5) == []
 
 
-def test_hubs_handles_self_links(tmp_path: Path) -> None:
+def test_hubs_count_a_self_link_as_one_backlink(tmp_path: Path) -> None:
+    """A note linking to itself is its own backlink (once), like any source."""
     files = {"self_linker.md": "# Self Linker\n\nI link to [[self_linker]]."}
     files.update({f"note_{i}.md": f"# Note {i}\n\n[[self_linker]]" for i in range(3)})
     context = _context(tmp_path, files)
 
-    assert [h.title for h in context.hubs(count=5)] == ["Self Linker"]
+    [hub] = context.hubs(count=5)
+    assert hub.title == "Self Linker"
+    assert sorted(n.title for n in context.backlinks(hub)) == [
+        "Note 0",
+        "Note 1",
+        "Note 2",
+        "Self Linker",
+    ]
 
 
 def test_hubs_counts_a_repeated_link_once(tmp_path: Path) -> None:

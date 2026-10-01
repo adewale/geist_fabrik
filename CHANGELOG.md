@@ -64,7 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[key:...]` or `#symbol#` could overwrite saved values or expand symbols.
   Vault data is now inserted verbatim.
 - method_scrambler's output depended on `PYTHONHASHSEED` (candidates were
-  deduplicated through a set).
+  deduplicated through a set), and so did density_inversion and the graph
+  analysis bridges and components: `VaultContext.graph_neighbours()` returned
+  a set's order. It now lists outgoing targets then backlinks, in first-seen
+  order.
+- assumption_challenger called any of a note's 10 nearest notes
+  "semantically similar"; the hedging note must now score at least
+  `SimilarityLevel.WEAK`.
 - Geist journal session notes leaked into suggestions (as the subject, a
   neighbour, a cluster member, a bridge, a "past" note or a link) in
   anachronism_detector, antithesis_generator, assumption_challenger,

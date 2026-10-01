@@ -100,21 +100,12 @@ class GraphPatternFinder:
         bridges = []
 
         for bridge_candidate in notes:
-            # Get all notes connected to this candidate (both directions)
-            connected = set()
+            # Notes connected to this candidate (both directions), deduplicated
+            # in first-seen order so output order never follows string hashes
+            connected_list = self.vault.graph_neighbours(bridge_candidate)
 
-            # Add outgoing links
-            outgoing = self.vault.outgoing_links(bridge_candidate)
-            connected.update(outgoing)
-
-            # Add backlinks
-            backlinks = self.vault.backlinks(bridge_candidate)
-            connected.update(backlinks)
-
-            if len(connected) < 2:
+            if len(connected_list) < 2:
                 continue  # Need at least 2 connections to bridge
-
-            connected_list = list(connected)
 
             # One vectorised similarity matrix for the whole neighbourhood
             # instead of O(degree^2) individual similarity() calls - for a
@@ -235,12 +226,9 @@ class GraphPatternFinder:
                 component.append(current)
                 visited.add(current.path)
 
-                # Add both outgoing links and backlinks (undirected)
-                connected = set()
-                connected.update(self.vault.outgoing_links(current))
-                connected.update(self.vault.backlinks(current))
-
-                for next_note in connected:
+                # Both outgoing links and backlinks (undirected), in a
+                # deterministic order
+                for next_note in self.vault.graph_neighbours(current):
                     if next_note.path not in component_visited:
                         component_visited.add(next_note.path)
                         queue.append(next_note)
