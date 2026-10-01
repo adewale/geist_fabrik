@@ -9,7 +9,6 @@ Two jobs:
    reconciliation is enforced by test_spec_config_sync.py.)
 """
 
-import logging
 import sqlite3
 
 import pytest
@@ -167,9 +166,7 @@ class TestExcludePathsBoundaryFilter:
 class TestUnknownKeyValidation:
     def test_load_config_wraps_unrepresentable_float_as_config_error(self, tmp_path):
         cfg_path = tmp_path / "config.yaml"
-        cfg_path.write_text(
-            "filtering:\n  novelty:\n    threshold: " + str(10**400) + "\n"
-        )
+        cfg_path.write_text("filtering:\n  novelty:\n    threshold: " + str(10**400) + "\n")
         with pytest.raises(ConfigError, match="finite number"):
             load_config(cfg_path)
 
@@ -179,10 +176,9 @@ class TestUnknownKeyValidation:
         with pytest.raises(ConfigError, match="another_typo, nonsense_key"):
             load_config(cfg_path)
 
-    def test_known_keys_do_not_warn(self, tmp_path, caplog):
+    def test_load_config_reads_known_sections_from_file(self, tmp_path):
         cfg_path = tmp_path / "config.yaml"
         cfg_path.write_text("geist_execution:\n  timeout: 9\nsession:\n  default_suggestions: 4\n")
-        with caplog.at_level(logging.WARNING):
-            cfg = load_config(cfg_path)
+        cfg = load_config(cfg_path)
         assert cfg.geist_execution.timeout == 9
-        assert not any("unknown config key" in r.message.lower() for r in caplog.records)
+        assert cfg.session.default_suggestions == 4

@@ -49,7 +49,7 @@ def test_parse_unclosed_code_blocks() -> None:
     """Test parsing markdown with unclosed code blocks."""
     content = """# My Note
 
-Some content
+Some content about [[Before Fence]] and #prose
 
 ```python
 def foo():
@@ -61,13 +61,12 @@ And more content without closing the code block."""
     title = extract_title("test.md", None, content)
     assert title == "My Note"
 
-    # Links should still be extracted from non-code parts
+    # Links and tags in the prose before the unclosed fence still extract
     links = extract_links(content)
-    assert links == []  # No links in this content
+    assert [link.target for link in links] == ["Before Fence"]
 
-    # Tags should still work
     tags = extract_tags(content, None)
-    assert tags == []
+    assert tags == ["prose"]
 
 
 def test_extract_title_from_frontmatter() -> None:
@@ -237,11 +236,3 @@ def test_extract_tags_ignores_inline_code() -> None:
     content = "Use `color: #fff` for white. Also #styling matters."
     tags = extract_tags(content)
     assert tags == ["styling"]
-
-
-def test_extract_tags_unclosed_fence_keeps_prose_tags() -> None:
-    """An unclosed fence is not stripped (no closing ```), so prose tags
-    before it still extract; behaviour stays deterministic."""
-    content = "Before #real\n```python\nx = 1\n"
-    tags = extract_tags(content)
-    assert "real" in tags

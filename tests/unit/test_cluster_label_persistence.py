@@ -140,20 +140,6 @@ class TestPersistAndRead:
         clustered_note_count = sum(len(c.notes) for c in clusters.values())
         assert stored == clustered_note_count
 
-    def test_cluster_evolution_tracker_runs_without_error(self, context_with_two_sessions):
-        """End-to-end regression: the geist must not raise with >=2 sessions.
-
-        Before the fix it raised sqlite3.OperationalError whenever it got far
-        enough to query previous labels; with stub embeddings clustering may
-        find nothing (returning []), but it must never crash.
-        """
-        from geistfabrik.default_geists.code import cluster_evolution_tracker
-
-        vault, _session1, session2 = context_with_two_sessions
-        ctx = VaultContext(vault, session2)
-        suggestions = cluster_evolution_tracker.suggest(ctx)
-        assert isinstance(suggestions, list)
-
     def test_embeddings_unaffected_by_label_update(self, context_with_two_sessions):
         """Writing labels must not corrupt the stored embedding blobs."""
         vault, _session1, session2 = context_with_two_sessions

@@ -1202,7 +1202,9 @@ def test_code_geist_loader_rejects_external_file_symlink(tmp_path: Path) -> None
     executor.load_geists()
     assert "escaped" not in executor.geists
     assert not marker.exists()
-    assert executor.get_execution_log()[0]["status"] == "load_error"
+    [entry] = executor.get_execution_log()
+    assert (entry["geist_id"], entry["status"]) == ("escaped", "load_error")
+    assert "must not contain symlinks" in entry["error"]
 
 
 def test_metadata_loader_rejects_external_file_symlink(tmp_path: Path) -> None:
@@ -1234,7 +1236,7 @@ def test_vault_function_loader_rejects_external_file_symlink(tmp_path: Path) -> 
 
 def test_tracery_loader_rejects_external_file_symlink(tmp_path: Path) -> None:
     root = tmp_path / "tracery"
-    marker, outside = _symlink_external_file(
+    _symlink_external_file(
         root,
         ".yaml",
         "type: geist-tracery\nid: escaped\ntracery:\n  origin: external\n",
@@ -1242,8 +1244,9 @@ def test_tracery_loader_rejects_external_file_symlink(tmp_path: Path) -> None:
     loader = TraceryGeistLoader(root)
     geists, _ = loader.load_all()
     assert geists == []
-    assert not marker.exists()
-    assert outside.read_text().endswith("origin: external\n")
+    [error] = loader.load_errors
+    assert error["geist_id"] == "escaped"
+    assert "must not contain symlinks" in error["error"]
 
 
 @pytest.mark.parametrize("loader_kind", ["metadata", "function", "validator"])
@@ -1261,6 +1264,13 @@ def test_trusted_plugin_imports_have_supported_deadline(tmp_path: Path, loader_k
         loader.load_modules()
         assert loader.modules == {}
     elif loader_kind == "function":
+        # The decorator follows the hang, so only a missing deadline registers it.
+        plugin.write_text(
+            "import time\ntime.sleep(10)\n"
+            "from geistfabrik import vault_function\n"
+            "@vault_function('hang')\n"
+            "def hang(vault): return 'late'\n"
+        )
         registry = FunctionRegistry(root, timeout=1)
         registry.load_modules()
         assert "hang" not in registry.functions
