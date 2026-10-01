@@ -23,6 +23,14 @@ away from the code without turning CI red. Two rules follow from that:
     test requests `production_model`; command spelling does not activate it.
     Do **not** repeat the fast marker here. Explicit marker commands such as
     `-m benchmark` are preserved and run separately.
+  - **Evidence must be whole.** Every AUTO pytest criterion must select at
+    least one test, and so must each `tests/…` target it names. A target that
+    names a whole file (or class) while the canonical filter deselects some of
+    its tests is rejected as partial evidence: list the node IDs that carry the
+    evidence (a `{a,b}` brace list keeps the cell short). Five criteria once
+    named `tests/integration/test_scenarios.py` whole; under the canonical
+    filter that file then ran only its empty-vault test, yet all five were
+    reported verified.
   - **MANUAL** — any cell that is prose. Use this for criteria that genuinely
     need human judgement, a platform we can't run in CI, or a behaviour with no
     dedicated automated test. MANUAL criteria are reported and counted but do
@@ -62,7 +70,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-0.8 | ⬜ | uv configuration correct | `test -f uv.lock && uv run python -c "import geistfabrik"` |
 | AC-0.9 | ⬜ | Python version enforcement | `uv run python -c "import sys; assert sys.version_info >= (3, 11)"` |
 | AC-0.10 | ⬜ | Development dependencies separate | Manual: dev/prod dependency separation; verified by the CI install steps, not the gate (uv sync would mutate the developer's environment) |
-| AC-0.11 | ⬜ | Git initialisation | `test -d .git && test -f .gitignore && grep "^\.venv$" .gitignore` |
+| AC-0.11 | ⬜ | Git initialisation | `test -e .git && test -f .gitignore && grep "^\.venv$" .gitignore` (`-e`: a worktree's `.git` is a file) |
 | AC-0.12 | ⬜ | Editable install works | `uv run python -c "import geistfabrik; assert 'src' in geistfabrik.__file__"` (points to src/) |
 | AC-0.13 | ⬜ | Pre-commit hooks | `test -f .pre-commit-config.yaml` |
 | AC-0.14 | ⬜ | Package metadata complete | Verify project.name, version, dependencies in pyproject.toml |
@@ -211,7 +219,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-4.3 | ⬜ | Execute geist | Verify simple geist returns suggestions |
 | AC-4.4 | ⬜ | Timeout works | `uv run pytest tests/unit/test_geist_executor.py::test_code_geist_timeout -v` (5s timeout) |
 | AC-4.5 | ⬜ | Failure tracking | `uv run pytest tests/unit/test_geist_executor.py::test_disable_after_three_failures -v` |
-| AC-4.6 | ⬜ | Integration scenario | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-4.6 | ⬜ | Integration scenario | `uv run pytest tests/integration/test_scenarios.py::test_scenario_{daily_invocation_writes_the_session_note,tracery_geist_links_a_real_note,temporal_geist_finds_last_years_note} -v` (code, Tracery and bundled temporal geists run through `invoke`) |
 
 ### Edge Cases & Error Handling
 
@@ -520,7 +528,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 |----|--------|----------|--------------|
 | AC-11.1 | ⬜ | Performance benchmarks pass | `uv run pytest tests/unit/test_phase1_benchmarks.py tests/unit/test_phase2_batch_loading.py tests/unit/test_phase2_hubs_optimization.py tests/unit/test_phase2_return_scores.py tests/unit/test_cluster_performance.py tests/integration/test_phase3b_regression.py tests/integration/test_scenarios.py -v -m benchmark` |
 | AC-11.2 | ⬜ | Test coverage target | Manual: validation and CI enforce at least 70% combined branch coverage across the fast unit/integration lanes |
-| AC-11.3 | ⬜ | All E2E tests pass | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-11.3 | ⬜ | All E2E tests pass | `uv run pytest tests/integration/test_scenarios.py::test_scenario_{empty_vault,daily_invocation_writes_the_session_note,multi_day_sessions_do_not_read_their_own_journal,tracery_geist_links_a_real_note,temporal_geist_finds_last_years_note} -v` (the two benchmark-marked scenarios run under AC-11.1) |
 | AC-11.4 | ⬜ | Large vault performance | 1000 notes processable in <3 minutes |
 | AC-11.5 | ⬜ | Documentation builds | Manual: no mkdocs site; documentation is plain Markdown under docs/ |
 | AC-11.6 | ⬜ | Example geists work | ≥20 examples, all execute without errors |
