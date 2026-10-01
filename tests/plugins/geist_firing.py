@@ -46,11 +46,8 @@ OPTION = "--require-geist-firing"
 # Bundled geists allowed to stay silent for the whole unit lane, with a written
 # reason each. An entry that fires, or names a geist that no longer exists, is
 # reported as stale and fails the gate, so this list can only shrink honestly.
-#
-# TEMPORARY (round 3, d2ee08f): every entry below is a real unit-lane gap that
-# predates this gate. Remove an entry when its geist gets a designed-to-fire
-# unit test; the stale check will force the removal.
-_NO_UNIT_SUGGEST_TEST = "no unit test calls suggest() with a fixture that makes it fire"
+# Every bundled geist currently fires; prefer a designed-to-fire unit test over
+# adding an entry.
 ALLOWLIST: dict[str, str] = {}
 
 
