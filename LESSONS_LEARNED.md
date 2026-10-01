@@ -648,6 +648,159 @@ publishes the retained Python 3.11 artifacts directly to GitHub Releases.
 
 ---
 
+## Fix the Harness Before Blaming the Tests
+
+**Date:** 2026-09-30
+**Context:** Test audit (PR #92): ~15 bundled geists never produced output in any test
+
+**The Problem:** The per-geist tests could not make their geists fire, so every
+assertion sat inside a loop over `[]`. Three harness defects made the right
+fixture impossible to write:
+- The embedding stub hashed whole texts, so only identical notes were ever
+  similar. The template even warned that "similar but different" was "not
+  controllable under the stub".
+- `Note.created` came from `st_ctime`, which Linux and macOS reset on every
+  write. Nineteen test files "backdated" notes with `os.utime`, which changed
+  nothing (and real users saw every edited note as brand new).
+- Fixtures used `datetime.now()`.
+
+Authors who could not make a geist fire weakened the assertion until it passed.
+
+**The Insight:** When many tests are weak in the same way, look for the
+constraint that forced the weakness before rewriting tests one by one. Each
+harness defect also hid a product defect: the `st_ctime` bug was real, and
+once geists fired, dozens of real bugs surfaced (journal leaks, duplicate
+suggestions, wrong period labels, mis-linked journal entries).
+
+**The Principle:** Make the test harness able to express every production
+condition you need to test. Prefer a stub that models the property under test
+(shared vocabulary means similarity) over one that only guarantees
+determinism. If a fixture cannot trigger the code, fix the harness or the
+product; never relax the oracle.
+
+**Impact:** Bag-of-words stub, `VaultBuilder` (real vault, in-memory SQLite,
+pinned dates), corrected creation dates, and per-geist files rebuilt around
+designed-to-trigger fixtures with exact caps, boundary pairs and two-way
+journal exclusion.
+
+---
+
+## A Rewritten Template Does Not Rewrite Its Copies
+
+**Date:** 2026-09-30
+**Context:** The June lesson above was learned, but the tests it describes stayed
+
+**The Problem:** In June the testing template was rewritten to forbid the
+vacuous patterns, and `assert_valid_suggestions()` was added to require
+non-empty output. By September the helper had zero callers. Forty per-geist
+files still carried the old eight-test template (one seed, 20240315, appeared
+353 times). Separately, BUG-4 (`st_ctime` is not creation time) sat in an
+audit report, unfixed.
+
+**The Insight:** Fixing the generator, the guidance or the report is not
+fixing the instances. Copies keep passing, so nothing forces migration.
+
+**The Principle:** When guidance changes, either migrate every existing
+instance in the same change or add a gate that fails on the old pattern.
+A finding is closed when the code changes, not when it is written down.
+
+**Impact:** The per-geist files were migrated, and a suite-hygiene gate now
+rejects the vacuous patterns.
+
+---
+
+## Invariants Belong in the Shared Layer, Not in Every Caller
+
+**Date:** 2026-09-30
+**Context:** Journal exclusion was opt-in per geist; 26 geists forgot it
+
+**The Problem:** "Geist journal notes are engine output, not the user's
+writing" was enforced by each geist calling `notes_excluding_journal()` or
+filtering lookup results itself. Twenty-six geists leaked journal notes into
+suggestions, some counted journal backlinks as "connections", and several went
+silent once near-identical session notes filled a top-N result before the
+geist's own filter ran. Each geist's journal test only checked that no
+journal note appeared, which an empty result also satisfies.
+
+**The Insight:** A rule that every caller must remember will be forgotten by
+some callers. Filtering after a top-N cut is not equivalent to filtering
+before it. An exclusion test that passes on empty output proves nothing.
+
+**The Principle:** Put an invariant that must hold everywhere in the shared
+layer, on by default, with explicit access for the rare caller that needs
+the exception. Exclusion tests must plant both the excluded item and a
+qualifying item, and assert both directions.
+
+**Impact:** `VaultContext` excludes journal notes from every vault-wide
+lookup before any cut; per-geist filters were deleted. With the central rule
+disabled, 44 journal tests fail.
+
+---
+
+## Evidence Gates Must Prove Their Own Evidence
+
+**Date:** 2026-09-30
+**Context:** Five acceptance criteria reported "verified" by an empty-vault test
+
+**The Problem:** When the acceptance gate started running criteria instead of
+trusting the status column, five criteria pointed at scenario tests that did
+not exist. To make them runnable, they were widened to the whole
+`test_scenarios.py` file. The gate appends the fast marker filter, under which
+that file ran one test, an empty-vault sync. "Write session note",
+"multi-day sessions", "Tracery integration" and "temporal geists" all passed
+on it. The spec's own rule (point at the surviving test, or make the
+criterion manual) was skipped.
+
+**The Insight:** A gate that runs a command proves only that the command
+passed, not that it exercised the claim. Widening a broken reference until
+it goes green turns a visible gap into a false pass.
+
+**The Principle:** An evidence gate must check that its evidence is
+specific: the referenced tests exist, are selected under the gate's filters,
+and are the tests that exercise the claim. When a reference breaks, repair it
+or downgrade the claim; never widen it.
+
+**Impact:** Real end-to-end scenarios now back those criteria, and the gate
+rejects criteria whose pytest target is partially deselected or selects
+nothing.
+
+---
+
+## Prove a Test Can Fail, Without Mutation Testing
+
+**Date:** 2026-09-30
+**Context:** 1,519 green tests, many of which could not fail
+
+**The Problem:** No test was ever shown failing, so tests that could not fail
+were indistinguishable from tests that worked. Coverage (a 70% branch gate)
+counted lines executed, and a geist that runs then returns `[]` still covers
+its lines. The executor swallowed every exception, so a "does not crash" test
+could not fail either. Migration-proof tests that compared old and new
+algorithms written inline in the test, never importing GeistFabrik, outlived
+the migration and kept counting as tests.
+
+**The Insight:** Passing is not evidence of protection. Mutation testing would
+measure it, but we rejected it: automated mutants routinely create runaway
+tests (infinite loops and hangs that stall the suite), which costs more than
+it finds here.
+
+**The Principle:** Use cheap, deterministic proofs instead:
+- a regression test must fail on the pre-fix code (a control run) before the
+  fix lands;
+- every bundled geist must produce output somewhere in the suite (firing gate);
+- static hygiene rules reject assertion-free tests, always-true asserts, and
+  asserts that only run inside loops over possibly-empty output;
+- assert outcomes the production path cannot fake, such as execution-log
+  status instead of "returned a list";
+- delete scaffolding tests once the change they proved has landed.
+
+**Impact:** Firing and hygiene gates run in `validate.sh` and CI; the
+executor-backed crash test asserts every execution-log entry succeeded;
+migration-proof files were replaced by oracle and property tests of the real
+functions.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_
