@@ -156,6 +156,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
 
 ### Fixed
+- vocabulary_expansion and voice_absence never reached a journal: their
+  suggestions named no note, and the quality filter drops those. They now
+  name notes: vocabulary_expansion two of the notes nearest the centre (when
+  the spread narrowed) or farthest from it (when it widened); voice_absence
+  the few notes that do use the missing voice, or one recent note to start
+  from.
+- Geist text now claims only what the code checks: density_inversion says
+  "few of them link to each other" (it checks density below 0.3, not zero
+  links), cyclical_thinking describes edits that moved a note away from its
+  first recorded version and back (vectors are cached by content), and
+  assumption_challenger counts causal markers as whole words in prose
+  ("thus" no longer matches "enthusiasm"). question_generator, stub_expander
+  and link_density_analyser drop phrasing that `docs/WRITING_GOOD_GEISTS.md`
+  lists as anti-patterns.
+- `geistfabrik stats` labels the newest note file time "Latest note change";
+  it was "Last sync", but no sync time is recorded. The JSON key `last_sync`
+  is unchanged.
 - **Performance (scaling benchmark of every geist, 100 to 10,000 notes and
   pathological notes).** All results are unchanged unless noted:
   - Quadratic text scans that timed out geists or hung vault sync on
