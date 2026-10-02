@@ -45,17 +45,11 @@ uv run geistfabrik test pattern_finder ~/my-vault --timeout 60 --debug
 uv run geistfabrik stats ~/my-vault
 ```
 
-### Optimisation Benchmarking
+### Geist Profiling
 
 ```bash
-# Run sklearn optimisation benchmark (72 runs = 8 configs × 9 geists)
-python scripts/benchmark_optimizations.py \
-  --vault "/path/to/large/vault" \
-  --output benchmark_results.json \
-  --timeout 120
-
-# Analyze results
-python scripts/analyze_benchmarks.py --input benchmark_results.json
+# Time real geists on a vault, with cache hit rates and call counts
+uv run python scripts/profile_geists.py --vault /path/to/large/vault --geist hidden_hub
 ```
 
 ### Quick Scripts
@@ -164,37 +158,15 @@ uv run geistfabrik test pattern_finder /tmp/10k-vault --timeout 120 --debug
 
 ### Optimisation Benchmarks
 
-Test different optimisation configurations:
-
-> **Note (2026-10):** `src/geistfabrik` no longer reads the
-> `GEIST_ASSUME_FINITE`, `GEIST_FAST_PATH` or `GEIST_VECTORIZE` variables, so
-> every configuration in this matrix now runs the same code. The script is kept
-> for reproducing the historical study (see `scripts/benchmark_config.py`).
-
-```bash
-# Run comprehensive sklearn optimisation benchmark
-python scripts/benchmark_optimizations.py \
-  --vault "/tmp/10000-markdown-files/10000 markdown files/" \
-  --output /tmp/sklearn_results.json \
-  --timeout 120
-
-# This tests:
-# - 8 configurations (baseline + 7 optimisation combinations)
-# - 9 geists (6 problem geists + 3 control geists)
-# - 72 total runs with correctness validation
-```
-
-**Analyze results**:
-
-```bash
-python scripts/analyze_benchmarks.py --input /tmp/sklearn_results.json
-```
-
-**Output includes**:
-- Correctness validation (all configs produce same results)
-- Performance comparison (speedup vs baseline)
-- Configuration recommendation
-- Implementation instructions
+The 2025 sklearn optimisation study (8 configurations × 9 geists) and its
+scripts were removed in 2026-10: the code stopped reading the configuration
+flags once the winner was built in, so every configuration ran the same code.
+Its results remain in
+[`SKLEARN_OPTIMIZATION_BENCHMARK.md`](SKLEARN_OPTIMIZATION_BENCHMARK.md). To
+measure an optimisation now, time the affected geists before and after with
+`scripts/profile_geists.py` (see Contributing Performance Improvements), and
+add a micro-benchmark to `benchmarks/perf_before_after.py`, which runs the
+shipped code path next to an inline copy of the previous one.
 
 ### Memory Profiling
 
@@ -367,9 +339,9 @@ out; the measurements are kept as historical evidence only.
 ### Scripts Reference
 
 - **Quick command reference**: [`scripts/BENCHMARKS.md`](../scripts/BENCHMARKS.md)
-- **Optimisation benchmark**: `scripts/benchmark_optimizations.py`
-- **Results analysis**: `scripts/analyze_benchmarks.py`
-- **Configuration**: `scripts/benchmark_config.py`
+- **Geist profiling**: `scripts/profile_geists.py`
+- **Session phase timing**: `benchmarks/session_benchmark.py`
+- **Before/after micro-benchmarks**: `benchmarks/perf_before_after.py`
 
 ---
 
@@ -389,23 +361,20 @@ When optimising GeistFabrik:
 
 ```bash
 # 1. Baseline
-python scripts/benchmark_optimizations.py --vault /tmp/10k-vault \
-  --output baseline.json --timeout 120
+uv run python scripts/profile_geists.py --vault /tmp/10k-vault --geist hidden_hub \
+  > baseline.txt
 
 # 2. Make changes...
 
-# 3. Test optimised version
-python scripts/benchmark_optimizations.py --vault /tmp/10k-vault \
-  --output optimised.json --timeout 120
+# 3. Same run on the optimised version
+uv run python scripts/profile_geists.py --vault /tmp/10k-vault --geist hidden_hub \
+  > optimised.txt
 
-# 4. Compare
-python scripts/analyze_benchmarks.py --input baseline.json > baseline_report.txt
-python scripts/analyze_benchmarks.py --input optimised.json > optimized_report.txt
+# 4. Compare timings
+diff baseline.txt optimised.txt
 
-# 5. Validate
-diff baseline_report.txt optimized_report.txt
-# Check that suggestion hashes match (correctness)
-# Compare timings (performance)
+# 5. Validate: suggestions must be unchanged for the same --date
+uv run geistfabrik test hidden_hub /tmp/10k-vault --date 2025-01-15
 
 # 6. Document
 # Update CHANGELOG.md
@@ -482,8 +451,8 @@ GeistFabrik's benchmarking suite provides comprehensive performance testing acro
 **Start here**:
 1. Run basic timing: `time uv run geistfabrik invoke ~/vault --full`
 2. If too slow, profile: Add `--debug` flag
-3. For large vaults (10k+), test optimisations: `scripts/benchmark_optimizations.py`
-4. Compare before/after: `scripts/analyze_benchmarks.py`
+3. For large vaults (10k+), profile specific geists: `scripts/profile_geists.py`
+4. Compare before/after: run it on both versions and diff the timings
 
 **Key documents**:
 - Quick reference: [`scripts/BENCHMARKS.md`](../scripts/BENCHMARKS.md)

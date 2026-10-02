@@ -155,6 +155,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Development dependency floor raised to `pytest>=8.0`: the geist firing
   plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
 
+### Removed
+- `scripts/benchmark_optimizations.py`, `scripts/benchmark_config.py` and
+  `scripts/analyze_benchmarks.py`, the 2025 sklearn optimisation study. The
+  code no longer reads the `GEIST_*` flags they toggled, so every
+  configuration ran the same code. Results stay in
+  `docs/SKLEARN_OPTIMIZATION_BENCHMARK.md`; `scripts/profile_geists.py` and
+  `benchmarks/perf_before_after.py` cover before/after measurement.
+
 ### Fixed
 - vocabulary_expansion and voice_absence never reached a journal: their
   suggestions named no note, and the quality filter drops those. They now

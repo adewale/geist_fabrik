@@ -825,7 +825,7 @@ uv run pytest tests/benchmarks/test_vector_backend_performance.py \
 uv run python scripts/analyze_benchmarks.py benchmark_results.json
 ```
 
-**Analysis Script**: `scripts/analyze_benchmarks.py`
+**Analysis Script**: `scripts/analyze_benchmarks.py` (proposed here; never built for backend results. The script of that name analysed the sklearn study and was removed in 2026-10. Backend timings come from `scripts/benchmark_backends.py`.)
 
 ```python
 #!/usr/bin/env python3
