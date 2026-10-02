@@ -30,7 +30,7 @@ class Note:
     content: str        # Full markdown content
     links: List[Link]   # Outgoing [[links]]
     tags: List[str]     # #tags found in note
-    created: datetime   # File creation time
+    created: datetime   # Declared: frontmatter `created:`, else a dated file name; else file timestamps
     modified: datetime  # Last modification time
 ```
 

@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Iterator
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -241,6 +242,59 @@ def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> lis
             raise MarkdownLimitError(f"note exceeds {MAX_NOTE_TAGS} unique tags")
 
     return sorted(tags)
+
+
+# A note file named "2023-09-12.md" or "2023-09-12 Meeting with Steph.md".
+_FILENAME_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?!\d)")
+
+
+def _as_naive_datetime(value: object) -> datetime | None:
+    """A frontmatter value as a naive local datetime, or None if it isn't a date."""
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, date):
+        parsed = datetime(value.year, value.month, value.day)
+    elif isinstance(value, str):
+        text = value.strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone().replace(tzinfo=None)
+    # Reject placeholders and typos such as 0001-01-01 or 20230-01-01.
+    if not 1900 <= parsed.year <= 2200:
+        return None
+    return parsed
+
+
+def declared_creation_date(path: str, content: str) -> datetime | None:
+    """When the note says it was created, if it says so.
+
+    Precedence: a frontmatter ``created:`` property (Obsidian's convention,
+    used by its templates and kepano's vault), then a date at the start of the
+    file name (daily notes such as ``2023-09-12.md``). Returns None when the
+    note declares neither; callers then fall back to file timestamps, which
+    copying, syncing or a git clone can reset.
+    """
+    frontmatter, _ = parse_frontmatter(content)
+    if frontmatter:
+        for key, value in frontmatter.items():
+            if key.strip().lower() == "created":
+                declared = _as_naive_datetime(value)
+                if declared is not None:
+                    return declared
+    match = _FILENAME_DATE.match(Path(path).name)
+    if match:
+        try:
+            return datetime(int(match[1]), int(match[2]), int(match[3]))
+        except ValueError:
+            return None
+    return None
 
 
 def parse_markdown(path: str, content: str) -> tuple[str, str, list[Link], list[str]]:

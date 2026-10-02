@@ -166,6 +166,83 @@ def test_editing_a_note_does_not_move_its_created_date(tmp_path: Path) -> None:
     vault.close()
 
 
+@pytest.mark.parametrize(
+    ("name", "content", "expected"),
+    [
+        ("idea.md", "---\ncreated: 2023-09-14\n---\n# Idea\n", datetime(2023, 9, 14)),
+        (
+            "idea.md",
+            "---\ncreated: 2023-09-14T08:30\n---\n# Idea\n",
+            datetime(2023, 9, 14, 8, 30),
+        ),
+        ("2021-03-05.md", "# Daily\n\nNo frontmatter.", datetime(2021, 3, 5)),
+        ("2021-03-05 Meeting with Steph.md", "# Meeting\n", datetime(2021, 3, 5)),
+        (
+            "2021-03-05.md",
+            "---\ncreated: 2019-07-01\n---\n# Daily\n",
+            datetime(2019, 7, 1),
+        ),
+        ("idea.md", "---\ncreated: someday\n---\n# Idea\n", datetime(2020, 1, 1)),
+        ("2021-13-40.md", "# Not a date\n", datetime(2020, 1, 1)),
+    ],
+    ids=[
+        "frontmatter-date",
+        "frontmatter-datetime",
+        "filename-date",
+        "filename-date-prefix",
+        "frontmatter-beats-filename",
+        "unparseable-falls-back",
+        "invalid-filename-falls-back",
+    ],
+)
+def test_created_comes_from_the_note_before_file_timestamps(
+    tmp_path: Path, name: str, content: str, expected: datetime
+) -> None:
+    """Contract: created = frontmatter `created:`, else a dated file name,
+    else the file timestamps (here 2020-01-01).
+
+    Regression: created came only from file timestamps, which copying,
+    syncing or a git clone reset, so a 2023 note cloned today was "new".
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / name
+    note_file.write_text(content)
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+
+    vault = Vault(vault_path)
+    vault.sync()
+    note = vault.get_note(name)
+    assert note is not None
+    assert note.created == expected
+    vault.close()
+
+
+def test_correcting_frontmatter_created_takes_effect(tmp_path: Path) -> None:
+    """Contract: a declared creation date replaces the stored one, even later.
+
+    The "never moves later" rule protects estimates from file timestamps; it
+    must not stop a user from correcting `created:` to a later date.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "idea.md"
+    note_file.write_text("---\ncreated: 2019-01-01\n---\n# Idea\n")
+    vault = Vault(vault_path)
+    vault.sync()
+
+    note_file.write_text("---\ncreated: 2022-05-17\n---\n# Idea\n")
+    stat = note_file.stat()
+    os.utime(note_file, (stat.st_atime, stat.st_mtime + 5))
+    assert vault.sync() == 1
+
+    note = vault.get_note("idea.md")
+    assert note is not None
+    assert note.created == datetime(2022, 5, 17)
+    vault.close()
+
+
 def test_sync_detects_content_change_with_preserved_mtime(tmp_path: Path) -> None:
     """Incremental identity does not treat a same-mtime replacement as unchanged."""
     vault_path = tmp_path / "vault"
@@ -648,4 +725,27 @@ def test_reprocessing_unchanged_content_keeps_its_semantic_embedding(tmp_path: P
     os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
     assert vault.sync() == 1
     assert vault.db.execute("SELECT 1 FROM embeddings WHERE note_path = 'test.md'").fetchall() == []
+    vault.close()
+
+
+def test_existing_databases_pick_up_declared_creation_dates(tmp_path: Path) -> None:
+    """Migration: rows written by parser-v4 (file-timestamp created dates) are
+    reprocessed once and take the date the note declares. No rebuild."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "clipped.md"
+    note_file.write_text("---\ncreated: 2023-09-14\n---\n# Clipped\n")
+    vault = Vault(vault_path)
+    vault.sync()
+    vault.db.execute(
+        "UPDATE notes SET created = ?, source_fingerprint = 'parser-v4:legacy' WHERE path = ?",
+        (datetime(2026, 10, 1).isoformat(), "clipped.md"),
+    )
+    vault.db.commit()
+
+    assert vault.sync() == 1
+
+    note = vault.get_note("clipped.md")
+    assert note is not None
+    assert note.created == datetime(2023, 9, 14)
     vault.close()

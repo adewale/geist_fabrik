@@ -483,7 +483,7 @@ class Note:
     content: str                 # Full markdown content
     links: List[Link]            # Outgoing [[links]]
     tags: List[str]              # #tags found in note
-    created: datetime            # File creation or entry date
+    created: datetime            # Frontmatter `created:`, else dated file name, else file timestamps (entry date for virtual notes)
     modified: datetime           # File modification time
     # Virtual entry fields (for date-collection notes)
     is_virtual: bool = False     # True for journal entries

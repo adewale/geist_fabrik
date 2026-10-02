@@ -52,6 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evidence check (see the Tests section).
 
 ### Changed
+- `Note.created` now comes from what the note declares: a frontmatter
+  `created:` property (date or datetime), else a date at the start of the file
+  name (`2023-09-12.md`, `2023-09-12 Meeting.md`), else the file timestamps as
+  before. File timestamps are reset by copying, syncing and `git clone`, so a
+  cloned vault looked brand new to age-, anniversary- and season-based geists.
+  A declared date replaces the stored one (so correcting `created:` takes
+  effect); a timestamp estimate still never moves later. The parser revision
+  bump (v5) reprocesses notes once on the next sync; no rebuild is needed.
 - Similarity is measured on meaning only. Stored session embeddings append
   three calendar features (note age, creation season, session season) to the
   384 semantic dimensions; `similarity()`, `batch_similarity()`,
