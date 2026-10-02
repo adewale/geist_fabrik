@@ -168,3 +168,27 @@ def test_user_modules_can_still_override(tmp_path: Path) -> None:
 
     assert md["staleness"] == 0.123
     assert md["days_since_modified"] == 300  # builtins still present alongside
+
+
+def test_example_temporal_module_uses_the_session_date(tmp_path: Path) -> None:
+    """Contract: the shipped example metadata module is deterministic.
+
+    Regression: examples/metadata_inference/temporal.py measured ages from
+    datetime.now(), so replaying a session with --date gave different
+    metadata on different days (and negative ages for past sessions).
+    """
+    import shutil
+
+    modules = tmp_path / "metadata_inference"
+    modules.mkdir()
+    example = Path(__file__).parents[2] / "examples" / "metadata_inference" / "temporal.py"
+    shutil.copy(example, modules / "temporal.py")
+    loader = MetadataLoader(modules)
+    loader.load_modules()
+    built = _build_context(tmp_path / "vault", {"A": "Text."}, backdate_days=40)
+    ctx = VaultContext(built.vault, built.session, seed=SEED, metadata_loader=loader)
+
+    md = _only_metadata(ctx)
+
+    assert md["days_since_modified"] == 40
+    assert md["days_since_created"] == 40
