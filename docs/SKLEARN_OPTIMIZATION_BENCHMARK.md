@@ -7,7 +7,7 @@
 
 **Date**: 2025-11-07
 **Test Environment**: 10,000-note synthetic vault
-**Benchmark Scripts**: `scripts/benchmark_optimizations.py`, `scripts/analyze_benchmarks.py`
+**Benchmark Scripts**: `scripts/benchmark_optimizations.py`, `scripts/analyze_benchmarks.py` (removed 2026-10; the commands below are historical)
 **Status**: ✅ BIG OPTIMISATION #3 (Complete)
 
 ---

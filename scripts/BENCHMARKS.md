@@ -6,45 +6,12 @@ This directory contains benchmarking tools for GeistFabrik performance testing.
 
 ---
 
-## 1. sklearn Optimisation Benchmarks
+## 1. sklearn Optimisation Benchmarks (removed)
 
-Test different sklearn configuration optimisations for large vaults (10k+ notes).
-
-> **Note (2026-10):** `src/geistfabrik` no longer reads the `GEIST_*`
-> variables these scripts set, so all 8 configurations now run the same code.
-> Kept for reproducing the historical study; see
-> [`../docs/BENCHMARKING_GUIDE.md`](../docs/BENCHMARKING_GUIDE.md).
-
-### Running Benchmarks
-
-```bash
-# Run comprehensive benchmark (8 configs × 9 geists = 72 runs)
-python scripts/benchmark_optimizations.py \
-  --vault "/path/to/large/vault" \
-  --output /tmp/sklearn_results.json \
-  --timeout 120
-
-# Analyze results
-python scripts/analyze_benchmarks.py --input /tmp/sklearn_results.json
-```
-
-### What It Tests
-
-- **8 configurations**: baseline + 7 optimisation combinations
-- **9 geists**: 6 problem geists (slow/timeout) + 3 control geists (fast)
-- **Correctness validation**: MD5 hash verification
-- **Performance analysis**: Speedup calculations, winner recommendation
-
-### Results
-
-See [`../docs/SKLEARN_OPTIMIZATION_BENCHMARK.md`](../docs/SKLEARN_OPTIMIZATION_BENCHMARK.md) for detailed results.
-
-**Key findings**:
-- 21% speedup with `assume_finite=True`
-- All optimisations preserve correctness
-- No timeouts with any configuration
-
----
+The 2025 study's scripts (`benchmark_optimizations.py`, `benchmark_config.py`,
+`analyze_benchmarks.py`) were removed in 2026-10: the code no longer read the
+flags they toggled, so all 8 configurations ran the same code. Results remain
+in [`../docs/SKLEARN_OPTIMIZATION_BENCHMARK.md`](../docs/SKLEARN_OPTIMIZATION_BENCHMARK.md).
 
 ## 2. Vector Search Backend Benchmarks
 
