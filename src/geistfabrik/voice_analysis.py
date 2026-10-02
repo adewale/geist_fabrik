@@ -91,7 +91,9 @@ _FENCED_CODE_RE = re.compile(
 
 # Slash compounds such as "I/O" or "and/or": their parts are not words in
 # their own right (the "I" of "I/O" is not the first person).
-_SLASH_COMPOUND_RE = re.compile(r"\w+(?:/\w+)+")
+# \b anchors each attempt at a word start: unanchored, a 50k-letter run
+# with no "/" backtracked quadratically.
+_SLASH_COMPOUND_RE = re.compile(r"\b\w+(?:/\w+)+")
 
 # Inline code spans (single backticks, no newlines)
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
