@@ -3,14 +3,15 @@
 Trigger: a non-journal note created in the session date's (Northern
 Hemisphere) season of an EARLIER season-year. Seasons are Mar-May, Jun-Aug,
 Sep-Nov and Dec-Feb; a winter runs from December into the next year, so
-December belongs to the following year's winter. The geist keeps the 3 most
-recent matches and samples 2.
+December belongs to the following year's winter. The geist samples 2 of
+all matching notes.
 """
 
 from datetime import datetime
 from pathlib import Path
 
 from geistfabrik.default_geists.code import seasonal_revisit
+from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.vault_context import VaultContext
 from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
 
@@ -92,8 +93,12 @@ def test_seasonal_revisit_december_belongs_to_the_current_winter(tmp_path):
     assert all("Last year in winter" in s.text for s in suggestions)
 
 
-def test_seasonal_revisit_caps_at_two_of_the_three_most_recent(tmp_path):
-    """Cap: 14 past springs (2010-2023) give exactly 2 suggestions, both from 2021-2023."""
+def test_seasonal_revisit_caps_at_two(tmp_path):
+    """Cap: 14 past springs (2010-2023) give exactly 2 suggestions.
+
+    (This used to require both to come from the three most recent springs;
+    the geist now samples from every past spring, see the next test.)
+    """
     ctx = _vault(tmp_path, {f"Spring {y}": datetime(y, 4, 1) for y in range(2010, 2024)})
 
     suggestions = seasonal_revisit.suggest(ctx)
@@ -101,7 +106,31 @@ def test_seasonal_revisit_caps_at_two_of_the_three_most_recent(tmp_path):
     assert len(suggestions) == 2
     assert_valid_suggestions(suggestions, "seasonal_revisit")
     referenced = {ref for s in suggestions for ref in s.notes}
-    assert referenced <= {"Spring 2021", "Spring 2022", "Spring 2023"}, referenced
+    assert len(referenced) == 2
+    assert referenced <= {f"Spring {y}" for y in range(2010, 2024)}, referenced
+
+
+def test_seasonal_revisit_samples_from_every_eligible_note(tmp_path):
+    """Contract: across sessions, any note from a past same season can be
+    surfaced, not only the first few in vault order.
+
+    Regression: matches were stably sorted by years ago and cut to the first
+    3, so with six notes from last spring only the same three (in vault
+    order) could ever appear, session after session.
+    """
+    titles = [f"Spring Note {c}" for c in "ABCDEF"]
+    base = _vault(tmp_path, {t: datetime(2023, 4, 1 + i) for i, t in enumerate(titles)})
+
+    surfaced = {
+        ref
+        for seed in range(20)
+        for s in seasonal_revisit.suggest(
+            VaultContext(base.vault, base.session, seed=seed, function_registry=FunctionRegistry())
+        )
+        for ref in s.notes
+    }
+
+    assert surfaced == set(titles)
 
 
 def test_seasonal_revisit_excludes_geist_journal(tmp_path):

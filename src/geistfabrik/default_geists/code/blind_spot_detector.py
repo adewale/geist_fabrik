@@ -13,6 +13,11 @@ if TYPE_CHECKING:
 
 from geistfabrik import Suggestion
 
+# A contrarian shorter than this is treated as a stub, not a perspective
+MIN_CONTRARIAN_WORDS = 50
+# A contrarian untouched for longer than this counts as neglected
+STALE_DAYS = 180
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find blind spots by identifying underexplored semantic opposites.
@@ -51,16 +56,28 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             metadata = vault.metadata(contrarian)
 
+            # The least-similar note in a mixed vault is often a near-empty
+            # stub; a stub is not a perspective, so look further down the list.
+            if metadata.get("word_count", 0) < MIN_CONTRARIAN_WORDS:
+                continue
+
             # Check if it's a blind spot (old or rarely linked)
             days_old = metadata.get("days_since_modified", 0)
             backlink_count = len(vault.backlinks(contrarian))
 
-            if days_old > 180 or backlink_count == 0:
+            # Name only the condition(s) that actually triggered
+            reasons = []
+            if days_old > STALE_DAYS:
+                reasons.append(f"it's been {days_old} days since you touched it")
+            if backlink_count == 0:
+                reasons.append("no other note links to it")
+
+            if reasons:
                 # This is a potential blind spot
                 text = (
                     f"You've been writing about [[{note.link_text}]] lately. "
                     f"[[{contrarian.link_text}]] seems like the opposite perspective, "
-                    f"but it's been {days_old} days since you touched it. "
+                    f"but {' and '.join(reasons)}. "
                     f"What perspectives are you missing?"
                 )
 
@@ -72,7 +89,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     )
                 )
 
-            # Only the most contrarian note is considered
+            # Only the most contrarian substantial note is considered
             break
 
     # Limit to 2 suggestions to avoid overwhelming

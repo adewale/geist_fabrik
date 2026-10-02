@@ -15,8 +15,9 @@ from geistfabrik import Suggestion
 # Bound on how many notes the metadata sweeps inspect. vault.metadata() runs
 # every enabled inference module per note, so an unbounded full-vault scan can
 # be expensive on large vaults or with custom metadata modules. Each pattern
-# only needs 2-3 hits, so a sampled candidate set is plenty - and because the
-# sample is date-seeded it surfaces different notes across sessions.
+# only needs 2-3 hits, so a sampled candidate set is plenty. The notes each
+# pattern names are sampled from all of its matches, so different sessions
+# surface different notes rather than the first few in candidate order.
 MAX_CANDIDATES = 300
 
 # Vocabulary richness is read from the built-in root_ttr (unique words /
@@ -46,15 +47,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     all_notes = vault.notes()
     candidates = vault.sample(all_notes, min(len(all_notes), MAX_CANDIDATES))
 
-    # Pattern 1: High complexity but low connectivity (understood but not connected)
+    # Pattern 1: Long or lexically rich notes with at most one resolved link
+    # in either direction
     high_complexity_isolated = _find_complex_but_isolated(vault, candidates)
     if len(high_complexity_isolated) >= 3:
-        note_titles = [n.link_text for n in high_complexity_isolated[:3]]
+        note_titles = [n.link_text for n in vault.sample(high_complexity_isolated, 3)]
         text = (
             "What do these have in common?\n"
             + "\n".join(f"- [[{title}]]" for title in note_titles)
-            + "\n\nThey're all complex topics with few connections. "
-            + "You understand them but haven't linked them to your other thinking. "
+            + "\n\nThey're all complex topics with few connections: "
+            + "each links to or from at most one other note. "
             + "What pattern does this reveal?"
         )
 
@@ -69,7 +71,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Pattern 2: Old notes with high lexical diversity (buried gems)
     buried_gems = _find_buried_gems(vault, candidates)
     if len(buried_gems) >= 2:
-        note_titles = [n.link_text for n in buried_gems[:2]]
+        note_titles = [n.link_text for n in vault.sample(buried_gems, 2)]
         text = (
             "These notes have high lexical diversity but haven't been touched in months:\n"
             + "\n".join(f"- [[{title}]]" for title in note_titles)
@@ -88,8 +90,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Pattern 3: Task-heavy but no recent updates (abandoned projects)
     abandoned_projects = _find_abandoned_task_notes(vault, candidates)
     if len(abandoned_projects) >= 2:
-        note_titles = [n.link_text for n in abandoned_projects[:2]]
-        incomplete_counts = [_get_incomplete_task_count(vault, n) for n in abandoned_projects[:2]]
+        picked = vault.sample(abandoned_projects, 2)
+        note_titles = [n.link_text for n in picked]
+        incomplete_counts = [_get_incomplete_task_count(vault, n) for n in picked]
 
         text = (
             "These notes have incomplete tasks but haven't been updated recently:\n"
@@ -131,9 +134,10 @@ def _find_complex_but_isolated(vault: "VaultContext", notes: list["Note"]) -> li
         root_ttr = _root_ttr(metadata)
         reading_time = metadata.get("reading_time", 0)
 
-        # Low connectivity
+        # Low connectivity, on the resolved link graph: a link to a note that
+        # does not exist connects nothing (raw note.links counted it).
         backlink_count = len(vault.backlinks(note))
-        link_count = len(note.links)
+        link_count = len(vault.outgoing_links(note))
 
         if (root_ttr > COMPLEX_ROOT_TTR or reading_time > 3) and (backlink_count + link_count < 2):
             complex_isolated.append(note)

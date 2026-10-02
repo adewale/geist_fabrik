@@ -124,11 +124,27 @@ def test_code_geist_output_does_not_depend_on_hash_order(
     """
     from geistfabrik.models import Note
 
+    # Three topics, hedged first-person prose, tasks, questions and a linked
+    # ring with a shared hub, so that graph, similarity, voice and harvester
+    # geists all fire. (Geists now refuse to fire on stubs and unverified
+    # claims, so an 8-note "Orchard idea i" ring left too few firing.)
+    topics = [
+        "orchard apple pruning grafting blossom harvest",
+        "river delta sediment flood estuary current",
+        "violin bow rosin string tuning concerto",
+    ]
+    filler = (
+        "I think we might explore this idea further because it maybe connects to "
+        "other questions about growth and change over many seasons. "
+    )
+    count = 12
     notes = {
         f"Note {i}.md": (
-            f"# Note {i}\nOrchard idea {i} [[Note {(i + 1) % 8}]] [[Note {(i + 3) % 8}]]"
+            f"# Note {i}\n{topics[i % 3]} {topics[i % 3]}. {filler * 3} Idea {i}. "
+            f"[[Note {(i + 1) % count}]] [[Note {(i + 3) % count}]] [[Note 0]]\n"
+            f"- [ ] follow up {i}\nWhy does {topics[i % 3].split()[0]} matter?"
         )
-        for i in range(8)
+        for i in range(count)
     }
     def run(label: str) -> dict[str, list[str]]:
         root = tmp_path / label
@@ -136,7 +152,7 @@ def test_code_geist_output_does_not_depend_on_hash_order(
         return {n: [s.text for s in out] for n, out in _run_all(_context(root, notes)).items()}
 
     baseline = run("v0")
-    assert sum(1 for out in baseline.values() if out) >= 5
+    assert sum(1 for out in baseline.values() if out) >= 8
 
     for salt in ("a", "b", "c"):
         monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))

@@ -218,8 +218,12 @@ Inline TODO markers commonly used in prose and code comments:
 - `TODO:` - General things to do
 - `FIXME:` - Things that need fixing
 - `HACK:` - Temporary solutions to revisit
-- `NOTE:` - Important reminders
 - `XXX:` - Warnings or urgent items
+
+> **Implementation note (2026-10):** markers are matched case-sensitively as
+> whole words (`\b(TODO|FIXME|HACK|XXX)\b`) and quoted as written. `NOTE:`
+> was dropped: in prose, "note:" is ordinary writing (19 of 21 hits in a
+> real vault), not a task. The `NOTE` pattern examples below are historical.
 
 **Focus**: Prose TODOs, not checkbox tasks (`- [ ]`). Those are handled by `task_archaeology`.
 

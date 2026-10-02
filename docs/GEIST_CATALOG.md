@@ -88,7 +88,7 @@ These geists use embeddings to find notes that are semantically related (or deli
 |-------|----------|---------|
 | **creative_collision** | Random dissimilar pairs | Force unexpected combinations |
 | **bridge_builder** | Unlinked similar notes | Suggest missing connections |
-| **bridge_hunter** | Existing links with high similarity | Strengthen explicit connections |
+| **bridge_hunter** | Two-step semantic paths between similar unlinked notes | Stepping-stone notes between two ideas |
 | **island_hopper** | Cross-cluster connections | Bridge isolated knowledge islands |
 
 **Characteristics**:
@@ -109,8 +109,8 @@ These geists examine the vault's link graph (nodes = notes, edges = links) to fi
 |-------|----------|-------|
 | **columbo** | Claims vs linked evidence | Contradictions and inconsistencies |
 | **link_density_analyser** | Links per note | Under/over-linked notes |
-| **hidden_hub** | Backlinks without outlinks | Important but isolated notes |
-| **density_inversion** | Link density vs semantic similarity | Structure/meaning mismatches |
+| **hidden_hub** | Many semantic neighbours, few linked notes | Implicit hubs worth linking |
+| **density_inversion** | Linked neighbours vs semantic similarity (uses embeddings) | Structure/meaning mismatches |
 | **blind_spot_detector** | Recent note neighborhoods | Gaps in current thinking |
 
 **Characteristics**:
@@ -131,7 +131,7 @@ These geists identify groups of related notes and present them as patterns or th
 |-------|-----------|----------|
 | **concept_cluster** | Topic similarity | Conceptual neighborhoods |
 | **cluster_mirror** | Semantic clustering | Hidden groupings in vault |
-| **pattern_finder** | Recurring structures | Common patterns across notes |
+| **pattern_finder** | Recurring three-word prose phrases + similarity clusters | Themes that recur across notes |
 
 **Characteristics**:
 - 🤖 Uses unsupervised ML (clustering algorithms)
@@ -152,7 +152,7 @@ These geists examine note metadata (word count, links, tasks, etc.) to identify 
 | **stub_expander** | Word count + links | Develop short but connected notes |
 | **task_archaeology** | Incomplete tasks + age | Revisit forgotten tasks |
 | **complexity_mismatch** | Content complexity metrics | Notes with unexpected complexity |
-| **vocabulary_expansion** | Unique word usage | Notes with limited vocabulary |
+| **vocabulary_expansion** | Whole-vault embedding dispersion across sessions | Whether your thinking is spreading or converging |
 | **structure_diversity_checker** | Note structure patterns | Add variety to writing |
 | **metadata_driven_discovery** | Metadata patterns | Unexpected property combinations |
 
@@ -253,7 +253,7 @@ rhythm, semantic surprisal, and neighbourhood churn.
 
 **Tracery geists**:
 - **questioning_mind** - Prompts from notes dense with questions
-- **temporal_contrast** - Contrasts past- and future-focused notes
+- **temporal_contrast** - Invites rewriting a past-focused note looking forward
 - **unexpected_neighbour** - Surfaces surprising notes via vault functions
 
 **Characteristics**:
@@ -276,7 +276,7 @@ These geists use Tracery grammars rather than code, demonstrating the declarativ
 | **random_prompts** | Generates random creative prompts |
 | **questioning_mind** | Prompts from notes dense with questions |
 | **semantic_neighbours** | Shows semantic neighborhoods |
-| **temporal_contrast** | Contrasts past- and future-focused notes |
+| **temporal_contrast** | Invites rewriting a past-focused note looking forward |
 | **unexpected_neighbour** | Surfaces surprising notes |
 
 ---

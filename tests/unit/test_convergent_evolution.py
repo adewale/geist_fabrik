@@ -2,7 +2,8 @@
 
 Trigger: a vault of >= 10 non-journal notes containing an UNLINKED pair whose
 per-session SEMANTIC similarity over >= 3 shared sessions rises:
-mean(second half) - mean(first half) > 0.15. Capped at 2.
+mean(second half) - mean(first half) > 0.15 AND last - first > 0.15, and whose
+current similarity is >= SimilarityLevel.WEAK (0.35). Capped at 2.
 
 History vectors are injected with ``set_history``: a note's current file
 content is its latest snapshot.
@@ -170,3 +171,36 @@ def test_convergent_evolution_is_deterministic_for_a_seed(tmp_path):
 
     assert len(first) == 2
     assert [s.text for s in first] == [s.text for s in second]
+
+
+def test_convergent_evolution_ignores_a_spike_that_fell_back(tmp_path):
+    """Contract: convergence needs a net rise (latest over first similarity).
+
+    Regression: only the late-half mean was compared with the early half, so
+    similarities [0.0, 0.75, 0.0] (Seeker briefly said SHARED, then went back)
+    were reported as "became more similar".
+    """
+    ctx = _vault(tmp_path, {"Seeker": (ELSEWHERE, {H2: SHARED}), "Target": (SHARED, {})})
+
+    assert convergent_evolution.suggest(ctx) == []
+
+
+def test_convergent_evolution_needs_the_pair_to_be_similar_now(tmp_path):
+    """Contract: a pair that rose from unrelated to still barely related (0.20,
+    below SimilarityLevel.WEAK) is not invited to link.
+
+    Regression: similarities [0.0, 0.0, 0.20, 0.20] passed the trend test and
+    were reported although the notes are not similar now.
+    """
+    h0 = datetime(2023, 8, 1)
+    barely = "gardens rockets orbit fuel launch"  # shares only "gardens": 0.20
+    ctx = _vault(
+        tmp_path,
+        {
+            "Seeker": (barely, {h0: ELSEWHERE, H1: ELSEWHERE, H2: barely}),
+            "Target": (SHARED, {}),
+        },
+        history=[h0, H1, H2],
+    )
+
+    assert convergent_evolution.suggest(ctx) == []

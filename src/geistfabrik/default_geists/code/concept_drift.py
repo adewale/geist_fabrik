@@ -75,7 +75,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         neighbour_alignments.sort(key=lambda x: x[1], reverse=True)
-        top_neighbour = neighbour_alignments[0][0]
+        top_neighbour, top_alignment = neighbour_alignments[0]
+
+        # The note moved away from every sampled neighbour: none lies in the
+        # direction of the change, so "aligns most" would be false.
+        if top_alignment <= 0:
+            continue
 
         # Get trajectory dates for context
         calc = EmbeddingTrajectoryCalculator(vault, note)

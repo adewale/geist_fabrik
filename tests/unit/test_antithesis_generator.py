@@ -2,14 +2,14 @@
 
 antithesis_generator needs >= 10 notes. A note "makes strong claims" when at
 least 3 claim indicators (is, are, must, should, always, never, ...) occur in
-it as substrings. For each such note it looks among its 20 nearest
-neighbours for an existing antithesis (>= 2 negation substrings such as not,
-no, never, against; "anti"/"contra" in the title counts double):
-  - found: suggest developing the thesis/antithesis pair;
-  - none: suggest writing one, with a suggested title "Anti-<title>" (or
-    "Against <title>" when the title contains "the").
-A second pass suggests a synthesis for similar (> 0.5) opposed pairs. At most
-2 suggestions are returned.
+it as substrings. Each such note gets an invitation to write its antithesis,
+with a suggested title "Anti-<title>" (or "Against <title>" when the title
+contains "the"). At most 2 suggestions are returned.
+
+The geist used to name an existing "antithesis" (a neighbour with >= 2
+negation substrings) and to propose syntheses of "dialectically opposed"
+pairs. Those tests matched ~99% of neighbours in a real vault, so both claims
+were removed; the regression test below pins that.
 
 Fixtures use the bag-of-words test stub. Every fixture word is checked to
 contain none of the indicator substrings, so claim and negation counts are
@@ -75,11 +75,24 @@ def test_antithesis_generator_proposes_antithesis_for_strong_claim(
     assert len(suggestions) == 1
     assert suggestions[0].notes == [title]
     assert suggestions[0].title == suggested_title
-    assert "What if you wrote its antithesis" in suggestions[0].text
+    assert suggestions[0].text == (
+        f"What if you wrote the antithesis of [[{title}]]—a note that systematically "
+        "challenges each of its claims? What would the opposite perspective argue?"
+    )
 
 
-def test_antithesis_generator_recognises_existing_antithesis(tmp_path: Path) -> None:
-    """Contract: a similar note with >= 2 negations is offered as the antithesis."""
+def test_antithesis_generator_never_claims_a_neighbour_challenges_the_note(
+    tmp_path: Path,
+) -> None:
+    """Contract: the geist never names a second note as an antithesis or as the
+    other half of a "dialectically opposed" pair; it only invites writing one.
+
+    Regression: any of the 20 nearest neighbours containing two negation
+    substrings ("no" in "note", "anti" in "semantic") was presented as "[[Y]]
+    seems to challenge it", and similar pairs as "dialectically opposed", so
+    arbitrary neighbours were named. Here Tern Counter is a close neighbour with
+    exactly the old trigger (never, against).
+    """
     builder = VaultBuilder(tmp_path)
     builder.note("Tern Claims", f"{TOPICS['Tern']} {CLAIMS}", created=CREATED)
     builder.note("Tern Counter", f"{TOPICS['Tern']} never against", created=CREATED)
@@ -88,32 +101,15 @@ def test_antithesis_generator_recognises_existing_antithesis(tmp_path: Path) -> 
 
     suggestions = antithesis_generator.suggest(ctx)
 
-    assert_valid_suggestions(
-        suggestions, "antithesis_generator", must_reference=["Tern Claims", "Tern Counter"]
-    )
-    assert suggestions[0].notes == ["Tern Claims", "Tern Counter"]
-    assert "seems to challenge it" in suggestions[0].text
-
-
-def test_antithesis_generator_proposes_synthesis_for_opposed_pair(tmp_path: Path) -> None:
-    """Contract: similar notes with opposed polarity get a titled synthesis proposal.
-
-    The claim has 2 positive markers (must, always); its neighbour (cosine
-    > 0.5) has 3 negative ones (never, not, and "no" inside "not").
-    """
-    builder = VaultBuilder(tmp_path)
-    builder.note("Tern Claims", f"{TOPICS['Tern']} {CLAIMS}", created=CREATED)
-    builder.note("Tern Counter", f"{TOPICS['Tern']} never not", created=CREATED)
-    _add_fillers(builder, MIN_NOTES - 2)
-    ctx = builder.build()
-
-    suggestions = antithesis_generator.suggest(ctx)
-
-    assert_valid_suggestions(suggestions, "antithesis_generator")
-    synthesis = [s for s in suggestions if s.title == "Synthesis: Tern Claims + Tern Counter"]
-    assert len(synthesis) == 1
-    assert synthesis[0].notes == ["Tern Claims", "Tern Counter"]
-    assert "dialectically opposed" in synthesis[0].text
+    assert [(s.notes, s.title, s.text) for s in suggestions] == [
+        (
+            ["Tern Claims"],
+            "Anti-Tern Claims",
+            "What if you wrote the antithesis of [[Tern Claims]]—a note that "
+            "systematically challenges each of its claims? What would the opposite "
+            "perspective argue?",
+        )
+    ]
 
 
 def test_antithesis_generator_caps_at_two_distinct_notes(tmp_path: Path) -> None:

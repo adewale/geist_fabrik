@@ -7,10 +7,11 @@ built-in set, with "now" = the session date):
   a stub can never look rich, which raw lexical_diversity (TTR ~1.0 for any
   short note) got wrong;
 - complex-but-isolated: (root_ttr > COMPLEX_ROOT_TTR or reading_time > 3) and
-  links + backlinks < 2; the pattern needs >= 3 such notes;
+  resolved outgoing links + backlinks < 2; the pattern needs >= 3 such notes;
 - buried gems: root_ttr > BURIED_GEM_ROOT_TTR and days_since_modified > 90; >= 2;
 - abandoned tasks: an open "- [ ]" task and days_since_modified > 60; >= 2;
-- each pattern yields at most one suggestion and output is capped at 2.
+- each pattern yields at most one suggestion, naming notes sampled from all
+  of its matches, and output is capped at 2.
 
 word_count counts every whitespace token of the file, including the
 "# Title" heading that VaultBuilder writes. Background notes use a
@@ -323,3 +324,30 @@ def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
 
     assert first
     assert first == second
+
+
+def test_isolation_counts_resolved_links_not_dangling_ones(tmp_path: Path) -> None:
+    """Contract: "few connections" is measured on the resolved link graph, and
+    the text claims only that (no unverifiable "You understand them").
+
+    Regression: connectivity added raw len(note.links), so three long notes
+    whose only links point at notes that do not exist counted as connected
+    and the pattern never fired; the text also asserted "You understand them
+    but haven't linked them to your other thinking".
+    """
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Complex {i}" for i in range(3)]
+    for title in titles:
+        _complex(builder, title, suffix="[[Missing One]] [[Missing Two]]")
+    _background(builder)
+
+    suggestions = metadata_driven_discovery.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, must_reference=titles)
+    assert [sorted(s.notes) for s in suggestions] == [titles]
+    (text,) = [s.text for s in suggestions]
+    assert text.endswith(
+        "They're all complex topics with few connections: each links to or from "
+        "at most one other note. What pattern does this reveal?"
+    )
+    assert "understand" not in text

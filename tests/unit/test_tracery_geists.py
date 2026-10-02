@@ -188,7 +188,7 @@ def test_vault_functions_request_at_least_count_items() -> None:
 
 
 def test_hub_explorer_names_only_the_hubs(populated: VaultContext) -> None:
-    """hub_explorer draws from the two most-linked notes and nothing else."""
+    """hub_explorer draws from the notes with at least three backlinks and nothing else."""
     seen: set[str] = set()
     for seed in range(20):
         suggestions = TraceryGeist.from_yaml(_yaml("hub_explorer"), seed=seed).suggest(populated)
@@ -200,14 +200,115 @@ def test_hub_explorer_names_only_the_hubs(populated: VaultContext) -> None:
     assert seen == {"Hub Note", "Garden Hub"}
 
 
-def test_orphan_connector_names_the_most_recent_orphan(populated: VaultContext) -> None:
-    """orphan_connector names the unlinked note, never a linked one."""
-    for seed in range(10):
+def _hub_vault(root: Path) -> VaultBuilder:
+    """Notes with 5, 4, 3, 2 and 1 backlinks ("Five" ... "One"), plus the linkers."""
+    builder = VaultBuilder(root)
+    backlinks = {"Five": 5, "Four": 4, "Three": 3, "Two": 2, "One": 1}
+    for i, title in enumerate(backlinks):
+        builder.note(title, f"Topic {title.lower()}.", created=datetime(2024, 1, 1 + i))
+    for i in range(5):
+        links = " ".join(f"[[{t}]]" for t, n in backlinks.items() if i < n)
+        builder.note(f"Linker {i}", f"Links {links}", created=datetime(2024, 2, 1 + i))
+    return builder
+
+
+def test_hubs_function_honours_min_backlinks(tmp_path: Path) -> None:
+    """Contract: $vault.hubs(count, min_backlinks) keeps only notes with that many backlinks.
+
+    Ranked most-linked first and capped at count; the default min_backlinks=1
+    keeps every linked-to note (backward compatible).
+    Regression: hubs() had no minimum, so a note with one backlink was a "hub".
+    """
+    ctx = _hub_vault(tmp_path).build()
+
+    assert ctx.call_function("hubs", 5) == [
+        "[[Five]]",
+        "[[Four]]",
+        "[[Three]]",
+        "[[Two]]",
+        "[[One]]",
+    ]
+    assert ctx.call_function("hubs", 5, 3) == ["[[Five]]", "[[Four]]", "[[Three]]"]
+    assert ctx.call_function("hubs", 2, 3) == ["[[Five]]", "[[Four]]"]
+    assert ctx.call_function("hubs", 5, 6) == []
+
+
+def test_hub_explorer_calls_only_well_linked_notes_central(tmp_path: Path) -> None:
+    """Contract: every note hub_explorer names has at least three backlinks.
+
+    Each suggestion picks among those hubs (all three appear across seeds),
+    and no template claims the hub "has grown" (growth is never checked).
+    Regression: the pool was the top five by backlinks with no minimum, so a
+    note with one or two backlinks was called "central to your vault"; the
+    real-run journal named a note whose only backlink was itself.
+    """
+    ctx = _hub_vault(tmp_path).build()
+    named: set[str] = set()
+    texts: list[str] = []
+    for seed in range(30):
+        suggestions = TraceryGeist.from_yaml(_yaml("hub_explorer"), seed=seed).suggest(ctx)
+        assert_valid_suggestions(suggestions, "hub_explorer", min_count=2)
+        for suggestion in suggestions:
+            named.update(suggestion.notes)
+            texts.append(suggestion.text)
+
+    assert named == {"Five", "Four", "Three"}
+    assert not [t for t in texts if "has grown" in t]
+
+
+def test_hub_explorer_abstains_without_a_well_linked_note(tmp_path: Path) -> None:
+    """Contract: with no note reaching three backlinks, hub_explorer says nothing.
+
+    Regression: any linked-to note qualified, so a two-backlink note was "central".
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Target", "Topic.", created=datetime(2024, 1, 1))
+    for i in range(2):
+        builder.note(f"Linker {i}", "See [[Target]]", created=datetime(2024, 1, 2 + i))
+
+    for seed in range(5):
+        geist = TraceryGeist.from_yaml(_yaml("hub_explorer"), seed=seed)
+        assert geist.suggest(builder.build()) == []
+
+
+def test_orphan_connector_rotates_among_orphans(populated: VaultContext) -> None:
+    """Contract: orphan_connector names an unlinked note, never a linked one, and rotates.
+
+    The fixture has four orphans (Orphan Note, Questions, Past Reflection,
+    Future Plans); across seeds each is named.
+    Regression: $vault.orphans(1) named the single most recently modified
+    orphan in every session (one note across 60 simulated sessions).
+    """
+    orphans = {"Orphan Note", "Questions", "Past Reflection", "Future Plans"}
+    named: set[str] = set()
+    for seed in range(20):
         suggestions = TraceryGeist.from_yaml(_yaml("orphan_connector"), seed=seed).suggest(
             populated
         )
         assert_valid_suggestions(suggestions, "orphan_connector", min_count=1)
-        assert [s.notes for s in suggestions] == [["Orphan Note"]]
+        assert len(suggestions) == 1
+        assert len(suggestions[0].notes) == 1, suggestions[0].text
+        named.update(suggestions[0].notes)
+
+    assert named == orphans
+
+
+def test_perspective_shifter_writes_whole_sentences(populated: VaultContext) -> None:
+    """Contract: every perspective_shifter suggestion starts with a capital and ends in . or ?.
+
+    Regression: one template began "try viewing [[X]] ..." and three of the
+    four had no terminal punctuation.
+    """
+    texts = [
+        s.text
+        for seed in range(30)
+        for s in TraceryGeist.from_yaml(_yaml("perspective_shifter"), seed=seed).suggest(populated)
+    ]
+
+    assert len(texts) == 60
+    assert [t for t in texts if not t[0].isupper() or t[-1] not in ".?"] == []
+    # Every template was exercised.
+    assert {t.split()[0] for t in texts} >= {"Try", "What"}
 
 
 @pytest.mark.parametrize("note_count", [2, 3, 6])

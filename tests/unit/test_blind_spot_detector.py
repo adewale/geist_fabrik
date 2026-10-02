@@ -2,9 +2,10 @@
 
 blind_spot_detector takes the most recently modified non-journal notes
 (needs >= 2), and for each of the top 3 finds its most contrarian note
-(least similar, via the ``contrarian_to`` vault function). The contrarian is
-a blind spot when it was last modified more than 180 days before the session
-or has no backlinks. At most 2 suggestions are returned.
+(least similar, via the ``contrarian_to`` vault function), skipping stubs
+under 50 words. The contrarian is a blind spot when it was last modified more
+than 180 days before the session or has no backlinks; the text names only the
+condition(s) that held. At most 2 suggestions are returned.
 
 Fixtures use the bag-of-words test stub (disjoint vocabulary -> cosine ~0)
 and pinned modification dates relative to SESSION_DATE.
@@ -25,10 +26,11 @@ from tests.fixtures.helpers import SEED, SESSION_DATE, VaultBuilder, assert_vali
 CAP = 2
 RECENT = SESSION_DATE - timedelta(days=5)
 OLD = SESSION_DATE - timedelta(days=400)
+# Each body is 5 topic words repeated to 50 words, so no note is a stub.
 TOPICS = {
-    "Garden": "garden compost seedling trowel mulch",
-    "Glacier": "glacier moraine crevasse serac firn",
-    "Violin": "violin rosin bowing luthier vibrato",
+    "Garden": " ".join(["garden compost seedling trowel mulch"] * 10),
+    "Glacier": " ".join(["glacier moraine crevasse serac firn"] * 10),
+    "Violin": " ".join(["violin rosin bowing luthier vibrato"] * 10),
 }
 
 
@@ -55,9 +57,63 @@ def test_blind_spot_detector_flags_stale_or_unlinked_opposites(tmp_path: Path) -
         suggestions, "blind_spot_detector", must_reference=["Garden", "Glacier"]
     )
     by_pair = {tuple(s.notes): s.text for s in suggestions}
-    assert set(by_pair) == {("Garden", "Glacier"), ("Glacier", "Garden")}
-    assert "it's been 400 days since you touched it" in by_pair[("Garden", "Glacier")]
-    assert "it's been 5 days since you touched it" in by_pair[("Glacier", "Garden")]
+    assert by_pair == {
+        ("Garden", "Glacier"): (
+            "You've been writing about [[Garden]] lately. [[Glacier]] seems like the "
+            "opposite perspective, but it's been 400 days since you touched it and no "
+            "other note links to it. What perspectives are you missing?"
+        ),
+        ("Glacier", "Garden"): (
+            "You've been writing about [[Glacier]] lately. [[Garden]] seems like the "
+            "opposite perspective, but no other note links to it. What perspectives are "
+            "you missing?"
+        ),
+    }
+
+
+def test_blind_spot_detector_names_only_the_trigger_that_held(tmp_path: Path) -> None:
+    """Contract: "it's been N days" appears only when N > 180 triggered it.
+
+    Regression: the text always said "it's been N days since you touched it",
+    even when the trigger was "no backlinks" and N was 5, which presented a
+    fresh note as neglected.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Garden", TOPICS["Garden"], created=RECENT)
+    builder.note("Glacier", TOPICS["Glacier"], created=OLD)
+    ctx = builder.build()
+
+    texts = {tuple(s.notes): s.text for s in blind_spot_detector.suggest(ctx)}
+
+    assert "days" not in texts[("Glacier", "Garden")]
+    assert texts[("Glacier", "Garden")].endswith(
+        "but no other note links to it. What perspectives are you missing?"
+    )
+
+
+def test_blind_spot_detector_skips_stub_contrarians(tmp_path: Path) -> None:
+    """Contract: a contrarian under 50 words is a stub, not a perspective; the
+    next most contrarian note is used instead.
+
+    Regression: the single least-similar note was always used, and in real
+    vaults that is an 8-word daily note or similar stub, the same pair every
+    session.
+
+    "Glacier Stub" (8 words, nothing shared) is Garden's most contrarian note;
+    "Violin" shares one word ("garden") with Garden, so it is second.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Garden", TOPICS["Garden"], created=RECENT)
+    builder.note("Glacier Stub", "glacier moraine crevasse serac", created=OLD)
+    builder.note("Violin", f"{TOPICS['Violin']} garden", created=OLD)
+    ctx = builder.build()
+    assert ctx.call_function("contrarian_to", "Garden", 2) == ["[[Glacier Stub]]", "[[Violin]]"]
+
+    suggestions = blind_spot_detector.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "blind_spot_detector")
+    assert ["Garden", "Violin"] in [s.notes for s in suggestions]
+    assert "Glacier Stub" not in [s.notes[1] for s in suggestions]
 
 
 def test_blind_spot_detector_caps_at_two(tmp_path: Path) -> None:

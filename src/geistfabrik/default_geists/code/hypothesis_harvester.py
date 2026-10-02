@@ -11,6 +11,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
+# Notes tried per session before abstaining.
+MAX_NOTES_TRIED = 10
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Extract hypotheses from a randomly selected note and ask how to test them.
@@ -31,14 +34,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not notes:
         return []
 
-    note = vault.random_notes(count=1)[0]
-    content = vault.read(note)
-
     pipeline = ExtractionPipeline(
         strategies=[HypothesisExtractor()],
         filters=[LengthFilter(min_len=20, max_len=300), AlphaFilter()],
     )
-    hypotheses = pipeline.extract(content)
+    # Try a few random notes (deterministic by session seed) and harvest the
+    # first one that has any; most notes have none.
+    note = notes[0]
+    hypotheses: list[str] = []
+    for note in vault.sample(notes, MAX_NOTES_TRIED):
+        hypotheses = pipeline.extract(vault.read(note))
+        if hypotheses:
+            break
     if not hypotheses:
         return []
 

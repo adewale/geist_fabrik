@@ -81,25 +81,25 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 (note_positive_words > 2 and other_negative_words > 2)
                 or (note_negative_words > 2 and other_positive_words > 2)
             ):
-                # Find linked notes to strengthen the case
-                connections = []
-                for n in [note, other]:
-                    if len(n.links) > 0:
-                        connections.extend([link.target for link in n.links[:2]])
+                # Notes BOTH of them link to (resolved targets), to strengthen
+                # the case. Only genuinely shared links are named: listing the
+                # first raw targets of either note claimed "Both connect to"
+                # links that only one note had, or that resolved to nothing.
+                other_targets = {n.path for n in vault.outgoing_links(other)}
+                shared = sorted(
+                    (n for n in vault.outgoing_links(note) if n.path in other_targets),
+                    key=lambda n: n.link_text,
+                )
 
-                if connections:
+                if shared:
+                    connection_list = ", ".join(f"[[{n.link_text}]]" for n in shared[:2])
                     text = (
                         f"I think you're lying about your claim in "
                         f"[[{note.link_text}]] because [[{other.link_text}]] "
-                        f"argues something that seems to contradict it"
+                        f"argues something that seems to contradict it. "
+                        f"Both connect to {connection_list}, "
+                        f"so maybe there's a missing piece?"
                     )
-
-                    if connections:
-                        connection_list = ", ".join([f"[[{c}]]" for c in connections[:2]])
-                        text += (
-                            f". Both connect to {connection_list}, "
-                            f"so maybe there's a missing piece?"
-                        )
                 else:
                     text = (
                         f"[[{note.link_text}]] and [[{other.link_text}]] seem "

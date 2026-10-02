@@ -76,11 +76,32 @@ def test_temporal_clustering_labels_periods_by_their_dates(tmp_path):
 
     [suggestion] = temporal_clustering.suggest(ctx)
 
-    assert suggestion.text.startswith(
-        "Your Dec 2023 to Mar 2024 notes form a distinct semantic cluster"
-    )
-    assert "separate from your Sep 2023 to Dec 2023 notes" in suggestion.text
+    assert suggestion.text.startswith("Your Dec 2023 to Mar 2024 notes hang together semantically")
+    assert "and so do your Sep 2023 to Dec 2023 notes" in suggestion.text
     assert "Q2-2023" not in suggestion.text
+
+
+def test_temporal_clustering_does_not_claim_periods_are_separate(tmp_path):
+    """Contract: the text claims only what is measured: each period is
+    internally cohesive. It never says the periods are separate.
+
+    Regression: it said one period formed "a distinct semantic cluster ...
+    separate from" the other, but never compared the two periods. Here both
+    periods are about the same theme, so "separate" would be false.
+    """
+    builder = VaultBuilder(tmp_path)
+    for i in range(6):
+        builder.note(f"Garden {i}", f"{THEMES['Garden']} garden{i}x", created=WINTER)
+        builder.note(f"Garden Again {i}", f"{THEMES['Garden']} again{i}x", created=AUTUMN)
+    for i in range(8):
+        builder.note(f"Scattered {i}", _unique("scatter", i), created=SUMMER)
+    ctx = builder.build()
+
+    [suggestion] = temporal_clustering.suggest(ctx)
+
+    assert "separate" not in suggestion.text
+    assert "distinct" not in suggestion.text
+    assert suggestion.text.endswith("Different intellectual seasons, or one continuing thread?")
 
 
 def test_temporal_clustering_needs_twenty_notes(tmp_path):

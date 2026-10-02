@@ -67,11 +67,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         best_neighbour = neighbour
 
                 if best_neighbour and best_similarity > 0.5:
+                    # Rates are change per window of 3 recorded sessions, not per
+                    # unit time (sessions are irregular), so no "velocity" claim.
                     text = (
-                        f"[[{note.link_text}]] shows increasing semantic-change distance "
-                        f"(velocity: {initial_rate:.2f} → {final_rate:.2f}). "
-                        f"It is currently similar to [[{best_neighbour.link_text}]]. "
-                        f"What do the source edits show?"
+                        f"[[{note.link_text}]] has been changing more lately: its "
+                        f"semantic representation moved {initial_rate:.2f} across its "
+                        f"first three recorded sessions and {final_rate:.2f} across its "
+                        f"last three. It is currently similar to "
+                        f"[[{best_neighbour.link_text}]]. What do the source edits show?"
                     )
 
                     suggestions.append(

@@ -1,8 +1,10 @@
 """Unit tests for the bridge_builder geist.
 
 bridge_builder walks the top hubs (most-backlinked notes) and suggests linking
-a hub to any unlinked semantic neighbour whose similarity exceeds
-SimilarityLevel.HIGH (0.65). It returns at most 3 suggestions.
+a hub to any semantic neighbour whose similarity exceeds SimilarityLevel.HIGH
+(0.65), that it is not linked to, and with which it shares no graph neighbour
+(no note links to or from both). Each unordered pair is reported once. It
+returns at most 3 suggestions.
 
 Fixtures use the bag-of-words test stub: a note's embedding is its word
 counts (title included), so a hub and a "twin" sharing 8 of their 10 content
@@ -64,8 +66,11 @@ def test_bridge_builder_suggests_unlinked_twin_of_hub(tmp_path: Path) -> None:
 
     assert_valid_suggestions(suggestions, "bridge_builder", must_reference=[HUBS[0], TWINS[0]])
     assert [s.notes for s in suggestions] == [[HUBS[0], TWINS[0]]]
-    assert f"[[{HUBS[0]}]]" in suggestions[0].text
-    assert f"[[{TWINS[0]}]]" in suggestions[0].text
+    assert suggestions[0].text == (
+        f"What if [[{HUBS[0]}]] and [[{TWINS[0]}]] were connected? They're semantically "
+        "similar but in different parts of your vault: no link joins them, directly or "
+        "through a shared neighbour. A link might bridge important concepts."
+    )
 
 
 def test_bridge_builder_caps_at_three_distinct_pairs(tmp_path: Path) -> None:
@@ -148,3 +153,40 @@ def test_bridge_builder_excludes_geist_journal(tmp_path: Path) -> None:
         must_reference=[HUBS[0], TWINS[0]],
         must_not_reference=["geist journal", "Session Echo", "Session Hub"],
     )
+
+
+def test_bridge_builder_reports_each_pair_once_when_both_are_hubs(tmp_path: Path) -> None:
+    """Contract: an unordered pair is suggested once.
+
+    Regression: when both notes were hubs the pair was emitted twice (A -> B
+    from A's neighbours and B -> A from B's), filling the cap with repeats.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_hub_with_twin(builder, 0)
+    # A second linker makes the twin a hub too.
+    builder.note("Twin Linker", f"See [[{TWINS[0]}]] marmot tapir", created=CREATED)
+    ctx = builder.build()
+    assert {n.title for n in ctx.hubs()} == {HUBS[0], TWINS[0]}
+
+    suggestions = bridge_builder.suggest(ctx)
+
+    assert len(suggestions) == 1
+    assert sorted(suggestions[0].notes) == sorted([HUBS[0], TWINS[0]])
+
+
+def test_bridge_builder_skips_pairs_with_a_shared_graph_neighbour(tmp_path: Path) -> None:
+    """Contract: notes two hops apart (a note links both) are not "in different
+    parts of your vault", so they are not suggested.
+
+    Regression: only a direct link was checked, so a hub and a twin that the
+    same note links to were described as being in different parts of the vault.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(HUBS[0], TOPICS[0], created=CREATED)
+    builder.note(TWINS[0], TOPICS[0], created=CREATED)
+    builder.note("Linker", f"See [[{HUBS[0]}]] and [[{TWINS[0]}]] quokka", created=CREATED)
+    ctx = builder.build()
+    assert ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0])) > SimilarityLevel.HIGH
+    assert not ctx.links_between(_get(ctx, HUBS[0]), _get(ctx, TWINS[0]))
+
+    assert bridge_builder.suggest(ctx) == []

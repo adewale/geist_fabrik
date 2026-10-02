@@ -12,12 +12,17 @@ if TYPE_CHECKING:
 
 from geistfabrik.models import Suggestion
 
+# Smallest semantic drift worth reporting (below this the text is unchanged
+# or trivially edited)
+MIN_MEANINGFUL_DRIFT = 0.05
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Show measured semantic distance for burst-day notes.
 
-    Uses EmbeddingTrajectoryCalculator to track drift from creation
-    to current session for notes created together on burst days.
+    Uses EmbeddingTrajectoryCalculator to measure drift from each note's
+    first session snapshot to the current session, for notes created together
+    on burst days (on or before the session date).
 
     Args:
         vault: The vault context with database access and session info
@@ -33,11 +38,20 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not burst_days_dict:
         return []
 
+    # Session date, not wall-clock: a --date replay must not report burst days
+    # that, at that date, had not happened yet
+    session_day = vault.session.date.date()
+
     # Try burst days until we find one with enough embedding history
-    burst_days_list = list(burst_days_dict.items())
+    burst_days_list = [
+        (day, notes)
+        for day, notes in burst_days_dict.items()
+        if datetime.fromisoformat(day).date() <= session_day
+    ]
     for day_date, notes in vault.sample(burst_days_list, count=len(burst_days_list)):
         # Calculate drift for each note using EmbeddingTrajectoryCalculator
         drifts = []
+        first_seen: list[datetime] = []
         for note in notes:
             calc = EmbeddingTrajectoryCalculator(vault, note)
             snapshots = calc.snapshots()
@@ -46,14 +60,31 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if len(snapshots) < 2:
                 continue
 
-            drift = calc.total_drift()
+            # Clamp float noise: identical vectors can give -0.00
+            drift = max(0.0, calc.total_drift())
             drifts.append((note.path, drift))
+            first_seen.append(snapshots[0][0])
 
-        # Need at least 3 notes with drift data
-        if len(drifts) >= 3:
-            return [_generate_drift_observation(vault, day_date, drifts)]
+        # Need at least 3 notes with drift data, and at least one note whose
+        # text actually changed (semantic drift is 0 for unedited notes, so an
+        # all-zero table has nothing to say)
+        if len(drifts) >= 3 and max(d for _, d in drifts) >= MIN_MEANINGFUL_DRIFT:
+            return [
+                _generate_drift_observation(vault, day_date, len(notes), drifts, min(first_seen))
+            ]
 
     return []
+
+
+def _span_phrase(days: int) -> str:
+    """Describe a span of days as days, months or years (singular-aware)."""
+    if days < 30:
+        count, unit = days, "day"
+    elif days < 365:
+        count, unit = days // 30, "month"
+    else:
+        count, unit = days // 365, "year"
+    return f"{count} {unit}{'' if count == 1 else 's'}"
 
 
 def _drift_label(drift: float) -> str:
@@ -69,9 +100,18 @@ def _drift_label(drift: float) -> str:
 
 
 def _generate_drift_observation(
-    vault: "VaultContext", date: str, drifts: list[tuple[str, float]]
+    vault: "VaultContext",
+    date: str,
+    created_count: int,
+    drifts: list[tuple[str, float]],
+    first_seen: datetime,
 ) -> Suggestion:
-    """Generate declarative observation based on drift patterns."""
+    """Generate declarative observation based on drift patterns.
+
+    Drift is measured between each note's first and latest session snapshot,
+    so the time span reported is from the earliest first snapshot to this
+    session, not from the burst day.
+    """
     # Sort by drift (highest first)
     drifts_sorted = sorted(drifts, key=lambda x: x[1], reverse=True)
     avg_drift = sum(d for _, d in drifts) / len(drifts)
@@ -90,8 +130,7 @@ def _generate_drift_observation(
     # Describe only the measurement; leave interpretation to the user.
     if avg_drift > 0.45:
         observation = (
-            "This group has a high average representation change. "
-            "What do the actual edits show?"
+            "This group has a high average representation change. What do the actual edits show?"
         )
     elif avg_drift < 0.15:
         observation = (
@@ -103,34 +142,25 @@ def _generate_drift_observation(
         stable = [p for p, d in drifts if d < 0.15]
         if stable:
             stable_notes = [vault.get_note(p) for p in stable[:2]]
-            stable_titles = ", ".join([f"[[{n.link_text}]]" for n in stable_notes if n is not None])
+            stable_links = [f"[[{n.link_text}]]" for n in stable_notes if n is not None]
+            verb = "has" if len(stable_links) == 1 else "have"
             observation = (
-                f"{stable_titles} have the smallest measured changes in this group. "
+                f"{', '.join(stable_links)} {verb} the smallest measured changes in this group. "
                 f"How do they compare with the other notes on inspection?"
             )
         else:
             observation = "The measured changes vary; inspect the notes for an explanation."
 
-    # Calculate time elapsed
-    try:
-        burst_datetime = datetime.fromisoformat(date)
-        # Session date, not wall-clock: keeps --date replays deterministic
-        current_datetime = vault.session.date
-        days_ago = (current_datetime - burst_datetime).days
-
-        if days_ago < 30:
-            time_phrase = f"Only {days_ago} days have passed"
-        elif days_ago < 365:
-            months = days_ago // 30
-            time_phrase = f"{months} months later"
-        else:
-            years = days_ago // 365
-            time_phrase = f"{years} year{'s' if years > 1 else ''} later"
-    except Exception:
-        time_phrase = "Since then"
+    # Drift is measured from the first session that saw these notes
+    span_days = max(0, (vault.session.date.date() - first_seen.date()).days)
+    time_phrase = (
+        f"Over the {_span_phrase(span_days)} since your first session with them "
+        f"({first_seen:%Y-%m-%d})"
+    )
 
     text = (
-        f"On {date}, you created {len(drifts)} notes. {time_phrase}:\n{drift_text}\n\n{observation}"
+        f"On {date}, you created {created_count} notes. {time_phrase}:\n{drift_text}"
+        f"\n\n{observation}"
     )
 
     # Get all note titles

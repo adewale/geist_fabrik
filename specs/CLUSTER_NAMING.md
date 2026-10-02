@@ -402,14 +402,14 @@ The script will:
 
 **Current output**:
 ```
-What if you recognised an emerging cluster around [[Project Management]]?
+What if you named the cluster around [[Project Management]]?
 These notes are tightly related: [[Agile Workflows]], [[Sprint Planning]], [[Team Coordination]].
 Could they be organised under a shared theme?
 ```
 
 **Enhanced with KeyBERT clusters**:
 ```
-What if you recognised an emerging cluster around [[Project Management]]?
+What if you named the cluster around [[Project Management]]?
 These notes form a coherent group about "agile project workflows, sprint planning, team coordination practices".
 Could you create an index note called "Agile Team Management"?
 ```

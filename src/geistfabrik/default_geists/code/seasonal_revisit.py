@@ -54,11 +54,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if not seasonal_notes:
         return []
 
-    # Sort by years ago (most recent first)
-    seasonal_notes.sort(key=lambda x: x[1])
-
-    # Create suggestions for recent seasonal matches
-    for note, years_ago in seasonal_notes[:3]:
+    # Sample from every eligible note: truncating to the first few (in vault
+    # order) named the same notes for a whole season of sessions.
+    for note, years_ago in vault.sample(seasonal_notes, 2):
         if years_ago == 1:
             time_phrase = "last year"
         else:
@@ -77,5 +75,4 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
         )
 
-    # Sample to avoid too many suggestions
-    return vault.sample(suggestions, min(2, len(suggestions)))
+    return suggestions

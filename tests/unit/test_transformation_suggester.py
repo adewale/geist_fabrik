@@ -131,41 +131,66 @@ def _suggestion_texts(tmp_path: Path, seeds: range) -> list[str]:
 
 
 def test_transformation_suggester_plural_modifier(tmp_path: Path) -> None:
-    """#element.s# renders a pluralised grammar noun, not the raw singular.
+    """#new_form.s# renders a pluralised grammar noun, not the raw singular.
 
-    Checked on the "it has <count> <element.s>" template: the word after the
-    count must be a grammar element plus "s". If .s were skipped, the raw
-    singular would appear and fail.
+    Checked on the "<verb.ed> into <number> <new_form.s>" template: the word
+    after the number must be a grammar noun plus "s". If .s were skipped, the
+    raw singular would appear and fail. (Updated: this used the removed
+    "it has <count> <element.s>" template, which claimed counts never made.)
     """
-    elements = set(GRAMMAR["element"])
-    counts = "|".join(GRAMMAR["count"])
+    forms = set(GRAMMAR["new_form"])
+    numbers = "|".join(GRAMMAR["number"])
     texts = _suggestion_texts(tmp_path, range(40))
 
-    rendered = [m.group(1) for t in texts for m in re.finditer(rf"it has (?:{counts}) (\w+)", t)]
+    rendered = [m.group(1) for t in texts for m in re.finditer(rf"into (?:{numbers}) (\w+)", t)]
 
-    assert rendered, "no suggestion used the '.s' element template"
+    assert rendered, "no suggestion used the '.s' new_form template"
     for word in rendered:
-        assert word not in elements, f"unpluralised element {word!r}"
-        assert word.endswith("s") and word[:-1] in elements, word
+        assert word not in forms, f"unpluralised noun {word!r}"
+        assert word.endswith("s") and word[:-1] in forms, word
 
 
 def test_transformation_suggester_past_tense_modifier(tmp_path: Path) -> None:
-    """#action.ed# / #verb.ed# render past tenses, not the raw grammar verbs.
+    """#action.ed# / #transform_verb.ed# render past tenses, not the raw grammar verbs.
 
-    Checked on the "you <verb.ed> [[note]]" templates: the verb must differ
-    from every raw grammar verb, so skipping .ed would fail.
+    Checked on the "you <action.ed> [[note]]" and "[[note]] <transform_verb.ed>
+    into" templates: a regular verb must differ from its raw form, so skipping
+    .ed would fail; the irregular "grew" must appear. (Updated: the irregulars
+    wrote/thought/built came from the removed "Last year, you built [[X]]"
+    template, which invented the note's history.)
     """
-    raw_verbs = set(GRAMMAR["action"]) | set(GRAMMAR["verb"])
-    texts = _suggestion_texts(tmp_path, range(40))
+    actions = set(GRAMMAR["action"])
+    texts = _suggestion_texts(tmp_path, range(60))
 
-    rendered = [m.group(1) for t in texts for m in re.finditer(r"\byou (\w+) \[\[", t)]
+    regular = [m.group(1) for t in texts for m in re.finditer(r"\byou (\w+) \[\[", t)]
+    transformed = [m.group(1) for t in texts for m in re.finditer(r"\]\] (\w+) into ", t)]
 
-    assert rendered, "no suggestion used a '.ed' verb template"
-    for word in rendered:
-        assert word not in raw_verbs, f"raw verb {word!r} was not put in the past tense"
-    assert "wrote" in rendered or "thought" in rendered or "built" in rendered, (
-        "expected at least one irregular past tense across 40 seeds"
+    assert regular, "no suggestion used the 'you <action.ed>' template"
+    assert set(regular) <= {f"{a}ed" if not a.endswith("e") else f"{a}d" for a in actions}
+    assert set(transformed) <= {"split", "merged", "evolved", "grew"}
+    assert "grew" in transformed, "expected the irregular 'grew' across 60 seeds"
+
+
+def test_transformation_suggester_invents_no_history_or_counts(tmp_path: Path) -> None:
+    """Contract: suggestions never assert facts about a note that the geist did not check.
+
+    Regression: "Last year, you built [[X]]" / "Three months ago, you made
+    [[X]]" (a random time phrase, not the note's date), "it has five
+    assumptions" (never counted), "[[X]] resonances with three other ideas"
+    (a noun under .s) and a lowercase "treat [[X]] ..." all appeared in the
+    real-run journal.
+    """
+    # One-note vault: one suggestion per seed (a note is not repeated).
+    texts = _suggestion_texts(tmp_path, range(60))
+
+    assert len(texts) == 60
+    fabricated = re.compile(
+        r"last year|months ago|recently|it has|resonances|tensions|consider how", re.IGNORECASE
     )
+    assert [t for t in texts if fabricated.search(t)] == []
+    assert [t for t in texts if not (t[0].isupper() or t.startswith("[["))] == []
+    # The relationship template is now a question about plausible links.
+    assert any(re.search(r": could \[\[.+\]\] (resonate|clash|connect) with ", t) for t in texts)
 
 
 def test_transformation_suggester_article_modifier(tmp_path: Path) -> None:

@@ -102,7 +102,7 @@ default_geists:
   questioning_mind: true          # Prompts from notes dense with questions
   random_prompts: true            # Generates random creative prompts
   semantic_neighbours: true       # Shows semantic neighborhoods around notes
-  temporal_contrast: true         # Contrasts past- and future-focused notes
+  temporal_contrast: true         # Invites rewriting a past-focused note looking forward
   transformation_suggester: true  # Demonstrates Tracery text modifiers
   unexpected_neighbour: true      # Surfaces semantically surprising notes
   what_if: true                   # Generates "What if...?" prompts

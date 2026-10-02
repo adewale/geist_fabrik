@@ -141,13 +141,56 @@ def test_is_valid_question_filtering() -> None:
     assert is_valid_question("What are these symbols: ???")
 
 
+def test_question_harvester_strips_formatting_debris() -> None:
+    """Contract: a harvested question is the question's own words, without
+    table cells, blockquote/callout markers, bold labels, stray "**" or an
+    unbalanced opening quote.
+
+    Regression: debris before the "?" was kept, giving questions such as
+    '| | **claim_harvester** | Bold assertions | | "What if you questioned
+    this?', '**Question**: Should we...?', '**Who are our users?', and
+    '> Is this...?'.
+    """
+    content = (
+        "| Geist | Prompt |\n"
+        '| **claim_harvester** | Bold assertions | "What if you questioned this? |\n'
+        "\n"
+        "**Question**: Should we keep the cache warm?\n"
+        "\n"
+        "- **Q9:** Does the index survive a restart?\n"
+        "\n"
+        "**Who are our users? They vary.\n"
+        "\n"
+        "> Is this really the right abstraction?\n"
+        "> > Could nested replies hold questions too?\n"
+        "\n"
+        "> [!question] What happens when the vault is empty?\n"
+        "\n"
+        '"Plot your vault and ask what is missing?\n'
+    )
+
+    assert extract_questions(content) == [
+        "Should we keep the cache warm?",
+        "Does the index survive a restart?",
+        "Who are our users?",
+        "Is this really the right abstraction?",
+        "Could nested replies hold questions too?",
+        "What happens when the vault is empty?",
+        "Plot your vault and ask what is missing?",
+    ]
+
+
 # ============================================================================
 # TODO Harvester Tests
 # ============================================================================
 
 
 def test_extract_todo_markers() -> None:
-    """Test extracting various TODO markers."""
+    """Contract: TODO, FIXME, HACK and XXX are markers; NOTE is not.
+
+    Regression: NOTE used to be a marker, so remarks ("NOTE: remember to
+    check this") were harvested and the user was asked to "tackle" them.
+    """
     content = """
 TODO: investigate this feature
 FIXME: broken behaviour in edge case
@@ -155,26 +198,33 @@ HACK: temporary workaround
 NOTE: remember to check this
 XXX: urgent issue
 """
-    todos = extract_todos(content)
-    assert len(todos) == 5
-    assert any("TODO: investigate" in t for t in todos)
-    assert any("FIXME: broken" in t for t in todos)
-    assert any("HACK: temporary" in t for t in todos)
-    assert any("NOTE: remember" in t for t in todos)
-    assert any("XXX: urgent" in t for t in todos)
+    assert extract_todos(content) == [
+        "TODO: investigate this feature",
+        "FIXME: broken behaviour in edge case",
+        "HACK: temporary workaround",
+        "XXX: urgent issue",
+    ]
 
 
-def test_todo_case_insensitive() -> None:
-    """Test that TODO markers are case-insensitive."""
+def test_todo_markers_are_case_sensitive_whole_words() -> None:
+    """Contract: markers are capitalised whole words, quoted as written.
+
+    Regression: matching was case-insensitive with no word boundary, so the
+    ordinary word "note:" (and "old_note:", "Note:") was harvested as a task
+    and re-capitalised to "NOTE:", misquoting the source. Lower/mixed-case
+    "todo:" in prose is likewise not a marker. (Replaces a test that encoded
+    the old case-insensitive behaviour.)
+    """
     content = """
-todo: lowercase
-TODO: uppercase
-ToDo: mixed case
+todo: lowercase prose mention
+ToDo: mixed case mention
+Note: different hashes are expected here
+This is another evergreen note: it links elsewhere
+old_note: value from a yaml sample
+MyTODO: embedded in a longer word
+TODO: uppercase marker is real
 """
-    todos = extract_todos(content)
-    assert len(todos) == 3
-    # All should be normalised to uppercase marker
-    assert all(t.startswith("TODO:") or t.startswith("TODO:") for t in todos)
+    assert extract_todos(content) == ["TODO: uppercase marker is real"]
 
 
 def test_ignore_code_block_todos() -> None:
@@ -406,6 +456,35 @@ def test_ignore_inline_code_quotes() -> None:
     assert not any("fake quote" in q for q in quotes)
 
 
+def test_quote_harvester_skips_callouts_and_strips_nested_markers() -> None:
+    """Contract: Obsidian callouts (> [!warning] ...) are admonitions, not
+    quotations, and are skipped; a [!quote] callout keeps its body. Every ">"
+    of a nested quote is stripped.
+
+    Regression: '> [!warning] Heads up' was harvested as the quote
+    '"[!warning] Heads up Running this deletes your cache directory."', and
+    '>> reply' kept a leading '>'.
+    """
+    content = (
+        "> [!warning] Heads up\n"
+        "> Running this deletes your cache directory.\n"
+        "\n"
+        "> [!quote] Hegel\n"
+        "> The owl of Minerva spreads its wings only with the falling of dusk.\n"
+        "\n"
+        "> Original remark about the garden.\n"
+        ">> A nested reply about the garden.\n"
+        "\n"
+        "> > Spaced nested markers are stripped as well.\n"
+    )
+
+    assert extract_quotes(content) == [
+        "The owl of Minerva spreads its wings only with the falling of dusk.",
+        "Original remark about the garden. A nested reply about the garden.",
+        "Spaced nested markers are stripped as well.",
+    ]
+
+
 # ============================================================================
 # Cross-Harvester Pattern Tests
 # ============================================================================
@@ -494,7 +573,7 @@ HARVESTERS = [
             "TODO: sharpen the trowel blades",
             "FIXME: the gate latch sticks",
             "HACK: tape holds the hose together",
-            "NOTE: frost arrives mid October",
+            "TODO: order seed potatoes before March",
             "XXX: the shed roof leaks",
         ],
         "\n".join,
@@ -639,3 +718,48 @@ def test_quote_harvester_does_not_double_quotation_marks(tmp_path, quote, shown)
     assert suggestion.text == (
         f"From [[{HARVEST_NOTE}]]: {shown} What if you reflected on this again?"
     )
+
+
+# ============================================================================
+# definition_harvester: precision and coverage
+# ============================================================================
+
+
+def test_definition_harvester_ignores_bold_field_labels(tmp_path) -> None:
+    """Contract: a note of bold "**Label**: value" fields yields no definition.
+
+    Regression: every bold label matched the "X: Y" pattern, so on a real vault
+    98.6% of harvested "definitions" were fields like "Status: done" or
+    "Memory usage: <100MB cache overhead".
+    """
+    ctx = _harvest_vault(
+        tmp_path,
+        "**Problem**: Seeds rot before they sprout\n"
+        "- **Status**: waiting on drier weather\n"
+        "- **Source**: the allotment committee newsletter\n",
+    )
+
+    assert definition_harvester.suggest(ctx) == []
+
+
+def test_definition_harvester_tries_several_notes(tmp_path) -> None:
+    """Contract: the geist looks past notes without definitions before abstaining.
+
+    Regression: it read one random note and abstained when that note had no
+    definition, so it fell silent most sessions even when the vault had one.
+    """
+    builder = VaultBuilder(tmp_path)
+    for i in range(7):
+        builder.note(f"Plain {i}", f"Plain soil notes number {i} without anything to harvest")
+    builder.note(HARVEST_NOTE, "Tilth refers to the crumbly structure of worked soil.")
+    ctx = builder.build()
+
+    suggestions = definition_harvester.suggest(ctx)
+
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            f'From [[{HARVEST_NOTE}]]: "Tilth refers to the crumbly structure of worked soil." '
+            "What if you explored this definition further?",
+            [HARVEST_NOTE],
+        )
+    ]

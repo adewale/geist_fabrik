@@ -1,15 +1,18 @@
 """Unit tests for the scale_shifter geist.
 
 scale_shifter needs >= 20 non-journal notes. It scores each note by counting
-abstract words (theory, principle, framework, ...) and concrete words
-(example, instance, specific, ...) as substrings of its content:
-  - abstract note (>= 3 abstract, <= 1 concrete): "zoom in" to a semantic
-    neighbour with >= 2 concrete words;
-  - concrete note (>= 3 concrete, <= 1 abstract): "zoom out" to a semantic
-    neighbour with >= 2 abstract words;
+the distinct abstract words (theory, principle, framework, ...) and concrete
+words (example, instance, specific, ...) that occur in it as whole words
+(plurals included):
+  - abstract note (>= 3 abstract, <= 1 concrete): "zoom in" to a neighbour
+    with similarity >= 0.5 and >= 2 concrete words, more concrete than
+    abstract;
+  - concrete note (>= 3 concrete, <= 1 abstract): "zoom out" to a neighbour
+    with similarity >= 0.5 and >= 2 abstract words, more abstract than
+    concrete;
   - cross-scale: an abstract and a concrete note with similarity > 0.6 that
     are not linked.
-It returns at most 2 suggestions.
+Each pair of notes is suggested at most once; at most 2 suggestions.
 
 Fixtures use the bag-of-words test stub: notes on one topic repeat the same
 8 topic words twice (cosine ~0.85 between them); topic and filler words are
@@ -23,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from geistfabrik.default_geists.code import scale_shifter
+from geistfabrik.similarity_analysis import SimilarityLevel
 from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
 CAP = 2
@@ -165,3 +169,84 @@ def test_scale_shifter_excludes_geist_journal(tmp_path: Path) -> None:
         must_reference=["Orchard Visit"],
         must_not_reference=["geist journal", *journal],
     )
+
+
+def test_scale_words_match_whole_words_only(tmp_path: Path) -> None:
+    """Contract: scale words are matched as whole words, so "because",
+    "really" and "actually" are not the concrete words "case", "real" and
+    "actual".
+
+    Regression: substring matching gave this abstract note a concrete score
+    of 3, so it was classed as neither abstract nor concrete and the zoom-in
+    to its concrete neighbour never happened.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(
+        "Orchard Theory",
+        _body("Orchard", f"{ABSTRACT} because really actually"),
+        created=CREATED,
+    )
+    builder.note("Orchard Visit", _body("Orchard", "instance specific"), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 2)
+
+    suggestions = scale_shifter.suggest(builder.build())
+
+    assert [s.text for s in suggestions] == [
+        "[[Orchard Theory]] operates at a high level of abstraction. What if you "
+        "zoomed in? [[Orchard Visit]] might be a more concrete instance of the same ideas."
+    ]
+
+
+def test_broader_framework_must_be_more_abstract_and_pairs_are_deduped(
+    tmp_path: Path,
+) -> None:
+    """Contract: the note offered as a "broader framework" leans abstract by
+    the same measure (more abstract than concrete words), and a pair of notes
+    is suggested once, not once per route.
+
+    Regression: any neighbour with 2 abstract words qualified, so "Orchard
+    Survey" (2 abstract, 3 concrete words) was offered as the broader
+    framework for "Orchard Example"; and the Glacier pair was emitted by
+    the zoom loop and again by the cross-scale loop, filling both slots.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Orchard Example", _body("Orchard", CONCRETE), created=CREATED)
+    builder.note(
+        "Orchard Survey",
+        _body("Orchard", "theory principle example instance specific"),
+        created=CREATED,
+    )
+    builder.note("Glacier Theory", _body("Glacier", ABSTRACT), created=CREATED)
+    builder.note("Glacier Example", _body("Glacier", CONCRETE), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 4)
+
+    suggestions = scale_shifter.suggest(builder.build())
+
+    assert [sorted(s.notes) for s in suggestions] == [["Glacier Example", "Glacier Theory"]]
+
+
+def test_zoom_partner_needs_moderate_similarity(tmp_path: Path) -> None:
+    """Contract: a zoom partner must be at least moderately similar (>= 0.5),
+    not merely one of the 10 nearest notes.
+
+    Regression: neighbours had no similarity floor, so an abstract note
+    sharing 3 of 8 topic words (similarity ~0.46) was offered as the
+    broader framework for a concrete note, and vice versa.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Orchard Example", _body("Orchard", CONCRETE), created=CREATED)
+    part = " ".join(TOPICS["Orchard"].split()[:3])
+    builder.note(
+        "Partial Theory",
+        f"{part} {ABSTRACT} zinc wax oat rye elk gnu {part}",
+        created=CREATED,
+    )
+    _add_fillers(builder, MIN_NOTES - 2)
+    ctx = builder.build()
+    example, partial = (
+        next(n for n in ctx.notes() if n.title == title)
+        for title in ("Orchard Example", "Partial Theory")
+    )
+    assert 0.3 < ctx.similarity(example, partial) < SimilarityLevel.MODERATE
+
+    assert scale_shifter.suggest(ctx) == []

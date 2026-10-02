@@ -2,7 +2,8 @@
 
 hidden_hub needs >= 20 notes. A note is a hidden hub when MORE than 10 of its
 top-30 semantic neighbours have similarity > SimilarityLevel.HIGH (0.65) yet it
-has fewer than 5 links (outgoing + incoming). It returns at most 3 suggestions.
+is linked to or from fewer than 5 distinct notes (vault.graph_neighbours). It
+returns at most 3 suggestions.
 
 Fixtures use the bag-of-words test stub: cluster members repeat the same 8
 topic words twice and differ only in a numeric title suffix (ignored by the
@@ -56,7 +57,7 @@ def test_hidden_hub_flags_semantically_central_unlinked_note(tmp_path: Path) -> 
         assert set(s.notes) <= set(CLUSTER)
         assert len(s.notes) == 4  # the hub plus 3 sampled neighbours
         assert "is semantically related to 11 notes" in s.text
-        assert "only has 0 links" in s.text
+        assert "but isn't linked to any notes. Hidden hub?" in s.text
 
 
 def test_hidden_hub_caps_at_three_distinct_hubs(tmp_path: Path) -> None:
@@ -112,7 +113,7 @@ def test_hidden_hub_requires_fewer_than_five_links(
 
     if fires:
         assert_valid_suggestions(suggestions, "hidden_hub")
-        assert all(f"only has {backlinks} links" in s.text for s in suggestions)
+        assert all(f"is linked to only {backlinks} notes." in s.text for s in suggestions)
     else:
         assert suggestions == []
 
@@ -142,3 +143,50 @@ def test_hidden_hub_excludes_geist_journal(tmp_path: Path) -> None:
     assert all(set(s.notes) <= set(CLUSTER) for s in suggestions)
     # Only the 11 regular cluster mates count as similar neighbours.
     assert all("is semantically related to 11 notes" in s.text for s in suggestions)
+
+
+def test_hidden_hub_counts_linked_notes_not_raw_links(tmp_path: Path) -> None:
+    """Contract: connections are distinct linked notes; repeated or unresolved
+    links are not extra connections. One linked note reads "1 note".
+
+    Trigger: five fillers link to Tide 1-11 (5 links each: not hidden). Tide 0
+    links "[[Filler 0]]" three times and the missing "[[Nowhere]]" twice:
+    one connected note.
+    Regression: ``len(note.links)`` counted every raw link, so Tide 0 had
+    "5 links" and was dropped; and one link was reported as "1 links".
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, CLUSTER[1:])
+    links = "[[Filler 0]] " * 3 + "[[Nowhere]] " * 2
+    builder.note(CLUSTER[0], f"{TOPIC} {TOPIC} {links}", created=CREATED)
+    _add_fillers(builder, 5, link_to=CLUSTER[1:])
+    for i in range(5, MIN_NOTES - len(CLUSTER)):
+        builder.note(f"Filler {i}", f"filler{i} loose{i} idle{i}", created=CREATED)
+    ctx = builder.build()
+
+    (suggestion,) = hidden_hub.suggest(ctx)
+
+    assert suggestion.notes[0] == CLUSTER[0]
+    assert suggestion.text.startswith(
+        f"[[{CLUSTER[0]}]] is semantically related to 11 notes (including "
+    )
+    assert suggestion.text.endswith(
+        "but is linked to only 1 note. Hidden hub? Maybe it's a concept that "
+        "connects things implicitly."
+    )
+
+
+def test_hidden_hub_says_at_least_when_the_neighbour_count_is_capped(tmp_path: Path) -> None:
+    """Contract: only the top 30 neighbours are examined, so 30 similar
+    neighbours is reported as "at least 30".
+
+    Regression: a note with 31 similar notes was "related to 30 notes".
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, [f"Tide {i}" for i in range(32)])
+    ctx = builder.build()
+
+    suggestions = hidden_hub.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "hidden_hub", min_count=CAP)
+    assert all("is semantically related to at least 30 notes" in s.text for s in suggestions)

@@ -96,7 +96,9 @@ Computes **linguistic voice** properties for each note using pure Python (no ext
 }
 ```
 
-**Hedge words** (no external lexicon needed):
+**Hedge words** (no external lexicon needed). *Implementation note (2026-10):*
+"rather" is not a hedge ("rather than" states a choice), and only lower-case
+"may" counts, since "May" is usually the month; see `voice_analysis.HEDGES`.
 ```python
 HEDGES = {
     "maybe", "perhaps", "possibly", "probably", "apparently",
@@ -676,6 +678,11 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
 **File**: `src/geistfabrik/default_geists/code/voice_absence.py`
 
 Identifies missing voices in the vault (e.g., no future-focused notes, no "we" notes).
+
+> **Implementation note (2026-10):** the shipped geist counts notes that use
+> each voice at all (any future marker, any "?"), and the "we" question lives
+> only in self_and_other, which states the true count. The sketch below is
+> the original design.
 
 ```python
 def suggest(vault: VaultContext) -> list[Suggestion]:

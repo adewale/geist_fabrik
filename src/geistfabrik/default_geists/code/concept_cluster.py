@@ -1,7 +1,8 @@
-"""Concept cluster geist - identifies emergent concept clusters.
+"""Concept cluster geist - identifies tight concept clusters.
 
-Finds groups of semantically related notes that might represent an emerging
-theme or area of interest worth naming and organising.
+Finds groups of semantically related notes that might represent a theme or
+area of interest worth naming and organising. (Nothing about the group's age
+is checked, so the suggestion does not call it "emerging".)
 """
 
 from typing import TYPE_CHECKING
@@ -62,7 +63,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             formatted_titles = "]], [[".join(note_titles)
 
             text = (
-                f"What if you recognised an emerging cluster around [[{seed.link_text}]]? "
+                f"What if you named the cluster around [[{seed.link_text}]]? "
                 f"These notes are tightly related: [[{formatted_titles}]]. "
                 f"Could they be organised under a shared theme?"
             )

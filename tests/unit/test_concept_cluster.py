@@ -43,7 +43,10 @@ def _filler(builder: VaultBuilder) -> None:
 
 
 def test_concept_cluster_names_a_tight_group(tmp_path: Path) -> None:
-    """Contract: 4 mutually similar notes are suggested as one emerging cluster.
+    """Contract: 4 mutually similar notes are suggested as one cluster.
+
+    Regression: the text called the group "an emerging cluster", but no
+    temporal property is checked; it now says "the cluster".
 
     Trigger: 5 notes (>= 5), all sampled as seeds; each group seed's 3
     neighbours are its group mates, average pairwise cosine ~0.9 > 0.65.
@@ -58,9 +61,7 @@ def test_concept_cluster_names_a_tight_group(tmp_path: Path) -> None:
     assert_valid_suggestions(suggestions, "concept_cluster", must_reference=group)
     for s in suggestions:
         assert sorted(s.notes) == sorted(group)
-        assert s.text.startswith(
-            f"What if you recognised an emerging cluster around [[{s.notes[0]}]]"
-        )
+        assert s.text.startswith(f"What if you named the cluster around [[{s.notes[0]}]]? ")
 
 
 def test_concept_cluster_reports_each_cluster_once(tmp_path: Path) -> None:

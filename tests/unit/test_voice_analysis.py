@@ -311,3 +311,32 @@ def test_indented_code_fences_and_slash_compounds_are_not_voice() -> None:
     )
     assert compute_voice_metadata(content)["first_person_singular"] == 0.0
     assert compute_voice_metadata("I think this matters.")["first_person_singular"] > 0.0
+
+
+def test_month_may_and_rather_than_are_not_hedges() -> None:
+    """Contract: only lower-case "may" is a hedge, and "rather" is not one.
+
+    Regression: hedges were matched over lowercased text, so the month
+    ("Shipped in May") counted as a hedge, as did "rather than" (a choice,
+    not doubt): a confident release log looked like the vault's most
+    uncertain note.
+    """
+    assert count_hedges("Shipped in May. Planned for May 2025. Speed rather than polish.") == 0
+    assert count_hedges("It may rain. Maybe it will.") == 2
+    meta = compute_voice_metadata("Shipped in May. Reviewed in May. Released in May.")
+    assert meta["hedging_ratio"] == 0.0
+
+
+def test_slash_compound_stripping_is_linear_time() -> None:
+    """Contract: strip_for_analysis is linear in the length of its input.
+
+    Regression: the slash-compound pattern ``\\w+(?:/\\w+)+`` retried a long
+    slash-free word from every offset, so a 50k-character token took about
+    30 seconds (the hostile-input test hit its timeout). 2M characters must
+    now take well under a second.
+    """
+    import time
+
+    started = time.perf_counter()
+    assert strip_for_analysis("x" * 2_000_000) == "x" * 2_000_000
+    assert time.perf_counter() - started < 5.0

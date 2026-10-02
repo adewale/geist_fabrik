@@ -4,10 +4,13 @@ Trigger arithmetic (see the geist source):
 - the vault needs >= 10 non-journal notes, otherwise the geist returns [];
 - causal trigger: a note with >= 3 distinct causal markers ("because",
   "therefore", "thus", ...) and fewer than 2 outgoing links;
-- certainty trigger: a note with >= 2 assumption phrases ("obviously",
-  "clearly", ...) whose semantic neighbour has >= 2 hedging phrases
-  ("maybe", "perhaps", ...). Under the bag-of-words test stub, shared
-  content words make the two notes neighbours;
+- certainty trigger: a note with >= 2 distinct assumption phrases
+  ("obviously", "clearly", ...; not "always"/"must be", which are requirement
+  language) as whole words. The first such sentence is quoted. It is paired
+  with a semantic neighbour (similarity >= 0.35) only if that neighbour has a
+  hedged sentence ("maybe", "perhaps", ...) sharing a content word with the
+  quote; otherwise the quote stands alone. Under the bag-of-words test stub,
+  shared content words make two notes neighbours;
 - output is capped at 3 suggestions.
 """
 
@@ -49,27 +52,82 @@ def test_causal_claims_without_links_are_challenged(tmp_path: Path) -> None:
 
 
 def test_certain_note_is_paired_with_hedging_neighbour(tmp_path: Path) -> None:
+    """Contract: the certain sentence and the neighbour's hedge are quoted.
+
+    Regression: the text asserted "[[X]] makes claims that seem certain, but
+    [[Y]] expresses uncertainty" on phrase counts alone; it now shows both
+    sentences.
+    """
     # The two notes share "orchard", "pruning" and "yield", so under the
     # lexical stub the hedging note is the certain note's nearest neighbour.
     builder = VaultBuilder(tmp_path)
     builder.note("Certain Orchard", "Obviously orchard pruning clearly raises yield.")
-    builder.note("Hedging Orchard", "Maybe orchard pruning perhaps raises yield.")
+    builder.note("Hedging Orchard", "Maybe orchard pruning raises yield.")
     _fillers(builder, 10)
     ctx = builder.build()
 
     suggestions = assumption_challenger.suggest(ctx)
 
     assert_valid_suggestions(suggestions, GEIST)
-    assert [s.notes for s in suggestions] == [["Certain Orchard", "Hedging Orchard"]]
-    assert "seem certain" in suggestions[0].text
+    assert [(s.notes, s.text) for s in suggestions] == [
+        (
+            ["Certain Orchard", "Hedging Orchard"],
+            'In [[Certain Orchard]] you wrote "Obviously orchard pruning clearly raises '
+            'yield", while [[Hedging Orchard]] (semantically similar) hedges: "Maybe '
+            'orchard pruning raises yield". What is the certainty in [[Certain Orchard]] '
+            "resting on?",
+        )
+    ]
 
 
-def test_certain_note_without_hedging_neighbour_is_not_paired(tmp_path: Path) -> None:
-    # Control for the pairing test: a single hedging phrase is below the
-    # >= 2 threshold, so certainty alone must not produce a suggestion.
+UNPAIRED = (
+    ["Certain Orchard"],
+    'In [[Certain Orchard]] you wrote "Obviously orchard pruning clearly raises yield". '
+    "What is that assumption resting on?",
+)
+
+
+def test_certain_note_without_hedging_neighbour_stands_alone(tmp_path: Path) -> None:
+    """Contract: with no hedging neighbour the quoted assumption stands alone."""
     builder = VaultBuilder(tmp_path)
     builder.note("Certain Orchard", "Obviously orchard pruning clearly raises yield.")
-    builder.note("Hedging Orchard", "Maybe orchard pruning raises yield.")
+    builder.note("Plain Orchard", "Orchard pruning raises yield.")
+    _fillers(builder, 10)
+
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert [(s.notes, s.text) for s in suggestions] == [UNPAIRED]
+
+
+def test_hedge_about_other_terms_is_not_paired(tmp_path: Path) -> None:
+    """Contract: a neighbour is only said to hedge when its hedged sentence
+    shares a term with the quoted certain sentence.
+
+    Regression: any similar note containing two hedge words anywhere ("perhaps",
+    "might") was paired, even when the hedging was about something else.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(
+        "Certain Orchard",
+        "Obviously orchard pruning clearly raises yield. Orchard soil drains well.",
+    )
+    builder.note("Hedging Orchard", "Orchard soil drains well. Perhaps glaciers might melt.")
+    _fillers(builder, 10)
+
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert [(s.notes, s.text) for s in suggestions] == [UNPAIRED]
+
+
+def test_requirement_language_is_not_an_assumption(tmp_path: Path) -> None:
+    """Contract: "always" and "must be" alone do not make a note "certain".
+
+    Regression: they counted as assumption phrases, so specification notes
+    ("tokens always expire", "the cache must be cleared") were challenged.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Cache Spec", "The cache must be cleared. Tokens always expire.")
+    builder.note("Cache Doubts", "Maybe the cache must be cleared. Perhaps tokens expire.")
     _fillers(builder, 10)
 
     assert assumption_challenger.suggest(builder.build()) == []
@@ -174,4 +232,6 @@ def test_unrelated_hedging_note_is_not_called_similar(tmp_path: Path) -> None:
     builder.note("Hedging Glacier", "Maybe glacier moraine perhaps shifts crevasses.")
     _fillers(builder, 8)
 
-    assert assumption_challenger.suggest(builder.build()) == []
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert [(s.notes, s.text) for s in suggestions] == [UNPAIRED]

@@ -58,8 +58,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 text = (
                     f"The semantic representation of [[{note.link_text}]] differs "
                     f"between its two latest recorded sessions. The note has not "
-                    f"been edited in {days_since_modified} days; revisit the snapshots "
-                    f"before deciding what, if anything, changed in its meaning."
+                    f"been edited in {days_since_modified} days; reread it and decide "
+                    f"what, if anything, changed in its meaning."
                 )
             else:
                 text = (

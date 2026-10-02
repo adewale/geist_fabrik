@@ -9,8 +9,10 @@ tracery:
     - "#orphan# #verb.s# alone. #prompt.capitalize#?"
     - "#label.capitalize# thought: #orphan#. #question.capitalize#?"
 
+  # The ten most recently modified orphans: each session picks one, rather
+  # than naming the newest orphan every time.
   orphan:
-    - "$vault.orphans(1)"
+    - "$vault.orphans(10)"
 
   connection:
     - "connection"

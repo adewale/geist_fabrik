@@ -1,6 +1,7 @@
 """Creative collision geist - suggests unexpected combinations of notes.
 
-Finds notes from different domains/topics and suggests combining them
+Finds unlinked, only loosely related notes (similarity between
+SimilarityLevel.NOISE and SimilarityLevel.WEAK) and suggests combining them
 for creative insights.
 """
 
@@ -48,12 +49,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Compute similarity using individual call to benefit from cache
         similarity = vault.similarity(note_a, note_b)
 
-        # Look for moderately dissimilar notes (not too similar, not completely unrelated)
-        if SimilarityLevel.NOISE < similarity < SimilarityLevel.MODERATE:
+        # Loosely related: distant, but not completely unrelated. (Up to
+        # MODERATE admitted most random pairs in a vault: ~70% on a real one.)
+        if SimilarityLevel.NOISE < similarity < SimilarityLevel.WEAK:
             text = (
                 f"What if you combined ideas from [[{note_a.link_text}]] and "
-                f"[[{note_b.link_text}]]? They're from different domains but "
-                f"might spark something unexpected."
+                f"[[{note_b.link_text}]]? They're unlinked and only loosely "
+                f"related, which might spark something unexpected."
             )
 
             suggestions.append(

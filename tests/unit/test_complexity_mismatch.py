@@ -1,11 +1,11 @@
 """Unit tests for complexity_mismatch geist.
 
-Trigger arithmetic (see the geist source), with N = non-journal note count:
-- importance = (outgoing links + 2 * backlinks) / N;
-- "expand" fires when importance > 0.1 and word_count < 100;
-- "simplify" fires when importance < 0.05, word_count > 300 and fewer than
-  2 outgoing links;
-- word_count counts whitespace tokens of the whole note, including the
+Trigger arithmetic (see the geist source); thresholds are absolute, not
+scaled by vault size:
+- "expand" fires when >= 5 non-journal notes link to a note of < 100 words;
+- "simplify" fires when a note has > 1500 words, no outgoing links and no
+  backlinks;
+- word_count counts whitespace tokens of the note body, including the
   "# Title" heading VaultBuilder writes (2 tokens for a one-word title);
 - output is capped at 3 suggestions.
 """
@@ -19,6 +19,7 @@ from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
 GEIST = "complexity_mismatch"
 CAP = 3
+LONG = 1600  # body words of a note long enough to simplify
 
 
 def _words(count: int) -> str:
@@ -30,59 +31,64 @@ def _fillers(builder: VaultBuilder, count: int) -> None:
         builder.note(f"Filler {i}", "Brief plain remark.")
 
 
+def _linkers(builder: VaultBuilder, target: str, count: int) -> None:
+    for i in range(count):
+        builder.note(f"Linker {i}", f"See [[{target}]].")
+
+
 def test_connected_stub_and_long_isolated_note_are_both_flagged(tmp_path: Path) -> None:
-    # 10 notes. "Hub" has two backlinks: importance (0 + 2*2)/10 = 0.4 > 0.1
-    # with 4 words -> expand. "Tome" has 2 + 400 words and no links:
-    # importance 0 -> simplify. The linkers have importance 1/10 = 0.1, which
-    # is not > 0.1, so they stay silent.
+    """Contract: a stub with >= 5 backlinks gets "expand"; a > 1500-word note
+    with no links in or out gets "simplify". The linkers (1 outgoing link,
+    3 words) match neither case."""
     builder = VaultBuilder(tmp_path)
     builder.note("Hub", "Seed idea.")
-    builder.note("Linker A", "See [[Hub]].")
-    builder.note("Linker B", "See [[Hub]].")
-    builder.note("Tome", _words(400))
-    _fillers(builder, 6)
+    _linkers(builder, "Hub", 5)
+    builder.note("Tome", _words(LONG))
+    _fillers(builder, 3)
 
     suggestions = complexity_mismatch.suggest(builder.build())
 
     assert_valid_suggestions(suggestions, GEIST, min_count=2)
-    by_note = {s.notes[0]: s.text for s in suggestions}
-    assert set(by_note) == {"Hub", "Tome"}
-    assert by_note["Hub"].startswith("What if you expanded [[Hub]]?")
-    assert "402 words" in by_note["Tome"]
-    assert by_note["Tome"].startswith("What if you simplified [[Tome]]?")
+    assert sorted(s.text for s in suggestions) == [
+        "What if you expanded [[Hub]]? It's highly connected (5 notes link to it) but "
+        "only 4 words. Might it deserve more depth?",
+        "What if you simplified [[Tome]]? It's 1602 words with no links in or out. "
+        "Could it be more focused or split into multiple notes?",
+    ]
 
 
-@pytest.mark.parametrize(("outgoing_links", "fires"), [(2, False), (3, True)])
-def test_importance_boundary_for_expand(tmp_path: Path, outgoing_links: int, fires: bool) -> None:
-    # 20 notes: importance = links / 20, so 2 links = 0.1 (not > 0.1) and
-    # 3 links = 0.15. Each linked filler gets 1 backlink = 2/20 = 0.1: silent.
+@pytest.mark.parametrize(("backlinks", "fires"), [(4, False), (5, True)])
+def test_backlink_boundary_for_expand(tmp_path: Path, backlinks: int, fires: bool) -> None:
+    """Contract: "highly connected" means at least 5 notes link to the stub."""
     builder = VaultBuilder(tmp_path)
-    links = " ".join(f"[[Filler {i}]]" for i in range(outgoing_links))
-    builder.note("Stub", f"Short. {links}")
-    _fillers(builder, 19)
+    builder.note("Stub", "Seed idea.")
+    _linkers(builder, "Stub", backlinks)
+    _fillers(builder, 5)
 
     suggestions = complexity_mismatch.suggest(builder.build())
 
     assert [s.notes for s in suggestions] == ([["Stub"]] if fires else [])
 
 
-def test_backlinks_weigh_double_in_importance(tmp_path: Path) -> None:
-    # 15 notes: one backlink gives importance 2/15 = 0.13 > 0.1 because
-    # backlinks count twice; the linker's single outgoing link gives 1/15.
+def test_small_vault_does_not_inflate_importance(tmp_path: Path) -> None:
+    """Contract: connectivity is not scaled by vault size.
+
+    Regression: importance was (links + 2 * backlinks) / N, so in a 10-note
+    vault a stub with 2 backlinks (or 3 outgoing links) scored 0.4 and was
+    called "highly connected", a bar no note could reach in a large vault.
+    """
     builder = VaultBuilder(tmp_path)
-    builder.note("Stub", "Seed idea.")
-    builder.note("Linker", "See [[Stub]].")
-    _fillers(builder, 13)
+    builder.note("Stub", "Seed idea. [[Filler 0]] [[Filler 1]] [[Filler 2]]")
+    builder.note("Linked", "Seed idea.")
+    _linkers(builder, "Linked", 2)
+    _fillers(builder, 5)
 
-    suggestions = complexity_mismatch.suggest(builder.build())
-
-    assert [s.notes for s in suggestions] == [["Stub"]]
-    assert "(1 links)" in suggestions[0].text
+    assert complexity_mismatch.suggest(builder.build()) == []
 
 
-@pytest.mark.parametrize(("body_words", "fires"), [(298, False), (299, True)])
+@pytest.mark.parametrize(("body_words", "fires"), [(1498, False), (1499, True)])
 def test_word_count_boundary_for_simplify(tmp_path: Path, body_words: int, fires: bool) -> None:
-    # word_count = 2 heading tokens + body: 300 is not > 300, 301 is.
+    """Contract: "long" means more than 1500 words (2 heading tokens + body)."""
     builder = VaultBuilder(tmp_path)
     builder.note("Tome", _words(body_words))
     _fillers(builder, 9)
@@ -92,26 +98,37 @@ def test_word_count_boundary_for_simplify(tmp_path: Path, body_words: int, fires
     assert [s.notes for s in suggestions] == ([["Tome"]] if fires else [])
 
 
-@pytest.mark.parametrize(("outgoing_links", "fires"), [(1, True), (2, False)])
-def test_link_count_boundary_for_simplify(tmp_path: Path, outgoing_links: int, fires: bool) -> None:
-    # 41 notes keep importance below 0.05 for both cases (2/41 = 0.049), so
-    # only the "fewer than 2 links" rule separates them. Linked fillers get
-    # importance 2/41 and are short, so they never fire either way.
+def test_moderately_long_note_is_not_flagged(tmp_path: Path) -> None:
+    """Regression: any note over 300 words with < 2 links was told to simplify,
+    which in a real vault is most long notes (27 of 77 in the audit vault)."""
     builder = VaultBuilder(tmp_path)
-    links = " ".join(f"[[Filler {i}]]" for i in range(outgoing_links))
-    builder.note("Tome", f"{_words(400)} {links}")
-    _fillers(builder, 40)
+    builder.note("Essay", _words(900))
+    _fillers(builder, 9)
 
-    suggestions = complexity_mismatch.suggest(builder.build())
+    assert complexity_mismatch.suggest(builder.build()) == []
 
-    assert [s.notes for s in suggestions] == ([["Tome"]] if fires else [])
+
+@pytest.mark.parametrize("link", ["outgoing", "backlink"])
+def test_any_link_in_or_out_prevents_simplify(tmp_path: Path, link: str) -> None:
+    """Contract: "no links in or out" is literally true of a flagged note.
+
+    Regression: the text said "only 1 links" for a note with one outgoing link
+    and ignored backlinks entirely.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Tome", f"{_words(LONG)} [[Filler 0]]" if link == "outgoing" else _words(LONG))
+    if link == "backlink":
+        builder.note("Pointer", "See [[Tome]].")
+    _fillers(builder, 9)
+
+    assert complexity_mismatch.suggest(builder.build()) == []
 
 
 def test_output_is_capped_when_more_notes_qualify(tmp_path: Path) -> None:
     builder = VaultBuilder(tmp_path)
     planted = [f"Tome {i}" for i in range(6)]
     for title in planted:
-        builder.note(title, _words(400))
+        builder.note(title, _words(LONG))
     _fillers(builder, 4)
 
     suggestions = complexity_mismatch.suggest(builder.build())
@@ -126,9 +143,9 @@ def test_output_is_capped_when_more_notes_qualify(tmp_path: Path) -> None:
 def test_geist_journal_notes_are_never_flagged(tmp_path: Path) -> None:
     # Journal notes are long and unlinked, exactly like the regular "Tome".
     builder = VaultBuilder(tmp_path)
-    builder.note("Tome", _words(400))
+    builder.note("Tome", _words(LONG))
     for i in range(4):
-        builder.journal(f"Session Log {i}", _words(400))
+        builder.journal(f"Session Log {i}", _words(LONG))
     _fillers(builder, 9)
 
     suggestions = complexity_mismatch.suggest(builder.build())
@@ -140,12 +157,12 @@ def test_geist_journal_notes_are_never_flagged(tmp_path: Path) -> None:
 
 def test_journal_mentions_do_not_make_a_note_important(tmp_path: Path) -> None:
     # Regression: session journals wikilink every note they suggest. Counted
-    # as backlinks, two journal mentions gave "Mentioned" importance 4/10 and
-    # a "highly connected" expand prompt built on the geist's own output.
+    # as backlinks, journal mentions made a stub "highly connected" on the
+    # strength of the geist's own output.
     builder = VaultBuilder(tmp_path)
     builder.note("Mentioned", "Seed idea.")
-    builder.journal("Session Log 0", "Suggested [[Mentioned]].")
-    builder.journal("Session Log 1", "Suggested [[Mentioned]] again.")
+    for i in range(5):
+        builder.journal(f"Session Log {i}", "Suggested [[Mentioned]].")
     _fillers(builder, 9)
 
     assert complexity_mismatch.suggest(builder.build()) == []
@@ -154,7 +171,7 @@ def test_journal_mentions_do_not_make_a_note_important(tmp_path: Path) -> None:
 def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
     builder = VaultBuilder(tmp_path)
     for i in range(6):
-        builder.note(f"Tome {i}", _words(400))
+        builder.note(f"Tome {i}", _words(LONG))
     _fillers(builder, 4)
 
     first = [s.text for s in complexity_mismatch.suggest(builder.build())]

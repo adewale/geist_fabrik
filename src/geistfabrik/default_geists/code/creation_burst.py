@@ -11,12 +11,18 @@ if TYPE_CHECKING:
 
 from geistfabrik.models import Suggestion
 
+# More notes "created" on one day than max(MIN_IMPORT_SIZE, IMPORT_SHARE of the
+# vault) is treated as an import artefact rather than a creative burst.
+MIN_IMPORT_SIZE = 20
+IMPORT_SHARE = 0.25
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find days when 3+ notes were created and ask what was special.
 
     Detects "burst days" of creative activity by grouping notes by
-    creation date and identifying days with 3+ notes created. Randomly
+    creation date and identifying days with 3+ notes created. Days that look
+    like bulk imports and days after the session date are ignored. Randomly
     samples one such day and generates a provocation based on the count.
 
     Args:
@@ -29,11 +35,19 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # This respects architectural layering and hides database implementation
     burst_days_dict = vault.notes_grouped_by_creation_date(min_per_day=3, exclude_journal=True)
 
-    if not burst_days_dict:
-        return []
+    # A day on which a large share of the vault was "created" is a bulk import,
+    # clone or sync (every file stamped with the same time), not a burst; and on
+    # a --date replay, days after the session date have not happened yet.
+    import_size = max(MIN_IMPORT_SIZE, IMPORT_SHARE * len(vault.notes()))
+    session_day = vault.session.date.strftime("%Y-%m-%d")
+    burst_days = [
+        (day, notes)
+        for day, notes in burst_days_dict.items()
+        if len(notes) <= import_size and day <= session_day
+    ]
 
-    # Convert to list of (date, notes) for sampling
-    burst_days = list(burst_days_dict.items())
+    if not burst_days:
+        return []
 
     # Randomly select one burst day (deterministic via vault's RNG)
     day_date, notes = vault.sample(burst_days, count=1)[0]
@@ -58,7 +72,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if count >= 6:
         question = "What was special about that day?"
     else:  # 3-5 notes
-        question = "Does today feel generative?"
+        question = "What were you circling around that day?"
 
     text = f"On {day_date}, you created {count} notes in one day: {title_list}. {question}"
 

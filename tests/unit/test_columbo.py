@@ -4,7 +4,8 @@ columbo looks for a note with assertion language whose top-5 semantic
 neighbour has similarity > SimilarityLevel.HIGH (0.65) and the opposite
 polarity: > 2 "positive" markers (always/all/must/should, substring match)
 on one side and > 2 "negative" markers (never/no/not/cannot/but/however/
-except) on the other. It returns at most 3 suggestions.
+except) on the other. It returns at most 3 suggestions. "Both connect to ..."
+is said only of notes that both members of the pair link to.
 
 Fixtures use the bag-of-words test stub. A claim and its doubt repeat the
 same 12 topic words twice (count 2 per dimension) and differ only in their
@@ -161,3 +162,55 @@ def test_columbo_excludes_geist_journal(tmp_path: Path) -> None:
         must_reference=[claim, doubt],
         must_not_reference=["geist journal", *journal],
     )
+
+
+TARGETS = {
+    "Kestrel": "kestrel hover falcon",
+    "Osprey": "osprey talon river",
+    "Heron": "heron wader marsh",
+}
+
+
+def _linked_pair(tmp_path: Path, claim_links: list[str], doubt_links: list[str]) -> str:
+    """The Beacon pair with the given outgoing links; returns the one suggestion's text."""
+    builder = VaultBuilder(tmp_path)
+    claim_links_text = " ".join(f"[[{t}]]" for t in claim_links)
+    doubt_links_text = " ".join(f"[[{t}]]" for t in doubt_links)
+    builder.note(
+        "Beacon Claim", f"{_topic_body('Beacon', POSITIVE)} {claim_links_text}", created=CREATED
+    )
+    builder.note(
+        "Beacon Doubt", f"{_topic_body('Beacon', NEGATIVE)} {doubt_links_text}", created=CREATED
+    )
+    for title, body in TARGETS.items():
+        builder.note(title, body, created=CREATED)
+    suggestions = columbo.suggest(builder.build())
+    assert len(suggestions) == 1
+    return suggestions[0].text
+
+
+def test_columbo_names_only_links_both_notes_share(tmp_path: Path) -> None:
+    """Contract: "Both connect to" lists notes that BOTH notes link to.
+
+    Regression: the list was the first two raw link targets of the first note,
+    then the second, truncated to two, so a note with two links supplied both
+    "shared" links on its own (and code-sample links became dangling targets).
+    """
+    text = _linked_pair(tmp_path, ["Kestrel", "Osprey"], ["Osprey", "Heron"])
+
+    assert text.endswith("Both connect to [[Osprey]], so maybe there's a missing piece?")
+    assert "Kestrel" not in text and "Heron" not in text
+
+
+def test_columbo_without_shared_links_claims_no_connection(tmp_path: Path) -> None:
+    """Contract: with no shared link target the text claims no common connection.
+
+    Regression: "Both connect to [[Kestrel]], [[Osprey]]" was printed although
+    only Beacon Claim links to them.
+    """
+    text = _linked_pair(tmp_path, ["Kestrel", "Osprey"], ["Heron"])
+
+    assert text in {
+        "[[Beacon Claim]] and [[Beacon Doubt]] seem to contradict each other—what gives?",
+        "[[Beacon Doubt]] and [[Beacon Claim]] seem to contradict each other—what gives?",
+    }

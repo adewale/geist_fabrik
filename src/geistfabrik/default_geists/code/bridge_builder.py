@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+    from geistfabrik.models import Note
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -20,35 +21,52 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik.similarity_analysis import SimilarityLevel
 
     suggestions = []
+    # Each unordered pair is reported once, even when both notes are hubs
+    reported: set[frozenset[str]] = set()
+
+    def graph_neighbourhood(note: "Note") -> set[str]:
+        """Paths of the notes linked to or from ``note``."""
+        return {n.path for n in vault.outgoing_links(note)} | {
+            n.path for n in vault.backlinks(note)
+        }
 
     # Get hub notes and check their neighbourhoods
     hubs = vault.hubs(count=10)
 
     for hub in hubs:
+        hub_neighbourhood = graph_neighbourhood(hub)
+
         # Find notes similar to this hub but not linked
         neighbours_with_scores = vault.neighbours(hub, count=10, return_scores=True)
 
         for neighbour, similarity in neighbours_with_scores:
-            if vault.links_between(hub, neighbour):
+            if similarity <= SimilarityLevel.HIGH:  # Need strong similarity
                 continue
 
-            # This neighbour is similar to the hub but unlinked
-            # Check if linking them would bridge different areas
+            pair = frozenset((hub.path, neighbour.path))
+            if pair in reported or vault.links_between(hub, neighbour):
+                continue
 
-            if similarity > SimilarityLevel.HIGH:  # Strong similarity but no link
-                text = (
-                    f"What if [[{hub.link_text}]] and "
-                    f"[[{neighbour.link_text}]] were connected? "
-                    f"They're semantically similar but in different parts of your vault. "
-                    f"A link might bridge important concepts."
-                )
+            # "Different parts of your vault": not linked directly AND no note
+            # links to or from both of them (they are not two hops apart)
+            if hub_neighbourhood & graph_neighbourhood(neighbour):
+                continue
 
-                suggestions.append(
-                    Suggestion(
-                        text=text,
-                        notes=[hub.link_text, neighbour.link_text],
-                        geist_id="bridge_builder",
-                    )
+            reported.add(pair)
+            text = (
+                f"What if [[{hub.link_text}]] and "
+                f"[[{neighbour.link_text}]] were connected? "
+                f"They're semantically similar but in different parts of your vault: "
+                f"no link joins them, directly or through a shared neighbour. "
+                f"A link might bridge important concepts."
+            )
+
+            suggestions.append(
+                Suggestion(
+                    text=text,
+                    notes=[hub.link_text, neighbour.link_text],
+                    geist_id="bridge_builder",
                 )
+            )
 
     return vault.sample(suggestions, count=3)

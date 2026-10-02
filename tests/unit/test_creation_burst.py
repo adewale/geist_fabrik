@@ -4,7 +4,9 @@ Trigger: notes_grouped_by_creation_date(min_per_day=3, exclude_journal=True)
 returns at least one day with >= 3 non-journal notes created on it. The geist
 samples ONE such day and returns one suggestion naming the day, the count and
 (up to 8 of) its notes; 6+ notes ask "What was special about that day?",
-3-5 ask "Does today feel generative?".
+3-5 ask "What were you circling around that day?". Days with more than
+max(20, 25% of the vault) notes (bulk imports) and days after the session date
+are not bursts.
 """
 
 from datetime import datetime
@@ -17,7 +19,9 @@ from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 BURST_DAY = datetime(2024, 2, 10, 9, 0)
 OTHER_DAY = datetime(2024, 1, 5, 9, 0)
 LARGE_QUESTION = "What was special about that day?"
-SMALL_QUESTION = "Does today feel generative?"
+# Regression: the 3-5 note question was "Does today feel generative?", which
+# asked about today in a suggestion about a past day.
+SMALL_QUESTION = "What were you circling around that day?"
 
 
 def _burst_vault(root: Path, counts: dict[datetime, int]) -> VaultContext:
@@ -141,3 +145,32 @@ def test_creation_burst_virtual_notes_use_deeplinks(tmp_path):
     assert suggestion.text.startswith("On 2024-03-15, you created 4 notes in one day:")
     for link in expected:
         assert f"[[{link}]]" in suggestion.text
+
+
+def test_creation_burst_ignores_bulk_import_days(tmp_path):
+    """Contract: a day on which more than max(20, 25% of the vault) notes were
+    "created" is an import artefact, not a burst; 20 notes still count.
+
+    Regression: a clone or sync stamps every file with one date, and the geist
+    reported "On 2026-10-02, you created 77 notes in one day".
+    """
+    imported = creation_burst.suggest(_burst_vault(tmp_path / "21", {BURST_DAY: 21}))
+    [burst] = creation_burst.suggest(_burst_vault(tmp_path / "20", {BURST_DAY: 20}))
+
+    assert imported == []
+    assert burst.text.startswith("On 2024-02-10, you created 20 notes in one day:")
+
+
+def test_creation_burst_ignores_days_after_the_session(tmp_path):
+    """Contract: on a replay, a burst after the session date has not happened yet;
+    one on the session date itself is reported.
+
+    Regression: replaying 2024-03-15 reported a burst dated 2024-04-01.
+    """
+    future = creation_burst.suggest(_burst_vault(tmp_path / "future", {datetime(2024, 4, 1): 3}))
+    [same_day] = creation_burst.suggest(
+        _burst_vault(tmp_path / "same", {datetime(2024, 3, 15, 8, 0): 3})
+    )
+
+    assert future == []
+    assert same_day.text.startswith("On 2024-03-15, you created 3 notes in one day:")

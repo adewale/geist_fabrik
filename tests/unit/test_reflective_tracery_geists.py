@@ -75,15 +75,43 @@ def _links(geist_id: str, context: VaultContext, seeds: range = range(20)) -> li
     return rendered
 
 
-def test_temporal_contrast_pairs_a_past_note_with_a_future_note(
-    voice_context: VaultContext,
-) -> None:
-    """The first link is a past-tense note; any second link is a future-tense note."""
+def test_temporal_contrast_names_one_past_tense_note(voice_context: VaultContext) -> None:
+    """Every suggestion names exactly one past-tense note.
+
+    (Updated: the two past-with-future templates were removed; see
+    test_temporal_contrast_fires_without_a_future_focused_note.)
+    """
     rendered = _links("temporal_contrast", voice_context)
 
-    assert all(links and links[0] in PAST for links in rendered), rendered
-    assert all(set(links[1:]) <= set(FUTURE) for links in rendered), rendered
-    assert any(len(links) == 2 for links in rendered), "no template paired past with future"
+    assert len(rendered) == 20
+    assert all(len(links) == 1 and links[0] in PAST for links in rendered), rendered
+
+
+def test_temporal_contrast_fires_without_a_future_focused_note(tmp_path: Path) -> None:
+    """Contract: a vault with a past-tense note but no future-focused note still gets a prompt.
+
+    Regression: two templates also drew $vault.future_focused_notes(1). A
+    future-focused note needs future_tense_ratio > 0.4, which real prose
+    almost never reaches, and an empty vault-function pool silences the whole
+    geist, so temporal_contrast was silent in every real-run session even
+    though its past-note template needed no future note.
+    """
+    builder = VaultBuilder(tmp_path)
+    for i, (title, body) in enumerate({**PAST, **FILLER}.items()):
+        builder.note(title, f"{body} {SHARED}", created=datetime(2024, 1, 1 + i))
+    context = builder.build()
+    assert context.call_function("future_focused_notes", 1) == []
+
+    suggestions = TraceryGeist.from_yaml(TRACERY_DIR / "temporal_contrast.yaml", seed=3).suggest(
+        context
+    )
+
+    assert len(suggestions) == 1
+    (past,) = suggestions[0].notes
+    assert past in PAST
+    assert suggestions[0].text == (
+        f"[[{past}]] is in past tense. What would it say if you rewrote it looking forward?"
+    )
 
 
 def test_questioning_mind_names_a_question_dense_note(voice_context: VaultContext) -> None:

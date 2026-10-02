@@ -138,3 +138,26 @@ def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
 
     assert first
     assert first == second
+
+
+def test_mixed_notes_are_never_offered_as_a_style(tmp_path: Path) -> None:
+    """Contract: the example note has a recognisable structure, never "mixed".
+
+    Regression: a "mixed" note (no dominant structure) could be the example,
+    giving "has a different structure (mixed). What if you tried that style
+    again?" - "mixed" is not a style.
+    """
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * 8)
+    _note(
+        builder,
+        "Old Mixed",
+        "## Soil\nPlain words about soil.\n## Seasons\nPlain words about seasons.",
+        age_days=100,
+    )
+    assert structure_diversity_checker.suggest(builder.build()) == []
+
+    _note(builder, "Old Prose", PROSE_BODY, age_days=120)
+    suggestions = structure_diversity_checker.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == [["Old Prose"]]

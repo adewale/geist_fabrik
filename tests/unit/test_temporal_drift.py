@@ -1,9 +1,12 @@
 """Tests for the temporal_drift geist.
 
-Trigger: among the 20 least recently modified non-journal notes, a note with
-staleness > 0.7 and >= 3 outgoing links. Built-in staleness is
-``round(1 - 1 / (1 + days_since_modified / 30), 3)``, so 70 days gives exactly
-0.7 (not stale enough) and 71 days gives 0.703. Output is capped at 3.
+Trigger: any non-journal note with staleness > 0.7 that at least 2 other
+user notes link to (backlinks; journal links don't count). Built-in staleness
+is ``round(1 - 1 / (1 + days_since_modified / 30), 3)``, so 70 days gives
+exactly 0.7 (not stale enough) and 71 days gives 0.703. Output is capped at 3.
+
+Fixtures make a note "well-connected" by adding two freshly edited "Reader"
+notes (5 days old, never stale themselves) that link to it.
 """
 
 from datetime import datetime, timedelta
@@ -20,29 +23,44 @@ def _days_ago(days: int) -> datetime:
     return SESSION_DATE - timedelta(days=days)
 
 
-def _stale_hub(builder: VaultBuilder, title: str, days: int, body: str = LINKS) -> None:
+def _stale_note(builder: VaultBuilder, title: str, days: int, body: str = LINKS) -> None:
     when = _days_ago(days)
     builder.note(title, body, created=when - timedelta(days=30), modified=when)
+
+
+def _readers(builder: VaultBuilder, targets: list[str], count: int = 2) -> None:
+    """``count`` fresh notes, each linking to every target."""
+    links = " ".join(f"[[{t}]]" for t in targets)
+    for i in range(count):
+        _stale_note(builder, f"Reader {i}", 5, f"Notes that cite {links}.")
 
 
 def _build(root: Path, hubs: dict[str, int]) -> VaultContext:
     builder = VaultBuilder(root)
     for title, days in hubs.items():
-        _stale_hub(builder, title, days)
+        _stale_note(builder, title, days)
+    _readers(builder, list(hubs))
     return builder.build()
 
 
-def test_temporal_drift_flags_stale_well_linked_note(tmp_path):
-    # Trigger arithmetic: 200 days unmodified -> staleness 0.87 > 0.7; 3 links >= 3.
+def test_temporal_drift_flags_stale_linked_to_note(tmp_path):
+    """Contract: the text states how many notes link to the stale note.
+
+    Regression: it said "it has N links", counting raw outgoing links.
+    """
+    # Trigger arithmetic: 200 days unmodified -> staleness 0.87 > 0.7; 2 backlinks.
     ctx = _build(tmp_path, {"Stale Hub": 200})
 
     suggestions = temporal_drift.suggest(ctx)
 
     assert_valid_suggestions(suggestions, "temporal_drift", must_reference=["Stale Hub"])
-    assert suggestions[0].text == (
-        "What if [[Stale Hub]] needs updating? It's been 200 days since you modified it, "
-        "but it has 3 links - might your thinking have evolved?"
-    )
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            "What if [[Stale Hub]] needs updating? It's been 200 days since you modified it, "
+            "but 2 notes link to it - might your thinking have evolved?",
+            ["Stale Hub"],
+        )
+    ]
 
 
 def test_temporal_drift_staleness_boundary_is_71_days(tmp_path):
@@ -54,21 +72,41 @@ def test_temporal_drift_staleness_boundary_is_71_days(tmp_path):
     assert_valid_suggestions(suggestions, "temporal_drift", must_reference=["Seventy One"])
 
 
-def test_temporal_drift_needs_three_links(tmp_path):
-    """Link boundary: a stale note with 2 links is skipped, 3 links is flagged."""
+def test_temporal_drift_needs_two_backlinks(tmp_path):
+    """Contract: well-connected means at least 2 user notes link to it.
+
+    Regression: "well-connected" was >= 3 raw outgoing links. (Replaces the
+    3-outgoing-links boundary test.)
+    """
     builder = VaultBuilder(tmp_path)
-    _stale_hub(builder, "Two Links", 200, "See [[Alpha]] and [[Beta]].")
-    _stale_hub(builder, "Three Links", 200)
+    _stale_note(builder, "One Backlink", 200)
+    _stale_note(builder, "Two Backlinks", 200)
+    _stale_note(builder, "Reader 0", 5, "Cites [[One Backlink]] and [[Two Backlinks]].")
+    _stale_note(builder, "Reader 1", 5, "Cites [[Two Backlinks]].")
     ctx = builder.build()
 
     suggestions = temporal_drift.suggest(ctx)
 
-    assert_valid_suggestions(
-        suggestions,
-        "temporal_drift",
-        must_reference=["Three Links"],
-        must_not_reference=["geist journal", "Two Links"],
-    )
+    assert [s.notes for s in suggestions] == [["Two Backlinks"]]
+
+
+def test_temporal_drift_ignores_outgoing_links_and_links_in_code(tmp_path):
+    """Contract: outgoing links, however many, don't make a note well-connected.
+
+    Regression: a stale note whose "75 links" were ``[[{note}]]`` f-strings in
+    a code sample (0 real connections) was called well-connected, as was one
+    linking to notes that don't exist.
+    """
+    builder = VaultBuilder(tmp_path)
+    code = "```python\n" + "\n".join(f'print(f"[[{{note{i}}}]]")' for i in range(10)) + "\n```"
+    _stale_note(builder, "Code Sample", 300, code)
+    _stale_note(builder, "Link Lister", 300, "[[Trips]] [[Kyoto]] [[Japan]] " + LINKS)
+    _stale_note(builder, "Alpha", 5, "Fresh.")
+    _stale_note(builder, "Beta", 5, "Fresh.")
+    _stale_note(builder, "Gamma", 5, "Fresh.")
+    ctx = builder.build()
+
+    assert temporal_drift.suggest(ctx) == []
 
 
 def test_temporal_drift_caps_at_three(tmp_path):
@@ -82,33 +120,44 @@ def test_temporal_drift_caps_at_three(tmp_path):
     assert len({s.notes[0] for s in suggestions}) == 3
 
 
-def test_temporal_drift_candidates_are_the_least_recently_modified(tmp_path):
-    """In a vault with more than 20 notes, the stale hub is among the 20 oldest
-    candidates even though 24 freshly edited notes outnumber it."""
+def test_temporal_drift_scans_every_stale_note(tmp_path):
+    """Contract: every stale note is a candidate, not just the 20 oldest.
+
+    Regression: only the 20 least recently modified notes were considered,
+    so 24 older (but unlinked) notes hid a stale note that 2 notes link to.
+    """
     builder = VaultBuilder(tmp_path)
-    _stale_hub(builder, "Old Hub", 200)
+    _stale_note(builder, "Linked Hub", 200)
     for i in range(24):
-        _stale_hub(builder, f"Fresh {i:02d}", 5)
+        _stale_note(builder, f"Ancient {i:02d}", 400 + i, "Unlinked old thought.")
+    _readers(builder, ["Linked Hub"])
     ctx = builder.build()
 
     suggestions = temporal_drift.suggest(ctx)
 
-    assert_valid_suggestions(suggestions, "temporal_drift", must_reference=["Old Hub"])
-    assert [s.notes for s in suggestions] == [["Old Hub"]]
+    assert [s.notes for s in suggestions] == [["Linked Hub"]]
 
 
 def test_temporal_drift_excludes_geist_journal(tmp_path):
-    """Session notes are always link-heavy and eventually stale; never flag them.
+    """Session notes are always link-heavy and eventually stale; never flag them,
+    and never count their links as backlinks.
 
-    Both directions, including crowding: 35 session notes that are older than
-    the user's stale note must neither be suggested nor push the user's note
-    out of the least-recently-modified candidate window.
+    35 session notes older than the user's stale note, all linking to it and
+    to each other, must neither be suggested nor make an otherwise unlinked
+    note look well-connected.
     """
     builder = VaultBuilder(tmp_path)
-    _stale_hub(builder, "Real Stale Hub", 200)
+    _stale_note(builder, "Real Stale Hub", 200)
+    _stale_note(builder, "Journal Favourite", 200)
+    _readers(builder, ["Real Stale Hub"])
     for i in range(35):
         when = _days_ago(400 + i)
-        builder.journal(f"Session {i:02d}", LINKS, created=when, modified=when)
+        builder.journal(
+            f"Session {i:02d}",
+            f"[[Journal Favourite]] [[Session {(i + 1) % 35:02d}]] [[Real Stale Hub]]",
+            created=when,
+            modified=when,
+        )
     ctx = builder.build()
 
     suggestions = temporal_drift.suggest(ctx)
@@ -117,8 +166,9 @@ def test_temporal_drift_excludes_geist_journal(tmp_path):
         suggestions,
         "temporal_drift",
         must_reference=["Real Stale Hub"],
-        must_not_reference=["geist journal", "Session "],
+        must_not_reference=["geist journal", "Session ", "Journal Favourite"],
     )
+    assert "but 2 notes link to it" in suggestions[0].text
 
 
 def test_temporal_drift_is_deterministic_for_a_seed(tmp_path):

@@ -93,10 +93,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             names1 = ", ".join([f"[[{n.link_text}]]" for n in sample1])
             names2 = ", ".join([f"[[{n.link_text}]]" for n in sample2])
 
+            # Only within-period cohesion is measured, never the gap between
+            # the two periods, so the text must not claim they are separate.
             text = (
-                f"Your {cluster1_label} notes form a distinct semantic cluster "
-                f"(including {names1}) separate from your {cluster2_label} notes "
-                f"({names2}). Different intellectual seasons?"
+                f"Your {cluster1_label} notes hang together semantically "
+                f"(including {names1}), and so do your {cluster2_label} notes "
+                f"({names2}). Different intellectual seasons, or one continuing thread?"
             )
 
             suggestions.append(

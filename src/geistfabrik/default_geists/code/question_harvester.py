@@ -104,7 +104,7 @@ def extract_questions(content: str) -> list[str]:
     seen = set()
 
     for q in all_questions:
-        q_clean = q.strip()
+        q_clean = _clean_question(q)
         q_normalized = q_clean.lower()
 
         # Strategy 4: Quality filtering
@@ -119,16 +119,47 @@ def extract_questions(content: str) -> list[str]:
     return questions
 
 
+# A bold label before the question: "**Question**: ", "**Q9:** "
+_BOLD_LABEL = re.compile(r"^\*\*[^*\n]{1,40}?(?:\*\*\s*:|:\*\*)\s*")
+
+
+def _clean_question(question: str) -> str:
+    """Strip formatting debris the sentence regex keeps before the "?".
+
+    Removes a bold label ("**Q9**: Does...?" -> "Does...?"), every "**"
+    (an emphasis span the question cut in half leaves "**Who are...?"), and
+    an unbalanced opening double quote together with any lead-in before it
+    ('He asked "why not?' -> 'why not?'), which would otherwise double up
+    inside the suggestion's own quotation marks.
+    """
+    q = _BOLD_LABEL.sub("", question.strip())
+    q = q.replace("**", "")
+    if q.count('"') % 2 == 1:
+        q = q[q.rfind('"') + 1 :]
+    if q.count("\u201c") > q.count("\u201d"):
+        q = q[q.rfind("\u201c") + 1 :]
+    return q.strip()
+
+
 def _segments(content: str) -> list[str]:
     """Split content into runs of lines a single sentence may span.
 
     A blank line ends a run; a heading or list-item line starts a new one
     (and a heading also ends its own run). Heading and list markers are
-    dropped so "- Why?" and "## Why?" harvest as "Why?".
+    dropped so "- Why?" and "## Why?" harvest as "Why?". Blockquote markers
+    (and an Obsidian callout's "[!type]") are dropped too. Table rows are not
+    prose: they end a run and are skipped, so a cell ending in "?" is not
+    harvested together with the rest of its row.
     """
     segments: list[str] = []
     current: list[str] = []
     for line in content.split("\n"):
+        line = re.sub(r"^\s*(?:>\s*)+(?:\[![\w-]+\][+-]?\s*)?", "", line)
+        if line.lstrip().startswith("|"):
+            if current:
+                segments.append("\n".join(current))
+            current = []
+            continue
         heading = re.match(r"\s*#{1,6}\s+", line)
         item = re.match(r"\s*[-*+]\s+", line)
         if not line.strip() or heading or item:

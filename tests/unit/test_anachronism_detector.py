@@ -3,8 +3,8 @@
 Trigger: >= 30 non-journal notes, of which >= 5 are recent (created within
 90 days of the session) and >= 5 old (created more than 365 days before).
 Two findings, capped at 2 overall:
-- a recent note whose best match among (up to 10 sampled) old notes beats its
-  average similarity to other recent notes by > 0.15;
+- a recent note whose best match among (up to 10 sampled) old notes is > 0.65
+  and beats its best similarity to every other recent note;
 - an old note whose best recent match has similarity > 0.80.
 
 Every filler note below has its own vocabulary (similarity ~0 to the rest),
@@ -72,9 +72,15 @@ def _builder(
 
 
 def test_anachronism_detector_finds_recent_note_echoing_old_thinking(tmp_path):
-    # Trigger arithmetic: 30 notes = 6 recent (5 fillers + Echo), 6 old
-    # (5 fillers + Origin), 18 middle. Echo vs Origin 0.89 > avg recent ~0 + 0.15,
-    # and > 0.80 from Origin's side.
+    """Contract: the year gap is the real time between the two notes.
+
+    Regression: the text used the calendar-year difference (2024 - 2021 = "3
+    years ago") for notes 2 years 9 months apart; it now says "2 years".
+
+    Trigger arithmetic: 30 notes = 6 recent (5 fillers + Echo), 6 old
+    (5 fillers + Origin), 18 middle. Echo vs Origin 0.89 > 0.65 and > its best
+    recent match (~0), and > 0.80 from Origin's side.
+    """
     ctx = _builder(tmp_path, middle=18).build()
 
     suggestions = anachronism_detector.suggest(ctx)
@@ -82,11 +88,33 @@ def test_anachronism_detector_finds_recent_note_echoing_old_thinking(tmp_path):
     assert_valid_suggestions(suggestions, "anachronism_detector", min_count=2)
     texts = sorted(s.text for s in suggestions)
     assert texts == [
-        "[[Echo]] (written recently) semantically resembles [[Origin]] from 3 years ago more "
-        "than it resembles your current thinking. Circling back to old ideas?",
-        "[[Origin]] from 3 years ago feels remarkably contemporary—it's very similar to your "
-        "recent [[Echo]]. Some ideas are timeless?",
+        "[[Echo]] (written recently) semantically resembles [[Origin]], written 2 years "
+        "earlier, more than it resembles any of your other recent notes. Circling back "
+        "to old ideas?",
+        "[[Origin]], written 2 years before your recent [[Echo]], feels remarkably "
+        "contemporary—the two are very similar. Some ideas are timeless?",
     ]
+
+
+def test_anachronism_detector_ignores_note_closer_to_a_recent_note(tmp_path):
+    """Contract: a recent note is only "more like old thinking than current
+    thinking" when its best old match beats its best recent match.
+
+    Regression: the best old match (~0.77) was compared with the MEAN similarity
+    to recent notes (~0.1) plus 0.15, so Echo was reported even though the
+    recent note Sibling is identical to it (1.0).
+    """
+    builder = _builder(tmp_path, echoes=0, middle=17)
+    builder.note("Origin", IDEA, created=OLD)
+    near_idea = "lantern harbour ferry gulls tide ropes fog violin"
+    builder.note("Echo", near_idea, created=RECENT)
+    builder.note("Sibling", near_idea, created=RECENT)
+    ctx = builder.build()
+    origin, echo = ctx.get_note("Origin.md"), ctx.get_note("Echo.md")
+    assert origin is not None and echo is not None
+    assert 0.65 < ctx.similarity(origin, echo) < 0.80
+
+    assert anachronism_detector.suggest(ctx) == []
 
 
 def test_anachronism_detector_needs_thirty_notes(tmp_path):

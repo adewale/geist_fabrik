@@ -1,10 +1,12 @@
 """Tests for the burst_evolution geist.
 
-Trigger: a burst day (>= 3 non-journal notes created that day) on which >= 3
-notes have >= 2 session snapshots. For each such note the geist reports
+Trigger: a burst day (>= 3 non-journal notes created that day, on or before
+the session date) on which >= 3 notes have >= 2 session snapshots and at least
+one note drifted >= 0.05. For each such note the geist reports
 drift = 1 - cos(first snapshot, last snapshot) over the SEMANTIC dimensions,
 labelled small (< 0.10) / moderate (< 0.25) / large (< 0.40) / very large.
-One suggestion, listing at most 7 notes, highest drift first.
+The time span is from the first snapshot to the session, not from the burst
+day. One suggestion, listing at most 7 notes, highest drift first.
 
 History vectors are injected with ``set_session_text`` (see
 tests/fixtures/temporal.py): the note's current file content is the last
@@ -23,7 +25,7 @@ from tests.fixtures.temporal import BASE16, set_session_text
 
 BURST_DAY = datetime(2023, 6, 10, 9, 0)
 HISTORY = datetime(2023, 9, 1)  # one earlier session -> 2 snapshots per note
-# Session 2024-03-15 is 279 days after BURST_DAY -> "9 months later".
+# Session 2024-03-15 is 196 days after HISTORY -> "Over the 6 months since...".
 
 EXTRA9 = "quebec romeo sierra tango uniform victor whiskey xray yankee"
 BASE4 = "alpha bravo charlie delta"
@@ -73,7 +75,10 @@ def test_burst_evolution_reports_measured_drift_per_burst_note(tmp_path):
 
     assert_valid_suggestions(suggestions, "burst_evolution", must_reference=list(NOTES))
     [suggestion] = suggestions
-    assert suggestion.text.startswith("On 2023-06-10, you created 4 notes. 9 months later:\n")
+    assert suggestion.text.startswith(
+        "On 2023-06-10, you created 4 notes. Over the 6 months since your first "
+        "session with them (2023-09-01):\n"
+    )
     lines = _lines(suggestion.text)
     assert [(title, label) for title, _, label in lines] == [
         ("Rewritten Note", "very large change"),
@@ -83,19 +88,49 @@ def test_burst_evolution_reports_measured_drift_per_burst_note(tmp_path):
     ]
     assert lines[-1][1] == 0.0
     # Average drift 0.28 is mid-range: the stable note is named as the anchor.
-    assert "[[Stable Note]] have the smallest measured changes" in suggestion.text
+    assert "[[Stable Note]] has the smallest measured changes" in suggestion.text
     assert sorted(suggestion.notes) == sorted(NOTES)
 
 
-def test_burst_evolution_ignores_calendar_only_movement(tmp_path):
-    """Unchanged notes drift 0 even though every session adds a new calendar tail."""
+def test_burst_evolution_is_silent_when_no_note_changed(tmp_path):
+    """Contract: unchanged notes drift 0 (the calendar tail is ignored), and a
+    burst in which no note drifted >= 0.05 produces no suggestion.
+
+    Regression: an unedited cohort produced a table of "0.00 ... (small change)"
+    lines (sometimes "-0.00") every session; this test used to pin that table.
+    """
     unchanged = {f"Steady {i}": ("same words here", "same words here") for i in range(3)}
     ctx = _burst(tmp_path, unchanged)
 
+    assert burst_evolution.suggest(ctx) == []
+
+
+def test_burst_evolution_time_span_starts_at_first_snapshot(tmp_path):
+    """Contract: the span shown is from the notes' first session snapshot to this
+    session, because that is what drift is measured over.
+
+    Regression: the span was measured from the burst day, so notes from 2020
+    first seen a month ago were reported as "4 years later".
+    """
+    ctx = _burst(tmp_path, NOTES, day=datetime(2020, 1, 4, 9, 0))
+
     [suggestion] = burst_evolution.suggest(ctx)
 
-    assert [drift for _, drift, _ in _lines(suggestion.text)] == [0.0, 0.0, 0.0]
-    assert "This group has a low average representation change." in suggestion.text
+    assert suggestion.text.startswith(
+        "On 2020-01-04, you created 4 notes. Over the 6 months since your first "
+        "session with them (2023-09-01):\n"
+    )
+
+
+def test_burst_evolution_ignores_burst_days_after_the_session(tmp_path):
+    """Contract: a --date replay does not report a burst that had not happened yet.
+
+    Regression: a burst day after the session date was reported with a negative
+    span ("Only -78 days have passed").
+    """
+    ctx = _burst(tmp_path, NOTES, day=datetime(2024, 6, 1, 9, 0))
+
+    assert burst_evolution.suggest(ctx) == []
 
 
 def test_burst_evolution_low_average_observation(tmp_path):
@@ -140,7 +175,7 @@ def test_burst_evolution_needs_three_notes_on_the_day(tmp_path):
 
 def test_burst_evolution_lists_at_most_seven_notes(tmp_path):
     """Display cap: a 9-note burst lists 7 drift lines but references all 9 notes."""
-    nine = {f"Idea {i}": (f"early words {i}", f"early words {i}") for i in range(9)}
+    nine = {f"Idea {i}": (f"early words {i}", f"later words {i}") for i in range(9)}
     ctx = _burst(tmp_path, nine)
 
     [suggestion] = burst_evolution.suggest(ctx)
@@ -173,5 +208,12 @@ def test_burst_evolution_ignores_geist_journal(tmp_path):
             suggestions,
             "burst_evolution",
             must_reference=["Stable Note"],
-            must_not_reference=["geist journal", "Session", "Near Miss"],
+            # Journal titles, not the bare word: the text says "first session".
+            must_not_reference=[
+                "geist journal",
+                "Session 0",
+                "Session 1",
+                "Session 2",
+                "Near Miss",
+            ],
         )

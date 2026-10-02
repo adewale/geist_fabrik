@@ -1,10 +1,12 @@
 """Tests for the seasonal_topic_analysis geist.
 
-Trigger: >= 20 user notes, and in at least one season window (winter Dec 21 -
-Mar 20, spring Mar 21 - Jun 20, summer Jun 21 - Sep 20, fall Sep 21 - Dec 20,
-each at its most recent occurrence that began on or before the session date)
-an anchor note with >= 2 other in-season notes at similarity >= 0.60. One
-suggestion per season, 2 sampled.
+Trigger: >= 20 user notes, and in at least one season window (the
+meteorological seasons of temporal_analysis.get_season(): winter Dec 1 -
+end of Feb, spring Mar - May, summer Jun - Aug, autumn Sep - Nov, each at its
+most recent occurrence that began on or before the session date) an anchor
+note with >= 2 other in-season notes at similarity >= 0.60. The suggestion
+names the anchor and its two closest companions. One suggestion per season,
+2 sampled. Winter is labelled with both years it spans ("winter 2023-24").
 
 Fixture arithmetic (lexical stub): the three notes of a season share their
 title words and five topic words and differ only by a digit (ignored by the
@@ -57,26 +59,26 @@ def _vault(
     ("session_date", "created", "label"),
     [
         # January: inside the winter that began the previous December.
-        (datetime(2024, 1, 15), [datetime(2023, 12, 22), *WINTER_2023[1:]], "winter 2023"),
-        # Early March, still winter: the winter that began last December.
-        (SESSION_DATE, WINTER_2023, "winter 2023"),
-        # December before the 21st: winter has not begun, so look back a year.
-        (datetime(2024, 12, 10), WINTER_2023, "winter 2023"),
-        # December 21 onwards: the winter that runs into the following year.
+        (datetime(2024, 1, 15), [datetime(2023, 12, 22), *WINTER_2023[1:]], "winter 2023-24"),
+        # Mid March, spring: the latest winter is the one that began last December.
+        (SESSION_DATE, WINTER_2023, "winter 2023-24"),
+        # November: winter has not begun, so look back a year.
+        (datetime(2024, 11, 20), WINTER_2023, "winter 2023-24"),
+        # December: the winter that runs into the following year.
         (
             datetime(2024, 12, 30),
-            [datetime(2024, 12, 22), datetime(2024, 12, 24), datetime(2024, 12, 27)],
-            "winter 2024",
+            [datetime(2024, 12, 2), datetime(2024, 12, 24), datetime(2024, 12, 27)],
+            "winter 2024-25",
         ),
     ],
-    ids=["january", "early-march", "early-december", "late-december"],
+    ids=["january", "mid-march", "november", "december"],
 )
 def test_seasonal_topic_analysis_finds_the_latest_winter(tmp_path, session_date, created, label):
     """Happy path, and the regression for the winter window.
 
     Bug: for session dates from March 1 on, the winter window was the one
     starting the coming December, after the session date, so winter notes
-    were never found (early-march and early-december failed).
+    were never found (mid-march and november failed).
     """
     ctx = _vault(tmp_path, {"Snow": created}, session_date=session_date)
 
@@ -84,20 +86,25 @@ def test_seasonal_topic_analysis_finds_the_latest_winter(tmp_path, session_date,
 
     assert_valid_suggestions(suggestions, "seasonal_topic_analysis", must_reference=["Snow Note"])
     assert len(suggestions) == 1
-    assert suggestions[0].text.startswith(f"In {label}, you explored related ideas: [[Snow Note")
-    assert len(suggestions[0].notes) == 2  # the anchor's two in-season companions
+    assert suggestions[0].text.startswith(f"In {label}, you wrote closely related notes: [[Snow")
+    # The anchor and its two in-season companions
+    assert sorted(suggestions[0].notes) == ["Snow Note 0", "Snow Note 1", "Snow Note 2"]
 
 
 def test_seasonal_topic_analysis_window_ends_on_the_last_day(tmp_path):
-    """Boundary pair on the spring/summer edge (session in July), and the
-    regression for the window end.
+    """Boundary pair on the spring/summer edge (session in July).
 
-    Bug: each window ended at midnight at the START of its last day, so a note
-    made on June 20 belonged to no season. Here it is the third spring note; a
-    note made on June 21 is summer, leaving spring one note short.
+    Contract: seasons are get_season()'s, as in the sibling seasonal geists:
+    a note made on May 31 (late in the day) is the third spring note; one
+    made on June 1 is summer, leaving spring one note short.
+
+    Regression: the windows were astronomical (spring ran to June 20), so
+    June 1-20 notes were "spring" here and "summer" in seasonal_revisit and
+    seasonal_patterns. (Earlier regression: each window ended at midnight at
+    the START of its last day.)
     """
-    last_day = [datetime(2024, 4, 2), datetime(2024, 5, 2), datetime(2024, 6, 20, 15)]
-    next_day = [datetime(2024, 4, 2), datetime(2024, 5, 2), datetime(2024, 6, 21)]
+    last_day = [datetime(2024, 4, 2), datetime(2024, 5, 2), datetime(2024, 5, 31, 15)]
+    next_day = [datetime(2024, 4, 2), datetime(2024, 5, 2), datetime(2024, 6, 1)]
     july = datetime(2024, 7, 15)
 
     inside = _vault(tmp_path / "inside", {"Bloom": last_day}, session_date=july)
@@ -172,7 +179,7 @@ def test_seasonal_topic_analysis_caps_at_two(tmp_path):
     assert_valid_suggestions(suggestions, "seasonal_topic_analysis")
     seasons = {s.text.split(",")[0] for s in suggestions}
     assert len(seasons) == 2
-    assert seasons <= {"In winter 2023", "In spring 2024", "In summer 2024"}
+    assert seasons <= {"In winter 2023-24", "In spring 2024", "In summer 2024"}
 
 
 def test_seasonal_topic_analysis_excludes_geist_journal(tmp_path):
@@ -187,4 +194,26 @@ def test_seasonal_topic_analysis_excludes_geist_journal(tmp_path):
         "seasonal_topic_analysis",
         must_reference=["Snow Note"],
         must_not_reference=["geist journal", "Snow Session"],
+    )
+
+
+def test_seasonal_topic_analysis_names_the_anchor_in_get_season_terms(tmp_path):
+    """Contract: the suggestion names the anchor note itself plus its two
+    closest companions, says what was measured (closely related notes from
+    one season) without claiming a seasonal pattern, and places December
+    notes in winter, as get_season() and the sibling seasonal geists do.
+
+    Regression: the anchor was left out (only the companions were named), the
+    text asked "What seasonal pattern might this reflect?" although nothing
+    is compared across years, and December 1-20 counted as "fall".
+    """
+    december = [datetime(2024, 12, 5), datetime(2024, 12, 10), datetime(2024, 12, 15)]
+    ctx = _vault(tmp_path, {"Snow": december}, session_date=datetime(2025, 1, 15))
+
+    suggestions = seasonal_topic_analysis.suggest(ctx)
+
+    assert [sorted(s.notes) for s in suggestions] == [["Snow Note 0", "Snow Note 1", "Snow Note 2"]]
+    names = ", ".join(f"[[{n}]]" for n in suggestions[0].notes)
+    assert suggestions[0].text == (
+        f"In winter 2024-25, you wrote closely related notes: {names}. Is that thread still alive?"
     )

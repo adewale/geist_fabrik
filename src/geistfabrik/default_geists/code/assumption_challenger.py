@@ -4,10 +4,61 @@ Looks for notes that make claims based on assumptions that might be questioned,
 then suggests examining those assumptions.
 """
 
+import re
 from typing import TYPE_CHECKING
+
+from geistfabrik.content_extraction import quote_for_display, strip_code, unmask_code
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+
+# Phrases that present something as beyond question. "always" and "must be"
+# are deliberately absent: in technical notes they are requirement language
+# ("the cache must be cleared"), not unexamined assumptions.
+_ASSUMPTION = re.compile(
+    r"\b(?:obviously|clearly|of course|everyone knows|it is well known|naturally|"
+    r"needless to say|without a doubt|certainly|undoubtedly|has to|necessarily)\b",
+    re.IGNORECASE,
+)
+_HEDGE = re.compile(
+    r"\b(?:maybe|perhaps|might|could be|possibly|uncertain|unclear|debatable|"
+    r"questionable|depends|varies|sometimes)\b",
+    re.IGNORECASE,
+)
+_FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+_LINE_PREFIX = re.compile(r"^\s*(?:[-*+>]\s+|\d+[.)]\s+)*")
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_WORD = re.compile(r"[a-z]{4,}")
+_MAX_QUOTE = 200
+
+
+def _sentences(content: str) -> list[str]:
+    """Prose sentences of a note: no frontmatter, code, headings or tables."""
+    body = strip_code(_FRONTMATTER.sub("", content))
+    sentences: list[str] = []
+    for line in body.split("\n"):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "|", "---")):
+            continue
+        prose = _LINE_PREFIX.sub("", stripped).replace("**", "")
+        sentences.extend(part.strip() for part in _SENTENCE_END.split(prose) if part.strip())
+    return sentences
+
+
+def _display(sentence: str) -> str:
+    """Quote a sentence for the journal, shortening very long ones."""
+    text = unmask_code(sentence)
+    if text.endswith(".") and not text.endswith(".."):
+        text = text[:-1]  # the suggestion supplies its own punctuation
+    if len(text) > _MAX_QUOTE:
+        text = text[:_MAX_QUOTE].rsplit(" ", 1)[0] + "…"
+    return quote_for_display(text)
+
+
+def _terms(sentence: str) -> set[str]:
+    """Content words (4+ letters) of a sentence, minus the marker phrases."""
+    unmarked = _HEDGE.sub(" ", _ASSUMPTION.sub(" ", sentence.lower()))
+    return set(_WORD.findall(unmarked))
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -26,24 +77,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 10:
         return []
 
-    # Assumption indicator phrases
-    assumption_phrases = [
-        "obviously",
-        "clearly",
-        "of course",
-        "everyone knows",
-        "it is well known",
-        "naturally",
-        "needless to say",
-        "without a doubt",
-        "certainly",
-        "undoubtedly",
-        "must be",
-        "has to",
-        "necessarily",
-        "always",
-    ]
-
     # OPTIMISATION: Early termination after finding enough suggestions
     # Final sampling only returns 3, so generating 5 is sufficient
     max_suggestions_contrast = 5
@@ -53,59 +86,48 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Early exit if we have enough suggestions
         if suggestion_count >= max_suggestions_contrast:
             break
-        content = vault.read(note).lower()
+        raw = vault.read(note)
+        content = raw.lower()
 
-        # Look for assumption indicators
-        assumption_count = sum(1 for phrase in assumption_phrases if phrase in content)
+        # A note qualifies with >= 2 distinct assumption phrases; the
+        # suggestion quotes the first sentence that uses one, so "you wrote"
+        # is shown rather than asserted.
+        sentences = _sentences(raw)
+        phrases = {m.group(0).lower() for s in sentences for m in _ASSUMPTION.finditer(s)}
+        certain = next((s for s in sentences if _ASSUMPTION.search(s)), None)
 
-        if assumption_count >= 2:
-            # Find related notes that might challenge these assumptions. The
-            # suggestion calls them "semantically similar", so a hedging note
-            # must actually be related, not merely among the 10 nearest.
-            similar = [
-                other
-                for other, score in vault.neighbours(note, count=10, return_scores=True)
-                if score >= SimilarityLevel.WEAK
-            ]
-
-            # Look for notes with contrasting language (hedging, uncertainty)
-            contrast_phrases = [
-                "maybe",
-                "perhaps",
-                "might",
-                "could be",
-                "possibly",
-                "uncertain",
-                "unclear",
-                "debatable",
-                "questionable",
-                "depends",
-                "varies",
-                "sometimes",
-            ]
-
-            for other in similar:
-                other_content = vault.read(other).lower()
-                contrast_count = sum(1 for phrase in contrast_phrases if phrase in other_content)
-
-                if contrast_count >= 2:
-                    # High assumptions in one note, high uncertainty in similar note
-                    text = (
-                        f"[[{note.link_text}]] makes claims that seem certain, but "
-                        f"[[{other.link_text}]] (semantically similar) expresses "
-                        f"uncertainty about related topics. What assumptions underlie the "
-                        f"certainty?"
-                    )
-
-                    suggestions.append(
-                        Suggestion(
-                            text=text,
-                            notes=[note.link_text, other.link_text],
-                            geist_id="assumption_challenger",
-                        )
-                    )
-                    suggestion_count += 1
+        if len(phrases) >= 2 and certain is not None:
+            # A semantically similar note that hedges about the same terms
+            # (a hedged sentence sharing a content word with the quote).
+            certain_terms = _terms(certain)
+            hedged: tuple[str, str] | None = None
+            for other, score in vault.neighbours(note, count=10, return_scores=True):
+                if score < SimilarityLevel.WEAK:
+                    continue
+                for sentence in _sentences(vault.read(other)):
+                    if _HEDGE.search(sentence) and _terms(sentence) & certain_terms:
+                        hedged = (other.link_text, sentence)
+                        break
+                if hedged is not None:
                     break
+
+            if hedged is not None:
+                other_link, hedge = hedged
+                text = (
+                    f"In [[{note.link_text}]] you wrote {_display(certain)}, while "
+                    f"[[{other_link}]] (semantically similar) hedges: {_display(hedge)}. "
+                    f"What is the certainty in [[{note.link_text}]] resting on?"
+                )
+                refs = [note.link_text, other_link]
+            else:
+                text = (
+                    f"In [[{note.link_text}]] you wrote {_display(certain)}. "
+                    f"What is that assumption resting on?"
+                )
+                refs = [note.link_text]
+
+            suggestions.append(Suggestion(text=text, notes=refs, geist_id="assumption_challenger"))
+            suggestion_count += 1
 
         # Also look for causal claims without evidence
         causal_patterns = [

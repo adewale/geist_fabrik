@@ -4,17 +4,46 @@ Demonstrates MetadataAnalyser abstraction (Phase 5).
 Finds notes with unusual metadata values (outliers) that might warrant attention.
 """
 
+import math
 from typing import TYPE_CHECKING
 
 from geistfabrik.metadata_system import MetadataAnalyser
 from geistfabrik.models import Suggestion
 
 if TYPE_CHECKING:
+    from geistfabrik.models import Note
     from geistfabrik.vault_context import VaultContext
 
 # Notes shorter than this are left out of the link-density distribution
 # (same floor as link_density_analyser).
 MIN_WORDS_FOR_DENSITY = 50
+
+
+def _word_count_outliers(
+    vault: "VaultContext", notes: list["Note"], threshold: float
+) -> list["Note"]:
+    """Notes whose log word count is > threshold SDs from the mean, most extreme first.
+
+    Word counts are right-skewed (many short notes, a few very long ones), so
+    a z-score on raw counts can almost never flag a short note: mean - 2 SD is
+    usually below zero. On log1p(word_count) the scale is symmetric enough
+    that a stub among substantial notes stands out as far as a treatise does.
+    """
+    logs: dict[str, float] = {}
+    for note in notes:
+        value = vault.metadata(note).get("word_count")
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+            logs[note.path] = math.log1p(value)
+    if not logs:
+        return []
+    mean = sum(logs.values()) / len(logs)
+    std = math.sqrt(sum((v - mean) ** 2 for v in logs.values()) / len(logs))
+    if std < 1e-10:
+        return []
+    scored = [(abs(logs[n.path] - mean) / std, n) for n in notes if n.path in logs]
+    outliers = [(z, n) for z, n in scored if z > threshold]
+    outliers.sort(key=lambda pair: (-pair[0], pair[1].path))
+    return [n for _, n in outliers]
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -32,12 +61,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     analyser = MetadataAnalyser(vault)
     suggestions = []
 
-    # Check for word_count outliers (unusually long/short notes)
-    word_count_outliers = analyser.outliers("word_count", threshold=2.0)
+    # Check for word_count outliers (unusually long/short notes), on a log
+    # scale so that "unusually brief" is reachable
+    word_count_outliers = _word_count_outliers(vault, notes, threshold=2.0)
 
     if word_count_outliers:
-        # outliers() returns the most extreme first
-        note = word_count_outliers[0]
+        # Any outlier is "unusual"; sample one so the same most-extreme note
+        # is not named every session.
+        note = vault.sample(word_count_outliers, 1)[0]
         metadata = vault.metadata(note)
         wc = metadata.get("word_count", 0)
         dist = analyser.distribution("word_count")
@@ -78,7 +109,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         link_density_outliers = analyser.outliers("link_density", threshold=2.0, notes=prose_notes)
 
         if link_density_outliers:
-            note = link_density_outliers[0]
+            note = vault.sample(link_density_outliers, 1)[0]
             metadata = vault.metadata(note)
             per_100 = float(metadata.get("link_density", 0.0)) * 100
             dist = analyser.distribution("link_density", notes=prose_notes)

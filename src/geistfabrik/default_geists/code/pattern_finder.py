@@ -4,12 +4,72 @@ Discovers patterns, phrases, or conceptual themes that appear in multiple notes
 that aren't linked to each other, suggesting implicit recurring interests.
 """
 
+import re
 from collections import defaultdict
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+from geistfabrik.markdown_parser import (
+    INLINE_CODE_PATTERN,
+    markdown_prose_lines,
+    parse_frontmatter,
+)
 from geistfabrik.similarity_analysis import SimilarityLevel
+
+# Whole-token stopwords. A phrase may not start or end with one (a single
+# stopword inside, as in "theory of mind", is fine). Matching whole tokens
+# matters: the old substring test rejected any phrase containing "other",
+# "understand" or "together" while letting "for large vaults" through.
+STOPWORDS = frozenset(
+    """
+    a an the and or but nor so yet for of to in on at by with from into onto
+    over under about as than then that this these those there here it its is
+    are was were be been being am do does did done have has had having i me
+    my we our us you your he she they them their his her him not no if when
+    while which who whom whose what where why how all any each every some
+    such can could will would shall should may might must also just only very
+    more most other another
+    """.split()
+)
+_WORD = re.compile(r"[a-z](?:[a-z'-]*[a-z])?")
+# Punctuation that ends a run of words: a phrase never spans a sentence,
+# clause, bracket, table cell or emphasis boundary.
+_BREAK = re.compile(r"[.!?;:,()\[\]{}|<>\"=+*/\\]+")
+_HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
+_URL = re.compile(r"\w+://\S+")
+
+
+def _phrases(content: str) -> Iterator[str]:
+    """Yield the 3-word phrases of a note's prose.
+
+    Frontmatter, fenced/indented code, inline code, headings (often template
+    boilerplate such as "## Success Metrics"), table rows and URLs are not
+    prose. Any token that is not a plain word (a number, "note.links",
+    "list[link]", a list marker) ends the current run of words.
+    """
+    body = parse_frontmatter(content)[1]
+    for _, line in markdown_prose_lines(body):
+        if _HEADING.match(line) or line.lstrip().startswith("|"):
+            continue
+        line = line.lower().replace("\u2019", "'")
+        line = _URL.sub(" | ", INLINE_CODE_PATTERN.sub(" | ", line))
+        for segment in _BREAK.split(line):
+            run: list[str] = []
+            for token in segment.split() + [""]:
+                word = token.strip("'_~`\u2018\u201c\u201d")
+                if word and _WORD.fullmatch(word):
+                    run.append(word)
+                    continue
+                for i in range(len(run) - 2):
+                    tri = run[i : i + 3]
+                    if tri[0] in STOPWORDS or tri[2] in STOPWORDS:
+                        continue
+                    phrase = " ".join(tri)
+                    if len(phrase) > 15:
+                        yield phrase
+                run = []
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -36,26 +96,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             pair = tuple(sorted([note.path, target.path]))
             all_link_pairs.add(pair)
 
-    # Look for repeated significant phrases (2-3 word combinations)
+    # Look for repeated significant 3-word phrases
     phrase_to_notes = defaultdict(list)
 
+    # Every note is read: sampling the corpus here (Phase 3B) lost most
+    # patterns on large vaults (tests/integration/test_phase3b_regression.py).
     for note in notes:
-        content = vault.read(note).lower()
-        words = content.split()
-
-        # Extract 2-3 word phrases, counting each phrase once per note so a
-        # note repeating itself is not mistaken for several notes. (A dict,
-        # not a set: insertion order keeps output independent of hash seeds.)
-        note_phrases: dict[str, None] = {}
-        for i in range(len(words) - 2):
-            # Skip common words
-            phrase = " ".join(words[i : i + 3])
-
-            # Filter out common phrases
-            if len(phrase) > 15 and not any(
-                common in phrase for common in ["the", "and", "but", "with", "from", "this", "that"]
-            ):
-                note_phrases[phrase] = None
+        # Count each phrase once per note so a note repeating itself is not
+        # mistaken for several notes. (A dict, not a set: insertion order
+        # keeps output independent of hash seeds.)
+        note_phrases = dict.fromkeys(_phrases(vault.read(note)))
         for phrase in note_phrases:
             phrase_to_notes[phrase].append(note)
 

@@ -2,9 +2,10 @@
 
 Trigger arithmetic (see the geist source):
 - the vault needs >= 15 non-journal notes, otherwise the geist returns [];
-- phrase route: a 3-token phrase longer than 15 characters, free of common
-  words ("the", "and", "with", ...), found in >= 3 notes of which >= 3 have
-  no link to another note of the group;
+- phrase route: 3 consecutive words of prose (frontmatter, code, headings,
+  table rows, URLs and punctuation boundaries excluded) longer than 15
+  characters, neither starting nor ending with a whole-token stopword, found
+  in >= 3 notes of which >= 3 have no link to another note of the group;
 - cluster route: a seed plus notes with similarity > 0.80 to it (at most 5
   per cluster, at most 3 clusters), reported when >= 3 notes and no
   internal links;
@@ -192,8 +193,7 @@ def test_clusters_are_disjoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_output_is_capped_when_more_patterns_qualify(tmp_path: Path) -> None:
-    # Three phrase groups qualify (none contains a common-word substring such
-    # as "this" in "thistle"): three suggestions for a cap of 2.
+    # Three phrase groups qualify: three suggestions for a cap of 2.
     builder = VaultBuilder(tmp_path)
     phrases = [PHRASE, "saffron glacier harbour", "walnut falcon orchid"]
     for g, phrase in enumerate(phrases):
@@ -242,3 +242,56 @@ def test_output_does_not_depend_on_hash_order(
     for salt in ("a", "b", "c", "d"):
         monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))
         assert [s.text for s in pattern_finder.suggest(builder.build())] == baseline, salt
+
+
+def test_markdown_syntax_and_function_word_phrases_are_not_themes(tmp_path: Path) -> None:
+    """Contract: a "phrase" is three consecutive words of prose. Code (fenced
+    and inline), headings, table rows and phrases that start or end with a
+    stopword are never reported as a recurring theme.
+
+    Regression: phrases were whitespace trigrams of raw markdown, so three
+    notes sharing a code sample, a template heading, a table row or "for
+    large vaults" were reported as e.g. 'The phrase "link in note.links:"'.
+    """
+    builder = VaultBuilder(tmp_path)
+    for i in range(3):
+        builder.note(
+            f"Spec {i}",
+            f"q{i}a q{i}b\n\n"
+            "## Success Metrics Overview\n\n"
+            "```python\nfor link in note.links:\n    pass\n```\n\n"
+            "Call `geistfabrik.vault import Vault` first.\n\n"
+            "| Column | Bold assertions here |\n\n"
+            f"q{i}c works for large vaults q{i}d\n",
+        )
+    _fillers(builder, 12)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    # The three near-identical notes do form a semantic cluster; the only
+    # suggestion is that one, never a phrase.
+    assert [s.text.startswith("Found a semantic cluster") for s in suggestions] == [True]
+
+
+def test_stopwords_match_whole_tokens_not_substrings(tmp_path: Path) -> None:
+    """Contract: stopwords are whole tokens, so a phrase whose words merely
+    contain one ("understanding" contains "and") is still a theme.
+
+    Regression: the filter was `common in phrase` over the joined string, so
+    any phrase containing "the", "and", "with", ... as a substring (other,
+    understanding, together, withdrawal) was silently dropped.
+    """
+    builder = VaultBuilder(tmp_path)
+    group = ["Echo A", "Echo B", "Echo C"]
+    for i, title in enumerate(group):
+        builder.note(title, f"p{i}x understanding together otherwise p{i}z")
+    _fillers(builder, 12)
+
+    suggestions = pattern_finder.suggest(builder.build())
+
+    assert [s.text for s in suggestions] == [
+        'The phrase "understanding together otherwise" appears in multiple unconnected '
+        f"notes: {', '.join(f'[[{n}]]' for n in suggestions[0].notes)}. "
+        "Recurring theme you haven't explicitly connected?"
+    ]
+    assert sorted(suggestions[0].notes) == group

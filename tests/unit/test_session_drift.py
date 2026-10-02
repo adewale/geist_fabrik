@@ -68,6 +68,24 @@ def test_session_drift_flags_vector_change_since_previous_session(tmp_path):
     assert "The note has not been edited in 100 days" in suggestions[0].text
 
 
+def test_session_drift_does_not_point_at_unstored_snapshots(tmp_path):
+    """Contract: the suggestion only asks for what the user can do: reread the note.
+
+    Regression: it said "revisit the snapshots", but only embedding vectors
+    are stored per session, never earlier versions of the text, so there is
+    nothing for the user to revisit.
+    """
+    ctx = _vault(tmp_path, {"Shifting Note": {EARLY: OLD_TEXT, PREVIOUS: OLD_TEXT}})
+
+    suggestions = session_drift.suggest(ctx)
+
+    assert [s.text for s in suggestions] == [
+        "The semantic representation of [[Shifting Note]] differs between its two "
+        "latest recorded sessions. The note has not been edited in 100 days; reread "
+        "it and decide what, if anything, changed in its meaning."
+    ]
+
+
 def test_session_drift_mentions_recent_edits_within_thirty_days(tmp_path):
     """Text boundary: edited 30 days ago -> "Recent edits"; 31 days -> "not been edited"."""
     history = {"Shifting Note": {EARLY: OLD_TEXT, PREVIOUS: OLD_TEXT}}

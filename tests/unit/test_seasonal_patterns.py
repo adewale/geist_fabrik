@@ -7,12 +7,13 @@ overall):
    months), the most internally coherent one has notes from >= 2 years, and
    its best cross-year pair has similarity > 0.65.
 2. Seasonal tag: in a season with >= 10 notes, a tag used >= 5 times there
-   whose share of all uses of the tag is > 0.6.
+   whose share of all uses of the tag is > 0.6 and at least MIN_TAG_LIFT
+   (1.5) times the season's share of all notes.
 
 Fillers have unique vocabulary (similarity ~0) and no tags.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from geistfabrik.default_geists.code import seasonal_patterns
@@ -58,7 +59,8 @@ def _tag_vault(
     tag_text = " ".join(f"#{t}" for t in tags)
     for i in range(winter_notes):
         body = f"winter{i}alpha winter{i}bravo" + (f" {tag_text}" if i < in_season else "")
-        builder.note(f"Winter {i}", body, created=datetime(2023, 1, 2 + i))
+        # Jan 2 onwards; a long run continues into February (still winter)
+        builder.note(f"Winter {i}", body, created=datetime(2023, 1, 2) + timedelta(days=i))
     for i in range(off_season):
         builder.note(f"Summer Tagged {i}", f"summer{i}alpha {tag_text}", created=SUMMER)
     _fillers(builder, 50 - winter_notes - off_season, SUMMER, "Filler")
@@ -66,8 +68,16 @@ def _tag_vault(
 
 
 def test_seasonal_patterns_finds_theme_recurring_in_the_same_month(tmp_path):
-    # Trigger arithmetic: 6 March notes + 44 fillers = 50. March coherence 0.86
-    # beats July/October (~0); March spans 2022 and 2023; cross-year 0.86 > 0.65.
+    """Contract: the month theme names the similar cross-year pair, oldest
+    first, says how many years apart they are with correct grammar, and does
+    not claim more than that one pair shows.
+
+    Regression: the text said "You consistently write about similar themes"
+    on the evidence of a single pair, and "despite being 1 years apart".
+
+    Trigger arithmetic: 6 March notes + 44 fillers = 50. March coherence 0.86
+    beats July/October (~0); March spans 2022 and 2023; cross-year 0.86 > 0.65.
+    """
     ctx = _month_theme_vault(tmp_path).build()
 
     suggestions = seasonal_patterns.suggest(ctx)
@@ -79,8 +89,13 @@ def test_seasonal_patterns_finds_theme_recurring_in_the_same_month(tmp_path):
         must_not_reference=["geist journal", "July", "October"],
     )
     [suggestion] = suggestions
-    assert suggestion.text.startswith("You consistently write about similar themes in March—")
-    assert "despite being 1 years apart" in suggestion.text
+    first, second = suggestion.notes
+    assert first.startswith("Sowing 2022") and second.startswith("Sowing 2023")
+    assert suggestion.text == (
+        f"You came back to similar themes in March—[[{first}]] (2022) and "
+        f"[[{second}]] (2023) are semantically similar despite being 1 year apart. "
+        "Seasonal thinking rhythm?"
+    )
 
 
 def test_seasonal_patterns_needs_fifty_notes(tmp_path):
@@ -146,6 +161,25 @@ def test_seasonal_patterns_tag_season_needs_ten_notes(tmp_path):
 
     assert seasonal_patterns.suggest(nine) == []
     assert_valid_suggestions(seasonal_patterns.suggest(ten), "seasonal_patterns")
+
+
+def test_seasonal_patterns_tag_needs_lift_over_the_seasons_base_rate(tmp_path):
+    """Contract: a tag is seasonal only if its in-season share is well above
+    the season's share of all notes (lift >= 1.5).
+
+    Regression: with no base rate, a vault written mostly in winter made any
+    common tag "predominantly winter". Here 40 of 50 notes are winter (0.8)
+    and #skiing is on 6 winter notes and 2 summer ones (0.75): lift 0.94,
+    so it is not reported. With 12 winter notes (0.24) the same tag split
+    has lift 3.1 and is reported.
+    """
+    mostly_winter = _tag_vault(tmp_path / "base", winter_notes=40).build()
+    winter_minority = _tag_vault(tmp_path / "lift", winter_notes=12).build()
+
+    assert seasonal_patterns.suggest(mostly_winter) == []
+    assert [s.text.split(" (")[0] for s in seasonal_patterns.suggest(winter_minority)] == [
+        "You write about #skiing predominantly in winter"
+    ]
 
 
 def test_seasonal_patterns_caps_at_two(tmp_path):

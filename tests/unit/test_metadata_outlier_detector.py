@@ -2,14 +2,16 @@
 
 Trigger: >= 10 user notes and a note whose ``word_count`` or ``link_density``
 (both built-in metadata; link_density = links / words) is more than 2.0
-population standard deviations from the mean. Link density is analysed only
+population standard deviations from the mean (word_count is scored on
+log1p(word_count), which is right-skewed). Link density is analysed only
 over notes of at least MIN_WORDS_FOR_DENSITY words. At most one suggestion
 per metric: 2 in total.
 
 Z-score arithmetic: if k of n notes share one value and the rest share
 another, each of the k notes has |z| = sqrt((n - k) / k). One long note among
 12 gives sqrt(11) = 3.3 > 2; two among 12 give sqrt(5) = 2.24 > 2; three among
-12 give sqrt(3) = 1.73 < 2, whatever the word counts are.
+12 give sqrt(3) = 1.73 < 2, whatever the word counts are (and whatever
+monotonic transform, such as log1p, is applied to them).
 
 Every title has two words, so the "# <title>" heading adds the same three
 words to each count: a SHORT note has 13 words, a LONG one 203, and a
@@ -189,3 +191,44 @@ def test_metadata_outlier_detector_excludes_geist_journal(tmp_path):
         must_reference=["Long Treatise"],
         must_not_reference=["geist journal", "2024-03-14"],
     )
+
+
+def test_metadata_outlier_detector_flags_a_stub_in_a_right_skewed_vault(tmp_path):
+    """Contract: "unusually brief" is reachable on a realistic, right-skewed
+    distribution of word counts (z-score on log1p(word_count)).
+
+    Regression: the z-score was on raw counts. Here mean - 2 SD is below zero,
+    so the 5-word stub could never be flagged, and the one long note (z = 3.0
+    on raw counts, 1.7 on the log scale) was reported as "unusually detailed"
+    instead.
+    """
+    sizes = [102, 122, 152, 202, 252, 302, 402, 602, 1002, 3002]  # total words
+    bodies = {
+        f"Essay {chr(65 + i)}": " ".join(f"w{j}" for j in range(size - 3))
+        for i, size in enumerate(sizes)
+    }
+    ctx = _vault(tmp_path, {**bodies, "Tiny Stub": "two words"})
+
+    suggestions = metadata_outlier_detector.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "metadata_outlier_detector", must_reference=["Tiny Stub"])
+    assert [s.text for s in suggestions] == [
+        "[[Tiny Stub]] is unusually brief (5 words vs median 252). Does this note need development?"
+    ]
+
+
+def test_metadata_outlier_detector_rotates_among_outliers(tmp_path):
+    """Contract: any word-count outlier may be named, not always the most extreme.
+
+    Regression: the most extreme note was named every session (on a real vault,
+    the same empty note each time). Two long notes among ten short ones are
+    both outliers; across session seeds both get named.
+    """
+    builder = VaultBuilder(tmp_path / "vault")
+    for title, body in {**_plain(10), "Long 1": LONG, "Long 2": LONG + " extra"}.items():
+        builder.note(title, body)
+    named = {
+        metadata_outlier_detector.suggest(builder.build(seed=seed))[0].notes[0]
+        for seed in range(12)
+    }
+    assert named == {"Long 1", "Long 2"}

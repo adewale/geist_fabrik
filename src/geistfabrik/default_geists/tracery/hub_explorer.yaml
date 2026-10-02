@@ -5,14 +5,16 @@ description: Highlights hub notes with many connections for review and refinemen
 tracery:
   origin:
     - "#hub# #verb.s# many #element.s#—what's the #unifying_theme#?"
-    - "#possessive.capitalize# hub note #hub# has grown—time to #action#?"
+    - "#possessive.capitalize# hub note #hub# has many links—time to #action#?"
     - "#hub# is central to your vault. #question.capitalize#?"
     - "Many #path.s# lead through #hub#. #prompt.capitalize#?"
 
-  # Pool larger than count: repeats of a note within one session are
-  # skipped, so the extra candidates keep `count` filled.
+  # Up to five hubs, each with at least three backlinks, so "central" is
+  # true (in a sparse vault the top-ranked note may have one backlink). Each
+  # suggestion picks among them; a vault with no such note gets no
+  # suggestion. Repeats of a note within one session are skipped.
   hub:
-    - "$vault.hubs(5)"
+    - "$vault.hubs(5, 3)"
 
   verb:
     - "connect"

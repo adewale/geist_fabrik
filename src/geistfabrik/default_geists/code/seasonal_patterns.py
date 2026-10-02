@@ -5,8 +5,12 @@ specific times of year, revealing cyclical patterns in thinking.
 
 Two independent analyses feed the same geist:
 1. Recurring month themes - months whose notes are semantically coherent,
-   with similar notes recurring across different years.
-2. Seasonal tag concentration - tags used predominantly in one season.
+   with similar notes recurring across different years. The evidence is one
+   similar cross-year pair, so the text names that pair rather than claiming
+   the theme recurs "consistently".
+2. Seasonal tag concentration - tags used predominantly in one season, and
+   far more often there than the season's share of all notes (a tag is not
+   "seasonal" just because most of the vault was written in that season).
 """
 
 from collections import defaultdict
@@ -16,6 +20,10 @@ if TYPE_CHECKING:
     from geistfabrik import Note, Suggestion, VaultContext
 from geistfabrik.similarity_analysis import SimilarityLevel
 from geistfabrik.temporal_analysis import get_season
+
+# A seasonal tag's in-season share must be at least this many times the
+# season's share of all notes.
+MIN_TAG_LIFT = 1.5
 
 MONTH_NAMES = [
     "January",
@@ -137,14 +145,17 @@ def _recurring_month_themes(vault: "VaultContext", notes: list["Note"]) -> list[
 
     if similarity > SimilarityLevel.HIGH:
         month_name = MONTH_NAMES[top_month_num - 1]
+        if note2.created.year < note1.created.year:
+            note1, note2 = note2, note1
         year1 = note1.created.year
         year2 = note2.created.year
+        gap = year2 - year1
 
         text = (
-            f"You consistently write about similar themes in {month_name}—"
+            f"You came back to similar themes in {month_name}—"
             f"[[{note1.link_text}]] ({year1}) and "
             f"[[{note2.link_text}]] ({year2}) are semantically similar "
-            f"despite being {abs(year2 - year1)} years apart. Seasonal "
+            f"despite being {gap} year{'' if gap == 1 else 's'} apart. Seasonal "
             f"thinking rhythm?"
         )
 
@@ -186,8 +197,11 @@ def _seasonal_tag_concentration(vault: "VaultContext", notes: list["Note"]) -> l
                 # Check how often this tag appears in other seasons
                 total_with_tag = sum(1 for n in notes if tag in n.tags)
                 season_ratio = count / total_with_tag if total_with_tag > 0 else 0
+                # Base rate: the season's share of all notes
+                lift = season_ratio / (len(season_notes) / len(notes))
 
-                if season_ratio > 0.6:  # 60% of this tag appears in one season
+                # 60% of this tag appears in one season, well above base rate
+                if season_ratio > 0.6 and lift >= MIN_TAG_LIFT:
                     sample_notes = vault.sample([n for n in season_notes if tag in n.tags], count=3)
                     note_names = ", ".join([f"[[{n.link_text}]]" for n in sample_notes])
 

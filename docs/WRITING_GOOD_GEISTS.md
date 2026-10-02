@@ -251,11 +251,10 @@ and leaves interpretation with the user.
 
 ### Assumption Challenger (Socratic Questioner)
 ```python
-"[[{note}]] makes claims that seem certain,
-but [[{other}]] expresses uncertainty.
-What assumptions underlie the certainty?"
+"In [[{note}]] you wrote "{certain_sentence}", but [[{other}]] says
+"{hedged_sentence}". What is that assumption resting on?"
 ```
-**Why it's gold**: Points out pattern, asks "what" not "you should".
+**Why it's gold**: Quotes the sentences it is reacting to, so the observation is true by construction, then asks "what" not "you should".
 
 ---
 
@@ -899,7 +898,7 @@ text = f"What if [[{note.title}]]'s contradictions are revealing something?"
 ```python
 text = (
     f"**Thesis**: [[{note.link_text}]]\n"
-    f"**Antithesis**: [[{antithesis.title}]]\n"
+    f"**Far side**: [[{distant.link_text}]]\n"
     f"\nWhat if you synthesized both?"
 )
 ```

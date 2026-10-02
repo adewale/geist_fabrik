@@ -106,6 +106,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the note body without code, and only words of two or more letters.
 - Voice analysis treated code in fences indented under list items, and the
   "I" of "I/O", as first-person writing.
+- **Geist intent audit.** Every bundled geist was audited against what it
+  claims; suggestion text must now be true of the notes it names. Fixes:
+  - anachronism_detector: reports a recent note only when its best old match
+    beats its best recent match; real elapsed years ("2 years earlier").
+  - antithesis_generator: no longer asserts that a neighbour "seems to
+    challenge" a note or that two notes are "dialectically opposed"; it only
+    invites writing an antithesis.
+  - assumption_challenger: quotes the certain-sounding sentence (whole-word
+    markers; "always"/"must be" no longer count) and pairs it only with a
+    neighbour that hedges about the same terms.
+  - blind_spot_detector: states only the trigger that held ("N days" only past
+    180 days); skips stubs as the "opposite" note.
+  - bridge_builder: each pair once; pairs sharing a linked note are skipped, so
+    "different parts of your vault" is true.
+  - burst_evolution: time span from the first snapshot, silent when no note
+    changed, ignores future burst days, no "-0.00".
+  - claim_harvester, definition_harvester, hypothesis_harvester: whole
+    sentences (decimals and "e.g." no longer split them), no bold field labels
+    (98.6% of definitions were "**Status**:"-style labels), imperatives, table
+    rows, quoted examples or the month "May"; each tries up to 10 notes.
+  - columbo: "both connect to" lists only links the two notes share.
+  - complexity_mismatch: absolute thresholds (expand: >= 5 backlinks and < 100
+    words; simplify: > 1500 words, no links in or out) instead of thresholds
+    divided by vault size.
+  - concept_cluster: no longer calls a cluster "emerging".
+  - convergent_evolution, divergent_evolution: a transient spike or a dip that
+    recovered no longer counts; converging pairs must be similar now; mutual
+    links reported once. cyclical_thinking: hysteresis (0.6/0.8) and sampling.
+  - creation_burst: ignores bulk-import days and days after the session date;
+    no longer asks about "today". creative_collision: only loosely related
+    pairs (0.15-0.35), without the unchecked "different domains" claim.
+  - dialectic_triad: samples a distant note (never reused) and no longer
+    claims the two notes are opposites. drift_velocity_anomaly: reports change
+    across recorded sessions, not "velocity". concept_drift: names no
+    neighbour when the note moved away from all of them.
+  - hidden_hub: counts linked notes, "at least 30" when capped, correct
+    plurals. island_hopper: hub named once; never proposes a note already
+    linked to the cluster.
+  - hub_explorer: only notes with >= 3 backlinks are called "central", rotating
+    among up to five; no "has grown" claim (`$vault.hubs()` gains
+    `min_backlinks`). orphan_connector: rotates among recent orphans.
+  - link_density_analyser: "needs more connections" uses resolved links and
+    backlinks and states the counts; embeds and self-links are not "too many
+    links". metadata_driven_discovery: isolation uses resolved links; drops
+    "You understand them"; samples matches. metadata_outlier_detector:
+    word-count outliers on a log scale (so "unusually brief" can fire),
+    sampled among outliers.
+  - pattern_finder: themes are three-word prose phrases (no code, markdown
+    syntax, headings or tables; whole-token stopwords).
+  - question_generator: no ungrammatical "Why is <title>?"; titles quoted;
+    date notes skipped. question_harvester and quote_harvester: no table rows,
+    callouts, nested ">" markers, bold labels or stray "**".
+  - scale_shifter: whole-word scale terms; a "broader framework" must be more
+    abstract and moderately similar; pairs deduplicated.
+  - seasonal_patterns: no "consistently" from a single pair, "1 year apart",
+    seasonal tags must beat the season's base rate. seasonal_revisit: samples
+    every eligible note, not the first three. seasonal_topic_analysis: shares
+    the other seasonal geists' seasons, names the anchor note, and describes a
+    thread rather than a seasonal pattern.
+  - self_and_other: an "I" note needs >= 1 first-person pronoun per 100 words;
+    the "no 'we' notes" claim states the true count. voice_absence: counts match
+    their sentences; its duplicate "we" question is removed.
+  - sentence_variance: ignores tables and headings, splits list items, ranks
+    by relative spread. stub_expander: needs >= 1 backlink, ranked by
+    backlinks. surprisal: skips near-empty notes and samples the top five.
+    temporal_drift: "well-connected" means >= 2 backlinks; scans every stale
+    note. todo_harvester: case-sensitive TODO/FIXME/HACK/XXX, no "note:" prose.
+    uncertainty_mapper: needs 5 sentences and 80 words, ranks by hedges per 100
+    words; "May" and "rather" are not hedges (voice analysis).
+  - session_drift no longer points at stored snapshots (none are stored);
+    temporal_clustering no longer claims periods are "separate";
+    structure_diversity_checker never offers a "mixed" note as a style.
+  - perspective_shifter and transformation_suggester: whole sentences;
+    transformation_suggester no longer invents history ("Last year, you built
+    [[X]]") or counts. temporal_contrast keeps only the template that works
+    (the empty future-note pool silenced it every session).
 - metadata_outlier_detector's link-density branch never fired on a default
   install because `link_density` was not built-in metadata. It now uses the
   built-in key over notes of at least 50 words, reports counts ("15 links in

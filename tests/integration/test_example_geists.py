@@ -193,15 +193,17 @@ def test_hub_explorer_tracery_geist(vault_context: VaultContext):
     assert geist.count == 2
 
     suggestions = geist.suggest(vault_context)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 2
 
+    # Only notes with at least 3 backlinks are called "central"; each is
+    # named at most once, so a vault with one such hub gets one suggestion.
+    central = {
+        h.link_text for h in vault_context.hubs(5) if len(vault_context.backlinks(h)) >= 3
+    }
+    assert central
+    assert len(suggestions) == min(2, len(central))
     for suggestion in suggestions:
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "geist_id")
         assert suggestion.geist_id == "hub_explorer"
-        # Should reference hub notes
-        assert "[[" in suggestion.text
+        assert len(suggestion.notes) == 1 and suggestion.notes[0] in central
 
 
 def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):

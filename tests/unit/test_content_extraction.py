@@ -50,9 +50,61 @@ class TestDefinitionExtractor:
         result = DefinitionExtractor().extract("Recursion is a technique for repetition")
         assert any("Recursion" in d for d in result)
 
-    def test_extracts_bold_colon_definition(self):
-        result = DefinitionExtractor().extract("**Recursion**: a function calling itself")
-        assert any("Recursion" in d and "function calling itself" in d for d in result)
+    def test_bold_field_labels_are_not_definitions(self):
+        """Contract: a bold "**Label**: value" line is a form field, not a definition.
+
+        Regression: this test used to require "**Recursion**: a function calling
+        itself" to be extracted. That pattern matched every bold label, and on a
+        real vault 98.6% of definition_harvester's extractions were fields such
+        as "Problem: ...", "Status: ..." and "Memory usage: <100MB".
+        """
+        content = (
+            "**Recursion**: a function calling itself\n"
+            "- **Problem**: Cache misses on every call\n"
+            "**Status**: done and dusted\n"
+        )
+        assert DefinitionExtractor().extract(content) == []
+
+    def test_extracts_markdown_definition_list(self):
+        """Contract: Markdown definition-list syntax (term line, then ": definition")
+        is extracted as "term: definition"."""
+        content = "Recursion\n: A function calling itself\n\nPlain prose follows here."
+        assert DefinitionExtractor().extract(content) == ["Recursion: A function calling itself"]
+
+    def test_term_must_be_a_short_noun_phrase(self):
+        """Contract: the defined term is a short noun phrase opening a sentence.
+
+        Regression: the term was "anything from line start", so wrapped-line
+        fragments ("application, so this is an optimistic"), pronouns ("It is
+        a ..."), clauses ("Detect if file is a ..."), wikilink titles ("[[Everything
+        is a remix]]") and table rows were harvested as definitions.
+        """
+        content = (
+            "Files being edited by another application, so this is an optimistic\n"
+            "lock that may fail.\n\n"
+            "It is a good idea to sync often.\n\n"
+            "Detect if file is a journal note\n\n"
+            "- [[Everything is a remix]]\n\n"
+            "| Cache | is a store of results |\n\n"
+            "A file is a date-collection note if it meets these criteria:\n"
+        )
+        assert DefinitionExtractor().extract(content) == []
+
+    def test_definition_is_the_whole_sentence_across_decimals_and_wraps(self):
+        """Contract: a definition is quoted as the whole sentence.
+
+        Regression: the sentence stopped at the first period ("approaching 1.")
+        and at the end of a hard-wrapped line.
+        """
+        content = (
+            "GeistFabrik is a well-architected project approaching 1.0 readiness.\n\n"
+            "`embedding_metrics` is a derived cache keyed by exact source and\n"
+            "algorithm digests.\n"
+        )
+        assert DefinitionExtractor().extract(content) == [
+            "GeistFabrik is a well-architected project approaching 1.0 readiness.",
+            "`embedding_metrics` is a derived cache keyed by exact source and algorithm digests.",
+        ]
 
     def test_extracts_means_definition(self):
         result = DefinitionExtractor().extract("Latency means delay before transfer")
@@ -76,6 +128,56 @@ class TestClaimExtractor:
         result = ClaimExtractor().extract("Friction causes heat in moving parts.")
         assert any("causes heat" in c for c in result)
 
+    def test_imperatives_and_nouns_are_not_claims(self):
+        """Contract: only an assertion made by a subject counts as a claim.
+
+        Regression: "shows?/proves?" matched imperatives ("Show numerically ...",
+        "show me notes ...") and "causes?" matched the noun ("**Root cause**:",
+        "Common causes of ...").
+        """
+        content = (
+            "Show numerically how much the notes have evolved.\n\n"
+            "**Root cause**: the cache was never invalidated.\n\n"
+            "Common causes of drift are frequent edits.\n\n"
+            "- show me notes that drifted more than 0.3 this year.\n"
+        )
+        assert ClaimExtractor().extract(content) == []
+
+    def test_decimals_and_abbreviations_do_not_end_the_claim(self):
+        """Contract: a claim is the whole sentence.
+
+        Regression: any period ended the sentence, giving fragments such as
+        "research shows ... (d = ." and "show me notes that drifted >0.".
+        """
+        content = (
+            "Recent research shows an effect size of d = .40 for maladaptive "
+            "strategies (e.g. rumination) in 3.5 studies."
+        )
+        assert ClaimExtractor().extract(content) == [content]
+
+    def test_field_label_and_bold_markers_are_stripped(self):
+        """Contract: the quoted claim has no leading "**Label**:" and no stray "**".
+
+        Regression: claims were quoted as "**Result**: Confirms ..." with the
+        Markdown emphasis left in.
+        """
+        content = "**Result**: The benchmark **confirms** the speedup on large vaults."
+        assert ClaimExtractor().extract(content) == [
+            "The benchmark confirms the speedup on large vaults."
+        ]
+
+    def test_table_rows_and_quoted_examples_are_not_claims(self):
+        """Contract: table cells and quoted example output are not the author's claims.
+
+        Regression: '**Value**: "[[Productivity systems]] shows interpretive
+        rhythm ...' (example geist output in a spec) was harvested as a claim.
+        """
+        content = (
+            "| BUG-5 | The timeout handler shows a race condition. |\n\n"
+            '**Value**: "[[Productivity systems]] shows interpretive rhythm."\n'
+        )
+        assert ClaimExtractor().extract(content) == []
+
 
 class TestHypothesisExtractor:
     def test_extracts_if_then(self):
@@ -85,6 +187,47 @@ class TestHypothesisExtractor:
     def test_extracts_may_might(self):
         result = HypothesisExtractor().extract("This approach might reduce contention.")
         assert any("might reduce contention" in h for h in result)
+
+    def test_hypothesis_starts_at_the_sentence_start(self):
+        """Contract: a hypothesis is the whole sentence, from its real start.
+
+        Regression: a period inside "1.0" or "e.g." split the sentence, giving
+        "0 encoded vectors may become more similar." and "How could physical
+        artifacts (e.".
+        """
+        content = (
+            "Version 1.0 encoded vectors may become more similar.\n\n"
+            "Physical artifacts (e.g. notebooks) could extend memory."
+        )
+        assert HypothesisExtractor().extract(content) == [
+            "Version 1.0 encoded vectors may become more similar.",
+            "Physical artifacts (e.g. notebooks) could extend memory.",
+        ]
+
+    def test_hard_wrapped_sentence_is_rejoined(self):
+        """Contract: a sentence wrapped over two lines is one hypothesis.
+
+        Regression: the wrapped tail was harvested on its own ("Hypothesis range
+        checks may survive).").
+        """
+        content = "Mutation testing finds what the\nrange checks may miss in voice.py.\n"
+        assert HypothesisExtractor().extract(content) == [
+            "Mutation testing finds what the range checks may miss in voice.py."
+        ]
+
+    def test_quoted_modals_months_and_tables_are_not_hypotheses(self):
+        """Contract: a modal quoted as a word, the month May and table rows are
+        not speculation.
+
+        Regression: 'Use "might", "could" ...' and "| BUG-5 | ... could interfere |"
+        were harvested as hypotheses.
+        """
+        content = (
+            'Use "might" and "could" sparingly in suggestions.\n\n'
+            "In May we planted beans along the fence.\n\n"
+            "| BUG-5 | A global handler that could interfere with nesting. |\n"
+        )
+        assert HypothesisExtractor().extract(content) == []
 
 
 class TestFilters:

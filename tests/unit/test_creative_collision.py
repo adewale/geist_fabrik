@@ -1,8 +1,8 @@
 """Unit tests for the creative_collision geist.
 
 creative_collision draws 10 random note pairs and suggests combining any
-unlinked pair whose similarity is in the "different but not unrelated"
-window SimilarityLevel.NOISE (0.15) < sim < SimilarityLevel.MODERATE (0.5).
+unlinked pair whose similarity is in the "loosely related" window
+SimilarityLevel.NOISE (0.15) < sim < SimilarityLevel.WEAK (0.35).
 It returns at most 3 suggestions.
 
 Fixtures use the bag-of-words test stub. Each note has a 2-word unique
@@ -65,7 +65,7 @@ def test_creative_collision_pairs_moderately_related_notes(tmp_path: Path) -> No
     builder = VaultBuilder(tmp_path)
     a, b = _note(builder, 0), _note(builder, 1)
     ctx = builder.build()
-    assert SimilarityLevel.NOISE < _sim(ctx, a, b) < SimilarityLevel.MODERATE
+    assert SimilarityLevel.NOISE < _sim(ctx, a, b) < SimilarityLevel.WEAK
 
     suggestions = creative_collision.suggest(ctx)
 
@@ -93,7 +93,7 @@ def test_creative_collision_caps_at_three_distinct_pairs(tmp_path: Path) -> None
 @pytest.mark.parametrize(
     ("body_b", "reason"),
     [
-        # Same body as note A: cosine ~0.8 >= MODERATE (too similar to collide).
+        # Same body as note A: cosine ~0.8 >= WEAK (too similar to collide).
         (f"{UNIQUE[0]} {SHARED}", "too similar"),
         # Disjoint vocabulary: cosine ~0 <= NOISE (unrelated, not a collision).
         ("marmot quokka platypus echidna wombat", "unrelated"),
@@ -109,7 +109,7 @@ def test_creative_collision_rejects_pairs_outside_window(
     ctx = builder.build()
     sim = _sim(ctx, a, b)
     if reason == "too similar":
-        assert sim >= SimilarityLevel.MODERATE
+        assert sim >= SimilarityLevel.WEAK
     else:
         assert sim <= SimilarityLevel.NOISE
 
@@ -117,12 +117,16 @@ def test_creative_collision_rejects_pairs_outside_window(
 
 
 def test_creative_collision_skips_linked_pairs(tmp_path: Path) -> None:
-    """Contract: an in-window pair that is already linked is not a collision."""
+    """Contract: an in-window pair that is already linked is not a collision.
+
+    The link text adds A's two title words to B, so B shares only one SHARED
+    word to stay in the window (3 shared words of 10: cosine ~0.3).
+    """
     builder = VaultBuilder(tmp_path)
     a = _note(builder, 0)
-    b = _note(builder, 1, body=f"{UNIQUE[1]} {SHARED} [[{TITLES[0]}]]")
+    b = _note(builder, 1, body=f"{UNIQUE[1]} lantern [[{TITLES[0]}]]")
     ctx = builder.build()
-    assert SimilarityLevel.NOISE < _sim(ctx, a, b) < SimilarityLevel.MODERATE
+    assert SimilarityLevel.NOISE < _sim(ctx, a, b) < SimilarityLevel.WEAK
 
     assert creative_collision.suggest(ctx) == []
 
@@ -150,3 +154,27 @@ def test_creative_collision_excludes_geist_journal(tmp_path: Path) -> None:
         must_reference=[a, b],
         must_not_reference=["geist journal", *journal],
     )
+
+
+def test_creative_collision_rejects_clearly_related_pairs(tmp_path: Path) -> None:
+    """Contract: a pair sharing real vocabulary (similarity ~0.42, between WEAK
+    and MODERATE) is not a distant collision; the text claims only what is
+    checked (unlinked, loosely related).
+
+    Regression: the window ran up to MODERATE (0.5), which admitted ~70% of all
+    pairs on a real vault, and the text called same-project notes "from
+    different domains".
+    """
+    builder = VaultBuilder(tmp_path)
+    close = f"{SHARED} beacon anchor"  # 5 shared words of 12: cosine ~0.42
+    a = _note(builder, 0, body=f"{UNIQUE[0]} {close}")
+    b = _note(builder, 1, body=f"{UNIQUE[1]} {close}")
+    c = _note(builder, 2)
+    ctx = builder.build()
+    assert SimilarityLevel.WEAK < _sim(ctx, a, b) < SimilarityLevel.MODERATE
+
+    suggestions = creative_collision.suggest(ctx)
+
+    assert {frozenset(s.notes) for s in suggestions} == {frozenset({a, c}), frozenset({b, c})}
+    assert all("unlinked and only loosely related" in s.text for s in suggestions)
+    assert not any("different domains" in s.text for s in suggestions)

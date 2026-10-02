@@ -49,7 +49,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     structure_types = [s for _, s in recent_structures]
     unique_types = set(structure_types)
 
-    # If 80%+ of recent notes have same structure type, flag it
+    # If 70%+ of recent notes have the same structure type, flag it
     if len(unique_types) <= 2:
         dominant_type = max(set(structure_types), key=structure_types.count)
         dominant_count = structure_types.count(dominant_type)
@@ -122,12 +122,15 @@ def _classify_structure(vault: "VaultContext", note: "Note") -> str:
 def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note | None":
     """Find a note with a different structure type.
 
+    "mixed" is never offered: it is the absence of a dominant structure,
+    not a style to try.
+
     Args:
         vault: VaultContext for accessing notes
         avoid_type: Structure type to avoid
 
     Returns:
-        A note with different structure, or None if not found
+        A note with a different (non-mixed) structure, or None if not found
     """
     # Look through a bounded sample of notes for different structures.
     all_notes = vault.notes()
@@ -136,7 +139,7 @@ def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note |
     different_notes = []
     for note in candidates:
         structure_type = _classify_structure(vault, note)
-        if structure_type != avoid_type:
+        if structure_type not in (avoid_type, "mixed"):
             different_notes.append(note)
 
     if different_notes:

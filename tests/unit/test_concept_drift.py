@@ -146,3 +146,20 @@ def test_concept_drift_is_deterministic_for_a_seed(tmp_path):
 
     assert len(first) == 2
     assert [s.text for s in first] == [s.text for s in second]
+
+
+def test_concept_drift_skips_a_note_that_moved_away_from_every_neighbour(tmp_path):
+    """Contract: the named neighbour lies in the direction of the change
+    (positive alignment); if the note moved away from all of them, nothing is
+    named.
+
+    Regression: the best of the alignments was named even when negative, so
+    "aligns most with [[Garden Note]]" was said of a note that had moved away
+    from the garden vocabulary.
+    """
+    ctx = _vault(
+        tmp_path,
+        {"Drifting Note": (ROCKETS, DRIFTED), "Garden Note": NEIGHBOURS["Garden Note"]},
+    )
+
+    assert concept_drift.suggest(ctx) == []

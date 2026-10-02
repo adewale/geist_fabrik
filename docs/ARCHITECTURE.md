@@ -231,7 +231,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │  │ # 2025-10-21 Geist Session                                         │ │
 │  │                                                                    │ │
 │  │ What if [[Note A]] and [[Note B]] were connected? They're         │ │
-│  │ semantically similar but in different parts of your vault.        │ │
+│  │ similar but no link joins them, directly or via a neighbour.      │ │
 │  │ ^g20251021-001                                                    │ │
 │  │ *geist: bridge_builder*                                           │ │
 │  │                                                                    │ │

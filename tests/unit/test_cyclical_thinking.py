@@ -1,16 +1,17 @@
 """Tests for the cyclical_thinking geist.
 
 Trigger: >= 5 sessions and a user note whose semantic similarity to its FIRST
-snapshot goes low -> high (threshold 0.7) at least twice across the later
-snapshots. Up to 5 cycling notes become candidates and 2 are sampled.
+snapshot goes low (< 0.6) -> high (> 0.8) at least twice across the later
+snapshots. 5 cycling notes are sampled as candidates and 2 are suggested.
 
 Fixture arithmetic (lexical stub): HOME and AWAY share only the note's title
 words. For "Cycler" (1 title word + 4 HOME words vs 1 + 4 AWAY words) the
-cosine of a HOME snapshot with an AWAY one is 1/5 = 0.2 (< 0.7, "low"), and of
+cosine of a HOME snapshot with an AWAY one is 1/5 = 0.2 (< 0.6, "low"), and of
 two HOME snapshots 1.0 ("high"). The current snapshot is the file content
 (HOME); history snapshots are rewritten with ``set_history``.
 """
 
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -114,3 +115,53 @@ def test_cyclical_thinking_excludes_geist_journal(tmp_path):
         must_reference=["Cycler"],
         must_not_reference=["geist journal", "2023-12-01"],
     )
+
+
+# Hovering fixture: the first snapshot is BASE (the title plus 8 words); later
+# snapshots add 8 words (similarity to the first 0.765) or 15 words (0.654).
+# Both sit inside the 0.6-0.8 hysteresis band, on either side of 0.7.
+HOVER_BASE = "alpha bravo charlie delta echo foxtrot golf hotel"
+HOVER_EXTRA = (
+    "quartz ruby sapphire topaz garnet opal pearl amber jade onyx beryl coral flint slate basalt"
+)
+NEAR = f"{HOVER_BASE} {' '.join(HOVER_EXTRA.split()[:8])}"
+FARTHER = f"{HOVER_BASE} {HOVER_EXTRA}"
+
+
+def test_cyclical_thinking_ignores_small_edits_hovering_around_one_threshold(tmp_path):
+    """Contract: a cycle must leave the first state (similarity < 0.6) and return
+    (> 0.8); wobbling inside that band is not a cycle.
+
+    Regression: a single 0.7 threshold counted similarities 0.765, 0.654,
+    0.765, 0.654, 0.765 (small edits) as two "returns" to the first state.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Hover", NEAR, created=datetime(2023, 1, 1))
+    ctx = builder.build(history=HISTORY)
+    set_history(
+        ctx,
+        "Hover.md",
+        {
+            date: f"# Hover\n\n{body}"
+            for date, body in zip(HISTORY, [HOVER_BASE, NEAR, FARTHER, NEAR, FARTHER])
+        },
+    )
+
+    assert cyclical_thinking.suggest(ctx) == []
+
+
+def test_cyclical_thinking_can_show_any_cycling_note(tmp_path):
+    """Contract: every cycling note can be suggested, whatever its vault order.
+
+    Regression: candidates were ``cycling_notes[:5]`` before sampling, so with
+    six cycling notes the last one in vault order was never shown.
+    """
+    titles = [f"Cycler {i}" for i in range(6)]
+    ctx = _vault(tmp_path, {title: TWO_CYCLES for title in titles})
+
+    shown: set[str] = set()
+    for seed in range(30):
+        ctx.rng = random.Random(seed)
+        shown.update(note for s in cyclical_thinking.suggest(ctx) for note in s.notes)
+
+    assert shown == set(titles)

@@ -7,26 +7,21 @@ tracery:
     # Showcase .capitalize and .ed
     - "#opening.capitalize# you #action.ed# #note# like #metaphor.a#"
 
-    # Showcase .s and .capitalize
-    - "#observation.capitalize# about #note#: it has #count# #element.s#"
-
-    # Showcase .capitalizeAll with chaining
-    - "#concept.capitalizeAll#: #note# #relationship.s# with #num# other #item.s#"
+    # Showcase .capitalizeAll and .s (a question: nothing here counts the
+    # note's actual relationships)
+    - "#concept.capitalizeAll#: could #note# #relationship# with #num# other #item.s#?"
 
     # Showcase .a with different starting vowels/consonants
-    - "#note# could be #descriptor.a#, not #other_descriptor.a#"
+    - "#note# could be #descriptor.a#, not #other_descriptor.a#."
 
     # Showcase complex chaining: .s then .capitalize
     - "#question_start.capitalize# the #pattern.s.capitalize# in #note# reveal #insight.a#?"
 
-    # Showcase .ed with irregular verbs + .capitalize
-    - "#time_phrase.capitalize#, you #verb.ed# #note#. #prompt.capitalize# now"
-
-    # Showcase all modifiers in one template
-    - "#starter.capitalize# #note# #transform_verb.ed# into #number# #new_form.s#. #question.capitalize#"
+    # Showcase all modifiers in one template (.ed includes irregulars: grew, split)
+    - "#starter.capitalize# #note# #transform_verb.ed# into #number# #new_form.s#—#question#?"
 
     # Showcase .a with multiple noun types
-    - "treat #note# as #treatment.a#, apply #method.a#, discover #outcome.a#"
+    - "Treat #note# as #treatment.a#, apply #method.a#, discover #outcome.a#."
 
   # Basic verbs (for .ed modifier)
   opening:
@@ -57,24 +52,6 @@ tracery:
     - "map"              # a map
     - "archive"          # an archive
 
-  observation:
-    - "interesting"
-    - "curious"
-    - "notable"
-
-  count:
-    - "three"
-    - "five"
-    - "seven"
-
-  # Singular nouns (for .s modifier)
-  element:
-    - "connection"
-    - "assumption"
-    - "question"
-    - "pattern"
-    - "gap"
-
   # Multi-word concepts (for .capitalizeAll)
   concept:
     - "hidden pattern"
@@ -82,10 +59,12 @@ tracery:
     - "key insight"
     - "missing link"
 
+  # Verbs: "could [[X]] resonate with ..." (the nouns resonance/tension
+  # rendered as "resonances with" under .s)
   relationship:
-    - "resonance"
-    - "tension"
-    - "connection"
+    - "resonate"
+    - "clash"
+    - "connect"
 
   num:
     - "two"
@@ -132,30 +111,12 @@ tracery:
     - "understanding"   # an understanding
     - "truth"           # a truth
 
-  time_phrase:
-    - "last year"
-    - "three months ago"
-    - "recently"
-
-  # Irregular verbs (for .ed modifier)
-  verb:
-    - "write"           # wrote
-    - "think"           # thought
-    - "make"            # made
-    - "find"            # found
-    - "create"          # created
-    - "build"           # built
-
-  prompt:
-    - "revisit it"
-    - "expand it"
-    - "question it"
-    - "challenge it"
-
+  # "suppose", not "consider how": "Consider how [[X]] evolved into ..."
+  # read as a claim that it did.
   starter:
     - "imagine if"
     - "what if"
-    - "consider how"
+    - "suppose"
 
   transform_verb:
     - "split"           # split

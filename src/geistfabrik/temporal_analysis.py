@@ -24,6 +24,12 @@ if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
 
+# Hysteresis band for find_cycling_notes: similarity to the first snapshot
+# must drop below LOW to leave the first state and rise above HIGH to return.
+CYCLE_HIGH_SIMILARITY = 0.8
+CYCLE_LOW_SIMILARITY = 0.6
+
+
 def semantic_component(embedding: np.ndarray) -> np.ndarray:
     """Return the semantic dimensions from a stored session embedding.
 
@@ -300,7 +306,12 @@ class EmbeddingTrajectoryCalculator:
     def is_converging_with(
         self, other: "EmbeddingTrajectoryCalculator", threshold: float = 0.15
     ) -> bool:
-        """Check if trajectories are converging (recent sim > early sim + threshold).
+        """Check if trajectories are converging.
+
+        Both the trend (mean of the later half of shared sessions over the
+        earlier half) and the net change (latest similarity over the first)
+        must rise by more than ``threshold``, so a transient spike that has
+        since fallen back is not convergence.
 
         Args:
             other: Another trajectory calculator
@@ -317,13 +328,19 @@ class EmbeddingTrajectoryCalculator:
         midpoint = len(similarities) // 2
         early_avg = float(np.mean(similarities[:midpoint]))
         late_avg = float(np.mean(similarities[midpoint:]))
+        net_change = similarities[-1] - similarities[0]
 
-        return bool((late_avg - early_avg) > threshold)
+        return bool((late_avg - early_avg) > threshold and net_change > threshold)
 
     def is_diverging_from(
         self, other: "EmbeddingTrajectoryCalculator", threshold: float = 0.15
     ) -> bool:
-        """Check if trajectories are diverging (early sim > recent sim + threshold).
+        """Check if trajectories are diverging.
+
+        Both the trend (mean of the earlier half of shared sessions over the
+        later half) and the net change (first similarity over the latest)
+        must fall by more than ``threshold``, so a temporary dip that has
+        since recovered is not divergence.
 
         Args:
             other: Another trajectory calculator
@@ -340,8 +357,9 @@ class EmbeddingTrajectoryCalculator:
         midpoint = len(similarities) // 2
         early_avg = float(np.mean(similarities[:midpoint]))
         late_avg = float(np.mean(similarities[midpoint:]))
+        net_change = similarities[0] - similarities[-1]
 
-        return bool((early_avg - late_avg) > threshold)
+        return bool((early_avg - late_avg) > threshold and net_change > threshold)
 
 
 class TemporalPatternFinder:
@@ -478,8 +496,9 @@ class TemporalPatternFinder:
     def find_cycling_notes(self, notes: list["Note"], min_cycles: int = 2) -> list["Note"]:
         """Find notes that return to previous semantic states (cyclical thinking).
 
-        A note is considered cyclical if it alternates between being similar and
-        dissimilar to its first state across sessions.
+        A note is considered cyclical if it alternates between being similar
+        (cosine > CYCLE_HIGH_SIMILARITY) and dissimilar (< CYCLE_LOW_SIMILARITY)
+        to its first state across sessions.
 
         Args:
             notes: Notes to analyze
@@ -507,16 +526,19 @@ class TemporalPatternFinder:
                 sim = sklearn_cosine(first_emb.reshape(1, -1), emb.reshape(1, -1))
                 similarities.append(float(sim[0, 0]))
 
-            # Count transitions from high->low->high similarity
+            # Count returns (low -> high) to the first state. The walk starts
+            # "high" (the first snapshot is identical to itself). Hysteresis: a
+            # state changes only on crossing the far edge of the band, so
+            # small edits hovering around one threshold are not cycles.
             cycles = 0
-            state = "high" if similarities[0] > 0.7 else "low"
+            state = "high"
 
-            for sim in similarities[1:]:
-                new_state = "high" if sim > 0.7 else "low"
-                if new_state != state:
-                    if state == "low" and new_state == "high":
-                        cycles += 1
-                    state = new_state
+            for sim in similarities:
+                if state == "high" and sim < CYCLE_LOW_SIMILARITY:
+                    state = "low"
+                elif state == "low" and sim > CYCLE_HIGH_SIMILARITY:
+                    state = "high"
+                    cycles += 1
 
             if cycles >= min_cycles:
                 cycling.append(note)

@@ -172,6 +172,107 @@ class ExtractionPipeline:
 
 
 # ============================================================================
+# Sentence segmentation shared by the definition/claim/hypothesis extractors
+# ============================================================================
+
+# Leading Markdown furniture on a line: blockquote ">", a list bullet or
+# number, and a task checkbox.
+_LINE_PREFIX = re.compile(r"^\s*(?:>\s*)*(?:(?:[-*+]|\d+[.)])\s+)?(?:\[[ xX]\]\s+)?")
+# A line that starts a new Markdown block rather than continuing a
+# hard-wrapped paragraph line.
+_BLOCK_START = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|>|#|\||:\s|-{3,}\s*$|={3,}\s*$)")
+# A line nothing can continue: a heading, table row, rule, or a line of bold
+# text only (a pseudo-heading such as "**Step 2**").
+_CLOSED_LINE = re.compile(r"^\s*(?:#|\||-{3,}\s*$|={3,}\s*$|(?:[-*+]\s+)?\*\*[^*\n]+\*\*:?\s*$)")
+# A leading bold field label such as "**Problem**:" or "**Status:**".
+_FIELD_LABEL = re.compile(r"^(?:\*\*[^*\n]{1,60}?\*\*\s*:|\*\*[^*\n]{1,60}?:\*\*)\s*")
+# Sentence-ending punctuation (plus any closing quotes/brackets) followed by
+# whitespace. A period followed directly by a non-space ("0.5", "v1.0",
+# "file.md") therefore never ends a sentence.
+_SENTENCE_END = re.compile(r"[.!?][\"'”’)\]]*\s+")
+# Abbreviations whose period does not end a sentence ("e.g. foo").
+_ABBREVIATIONS = re.compile(
+    r"(?:\b(?:e\.g|i\.e|etc|vs|cf|approx|al|fig|eq|dr|mr|mrs|ms)|\b[A-Z])\.$",
+    re.IGNORECASE,
+)
+# Quote marks a sentence may open with when it is reported speech or example
+# output rather than the author's own statement.
+_OPENING_QUOTES = "\"'“‘"
+
+
+def _paragraph_lines(content: str) -> list[str]:
+    """Join hard-wrapped lines back into the line they render as.
+
+    A line continues the previous one unless it is blank or starts a new
+    Markdown block (list item, heading, table row, blockquote, definition
+    list ":", rule). YAML frontmatter is dropped.
+    """
+    lines = content.split("\n")
+    if lines and lines[0].strip() == "---":
+        closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+        if closing is not None:
+            lines = lines[closing + 1 :]
+    logical: list[str] = []
+    previous_blank = True
+    for line in lines:
+        if not line.strip():
+            previous_blank = True
+            continue
+        continues = not previous_blank and not _BLOCK_START.match(line)
+        if continues and not _CLOSED_LINE.match(logical[-1]):
+            logical[-1] = f"{logical[-1].rstrip()} {line.strip()}"
+        else:
+            logical.append(line)
+        previous_blank = False
+    return logical
+
+
+def prose_sentences(content: str) -> list[str]:
+    """Split Markdown prose into sentences for the sentence-level extractors.
+
+    Hard-wrapped lines are rejoined first, so a wrapped sentence is one
+    sentence rather than a fragment per line. Table rows and headings are
+    skipped. List bullets, blockquote markers, checkboxes, a leading bold
+    field label ("**Problem**:") and stray ``**`` emphasis markers are
+    removed. A sentence ends at ``.``, ``!`` or ``?`` followed by whitespace,
+    except after common abbreviations, so decimals ("0.5") and "e.g." do not
+    cut a sentence short.
+
+    Args:
+        content: Markdown content (code already handled by strip_code())
+
+    Returns:
+        Sentences, stripped of surrounding whitespace, in document order
+    """
+    sentences: list[str] = []
+    for line in _paragraph_lines(content):
+        stripped = line.strip()
+        if stripped.startswith(("|", "#")):
+            continue
+        body = _LINE_PREFIX.sub("", line, count=1)
+        body = _FIELD_LABEL.sub("", body, count=1).replace("**", "").strip()
+        start = 0
+        for match in _SENTENCE_END.finditer(body):
+            if _ABBREVIATIONS.search(body[start : match.start() + 1]):
+                continue
+            sentences.append(body[start : match.end()].strip())
+            start = match.end()
+        if body[start:].strip():
+            sentences.append(body[start:].strip())
+    return [s for s in sentences if s]
+
+
+def _is_own_statement(sentence: str) -> bool:
+    """True if a sentence can be quoted back as something the author asserted.
+
+    Rejects continuation fragments of hard-wrapped lines (lowercase start)
+    and quoted example text or reported speech (opening quotation mark).
+    """
+    first = sentence[0]
+    return not first.islower() and first not in _OPENING_QUOTES
+
+
+# ============================================================================
 # Built-in Extraction Strategies
 # ============================================================================
 
@@ -207,14 +308,43 @@ class QuestionExtractor:
 
 
 class DefinitionExtractor:
-    """Extract definitions (X is Y, X: Y patterns).
+    """Extract definitions of a named term.
 
-    Captures:
-    - "X is defined as Y"
-    - "X: Y" (definition lists)
-    - "X means Y"
-    - "X refers to Y"
+    Captures sentences that open with a short term (at most five words and
+    40 characters, no punctuation) followed by:
+    - "is defined as" / "is a" / "is an"
+    - "means"
+    - "refers to"
+
+    and Markdown definition lists (a term line followed by ": definition").
+
+    Bold field labels such as "**Status**: done" are not definitions and are
+    not extracted: in real notes they are almost always form fields
+    ("Problem:", "Source:", "Impact:").
     """
+
+    # Term = 1-5 words (an inline code span counts as one word). Bold markers
+    # are already gone: prose_sentences() strips "**".
+    _TERM_WORD = r"(?:`[^`\n]+`|[\w'’-]+)"
+    _SENTENCE_DEFINITION = re.compile(
+        rf"^(?P<term>{_TERM_WORD}(?:[ \t]+{_TERM_WORD}){{0,4}})"
+        r"[ \t]+(?P<verb>is[ \t]+defined[ \t]+as|is[ \t]+an?|means|refers[ \t]+to)[ \t]+\S",
+        re.IGNORECASE,
+    )
+    _DEFINITION_LIST = re.compile(
+        r"^(?P<term>[^\s|#>:*+-][^\n:]{0,59}?)[ \t]*\n:[ \t]+(?P<definition>\S[^\n]*)$",
+        re.MULTILINE,
+    )
+    # Pronouns and deictic words open "It is a ...", "This means ...", which
+    # describe rather than define.
+    _NOT_TERMS = frozenset(
+        "it this that these those there here which what who he she they we i you "
+        "one each everything something nothing anything all".split()
+    )
+    # Clause words inside the "term" mean it is a clause, not a noun phrase
+    # ("Detect if file is a ...", "Explanation of why this is a ...").
+    _CLAUSE_WORDS = frozenset("if why when where how what which that this because whether".split())
+    MAX_TERM_LENGTH = 40
 
     def extract(self, content: str) -> list[str]:
         """Extract definitions from content.
@@ -223,55 +353,51 @@ class DefinitionExtractor:
             content: Markdown content (code blocks already removed)
 
         Returns:
-            List of definitions
+            List of definitions (whole sentences, or "term: definition")
         """
-        definitions = []
-
-        # Pattern 1: "X is Y" definitions
-        is_definitions = re.findall(
-            r"^([^.\n]+?)\s+is\s+((?:defined as|a|an)\s+[^.\n]+\.?)",
-            content,
-            re.MULTILINE | re.IGNORECASE,
-        )
-        definitions.extend([f"{term} is {definition}" for term, definition in is_definitions])
-
-        # Pattern 2: "X: Y" definition lists
-        colon_definitions = re.findall(
-            r"^\s*[-*+]?\s*\*\*([^:*]+)\*\*:\s*([^.\n]+\.?)",
-            content,
-            re.MULTILINE,
-        )
-        definitions.extend([f"{term}: {definition}" for term, definition in colon_definitions])
-
-        # Pattern 3: "X means Y"
-        means_definitions = re.findall(
-            r"^([^.\n]+?)\s+means\s+([^.\n]+\.?)",
-            content,
-            re.MULTILINE | re.IGNORECASE,
-        )
-        definitions.extend([f"{term} means {definition}" for term, definition in means_definitions])
-
-        # Pattern 4: "X refers to Y"
-        refers_definitions = re.findall(
-            r"^([^.\n]+?)\s+refers to\s+([^.\n]+\.?)",
-            content,
-            re.MULTILINE | re.IGNORECASE,
-        )
-        definitions.extend(
-            [f"{term} refers to {definition}" for term, definition in refers_definitions]
-        )
-
+        definitions = [
+            f"{m.group('term').strip()}: {m.group('definition').strip()}"
+            for m in self._DEFINITION_LIST.finditer(content)
+        ]
+        for sentence in prose_sentences(content):
+            match = self._SENTENCE_DEFINITION.match(sentence)
+            # "?" is a question, ":" introduces a list rather than defining.
+            if match is None or sentence.endswith(("?", ":")):
+                continue
+            term = match.group("term")
+            words = [w.lower() for w in term.split()]
+            if len(term) > self.MAX_TERM_LENGTH or words[0] in self._NOT_TERMS:
+                continue
+            if self._CLAUSE_WORDS.intersection(words[1:]):
+                continue
+            definitions.append(sentence)
         return definitions
 
 
 class ClaimExtractor:
     """Extract claims (assertive statements).
 
-    Captures:
-    - Sentences with strong assertion verbs (shows, proves, demonstrates)
+    Captures whole sentences containing:
+    - A strong third-person assertion verb after a subject ("X shows ...",
+      "proves", "demonstrates", "establishes", "confirms")
     - Research findings ("Studies show...")
-    - Causal claims ("X causes Y")
+    - Causal claims ("X causes Y", "leads to", "results in")
+
+    Imperatives ("Show the numbers"), nouns ("Root cause", "causes of"),
+    bold field labels, table rows and quoted example text are not claims.
     """
+
+    _ASSERTION = re.compile(
+        r"^\S.*?\s(?:shows|proves|demonstrates|establishes|confirms)\b", re.IGNORECASE
+    )
+    _RESEARCH = re.compile(
+        r"\b(?:Research|Studies|Evidence|Data)\s+(?:shows?|suggests?|indicates?)\b",
+        re.IGNORECASE,
+    )
+    _CAUSAL = re.compile(
+        r"^\S.*?\s(?:causes(?!\s+of\b)|caused|leads\s+to|led\s+to|results\s+in)\b",
+        re.IGNORECASE,
+    )
 
     def extract(self, content: str) -> list[str]:
         """Extract claims from content.
@@ -280,46 +406,33 @@ class ClaimExtractor:
             content: Markdown content (code blocks already removed)
 
         Returns:
-            List of claims
+            List of claims (whole sentences ending in a period)
         """
         claims = []
-
-        # Pattern 1: Strong assertion verbs
-        assertion_verbs = r"(?:shows?|proves?|demonstrates?|establishes?|confirms?)"
-        assertions = re.findall(
-            rf"([^.\n]*?\b{assertion_verbs}\b[^.\n]+\.)",
-            content,
-            re.IGNORECASE,
-        )
-        claims.extend(assertions)
-
-        # Pattern 2: Research findings
-        research_claims = re.findall(
-            r"((?:Research|Studies|Evidence|Data)\s+(?:shows?|suggests?|indicates?)[^.\n]+\.)",
-            content,
-            re.IGNORECASE,
-        )
-        claims.extend(research_claims)
-
-        # Pattern 3: Causal claims
-        causal_claims = re.findall(
-            r"([^.\n]+?\b(?:causes?|leads to|results in)\b[^.\n]+\.)",
-            content,
-            re.IGNORECASE,
-        )
-        claims.extend(causal_claims)
-
+        for sentence in prose_sentences(content):
+            if not sentence.endswith(".") or not _is_own_statement(sentence):
+                continue
+            if any(p.search(sentence) for p in (self._ASSERTION, self._RESEARCH, self._CAUSAL)):
+                claims.append(sentence)
         return claims
 
 
 class HypothesisExtractor:
     """Extract hypotheses (if/then, may/might patterns).
 
-    Captures:
+    Captures whole sentences containing:
     - If/then statements
-    - May/might speculation
-    - Could/would conditionals
+    - May/might/could speculation
+    - Would ... if conditionals
+
+    A modal quoted as a word ('use "might"'), the month "May", table rows
+    and quoted example text are not hypotheses.
     """
+
+    _IF_THEN = re.compile(r"\bif\s+\S.*?,?\s+then\s+\S", re.IGNORECASE)
+    _MODAL = re.compile(r"\b(?:may|might|could|Might|Could)\b|^May\s+[a-z]")
+    _WOULD_IF = re.compile(r"\bwould\b.+\bif\b", re.IGNORECASE)
+    _QUOTED_MODAL = re.compile(r"[\"'“‘](?:may|might|could|would)[\"'”’]", re.IGNORECASE)
 
     def extract(self, content: str) -> list[str]:
         """Extract hypotheses from content.
@@ -328,34 +441,16 @@ class HypothesisExtractor:
             content: Markdown content (code blocks already removed)
 
         Returns:
-            List of hypotheses
+            List of hypotheses (whole sentences ending in a period)
         """
         hypotheses = []
-
-        # Pattern 1: If/then statements
-        if_then = re.findall(
-            r"(If\s+[^.\n]+?,?\s+then\s+[^.\n]+\.)",
-            content,
-            re.IGNORECASE,
-        )
-        hypotheses.extend(if_then)
-
-        # Pattern 2: May/might speculation
-        may_might = re.findall(
-            r"([^.\n]+?\b(?:may|might|could)\b[^.\n]+\.)",
-            content,
-            re.IGNORECASE,
-        )
-        hypotheses.extend(may_might)
-
-        # Pattern 3: Would conditionals
-        would_conditionals = re.findall(
-            r"([^.\n]+?\bwould\b[^.\n]+if[^.\n]+\.)",
-            content,
-            re.IGNORECASE,
-        )
-        hypotheses.extend(would_conditionals)
-
+        for sentence in prose_sentences(content):
+            if not sentence.endswith(".") or not _is_own_statement(sentence):
+                continue
+            if self._QUOTED_MODAL.search(sentence):
+                continue
+            if any(p.search(sentence) for p in (self._IF_THEN, self._MODAL, self._WOULD_IF)):
+                hypotheses.append(sentence)
         return hypotheses
 
 

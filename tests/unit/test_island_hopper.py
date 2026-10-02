@@ -2,7 +2,8 @@
 
 island_hopper needs >= 10 notes. For each of the top 5 hubs it forms a
 cluster of the hub plus its backlinkers (>= 3 notes), then picks the
-non-member whose AVERAGE similarity to the cluster is inside the bridge window
+non-member, not linked to or from any member, whose AVERAGE similarity to
+the cluster is inside the bridge window
 SimilarityLevel.MODERATE (0.5) < avg < SimilarityLevel.HIGH (0.65): close
 enough to bridge, not so close it belongs in the cluster. One suggestion per
 hub, at most 3 in total.
@@ -13,6 +14,7 @@ average cosine to the cluster is ~0.57 (inside the window). A near-copy
 carrying 14 of them is ~0.8 (too close).
 """
 
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -88,9 +90,13 @@ def test_island_hopper_proposes_bridge_to_hub_cluster(tmp_path: Path) -> None:
     assert_valid_suggestions(suggestions, "island_hopper", must_reference=[bridge, "Orchard"])
     assert len(suggestions) == 1
     assert suggestions[0].notes[:2] == [bridge, "Orchard"]
-    assert set(suggestions[0].notes[2:]) <= {"Orchard", "Orchard Linker 0", "Orchard Linker 1"}
+    assert sorted(suggestions[0].notes[2:]) == ["Orchard Linker 0", "Orchard Linker 1"]
     assert suggestions[0].text.startswith(
-        f"[[{bridge}]] could bridge your cluster around [[Orchard]]"
+        f"[[{bridge}]] is semantically close to your cluster around [[Orchard]] (which includes "
+    )
+    assert suggestions[0].text.endswith(
+        "but isn't linked to any of its notes. Could it bridge that island to the rest "
+        "of your thinking?"
     )
 
 
@@ -182,3 +188,53 @@ def test_island_hopper_excludes_geist_journal(tmp_path: Path) -> None:
         must_reference=[bridge, "Orchard"],
         must_not_reference=["geist journal", *journal],
     )
+
+
+def test_island_hopper_does_not_name_the_hub_as_a_member(tmp_path: Path) -> None:
+    """Contract: the example members are backlinkers; the hub is named once.
+
+    Regression: members were sampled from a list that included the hub, giving
+    "your cluster around [[Orchard]] (which includes [[Orchard]], ...)".
+    """
+    builder = VaultBuilder(tmp_path)
+    bridge = _add_island(builder, "Orchard")
+    _add_fillers(builder, MIN_NOTES - 4)
+    ctx = builder.build()
+
+    for seed in range(10):
+        ctx.rng = random.Random(seed)
+        (suggestion,) = island_hopper.suggest(ctx)
+        assert suggestion.notes[:2] == [bridge, "Orchard"]
+        assert sorted(suggestion.notes[2:]) == ["Orchard Linker 0", "Orchard Linker 1"]
+        assert suggestion.text.count("[[Orchard]]") == 1
+
+
+@pytest.mark.parametrize(
+    ("hub_extra", "bridge_extra", "shared"),
+    [
+        (" [[Wayfarer]]", "", BRIDGE_SHARED),
+        # The link text adds "orchard linker", so one topic word fewer.
+        ("", " [[Orchard Linker 0]]", BRIDGE_SHARED - 1),
+    ],
+    ids=["hub_links_to_bridge", "bridge_links_to_member"],
+)
+def test_island_hopper_skips_notes_already_linked_to_the_cluster(
+    tmp_path: Path, hub_extra: str, bridge_extra: str, shared: int
+) -> None:
+    """Contract: a note linked to or from any cluster member is not "not yet
+    connected", however close it is.
+
+    Regression: only members were excluded, so a note the hub links to (or
+    that links to a member) was proposed as "not yet connected".
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Orchard", TOPICS["Orchard"] + hub_extra, created=CREATED)
+    for i in range(2):
+        builder.note(f"Orchard Linker {i}", f"{TOPICS['Orchard']} [[Orchard]]", created=CREATED)
+    builder.note("Wayfarer", _bridge_body("Orchard", shared) + bridge_extra, created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 4)
+    ctx = builder.build()
+    avg = _avg_sim_to_cluster(ctx, "Wayfarer", "Orchard")
+    assert SimilarityLevel.MODERATE < avg < SimilarityLevel.HIGH
+
+    assert island_hopper.suggest(ctx) == []

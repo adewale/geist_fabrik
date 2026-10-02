@@ -16,6 +16,7 @@ import pytest
 from geistfabrik import Session, Vault
 from geistfabrik.default_geists.code import claim_harvester, hypothesis_harvester
 from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder
 
 SESSION_DATE = datetime(2024, 3, 15)
 
@@ -66,3 +67,80 @@ def test_harvesters_empty_on_plain_prose():
     ctx = _context({"plain.md": "# Plain\nJust a calm description with nothing to extract.\n"})
     assert claim_harvester.suggest(ctx) == []
     assert hypothesis_harvester.suggest(ctx) == []
+
+
+def _builder_vault(tmp_path, notes: dict[str, str]) -> VaultContext:
+    builder = VaultBuilder(tmp_path)
+    for title, body in notes.items():
+        builder.note(title, body)
+    return builder.build()
+
+
+PLAIN_NOTES = {f"Plain {i}": f"Plain description number {i} of nothing much" for i in range(7)}
+
+
+def test_claim_harvester_tries_several_notes(tmp_path):
+    """Contract: the geist looks past notes without claims before abstaining.
+
+    Regression: it read one random note and abstained when that note had no
+    claim (about two thirds of sessions on a real vault).
+    """
+    ctx = _builder_vault(
+        tmp_path, {**PLAIN_NOTES, "Sleep": "Research shows that sleep improves recall."}
+    )
+
+    suggestions = claim_harvester.suggest(ctx)
+
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            'In [[Sleep]] you claimed: "Research shows that sleep improves recall." '
+            "Is that still true - and what would change your mind?",
+            ["Sleep"],
+        )
+    ]
+
+
+def test_hypothesis_harvester_tries_several_notes(tmp_path):
+    """Contract: the geist looks past notes without hypotheses before abstaining.
+
+    Regression: it read one random note and abstained when that note had none.
+    """
+    ctx = _builder_vault(
+        tmp_path, {**PLAIN_NOTES, "Caching": "Caching the index might halve startup time."}
+    )
+
+    suggestions = hypothesis_harvester.suggest(ctx)
+
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            '[[Caching]] speculates: "Caching the index might halve startup time." '
+            "What is the smallest experiment that would tell you if it holds?",
+            ["Caching"],
+        )
+    ]
+
+
+def test_claim_harvester_quotes_clean_sentences(tmp_path):
+    """Contract: the quoted claim is a whole sentence without Markdown labels.
+
+    Regression: "**Root cause**: ..." (a noun) and "**Value**: "[[X]] shows ..."
+    (quoted example output) were harvested, and a real claim was quoted with
+    its "**Result**:" label and "**" emphasis.
+    """
+    ctx = _builder_vault(
+        tmp_path,
+        {
+            "Bench": (
+                "**Root cause**: the cache was never invalidated.\n\n"
+                '**Value**: "[[Productivity systems]] shows interpretive rhythm."\n\n'
+                "**Result**: The benchmark **confirms** a 2.5x speedup."
+            )
+        },
+    )
+
+    suggestions = claim_harvester.suggest(ctx)
+
+    assert [s.text for s in suggestions] == [
+        'In [[Bench]] you claimed: "The benchmark confirms a 2.5x speedup." '
+        "Is that still true - and what would change your mind?"
+    ]

@@ -2,7 +2,8 @@
 
 Trigger: at least 2 linked (source -> target) note pairs exist, and for a
 pair the per-session SEMANTIC similarity over >= 3 shared sessions falls:
-mean(first half) - mean(second half) > 0.15. Capped at 2.
+mean(first half) - mean(second half) > 0.15 AND first - last > 0.15. A mutual
+link is one pair. Capped at 2.
 
 History vectors are injected with ``set_history``: a note's current file
 content is its latest snapshot.
@@ -177,3 +178,42 @@ def test_divergent_evolution_is_deterministic_for_a_seed(tmp_path):
 
     assert len(first) == 2
     assert [s.text for s in first] == [s.text for s in second]
+
+
+def test_divergent_evolution_ignores_a_dip_that_recovered(tmp_path):
+    """Contract: divergence needs a net fall (first over latest similarity).
+
+    Regression: only the early-half mean was compared with the late half, so
+    Drifter, which said NEW for one session and is back to SHARED, was
+    reported as "became less similar".
+    """
+    ctx = _vault(
+        tmp_path,
+        {
+            "Hub": (SHARED + " [[Drifter]] [[Anchor]]", {}),
+            "Drifter": (SHARED, {H1: SHARED, H2: NEW}),
+            "Anchor": (SHARED, {}),
+        },
+    )
+
+    assert divergent_evolution.suggest(ctx) == []
+
+
+def test_divergent_evolution_reports_a_mutual_link_once(tmp_path):
+    """Contract: notes linking each other are one pair and one suggestion.
+
+    Regression: Hub -> Drifter and Drifter -> Hub were collected as two pairs,
+    so both suggestions named the same two notes.
+    """
+    ctx = _vault(
+        tmp_path,
+        {
+            "Hub": (SHARED + " [[Drifter]] [[Anchor]]", {}),
+            "Drifter": (NEW + " [[Hub]]", DRIFTED),
+            "Anchor": (SHARED, {}),
+        },
+    )
+
+    suggestions = divergent_evolution.suggest(ctx)
+
+    assert [sorted(s.notes) for s in suggestions] == [["Drifter", "Hub"]]

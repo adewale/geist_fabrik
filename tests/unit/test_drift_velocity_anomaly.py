@@ -58,7 +58,27 @@ def test_drift_velocity_anomaly_reports_an_accelerating_note(tmp_path):
         suggestions, "drift_velocity_anomaly", must_reference=["Mover", "Destination"]
     )
     assert [s.notes for s in suggestions] == [["Mover", "Destination"]]
-    assert "(velocity: 0.00 → 0.80)" in suggestions[0].text
+    assert suggestions[0].text == (
+        "[[Mover]] has been changing more lately: its semantic representation moved "
+        "0.00 across its first three recorded sessions and 0.80 across its last three. "
+        "It is currently similar to [[Destination]]. What do the source edits show?"
+    )
+
+
+def test_drift_velocity_anomaly_reports_change_per_sessions_not_velocity(tmp_path):
+    """Contract: the rates are change across windows of three recorded
+    sessions; sessions are irregular, so the text makes no velocity claim.
+
+    Regression: the text said "velocity: 0.00 → 0.80", which reads as change
+    per unit time, although a user who invoked daily and then monthly gets
+    apparent "acceleration" from session spacing alone.
+    """
+    ctx = _vault(tmp_path, {"Mover": (AWAY, STEADY_THEN_FAST), **DESTINATION})
+
+    (suggestion,) = drift_velocity_anomaly.suggest(ctx)
+
+    assert "velocity" not in suggestion.text
+    assert "across its first three recorded sessions" in suggestion.text
 
 
 def test_drift_velocity_anomaly_acceleration_threshold(tmp_path):
