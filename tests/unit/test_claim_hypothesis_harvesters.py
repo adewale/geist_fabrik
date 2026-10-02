@@ -144,3 +144,20 @@ def test_claim_harvester_quotes_clean_sentences(tmp_path):
         'In [[Bench]] you claimed: "The benchmark confirms a 2.5x speedup." '
         "Is that still true - and what would change your mind?"
     ]
+
+
+@pytest.mark.timeout(10)
+def test_hypothesis_harvester_is_fast_on_a_run_on_sentence() -> None:
+    """Regression: the if/then and would/if patterns cost (#if x sentence
+    length), so a 400 KB run-on "sentence" took over 30 s (the geist timeout).
+    The geist's extractor now skips sentences longer than its LengthFilter
+    keeps, which cannot change its output."""
+    run_on = "I think " + " ".join(["if soil and roots would maybe"] * 14_000) + " would."
+    ctx = _context({"Runon.md": f"# Runon\n\n{run_on}\n\nIf it rains, then the soil softens.\n"})
+
+    suggestions = hypothesis_harvester.suggest(ctx)
+
+    assert [s.text for s in suggestions] == [
+        '[[Runon]] speculates: "If it rains, then the soil softens." What is the smallest '
+        "experiment that would tell you if it holds?"
+    ]

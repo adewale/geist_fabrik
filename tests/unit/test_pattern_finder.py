@@ -232,3 +232,30 @@ def test_stopwords_match_whole_tokens_not_substrings(tmp_path: Path) -> None:
         "Recurring theme you haven't explicitly connected?"
     ]
     assert sorted(suggestions[0].notes) == group
+
+
+@pytest.mark.timeout(10)
+def test_phrases_is_linear_on_a_long_unbroken_word() -> None:
+    """Regression: the URL pattern ``\\w+://\\S+`` was retried from every offset
+    of a 200k-character word (over 30 s, the geist timeout); anchored with
+    ``\\b`` it scans the word once. Every note is still read in full."""
+    content = "# Blob\n\n" + "abcdefghij" * 20_000 + " velvet copper lantern glows"
+
+    phrases = list(pattern_finder._phrases(content))
+
+    assert phrases[-2:] == ["velvet copper lantern", "copper lantern glows"]
+
+
+def test_url_pattern_matches_what_the_unanchored_pattern_matched() -> None:
+    """The \\b anchor cannot change a match: a URL scheme starts a word."""
+    import random
+    import re
+
+    unanchored = re.compile(r"\w+://\S+")
+    rng = random.Random(5)
+    alphabet = ["a", "b_", "1", ":", "/", "://", " ", "\n", ".", "-", "é", "(", "http://x"]
+    texts = ["see https://ex.com/a-b now", "x(http://a.b)y", "a://b c://d", "://x"]
+    texts += ["".join(rng.choice(alphabet) for _ in range(rng.randint(0, 20))) for _ in range(3000)]
+    for text in texts:
+        assert pattern_finder._URL.sub(" | ", text) == unanchored.sub(" | ", text)
+    assert pattern_finder._URL.sub("|", "see https://ex.com/a now") == "see | now"

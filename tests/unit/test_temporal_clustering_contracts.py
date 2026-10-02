@@ -178,3 +178,49 @@ def test_large_vault_stats_are_independent_of_global_random_state():
                 assert first == second
         finally:
             np.random.set_state(state)
+
+
+def test_small_vaults_cluster_with_brute_force_distances(replay_context):
+    """Contract: up to BRUTE_HDBSCAN_MAX_NOTES notes, HDBSCAN uses brute-force
+    distances (about 8x faster than the kd-tree in 384 dimensions).
+
+    Regression: the default kd-tree made clustering ~exponent 1.9 in vault
+    size, so cluster_mirror exceeded its timeout on large vaults.
+    """
+    context, _sessions = replay_context
+    with (
+        patch("sklearn.cluster.HDBSCAN") as constructor,
+        patch("geistfabrik.cluster_labeling.label_tfidf", return_value={0: "first"}),
+    ):
+        constructor.return_value.fit_predict.return_value = np.array([0] * 6)
+        context.get_clusters()
+    constructor.return_value.set_params.assert_called_once_with(algorithm="brute")
+
+
+def test_warm_clusters_gives_up_cleanly_on_its_own_budget(replay_context):
+    """Contract: clustering runs once before geists under its own budget; on
+    timeout the session continues and cluster geists see no clusters.
+
+    Regression: clustering ran inside cluster_mirror's 30 s geist timeout and
+    a timeout discarded the half-built result, so on large vaults the geist
+    failed every session.
+    """
+    import time
+
+    context, _sessions = replay_context
+
+    def slow_fit(self, *args, **kwargs):
+        time.sleep(5)
+        raise AssertionError("timeout did not fire")
+
+    with patch("sklearn.cluster.HDBSCAN") as constructor:
+        constructor.return_value.fit_predict.side_effect = lambda *a, **k: slow_fit(None)
+        started = time.monotonic()
+        assert context.warm_clusters(timeout_seconds=1) is False
+        assert time.monotonic() - started < 4
+
+    # The session's canonical clusters are now "none": no recomputation.
+    with patch("sklearn.cluster.HDBSCAN") as constructor:
+        assert context.get_clusters() == {}
+        constructor.assert_not_called()
+    assert cluster_mirror.suggest(context) == []

@@ -39,7 +39,11 @@ _WORD = re.compile(r"[a-z](?:[a-z'-]*[a-z])?")
 # clause, bracket, table cell or emphasis boundary.
 _BREAK = re.compile(r"[.!?;:,()\[\]{}|<>\"=+*/\\]+")
 _HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
-_URL = re.compile(r"\w+://\S+")
+# The leading \b anchors each attempt at the start of a word: without it a
+# long run of word characters with no "://" was retried from every offset
+# (quadratic; a 200 KB unbroken line timed the geist out). A URL's scheme
+# always starts a word, so the matches are unchanged.
+_URL = re.compile(r"\b\w+://\S+")
 
 
 def _phrases(content: str) -> Iterator[str]:

@@ -1,5 +1,7 @@
 """Tests for cluster labelling methods (c-TF-IDF and KeyBERT)."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 from hypothesis import given, settings
@@ -319,3 +321,280 @@ def test_label_text_skips_frontmatter_code_and_numbers() -> None:
         "notes",
         "garden",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Label text without YAML parsing: equivalence with parse_frontmatter
+# ---------------------------------------------------------------------------
+
+_FM_KEYS = ["title", "tags", "aliases", "On", "yes", "Null", "a-b", "_x", "2023", "k e", "~"]
+_FM_VALUES = [
+    "",
+    "plain text",
+    "x: y",
+    "x:",
+    "x #c",
+    "x#c",
+    "#c",
+    "[a, b]",
+    "[a, ]",
+    "[]",
+    "[ ]",
+    "[[Note]]",
+    '"[[Note]]"',
+    '"esc \\q"',
+    '"a, b"',
+    '["x]y", z]',
+    "'single'",
+    "'it''s'",
+    "2023-02-30",
+    "2023-09-12",
+    "0000-01-01",
+    "2023-9-1",
+    "12",
+    "007",
+    "0x1F",
+    "-5",
+    "1.5",
+    "1_000",
+    "12:30",
+    "0🌲",
+    "3 apples",
+    "1e5",
+    "~",
+    "<<",
+    "=",
+    "@x",
+    "`x`",
+    "x\ty",
+    "a\u2028b",
+    "x\x85y",
+    "x\ufeffy",
+    "x\x00",
+    "value  ",
+    "*alias",
+    "&anchor x",
+    "!tag x",
+    "|",
+    ">",
+    "https://x.y/z",
+    "x, y",
+    "{a: 1}",
+    "%x",
+    "?",
+    "? x",
+    "- x",
+    "-",
+    "x\r",
+    "yes",
+    "Ünïcödé",
+]
+
+
+@st.composite
+def _frontmatter_documents(draw: st.DrawFn) -> str:
+    line = st.one_of(
+        st.builds(
+            "{}:{}{}".format,
+            st.sampled_from(_FM_KEYS),
+            st.sampled_from(["", " ", "  ", "\t"]),
+            st.sampled_from(_FM_VALUES),
+        ),
+        st.builds(
+            "{}-{}{}".format,
+            st.sampled_from(["", " ", "  ", "   ", "\t"]),
+            st.sampled_from(["", " ", "  "]),
+            st.sampled_from(_FM_VALUES),
+        ),
+        st.sampled_from(["", "  ", "# comment", "  # c", "...", "---x", "plain", "key:value"]),
+        st.sampled_from(["%YAML 1.1", "\r", "a: 1\r", "  nested: 1", "a: b\rc: d"]),
+    )
+    lines = draw(st.lists(line, max_size=8))
+    opening = draw(st.sampled_from(["---", "---", "--- ", "---x"]))
+    closing = draw(st.sampled_from(["---", "---", " --- ", "---\r", None]))
+    parts = [opening, *lines] + ([closing] if closing is not None else [])
+    return "\n".join([*parts, "Body line one.", "Body `code` two."])
+
+
+def _outcome(function, content: str) -> tuple[str, object]:
+    try:
+        return ("ok", function(content))
+    except Exception as exc:  # the full parser can raise (e.g. impossible dates)
+        return ("raise", type(exc))
+
+
+@settings(max_examples=600, deadline=None)
+@given(_frontmatter_documents())
+def test_strip_frontmatter_equals_parse_frontmatter_body(content: str) -> None:
+    """Equivalence: the YAML-free strip returns exactly parse_frontmatter()'s
+    body (or raises as it does) for valid, invalid, non-mapping, non-string
+    key, and resource-edge frontmatter alike."""
+    from geistfabrik.cluster_labeling import _strip_frontmatter
+    from geistfabrik.markdown_parser import parse_frontmatter
+
+    assert _outcome(_strip_frontmatter, content) == _outcome(
+        lambda c: parse_frontmatter(c)[1], content
+    )
+
+
+def _repository_notes() -> list[str]:
+    root = Path(__file__).resolve().parents[2] / "testdata"
+    return [path.read_text() for path in sorted(root.rglob("*.md"))]
+
+
+_REAL_FRONTMATTER = """---
+categories:
+  - "[[Meetings]]"
+type: []
+date: 2023-09-14
+aliases: [Steph, 'S. Ango']
+url: https://stephango.com/evergreen-notes
+tags:
+- 0🌲
+- clippings
+status: draft
+year: 2020
+---
+# Meeting
+
+Talked about `emergence` and gardens.
+"""
+
+
+def _head_label_text(title: str, content: str) -> str:
+    """_label_text as it was: full YAML parse, then every prose line."""
+    from geistfabrik.markdown_parser import (
+        INLINE_CODE_PATTERN,
+        markdown_prose_lines,
+        parse_frontmatter,
+    )
+
+    body = parse_frontmatter(content)[1]
+    prose = "\n".join(line for _, line in markdown_prose_lines(body))
+    return f"{title} {INLINE_CODE_PATTERN.sub(' ', prose)[:200]}"
+
+
+@settings(max_examples=300, deadline=None)
+@given(
+    st.lists(
+        st.sampled_from(
+            ["word " * 30, "`a` b `c", "```", "~~~", "    indented code", "x" * 250, "", "- [ ] t"]
+        ),
+        max_size=12,
+    ),
+    st.sampled_from(["", _REAL_FRONTMATTER, "---\nbad: [\n---\n"]),
+)
+def test_label_text_equals_previous_implementation(lines: list[str], frontmatter: str) -> None:
+    """Equivalence: reading prose lines only until 200 characters are kept
+    (and stripping frontmatter without YAML) gives the same label text."""
+    from geistfabrik.cluster_labeling import _label_text
+
+    content = frontmatter + "\n".join(lines)
+    assert _label_text("Title", content) == _head_label_text("Title", content)
+
+
+def test_label_text_matches_previous_implementation_on_repository_notes() -> None:
+    from geistfabrik.cluster_labeling import _label_text
+
+    notes = [*_repository_notes(), _REAL_FRONTMATTER]
+    assert len(notes) > 5
+    for content in notes:
+        assert _label_text("T", content) == _head_label_text("T", content)
+
+
+def test_label_text_parses_no_yaml_for_typical_obsidian_frontmatter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: every clustered note's frontmatter went through a full
+    bounded YAML parse per labelling run (~0.9 of 1.0 s of label-text time
+    for 1,662 notes). Typical frontmatter now needs none."""
+    import geistfabrik.markdown_parser as markdown_parser
+    from geistfabrik.cluster_labeling import _label_text
+
+    parses: list[str] = []
+    real = markdown_parser.load_bounded_yaml_text
+
+    def counting(text: str, source: str = "<yaml>") -> object:
+        parses.append(text)
+        return real(text, source)
+
+    monkeypatch.setattr(markdown_parser, "load_bounded_yaml_text", counting)
+
+    typical = [content for content in _repository_notes() if content.startswith("---")]
+    assert typical
+    for content in [*typical, _REAL_FRONTMATTER]:
+        assert "categories" not in _label_text("T", content)
+
+    assert parses == []
+
+
+# ---------------------------------------------------------------------------
+# KeyBERT: reuse the session's computer; re-encode only changed label texts
+# ---------------------------------------------------------------------------
+
+
+class _RecordingComputer:
+    """Deterministic bag-of-words embeddings; records every encoded text."""
+
+    def __init__(self) -> None:
+        self.encoded: list[str] = []
+
+    def compute_batch_semantic(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
+        self.encoded.extend(texts)
+        rows = np.zeros((len(texts), 64))
+        for row, text in zip(rows, texts):
+            for word in text.lower().split():
+                row[sum(map(ord, word)) % 64] += 1.0
+            row[63] += 0.01  # never a zero vector
+        return rows
+
+
+def test_label_keybert_reuses_given_computer(mock_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: label_keybert built a new EmbeddingComputer (reloading the
+    model) on every call instead of using the session's."""
+    import geistfabrik.embeddings as embeddings
+    from geistfabrik.cluster_labeling import label_keybert
+
+    def no_new_computer(*args: object, **kwargs: object) -> None:
+        raise AssertionError("label_keybert must reuse the computer it is given")
+
+    monkeypatch.setattr(embeddings, "EmbeddingComputer", no_new_computer)
+    computer = _RecordingComputer()
+    paths = ["note1.md", "note2.md", "note3.md", "note4.md", "note5.md", "note6.md"]
+
+    result = label_keybert(paths, np.array([0, 0, 0, 1, 1, 1]), mock_db, computer=computer)
+
+    assert set(result) == {0, 1}
+    assert all(not label.startswith("Cluster") for label in result.values())
+    assert computer.encoded
+
+
+def test_label_keybert_reencodes_only_changed_label_texts(mock_db) -> None:
+    """Label-text embeddings are cached per computer by content hash: a second
+    run encodes no note text, an edit re-encodes just that note, and labels
+    equal a cold run's."""
+    from geistfabrik.cluster_labeling import _label_text, label_keybert
+
+    paths = ["note1.md", "note2.md", "note3.md", "note4.md", "note5.md", "note6.md"]
+    labels = np.array([0, 0, 0, 1, 1, 1])
+    note_texts = {
+        _label_text(title, content)
+        for title, content in mock_db.execute("SELECT title, content FROM notes")
+    }
+    computer = _RecordingComputer()
+
+    first = label_keybert(paths, labels, mock_db, computer=computer)
+    assert note_texts <= set(computer.encoded)
+
+    computer.encoded.clear()
+    assert label_keybert(paths, labels, mock_db, computer=computer) == first
+    assert not note_texts & set(computer.encoded)  # only candidate phrases
+
+    mock_db.execute(
+        "UPDATE notes SET content = 'Gradient clipping and learning rates' WHERE path = 'note2.md'"
+    )
+    computer.encoded.clear()
+    warm = label_keybert(paths, labels, mock_db, computer=computer)
+    changed = _label_text("Neural Networks", "Gradient clipping and learning rates")
+    assert [text for text in computer.encoded if text in note_texts | {changed}] == [changed]
+    assert warm == label_keybert(paths, labels, mock_db, computer=_RecordingComputer())

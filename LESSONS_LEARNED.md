@@ -879,7 +879,14 @@ pattern.
 quantifiers), and time new regexes on the hostile corpus before pushing.
 
 **Impact:** The pattern is anchored (3 ms on 50k characters), and a
-linear-time test guards it.
+linear-time test guards it. A later scaling benchmark of every geist on
+pathological notes found six more of the same shape (question extraction,
+pattern_finder's URL pattern, sentence splitting over initials, rejoining
+hard-wrapped paragraphs, hypothesis matching, and wikilink parsing during
+sync), each taking 56 s to over 120 s. All are now linear with identical
+output, and each has a timeout-guarded test. Benchmark the hostile corpus,
+not just realistic notes: the geists that read one random note will
+eventually draw the bad one.
 
 ---
 

@@ -36,6 +36,36 @@ def _prose_without_code(content: str) -> str:
     return INLINE_CODE_PATTERN.sub("", prose)
 
 
+def iter_wikilinks(text: str) -> Iterator[re.Match[str]]:
+    """Yield the same matches as ``WIKILINK_PATTERN.finditer(text)``, in linear time.
+
+    finditer retries a failed match from every following offset, and each
+    attempt scans the target up to the next "]" or "|", so a long run of
+    "[" (or of "[[" without a closing "]]") took quadratic time. After a
+    failed attempt at "[[", every start before the next "]" fails for the
+    same reason (they share the same closing "]"), so the scan resumes there.
+    """
+    pos = 0
+    while True:
+        i = text.find("[[", pos)
+        if i < 0:
+            return
+        start = i - 1 if i > pos and text[i - 1] == "!" else i
+        match = WIKILINK_PATTERN.match(text, start)
+        if match is not None:
+            yield match
+            pos = match.end()
+            continue
+        if i + 2 < len(text) and text[i + 2] in "]|":
+            # Empty target: the only cheap failure; the next "[[" may succeed.
+            pos = i + 1
+            continue
+        close = text.find("]", i + 2)
+        if close < 0:
+            return
+        pos = close + 1
+
+
 def _is_tag(candidate: str) -> bool:
     """Obsidian tags need at least one non-numeric character."""
     return re.search(r"[A-Za-z_]", candidate) is not None
@@ -163,7 +193,7 @@ def extract_links(content: str) -> list[Link]:
     links: list[Link] = []
 
     # Links inside code are examples, not links (see FENCED_CODE_PATTERN).
-    for match in WIKILINK_PATTERN.finditer(_prose_without_code(content)):
+    for match in iter_wikilinks(_prose_without_code(content)):
         is_embed = match.group(1) == "!"
         target_raw = match.group(2).strip()
         display_text = match.group(3).strip() if match.group(3) else None

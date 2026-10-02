@@ -189,7 +189,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 - Small number of comparisons (<10 pairs)
 - Iterating with conditional logic between similarity checks
 
-**Key insight**: Both methods now integrate with session-scoped cache:
+**Key insight**: Both methods now integrate with session-scoped cache
+(`batch_similarity()` reads cached pairs always, but writes new pairs to the
+cache only for matrices up to 10,000 pairs; larger matrices are one vectorised
+multiply, so the cache never balloons):
 - **100% cache hit**: Both return immediately (fast path)
 - **Partial cache hits**: batch_similarity() computes full matrix; individual calls skip cached pairs
 - **0% cache hit**: batch_similarity() wins via vectorized operations

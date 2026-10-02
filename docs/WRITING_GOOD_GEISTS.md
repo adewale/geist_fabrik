@@ -644,6 +644,28 @@ return suggestions
 
 **Used by**: `antithesis_generator`
 
+### Keep Text Scans Linear
+
+Every geist eventually meets a hostile note: a 200k-character line, a
+hard-wrapped 2 MB clipping, a bibliography of initials. A regex or loop that
+is quadratic on such input silently costs the geist its 30-second timeout.
+
+- A `findall`/`sub`/`finditer` pattern that starts with an unbounded class and
+  needs a later character (`[^.!?]*\?`, `\w+://`, `\w+(?:/\w+)+`) retries
+  from every offset of a long run. Anchor it (`\b`, `^`, a lookbehind) or
+  split on the delimiter instead.
+- Never re-run a regex over a growing slice or a growing concatenation inside
+  a loop; search a bounded window, or collect parts and join once.
+- Cap work at the length your filters keep anyway (e.g. skip sentences longer
+  than the extractor's maximum before running expensive patterns).
+- Add a pathological-input test with a pytest timeout (see
+  `tests/unit/test_content_extraction.py` and `test_voice_analysis.py`).
+
+For pairwise vector work inside loops (one snapshot pair at a time), use numpy
+dot products (`temporal_analysis.cosine_to_rows`) rather than per-call
+`sklearn` `cosine_similarity`, whose input validation costs ~0.6 ms per call;
+keep sklearn for single large matrices.
+
 ### Adaptive Sampling
 
 Scale sample size with vault size:

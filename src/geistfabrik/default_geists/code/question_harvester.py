@@ -16,7 +16,12 @@ at night?".
 import re
 from typing import TYPE_CHECKING
 
-from geistfabrik.content_extraction import quote_for_display, strip_code, unmask_code
+from geistfabrik.content_extraction import (
+    quote_for_display,
+    sentence_questions,
+    strip_code,
+    unmask_code,
+)
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
@@ -129,10 +134,12 @@ def extract_questions(content: str) -> list[str]:
     # paragraph, but never across a blank line, out of a heading, or across
     # list items: those lines end without punctuation, so "# Heading" followed
     # by "Why?" would otherwise be harvested as one question.
-    sentence_questions = [
+    # (sentence_questions() runs in linear time; the equivalent regex was
+    # quadratic on long runs without terminal punctuation.)
+    questions_in_sentences = [
         question
         for segment in _segments(content_no_code)
-        for question in re.findall(r"([^.!?\n][^.!?]*\?)", segment)
+        for question in sentence_questions(segment)
     ]
 
     # Strategy 3: List item questions
@@ -140,7 +147,7 @@ def extract_questions(content: str) -> list[str]:
     list_questions = re.findall(r"^\s*[-*+]\s+(.+\?)\s*$", content_no_code, re.MULTILINE)
 
     # Combine and deduplicate
-    all_questions = sentence_questions + list_questions
+    all_questions = questions_in_sentences + list_questions
     seen = set()
 
     for q in all_questions:

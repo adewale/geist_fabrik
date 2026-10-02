@@ -6,16 +6,31 @@ its extraction strategies, filters, and pipeline (code-block removal,
 filtering, case-insensitive deduplication) are worth locking down.
 """
 
+import random
+import re
+
+import pytest
+
 from geistfabrik.content_extraction import (
+    _ABBREVIATIONS,
+    _BLOCK_START,
+    _CLOSED_LINE,
+    _FIELD_LABEL,
+    _LINE_PREFIX,
+    _SENTENCE_END,
     AlphaFilter,
     ClaimExtractor,
+    ContentFilter,
     DefinitionExtractor,
     ExtractionPipeline,
     HypothesisExtractor,
     LengthFilter,
     PatternFilter,
     QuestionExtractor,
+    _paragraph_lines,
+    prose_sentences,
     quote_for_display,
+    sentence_questions,
     strip_code,
     unmask_code,
 )
@@ -322,3 +337,151 @@ class TestQuoteForDisplay:
     def test_two_quoted_spans_are_not_unwrapped(self):
         # '"a" and "b"' starts and ends with a quote but is not one span.
         assert quote_for_display('"a" and "b"') == '\u201c"a" and "b"\u201d'
+
+
+# ============================================================================
+# Pathological inputs: every scan must stay linear (regression)
+# ============================================================================
+#
+# Each input below took more than 30 s before its fix (a hard-wrapped or
+# unpunctuated paste, a bibliography, a run-on sentence) and takes
+# milliseconds after. The equivalence tests pin each fix to the former
+# implementation, kept here as a reference.
+
+_LONG_LINE = "abcdefghij" * 20_000
+_FUZZ_ALPHABET = [
+    *"ab ",
+    *["\n", "\n\n", ".", "!", "?", "*", "**", "- ", "* ", "+ ", "# ", "|", ">", ":"],
+    *["---", "===", "e.g.", "J.", " A.", "Dr.", "approx.", "  ", "\t", "if ", "would "],
+    *["then ", "`x`", "1. ", "[x] ", '"', "May ", "is a ", "Studies show ", "causes "],
+]
+
+
+def _fuzz_texts(count: int, max_tokens: int, seed: int) -> list[str]:
+    rng = random.Random(seed)
+    return [
+        "".join(rng.choice(_FUZZ_ALPHABET) for _ in range(rng.randint(0, max_tokens)))
+        for _ in range(count)
+    ]
+
+
+def _reference_paragraph_lines(content: str) -> list[str]:
+    """The former implementation (string concatenation per continuation)."""
+    lines = content.split("\n")
+    if lines and lines[0].strip() == "---":
+        closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+        if closing is not None:
+            lines = lines[closing + 1 :]
+    logical: list[str] = []
+    previous_blank = True
+    for line in lines:
+        if not line.strip():
+            previous_blank = True
+            continue
+        continues = not previous_blank and not _BLOCK_START.match(line)
+        if continues and not _CLOSED_LINE.match(logical[-1]):
+            logical[-1] = f"{logical[-1].rstrip()} {line.strip()}"
+        else:
+            logical.append(line)
+        previous_blank = False
+    return logical
+
+
+def _reference_prose_sentences(content: str) -> list[str]:
+    """The former implementation (abbreviation search over the whole slice)."""
+    sentences: list[str] = []
+    for line in _reference_paragraph_lines(content):
+        stripped = line.strip()
+        if stripped.startswith(("|", "#")):
+            continue
+        body = _LINE_PREFIX.sub("", line, count=1)
+        body = _FIELD_LABEL.sub("", body, count=1).replace("**", "").strip()
+        start = 0
+        for match in _SENTENCE_END.finditer(body):
+            if _ABBREVIATIONS.search(body[start : match.start() + 1]):
+                continue
+            sentences.append(body[start : match.end()].strip())
+            start = match.end()
+        if body[start:].strip():
+            sentences.append(body[start:].strip())
+    return [s for s in sentences if s]
+
+
+class TestLinearScans:
+    def test_sentence_questions_equals_the_former_regex(self):
+        known = {
+            "Why? Because. How so?": ["Why?", " How so?"],
+            "\n\nWhy\nnot?": ["Why\nnot?"],
+            "a??b?": ["a?", "b?"],
+            "No question here.": [],
+            "Ends open?!": ["Ends open?"],
+        }
+        for text, expected in known.items():
+            assert sentence_questions(text) == expected
+        for text in [*known, *_fuzz_texts(3000, 30, seed=1)]:
+            assert sentence_questions(text) == re.findall(r"([^.!?\n][^.!?]*\?)", text)
+
+    def test_paragraph_lines_and_sentences_equal_the_former_implementation(self):
+        texts = _fuzz_texts(3000, 30, seed=2) + _fuzz_texts(200, 300, seed=3)
+        for text in texts:
+            assert _paragraph_lines(text) == _reference_paragraph_lines(text)
+            assert prose_sentences(text) == _reference_prose_sentences(text)
+
+    def test_bold_line_closed_by_a_later_wrapped_line_stays_closed(self):
+        # "**Step two" + "of three**" renders as one bold pseudo-heading, so
+        # the following line starts a new logical line.
+        assert _paragraph_lines("**Step two\nof three**\nNext line.") == [
+            "**Step two of three**",
+            "Next line.",
+        ]
+        assert _paragraph_lines("-\n**Bold**\nNext.") == ["- **Bold**", "Next."]
+
+    @pytest.mark.timeout(10)
+    def test_question_extractor_is_linear_on_a_long_line(self):
+        content = f"{_LONG_LINE}. Is this still found?"
+        assert QuestionExtractor().extract(content) == [" Is this still found?"]
+
+    @pytest.mark.timeout(10)
+    def test_bibliography_of_initials_is_one_sentence(self):
+        """Regression: each initial ("A.") re-searched the growing sentence."""
+        names = ["Smith", "Jones", "Lee", "Garcia", "Okafor", "Novak", "Tanaka"]
+        bib = " ".join(
+            f"{names[i % 7]}, {chr(65 + i % 26)}. {chr(65 + (i * 7) % 26)}.," for i in range(12_000)
+        )
+        sentences = prose_sentences(f"{bib} and others. Next sentence.")
+        assert len(sentences) == 2
+        assert sentences[0].endswith("and others.") and sentences[1] == "Next sentence."
+
+    @pytest.mark.timeout(10)
+    def test_hard_wrapped_paragraph_under_an_unclosed_bold_opening_is_linear(self):
+        """Regression: every continuation rebuilt the joined line and re-ran
+        _CLOSED_LINE over it, whose bold branch scans to the first "*"."""
+        lines = ["words go here and on"] * 60_000
+        assert _paragraph_lines("**Speaker one\n" + "\n".join(lines)) == [
+            " ".join(["**Speaker one", *lines])
+        ]
+
+    @pytest.mark.timeout(10)
+    def test_hypothesis_extractor_skips_sentences_beyond_its_limit(self):
+        """Regression: _IF_THEN / _WOULD_IF cost (#if x length) on a run-on sentence."""
+        run_on = "I think " + " ".join(["if soil and roots would maybe"] * 14_000) + " would."
+        content = f"{run_on}\n\nIf it rains, then the soil would soften."
+        filters: list[ContentFilter] = [LengthFilter(min_len=20, max_len=300), AlphaFilter()]
+        bounded = ExtractionPipeline([HypothesisExtractor(max_sentence_length=300)], filters)
+
+        assert bounded.extract(content) == ["If it rains, then the soil would soften."]
+
+    def test_hypothesis_limit_does_not_change_pipeline_output(self):
+        content = (
+            "If the seeds sprout, then the beds are warm. "
+            + "It might rain " * 30
+            + "today. The harvest could be early."
+        )
+        filters: list[ContentFilter] = [LengthFilter(min_len=20, max_len=300), AlphaFilter()]
+        unbounded = ExtractionPipeline([HypothesisExtractor()], filters).extract(content)
+        bounded = ExtractionPipeline(
+            [HypothesisExtractor(max_sentence_length=300)], filters
+        ).extract(content)
+
+        assert len(unbounded) == 2  # the long "might" sentence is filtered either way
+        assert bounded == unbounded

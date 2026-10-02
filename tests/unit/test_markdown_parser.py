@@ -278,3 +278,34 @@ def test_extract_tags_follows_obsidian_tag_rules(content: str, expected: list[st
     seasonal_patterns reported topics such as "#1" and "#30".
     """
     assert extract_tags(content) == expected
+
+
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param("[" * 100_000, id="100k-open-brackets"),
+        pytest.param("[[a|" * 45_000, id="45k-unclosed-piped-links"),
+        pytest.param("[[" + "a" * 100_000 + "|" + "[[b" * 30_000, id="unclosed-display"),
+    ],
+)
+def test_extract_links_is_linear_on_unclosed_brackets(content: str) -> None:
+    """Regression: WIKILINK_PATTERN.finditer retried from every "[[" and each
+    attempt scanned to the next "]", so these took over 30 s (sync hung)."""
+    links = extract_links("[[Real Note]] " + content)
+    assert [link.target for link in links] == ["Real Note"]
+
+
+def test_iter_wikilinks_yields_exactly_what_finditer_yields() -> None:
+    import random
+
+    from geistfabrik.markdown_parser import WIKILINK_PATTERN, iter_wikilinks
+
+    rng = random.Random(11)
+    texts = ["[[a]] ![[b|c]] [[|x]] [[d|]] [[[e]] [[f[g]]", "![[x]]", "!![[y|z]]]"]
+    texts += [
+        "".join(rng.choice("[[[]]|!a ") for _ in range(rng.randint(0, 24))) for _ in range(5000)
+    ]
+    for text in texts:
+        expected = [(m.span(), m.groups()) for m in WIKILINK_PATTERN.finditer(text)]
+        assert [(m.span(), m.groups()) for m in iter_wikilinks(text)] == expected

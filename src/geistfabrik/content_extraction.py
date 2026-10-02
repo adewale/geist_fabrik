@@ -44,6 +44,30 @@ def unmask_code(text: str) -> str:
     return text.translate(_UNMASK)
 
 
+_TERMINAL_PUNCTUATION = re.compile(r"[.!?]")
+
+
+def sentence_questions(text: str) -> list[str]:
+    r"""Return the runs of text that end in "?" without crossing ".", "!" or "?".
+
+    Same result as ``re.findall(r"([^.!?\n][^.!?]*\?)", text)`` (each
+    question starts at the first non-newline character after the previous
+    terminal mark), in linear time. That regex retried a failed match from
+    every offset of a run that did not end in "?", so a long line or
+    hard-wrapped paragraph without a question mark took quadratic time
+    (minutes on a 200 KB line).
+    """
+    questions: list[str] = []
+    start = 0
+    for mark in _TERMINAL_PUNCTUATION.finditer(text):
+        if mark.group() == "?":
+            question = text[start : mark.start()].lstrip("\n")
+            if question:
+                questions.append(question + "?")
+        start = mark.end()
+    return questions
+
+
 _QUOTE_PAIRS = {'"': '"', "\u201c": "\u201d", "'": "'", "\u2018": "\u2019"}
 
 
@@ -195,6 +219,13 @@ _ABBREVIATIONS = re.compile(
     r"(?:\b(?:e\.g|i\.e|etc|vs|cf|approx|al|fig|eq|dr|mr|mrs|ms)|\b[A-Z])\.$",
     re.IGNORECASE,
 )
+# _ABBREVIATIONS only looks at the end of the text before a candidate
+# sentence end: its longest match is "approx." (7 characters), plus one
+# character of context for the leading \b. Searching just this many trailing
+# characters gives the same answer as searching the whole sentence so far,
+# which re-scanned a growing slice at every boundary (quadratic on a long
+# paragraph of initials such as a bibliography).
+_ABBREVIATION_WINDOW = 16
 # Quote marks a sentence may open with when it is reported speech or example
 # output rather than the author's own statement.
 _OPENING_QUOTES = "\"'“‘"
@@ -212,19 +243,85 @@ def _paragraph_lines(content: str) -> list[str]:
         closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
         if closing is not None:
             lines = lines[closing + 1 :]
+    # Each logical line is collected as parts and joined once: rebuilding the
+    # joined string per continuation (and re-matching _CLOSED_LINE against
+    # it) was quadratic in a long paragraph without blank lines.
     logical: list[str] = []
+    current: _LogicalLine | None = None
     previous_blank = True
     for line in lines:
         if not line.strip():
             previous_blank = True
             continue
         continues = not previous_blank and not _BLOCK_START.match(line)
-        if continues and not _CLOSED_LINE.match(logical[-1]):
-            logical[-1] = f"{logical[-1].rstrip()} {line.strip()}"
+        if continues and current is not None and not current.closed:
+            current.append(line.strip())
         else:
-            logical.append(line)
+            if current is not None:
+                logical.append(current.text())
+            current = _LogicalLine(line)
         previous_blank = False
+    if current is not None:
+        logical.append(current.text())
     return logical
+
+
+# A line that is (so far) a bold span still waiting for its closing "**":
+# an optional list bullet, the opening "**", then text without "*".
+_OPEN_BOLD = re.compile(r"\s*(?:[-*+]\s+)?\*\*[^*\n]*")
+# A line that is only a list bullet; the next part may open a bold span.
+_BARE_BULLET = re.compile(r"\s*[-*+]")
+# The rest of a bold-only line after its text: closing "**", optional colon.
+_BOLD_CLOSE = re.compile(r"\*\*:?\s*")
+
+
+class _LogicalLine:
+    """A hard-wrapped line being rejoined, with its _CLOSED_LINE status.
+
+    The joined text is ``first`` when there is one part, otherwise
+    ``first.rstrip()`` and the stripped continuation parts joined by single
+    spaces. ``closed`` equals ``bool(_CLOSED_LINE.match(text()))`` but is
+    updated from each new part alone, so appending is O(len(part)).
+
+    Once a second part is appended only the bold-only alternative of
+    _CLOSED_LINE can match (a "#" or "|" start or a rule would have closed
+    the first part, so nothing would have been appended; and a joined line
+    always has a space between non-space parts, which a rule cannot
+    contain). The bold alternative needs everything after the opening "**"
+    to be "*"-free until a closing "**" that ends the line.
+    """
+
+    def __init__(self, first: str) -> None:
+        self.parts = [first]
+        self.closed = bool(_CLOSED_LINE.match(first))
+        self._set_shape(first.rstrip())
+
+    def _set_shape(self, joined: str) -> None:
+        # open_bold: the joined text is an opened, still unclosed bold span.
+        # bare_bullet: the joined text is a list bullet alone.
+        self.open_bold = _OPEN_BOLD.fullmatch(joined) is not None
+        self.bare_bullet = _BARE_BULLET.fullmatch(joined) is not None
+
+    def append(self, part: str) -> None:
+        """Append a stripped, non-empty continuation line."""
+        if self.open_bold:
+            star = part.find("*")
+            self.closed = star >= 0 and _BOLD_CLOSE.fullmatch(part, star) is not None
+            self.open_bold = star < 0
+            self.bare_bullet = False
+        elif self.bare_bullet:
+            # The joined text is short (a bullet and this part): check directly.
+            joined = f"{self.parts[0].rstrip()} {part}"
+            self.closed = bool(_CLOSED_LINE.match(joined))
+            self._set_shape(joined)
+        else:
+            self.closed = False
+        self.parts.append(part)
+
+    def text(self) -> str:
+        if len(self.parts) == 1:
+            return self.parts[0]
+        return " ".join([self.parts[0].rstrip(), *self.parts[1:]])
 
 
 def prose_sentences(content: str) -> list[str]:
@@ -253,7 +350,8 @@ def prose_sentences(content: str) -> list[str]:
         body = _FIELD_LABEL.sub("", body, count=1).replace("**", "").strip()
         start = 0
         for match in _SENTENCE_END.finditer(body):
-            if _ABBREVIATIONS.search(body[start : match.start() + 1]):
+            end = match.start() + 1
+            if _ABBREVIATIONS.search(body[max(start, end - _ABBREVIATION_WINDOW) : end]):
                 continue
             sentences.append(body[start : match.end()].strip())
             start = match.end()
@@ -297,8 +395,7 @@ class QuestionExtractor:
         questions = []
 
         # Pattern 1: Sentence-ending questions
-        sentence_questions = re.findall(r"([^.!?\n][^.!?]*\?)", content, re.MULTILINE)
-        questions.extend(sentence_questions)
+        questions.extend(sentence_questions(content))
 
         # Pattern 2: List item questions
         list_questions = re.findall(r"^\s*[-*+]\s+(.+\?)\s*$", content, re.MULTILINE)
@@ -427,7 +524,16 @@ class HypothesisExtractor:
 
     A modal quoted as a word ('use "might"'), the month "May", table rows
     and quoted example text are not hypotheses.
+
+    ``max_sentence_length`` skips longer sentences before matching. The
+    if/then and would/if patterns cost (number of "if"s or "would"s) x
+    (sentence length), so a 200 KB run-on "sentence" took tens of seconds;
+    a pipeline whose LengthFilter discards such sentences anyway should pass
+    its maximum here, which leaves its output unchanged.
     """
+
+    def __init__(self, max_sentence_length: int | None = None) -> None:
+        self.max_sentence_length = max_sentence_length
 
     _IF_THEN = re.compile(r"\bif\s+\S.*?,?\s+then\s+\S", re.IGNORECASE)
     _MODAL = re.compile(r"\b(?:may|might|could|Might|Could)\b|^May\s+[a-z]")
@@ -444,7 +550,10 @@ class HypothesisExtractor:
             List of hypotheses (whole sentences ending in a period)
         """
         hypotheses = []
+        limit = self.max_sentence_length
         for sentence in prose_sentences(content):
+            if limit is not None and len(sentence) > limit:
+                continue
             if not sentence.endswith(".") or not _is_own_statement(sentence):
                 continue
             if self._QUOTED_MODAL.search(sentence):

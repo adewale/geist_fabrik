@@ -139,6 +139,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
 
 ### Fixed
+- **Performance (scaling benchmark of every geist, 100 to 10,000 notes and
+  pathological notes).** All results are unchanged unless noted:
+  - Quadratic text scans that timed out geists or hung vault sync on
+    pathological notes are now linear: question extraction on long lines
+    without `?`, pattern_finder's URL pattern on long unbroken words,
+    sentence splitting over runs of initials, rejoining hard-wrapped
+    paragraphs (especially under an unclosed `**`), hypothesis matching on
+    run-on sentences, and wikilink parsing on runs of `[` (56 s to over 120 s
+    each, now milliseconds).
+  - Temporal trajectory helpers use numpy instead of one sklearn call per
+    snapshot pair, and drift finders load trajectories with one query
+    (cyclical_thinking on 4,000 notes: 5.1 s to 0.4 s).
+  - `batch_similarity()` is fully vectorised; matrices above 10,000 pairs read
+    but no longer fill the per-pair cache (4000x240: 1.1 s to 0.04 s).
+    `surprisal_scores()` and `neighbour_churn()` share one top-k pass;
+    `metadata()` reuses the `voice()` cache, so voice analysis runs once per
+    note per session; density_inversion uses adjacency sets and one matrix.
+  - Clustering: up to 5,000 notes HDBSCAN uses brute-force distances (about
+    8x faster than the kd-tree in 384 dimensions; distance ties can reassign
+    up to ~0.1% of notes to a different cluster, a one-time change). Cluster
+    labelling reuses the session's embedding model and caches label-text
+    embeddings in-process. Clusters are computed once per session before
+    cluster geists run, under their own 120 s budget, so a large vault no
+    longer makes cluster_mirror time out every session.
 - Journal links to a note whose title (H1 or frontmatter `title`) differs
   from its file name were dead in Obsidian, which links by file name:
   `EMBEDDINGS_SPEC.md` titled "Embeddings Specification" was written as

@@ -840,3 +840,27 @@ def test_definition_harvester_tries_several_notes(tmp_path) -> None:
             [HARVEST_NOTE],
         )
     ]
+
+
+# ============================================================================
+# Pathological inputs (regression: quadratic question regex)
+# ============================================================================
+
+
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize(
+    "run",
+    [
+        pytest.param("abcdefghij" * 20_000, id="200k-chars-no-spaces"),
+        pytest.param("compost soil seedling mulch " * 7_000, id="200k-prose-no-punctuation"),
+        pytest.param("\n".join(["words wrapped at seventy columns"] * 20_000), id="hard-wrapped"),
+        pytest.param(" ".join(f"[[Note {i}]]" for i in range(10_000)), id="10000-links"),
+        pytest.param("思考の庭について" * 16_000, id="128k-cjk"),
+    ],
+)
+def test_extract_questions_is_linear_on_long_runs_without_terminal_punctuation(run: str) -> None:
+    """Regression: ``([^.!?\\n][^.!?]*\\?)`` retried from every offset of a run
+    with no "?", so each of these took over 30 s (geist timeout); now ms."""
+    assert extract_questions(f"# Paste\n\n{run}. Is the question after it found?") == [
+        "Is the question after it found?"
+    ]

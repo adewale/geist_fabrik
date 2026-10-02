@@ -1071,3 +1071,177 @@ def test_similarity_ignores_calendar_features(tmp_path: Path) -> None:
     assert ctx.similarity(old, new) == pytest.approx(1.0, abs=1e-6)
     assert ctx.batch_similarity([old], [new])[0, 0] == pytest.approx(1.0, abs=1e-6)
     assert ctx.neighbours(old, 1) == [new]
+
+
+def _reference_batch_similarity(ctx: VaultContext, notes_a: list[Note], notes_b: list[Note]):
+    """batch_similarity() as it was: per-pair cache reads, then per-pair writes."""
+    import numpy as np
+
+    from geistfabrik.embeddings import cosine_similarity_matrix
+
+    result = np.zeros((len(notes_a), len(notes_b)))
+    needs = np.ones((len(notes_a), len(notes_b)), dtype=bool)
+
+    def key_of(a: Note, b: Note) -> tuple[str, str]:
+        low, high = sorted([a.path, b.path])
+        return (low, high)
+
+    for i, a in enumerate(notes_a):
+        for j, b in enumerate(notes_b):
+            key = key_of(a, b)
+            if key in ctx._similarity_cache:
+                result[i, j] = ctx._similarity_cache[key]
+                needs[i, j] = False
+    if not needs.any():
+        return result
+
+    def embedding(path: str):
+        try:
+            return ctx._backend.get_embedding(path)
+        except KeyError:
+            return np.zeros(384)
+
+    matrix = np.clip(
+        cosine_similarity_matrix(
+            np.stack([embedding(n.path) for n in notes_a]),
+            np.stack([embedding(n.path) for n in notes_b]),
+        ),
+        0.0,
+        1.0,
+    )
+    for i in range(len(notes_a)):
+        for j in range(len(notes_b)):
+            if needs[i, j]:
+                result[i, j] = matrix[i, j]
+                ctx._similarity_cache[key_of(notes_a[i], notes_b[j])] = matrix[i, j]
+    return result
+
+
+@pytest.mark.parametrize("pair_limit", [10_000, 3])
+def test_batch_similarity_equals_per_pair_reference_exactly(
+    vault_with_notes, monkeypatch: pytest.MonkeyPatch, pair_limit: int
+) -> None:
+    """Equivalence (bitwise) with the per-pair implementation, through both the
+    cache-filling path and the large-matrix path (limit forced down to 3):
+    cold, partially warm (similarity() values), duplicated rows, a note with
+    no embedding, and the symmetric notes x notes case."""
+    import numpy as np
+
+    import geistfabrik.vault_context as vc
+
+    monkeypatch.setattr(vc, "_BATCH_SIMILARITY_CACHE_PAIR_LIMIT", pair_limit, raising=False)
+    vault, session = vault_with_notes
+    ghost = Note(
+        path="ghost.md",
+        title="Ghost",
+        content="",
+        links=[],
+        tags=[],
+        created=datetime(2023, 1, 1),
+        modified=datetime(2023, 1, 1),
+    )
+    new_ctx = VaultContext(vault, session)
+    ref_ctx = VaultContext(vault, session)
+    notes = new_ctx.notes()
+    by_path = {n.path: n for n in notes}
+    for ctx in (new_ctx, ref_ctx):  # identical warm-up: scalar similarity() values
+        ctx.similarity(by_path["ai.md"], by_path["ml.md"])
+        ctx.similarity(by_path["baking.md"], by_path["cooking.md"])
+    cases = [
+        (notes[:2], notes[2:]),
+        (notes, notes),
+        ([notes[0], notes[0], ghost], [notes[1], notes[0]]),
+        (notes[1:], [ghost, *notes]),
+    ]
+    for notes_a, notes_b in cases:
+        cache_before = dict(new_ctx._similarity_cache)
+        actual = new_ctx.batch_similarity(notes_a, notes_b)
+        expected = _reference_batch_similarity(ref_ctx, notes_a, notes_b)
+        assert np.array_equal(actual, expected)
+        if len(notes_a) * len(notes_b) <= pair_limit:
+            assert new_ctx._similarity_cache == ref_ctx._similarity_cache
+        else:
+            assert new_ctx._similarity_cache == cache_before  # large: no per-pair writes
+            ref_ctx._similarity_cache.clear()
+            ref_ctx._similarity_cache.update(cache_before)
+
+
+class _ArrayBackend:
+    """Minimal backend serving fixed embeddings (for a large synthetic matrix)."""
+
+    def __init__(self, embeddings: dict) -> None:
+        self.embeddings = embeddings
+
+    def get_embedding(self, path: str):
+        return self.embeddings[path]
+
+    def get_similarity(self, path_a: str, path_b: str) -> float:
+        from geistfabrik.embeddings import cosine_similarity
+
+        return cosine_similarity(self.embeddings[path_a], self.embeddings[path_b])
+
+
+@pytest.mark.timeout(15)
+def test_batch_similarity_large_matrix_has_no_per_pair_python_work(
+    vault_with_notes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a 2000 x 1000 matrix spent ~10 us per pair building cache
+    keys and dict entries (2M of them, >20 s and hundreds of MB); now it is
+    one matrix multiply and the per-pair cache is left alone."""
+    import numpy as np
+
+    from geistfabrik.embeddings import cosine_similarity_matrix
+
+    vault, session = vault_with_notes
+    ctx = VaultContext(vault, session)
+    rng = np.random.default_rng(0)
+    paths = [f"bulk/{i:04d}.md" for i in range(3000)]
+    embeddings = {p: rng.standard_normal(384).astype(np.float32) for p in paths}
+    monkeypatch.setattr(ctx, "_backend", _ArrayBackend(embeddings))
+    when = datetime(2023, 1, 1)
+    notes = [
+        Note(path=p, title=p, content="", links=[], tags=[], created=when, modified=when)
+        for p in paths
+    ]
+    ctx.similarity(notes[0], notes[2500])  # one warm pair must still be honoured
+
+    result = ctx.batch_similarity(notes[:2000], notes[2000:])
+
+    assert result.shape == (2000, 1000)
+    assert len(ctx._similarity_cache) == 1
+    expected = np.clip(
+        cosine_similarity_matrix(
+            np.stack([embeddings[p] for p in paths[:2000]]),
+            np.stack([embeddings[p] for p in paths[2000:]]),
+        ),
+        0.0,
+        1.0,
+    )
+    expected[0, 500] = ctx._similarity_cache[(paths[0], paths[2500])]
+    assert np.array_equal(result, expected)
+
+
+def test_get_clusters_labels_with_the_session_embedding_computer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: KeyBERT labelling constructed a fresh EmbeddingComputer
+    (reloading the model) every session; it now gets the session's."""
+    import geistfabrik.cluster_labeling as cluster_labeling
+
+    builder = VaultBuilder(tmp_path)
+    for i in range(8):
+        builder.note(f"Orchard {i}", "orchard apple graft cider blossom pruning rootstock " * 3)
+        builder.note(f"Harbour {i}", "harbour tide sail anchor mooring ferry quay " * 3)
+    ctx = builder.build()
+    assert ctx.vault.config.clustering.labeling_method == "keybert"
+    seen: list[object] = []
+
+    def spy(paths, labels, db, n_terms=4, computer=None):  # type: ignore[no-untyped-def]
+        seen.append(computer)
+        return {}
+
+    monkeypatch.setattr(cluster_labeling, "label_keybert", spy)
+
+    ctx.get_clusters()
+
+    assert seen == [ctx.session.computer]

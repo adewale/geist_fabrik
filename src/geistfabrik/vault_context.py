@@ -5,7 +5,7 @@ import logging
 import random
 import re
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
@@ -27,9 +27,15 @@ from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
-from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
+from .voice_analysis import VoiceMetadata, compute_voice
 
 logger = logging.getLogger(__name__)
+
+#: Up to this many notes, HDBSCAN uses brute-force distances (see get_clusters).
+BRUTE_HDBSCAN_MAX_NOTES = 5000
+
+#: Budget for computing a session's clusters before geists run (warm_clusters).
+CLUSTERING_TIMEOUT_SECONDS = 120
 
 T = TypeVar("T")
 
@@ -41,6 +47,13 @@ def is_geist_journal_path(path: str) -> bool:
     """True for session output written by the engine under ``geist journal/``."""
     return path.startswith(_JOURNAL_PREFIX)
 
+
+#: batch_similarity() reads and fills the per-pair session cache only for
+#: matrices up to this many pairs (100 x 100). Above it, per-pair Python
+#: bookkeeping cost ~25x the matrix multiply (1.1 s against 0.04 s for a
+#: 4000 x 240 matrix) and filled the cache with ~1M pairs (~150 MB) that
+#: nothing reads again.
+_BATCH_SIMILARITY_CACHE_PAIR_LIMIT = 10_000
 
 _TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[ xX]\]", re.MULTILINE)
 _COMPLETED_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[xX]\]", re.MULTILINE)
@@ -121,15 +134,57 @@ def _jaccard_churn(old: set[str], new: set[str]) -> float:
     return 1.0 - len(old & new) / len(union)
 
 
+def _normalised_matrix(embeddings: dict[str, np.ndarray]) -> tuple[list[str], np.ndarray]:
+    """Sorted paths and the float64 row-normalised matrix in that order."""
+    paths = sorted(embeddings)
+    if not paths:
+        return paths, np.zeros((0, 0))
+    matrix = np.stack([np.asarray(embeddings[p], dtype=np.float64) for p in paths])
+    return paths, _normalise_rows(matrix)
+
+
+def _topk_indices(normalised: np.ndarray, k: int, block_size: int = 1024) -> np.ndarray:
+    """Top-k cosine neighbour row indices for every row of a normalised matrix.
+
+    Uses blocked matrix multiplication (block_size rows at a time) so peak
+    memory stays bounded at roughly block_size × N floats, followed by
+    np.argpartition for O(N) top-k selection per row. Self-similarity is
+    masked out. Requires 1 <= k <= N - 1.
+
+    This is the shared core of surprisal_scores() and neighbour_churn(), so
+    both select exactly the same neighbours (float64 throughout: in float32,
+    near-tied neighbours at the k-th place can swap).
+
+    Args:
+        normalised: (N, d) row-normalised float64 matrix
+        k: Number of neighbours per row
+        block_size: Rows per block (memory/speed trade-off)
+
+    Returns:
+        (N, k) array of neighbour row indices (unordered within a row)
+    """
+    n = normalised.shape[0]
+    result = np.empty((n, k), dtype=np.intp)
+    for start in range(0, n, block_size):
+        end = min(start + block_size, n)
+        sims = normalised[start:end] @ normalised.T
+        # Mask self-similarity so a note is never its own neighbour
+        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
+        result[start:end] = np.argpartition(sims, -k, axis=1)[:, -k:]
+    return result
+
+
+def _neighbour_sets_from_indices(paths: list[str], topk_idx: np.ndarray) -> dict[str, set[str]]:
+    """Map each path to the set of paths at its top-k neighbour indices."""
+    return {path: {paths[j] for j in row} for path, row in zip(paths, topk_idx)}
+
+
 def _topk_neighbour_sets(
     matrix: np.ndarray, paths: list[str], k: int, block_size: int = 1024
 ) -> dict[str, set[str]]:
     """Compute top-k cosine neighbour path sets for every row of a matrix.
 
-    Uses blocked matrix multiplication (block_size rows at a time) so peak
-    memory stays bounded at roughly block_size × N floats, followed by
-    np.argpartition for O(N) top-k selection per row. Self-similarity is
-    masked out, and k is capped at N - 1.
+    k is capped at N - 1; see _topk_indices for the method.
 
     Args:
         matrix: (N, d) embedding matrix; row i corresponds to paths[i]
@@ -149,18 +204,35 @@ def _topk_neighbour_sets(
         return {path: set() for path in paths}
 
     normalised = _normalise_rows(matrix.astype(np.float64))
+    return _neighbour_sets_from_indices(paths, _topk_indices(normalised, k_eff, block_size))
 
-    result: dict[str, set[str]] = {}
+
+def _surprisal_from_topk(
+    paths: list[str], normalised: np.ndarray, topk_idx: np.ndarray, block_size: int = 1024
+) -> dict[str, float]:
+    """Surprisal for every row, given its top-k neighbour indices.
+
+    centroid = normalise(mean of the top-k rows) (zero-norm guarded);
+    surprisal = 1 - row · centroid, clipped to [0.0, 2.0].
+    """
+    scores: dict[str, float] = {}
+    n = len(paths)
     for start in range(0, n, block_size):
         end = min(start + block_size, n)
-        sims = normalised[start:end] @ normalised.T
-        # Mask self-similarity so a note is never its own neighbour
-        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
-        topk_idx = np.argpartition(sims, -k_eff, axis=1)[:, -k_eff:]
-        for offset in range(end - start):
-            result[paths[start + offset]] = {paths[j] for j in topk_idx[offset]}
+        block = normalised[start:end]
+        # Centroids of top-k neighbours: (b, k, d) -> (b, d), then normalise
+        centroids = normalised[topk_idx[start:end]].mean(axis=1)
+        centroid_norms = np.linalg.norm(centroids, axis=1, keepdims=True)
+        centroid_norms = np.where(centroid_norms == 0, 1.0, centroid_norms)
+        centroids = centroids / centroid_norms
 
-    return result
+        surprisal = 1.0 - np.einsum("ij,ij->i", block, centroids)
+        surprisal = np.clip(surprisal, 0.0, 2.0)
+
+        for offset in range(end - start):
+            scores[paths[start + offset]] = float(surprisal[offset])
+
+    return scores
 
 
 def _surprisal_blocked(
@@ -187,36 +259,11 @@ def _surprisal_blocked(
         Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
         fewer than k_neighbours + 1 notes are available
     """
-    paths = sorted(embeddings)
-    n = len(paths)
-    if k_neighbours < 1 or n < k_neighbours + 1:
+    if k_neighbours < 1 or len(embeddings) < k_neighbours + 1:
         return {}
-
-    matrix = np.stack([np.asarray(embeddings[p], dtype=np.float64) for p in paths])
-    normalised = _normalise_rows(matrix)
-
-    scores: dict[str, float] = {}
-    for start in range(0, n, block_size):
-        end = min(start + block_size, n)
-        block = normalised[start:end]
-        sims = block @ normalised.T
-        # Mask self-similarity so a note is never its own neighbour
-        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
-        topk_idx = np.argpartition(sims, -k_neighbours, axis=1)[:, -k_neighbours:]
-
-        # Centroids of top-k neighbours: (b, k, d) -> (b, d), then normalise
-        centroids = normalised[topk_idx].mean(axis=1)
-        centroid_norms = np.linalg.norm(centroids, axis=1, keepdims=True)
-        centroid_norms = np.where(centroid_norms == 0, 1.0, centroid_norms)
-        centroids = centroids / centroid_norms
-
-        surprisal = 1.0 - np.einsum("ij,ij->i", block, centroids)
-        surprisal = np.clip(surprisal, 0.0, 2.0)
-
-        for offset in range(end - start):
-            scores[paths[start + offset]] = float(surprisal[offset])
-
-    return scores
+    paths, normalised = _normalised_matrix(embeddings)
+    topk_idx = _topk_indices(normalised, k_neighbours, block_size)
+    return _surprisal_from_topk(paths, normalised, topk_idx, block_size)
 
 
 class VaultContext:
@@ -297,6 +344,12 @@ class VaultContext:
 
         # Cache for neighbour churn (session-scoped - keyed by (since_days, k))
         self._churn_cache: dict[tuple[int, int], dict[str, ChurnResult]] = {}
+
+        # Current-epoch top-k neighbour index shared by surprisal_scores() and
+        # neighbour_churn() (session-scoped - keyed by k), over the sorted
+        # user paths and normalised matrix built once per session
+        self._current_matrix: tuple[list[str], np.ndarray] | None = None
+        self._current_topk_cache: dict[int, np.ndarray] = {}
 
         # Cache for typed voice metadata (session-scoped - keyed by note path)
         self._voice_cache: dict[str, VoiceMetadata] = {}
@@ -591,13 +644,17 @@ class VaultContext:
         """Calculate semantic similarity between two sets of notes (cache-aware).
 
         Computes all pairwise similarities between notes_a and notes_b using
-        vectorised matrix operations. Now integrates with the session-scoped
-        similarity cache for best performance in all scenarios.
+        vectorised matrix operations. Values already in the session-scoped
+        similarity cache are always returned as cached, so a pair scores the
+        same here as in similarity().
 
         Performance characteristics:
-        - 100% cache hits: O(N×M) dict lookups (~1-2ms for 100 pairs)
-        - 0% cache hits: Same as before (vectorized batch computation)
-        - Mixed hits: Batch compute all, then cache for subsequent calls
+        - Up to 10,000 pairs: cache-aware. 100% cache hits are O(N×M) dict
+          lookups with no embedding access; otherwise one vectorised matrix,
+          and the missing pairs are added to the cache.
+        - Larger matrices: one vectorised matrix plus an overlay of whatever
+          the cache already holds (O(min(cache, N×M))). These pairs are not
+          added to the cache: per-pair bookkeeping dominated large matrices.
 
         OPTIMISATION #3: Use this instead of nested similarity() calls:
 
@@ -621,65 +678,98 @@ class VaultContext:
         if not notes_a or not notes_b:
             return np.array([]).reshape(0, 0)
 
-        # Phase 1: Check cache for all pairs
-        result = np.zeros((len(notes_a), len(notes_b)))
-        needs_computation = np.ones((len(notes_a), len(notes_b)), dtype=bool)
+        paths_a = [note.path for note in notes_a]
+        paths_b = [note.path for note in notes_b]
+        cache = self._similarity_cache
+        pair_count = len(paths_a) * len(paths_b)
 
-        for i, note_a in enumerate(notes_a):
-            for j, note_b in enumerate(notes_b):
-                # Create order-independent cache key (same as similarity())
-                sorted_paths = sorted([note_a.path, note_b.path])
-                cache_key: tuple[str, str] = (sorted_paths[0], sorted_paths[1])
+        if pair_count > _BATCH_SIMILARITY_CACHE_PAIR_LIMIT:
+            # Large matrix: one vectorised computation. Per-pair cache
+            # bookkeeping is skipped (it dominated big matrices); pairs
+            # already cached are still overlaid, so every value equals what
+            # the per-pair path returns.
+            result = self._similarity_matrix(paths_a, paths_b)
+            self._overlay_cached_similarities(result, paths_a, paths_b)
+            return result
 
-                if cache_key in self._similarity_cache:
-                    result[i, j] = self._similarity_cache[cache_key]
+        # Small matrix: cache-aware, as individual similarity() calls are.
+        # Phase 1: read every pair already in the session cache.
+        keys = [[(a, b) if a <= b else (b, a) for b in paths_b] for a in paths_a]
+        result = np.zeros((len(paths_a), len(paths_b)))
+        needs_computation = np.ones((len(paths_a), len(paths_b)), dtype=bool)
+        for i, row in enumerate(keys):
+            for j, key in enumerate(row):
+                cached = cache.get(key)
+                if cached is not None:
+                    result[i, j] = cached
                     needs_computation[i, j] = False
 
         # If fully cached, return immediately (fast path)
         if not needs_computation.any():
             return result
 
-        # Phase 2: Batch compute all pairs (existing implementation)
-        # Note: We compute ALL pairs even if some cached, because vectorized
-        # matrix operations are most efficient when done as single operation
-        embeddings_a = []
-        embeddings_b = []
-
-        for note in notes_a:
-            try:
-                emb = self._backend.get_embedding(note.path)
-                embeddings_a.append(emb)
-            except KeyError:
-                # Note not found, use zero vector
-                embeddings_a.append(np.zeros(SEMANTIC_DIM))
-
-        for note in notes_b:
-            try:
-                emb = self._backend.get_embedding(note.path)
-                embeddings_b.append(emb)
-            except KeyError:
-                # Note not found, use zero vector
-                embeddings_b.append(np.zeros(SEMANTIC_DIM))
-
-        # Stack into matrices: (n, d) and (m, d)
-        matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), SEMANTIC_DIM)
-        matrix_b = np.stack(embeddings_b)  # shape: (len(notes_b), SEMANTIC_DIM)
-
-        # Cosine similarity matrix, clipped to [0, 1] like similarity()
-        similarity_matrix = np.clip(cosine_similarity_matrix(matrix_a, matrix_b), 0.0, 1.0)
-
-        # Phase 3: Populate cache for newly computed pairs
-        for i in range(len(notes_a)):
-            for j in range(len(notes_b)):
-                if needs_computation[i, j]:
-                    result[i, j] = similarity_matrix[i, j]
-
-                    # Cache this pair for future use
-                    sorted_paths = sorted([notes_a[i].path, notes_b[j].path])
-                    cache_key_store: tuple[str, str] = (sorted_paths[0], sorted_paths[1])
-                    self._similarity_cache[cache_key_store] = similarity_matrix[i, j]
+        # Phase 2: compute the whole matrix in one vectorised operation, then
+        # Phase 3: fill and cache the pairs that were missing.
+        similarity_matrix = self._similarity_matrix(paths_a, paths_b)
+        for i, j in zip(*np.nonzero(needs_computation)):
+            value = similarity_matrix[i, j]
+            result[i, j] = value
+            cache[keys[i][j]] = value
 
         return result
+
+    def _similarity_matrix(self, paths_a: list[str], paths_b: list[str]) -> np.ndarray:
+        """Cosine similarity matrix of two path lists, clipped to [0, 1].
+
+        A path with no session embedding contributes a zero row (similarity
+        0.0 with everything), matching similarity()'s KeyError fallback.
+        """
+        embeddings_a = [self._embedding_or_zeros(path) for path in paths_a]
+        embeddings_b = [self._embedding_or_zeros(path) for path in paths_b]
+        matrix: np.ndarray = np.clip(
+            cosine_similarity_matrix(np.stack(embeddings_a), np.stack(embeddings_b)), 0.0, 1.0
+        )
+        return matrix
+
+    def _embedding_or_zeros(self, path: str) -> np.ndarray:
+        try:
+            return self._backend.get_embedding(path)
+        except KeyError:
+            return np.zeros(SEMANTIC_DIM)
+
+    def _overlay_cached_similarities(
+        self, result: np.ndarray, paths_a: list[str], paths_b: list[str]
+    ) -> None:
+        """Replace computed values with any already in the similarity cache.
+
+        Walks whichever is smaller, the cache or the pair grid, so the cost
+        is O(min(cache size, pairs)) rather than one key build per pair.
+        """
+        cache = self._similarity_cache
+        if not cache:
+            return
+        if len(cache) >= len(paths_a) * len(paths_b):
+            for i, a in enumerate(paths_a):
+                for j, b in enumerate(paths_b):
+                    cached = cache.get((a, b) if a <= b else (b, a))
+                    if cached is not None:
+                        result[i, j] = cached
+            return
+
+        rows: dict[str, list[int]] = {}
+        for i, path in enumerate(paths_a):
+            rows.setdefault(path, []).append(i)
+        cols: dict[str, list[int]] = {}
+        for j, path in enumerate(paths_b):
+            cols.setdefault(path, []).append(j)
+        for (low, high), value in cache.items():
+            for row_path, col_path in ((low, high), (high, low)):
+                row_idx = rows.get(row_path)
+                col_idx = cols.get(col_path)
+                if row_idx is not None and col_idx is not None:
+                    result[np.ix_(row_idx, col_idx)] = value
+                if low == high:
+                    break
 
     # Graph operations
 
@@ -1015,6 +1105,33 @@ class VaultContext:
         )
         return [row[0] for row in cursor.fetchall()]
 
+    def warm_clusters(self, timeout_seconds: int = CLUSTERING_TIMEOUT_SECONDS) -> bool:
+        """Compute this session's canonical clusters once, under their own budget.
+
+        Clustering a large vault can take longer than one geist's timeout, and a
+        geist timeout discarded the half-built result, so cluster geists failed
+        every session. Calling this before geists run keeps clustering out of
+        their budgets; on timeout the session proceeds with no clusters.
+
+        Returns:
+            True if clusters are ready (possibly empty), False on timeout.
+        """
+        from .execution_timeout import GeistTimeoutError, alarm_timeout
+
+        try:
+            with alarm_timeout(timeout_seconds):
+                self.get_clusters()
+            return True
+        except GeistTimeoutError:
+            config = self.vault.config.clustering
+            key = (config.min_cluster_size, config.labeling_method, config.n_label_terms)
+            self._clusters_cache[key] = {}
+            logger.warning(
+                "Clustering exceeded %ds; cluster geists see no clusters this session",
+                timeout_seconds,
+            )
+            return False
+
     def get_clusters(self, min_size: int | None = None) -> dict[int, Cluster]:
         """Get cluster assignments and labels for current session.
 
@@ -1084,6 +1201,13 @@ class VaultContext:
 
         # Run HDBSCAN clustering
         clusterer = HDBSCAN(min_cluster_size=min_size, min_samples=3)
+        # Brute-force distances are ~8x faster than the default kd-tree in 384
+        # dimensions but hold an N x N matrix (~0.4 GB at 5k notes). Ties in
+        # mutual-reachability distance can reassign a handful of points
+        # (measured <= 0.1%), an accepted difference; above the limit the
+        # memory-bounded default is kept.
+        if len(paths) <= BRUTE_HDBSCAN_MAX_NOTES:
+            clusterer.set_params(algorithm="brute")
         labels = clusterer.fit_predict(embeddings_array)
 
         # Group notes by cluster
@@ -1116,7 +1240,11 @@ class VaultContext:
 
         if labeling_method == "keybert":
             cluster_labels_raw = cluster_labeling.label_keybert(
-                paths, labels, self.db, n_terms=n_terms
+                paths,
+                labels,
+                self.db,
+                n_terms=n_terms,
+                computer=getattr(self.session, "computer", None),
             )
         else:  # Default to tfidf
             cluster_labels_raw = cluster_labeling.label_tfidf(
@@ -1419,9 +1547,30 @@ class VaultContext:
         if k_neighbours in self._surprisal_cache:
             return self._surprisal_cache[k_neighbours]
 
-        scores = _surprisal_blocked(self._user_embeddings, k_neighbours)
+        if k_neighbours < 1 or len(self._user_embeddings) < k_neighbours + 1:
+            scores: dict[str, float] = {}
+        else:
+            paths, normalised = self._current_normalised_matrix()
+            scores = _surprisal_from_topk(paths, normalised, self._current_topk(k_neighbours))
         self._surprisal_cache[k_neighbours] = scores
         return scores
+
+    def _current_normalised_matrix(self) -> tuple[list[str], np.ndarray]:
+        """Sorted user paths and their row-normalised matrix (session-cached)."""
+        if self._current_matrix is None:
+            self._current_matrix = _normalised_matrix(self._user_embeddings)
+        return self._current_matrix
+
+    def _current_topk(self, k: int) -> np.ndarray:
+        """This session's top-k neighbour indices (1 <= k < N), computed once.
+
+        surprisal_scores() and neighbour_churn() both need it; before it was
+        shared, every session ran the O(N^2) pass twice.
+        """
+        if k not in self._current_topk_cache:
+            _paths, normalised = self._current_normalised_matrix()
+            self._current_topk_cache[k] = _topk_indices(normalised, k)
+        return self._current_topk_cache[k]
 
     def neighbour_churn(self, since_days: int = 180, k: int = 10) -> dict[str, ChurnResult]:
         """Jaccard churn between each note's current semantic neighbours and
@@ -1440,8 +1589,8 @@ class VaultContext:
 
         1. ONE bulk SELECT loads the historical session's embeddings —
            never per-note queries
-        2. Two blocked top-k passes (shared helper with surprisal_scores),
-           one per epoch
+        2. Two blocked top-k passes, one per epoch; the current epoch's
+           index is session-cached and shared with surprisal_scores()
         3. Set-based Jaccard per note (O(k) each):
            churn = 1 - |old ∩ new| / |old ∪ new| (0.0 if both empty)
 
@@ -1524,9 +1673,13 @@ class VaultContext:
         old_matrix = np.stack([historical[p] for p in old_paths])
         old_sets = _topk_neighbour_sets(old_matrix, old_paths, k)
 
-        new_paths = sorted(self._user_embeddings)
-        new_matrix = np.stack([self._user_embeddings[p] for p in new_paths])
-        new_sets = _topk_neighbour_sets(new_matrix, new_paths, k)
+        # The current epoch's index is shared with surprisal_scores()
+        new_paths, _normalised = self._current_normalised_matrix()
+        k_eff = min(k, len(new_paths) - 1)
+        if k_eff <= 0:
+            new_sets: dict[str, set[str]] = {path: set() for path in new_paths}
+        else:
+            new_sets = _neighbour_sets_from_indices(new_paths, self._current_topk(k_eff))
 
         # Jaccard churn for notes present in BOTH epochs
         result: dict[str, ChurnResult] = {}
@@ -1592,11 +1745,11 @@ class VaultContext:
             "reading_time": round(word_count / 200.0, 2),  # minutes at ~200 wpm
         }
 
-        # Merge in linguistic voice metadata (computed lazily per note,
-        # cached via the same session-scoped metadata cache). Built-in keys
-        # take precedence: both layers compute a lexical_diversity, and
+        # Merge in linguistic voice metadata, from the same session cache as
+        # voice(), so voice analysis runs once per note per session. Built-in
+        # keys take precedence: both layers compute a lexical_diversity, and
         # metadata_driven_discovery's thresholds are tuned to the built-in.
-        for key, value in compute_voice_metadata(note.content).items():
+        for key, value in asdict(self.voice(note)).items():
             metadata.setdefault(key, value)
 
         # Run metadata inference modules if available

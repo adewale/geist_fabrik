@@ -191,3 +191,132 @@ def test_density_inversion_output_does_not_depend_on_hash_order(
     for salt in ("a", "b", "c", "d", "e", "f"):
         monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))
         assert [s.text for s in density_inversion.suggest(builder.build())] == baseline, salt
+
+
+def _reference_densities(ctx, neighbours: list) -> tuple[int, float]:
+    """The pre-vectorisation computation: links_between and similarity() per pair."""
+    edges = 0
+    similarities = []
+    for i, n1 in enumerate(neighbours):
+        for n2 in neighbours[i + 1 :]:
+            if ctx.links_between(n1, n2):
+                edges += 1
+            similarities.append(ctx.similarity(n1, n2))
+    return edges, sum(similarities) / len(similarities)
+
+
+def _mixed_vault(tmp_path: Path):
+    """Cliques, hubs with similar spokes, and random cross links (incl. one-way)."""
+    import random
+
+    rng = random.Random(7)
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Node {i:02d}" for i in range(48)]
+    words = ["orchard", "graft", "cider", "tide", "harbour", "sail", "ledger", "audit"]
+    for i, title in enumerate(titles):
+        topic = words[i % 4 * 2 : i % 4 * 2 + 2] * 4
+        targets = rng.sample(titles, rng.randint(0, 9))
+        if i < 6:  # a clique among the first six notes
+            targets += titles[:6]
+        body = " ".join(topic + [f"own{i}x{k}" for k in range(rng.randint(0, 12))])
+        builder.note(title, body + " " + " ".join(f"[[{t}]]" for t in targets), created=CREATED)
+    return builder
+
+
+def test_density_inversion_densities_match_per_pair_reference(tmp_path: Path) -> None:
+    """Equivalence: adjacency-set link counts and the similarity matrix mean
+    equal the original per-pair links_between()/similarity() computation for
+    every analysable note (counts exactly, means to float tolerance)."""
+    ctx = _mixed_vault(tmp_path).build()
+    reference_ctx = _mixed_vault(tmp_path).build()
+    adjacency = {n.path: {m.path for m in ctx.graph_neighbours(n)} for n in ctx.notes()}
+    checked = 0
+    for note in ctx.notes():
+        neighbours = ctx.graph_neighbours(note)
+        if len(neighbours) < 3:
+            continue
+        ref_neighbours = reference_ctx.graph_neighbours(reference_ctx.get_note(note.path))
+        assert [n.path for n in ref_neighbours] == [n.path for n in neighbours]
+        edges, semantic = _reference_densities(reference_ctx, ref_neighbours)
+        assert density_inversion._link_count(neighbours, lambda n: adjacency[n.path]) == edges
+        assert density_inversion._semantic_density(ctx, neighbours) == pytest.approx(
+            semantic, rel=0, abs=1e-12
+        )
+        checked += 1
+    assert checked >= 20
+
+
+def _reference_suggest(vault) -> list:
+    """density_inversion.suggest() as it was before vectorisation."""
+    from geistfabrik import Suggestion
+
+    suggestions = []
+    notes = vault.notes()
+    if len(notes) < 20:
+        return []
+    for note in vault.sample(notes, min(30, len(notes))):
+        graph_neighbours = vault.graph_neighbours(note)
+        if len(graph_neighbours) < 3:
+            continue
+        edges, semantic_density = _reference_densities(vault, graph_neighbours)
+        max_possible_edges = len(graph_neighbours) * (len(graph_neighbours) - 1) / 2
+        graph_density = edges / max_possible_edges
+        if graph_density > 0.6 and semantic_density < 0.3:
+            sample = vault.sample(graph_neighbours, count=3)
+            text = f"scattered {note.path} " + ", ".join(n.link_text for n in sample)
+        elif graph_density < 0.3 and semantic_density > 0.6:
+            sample = vault.sample(graph_neighbours, count=3)
+            text = f"missing {note.path} " + ", ".join(n.link_text for n in sample)
+        else:
+            continue
+        notes_out = [note.link_text] + [n.link_text for n in sample]
+        suggestions.append(Suggestion(text=text, notes=notes_out, geist_id="density_inversion"))
+    return vault.sample(suggestions, count=2)
+
+
+def _kind_and_notes(suggestion) -> tuple[str, list[str]]:
+    kind = "missing" if "Missing connections" in suggestion.text else "scattered"
+    if suggestion.text.startswith(("missing ", "scattered ")):
+        kind = suggestion.text.split(" ", 1)[0]
+    return kind, suggestion.notes
+
+
+@pytest.mark.parametrize("fixture", ["mixed", "both_cases"])
+def test_density_inversion_suggestions_match_reference(tmp_path: Path, fixture: str) -> None:
+    """Equivalence: same vault and seed give the same suggestions (kind, focal
+    note, sampled neighbours) as the per-pair implementation."""
+    if fixture == "mixed":
+        builder = _mixed_vault(tmp_path)
+    else:
+        builder = VaultBuilder(tmp_path)
+        _add_clique(builder, CLIQUE)
+        spokes = [f"Grove {i}" for i in range(4)]
+        builder.note("Hub Index", " ".join(f"[[{s}]]" for s in spokes), created=CREATED)
+        for spoke in spokes:
+            builder.note(spoke, f"{TOPIC} {TOPIC}", created=CREATED)
+        _add_fillers(builder, MIN_NOTES)
+
+    actual = [_kind_and_notes(s) for s in density_inversion.suggest(builder.build())]
+    expected = [_kind_and_notes(s) for s in _reference_suggest(builder.build())]
+
+    assert actual == expected
+    if fixture == "both_cases":
+        assert actual
+
+
+@pytest.mark.timeout(20)
+def test_density_inversion_dense_clique_is_not_cubic(tmp_path: Path) -> None:
+    """Regression: a 120-note clique took ~48 s (links_between rescans both
+    notes' links for each of ~7k neighbour pairs, for 30 sampled notes); with
+    adjacency sets and one similarity matrix per note it takes well under 1 s."""
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Member {i:03d}" for i in range(120)]
+    for title in titles:
+        links = " ".join(f"[[{t}]]" for t in titles if t != title)
+        builder.note(title, f"{_own_words(title.replace(' ', ''))} {links}", created=CREATED)
+    ctx = builder.build()
+
+    suggestions = density_inversion.suggest(ctx)
+
+    assert isinstance(suggestions, list)
+    assert len(ctx.graph_neighbours(ctx.notes()[0])) == 119

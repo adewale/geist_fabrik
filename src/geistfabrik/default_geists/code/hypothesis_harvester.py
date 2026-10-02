@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 # Notes tried per session before abstaining.
 MAX_NOTES_TRIED = 10
+# Longest hypothesis (characters) shown. The extractor skips longer sentences
+# up front: they would be filtered out anyway, and matching its patterns
+# against a huge run-on sentence is slow.
+MAX_HYPOTHESIS_LENGTH = 300
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -35,8 +39,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     pipeline = ExtractionPipeline(
-        strategies=[HypothesisExtractor()],
-        filters=[LengthFilter(min_len=20, max_len=300), AlphaFilter()],
+        strategies=[HypothesisExtractor(max_sentence_length=MAX_HYPOTHESIS_LENGTH)],
+        filters=[LengthFilter(min_len=20, max_len=MAX_HYPOTHESIS_LENGTH), AlphaFilter()],
     )
     # Try a few random notes (deterministic by session seed) and harvest the
     # first one that has any; most notes have none.

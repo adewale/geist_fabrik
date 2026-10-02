@@ -192,3 +192,39 @@ def test_example_temporal_module_uses_the_session_date(tmp_path: Path) -> None:
 
     assert md["days_since_modified"] == 40
     assert md["days_since_created"] == 40
+
+
+def test_voice_analysis_runs_once_per_note_for_metadata_and_voice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: metadata() re-ran compute_voice() through
+    compute_voice_metadata() instead of reading the voice() cache, so voice
+    analysis ran twice per note per session. The merged keys are unchanged."""
+    from dataclasses import asdict
+
+    import geistfabrik.vault_context as vault_context_module
+    import geistfabrik.voice_analysis as voice_analysis
+
+    body = "I think we might try this. Maybe it works? We built it together last week."
+    ctx = _build_context(tmp_path, {"A": body, "B": "Plain words only."}, backdate_days=3)
+    calls: list[str] = []
+    real = voice_analysis.compute_voice
+
+    def counting(content: str) -> voice_analysis.VoiceMetadata:
+        calls.append(content)
+        return real(content)
+
+    monkeypatch.setattr(voice_analysis, "compute_voice", counting)
+    monkeypatch.setattr(vault_context_module, "compute_voice", counting)
+
+    for note in ctx.notes():
+        md = ctx.metadata(note)
+        voice = ctx.voice(note)
+        ctx.metadata(note)
+        expected = asdict(real(note.content))
+        assert asdict(voice) == expected
+        for key, value in expected.items():
+            if key != "lexical_diversity":  # the built-in key wins (see metadata())
+                assert md[key] == value, key
+
+    assert len(calls) == len(ctx.notes())
