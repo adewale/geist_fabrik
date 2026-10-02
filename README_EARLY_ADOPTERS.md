@@ -774,16 +774,21 @@ From: `uv run geistfabrik test <geist_name> ~/my-vault --debug`
 
 ### Expected Performance by Vault Size
 
-| Vault Size | First Run | Daily Use | Status |
-|------------|-----------|-----------|--------|
-| 100 notes | 1-2s | <1s | ✅ Excellent |
-| 500 notes | 5-8s | 2-3s | ✅ Good |
-| 1000 notes | 14s | 3-5s | ✅ Acceptable |
-| 3000 notes | 45s | 8-12s | ✅ Tolerable |
-| 5000 notes | 2-3min | 15-20s | 🟡 Marginal |
-| 10000+ notes | 5-10min | 30-60s | 🔴 Consider GPU |
+What has been measured (CPU only):
 
-**Note**: "First run" = initial embedding computation. "Daily use" = cached embeddings.
+- **First run**: embedding costs about 20 ms per note, so roughly 20 seconds
+  for 1,000 notes and a few minutes for 10,000
+  (`docs/10K_VAULT_BENCHMARK.md`).
+- **Daily use**: only changed notes are re-embedded. Running every bundled
+  geist on a synthetic 10,000-note vault took about 74 seconds in the
+  2026-10 scaling benchmark (embeddings already computed). Clustering runs
+  once per session before the cluster geists, on its own 120-second budget,
+  so a large vault does not make them time out.
+
+These are single-machine measurements, not guarantees; there is no
+per-size benchmark table.
+
+"First run" = initial embedding computation. "Daily use" = cached embeddings.
 
 ### Understanding Cold vs Warm Start Performance
 
