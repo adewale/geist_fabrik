@@ -83,8 +83,15 @@ class VoiceMetadata:
 # YAML frontmatter at the very start of the document
 _FRONTMATTER_RE = re.compile(r"\A---[ \t]*\n.*?\n---[ \t]*\n?", re.DOTALL)
 
-# Fenced code blocks (``` or ~~~). Non-greedy; unclosed fences are left alone.
-_FENCED_CODE_RE = re.compile(r"^(```|~~~)[^\n]*\n.*?^\1[^\n]*$", re.DOTALL | re.MULTILINE)
+# Fenced code blocks (``` or ~~~), including fences indented inside list
+# items. Non-greedy; unclosed fences are left alone.
+_FENCED_CODE_RE = re.compile(
+    r"^[ \t]*(```|~~~)[^\n]*\n.*?^[ \t]*\1[^\n]*$", re.DOTALL | re.MULTILINE
+)
+
+# Slash compounds such as "I/O" or "and/or": their parts are not words in
+# their own right (the "I" of "I/O" is not the first person).
+_SLASH_COMPOUND_RE = re.compile(r"\w+(?:/\w+)+")
 
 # Inline code spans (single backticks, no newlines)
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
@@ -372,8 +379,9 @@ def strip_for_analysis(text: str) -> str:
     """Remove markdown noise before linguistic analysis.
 
     Strips, in order: YAML frontmatter (only at document start), fenced
-    code blocks (``` or ~~~), inline code spans, and URLs. Each removed
-    region is replaced with a single space so sentence boundaries survive.
+    code blocks (``` or ~~~), inline code spans, URLs and slash compounds
+    such as "I/O". Each removed region is replaced with a single space so
+    sentence boundaries survive.
 
     Unclosed fences/spans are left in place — totality matters more than
     perfect stripping.
@@ -388,6 +396,7 @@ def strip_for_analysis(text: str) -> str:
     text = _FENCED_CODE_RE.sub(" ", text)
     text = _INLINE_CODE_RE.sub(" ", text)
     text = _URL_RE.sub(" ", text)
+    text = _SLASH_COMPOUND_RE.sub(" ", text)
     return text
 
 

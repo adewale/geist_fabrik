@@ -14,14 +14,30 @@ from .models import Link
 # Handles: [[link]], [[link|text]], ![[embed]], [[note#heading]], [[note^block]]
 WIKILINK_PATTERN = re.compile(r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 
-# Pattern for inline tags: #tag, including nested tags like #parent/child
-TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
+# Pattern for inline tags: #tag, including nested tags like #parent/child.
+# As in Obsidian, the # must start the text or follow whitespace, so URL
+# fragments (page#section), markdown anchors ([toc](#section)) and "C#" are
+# not tags. A tag also needs a non-numeric character (see _is_tag): "PR #30"
+# and "#2023" are not tags.
+TAG_PATTERN = re.compile(r"(?<!\S)#([a-zA-Z0-9_/-]+)")
 
-# Code regions are stripped before tag extraction: Obsidian does not treat
-# #words inside fenced or inline code as tags (#define, #!/bin/bash, hex
-# colours like #fff in CSS, URL fragments in code samples, ...).
+# Code regions are stripped before link and tag extraction: Obsidian does
+# not treat [[...]] or #words inside fenced or inline code as links or tags
+# (#define, #!/bin/bash, hex colours like #fff, template examples such as
+# "[[#note#]]" or f"[[{title}]]" in code samples, ...).
 FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
+
+
+def _prose_without_code(content: str) -> str:
+    """Content with fenced, indented and inline code removed."""
+    prose = "\n".join(line for _, line in markdown_prose_lines(content))
+    return INLINE_CODE_PATTERN.sub("", prose)
+
+
+def _is_tag(candidate: str) -> bool:
+    """Obsidian tags need at least one non-numeric character."""
+    return re.search(r"[A-Za-z_]", candidate) is not None
 
 
 def markdown_prose_lines(content: str) -> Iterator[tuple[int, str]]:
@@ -145,8 +161,8 @@ def extract_links(content: str) -> list[Link]:
     """
     links: list[Link] = []
 
-    # Use pre-compiled pattern for better performance
-    for match in WIKILINK_PATTERN.finditer(content):
+    # Links inside code are examples, not links (see FENCED_CODE_PATTERN).
+    for match in WIKILINK_PATTERN.finditer(_prose_without_code(content)):
         is_embed = match.group(1) == "!"
         target_raw = match.group(2).strip()
         display_text = match.group(3).strip() if match.group(3) else None
@@ -216,12 +232,10 @@ def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> lis
 
     # Strip code regions first so #words inside fenced/inline code are not
     # misread as tags (matches Obsidian's behaviour).
-    content_no_code = "\n".join(line for _, line in markdown_prose_lines(content))
-    content_no_code = INLINE_CODE_PATTERN.sub("", content_no_code)
-
-    # Extract inline tags from content using pre-compiled pattern
-    for match in TAG_PATTERN.finditer(content_no_code):
+    for match in TAG_PATTERN.finditer(_prose_without_code(content)):
         tag = match.group(1)
+        if not _is_tag(tag):
+            continue
         tags.add(tag)
         if len(tags) > MAX_NOTE_TAGS:
             raise MarkdownLimitError(f"note exceeds {MAX_NOTE_TAGS} unique tags")

@@ -14,8 +14,10 @@ tracery:
     - "Consider connecting #note1# and #note2#. #reason#"
     - "#note1# and #note2# might #relationship# in interesting ways."
 
+  # Pool larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
   pair:
-    - "$vault.note_pairs(2)"
+    - "$vault.note_pairs(6)"
 
   note1:
     - "#picked.split_seed#"

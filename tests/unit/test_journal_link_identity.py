@@ -186,7 +186,9 @@ def test_persisted_links_resolve_consistently_across_consumers(tmp_path: Path) -
         assert ctx.resolve_link_target("Journal#2025-01-16", first.path) == second
         assert vault.resolve_link_target("Journal#2025-01-15") is None
         assert ctx.outgoing_links(reader) == [first]
-        assert ctx.outgoing_links(first) == [second, second]
+        # Two links to the same entry are one edge in the graph (links_between
+        # and the stats link counts still see both links).
+        assert ctx.outgoing_links(first) == [second]
         assert ctx.backlinks(first) == [reader]
         assert ctx.backlinks(second) == [first]
         assert len(ctx.links_between(first, second)) == 2

@@ -15,8 +15,10 @@ tracery:
     - "#seed# shares conceptual space with #neighbours#. #question#"
 
   # Use semantic_clusters to get paired seed/neighbour data
+  # Pool larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
   cluster:
-    - "$vault.semantic_clusters(2, 3)"
+    - "$vault.semantic_clusters(6, 3)"
 
   # Extract seed and neighbours from the saved cluster using custom modifiers
   seed:

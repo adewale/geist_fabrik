@@ -1,5 +1,7 @@
 """Unit tests for markdown parser."""
 
+import pytest
+
 from geistfabrik.markdown_parser import (
     extract_links,
     extract_tags,
@@ -236,3 +238,43 @@ def test_extract_tags_ignores_inline_code() -> None:
     content = "Use `color: #fff` for white. Also #styling matters."
     tags = extract_tags(content)
     assert tags == ["styling"]
+
+
+def test_extract_links_ignores_links_inside_code() -> None:
+    """Contract: [[...]] inside fenced, indented or inline code is not a link.
+
+    Regression: links were read from raw content, so Tracery examples such as
+    "[[#note#]]" and f-strings like f"[[{title}]]" in code samples became
+    links (one note had 73 such "links" and no real connection).
+    """
+    content = (
+        "See [[Real Target]].\n"
+        "```python\n"
+        'text = f"[[{note.title}]]"\n'
+        "```\n"
+        "Template: `origin: [[#note#]]`\n"
+        "\n"
+        "    indented = '[[Indented Code]]'\n"
+    )
+    assert [link.target for link in extract_links(content)] == ["Real Target"]
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("Fixed in PR #30 and #2023.", []),
+        ("Read https://example.com/page#Section first.", []),
+        ("Jump to [contents](#benchmark-types).", []),
+        ("Written in C# and F#.", []),
+        ("Tagged #y2023 and #1a and #area/sub-topic.", ["1a", "area/sub-topic", "y2023"]),
+        ("#start-of-line tag", ["start-of-line"]),
+    ],
+    ids=["numeric", "url-fragment", "anchor", "suffix", "valid", "line-start"],
+)
+def test_extract_tags_follows_obsidian_tag_rules(content: str, expected: list[str]) -> None:
+    """Contract: a tag starts the text or follows whitespace and has a non-digit.
+
+    Regression: "#30" in "PR #30" and URL fragments were read as tags, so
+    seasonal_patterns reported topics such as "#1" and "#30".
+    """
+    assert extract_tags(content) == expected

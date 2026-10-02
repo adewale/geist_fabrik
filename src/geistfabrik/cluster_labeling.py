@@ -19,7 +19,29 @@ from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
 )
 
+from geistfabrik.markdown_parser import (
+    INLINE_CODE_PATTERN,
+    markdown_prose_lines,
+    parse_frontmatter,
+)
+
 logger = logging.getLogger(__name__)
+
+# Label candidates are words of two or more letters: no numbers (dates such
+# as "2023 09"), no underscores or code identifiers.
+_WORD_TOKEN_PATTERN = r"(?u)\b[^\W\d_]{2,}\b"
+
+
+def _label_text(title: str, content: str) -> str:
+    """Title plus the opening of the note body, for cluster labelling.
+
+    Frontmatter and code are not what a note is about; labelled from raw
+    content, clusters were named after YAML keys and dates.
+    """
+
+    body = parse_frontmatter(content)[1]
+    prose = "\n".join(line for _, line in markdown_prose_lines(body))
+    return f"{title} {INLINE_CODE_PATTERN.sub(' ', prose)[:200]}"
 
 
 def apply_mmr(
@@ -138,8 +160,7 @@ def label_tfidf(
         row = cursor.fetchone()
         if row:
             title, content = row
-            # Use title + first 200 chars of content
-            text = f"{title} {content[:200]}"
+            text = _label_text(title, content)
             clusters[label].append(text)
 
     if not clusters:
@@ -149,7 +170,12 @@ def label_tfidf(
     cluster_texts = {cid: " ".join(texts) for cid, texts in clusters.items()}
 
     # Compute TF-IDF
-    vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 2))
+    vectorizer = TfidfVectorizer(
+        max_features=100,
+        stop_words="english",
+        ngram_range=(1, 2),
+        token_pattern=_WORD_TOKEN_PATTERN,
+    )
 
     try:
         tfidf_matrix = vectorizer.fit_transform(cluster_texts.values())
@@ -223,8 +249,7 @@ def label_keybert(
         row = cursor.fetchone()
         if row:
             title, content = row
-            # Use title + first 200 chars of content
-            text = f"{title} {content[:200]}"
+            text = _label_text(title, content)
             clusters[label].append(text)
 
     if not clusters:
@@ -270,7 +295,12 @@ def label_keybert(
         centroid = np.mean(cluster_embeddings[cluster_id], axis=0)
 
         # Extract candidate phrases using TF-IDF to get good candidates
-        vectorizer = TfidfVectorizer(max_features=100, stop_words="english", ngram_range=(1, 3))
+        vectorizer = TfidfVectorizer(
+            max_features=100,
+            stop_words="english",
+            ngram_range=(1, 3),
+            token_pattern=_WORD_TOKEN_PATTERN,
+        )
         try:
             # Fit on this cluster's text only
             tfidf_matrix = vectorizer.fit_transform([cluster_text])

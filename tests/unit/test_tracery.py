@@ -558,6 +558,8 @@ def test_tracery_pluralize_modifier(singular: str, plural: str) -> None:
         ("write", "wrote"),
         ("find", "found"),
         ("build", "built"),
+        # Used by what_if and perspective_shifter; was "understanded".
+        ("understand", "understood"),
     ],
 )
 def test_tracery_past_tense_modifier(present: str, past: str) -> None:
@@ -1364,7 +1366,7 @@ def test_block_scalar_templates_still_produce_suggestions(tmp_path: Path) -> Non
     yaml_file.write_text(
         "type: geist-tracery\n"
         "id: block\n"
-        "count: 2\n"
+        "count: 1\n"
         "tracery:\n"
         "  origin:\n"
         "    - |\n"
@@ -1380,7 +1382,7 @@ def test_block_scalar_templates_still_produce_suggestions(tmp_path: Path) -> Non
 
     assert [s.text for s in suggestions] == [
         "What if [[Garden]] were different?\nConsider it today.\n"
-    ] * 2
+    ]
 
 
 def test_vault_text_is_never_parsed_as_grammar(tmp_path: Path) -> None:
@@ -1402,3 +1404,48 @@ def test_vault_text_is_never_parsed_as_grammar(tmp_path: Path) -> None:
     [suggestion] = geist.suggest(ctx)
 
     assert suggestion.text == "[[Meeting [ref:2024] notes #ref#]] then REF"
+
+
+def test_geists_sharing_a_session_seed_make_different_choices() -> None:
+    """Contract: the session seed is mixed with the geist id.
+
+    Regression: every Tracery geist was seeded with the bare session seed, so
+    geists with the same number of templates picked the same template index
+    every day. The same id and seed still give the same output.
+    """
+    grammar = {"origin": [f"template {i}" for i in range(8)]}
+    picks = {
+        geist_id: [
+            TraceryGeist(geist_id, grammar, seed=seed).suggest(None)[0].text for seed in range(12)
+        ]
+        for geist_id in ("alpha", "beta")
+    }
+
+    assert picks["alpha"] != picks["beta"]
+    assert picks["alpha"] == [
+        TraceryGeist("alpha", grammar, seed=seed).suggest(None)[0].text for seed in range(12)
+    ]
+
+
+def test_a_session_never_suggests_the_same_note_twice(tmp_path: Path) -> None:
+    """Contract: one invocation names each note (or note set) at most once.
+
+    Regression: expansions draw from the same pool with replacement, so with
+    count equal to the pool size most sessions repeated a note.
+    """
+    from tests.fixtures.helpers import VaultBuilder
+
+    builder = VaultBuilder(tmp_path / "vault")
+    for title in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"):
+        builder.note(title, f"{title} words.")
+    ctx = builder.build()
+    grammar = {
+        "origin": ["Think about #note#.", "Revisit #note# today."],
+        "note": ["$vault.sample_notes(6)"],
+    }
+
+    for seed in range(40):
+        suggestions = TraceryGeist("distinct", grammar, count=4, seed=seed).suggest(ctx)
+        named = [tuple(s.notes) for s in suggestions]
+        assert len(named) == 4, seed
+        assert len(set(named)) == 4, (seed, named)

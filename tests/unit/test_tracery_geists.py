@@ -235,7 +235,10 @@ def test_note_combinations_always_pairs_two_different_notes(
         ctx = builder.build(session_date=session, seed=session_seed(session))
         for seed in range(25):
             suggestions = TraceryGeist.from_yaml(_yaml("note_combinations"), seed=seed).suggest(ctx)
-            assert_valid_suggestions(suggestions, "note_combinations", min_count=2)
+            # Two notes make one distinct pair, which is offered only once.
+            assert_valid_suggestions(
+                suggestions, "note_combinations", min_count=min(2, math.comb(note_count, 2))
+            )
             for suggestion in suggestions:
                 assert len(suggestion.notes) == 2, suggestion.text
                 assert suggestion.notes[0] != suggestion.notes[1], suggestion.text

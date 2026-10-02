@@ -21,6 +21,7 @@ import numpy as np
 from .clustering_analysis import Cluster, format_cluster_label
 from .config import GEIST_JOURNAL_DIR, TOTAL_DIM
 from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
+from .markdown_parser import parse_frontmatter
 from .models import Link, Note, NoteLinkIndex
 from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
@@ -695,14 +696,16 @@ class VaultContext:
         self._backlinks_cache = {note.path: [] for note in notes}
         self._outgoing_links_cache = {note.path: [] for note in notes}
         for note in notes:
-            seen: set[str] = set()
+            # One edge per target. A link back to the note itself ("[[#Section]]",
+            # "[[Own title]]") is navigation within the note, not a connection:
+            # counted, it made the note its own backlink and therefore a "hub".
+            seen: set[str] = {note.path}
             for link in note.links:
                 path = index.resolve(link.target, note.path)
-                if path is not None:
+                if path is not None and path not in seen:
+                    seen.add(path)
                     self._outgoing_links_cache[note.path].append(by_path[path])
-                    if path not in seen:
-                        self._backlinks_cache[path].append(note)
-                        seen.add(path)
+                    self._backlinks_cache[path].append(note)
         self._link_graph_ready = True
 
     def backlinks(self, note: Note) -> list[Note]:
@@ -758,12 +761,14 @@ class VaultContext:
         full_index = self._all_notes_link_index()
 
         def has_outgoing(note: Note) -> bool:
-            # A link counts unless it resolves to a geist journal note
-            # (unresolved links still count, as they always have).
-            return any(
-                not is_geist_journal_path(full_index.resolve(link.target, note.path) or "")
-                for link in note.links
-            )
+            # A link counts unless it resolves to a geist journal note or back
+            # to the note itself (unresolved links still count, as they always
+            # have).
+            for link in note.links:
+                target = full_index.resolve(link.target, note.path)
+                if target != note.path and not is_geist_journal_path(target or ""):
+                    return True
+            return False
 
         result = [
             note
@@ -1552,7 +1557,9 @@ class VaultContext:
         # Built-in metadata. "Now" is the session date, not wall-clock, so
         # --date replays stay deterministic (same date + vault = same output).
         session_now = self.session.date
-        words = note.content.split()
+        # Count the note body: YAML frontmatter (tags, aliases, dates) is not
+        # writing, and counting it made metadata-only notes look substantial.
+        words = parse_frontmatter(note.content)[1].split()
         word_count = len(words)
         days_since_modified = max(0, (session_now.date() - note.modified.date()).days)
         task_count = len(_TASK_PATTERN.findall(note.content))
@@ -1644,12 +1651,12 @@ class VaultContext:
             k: Number of items to sample
 
         Returns:
-            Sample of k items (or fewer if list is smaller)
+            Sample of k items (or fewer if list is smaller), in random order.
+            Asking for all items still shuffles them: returning the input
+            order made geists that sample and then take the first few name the
+            same notes, in vault order, every session.
         """
-        if count >= len(items):
-            return list(items)
-
-        return self.rng.sample(items, count)
+        return self.rng.sample(items, min(max(count, 0), len(items)))
 
     def random_notes(self, count: int = 1) -> list[Note]:
         """Sample k random notes.

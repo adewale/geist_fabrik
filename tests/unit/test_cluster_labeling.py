@@ -298,3 +298,24 @@ class TestClusterConfig:
         assert config.labeling_method == "keybert"
         assert config.min_cluster_size == 5
         assert config.n_label_terms == 4
+
+
+def test_label_text_skips_frontmatter_code_and_numbers() -> None:
+    """Contract: cluster labels come from what notes say, not YAML or code.
+
+    Regression: labels were built from raw content, giving names like
+    "tags daily notes, 2023, 09" from frontmatter and dates.
+    """
+    import re
+
+    from geistfabrik.cluster_labeling import _WORD_TOKEN_PATTERN, _label_text
+
+    content = "---\ntags: [daily]\ncreated: 2023-09-12\n---\nSoil and compost.\n```\nx = 1\n```\n"
+    text = _label_text("Garden", content)
+
+    assert "tags" not in text and "2023" not in text and "x = 1" not in text
+    assert text.startswith("Garden") and "Soil and compost." in text
+    assert re.findall(_WORD_TOKEN_PATTERN, "notes 2023 09 v2 io_rate garden") == [
+        "notes",
+        "garden",
+    ]

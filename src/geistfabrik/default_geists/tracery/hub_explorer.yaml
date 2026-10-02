@@ -9,8 +9,10 @@ tracery:
     - "#hub# is central to your vault. #question.capitalize#?"
     - "Many #path.s# lead through #hub#. #prompt.capitalize#?"
 
+  # Pool larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
   hub:
-    - "$vault.hubs(2)"
+    - "$vault.hubs(5)"
 
   verb:
     - "connect"

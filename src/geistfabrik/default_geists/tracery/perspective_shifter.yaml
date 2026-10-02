@@ -15,8 +15,10 @@ tracery:
     - "approach"
     - "understand"
 
+  # Pool larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
   note:
-    - "$vault.sample_notes(2)"
+    - "$vault.sample_notes(6)"
 
   metaphor:
     - "experiment"

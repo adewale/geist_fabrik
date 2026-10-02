@@ -68,6 +68,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
 
 ### Fixed
+- Links written inside fenced, indented or inline code (Tracery examples
+  such as `[[#note#]]`, f-strings like `f"[[{title}]]"`) were stored as real
+  links, inflating link counts and inventing hubs. Tags now follow Obsidian's
+  rules: `#` must start the text or follow whitespace, and a tag needs a
+  non-numeric character, so "PR #30", "#2023", URL fragments and `(#anchor)`
+  links are no longer tags. The parser revision bump (v4) reprocesses every
+  note once on the next sync; no rebuild is needed and unchanged notes keep
+  their cached embeddings.
+- A link from a note to itself (`[[#Section]]`, or a note naming its own
+  title) made the note its own backlink, so notes with no real connections
+  filled `hubs()` and were called "central to your vault". Self-links are no
+  longer edges, a repeated link is one edge in `outgoing_links()`, and a note
+  whose only links point at itself counts as an orphan.
+- `VaultContext.sample(items, k)` returned the input order when `k` was at
+  least the number of items, so geists that sampled and then took the first
+  few named the same notes, in vault order, every session. It now always
+  shuffles (still deterministic per session).
+- Tracery geists all used the bare session seed, so geists with the same
+  number of templates picked the same template index each day; the seed now
+  mixes in the geist id. A Tracery invocation no longer names the same note
+  (or note set) twice: repeats are skipped and redrawn, and the five bundled
+  geists whose pool equalled their `count` draw from larger pools. The `.ed`
+  modifier gives "understood", not "understanded".
+- Built-in `word_count` (and the keys derived from it) counted YAML
+  frontmatter as words.
+- Cluster labels were built from raw note content, so they were named after
+  frontmatter keys and dates ("tags daily notes, 2023, 09"); labels now use
+  the note body without code, and only words of two or more letters.
+- Voice analysis treated code in fences indented under list items, and the
+  "I" of "I/O", as first-person writing.
 - metadata_outlier_detector's link-density branch never fired on a default
   install because `link_density` was not built-in metadata. It now uses the
   built-in key over notes of at least 50 words, reports counts ("15 links in

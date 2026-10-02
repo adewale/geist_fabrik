@@ -292,3 +292,22 @@ def test_split_sentences_total(content: str) -> None:
     sentences = split_sentences(content)
     assert isinstance(sentences, list)
     assert all(s.strip() for s in sentences)
+
+
+def test_indented_code_fences_and_slash_compounds_are_not_voice() -> None:
+    """Contract: code inside list items and "I/O" are not first-person writing.
+
+    Regression: only fences at column 0 were stripped, so a loop variable
+    `i` in an indented code block counted as "I"; "I/O" did too.
+    """
+    content = (
+        "Plain prose about storage and throughput.\n"
+        "- Step one:\n"
+        "  ```python\n"
+        "  for i in range(3):\n"
+        "      print(i)\n"
+        "  ```\n"
+        "Disk I/O and/or network limits matter.\n"
+    )
+    assert compute_voice_metadata(content)["first_person_singular"] == 0.0
+    assert compute_voice_metadata("I think this matters.")["first_person_singular"] > 0.0

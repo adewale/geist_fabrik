@@ -135,6 +135,23 @@ def test_link_density_is_links_per_word(tmp_path: Path) -> None:
     assert by_path["N.md"]["link_density"] == 0.0
 
 
+def test_word_count_excludes_frontmatter(tmp_path: Path) -> None:
+    """Contract: word-based keys count the body, not the YAML properties.
+
+    Regression: frontmatter counted as words, so a note of tags and dates
+    looked substantial to stub_expander and the metadata geists.
+    """
+    from dataclasses import replace
+
+    ctx = _build_context(tmp_path, {"B": "body words"}, backdate_days=10)
+    note = ctx.notes()[0]  # "# B\n\nbody words": 4 words
+    front = "---\ntags: [one, two, three]\naliases: [a b c d e f]\ncreated: 2024-01-01\n---\n"
+    with_front = replace(note, path="F.md", content=front + note.content)
+
+    assert ctx.metadata(note)["word_count"] == 4
+    assert ctx.metadata(with_front)["word_count"] == 4
+
+
 def test_user_modules_can_still_override(tmp_path: Path) -> None:
     """A user inference module runs after the builtins, so its keys win."""
     modules = tmp_path / "metadata_inference"

@@ -41,8 +41,10 @@ tracery:
     - "frame"
     - "explore"
 
+  # Pool larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
   note:
-    - "$vault.sample_notes(3)"
+    - "$vault.sample_notes(6)"
 
   # Nouns for .a modifier (mix of vowel/consonant starts)
   metaphor:

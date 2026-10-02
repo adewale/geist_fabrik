@@ -69,20 +69,27 @@ def test_hubs_handles_vault_without_links(tmp_path: Path) -> None:
     assert context.hubs(count=5) == []
 
 
-def test_hubs_count_a_self_link_as_one_backlink(tmp_path: Path) -> None:
-    """A note linking to itself is its own backlink (once), like any source."""
-    files = {"self_linker.md": "# Self Linker\n\nI link to [[self_linker]]."}
+def test_a_self_link_is_not_a_backlink(tmp_path: Path) -> None:
+    """Contract: a link from a note to itself is not a connection.
+
+    Regression: self-links ("[[#Section]]" anchors, or a note naming its own
+    title) made a note its own backlink, so notes with one self-link and no
+    real backlinks filled hubs() and were called "central to your vault".
+    """
+    files = {
+        "self_linker.md": "# Self Linker\n\nI link to [[self_linker]] and [[#Intro]].",
+        "loner.md": "# Loner\n\nSee [[loner]] and [[#Notes]].",
+    }
     files.update({f"note_{i}.md": f"# Note {i}\n\n[[self_linker]]" for i in range(3)})
     context = _context(tmp_path, files)
 
     [hub] = context.hubs(count=5)
     assert hub.title == "Self Linker"
-    assert sorted(n.title for n in context.backlinks(hub)) == [
-        "Note 0",
-        "Note 1",
-        "Note 2",
-        "Self Linker",
-    ]
+    assert sorted(n.title for n in context.backlinks(hub)) == ["Note 0", "Note 1", "Note 2"]
+    assert context.outgoing_links(hub) == []
+    loner = next(n for n in context.notes() if n.title == "Loner")
+    assert context.backlinks(loner) == []
+    assert loner in context.orphans()
 
 
 def test_hubs_counts_a_repeated_link_once(tmp_path: Path) -> None:

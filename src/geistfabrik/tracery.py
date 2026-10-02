@@ -4,6 +4,7 @@ Implements a Tracery-like grammar system for declarative geist definitions.
 Supports symbol expansion, modifiers, and vault function calls.
 """
 
+import hashlib
 import logging
 import random
 import re
@@ -410,6 +411,7 @@ class TraceryEngine:
             "build": "built",
             "grow": "grew",
             "split": "split",
+            "understand": "understood",
         }
 
         lower_text = text.lower()
@@ -733,6 +735,17 @@ class TraceryEngine:
         return arg
 
 
+# Expansions attempted per requested suggestion before giving up on filling
+# `count` with distinct suggestions.
+DRAWS_PER_SUGGESTION = 25
+
+
+def _geist_seed(seed: int, geist_id: str) -> int:
+    """Per-geist seed derived from the session seed (stable across runs)."""
+    digest = hashlib.sha256(f"{seed}:{geist_id}".encode()).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
 class TraceryGeist:
     """A geist defined via Tracery grammar."""
 
@@ -753,7 +766,10 @@ class TraceryGeist:
             seed: Random seed for deterministic expansion
         """
         self.geist_id = geist_id
-        self.engine = TraceryEngine(grammar, seed)
+        # Mix the geist id into the session seed. With the bare session seed
+        # every Tracery geist made the same random choices that day (all
+        # four-template geists picked the same template index).
+        self.engine = TraceryEngine(grammar, None if seed is None else _geist_seed(seed, geist_id))
         if (
             isinstance(count, bool)
             or not isinstance(count, int)
@@ -940,17 +956,37 @@ class TraceryGeist:
             logger.debug(f"Geist {self.geist_id}: skipping suggestions due to empty symbol arrays")
             return []
 
-        suggestions = []
-        for _ in range(self.count):
+        suggestions: list[Suggestion] = []
+        # Each expansion draws with replacement from the same pools, so the
+        # same note (or pair) can come up twice in one session. Skip a
+        # suggestion about a note set already used, allowing a few extra draws
+        # to fill `count`. (Suggestions naming no note are left to the
+        # session's novelty and diversity filters.)
+        seen: set[frozenset[str]] = set()
+        costliest = 0
+        for attempt in range(self.count * DRAWS_PER_SUGGESTION):
+            if len(suggestions) == self.count:
+                break
+            # Extra draws (beyond the first `count`) must never exhaust the
+            # expansion budget and turn a short result into a failure.
+            if attempt >= self.count and self.engine.expansions_remaining < 2 * costliest:
+                break
+            before = self.engine.expansions_remaining
             # Expand the origin symbol. Any broken expansion fails the whole
             # invocation so the shared executor can account for it.
             text = self.engine.expand("#origin#")
+            costliest = max(costliest, before - self.engine.expansions_remaining)
             if len(text.encode("utf-8")) > MAX_TRACERY_OUTPUT_BYTES:
                 raise TraceryLimitError(f"Tracery output exceeds {MAX_TRACERY_OUTPUT_BYTES} bytes")
 
             if self._has_empty_placeholder(text):
                 continue
             note_refs = re.findall(r"\[\[([^\]]+)\]\]", text)
+            if note_refs:
+                key = frozenset(note_refs)
+                if key in seen:
+                    continue
+                seen.add(key)
             suggestions.append(Suggestion(text=text, notes=note_refs, geist_id=self.geist_id))
 
         return suggestions

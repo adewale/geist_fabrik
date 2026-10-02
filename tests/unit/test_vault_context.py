@@ -707,6 +707,24 @@ def test_sample(vault_with_notes):
     assert len(sample2) == 5
 
 
+def test_sample_of_everything_is_shuffled(vault_with_notes):
+    """Contract: sample() returns a random order even when asked for all items.
+
+    Regression: asking for >= len(items) returned the input order, so geists
+    that sampled and then took the first few named the same notes, in vault
+    order, every session. The order is still deterministic per seed.
+    """
+    vault, session = vault_with_notes
+    items = list(range(20))
+
+    orders = [VaultContext(vault, session, seed=seed).sample(items, 50) for seed in range(5)]
+
+    assert all(sorted(order) == items for order in orders)
+    assert any(order != items for order in orders)
+    assert len({tuple(order) for order in orders}) > 1
+    assert VaultContext(vault, session, seed=3).sample(items, 50) == orders[3]
+
+
 def test_random_notes(vault_with_notes):
     """Test random note sampling."""
     vault, session = vault_with_notes

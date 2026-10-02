@@ -330,13 +330,15 @@ class Vault:
 
         Reclassification must occur even when only date-collection settings
         change. The revision also refreshes persisted links that older parsers
-        stored without journal anchors, and (v3) re-derives ``created`` for rows
-        stored from ``st_ctime`` alone; no schema migration is needed.
+        stored without journal anchors, (v3) re-derives ``created`` for rows
+        stored from ``st_ctime`` alone, and (v4) drops links and tags that
+        older parsers read from inside code or from URL fragments and numbers;
+        no schema migration is needed.
         """
         settings = json.dumps(self.config.date_collection.to_dict(), sort_keys=True)
         config_digest = hashlib.sha256(settings.encode()).hexdigest()
         stat_key = ":".join(str(value) for value in self._stat_signature(stat))
-        return f"parser-v3:{config_digest}:{stat_key}"
+        return f"parser-v4:{config_digest}:{stat_key}"
 
     def _delete_missing_notes(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> None:
         """Delete notes absent from the validated, writer-owned filesystem view."""

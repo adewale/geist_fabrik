@@ -375,11 +375,16 @@ def test_transformation_suggester_all_modifiers_in_output(tmp_path: Path) -> Non
 
 
 def test_transformation_suggester_no_errors(tmp_path: Path) -> None:
-    """Test that the geist runs without errors across many iterations."""
+    """Test that the geist runs without errors across many iterations.
+
+    Four notes, so the three suggestions can name three different notes (a
+    note is not suggested twice in one session).
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
     (vault_path / ".obsidian").mkdir()
-    (vault_path / "test.md").write_text("# Test\nContent")
+    for i in range(4):
+        (vault_path / f"test{i}.md").write_text(f"# Test {i}\nContent")
 
     vault = Vault(vault_path)
     vault.sync()
