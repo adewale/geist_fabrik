@@ -1,5 +1,8 @@
 # Cluster Mirror Geist Specification
 
+**Status**: Implemented as the bundled `cluster_mirror` geist; this document is
+its design record, and the implementation may differ in detail.
+
 ## Overview
 
 The **cluster_mirror** geist reveals the natural semantic structure of a vault by showing automatically-named clusters with representative note samples, then asking: "What do these clusters remind you of?"

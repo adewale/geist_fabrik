@@ -260,16 +260,9 @@ class StatsCollector:
         orphans = len(self.get_orphan_notes())
         orphan_pct = (orphans / note_count * 100) if note_count > 0 else 0
 
-        # Hubs: notes with >= 10 connections (outgoing)
-        cursor = self.db.execute(
-            """
-            SELECT source_path
-            FROM links
-            GROUP BY source_path
-            HAVING COUNT(*) >= 10
-            """
-        )
-        hubs = len(cursor.fetchall())
+        # Hubs: notes with >= 10 links in or out, the same rule as the
+        # verbose hub list (get_hub_notes), so the two never disagree.
+        hubs = len(self.get_hub_notes())
 
         # Graph density
         possible_links = note_count * (note_count - 1)
@@ -412,11 +405,11 @@ class StatsCollector:
             "auto_disabled_geists": sorted(auto_disabled),
         }
 
-    def get_top_linked_notes(self, limit: int = 10) -> list[dict[str, Any]]:
+    def get_top_linked_notes(self, limit: int | None = 10) -> list[dict[str, Any]]:
         """Get top linked notes with incoming and outgoing counts.
 
         Args:
-            limit: Maximum number of notes to return
+            limit: Maximum number of notes to return (None for all)
 
         Returns:
             List of dicts with path, title, outgoing, incoming, total
@@ -478,7 +471,7 @@ class StatsCollector:
         Returns:
             List of dicts with path, title, total connections
         """
-        top_notes = self.get_top_linked_notes(limit=100)
+        top_notes = self.get_top_linked_notes(limit=None)
         return [note for note in top_notes if note["total"] >= min_connections]
 
     def has_embeddings(self) -> bool:

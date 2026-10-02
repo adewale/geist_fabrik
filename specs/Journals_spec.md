@@ -73,18 +73,19 @@ class Note:
         """Return link text for Obsidian wiki-links (without [[brackets]])."""
         if self.is_virtual and self.source_file:
             # Virtual notes: Use deeplink format
-            filename = self.source_file.replace(".md", "")
+            filename = self.source_file.removesuffix(".md")
             return f"{filename}#{self.title}"
-        else:
-            # Regular notes: Just the title
-            return self.title
+        # Regular notes: the file name (Obsidian links by file name),
+        # shown as the title when the two differ
+        stem = PurePosixPath(self.path).name.removesuffix(".md")
+        return self.title if stem == self.title else f"{stem}|{self.title}"
 ```
 
 **Examples**:
 
 | Note Type | path | title | link_text |
 |-----------|------|-------|---------------|
-| Regular | `"Ideas.md"` | `"Project Ideas"` | `"Project Ideas"` |
+| Regular | `"Ideas.md"` | `"Project Ideas"` | `"Ideas\|Project Ideas"` |
 | Virtual | `"Journal.md/2024-03-15"` | `"2024-03-15"` | `"Journal#2024-03-15"` |
 
 ### Virtual Note Fields

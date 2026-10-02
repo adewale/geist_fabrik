@@ -355,7 +355,8 @@ CREATE TABLE notes (
     content TEXT NOT NULL,
     created TEXT NOT NULL,              -- ISO datetime
     modified TEXT NOT NULL,             -- ISO datetime
-    file_mtime REAL NOT NULL,          -- File modification time
+    file_mtime REAL NOT NULL,          -- File modification time (reporting)
+    source_fingerprint TEXT,            -- Exact stat identity for incremental sync
     is_virtual INTEGER DEFAULT 0,       -- 1 for virtual entries
     source_file TEXT,                   -- Source file path (for virtuals)
     entry_date TEXT                     -- ISO date (for virtuals)
@@ -451,9 +452,9 @@ For each date section:
 
 ```python
 virtual_path = f"{source_file}/{entry_date.isoformat()}"
-title = f"{file_stem} - {entry_date.isoformat()}"
+title = heading_text  # original H2 text, e.g. "January 15, 2025"
 created = datetime.combine(entry_date, datetime.min.time())
-modified = file_modified_time
+modified = file_modified  # frontmatter modified:/updated:, else file mtime
 
 # Parse links and tags from section content
 links = extract_links(section_content)
@@ -467,7 +468,7 @@ note = Note(
     links=links,
     tags=tags,
     created=created,
-    modified=file_modified_time,
+    modified=file_modified,
     is_virtual=True,
     source_file=source_file,
     entry_date=entry_date
@@ -607,8 +608,9 @@ def split_date_collection_note(
     Args:
         file_path: Original file path (e.g., "Daily Journal.md")
         content: Full file content
-        file_created: File creation timestamp
-        file_modified: File modification timestamp
+        file_created: The file's creation date (entries use their heading dates)
+        file_modified: The file's modified date (frontmatter modified:/updated:,
+            else mtime), inherited by every entry
 
     Returns:
         List of Note objects with is_virtual=True

@@ -1,6 +1,14 @@
 # GeistFabrik Reuse Abstractions Specification
 
-**Status**: Proposed
+**Status**: Implemented (design history). All seven abstractions exist:
+`EmbeddingTrajectoryCalculator`, `TemporalPatternFinder` and
+`TemporalSemanticQuery` (`temporal_analysis.py`), `SimilarityProfile`/
+`SimilarityFilter` (`similarity_analysis.py`), `ClusterAnalyser`
+(`clustering_analysis.py`), `GraphPatternFinder` (`graph_analysis.py`), the
+extraction pipeline (`content_extraction.py`) and `MetadataAnalyser`
+(`metadata_system.py`). Geist names and counts below are as of 2025-11; the
+"unlocked geists" list is aspirational (see `specs/SPEC_STATUS.md`) and several
+named geists were later merged or retired ([specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10)).
 **Version**: 1.0
 **Date**: 2025-11-10
 

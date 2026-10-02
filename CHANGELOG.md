@@ -172,7 +172,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lists as anti-patterns.
 - `geistfabrik stats` labels the newest note file time "Latest note change";
   it was "Last sync", but no sync time is recorded. The JSON key `last_sync`
-  is unchanged.
+  is unchanged. Its "Hubs" summary now counts notes with 10 or more links in
+  or out, the same rule as the verbose hub list (it counted outgoing links
+  only, so a note ten others link to was listed but not counted), and "info"
+  recommendations print with "ℹ" instead of the success tick.
 - **Performance (scaling benchmark of every geist, 100 to 10,000 notes and
   pathological notes).** All results are unchanged unless noted:
   - Quadratic text scans that timed out geists or hung vault sync on

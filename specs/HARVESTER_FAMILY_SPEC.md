@@ -96,7 +96,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
     if not notes:
         return []
 
-    note = vault.random_notes(k=1)[0]
+    note = vault.random_notes(count=1)[0]
     content = vault.read(note)
 
     # 2. Extract target content using optimised regex
@@ -117,7 +117,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
         ))
 
     # 5. Sample 1-3 items to avoid overwhelming
-    return vault.sample(suggestions, k=min(3, len(suggestions)))
+    return vault.sample(suggestions, count=min(3, len(suggestions)))
 ```
 
 ### Performance Characteristics
@@ -438,11 +438,11 @@ All harvesters implement these performance strategies:
 #### 1. Single Note Read
 ```python
 # ✅ Good: Read one note
-note = vault.random_notes(k=1)[0]
+note = vault.random_notes(count=1)[0]
 content = vault.read(note)
 
 # ❌ Bad: Read multiple notes
-for note in vault.sample(vault.notes(), k=10):
+for note in vault.sample(vault.notes(), count=10):
     content = vault.read(note)  # 10× slower
 ```
 

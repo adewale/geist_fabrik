@@ -2,8 +2,14 @@
 
 > **Geist merges (2026-10).** Several geists named here were merged into the one
 > truest to the vision or retired; see the merge table in
-> [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10). Code below that
-> names a retired geist is design history.
+> [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10). The opposition
+> geists `columbo`, `dialectic_triad`, `antithesis_generator` and
+> `blind_spot_detector` were retired outright (embeddings measure topic, not
+> stance; see `specs/research/OPPOSITION_GEISTS_RESEARCH.md`). Code and the
+> "Implementation Status" record below that name a retired geist are design
+> history. The current bundled set is whatever is in
+> `src/geistfabrik/default_geists/` (`DEFAULT_CODE_GEISTS` /
+> `DEFAULT_TRACERY_GEISTS`); see `docs/GEIST_CATALOG.md` for descriptions.
 
 ## Overview
 
@@ -23,21 +29,14 @@ GeistFabrik ships with a curated set of default geists bundled in the package. T
 ```
 src/geistfabrik/
   default_geists/
+    __init__.py          # Discovers geists and exposes the count constants
     code/
-      blind_spot_detector.py
-      dialectic_triad.py
-      structure_diversity_checker.py
-      metadata_driven_discovery.py
-      on_this_day.py
+      assumption_challenger.py
+      ...                # one module per code geist
+      voice_absence.py
     tracery/
       contradictor.yaml
       hub_explorer.yaml
-      note_combinations.yaml
-      orphan_connector.yaml
-      perspective_shifter.yaml
-      random_prompts.yaml
-      semantic_neighbours.yaml
-      transformation_suggester.yaml
       what_if.yaml
 ```
 
@@ -65,15 +64,13 @@ When a custom geist is created or discovered:
 Example config ordering:
 ```yaml
 default_geists:
-  # Default geists (alphabetical by default)
-  anachronism_detector: true
-  antithesis_generator: true
+  # Default geists (generated config lists code geists, then Tracery geists)
   assumption_challenger: true
-  # ... (all 45 default geists)
+  attention_shift: true
+  # ... (every default geist)
+  voice_absence: true
   contradictor: true
-  # ...
-  temporal_mirror: true
-  # ...
+  hub_explorer: true
   what_if: true
 
   # Custom geists (added automatically when discovered)
@@ -90,21 +87,14 @@ In `<vault>/_geistfabrik/config.yaml`:
 ```yaml
 default_geists:
   # Code geists (default: enabled)
-  blind_spot_detector: true
-  dialectic_triad: true
   structure_diversity_checker: true
   metadata_driven_discovery: true
-  on_this_day: true
+  this_time_last_year: true
+  # ...
 
   # Tracery geists (default: enabled)
   contradictor: true
   hub_explorer: true
-  note_combinations: true
-  orphan_connector: true
-  perspective_shifter: true
-  random_prompts: true
-  semantic_neighbours: true
-  transformation_suggester: true
   what_if: true
 ```
 
@@ -113,7 +103,7 @@ default_geists:
 ```yaml
 default_geists:
   contradictor: false          # Disable this geist
-  blind_spot_detector: false   # Disable this geist
+  surprisal: false             # Disable this geist
   # ... rest default to true
 ```
 
@@ -139,29 +129,20 @@ All unlisted geists remain enabled.
 
 ## Default Geist List
 
-### Code Geists (5)
+The list is not maintained here, so it cannot drift: the bundled geists are
+the files in `src/geistfabrik/default_geists/code/` and `.../tracery/`, exposed
+as `DEFAULT_CODE_GEISTS` and `DEFAULT_TRACERY_GEISTS` (counts:
+`CODE_GEIST_COUNT`, `TRACERY_GEIST_COUNT`, `TOTAL_GEIST_COUNT`). Descriptions
+are in `docs/GEIST_CATALOG.md`. All default geists are enabled by default.
 
-| Geist ID | Description | Default | Status |
-|----------|-------------|---------|--------|
-| **blind_spot_detector** | Identifies semantic gaps in recent thinking | enabled | ✅ Implemented |
-| **dialectic_triad** | Creates thesis-antithesis pairs for synthesis | enabled | ✅ Implemented |
-| **structure_diversity_checker** | Detects repetitive writing patterns | enabled | ✅ Implemented |
-| **metadata_driven_discovery** | Finds unexpected metadata patterns | enabled | ✅ Implemented |
-| **on_this_day** | Surfaces notes from same date in previous years | enabled | ✅ Implemented |
-
-### Tracery Geists (9)
-
-| Geist ID | Description | Default | Status |
-|----------|-------------|---------|--------|
-| **contradictor** | Challenge assumptions with opposing perspectives | enabled | ✅ Implemented |
-| **hub_explorer** | Highlight hub notes with many connections | enabled | ✅ Implemented |
-| **note_combinations** | Combine random notes creatively | enabled | ✅ Implemented |
-| **orphan_connector** | Suggest connections for orphaned notes | enabled | ✅ Implemented |
-| **perspective_shifter** | Reframe notes from different angles | enabled | ✅ Implemented |
-| **random_prompts** | General creative prompts | enabled | ✅ Implemented |
-| **semantic_neighbours** | Show semantic neighbourhoods | enabled | ✅ Implemented |
-| **transformation_suggester** | Showcases all Tracery modifiers | enabled | ✅ Implemented |
-| **what_if** | "What if" prompts for divergent thinking | enabled | ✅ Implemented |
+The Tracery geists are `contradictor`, `hub_explorer` and `what_if`. The
+original Tracery set's `note_combinations`, `semantic_neighbours` and
+`transformation_suggester` now live in `examples/geists/tracery/` as extension
+examples; `orphan_connector` became a code geist; `perspective_shifter` and
+`random_prompts` merged into `what_if`. Of the original code set,
+`structure_diversity_checker` and `metadata_driven_discovery` remain;
+`on_this_day` merged into `this_time_last_year`; `blind_spot_detector` and
+`dialectic_triad` were retired (2026-10).
 
 ## Default Config Generation
 
@@ -169,27 +150,20 @@ When a new vault is initialised, `_geistfabrik/config.yaml` is created with:
 
 ```yaml
 default_geists:
-  # Default geists are enabled by default
-  # Set to false to disable specific geists
-
   # Code geists
-  blind_spot_detector: true
-  dialectic_triad: true
-  structure_diversity_checker: true
-  metadata_driven_discovery: true
-  on_this_day: true
+  assumption_challenger: true
+  # ... every bundled code geist, in DEFAULT_CODE_GEISTS order
+  voice_absence: true
 
   # Tracery geists
   contradictor: true
   hub_explorer: true
-  note_combinations: true
-  orphan_connector: true
-  perspective_shifter: true
-  random_prompts: true
-  semantic_neighbours: true
-  transformation_suggester: true
   what_if: true
 ```
+
+(`generate_default_config()` in `src/geistfabrik/config_loader.py` also writes
+`enabled_modules`, `date_collection`, `vector_search`, `geist_execution`,
+`session` and `session_embedding_retention` sections.)
 
 This makes the full list of defaults visible and easily toggleable.
 
@@ -207,6 +181,10 @@ This makes the full list of defaults visible and easily toggleable.
 - Can add `default_geists` section to control defaults
 
 ## The "On This Day" Geist
+
+> **Status (2026-10):** design history. `on_this_day` (and `seasonal_revisit`)
+> merged into the bundled `this_time_last_year` geist: same day, then ±7 days,
+> then same season, in any earlier year.
 
 Replaces the seasonal concept with something simpler and more universal:
 
@@ -251,7 +229,7 @@ Works globally (not hemisphere-specific), simple date matching, focuses on perso
 3. **Loader logic**:
    - Load all default geists from package
    - Filter by config: `if config.default_geists.get(geist_id, True)`
-   - Load custom geists (always enabled)
+   - Load custom geists (enabled unless set to `false`; newly discovered ones are added to `default_geists` as `true`)
 4. **Config generation**: When initialising vault, write full default config showing all geists
 5. **Built-in functions**: `contrarian_to()` is now a built-in vault function
 6. **Documentation**: Update examples/ to focus on metadata_inference and vault_functions only
@@ -259,7 +237,7 @@ Works globally (not hemisphere-specific), simple date matching, focuses on perso
    - Move ALL 34 code geists from examples/ to src/geistfabrik/default_geists/code/
    - Create new on_this_day.py geist
    - Move ALL 10 Tracery geists from examples/ to src/geistfabrik/default_geists/tracery/
-   - Remove examples/geists/ entirely (all geists now bundled as defaults)
+   - Remove examples/geists/ entirely (all geists now bundled as defaults) — later reversed: `examples/geists/` now holds extension examples (see below)
 
 ## Documentation Structure
 
@@ -268,16 +246,15 @@ The `examples/` directory provides learning materials for extending GeistFabrik:
 ```
 examples/
   README.md                          # Overview of extensibility
-  metadata_inference/                # Example metadata modules
-    reading_time.py                  # Calculate reading time
-    complexity_score.py              # Measure note complexity
-  vault_functions/                   # Example vault functions
-    contrarian_to.py                 # Generate contrarian perspectives
-    sample_by_tag.py                 # Sample notes by tag
+  geists/
+    code/                            # e.g. metadata_outlier_detector.py, structural_hole_detector.py
+    tracery/                         # note_combinations, semantic_neighbours, transformation_suggester
+  metadata_inference/                # complexity.py, structure.py, temporal.py
+  vault_functions/                   # contrarian.py (example_contrarian_to), questions.py
 ```
 
-**Note**: All geists are now bundled as defaults in `src/geistfabrik/default_geists/`.
-Users learn by viewing the bundled source code and creating custom geists in their vaults.
+**Note**: Examples are learning material, not installed into vaults. The
+bundled defaults live in `src/geistfabrik/default_geists/`.
 
 ## Config Schema Details
 
@@ -321,6 +298,9 @@ This allows the system to gracefully handle new defaults added in future version
 ---
 
 ## Implementation Status
+
+> Historical record of the original PR (#30). The geist names and counts below
+> describe that PR, not the current bundled set.
 
 **Status**: ✅ Fully Implemented
 **PR**: #30

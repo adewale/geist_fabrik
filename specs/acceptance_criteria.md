@@ -119,7 +119,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 ### Test Coverage Target
 - `src/geistfabrik/vault.py`: >90%
 - `src/geistfabrik/markdown_parser.py`: >90%
-- `src/geistfabrik/persistence.py`: >85%
+- `src/geistfabrik/schema.py`: >85%
 
 ### Exit Criteria
 - All AC-1.* checks pass
@@ -217,7 +217,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-4.1 | ⬜ | Geist executor tests pass | `uv run pytest tests/unit/test_geist_executor.py -v` (15+ tests) |
 | AC-4.2 | ⬜ | Load sample geists | Verify geist loader discovers .py files in geists/code/ |
 | AC-4.3 | ⬜ | Execute geist | Verify simple geist returns suggestions |
-| AC-4.4 | ⬜ | Timeout works | `uv run pytest tests/unit/test_geist_executor.py::test_code_geist_timeout -v` (5s timeout) |
+| AC-4.4 | ⬜ | Timeout works | `uv run pytest tests/unit/test_geist_executor.py::test_code_geist_timeout -v` (1 s test timeout; the default is 30 s) |
 | AC-4.5 | ⬜ | Failure tracking | `uv run pytest tests/unit/test_geist_executor.py::test_disable_after_three_failures -v` |
 | AC-4.6 | ⬜ | Integration scenario | `uv run pytest tests/integration/test_scenarios.py::test_scenario_{daily_invocation_writes_the_session_note,tracery_geist_links_a_real_note,temporal_geist_finds_last_years_note} -v` (code, Tracery and bundled temporal geists run through `invoke`) |
 
@@ -286,7 +286,6 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 
 ### Test Coverage Target
 - `src/geistfabrik/filtering.py`: >85%
-- `src/geistfabrik/session.py`: >85%
 - `src/geistfabrik/journal_writer.py`: >90%
 
 ### Exit Criteria
@@ -350,7 +349,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 |----|--------|----------|--------------|
 | AC-7.1 | ⬜ | Temporal embedding tests pass | `uv run pytest tests/unit/test_embeddings.py -v` etc. |
 | AC-7.2 | ⬜ | Session embeddings computed | Verify all notes have session embeddings |
-| AC-7.3 | ⬜ | Temporal features included | Verify embeddings are 387 dims (384+3) |
+| AC-7.3 | ⬜ | Temporal features included | Verify stored session embeddings are 387 dims (384+3); comparisons read only the 384 semantic dims |
 | AC-7.4 | ⬜ | Multi-session tracking | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.5 | ⬜ | Temporal geists work | `uv run pytest tests/integration/test_scenarios.py::test_scenario_temporal_geist_finds_last_years_note -v` |
 
@@ -373,7 +372,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-7.18 | ⬜ | Temporal geist robustness | `uv run pytest tests/unit/test_temporal_drift.py -v` |
 
 ### Test Coverage Target
-- `src/geistfabrik/temporal_embeddings.py`: >85%
+- `src/geistfabrik/embeddings.py` (`Session`) and `src/geistfabrik/temporal_analysis.py`: >85%
 
 ### Exit Criteria
 - All AC-7.* checks pass

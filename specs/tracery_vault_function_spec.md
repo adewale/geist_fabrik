@@ -1,5 +1,10 @@
 # Tracery Vault Function Pre-Population Specification
 
+**Status**: Implemented. `$vault.*` calls are now pre-populated once per
+session (`TraceryEngine._preprocess_vault_functions` in
+`src/geistfabrik/tracery.py`); the "current (incorrect) behaviour" below
+describes the code before this change.
+
 ## Problem Statement
 
 GeistFabrik's Tracery implementation currently evaluates `$vault.*` function calls **during expansion**, which violates idiomatic Tracery behaviour. This causes geists with `count > 1` to generate duplicate suggestions when vault functions return deterministic results.

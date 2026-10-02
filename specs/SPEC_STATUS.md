@@ -16,7 +16,7 @@ Status vocabulary:
 - **NOT-BUILT** — no implementation; recommend amending the spec.
 - **DEFERRED** — intentionally post-1.0 (see referenced doc).
 
-## config.yaml keys (geistfabrik_spec.md ~830-905)
+## config.yaml keys (geistfabrik_spec.md ~880-960)
 
 | key | status | note |
 |---|---|---|
@@ -67,24 +67,28 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 
 | item | spec | status |
 |---|---|---|
-| `geist_status` failure-persistence table | geistfabrik_spec.md:1090 | BUILT (schema v8) |
+| `geist_status` failure-persistence table | geistfabrik_spec.md (Database Schema; `increment_failure_count`) | BUILT (schema v8) |
 | `session_embeddings.cluster_label` | (cluster_evolution_tracker, retired 2026-10) | BUILT (schema v7); API kept for comparing cluster membership across sessions |
 | GraphPatternFinder showcase geists (structural holes / path length / bridges) | reuse_abstractions_spec.md:1120 | BUILT (examples/geists/code/) |
-| `_geistfabrik/error.log` + file logging | geistfabrik_spec.md:1107 | NOT-BUILT — superseded by console hints + `geist_status.last_error`; amend spec |
-| Real connected-components stat | STATS_COMMAND_SPEC.md:181 | BUILT (uses GraphPatternFinder.find_connected_components) |
+| `_geistfabrik/error.log` + file logging | geistfabrik_spec.md (`log_test_command`; `logging.log_file`) | NOT-BUILT — superseded by console hints + `geist_status.last_error`; `log_test_command` sketch amended, `logging.log_file` key above still NOT-BUILT |
+| Real connected-components stat | STATS_COMMAND_SPEC.md:210 | BUILT (union-find over resolved links in `StatsCollector._largest_connected_component`) |
 | `claim_harvester` / `hypothesis_harvester` geists | reuse_abstractions_spec.md (items 12-13) | BUILT (bundled default geists) |
-| Procrustes-aligned `stats` drift | STATS_COMMAND_SPEC.md:~411 | BUILT — spec amended to drop alignment (same pinned model; a rotation fitted on n << 384 notes absorbed real change) |
-| Betweenness-centrality bridge stat; "most productive day" temporal pattern | STATS_COMMAND_SPEC.md:217 | NOT-BUILT — defer; mark in spec |
+| Procrustes-aligned `stats` drift | STATS_COMMAND_SPEC.md:~441 | BUILT — spec amended to drop alignment (same pinned model; a rotation fitted on n << 384 notes absorbed real change) |
+| Betweenness-centrality bridge stat; "most productive day" temporal pattern; other verbose stats extras | STATS_COMMAND_SPEC.md:227, ~389 | NOT-BUILT — deferred; marked "(not built)" in spec |
 | `geistfabrik sync` / `query` commands; `--session-id` | historical spec | NOT-BUILT — current guide uses implicit invoke sync and supported diagnostics |
 | docs/CONFIGURATION.md | several | BUILT |
 | docs/TROUBLESHOOTING.md | several | BUILT |
-| bandit security scan | acceptance_criteria.md:498 | BUILT (CI + validate.sh, B608 skipped w/ rationale) |
-| mkdocs build | acceptance_criteria.md:495 | NOT-BUILT — plain-markdown docs; amend AC |
+| bandit security scan | acceptance_criteria.md (AC-11.8) | BUILT (CI + validate.sh, B608 skipped w/ rationale) |
+| mkdocs build | acceptance_criteria.md (AC-11.5) | NOT-BUILT — plain-markdown docs; AC amended to MANUAL |
 | Unlocked-geist list items 1,2,5-10,15-21,23,24,30 | reuse_abstractions_spec.md:1088 | DEFERRED — list is "possible", not promised; mark aspirational |
-| Cluster functions (contrarian/temporal/bridge/tag_clusters) | tracery_research.md:845 | DEFERRED — post-1.0 |
+| Cluster functions (contrarian/temporal/bridge/tag_clusters) | tracery_research.md:~884 | DEFERRED — post-1.0 |
 | HDBSCAN cosine metric | TODO.md | DEFERRED — needs real-vault evaluation |
-| Timeout default 5s | geistfabrik_spec.md:856 | BUILT-DIFFERENTLY — 30s (production data); amend spec |
-| invoke write-by-default | spec/vision | BUILT-DIFFERENTLY — preview-by-default + `--write` (safer) |
+| Timeout default (spec said 5 s) | geistfabrik_spec.md config block + `GeistExecutor` sketch | BUILT — 30 s (production data); spec amended |
+| invoke write-by-default | spec/vision | BUILT-DIFFERENTLY — preview-by-default + `--write` (safer); spec and vision amended |
+| `--geist`/`--geists` return all of a geist's suggestions | geistfabrik_spec.md, geistfabrik_vision.md (Invocation Modes) | BUILT-DIFFERENTLY — filtered then sampled like default mode; `--full` returns all; spec and vision amended |
+| Temporal embeddings capture interpretive shifts in unchanged notes; notes cluster by era | geistfabrik_spec.md (Temporal Embeddings), geistfabrik_vision.md | BUILT-DIFFERENTLY — semantic vectors are content-cached and the calendar features are never compared (`semantic_vectors.py`); spec marked superseded |
+| Session-embedding pruning (`geistfabrik prune`, keep-first/monthly/significant policy) | geistfabrik_spec.md (Future Features) | BUILT-DIFFERENTLY — `session_embedding_retention` keeps the most recent N sessions (default 730); selective policy and `prune` command NOT-BUILT |
+| Columbo-style contradiction detection | geistfabrik_spec.md (Initial Geist Set), geistfabrik_vision.md | NOT-BUILT — `columbo` was built on similarity and retired 2026-10; needs a stance (NLI) model, see `specs/research/OPPOSITION_GEISTS_RESEARCH.md` |
 
 ## Geist merges (2026-10)
 

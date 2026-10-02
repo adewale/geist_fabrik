@@ -25,13 +25,17 @@ GeistFabrik (German for "spirit factory") is the system; geists are the generati
 @dataclass
 class Note:
     """Immutable representation of a vault note"""
-    path: str           # Relative path in vault
+    path: str           # Relative path in vault (or virtual path, e.g. "Journal.md/2025-01-15")
     title: str          # Note title
     content: str        # Full markdown content
-    links: List[Link]   # Outgoing [[links]]
-    tags: List[str]     # #tags found in note
-    created: datetime   # Declared: frontmatter `created:`, else a dated file name; else file timestamps
+    links: list[Link]   # Outgoing [[links]]
+    tags: list[str]     # #tags found in note
+    created: datetime   # Declared: frontmatter `created:`, else a dated file name; else earliest file timestamp (entry date for virtual notes)
     modified: datetime  # Declared: frontmatter `modified:`, else `updated:`; else file mtime
+    # Virtual entry fields (date-collection notes; see DATE_COLLECTION_NOTES_SPEC.md)
+    is_virtual: bool = False
+    source_file: str | None = None
+    entry_date: date | None = None
 ```
 
 Notes are lightweight, immutable data structures. All derived intelligence (metadata, graph metrics, semantic properties) lives in VaultContext, not in Note objects.
@@ -39,13 +43,13 @@ Notes are lightweight, immutable data structures. All derived intelligence (meta
 #### Suggestion
 
 ```python
-@dataclass
+@dataclass(frozen=True)
 class Suggestion:
     """A geist-generated provocation"""
     text: str           # 1-2 sentence suggestion
-    notes: List[str]    # Referenced note titles
+    notes: list[str]    # Referenced notes' link_text (file name, or "file|Title" when they differ)
     geist_id: str       # Identifier of creating geist
-    title: str = None   # Optional suggested note title
+    title: str | None = None  # Optional suggested note title
 ```
 
 ### Two-Layer Vault Understanding
@@ -97,57 +101,68 @@ class VaultContext:
         self.rng = Random(seed)  # Deterministic randomness
 
     # Direct vault access (delegated)
-    def notes(self) -> List[Note]:
-        return self.vault.all_notes()
+    def notes(self) -> list[Note]:
+        """All notes except `geist journal/` session notes"""
 
-    def get_note(self, path: str) -> Note:
+    def get_note(self, path: str) -> Note | None:
         return self.vault.get_note(path)
 
     def read(self, note: Note) -> str:
         return note.content
 
-    # Semantic search (sqlite-vec)
-    def neighbours(self, note: Note, k: int) -> List[Note]:
-        """Find k semantically similar notes"""
+    # Semantic search (in-memory cosine by default, optional sqlite-vec backend)
+    def neighbours(self, note: Note, count: int = 10) -> list[Note]:
+        """Find semantically similar notes"""
 
     def similarity(self, a: Note, b: Note) -> float:
         """Calculate semantic similarity between notes"""
 
-    # Graph operations (SQL)
-    def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
-        """Find note pairs with no links between them"""
+    def batch_similarity(self, notes_a: list[Note], notes_b: list[Note]) -> np.ndarray:
+        """Similarity matrix (shares the session similarity cache)"""
 
-    def orphans(self, k: int) -> List[Note]:
+    # Graph operations (SQL)
+    def unlinked_pairs(self, count: int = 10) -> list[tuple[Note, Note]]:
+        """Find semantically similar note pairs with no links between them"""
+
+    def orphans(self, count: int | None = None) -> list[Note]:
         """Find notes with no links"""
 
-    def hubs(self, k: int) -> List[Note]:
+    def hubs(self, count: int = 10) -> list[Note]:
         """Find most-linked-to notes"""
 
-    def links_between(self, a: Note, b: Note) -> List[Link]:
+    def backlinks(self, note: Note) -> list[Note]:
+        """Notes linking to this note"""
+
+    def links_between(self, a: Note, b: Note) -> list[Link]:
         """Find all links between two notes"""
 
     # Temporal queries
-    def old_notes(self, k: int) -> List[Note]:
+    def old_notes(self, count: int = 10) -> list[Note]:
         """Find least recently modified notes"""
 
-    def recent_notes(self, k: int) -> List[Note]:
+    def recent_notes(self, count: int = 10) -> list[Note]:
         """Find most recently modified notes"""
 
     # Metadata access (user-extensible)
-    def metadata(self, note: Note) -> Dict:
+    def metadata(self, note: Note) -> dict[str, Any]:
         """Retrieve all inferred metadata for a note"""
 
     # Deterministic sampling
-    def sample(self, items: List, k: int) -> List:
-        """Deterministically sample k items"""
+    def sample(self, items: Sequence[T], count: int) -> list[T]:
+        """Deterministically sample count items"""
 
-    def random_notes(self, k: int) -> List[Note]:
-        """Sample k random notes"""
+    def random_notes(self, count: int = 1) -> list[Note]:
+        """Sample random notes"""
 
     # Dynamic function calls
-    def call_function(self, name: str, **kwargs) -> Any:
+    def call_function(self, name: str, *args: Any, **kwargs: Any) -> Any:
         """Call registered vault function"""
 ```
+
+Every vault-wide lookup (notes, neighbours, backlinks, hubs, orphans,
+recent/old/random notes, unlinked pairs, clusters, embeddings) excludes the
+engine's own `geist journal/` session notes; `get_note()` still returns one
+when asked for it by path. See `src/geistfabrik/vault_context.py`.
 
 **What Makes VaultContext "Rich"**:
 - **Pre-computed embeddings** for semantic operations
@@ -174,6 +189,9 @@ GeistFabrik uses a **single SQLite database** at `<vault>/_geistfabrik/vault.db`
 
 #### Database Schema
 
+Current schema version 10; `src/geistfabrik/schema.py` is the source of truth
+and migrates older databases (v3+) automatically.
+
 ```sql
 -- Core note data (supports both regular and virtual entries)
 CREATE TABLE notes (
@@ -182,7 +200,8 @@ CREATE TABLE notes (
     content TEXT NOT NULL,
     created TEXT NOT NULL,
     modified TEXT NOT NULL,
-    file_mtime REAL NOT NULL,  -- For incremental sync
+    file_mtime REAL NOT NULL,  -- Retained for historical compatibility/reporting
+    source_fingerprint TEXT,   -- Exact stat identity for incremental sync
     is_virtual INTEGER DEFAULT 0,  -- True for virtual entries from date-collection notes
     source_file TEXT,  -- Original file path for virtual entries
     entry_date TEXT  -- Date extracted from heading for virtual entries
@@ -203,8 +222,9 @@ CREATE TABLE links (
 );
 CREATE INDEX idx_links_source ON links(source_path);
 CREATE INDEX idx_links_target ON links(target);
+CREATE INDEX idx_links_target_source ON links(target, source_path);
 
--- Vector embeddings (stored as BLOBs, in-memory similarity search)
+-- Semantic vector cache (BLOBs; model_version = model name + content hash, the cache key)
 CREATE TABLE embeddings (
     note_path TEXT PRIMARY KEY,
     embedding BLOB NOT NULL,
@@ -231,11 +251,12 @@ CREATE TABLE sessions (
 );
 CREATE INDEX idx_sessions_date ON sessions(date);
 
--- Session embeddings (temporal embeddings per session)
+-- Session embeddings (387-dim vectors per session; cluster_label NULL if unclustered)
 CREATE TABLE session_embeddings (
     session_id INTEGER NOT NULL,
     note_path TEXT NOT NULL,
     embedding BLOB NOT NULL,
+    cluster_label TEXT,
     FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
     FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE,
     PRIMARY KEY (session_id, note_path)
@@ -256,22 +277,36 @@ CREATE INDEX idx_session_suggestions_geist ON session_suggestions(geist_id);
 
 -- Embedding metrics cache (for stats command)
 CREATE TABLE embedding_metrics (
-    session_date TEXT PRIMARY KEY,
-    intrinsic_dim REAL,
-    vendi_score REAL,
-    shannon_entropy REAL,
-    silhouette_score REAL,
-    n_clusters INTEGER,
-    n_gaps INTEGER,
-    cluster_labels TEXT,  -- JSON
+    session_date TEXT NOT NULL,
+    source_digest TEXT NOT NULL,
+    algorithm_digest TEXT NOT NULL,
+    metrics_json TEXT NOT NULL,
     computed_at TEXT NOT NULL,
+    PRIMARY KEY (session_date, source_digest, algorithm_digest),
     FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
+);
+
+-- Persistent per-geist failure tracking (disabled after max_failures consecutive failures)
+CREATE TABLE geist_status (
+    geist_id TEXT PRIMARY KEY,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    disabled INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    updated TEXT
 );
 ```
 
 #### Sync Process
 
-The Vault class syncs filesystem changes to the database incrementally:
+The Vault class syncs filesystem changes to the database incrementally.
+
+> **Implementation note:** the two sketches below are the original design. The
+> implementation skips a file whose `source_fingerprint` (exact stat identity)
+> is unchanged, caches semantic vectors in `embeddings` keyed by model + content
+> hash (full content, no application truncation; see `EMBEDDINGS_SPEC.md`), and
+> answers `neighbours()` from an in-memory vector search backend (optional
+> sqlite-vec; see `VECTOR_SEARCH_BACKENDS_SPEC.md`). There is no
+> `note_embeddings` table.
 
 ```python
 class Vault:
@@ -366,15 +401,15 @@ def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
        suggestions.extend(geist.suggest(ctx))  # All queries hit SQLite
 
 3. Output:
-   write_journal(suggestions)  # To vault's "geist journal/YYYY-MM-DD.md"
-   record_run(date, geist_id, suggestions)  # To geist_runs table
+   write_journal(suggestions)  # To vault's "geist journal/YYYY-MM-DD.md" (with --write)
+   record_session(date, suggestions)  # To session_suggestions table
 ```
 
 #### Benefits
 
 - **Fast startup** - First run computes everything, subsequent runs only process changes
 - **Efficient queries** - SQL indexes make graph operations instant
-- **Vector search** - sqlite-vec optimised for nearest-neighbour queries
+- **Vector search** - in-memory cosine by default, sqlite-vec optional
 - **Single file** - Entire vault intelligence in `_geistfabrik/vault.db`
 - **Portable** - Copy .db file with vault, everything works
 - **Deterministic** - Same vault state = same query results
@@ -382,7 +417,7 @@ def unlinked_pairs(self, k: int) -> List[Tuple[Note, Note]]:
 
 ### Temporal Embeddings
 
-GeistFabrik computes a fresh set of embeddings for all notes **at each session invocation**. This enables tracking how your understanding of notes evolves over time, even when note content doesn't change.
+GeistFabrik stores an embedding for every note **at each session invocation**. Semantic vectors are cached by content, so an unchanged note has the same meaning vector in every session: drift across sessions reflects edits (and changing neighbours), never a shifting "reading" of unchanged text. `EMBEDDINGS_SPEC.md` is the normative description.
 
 #### Architecture
 
@@ -396,21 +431,20 @@ class Session:
     def compute_session_embeddings(self, vault: Vault):
         """Compute time-aware embeddings for all notes"""
         for note in vault.notes():
-            # Semantic embedding (384 dims)
+            # Semantic embedding (384 dims; reused from the content-keyed cache)
             semantic = self.embed_model.encode(note.content)
 
-            # Temporal features (3 dims)
+            # Temporal features (3 dims; stored, never compared)
             age_at_session = (self.date - note.created).days
             temporal_features = [
-                age_at_session / 1000,        # Note age
-                get_season(note.created) / 4,  # Season written
-                get_season(self.date) / 4,     # Season of session
+                age_at_session / 365.0,                      # Note age in years
+                sin(2 * pi * note.created.timetuple().tm_yday / 365.0),  # Season written
+                sin(2 * pi * self.date.timetuple().tm_yday / 365.0),     # Season of session
             ]
 
             # Combined embedding (387 dims)
-            # Weight semantic and temporal equally (50/50) until we gather usage data
-            semantic_weight = 0.5
-            temporal_weight = 0.5
+            semantic_weight = 0.9  # DEFAULT_SEMANTIC_WEIGHT
+            temporal_weight = 0.1
 
             semantic_scaled = semantic * semantic_weight
             temporal_scaled = np.array(temporal_features) * temporal_weight
@@ -421,24 +455,9 @@ class Session:
 
 #### Storage Schema
 
-```sql
-CREATE TABLE sessions (
-    session_id INTEGER PRIMARY KEY,
-    session_date TIMESTAMP,
-    vault_state_hash TEXT
-);
-
-CREATE TABLE session_embeddings (
-    session_id INTEGER,
-    note_path TEXT,
-    embedding FLOAT[387],  -- 384 semantic + 3 temporal
-    FOREIGN KEY (session_id) REFERENCES sessions(session_id),
-    FOREIGN KEY (note_path) REFERENCES notes(path),
-    PRIMARY KEY (session_id, note_path)
-);
-
-CREATE INDEX idx_session_embeddings_path ON session_embeddings(note_path);
-```
+Session vectors live in the `sessions` and `session_embeddings` tables shown
+under "Database Schema" above, stored as float32 BLOBs (384 semantic + 3
+temporal coordinates).
 
 #### What This Enables
 
@@ -448,10 +467,13 @@ Temporal embeddings unlock two powerful dimensions:
 - Track interpretive shifts even when content is unchanged
 - Your understanding evolves; temporal embeddings capture this
 
-> **Status (2026-10):** superseded. The temporal features are still stored,
-> but similarity, neighbours and clustering compare the 384 semantic dimensions
-> only (they made notes of similar age look alike). Era-based grouping is the
-> job of the temporal geists, which compare dates explicitly. See
+> **Status (2026-10):** superseded. Semantic vectors are cached by content, so
+> an unchanged note embeds identically every session; versioned embeddings
+> track edits, not interpretive shifts. The temporal features are still stored,
+> but similarity, neighbours, clustering, surprisal and drift compare the 384
+> semantic dimensions only (`src/geistfabrik/semantic_vectors.py`; the
+> calendar features made notes of similar age look alike). Era-based grouping
+> is the job of the temporal geists, which compare dates explicitly. See
 > `specs/SPEC_STATUS.md`.
 
 **Time-Aware Embeddings** - Temporal context becomes part of semantic meaning
@@ -459,6 +481,12 @@ Temporal embeddings unlock two powerful dimensions:
 - Seasonal and temporal patterns emerge automatically
 
 #### Geists Unlocked by Temporal Embeddings
+
+> **Status (2026-10):** design history. Session Drift became `concept_drift`,
+> Anachronism Detector became `recent_focus`, Hermeneutic Instability was
+> retired (an unchanged note's vector cannot vary), and Temporal Clustering
+> groups notes by their dates, not by temporal embedding features. See the
+> merge table in `specs/SPEC_STATUS.md`.
 
 **Session Drift** - Understanding evolution
 - Compares embeddings of same notes across sessions
@@ -505,11 +533,11 @@ Temporal embeddings unlock two powerful dimensions:
 **Storage cost:**
 - ~387 floats × 4 bytes = ~1.5KB per note per session
 - 1000 notes × 20 sessions = ~30MB
-- Manageable with periodic pruning (keep first, last N, significant changes)
+- Bounded by `session_embedding_retention` (keep the most recent N sessions; default 730)
 
 **Computation cost:**
-- Full vault re-embedding each session
-- 1000 notes × 0.1s = ~100s per session
+- Only notes whose content changed are re-encoded; temporal features are recomposed for every note
+- First run: 1000 notes × ~0.1s = ~100s
 - Acceptable for ritual invocation pattern
 
 **Querying:**
@@ -593,33 +621,37 @@ As GeistFabrik evolves, new metadata types (graph centrality, semantic novelty, 
 
 #### Dimension 2: Vault Functions
 
-`<vault>/_geistfabrik/vault_functions/` modules export decorated functions:
+`<vault>/_geistfabrik/vault_functions/` modules export decorated functions.
+Like the built-ins, they return bracketed links (`"[[Note]]"`), so Tracery
+templates use the result as-is:
 
 ```python
 from geistfabrik import vault_function
 
 @vault_function("find_questions")
-def find_question_notes(vault: VaultContext, k=5):
+def find_question_notes(vault: VaultContext, count=5):
     """Find notes that are phrased as questions"""
     questions = [n for n in vault.notes()
                  if vault.metadata(n).get("is_question", False)]
-    return vault.sample(questions, k)
+    return [f"[[{n.link_text}]]" for n in vault.sample(questions, count)]
 
-@vault_function("contrarian_to")
-def find_contrarian(vault: VaultContext, note_title: str, k=3):
-    """Find notes that might disagree with given note"""
-    note = vault.get_note(note_title)
-    all_notes = vault.notes()
-    similarities = [(n, vault.similarity(note, n)) for n in all_notes]
-    contrarian = sorted(similarities, key=lambda x: x[1])[:k]
-    return [n for n, _ in contrarian]
+@vault_function("example_contrarian_to")
+def find_contrarian(vault: VaultContext, note_title: str, count=3):
+    """Find notes least similar in topic (embeddings measure topic, not stance)"""
+    note = vault.resolve_link_target(note_title)
+    if note is None:
+        return []
+    others = [n for n in vault.notes() if n.path != note.path]
+    similarities = [(n, vault.similarity(note, n)) for n in others]
+    contrarian = sorted(similarities, key=lambda x: x[1])[:count]
+    return [f"[[{n.link_text}]]" for n, _ in contrarian]
 
 @vault_function("notes_by_mood")
-def notes_by_mood(vault: VaultContext, mood: str, k=10):
+def notes_by_mood(vault: VaultContext, mood: str, count=10):
     """Find notes matching a mood"""
     matching = [n for n in vault.notes()
                 if vault.metadata(n).get("mood") == mood]
-    return vault.sample(matching, k)
+    return [f"[[{n.link_text}]]" for n in vault.sample(matching, count)]
 ```
 
 **Critical Architectural Role**: Vault functions are the **bridge between metadata and Tracery**.
@@ -635,7 +667,7 @@ vault.metadata(note) → {"complexity": 0.85, "staleness": 0.92}
 
 # ...until we create vault functions:
 @vault_function("by_complexity")
-def by_complexity(vault: VaultContext, level: str, k=10):
+def by_complexity(vault: VaultContext, level: str, count=10):
     matching = []
     for note in vault.notes():
         meta = vault.metadata(note)
@@ -644,7 +676,7 @@ def by_complexity(vault: VaultContext, level: str, k=10):
             matching.append(note)
         elif level == "low" and complexity < 0.3:
             matching.append(note)
-    return vault.sample(matching, k)
+    return [f"[[{n.link_text}]]" for n in vault.sample(matching, count)]
 ```
 
 **Extensibility Flow**:
@@ -669,7 +701,7 @@ All registered vault functions automatically available in Tracery:
 type: geist-tracery
 id: mood_connector
 tracery:
-  origin: "[[#happy#]] and [[#sad#]] might be about #theme#"
+  origin: "#happy# and #sad# might be about #theme#"
   happy: ["$vault.notes_by_mood('positive', 1)"]
   sad: ["$vault.notes_by_mood('negative', 1)"]
   theme: ["the same journey", "necessary opposites", "false dichotomies"]
@@ -682,7 +714,7 @@ tracery:
 Located in `<vault>/_geistfabrik/geists/code/`, exporting:
 
 ```python
-def suggest(vault: VaultContext) -> List[Suggestion]:
+def suggest(vault: VaultContext) -> list[Suggestion]:
     """
     Receive rich VaultContext with embeddings, metadata, and utilities.
     Return 0-N suggestions based on vault analysis.
@@ -695,7 +727,7 @@ def suggest(vault: VaultContext) -> List[Suggestion]:
 # <vault>/_geistfabrik/geists/code/connection_finder.py
 def suggest(vault: VaultContext):
     """Use semantic search and sampling utilities"""
-    pairs = vault.unlinked_pairs(k=10)  # Graph operation
+    pairs = vault.unlinked_pairs(count=10)  # Graph operation
     suggestions = []
 
     for note_a, note_b in pairs:
@@ -704,12 +736,12 @@ def suggest(vault: VaultContext):
 
         if similarity > 0.7:  # Embeddings comparison
             suggestions.append(Suggestion(
-                text=f"[[{note_a.title}]] × [[{note_b.title}]] – surprisingly similar ({similarity:.2f})",
-                notes=[note_a.title, note_b.title],
+                text=f"[[{note_a.link_text}]] × [[{note_b.link_text}]] – surprisingly similar ({similarity:.2f})",
+                notes=[note_a.link_text, note_b.link_text],
                 geist_id="connection_finder"
             ))
 
-    return vault.sample(suggestions, k=2)  # Deterministic sampling
+    return vault.sample(suggestions, 2)  # Deterministic sampling
 ```
 
 #### Tracery Geists
@@ -720,30 +752,32 @@ Located in `<vault>/_geistfabrik/geists/tracery/`, using enhanced Tracery:
 type: geist-tracery
 id: question_challenger
 tracery:
-  origin: "#prompt# [[#question#]]?"
+  origin: "#prompt# #question#?"
   prompt: ["What assumes the opposite of", "Who benefits from", "When is the answer to"]
   question: ["$vault.find_questions(1)"]
 ```
 
 ### Journal Management
 
-Each session creates a discrete note at `<vault>/geist journal/YYYY-MM-DD.md`:
+Each session written with `invoke --write` creates a discrete note at
+`<vault>/geist journal/YYYY-MM-DD.md` (without `--write`, `invoke` previews
+only). Non-default modes add a `_Mode: <mode>_` line under the heading:
 
 ```markdown
-# GeistFabrik Session – 2025-01-15
+# GeistFabrik Session – January 15, 2025
 
 ## connection_finder ^g20250115-001
 [[Project Planning]] × [[Fermentation]] – what if they follow the same cycles?
 
-## columbo ^g20250115-002
-I think you're lying about your claim in [[Democracy Note]] that "direct democracy scales"
-because your [[Scaling Systems]] note argues that coordination costs grow superlinearly
-with group size, and your [[Athens]] note describes how Athenian democracy only worked
-with 30,000 citizens. Either democracy doesn't scale, or you've changed your definition
-of "scale," or there's a missing piece about how modern technology changes coordination costs.
+## what_if ^g20250115-002
+What if [[Democracy Note]] were written for a group of 30,000 people?
 
-## session_drift ^g20250115-003
-Your understanding of [[emergence]] shifted significantly between last session and this one...
+## concept_drift ^g20250115-003
+Since you edited [[emergence]], its nearest notes have moved from [[mechanism]] toward [[relationality]]...
+
+---
+
+_Generated by GeistFabrik_
 ```
 
 **Properties**:
@@ -752,21 +786,20 @@ Your understanding of [[emergence]] shifted significantly between last session a
 - **Variable-length suggestions** - Each geist determines appropriate length for its suggestion
 - Sessions can be revisited, linked, or embedded like any other note
 
-**Duplicate Prevention**: System queries `geist_runs` table to check if suggestions for a given date have already been generated.
+**Duplicate Prevention**: Writing refuses to replace an existing session note for that date unless `--force` is given. Written suggestions are recorded in the `session_suggestions` table, which also feeds the novelty filter.
 
 ### Execution Pipeline
 
-1. **Execute All Geists**: Every geist runs each session, generating suggestions tagged with `geist_id`
-2. **Filter**:
-   - Boundary enforcement (exclude_paths)
-   - Novelty check (avoid recent suggestions via `geist_runs` table)
+1. **Execute All Geists**: Every enabled geist (or only those named by `--geist`/`--geists`) runs each session, generating suggestions tagged with `geist_id`
+2. **Filter** (in this order; `--no-filter` skips all four):
+   - Boundary enforcement (referenced notes must exist; `filtering.boundary.exclude_paths`)
+   - Quality baseline (length bounds, repetition, well-formed suggestions)
+   - Novelty check (avoid suggestions similar to those in the `session_suggestions` table within the novelty window)
    - Diversity filter (remove near-duplicate suggestions using embedding similarity)
-   - Quality baseline (well-formed suggestions)
 3. **Sample or Select** (based on invocation mode):
-   - Default: Random sample of ~5 suggestions
-   - Geist mode: All suggestions from specified geist(s)
-   - Full mode: All filtered suggestions
-4. **Output**: Write to journal with geist identifiers
+   - Default (including `--geist`/`--geists`): deterministic sample of `--count` suggestions (config `session.default_suggestions`, default 5)
+   - Full mode (`--full`, or `--no-filter`): all surviving suggestions
+4. **Output**: Preview to the console; with `--write`, write to the journal with geist identifiers
 
 ### Invocation Modes
 
@@ -776,20 +809,32 @@ GeistFabrik supports multiple invocation modes, all deterministic (same inputs =
 # Default mode: filtered + sampled (~5 suggestions)
 $ geistfabrik invoke
 
-# Single geist: all suggestions from one geist (post-filter)
-$ geistfabrik invoke --geist columbo
+# Single geist: suggestions from one geist (filtered, then sampled; add --full for all)
+$ geistfabrik invoke --geist what_if
 
-# Subset: all suggestions from specific geists (post-filter)
-$ geistfabrik invoke --geists columbo,drift,skeptic
+# Subset: suggestions from specific geists (filtered, then sampled)
+$ geistfabrik invoke --geists what_if,concept_drift,surprisal
 
 # Full firehose: all filtered suggestions, no sampling (50-200+)
 $ geistfabrik invoke --full
 
+# Raw: skip the filtering pipeline entirely
+$ geistfabrik invoke --no-filter
+
 # Replay: regenerate a specific session
 $ geistfabrik invoke --date 2025-01-15
+
+# Save the session note (default is preview only); --force overwrites
+$ geistfabrik invoke --write
 ```
 
-**Determinism**: Same vault state + date + mode produces identical output. Vault state hash stored with each session to detect when regeneration is needed.
+The vault is a positional argument (`geistfabrik invoke ~/my-vault`), or is
+auto-detected from the current directory. Other `invoke` flags: `--count N`,
+`--timeout S`, `--diff`, `--verbose`, `--debug`, `--explain`, `--quiet`. The
+other commands are `init`, `test`, `test-all`, `stats` and `validate`
+(`src/geistfabrik/cli.py`).
+
+**Determinism**: Same vault state + date + mode produces identical output. A vault state hash is stored with each session.
 
 ### File Structure
 
@@ -798,10 +843,9 @@ $ geistfabrik invoke --date 2025-01-15
 ├── _geistfabrik/
 │   ├── vault.db                 # SQLite database (everything)
 │   │                            # - notes, links, tags
-│   │                            # - embeddings (sqlite-vec)
-│   │                            # - computed metadata
-│   │                            # - geist execution history
-│   │                            # - block reference tracking
+│   │                            # - embeddings (BLOBs) + session embeddings
+│   │                            # - sessions + session_suggestions history
+│   │                            # - stats metric cache, geist_status
 │   ├── config.yaml              # Vault-specific settings
 │   ├── geists/
 │   │   ├── code/                # Code geists
@@ -834,6 +878,12 @@ $ geistfabrik invoke --date 2025-01-15
 > record of which keys are implemented (and how they diverge) is
 > [SPEC_STATUS.md](SPEC_STATUS.md); `tests/unit/test_spec_config_sync.py`
 > keeps it honest. Do not assume a key here is wired - check the ledger.
+> The working reference is [docs/example_config.yaml](../docs/example_config.yaml):
+> config.yaml rejects unknown top-level keys, so several sections below
+> (`vault`, `embeddings`, `boundaries`, `quality`, `tracery`,
+> `metadata_inference`, `vault_functions`, `logging`)
+> would fail to load as written. Built values differ too: the semantic
+> weight is a fixed 0.9 and Tracery's expansion depth limit is 50.
 
 ```yaml
 # <vault>/_geistfabrik/config.yaml
@@ -864,7 +914,7 @@ quality:
   check_repetition: true
 
 geist_execution:
-  timeout: 5           # Seconds before timeout
+  timeout: 30          # Seconds before timeout
   max_failures: 3      # Disable geist after N failures
   execution_mode: "serial"  # Only serial supported
 
@@ -977,7 +1027,12 @@ def infer(note: Note, vault: VaultContext) -> Dict:
 
 ## Initial Geist Set
 
-GeistFabrik ships with ~20 geists covering:
+> **Status (2026-10):** this is the original plan, kept as design history. The
+> bundled geists live in `src/geistfabrik/default_geists/` (counts come from
+> `geistfabrik.default_geists`; catalogue in `docs/GEIST_CATALOG.md`), and the
+> merge/retirement map is in `specs/SPEC_STATUS.md`.
+
+The initial plan covered:
 
 **Basic Patterns:**
 - **Concept collision** - Unlinked pairs with semantic similarity
@@ -988,22 +1043,22 @@ GeistFabrik ships with ~20 geists covering:
 - **Hub diversification** - Highly-linked notes paired with their opposites
 
 **Temporal Patterns** (require temporal embeddings):
-- **Session Drift** - Understanding evolution between sessions
-- **Hermeneutic Instability** - Notes with unstable interpretation
+- **Session Drift** - Understanding evolution between sessions (merged into `concept_drift`)
+- **Hermeneutic Instability** - Notes with unstable interpretation (retired: content-cached vectors cannot vary)
 - **Temporal Clustering** - Automatic intellectual periods
-- **Anachronism Detector** - Notes that feel temporally displaced
+- **Anachronism Detector** - Notes that feel temporally displaced (merged into `recent_focus`)
 - **Seasonal Patterns** - Rhythmic thinking patterns
 - **Concept Drift** - How concepts evolve over time
 - **Convergent Evolution** - Notes developing toward each other
 - **Divergent Evolution** - Linked notes growing semantically apart
 
 **Advanced Patterns:**
-- **Antithesis generation** - Contrarian viewpoints to existing notes
+- **Antithesis generation** - Contrarian viewpoints to existing notes (retired 2026-10: embeddings measure topic, not stance)
 - **Scale shifting** - Same concept at different levels of abstraction
 - **Method scrambling** - SCAMPER technique applied to note connections
 
 **Aspirational:**
-- **Columbo** - Detects contradictions: "I think you're lying about $CLAIM because $EVIDENCE"
+- **Columbo** - Detects contradictions: "I think you're lying about $CLAIM because $EVIDENCE" (built, then retired 2026-10; needs a stance model, see `specs/research/OPPOSITION_GEISTS_RESEARCH.md`)
 
 Each comes in both code and Tracery versions where appropriate.
 
@@ -1038,7 +1093,7 @@ def invoke_session(date: datetime, mode: str = "default"):
     start_time = time.time()
     all_suggestions = []
     geists = load_all_geists()
-    executor = GeistExecutor(timeout=5)  # 5 second default timeout
+    executor = GeistExecutor(timeout=config.timeout)  # 30 s default; --timeout overrides
 
     for geist in geists:
         geist_start = time.time()
@@ -1048,7 +1103,7 @@ def invoke_session(date: datetime, mode: str = "default"):
             geist_time = time.time() - geist_start
             log_benchmark(f"geist_{geist.id}", geist_time)
         except GeistTimeoutError:
-            log_error(geist.id, "Timeout after 5 seconds")
+            log_error(geist.id, f"Timeout after {executor.timeout} seconds")
             increment_failure_count(geist.id)
         except Exception as e:
             log_error(geist.id, str(e))
@@ -1077,7 +1132,7 @@ def invoke_session(date: datetime, mode: str = "default"):
     log_benchmark("total_session", total_time)
 
 class GeistExecutor:
-    def __init__(self, timeout: int = 5):
+    def __init__(self, timeout: int = 30):
         self.timeout = timeout
 
     def execute_with_timeout(self, geist, ctx):
@@ -1100,7 +1155,8 @@ class GeistExecutor:
             signal.alarm(0)
 
 def increment_failure_count(geist_id: str):
-    """Track failures and disable geist after N failures"""
+    """Track consecutive failures; disable geist after max_failures (default 3).
+    A successful run resets the count."""
     count = db.execute(
         "SELECT failure_count FROM geist_status WHERE geist_id = ?",
         (geist_id,)
@@ -1117,18 +1173,16 @@ def increment_failure_count(geist_id: str):
         print(f"⚠️  Geist '{geist_id}' disabled after 3 failures")
 
 def log_test_command(geist_id: str, date: datetime):
-    """Log command to reproduce session that caused failure"""
-    cmd = f"geistfabrik test {geist_id} --date {date.isoformat()}"
-    log_file = Path("./_geistfabrik/error.log")
-    with log_file.open('a') as f:
-        f.write(f"{datetime.now()}: Test command: {cmd}\n")
+    """Print the command that reproduces the failure (console only; the last
+    error is also kept in geist_status.last_error - there is no error.log)"""
+    print(f"  → Test this geist: geistfabrik test {geist_id} <vault> --date {date:%Y-%m-%d}")
 ```
 
 ### Geist Testing & Development
 
 ```bash
-# Test a single geist with arbitrary vault and session
-$ geistfabrik test my_geist --vault ~/test-vault --date 2025-01-15
+# Test a single geist with arbitrary vault and session (vault is positional)
+$ geistfabrik test my_geist ~/test-vault --date 2025-01-15
 
 Testing geist: my_geist
 Loading vault: ~/test-vault... done (247 notes)
@@ -1144,17 +1198,20 @@ Generated 3 suggestions:
 Execution time: 0.23s
 Success!
 
-# Test with specific session ID
-$ geistfabrik test my_geist --session-id 42
-
-# Test with verbose output
-$ geistfabrik test my_geist --verbose
+# Test with verbose output, a longer timeout, or profiling
+$ geistfabrik test my_geist ~/test-vault --verbose --timeout 60 --debug
 
 # Test all geists
-$ geistfabrik test-all --vault ~/test-vault
+$ geistfabrik test-all ~/test-vault
 ```
 
 ### Vault State Hash
+
+> **Implementation note:** the sketch below is the original design. The
+> implementation (`EmbeddingComputer.compute_vault_state_hash` in
+> `src/geistfabrik/embeddings.py`) hashes each synced note's path, content,
+> `created` and `modified` (length-prefixed, sorted by path), so a note whose
+> dates fall back to file timestamps can change the hash without a content edit.
 
 ```python
 class Vault:
@@ -1338,11 +1395,13 @@ class FunctionRegistry:
 
 ### Example Extended Tracery Geist
 
+(`temporal_mirror` was later merged into the bundled `creative_collision` geist.)
+
 ```yaml
 type: geist-tracery
 id: temporal_mirror
 tracery:
-  origin: "#timeframe# you wrote [[#old_note#]]. Today's [[#new_note#]] #relationship#"
+  origin: "#timeframe# you wrote #old_note#. Today's #new_note# #relationship#"
   timeframe: ["#months# months ago", "#years# years ago"]
   months: ["3", "6", "9", "12"]
   years: ["1", "2", "5"]
@@ -1358,6 +1417,13 @@ tracery:
 ## Appendix: Ambitious Implementable Geists
 
 These geists use only embeddings and graph analysis (no external knowledge required). They represent advanced but achievable patterns within the current architecture.
+
+> **Status (2026-10):** design sketches. Hidden Hub, Bridge Hunter, Density
+> Inversion and Vocabulary Expansion are bundled geists whose implementations
+> differ from these sketches; Island Hopper was merged into `bridge_builder`.
+> Helpers such as `find_clusters`, `semantic_path` and `get_recent_sessions`
+> are sketch names; the real API is `get_clusters()`, `backlinks()`,
+> `graph_neighbours()` and `session_embeddings_by_session()` on VaultContext.
 
 ### Island Hopper
 
@@ -1386,7 +1452,7 @@ def suggest(vault: VaultContext):
 
         if boundary_notes:
             bridge = max(boundary_notes, key=lambda x: x[1])[0]
-            cluster_sample = vault.sample(list(cluster), k=2)
+            cluster_sample = vault.sample(list(cluster), 2)
             suggestions.append(Suggestion(
                 text=f"[[{bridge.title}]] could bridge your cluster of "
                      f"[[{cluster_sample[0].title}]], [[{cluster_sample[1].title}]]...",
@@ -1394,7 +1460,7 @@ def suggest(vault: VaultContext):
                 geist_id="island_hopper"
             ))
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, 3)
 ```
 
 ### Hidden Hub
@@ -1408,10 +1474,10 @@ def suggest(vault: VaultContext):
 
     for note in vault.notes():
         # Actual link count
-        link_count = len(note.links) + len(vault.get_backlinks(note))
+        link_count = len(note.links) + len(vault.backlinks(note))
 
         # Semantic centrality
-        neighbours = vault.neighbours(note, k=50)
+        neighbours = vault.neighbours(note, count=50)
         semantic_centrality = len(neighbours)
 
         # High semantic centrality, low graph centrality
@@ -1423,7 +1489,7 @@ def suggest(vault: VaultContext):
                 geist_id="hidden_hub"
             ))
 
-    return vault.sample(suggestions, k=3)
+    return vault.sample(suggestions, 3)
 ```
 
 ### Bridge Hunter
@@ -1433,7 +1499,7 @@ def suggest(vault: VaultContext):
 ```python
 def suggest(vault: VaultContext):
     """Find semantic paths where no graph path exists"""
-    pairs = vault.unlinked_pairs(k=20)
+    pairs = vault.unlinked_pairs(count=20)
     suggestions = []
 
     for note_a, note_b in pairs:
@@ -1448,7 +1514,7 @@ def suggest(vault: VaultContext):
                 geist_id="bridge_hunter"
             ))
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, 2)
 ```
 
 ### Density Inversion
@@ -1461,7 +1527,7 @@ def suggest(vault: VaultContext):
     suggestions = []
 
     for note in vault.notes():
-        neighbours = vault.get_graph_neighbors(note)
+        neighbours = vault.graph_neighbours(note)
         if len(neighbours) < 3:
             continue
 
@@ -1491,7 +1557,7 @@ def suggest(vault: VaultContext):
                 geist_id="density_inversion"
             ))
 
-    return vault.sample(suggestions, k=2)
+    return vault.sample(suggestions, 2)
 ```
 
 ### Vocabulary Expansion
@@ -1542,6 +1608,10 @@ def suggest(vault: VaultContext):
 
 ### Session Embedding Pruning
 
+> **Status:** partly built. `session_embedding_retention` (default 730) keeps
+> the most recent N sessions' embeddings and prunes older ones at the start of
+> each session. The selective policy below and a `prune` command are not built.
+
 As sessions accumulate, storage of embeddings grows. A pruning strategy will selectively keep embeddings to manage storage:
 
 **Pruning Policy**:
@@ -1569,11 +1639,11 @@ Current implementation rehashes entire vault content on each invocation to detec
 ## Success Metrics
 
 ### Technical Performance
-- Handles 100+ geists via rotation
+- Handles 100+ geists via execution and filtering
 - Fast startup via incremental SQLite sync (only process changed files)
 - Sub-second queries for graph operations and semantic search
 - 5-minute effort to add new capabilities at any layer
-- Single journal file grows chronologically without duplicates
+- One journal note per session date, never silently overwritten
 - Complete vault intelligence in single portable database file
 
 ### Qualitative Experience

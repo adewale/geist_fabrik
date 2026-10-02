@@ -810,3 +810,27 @@ def test_isoscore_computation():
         assert 0 <= metrics["isoscore"] <= 1
 
     db.close()
+
+
+def test_hub_summary_counts_the_same_notes_as_the_hub_list(tmp_path):
+    """Contract: "Hubs (>=10 links in or out)" counts the notes the verbose
+    "Hub Notes (>=10 connections)" list shows.
+
+    Regression: the summary counted notes with >= 10 OUTGOING links while the
+    list used incoming + outgoing, so a note that ten others link to was
+    listed as a hub but missing from the count.
+    """
+    for i in range(10):
+        (tmp_path / f"Spoke {i}.md").write_text(f"# Spoke {i}\n\nSee [[Centre]].")
+    (tmp_path / "Centre.md").write_text("# Centre\n\nThe middle.")
+    vault = Vault(str(tmp_path), ":memory:")
+    try:
+        vault.sync()
+        collector = StatsCollector(vault, GeistFabrikConfig())
+        graph = collector._collect_graph_stats()
+        hub_titles = [note["title"] for note in collector.get_hub_notes()]
+    finally:
+        vault.close()
+
+    assert hub_titles == ["Centre"]
+    assert graph["hubs"] == 1

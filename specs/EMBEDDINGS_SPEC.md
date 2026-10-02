@@ -91,10 +91,10 @@ content in two different note paths does not share one cache row.
 
 During `Session.compute_embeddings()`, cache hits reuse semantic vectors;
 misses are encoded in a batch and upserted. All notes receive recomputed temporal
-features and newly composed session vectors. Sync currently invalidates a note's
-semantic cache row when that source is reprocessed, so an unchanged-content
-filesystem update can still cause re-encoding; reuse requires a surviving,
-matching cache entry.
+features and newly composed session vectors. Sync deletes a note's semantic
+cache row only when its content changed (`model_version` no longer matches), so
+an unchanged-content filesystem update or parser-revision reprocess keeps the
+cached vector; reuse requires a surviving, matching cache entry.
 
 ## Temporal features
 

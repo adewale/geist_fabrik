@@ -2,7 +2,10 @@
 
 **Version**: 1.0
 **Date**: 2025-11-01
-**Status**: Implementation Guide
+**Status**: Historical implementation guide (2025-11). Geist names and counts
+below are as of that date; `columbo`, `antithesis_generator` and
+`congruence_mirror` have since been retired. See [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10) and
+`docs/WRITING_GOOD_GEISTS.md` for current performance guidance.
 
 ## Overview
 

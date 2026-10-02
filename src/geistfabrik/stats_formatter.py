@@ -105,7 +105,7 @@ class StatsFormatter:
         lines.append("Graph Structure:")
         graph = self.stats["graph"]
         lines.append(f"  Orphans: {graph['orphans']} ({graph['orphan_pct']:.1f}%)")
-        lines.append(f"  Hubs (≥10 links): {graph['hubs']}")
+        lines.append(f"  Hubs (≥10 links in or out): {graph['hubs']}")
         lines.append(f"  Density: {graph['density']:.4f}")
         lines.append(
             f"  Largest component: {graph['largest_component_size']} "
@@ -140,8 +140,10 @@ class StatsFormatter:
             if hubs:
                 lines.append("")
                 lines.append("  Hub Notes (≥10 connections):")
-                for note in hubs:
+                for note in hubs[:100]:
                     lines.append(f"    [[{note['title']}]] ({note['total']} connections)")
+                if len(hubs) > 100:
+                    lines.append(f"    ... and {len(hubs) - 100} more")
 
         lines.append("")
 
@@ -255,7 +257,7 @@ class StatsFormatter:
             lines.append("")
             for rec in self.recommendations:
                 severity = rec["severity"]
-                icon = "⚠" if severity == "warning" else "✓"
+                icon = {"warning": "⚠", "info": "ℹ"}.get(severity, "✓")
                 lines.append(f"  {icon} {rec['type'].title()}")
                 lines.append(f"    {rec['message']}")
                 if rec.get("action"):

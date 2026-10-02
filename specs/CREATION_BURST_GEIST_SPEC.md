@@ -1,7 +1,9 @@
 # Creation Burst Geists Specification
 
 **Date**: 2025-11-08
-**Status**: Proposed - Specification Only
+**Status**: Implemented differently (design history). `creation_burst` is a bundled
+geist; `burst_evolution` was merged into it (2026-10) — it now names burst-day
+notes rewritten since. See [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10).
 
 ## Overview
 

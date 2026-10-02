@@ -1,5 +1,9 @@
 # GeistFabrik Testing Plan
 
+> **Status:** original testing plan (design history). The canonical validation
+> is `scripts/validate.sh` and CI; see `docs/TESTING.md`. Test-data counts below
+> are as of the plan's writing.
+
 This document outlines the comprehensive testing strategy for GeistFabrik, including unit tests for all components and scenario-based integration tests using the kepano Obsidian vault test data.
 
 ## Test Data Overview
