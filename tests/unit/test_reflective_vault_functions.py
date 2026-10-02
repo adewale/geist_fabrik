@@ -138,7 +138,9 @@ def test_voice_functions_select_the_designed_notes(voice_vault, name: str) -> No
     result = registry.call(name, context, len(VOICE_NOTES))
 
     assert all(BRACKETED_LINK_RE.match(entry) for entry in result), result
-    titles = {entry[2:-2] for entry in result}
+    # The fixture's file names differ from the titles, so links read
+    # [[past_a|Past A]]: compare the displayed titles.
+    titles = {entry[2:-2].split("|")[-1] for entry in result}
     assert expected <= titles, f"{name} missed designed notes: {sorted(expected - titles)}"
     assert not titles & excluded, f"{name} picked opposite voices: {sorted(titles & excluded)}"
 
