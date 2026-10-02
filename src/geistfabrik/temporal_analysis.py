@@ -17,7 +17,8 @@ from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
 )
 
-from .config import SEMANTIC_DIM, TOTAL_DIM
+from .config import SEMANTIC_DIM
+from .semantic_vectors import decode_meaning_vector, meaning_vector
 
 if TYPE_CHECKING:
     from geistfabrik.models import Note
@@ -30,18 +31,9 @@ CYCLE_HIGH_SIMILARITY = 0.8
 CYCLE_LOW_SIMILARITY = 0.6
 
 
-def semantic_component(embedding: np.ndarray) -> np.ndarray:
-    """Return the semantic dimensions from a stored session embedding.
-
-    Production session embeddings append calendar-derived dimensions to the
-    semantic model output. Temporal trajectory claims concern content, so those
-    features must not create apparent semantic movement. Smaller vectors remain
-    supported for injected/test embeddings.
-    """
-    vector = np.asarray(embedding)
-    if vector.size == TOTAL_DIM:
-        return vector[:SEMANTIC_DIM]
-    return vector
+# Trajectory claims concern content, so calendar features must not create
+# apparent semantic movement (see semantic_vectors).
+semantic_component = meaning_vector
 
 
 def get_season(date: datetime) -> str:
@@ -130,7 +122,7 @@ class EmbeddingTrajectoryCalculator:
         for session_id, session_date, raw_embedding in cursor.fetchall():
             if self.sessions is not None and session_id not in self.sessions:
                 continue
-            embedding = np.frombuffer(raw_embedding, dtype=np.float32)
+            embedding = decode_meaning_vector(raw_embedding)
             snapshots.append((datetime.fromisoformat(str(session_date)), embedding))
 
         return snapshots

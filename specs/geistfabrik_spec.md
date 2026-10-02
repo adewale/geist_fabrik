@@ -448,6 +448,12 @@ Temporal embeddings unlock two powerful dimensions:
 - Track interpretive shifts even when content is unchanged
 - Your understanding evolves; temporal embeddings capture this
 
+> **Status (2026-10):** superseded. The temporal features are still stored,
+> but similarity, neighbours and clustering compare the 384 semantic dimensions
+> only (they made notes of similar age look alike). Era-based grouping is the
+> job of the temporal geists, which compare dates explicitly. See
+> `specs/SPEC_STATUS.md`.
+
 **Time-Aware Embeddings** - Temporal context becomes part of semantic meaning
 - Notes naturally cluster by era
 - Seasonal and temporal patterns emerge automatically

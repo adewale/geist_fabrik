@@ -1035,3 +1035,38 @@ def test_a_session_note_never_makes_a_users_link_ambiguous(tmp_path: Path) -> No
     }
     session = ctx.resolve_link_target("geist journal/2024-03-14")
     assert session is not None and session.path == "geist journal/2024-03-14.md"
+
+
+def test_similarity_ignores_calendar_features(tmp_path: Path) -> None:
+    """Contract: similarity measures meaning only.
+
+    Regression: stored session embeddings append 3 calendar features (note
+    age, creation season, session season), and similarity used all 387
+    dimensions, so two notes with identical text but different ages scored
+    below 1.0 and neighbours leaned toward notes of a similar age.
+    """
+    from tests.fixtures.helpers import VaultBuilder
+
+    builder = VaultBuilder(tmp_path / "vault")
+    body = "compost worms soil nitrogen garden beds"
+    builder.note("Seed", body, created=datetime(2024, 7, 2), modified=datetime(2024, 7, 2))
+    builder.note("Other", "violin rosin bow string concerto tuning")
+    # Byte-identical files of very different ages (no "# title" heading).
+    for name, stamp in (
+        ("twin_old.md", datetime(2015, 1, 10)),
+        ("twin_new.md", datetime(2024, 6, 1)),
+    ):
+        builder.root.joinpath(name).write_text(body)
+        builder._times[name] = (stamp, stamp)
+    ctx = builder.build()
+    by_path = {n.path: n for n in ctx.notes()}
+    old, new = by_path["twin_old.md"], by_path["twin_new.md"]
+
+    stored = ctx.db.execute(
+        "SELECT embedding FROM session_embeddings WHERE note_path = ?", (old.path,)
+    ).fetchone()[0]
+    assert len(stored) == 387 * 4  # calendar features are still stored...
+    assert ctx.get_embedding(old.path).shape == (384,)  # ...but not compared
+    assert ctx.similarity(old, new) == pytest.approx(1.0, abs=1e-6)
+    assert ctx.batch_similarity([old], [new])[0, 0] == pytest.approx(1.0, abs=1e-6)
+    assert ctx.neighbours(old, 1) == [new]

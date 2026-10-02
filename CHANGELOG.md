@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Breaking Changes
+- Retired the `hermeneutic_instability` geist. Semantic vectors are cached by
+  note content, so an unchanged note's representation never varies between
+  sessions; the geist could only report an old edit as unexplained
+  "interpretive drift". `session_drift` covers notes rewritten since an
+  earlier session. A leftover `hermeneutic_instability:` entry in
+  `default_geists` config is ignored.
 - `VaultContext` now excludes geist journal session notes (`geist journal/`)
   from every vault-wide lookup: `notes()`, `neighbours()`, `backlinks()`,
   `outgoing_links()`, `graph_neighbours()`, `hubs()`, `orphans()`,
@@ -46,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evidence check (see the Tests section).
 
 ### Changed
+- Similarity is measured on meaning only. Stored session embeddings append
+  three calendar features (note age, creation season, session season) to the
+  384 semantic dimensions; `similarity()`, `batch_similarity()`,
+  `neighbours()`, both vector-search backends, clustering, surprisal,
+  neighbour churn, stats and drift now compare the 384 semantic dimensions
+  only (`geistfabrik.semantic_vectors`). With the calendar features, notes of
+  similar age looked more alike (up to +0.07) and "similar" counts shifted
+  between sessions on unchanged text. `VaultContext.get_embedding()` returns
+  the 384-dimension meaning vector. Stored data is unchanged; no migration.
 - `Note.created` is now the earliest of a file's modification, inode-change and
   (where the platform records it) birth time, and re-syncing an edited note no
   longer moves its creation date later. Previously it was `st_ctime`, which on

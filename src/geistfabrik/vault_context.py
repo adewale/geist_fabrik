@@ -19,10 +19,11 @@ from typing import (
 import numpy as np
 
 from .clustering_analysis import Cluster, format_cluster_label
-from .config import GEIST_JOURNAL_DIR, TOTAL_DIM
+from .config import GEIST_JOURNAL_DIR, SEMANTIC_DIM
 from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
 from .markdown_parser import parse_frontmatter
 from .models import Link, Note, NoteLinkIndex
+from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
@@ -320,7 +321,7 @@ class VaultContext:
         self._embeddings: dict[str, np.ndarray] = {}
         for row in cursor.fetchall():
             note_path, embedding_bytes = row
-            self._embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+            self._embeddings[note_path] = decode_meaning_vector(embedding_bytes)
         # The population every vault-wide lookup works over: session journal
         # notes are the engine's own output, so they never count as the
         # user's notes, neighbours, links, clusters or history.
@@ -650,7 +651,7 @@ class VaultContext:
                 embeddings_a.append(emb)
             except KeyError:
                 # Note not found, use zero vector
-                embeddings_a.append(np.zeros(TOTAL_DIM))  # 384 + 3 temporal features
+                embeddings_a.append(np.zeros(SEMANTIC_DIM))
 
         for note in notes_b:
             try:
@@ -658,11 +659,11 @@ class VaultContext:
                 embeddings_b.append(emb)
             except KeyError:
                 # Note not found, use zero vector
-                embeddings_b.append(np.zeros(TOTAL_DIM))
+                embeddings_b.append(np.zeros(SEMANTIC_DIM))
 
         # Stack into matrices: (n, d) and (m, d)
-        matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), 387)
-        matrix_b = np.stack(embeddings_b)  # shape: (len(notes_b), 387)
+        matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), SEMANTIC_DIM)
+        matrix_b = np.stack(embeddings_b)  # shape: (len(notes_b), SEMANTIC_DIM)
 
         # Cosine similarity matrix, clipped to [0, 1] like similarity()
         similarity_matrix = np.clip(cosine_similarity_matrix(matrix_a, matrix_b), 0.0, 1.0)
@@ -914,7 +915,7 @@ class VaultContext:
                 """,
                 (session_id, f"{_JOURNAL_PREFIX}*"),
             )
-            embeddings = [np.frombuffer(row[0], dtype=np.float32) for row in emb_cursor.fetchall()]
+            embeddings = [decode_meaning_vector(row[0]) for row in emb_cursor.fetchall()]
             date_str = datetime.fromisoformat(str(session_date)).strftime("%Y-%m-%d")
             result_list.append((session_id, date_str, embeddings))
 
@@ -1513,7 +1514,7 @@ class VaultContext:
         historical: dict[str, np.ndarray] = {}
         for note_path, embedding_bytes in cursor.fetchall():
             if not is_geist_journal_path(note_path):
-                historical[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+                historical[note_path] = decode_meaning_vector(embedding_bytes)
 
         if not historical or not self._user_embeddings:
             return {}

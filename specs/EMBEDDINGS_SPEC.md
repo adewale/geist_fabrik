@@ -23,8 +23,13 @@ A session embedding contains 387 coordinates:
 | 385 | Creation-day seasonal sine multiplied by 0.1 |
 | 386 | Session-day seasonal sine multiplied by 0.1 |
 
-The combined vector is not subsequently normalized. Similarity therefore requires
-cosine normalization; a raw dot product is not generally its cosine similarity.
+The combined vector is not subsequently normalized.
+
+**Comparisons use coordinates 0–383 only** (since 2026-10): similarity,
+neighbours, vector-search indexes, clustering, surprisal, churn and drift
+drop coordinates 384–386 when reading a stored vector
+(`src/geistfabrik/semantic_vectors.py`). The calendar coordinates are stored
+for compatibility and future use but do not influence any comparison.
 
 ## Semantic encoding
 

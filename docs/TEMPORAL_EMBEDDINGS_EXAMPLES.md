@@ -44,8 +44,13 @@ including leap years. The seasonal sine is a date signal rather than a
 winter/summer classifier; June 15 is about 0.280, not 0.978.
 
 The bundled model includes a normalization layer, but application code does not
-independently normalize arbitrary model outputs. Cosine similarity handles the
-norm of the combined vector when comparing notes.
+independently normalize arbitrary model outputs.
+
+**Comparisons use meaning only.** Similarity, neighbours, clustering, surprisal
+and drift read the first 384 coordinates and ignore the three calendar
+coordinates (see `src/geistfabrik/semantic_vectors.py`). Including them made
+notes of similar age look alike and shifted similarity thresholds between
+sessions on unchanged text. The calendar coordinates are still stored.
 
 ## Example 1: The same content in two sessions
 
@@ -60,8 +65,8 @@ The semantic vector S is reused. Age and session season change; creation season
 does not. No semantic coordinates shift from “mechanism” to “relationality”
 unless the encoded content or model changes.
 
-Nearest neighbours may still change because other notes are added or edited,
-their vectors change, or the temporal features alter the combined comparisons.
+Nearest neighbours may still change because other notes are added or edited
+and their vectors change. The temporal features no longer alter comparisons.
 A suggestion to revisit a connection can be useful, but the model cannot infer
 that the user has adopted a new interpretation from unchanged text alone.
 

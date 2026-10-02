@@ -131,7 +131,9 @@ def test_compute_metrics_basic(vault_with_embeddings):
     assert "n_notes" in metrics
     assert "dimension" in metrics
     assert metrics["n_notes"] == 3
-    assert metrics["dimension"] == 387  # 384 semantic + 3 temporal
+    # Stats describe meaning: the 3 calendar features of a stored session
+    # embedding are dropped, leaving the 384 semantic dimensions.
+    assert metrics["dimension"] == 384
 
 
 @pytest.fixture(params=[True, False], ids=["sklearn", "fallback"])

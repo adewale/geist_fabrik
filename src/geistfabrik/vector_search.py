@@ -15,7 +15,8 @@ from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
     cosine_similarity as sklearn_cosine,
 )
 
-from .config import TOTAL_DIM
+from .config import SEMANTIC_DIM
+from .semantic_vectors import decode_meaning_vector, meaning_blob, meaning_vector
 from .sqlite_transaction import owned_transaction
 
 _VEC_TABLE_COUNTER = count()
@@ -53,7 +54,8 @@ class VectorSearchBackend(ABC):
         """Find k most similar notes to query embedding.
 
         Args:
-            query_embedding: Query vector (384 or 387 dimensions)
+            query_embedding: Query vector; a full session embedding is reduced
+                to its meaning dimensions
             k: Number of results to return
 
         Returns:
@@ -173,8 +175,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
         self.embeddings = {}
         for row in cursor:
             path, blob = row
-            embedding = np.frombuffer(blob, dtype=np.float32)
-            self.embeddings[path] = embedding
+            self.embeddings[path] = decode_meaning_vector(blob)
 
         self._rebuild_matrix()
 
@@ -200,7 +201,8 @@ class InMemoryVectorBackend(VectorSearchBackend):
         if self._matrix is None or count <= 0:
             return []
 
-        scores = sklearn_cosine(query_embedding.reshape(1, -1), self._matrix)[0]
+        query = meaning_vector(query_embedding)
+        scores = sklearn_cosine(query.reshape(1, -1), self._matrix)[0]
         n = scores.shape[0]
         if count >= n:
             # Full stable sort: descending by score, ties keep insertion order.
@@ -273,12 +275,13 @@ class SqliteVecBackend(VectorSearchBackend):
     - Uses an instance-private TEMP vec0 projection with persistent path mapping
     """
 
-    def __init__(self, db: sqlite3.Connection, dim: int = TOTAL_DIM):
+    def __init__(self, db: sqlite3.Connection, dim: int = SEMANTIC_DIM):
         """Initialise sqlite-vec backend.
 
         Args:
             db: SQLite database connection
-            dim: Embedding dimension (default: TOTAL_DIM for temporal embeddings)
+            dim: Indexed dimension (default: SEMANTIC_DIM; only the meaning
+                dimensions of session embeddings are indexed)
 
         Raises:
             RuntimeError: If sqlite-vec extension not available
@@ -455,7 +458,7 @@ class SqliteVecBackend(VectorSearchBackend):
                         self.db.execute(
                             f"INSERT INTO temp.{self._search_table}(rowid, embedding) "
                             "VALUES (?, ?)",
-                            (vec_id, blob),
+                            (vec_id, meaning_blob(blob)),
                         )
                         path_to_id[path] = vec_id
                         id_to_path[vec_id] = path
@@ -506,7 +509,7 @@ class SqliteVecBackend(VectorSearchBackend):
             ORDER BY distance
             LIMIT ?
             """,
-            (query_embedding.astype(np.float32).tobytes(), count),
+            (meaning_vector(query_embedding).astype(np.float32).tobytes(), count),
         )
 
         results = []

@@ -243,7 +243,7 @@ GeistFabrik includes bundled default geists that work immediately:
 **Code geists include:**
 - temporal_drift, creative_collision, bridge_builder, complexity_mismatch
 - question_generator, link_density_analyser, task_archaeology, concept_cluster
-- stub_expander, recent_focus, columbo, session_drift, hermeneutic_instability
+- stub_expander, recent_focus, columbo, session_drift
 - and 22 more...
 
 **Tracery geists include:**

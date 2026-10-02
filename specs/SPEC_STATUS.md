@@ -25,7 +25,7 @@ Status vocabulary:
 | `embeddings.enabled` | NOT-BUILT | embeddings always on; amend spec |
 | `embeddings.model` | NOT-BUILT | hardcoded `MODEL_NAME`; model-swap is out of scope (dims/cache) |
 | `embeddings.dimensions` | NOT-BUILT | hardcoded `SEMANTIC_DIM=384` |
-| `embeddings.temporal_features` | NOT-BUILT | always on |
+| `embeddings.temporal_features` | BUILT-DIFFERENTLY | stored in every session vector but excluded from all comparisons since 2026-10 (`semantic_vectors.py`); "notes cluster by era" (spec ~450-470) is intentionally not the behaviour |
 | `embeddings.semantic_weight` | BUILT-DIFFERENTLY | constant `DEFAULT_SEMANTIC_WEIGHT=0.9`, not spec's 0.5; not config-driven |
 | `embeddings.temporal_weight` | BUILT-DIFFERENTLY | derived as `1 - semantic_weight` |
 | `boundaries.exclude_paths` | BUILT-DIFFERENTLY | implemented as `filtering.boundary.exclude_paths` |

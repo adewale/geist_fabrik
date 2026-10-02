@@ -69,7 +69,13 @@ When drift exceeds 0.15 (15% change), the system suggests interpretive shift has
 
 ### 3. Hermeneutic Theory and Interpretive Variance
 
-The `hermeneutic_instability` geist (`src/geistfabrik/default_geists/code/hermeneutic_instability.py`) draws implicitly on **hermeneutic circle** theory, though the implementation is computational rather than philosophical.
+> **Retired (2026-10):** the `hermeneutic_instability` geist described here was
+> removed. Semantic vectors are cached by note content, so an unchanged note's
+> vector never varies between sessions: the "reading of an unchanged note
+> shifts" premise below cannot be observed, and the geist only ever reported
+> old edits as unexplained variance. The section is kept as research history.
+
+The `hermeneutic_instability` geist (formerly `src/geistfabrik/default_geists/code/hermeneutic_instability.py`) drew implicitly on **hermeneutic circle** theory, though the implementation was computational rather than philosophical.
 
 **Hermeneutic Circle**: Friedrich Schleiermacher's interpretive framework posits that "understanding involved repeated circular movements between the parts and the whole." Heidegger later reconceptualized this: "understanding is not merely a cognitive process but a fundamental aspect of how we exist in the world."
 

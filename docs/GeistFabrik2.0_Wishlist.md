@@ -42,7 +42,6 @@ Brander's philosophy celebrates the left side. v1.0 has a mix across the entire 
 - `anachronism_detector` - Temporal displacement creates surprise
 - `scale_shifter` - Zoom in/out provokes new perspectives
 - `blind_spot_detector` - Reveals overlooked connections (note: not prescriptive)
-- `hermeneutic_instability` - Notes whose semantic representations varied across snapshots
 - `on_this_day` / `seasonal_revisit` - Temporal serendipity
 
 **Characteristics**:

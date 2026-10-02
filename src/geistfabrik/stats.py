@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 import numpy as np
 
+from .semantic_vectors import decode_meaning_vector
+
 if TYPE_CHECKING:
     from .config_loader import GeistFabrikConfig
     from .vault import Vault
@@ -526,7 +528,7 @@ class StatsCollector:
         paths = []
         for row in cursor.fetchall():
             path, blob = row
-            embedding = np.frombuffer(blob, dtype=np.float32)
+            embedding = decode_meaning_vector(blob)
             embeddings_list.append(embedding)
             paths.append(path)
 
@@ -607,7 +609,7 @@ class StatsCollector:
         past_emb_dict = {}
         for row in cursor.fetchall():
             path, blob = row
-            embedding = np.frombuffer(blob, dtype=np.float32)
+            embedding = decode_meaning_vector(blob)
             past_emb_dict[path] = embedding
 
         # Find common notes

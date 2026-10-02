@@ -54,7 +54,6 @@ default_geists:
   dialectic_triad: true           # Creates thesis-antithesis-synthesis triads
   divergent_evolution: true       # Finds note vectors whose similarity decreased
   drift_velocity_anomaly: true    # Detects increasing semantic-change distance
-  hermeneutic_instability: true   # Highlights variance among stored representations
   hidden_hub: true                # Discovers implicit hubs (semantically central)
   hypothesis_harvester: true      # Surfaces hypotheses worth testing
   island_hopper: true             # Connects isolated note clusters

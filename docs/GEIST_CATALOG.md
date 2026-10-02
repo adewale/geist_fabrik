@@ -57,7 +57,6 @@ themselves establish a change in meaning, interpretation, or mental state.
 |-------|----------|---------|
 | **temporal_drift** | Old vs recent notes | Stale but important notes |
 | **session_drift** | Semantic dimensions across sessions | Changed content representations |
-| **hermeneutic_instability** | Semantic variance across snapshots | Notes whose stored vectors varied |
 | **concept_drift** | Semantic neighborhoods over time | Representation direction and neighbours |
 | **temporal_clustering** | Clusters across time periods | Content groupings by era |
 | **seasonal_patterns** | Notes by creation season | Dated topic distributions |
@@ -301,7 +300,7 @@ These geists use Tracery grammars rather than code, demonstrating the declarativ
 | **Metadata only** | stub_expander, task_archaeology, recent_focus |
 | **Links only** | hidden_hub, link_density_analyser, orphan_connector |
 | **Embeddings** | All semantic similarity + temporal drift geists |
-| **Multiple sessions** | session_drift, hermeneutic_instability |
+| **Multiple sessions** | session_drift |
 
 ---
 

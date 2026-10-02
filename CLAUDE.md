@@ -456,13 +456,21 @@ If yes to any → Add a VaultContext method instead.
 
 ## Temporal Embeddings
 
-A key architectural feature: GeistFabrik computes fresh embeddings for all notes at each session, enabling:
-- Tracking how understanding of notes evolves over time
-- Detecting interpretive drift even when content doesn't change
+GeistFabrik stores a session embedding for every note at each session, enabling:
+- Tracking how notes change over time (trajectories across sessions)
 - Discovering temporal patterns and seasonal thinking rhythms
 - Identifying notes developing toward or away from each other
 
-Embeddings combine semantic (384 dims from sentence-transformers) with temporal features (3 dims: note age, creation season, session season).
+Semantic vectors are cached by note content, so an unchanged note has the same
+meaning vector in every session: drift reflects edits (and new neighbours),
+never a shifting "reading" of unchanged text.
+
+Stored session embeddings are the 384 semantic dims followed by 3 calendar
+features (note age, creation season, session season). All similarity,
+neighbour, clustering, surprisal and drift computations use only the 384
+meaning dimensions (`src/geistfabrik/semantic_vectors.py`); the calendar
+features are stored but not compared, because they made notes of similar age
+look alike and shifted "similar" counts between sessions on unchanged text.
 
 ## Data Structures
 

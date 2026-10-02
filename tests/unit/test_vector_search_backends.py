@@ -1159,13 +1159,14 @@ class TestBackendIntegration:
 
         # Test SqliteVecBackend (if available)
         if SQLITE_VEC_LOADABLE:
-            backend_vec = SqliteVecBackend(db, dim=387)
+            backend_vec = SqliteVecBackend(db)
             backend_vec.load_embeddings(session_date)
 
-            # Should have loaded all 4 embeddings into its private projection.
+            # Loaded all 4 embeddings into its private projection, indexing
+            # only the 384 meaning dimensions (calendar features dropped).
             assert np.allclose(
                 backend_vec.get_embedding("Projects/AI Research.md"),
-                embeddings["Projects/AI Research.md"],
+                embeddings["Projects/AI Research.md"][:384],
             )
 
             # Should get same results as InMemory
