@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import Mock
 
 import numpy as np
@@ -1109,7 +1109,7 @@ def test_preprocessing_warns_when_fewer_items_returned(tmp_path: Path, caplog: A
         engine.set_vault_context(context)
 
     # A smaller valid result remains a successful bounded preprocessing pass.
-    assert engine.grammar["orphan"] == ["[[Orphan]]"]
+    assert engine.grammar["orphan"] == ["[[orphan|Orphan]]"]  # file orphan.md, title "Orphan"
 
 
 def test_validation_rejects_unsafe_vault_function_pattern(tmp_path: Path) -> None:
@@ -1406,6 +1406,10 @@ def test_vault_text_is_never_parsed_as_grammar(tmp_path: Path) -> None:
     assert suggestion.text == "[[Meeting [ref:2024] notes #ref#]] then REF"
 
 
+# A grammar without $vault calls never touches the context.
+NO_VAULT = cast("VaultContext", None)
+
+
 def test_geists_sharing_a_session_seed_make_different_choices() -> None:
     """Contract: the session seed is mixed with the geist id.
 
@@ -1416,14 +1420,15 @@ def test_geists_sharing_a_session_seed_make_different_choices() -> None:
     grammar = {"origin": [f"template {i}" for i in range(8)]}
     picks = {
         geist_id: [
-            TraceryGeist(geist_id, grammar, seed=seed).suggest(None)[0].text for seed in range(12)
+            TraceryGeist(geist_id, grammar, seed=seed).suggest(NO_VAULT)[0].text
+            for seed in range(12)
         ]
         for geist_id in ("alpha", "beta")
     }
 
     assert picks["alpha"] != picks["beta"]
     assert picks["alpha"] == [
-        TraceryGeist("alpha", grammar, seed=seed).suggest(None)[0].text for seed in range(12)
+        TraceryGeist("alpha", grammar, seed=seed).suggest(NO_VAULT)[0].text for seed in range(12)
     ]
 
 

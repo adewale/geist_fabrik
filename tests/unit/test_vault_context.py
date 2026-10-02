@@ -450,8 +450,9 @@ def test_vault_functions_adapter_layer():
         result = registry.call("hubs", ctx, 5)
         assert isinstance(result, list), "hubs should return list"
         assert all(isinstance(item, str) for item in result), "Should return strings"
-        if result:  # If we found hubs
-            assert "[[Hub Note]]" in result, "Should find hub by title with brackets"
+        # hub.md is titled "Hub Note": the link targets the file name and shows
+        # the title, which is how Obsidian resolves it.
+        assert result == ["[[hub|Hub Note]]"]
 
         # Test random_note_title: Note → str
         result = registry.call("random_note_title", ctx)
