@@ -6,7 +6,9 @@
 > the stated date and are not a current API inventory. For supported extension
 > APIs and executable examples, use
 > [WRITING_GOOD_GEISTS.md](WRITING_GOOD_GEISTS.md) and
-> [../examples/README.md](../examples/README.md).
+> [../examples/README.md](../examples/README.md). Several geists in these tables
+> have since been merged or retired (see the merge table in
+> [../specs/SPEC_STATUS.md](../specs/SPEC_STATUS.md#geist-merges-2026-10)).
 
 This document shows all extension points in GeistFabrik and which geists use them.
 

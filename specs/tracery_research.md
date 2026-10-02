@@ -553,7 +553,7 @@ tracery:
 4. Each expansion produces one `Suggestion` object
 5. Returns list with `count` suggestions
 
-**Example**: `semantic_neighbours.yaml` has `count: 2` and generates 2 suggestions per session.
+**Example**: `examples/geists/tracery/semantic_neighbours.yaml` has `count: 2` and generates 2 suggestions per session.
 
 ### Python Implementation Reference
 
@@ -953,7 +953,7 @@ tracery:
 # Output: "Your three assumptions might all be symptoms of the same problem"
 ```
 
-**Status**: ✅ **IMPLEMENTED** - see `semantic_neighbours.yaml` for working example
+**Status**: ✅ **IMPLEMENTED** - see `examples/geists/tracery/semantic_neighbours.yaml` for a working example
 
 ---
 

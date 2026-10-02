@@ -3,14 +3,16 @@
 creative_collision draws 10 random note pairs and suggests combining any
 unlinked pair whose similarity is in the "loosely related" window
 SimilarityLevel.NOISE (0.15) < sim < SimilarityLevel.WEAK (0.35).
-It returns at most 3 suggestions.
+It returns at most 3 suggestions. A pair created >= 2 years apart is worded
+across eras with real dates (absorbed from temporal_mirror); other pairs get
+one of three neutral templates (absorbed from note_combinations).
 
 Fixtures use the bag-of-words test stub. Each note has a 2-word unique
 title, 5 unique body words and 3 words shared by every note, so any two notes
 have cosine ~3/10 = 0.3: inside the window.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -178,3 +180,77 @@ def test_creative_collision_rejects_clearly_related_pairs(tmp_path: Path) -> Non
     assert {frozenset(s.notes) for s in suggestions} == {frozenset({a, c}), frozenset({b, c})}
     assert all("unlinked and only loosely related" in s.text for s in suggestions)
     assert not any("different domains" in s.text for s in suggestions)
+
+
+def test_creative_collision_frames_a_pair_created_years_apart_across_eras(
+    tmp_path: Path,
+) -> None:
+    """Contract: an in-window pair created >= 2 years apart names both real
+    creation dates, older note first, and the whole-year gap.
+
+    Regression: temporal_mirror (now retired into this geist) juxtaposed notes
+    as "From period 7: [[A]]. From period 2: [[B]]", a label that said nothing
+    about when either note was written; creative_collision said nothing about
+    time at all.
+    """
+    builder = VaultBuilder(tmp_path)
+    old = datetime(2019, 3, 10)
+    new = datetime(2024, 6, 1)
+    builder.note(TITLES[1], f"{UNIQUE[1]} {SHARED}", created=new, modified=new)
+    builder.note(TITLES[0], f"{UNIQUE[0]} {SHARED}", created=old, modified=old)
+    ctx = builder.build()
+
+    suggestions = creative_collision.suggest(ctx)
+
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            f"[[{TITLES[0]}]] was created in March 2019 and [[{TITLES[1]}]] in June 2024, "
+            "5 years later. They're unlinked and only loosely related. "
+            "What would each era make of the other?",
+            [TITLES[0], TITLES[1]],
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("days_apart", "cross_era"), [(729, False), (730, True)], ids=["1y364d", "2y"]
+)
+def test_creative_collision_cross_era_boundary_is_two_years(
+    tmp_path: Path, days_apart: int, cross_era: bool
+) -> None:
+    """Contract: the era framing needs a gap of at least 2 * 365 days; anything
+    shorter gets a neutral pairing template that mentions no dates."""
+    builder = VaultBuilder(tmp_path)
+    first = datetime(2022, 1, 1)
+    second = first + timedelta(days=days_apart)
+    builder.note(TITLES[0], f"{UNIQUE[0]} {SHARED}", created=first, modified=first)
+    builder.note(TITLES[1], f"{UNIQUE[1]} {SHARED}", created=second, modified=second)
+    ctx = builder.build()
+
+    (suggestion,) = creative_collision.suggest(ctx)
+
+    assert ("2 years later" in suggestion.text) is cross_era, suggestion.text
+    assert ("January 2022" in suggestion.text) is cross_era, suggestion.text
+
+
+def test_creative_collision_rotates_neutral_pairing_templates(tmp_path: Path) -> None:
+    """Contract: same-era pairs are worded with one of three neutral templates
+    (absorbed from note_combinations), each claiming only "unlinked and only
+    loosely related"; over several sessions all three are used.
+
+    Regression: every collision read "What if you combined ideas from ..."; the
+    retired note_combinations Tracery geist carried the other pairings.
+    """
+    builder = VaultBuilder(tmp_path)
+    for i in range(len(TITLES)):
+        _note(builder, i)
+
+    openings = set()
+    for seed in range(12):
+        ctx = builder.build(seed=seed)
+        for s in creative_collision.suggest(ctx):
+            assert "unlinked and only loosely related" in s.text, s.text
+            assert s.text.startswith(("What if you combined", "Consider connecting", "[[")), s.text
+            openings.add(s.text.split()[0] if not s.text.startswith("[[") else "[[")
+
+    assert openings == {"What", "Consider", "[["}

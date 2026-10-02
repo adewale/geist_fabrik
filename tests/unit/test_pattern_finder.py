@@ -6,20 +6,18 @@ Trigger arithmetic (see the geist source):
   table rows, URLs and punctuation boundaries excluded) longer than 15
   characters, neither starting nor ending with a whole-token stopword, found
   in >= 3 notes of which >= 3 have no link to another note of the group;
-- cluster route: a seed plus notes with similarity > 0.80 to it (at most 5
-  per cluster, at most 3 clusters), reported when >= 3 notes and no
-  internal links;
 - output is capped at 2 suggestions.
 
+(The former semantic-cluster route was merged into concept_cluster; see
+tests/unit/test_concept_cluster.py.)
+
 Fixture vocabulary: phrase-route notes share one long phrase and otherwise
-use distinct words, so they are not similar enough to cluster. Cluster-route
-notes use identical bags of 3-letter words (similarity ~1.0 under the
-lexical stub) whose 3-token windows are <= 15 characters, so the phrase
-route ignores them. Fillers use distinct short words and match neither.
+use distinct words. "Kiln" notes use identical bags of 3-letter words
+(similarity ~1.0 under the lexical stub) whose 3-token windows are <= 15
+characters, so they share no phrase. Fillers use distinct short words.
 """
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -108,88 +106,22 @@ def test_minimum_vault_size_boundary(tmp_path: Path, vault_size: int, fires: boo
     assert (suggestions != []) is fires
 
 
-def test_unlinked_semantic_cluster_is_reported(tmp_path: Path) -> None:
+def test_similar_unlinked_notes_without_a_shared_phrase_are_not_reported(
+    tmp_path: Path,
+) -> None:
+    """Contract: pattern_finder reports recurring phrases only; three
+    near-identical, unlinked notes that share no qualifying phrase give [].
+
+    Regression: a second loop reported "a semantic cluster of similar notes
+    with no links between them", duplicating concept_cluster (which now says
+    "none of them links to another" after checking every pair).
+    """
     builder = VaultBuilder(tmp_path)
-    group = ["Kiln 1", "Kiln 2", "Kiln 3"]
-    for title in group:
+    for title in ["Kiln 1", "Kiln 2", "Kiln 3"]:
         builder.note(title, CLUSTER_BODY)
     _fillers(builder, 12)
 
-    suggestions = pattern_finder.suggest(builder.build())
-
-    assert_valid_suggestions(suggestions, GEIST, must_reference=group)
-    assert [sorted(s.notes) for s in suggestions] == [group]
-    assert "semantic cluster" in suggestions[0].text
-
-
-@pytest.mark.parametrize(("cluster_size", "fires"), [(2, False), (3, True)])
-def test_cluster_needs_three_notes(tmp_path: Path, cluster_size: int, fires: bool) -> None:
-    builder = VaultBuilder(tmp_path)
-    for i in range(cluster_size):
-        builder.note(f"Kiln {i}", CLUSTER_BODY)
-    _fillers(builder, 15 - cluster_size)
-
-    suggestions = pattern_finder.suggest(builder.build())
-
-    assert (suggestions != []) is fires
-
-
-@pytest.mark.parametrize(("linked", "fires"), [(False, True), (True, False)])
-def test_internally_linked_cluster_is_not_reported(
-    tmp_path: Path, linked: bool, fires: bool
-) -> None:
-    builder = VaultBuilder(tmp_path)
-    builder.note("Kiln 1", f"{CLUSTER_BODY} [[Kiln 2]]" if linked else CLUSTER_BODY)
-    builder.note("Kiln 2", CLUSTER_BODY)
-    builder.note("Kiln 3", CLUSTER_BODY)
-    _fillers(builder, 12)
-
-    suggestions = pattern_finder.suggest(builder.build())
-
-    assert (suggestions != []) is fires
-
-
-def _twelve_kilns(tmp_path: Path) -> VaultBuilder:
-    builder = VaultBuilder(tmp_path)
-    for i in range(12):
-        builder.note(f"Kiln {i}", CLUSTER_BODY)
-    _fillers(builder, 3)
-    return builder
-
-
-def test_clusters_are_disjoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every note lands in at most one cluster.
-
-    Twelve near-identical notes exceed the 5-note cluster limit, so the
-    geist must build a second cluster from what is left (with only 3
-    fillers, a second cluster seed is always drawn before the pool shrinks
-    to 5). The seed and the
-    members of each cluster must leave the unclustered pool; otherwise a note
-    reappears in a later cluster (or the seed matches itself and appears
-    twice in its own cluster). The spy records each cluster as the geist
-    hands it to vault.sample(cluster, count=3) for display, then delegates.
-    """
-    builder = _twelve_kilns(tmp_path)
-    ctx = builder.build()
-    clusters: list[list[str]] = []
-    real_sample = ctx.sample
-
-    def spy_sample(items: Any, count: int) -> Any:
-        if count == 3 and items and all(isinstance(n, Note) for n in items):
-            clusters.append([n.title for n in items])
-        return real_sample(items, count)
-
-    monkeypatch.setattr(ctx, "sample", spy_sample)
-
-    suggestions = pattern_finder.suggest(ctx)
-
-    assert_valid_suggestions(suggestions, GEIST, min_count=2)
-    assert len(clusters) >= 2, f"fixture should form two clusters, got {clusters}"
-    for cluster in clusters:
-        assert len(cluster) == len(set(cluster)), f"note repeated inside {cluster}"
-    flat = [title for cluster in clusters for title in cluster]
-    assert len(flat) == len(set(flat)), f"note shared between clusters: {clusters}"
-    assert set(flat) <= {f"Kiln {i}" for i in range(12)}
+    assert pattern_finder.suggest(builder.build()) == []
 
 
 def test_output_is_capped_when_more_patterns_qualify(tmp_path: Path) -> None:
@@ -231,11 +163,16 @@ def test_output_does_not_depend_on_hash_order(
 ) -> None:
     """Same date + vault = same output, whatever PYTHONHASHSEED a process has.
 
-    Regression: the clustering pool was a set of Notes, so seed choice
-    followed string-hash order and varied between processes. Salting
-    Note.__hash__ stands in for a different hash seed within one process.
+    Regression: the (since removed) clustering pool was a set of Notes, so seed
+    choice followed string-hash order and varied between processes. Salting
+    Note.__hash__ stands in for a different hash seed within one process; the
+    phrase groups must not depend on it either.
     """
-    builder = _twelve_kilns(tmp_path)
+    builder = VaultBuilder(tmp_path)
+    for g, phrase in enumerate([PHRASE, "saffron glacier harbour", "walnut falcon orchid"]):
+        for i in range(3):
+            builder.note(f"Echo {g}{i}", f"p{g}{i}x p{g}{i}y {phrase} p{g}{i}z")
+    _fillers(builder, 6)
     baseline = [s.text for s in pattern_finder.suggest(builder.build())]
     assert baseline
 
@@ -268,9 +205,9 @@ def test_markdown_syntax_and_function_word_phrases_are_not_themes(tmp_path: Path
 
     suggestions = pattern_finder.suggest(builder.build())
 
-    # The three near-identical notes do form a semantic cluster; the only
-    # suggestion is that one, never a phrase.
-    assert [s.text.startswith("Found a semantic cluster") for s in suggestions] == [True]
+    # The three notes share code, a heading, a table row and "for large
+    # vaults", none of which is a theme.
+    assert suggestions == []
 
 
 def test_stopwords_match_whole_tokens_not_substrings(tmp_path: Path) -> None:

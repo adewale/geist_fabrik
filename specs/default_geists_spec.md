@@ -1,5 +1,10 @@
 # Default Geists Specification
 
+> **Geist merges (2026-10).** Several geists named here were merged into the one
+> truest to the vision or retired; see the merge table in
+> [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10). Code below that
+> names a retired geist is design history.
+
 ## Overview
 
 GeistFabrik ships with a curated set of default geists bundled in the package. These provide immediate value on first run without requiring users to write their own. Users can enable or disable any default geist via configuration.

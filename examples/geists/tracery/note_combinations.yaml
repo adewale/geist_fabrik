@@ -1,3 +1,17 @@
+# EXTENSION EXAMPLE - not a bundled geist.
+#
+# This file is not loaded by GeistFabrik. It was retired from the default
+# geists (creative_collision now pairs notes, and checks that each pair is
+# unlinked and only loosely related). Copy it into
+# <vault>/_geistfabrik/geists/tracery/ to run it.
+#
+# What it demonstrates:
+#   - $vault.note_pairs(n): a pair of two DIFFERENT notes bundled as
+#     "[[A]]|||[[B]]" in one expansion
+#   - a save action, "#[picked:#pair#]template#", which expands ONE pair and
+#     reuses it, so both halves come from the same draw
+#   - the .split_seed / .split_neighbours modifiers that split the saved pair
+#
 type: geist-tracery
 id: note_combinations
 description: Suggests combining random notes in creative ways

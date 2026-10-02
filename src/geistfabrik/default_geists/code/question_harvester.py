@@ -1,4 +1,4 @@
-"""Question Harvester geist - extracts questions from random notes.
+"""Question Harvester geist - extracts questions from notes, preferring question-dense ones.
 
 Inspired by:
 - https://x.com/pomeranian99/status/1497969902581272577
@@ -7,6 +7,10 @@ Inspired by:
 The power of seeing only the questions: when you strip away everything except
 the questions from a piece of writing, you reveal the shape of curiosity and
 the implicit structure of inquiry.
+
+Absorbed the retired questioning_mind Tracery geist: question-dense notes are
+preferred, and one full of questions is read back with "Which one keeps you up
+at night?".
 """
 
 import re
@@ -18,47 +22,83 @@ if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
 
+# A note with more than this many "?" per 100 words is question-dense (the
+# same threshold as the questioning_notes vault function).
+QUESTION_DENSE = 1.0
+# Question-dense notes tried per session before falling back to a random note.
+MAX_NOTES_TRIED = 10
+# A question-dense note with at least this many short questions is read back
+# as one gathered suggestion instead of one suggestion per question.
+GATHER_MIN = 3
+# Longest question (characters) shown in a gathered suggestion.
+GATHER_MAX_LEN = 120
+
+
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Extract questions from a randomly selected note.
+    """Extract questions from a note, preferring question-dense notes.
+
+    Tries up to MAX_NOTES_TRIED sampled question-dense notes (more than
+    QUESTION_DENSE "?" per 100 words) and harvests the first with questions;
+    with none, falls back to one random note. A question-dense note with at
+    least GATHER_MIN short questions yields ONE suggestion reading three of
+    them back ("Which one keeps you up at night?", absorbed from the retired
+    questioning_mind geist); otherwise each question is its own suggestion.
 
     Returns:
         List of 1-3 suggestions containing questions found (or empty if none)
     """
     from geistfabrik import Suggestion
 
-    # Pick one random note (deterministic by session seed)
     notes = vault.notes()
     if not notes:
         return []
 
-    note = vault.random_notes(count=1)[0]
-    content = vault.read(note)
-
-    # Extract questions
-    questions = extract_questions(content)
+    dense = [n for n in notes if vault.voice(n).question_density > QUESTION_DENSE]
+    note = notes[0]
+    questions: list[str] = []
+    for note in vault.sample(dense, MAX_NOTES_TRIED):
+        questions = extract_questions(vault.read(note))
+        if questions:
+            break
+    from_dense = bool(questions)
+    if not questions:
+        # Pick one random note (deterministic by session seed)
+        note = vault.random_notes(count=1)[0]
+        questions = extract_questions(vault.read(note))
 
     # If no questions found, return empty (geist abstains)
     if not questions:
         return []
 
-    # Create suggestions from questions
-    suggestions = []
-    for question in questions:
-        # Clean up whitespace
-        question_clean = " ".join(question.split())
+    # Clean up whitespace
+    cleaned = [" ".join(question.split()) for question in questions]
 
-        text = (
-            f"From [[{note.link_text}]]: {quote_for_display(question_clean)} "
-            f"What if you revisited this question now?"
-        )
-
-        suggestions.append(
+    short = [q for q in cleaned if len(q) <= GATHER_MAX_LEN]
+    if from_dense and len(short) >= GATHER_MIN:
+        quoted = " ".join(quote_for_display(q) for q in vault.sample(short, GATHER_MIN))
+        return [
             Suggestion(
-                text=text,
+                text=(
+                    f"[[{note.link_text}]] is full of questions: {quoted} "
+                    "Which one keeps you up at night?"
+                ),
                 notes=[note.link_text],
                 geist_id="question_harvester",
             )
+        ]
+
+    # Create suggestions from questions
+    suggestions = [
+        Suggestion(
+            text=(
+                f"From [[{note.link_text}]]: {quote_for_display(question)} "
+                f"What if you revisited this question now?"
+            ),
+            notes=[note.link_text],
+            geist_id="question_harvester",
         )
+        for question in cleaned
+    ]
 
     # Sample 1-3 questions to avoid overwhelming
     return vault.sample(suggestions, count=min(3, len(suggestions)))

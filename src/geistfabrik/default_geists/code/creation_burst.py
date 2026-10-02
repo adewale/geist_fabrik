@@ -1,12 +1,17 @@
 """Creation Burst geist - surfaces days when multiple notes were created.
 
 Identifies "burst days" when you created 3+ notes and asks what was special
-about those moments of creative activity.
+about those moments of creative activity. When some of that day's notes have
+since been rewritten (their content-derived meaning vector moved at least
+REWRITE_DRIFT from the first session that recorded them), one sentence names
+them. (Absorbs the former burst_evolution geist.)
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from geistfabrik.models import Note
     from geistfabrik.vault_context import VaultContext
 
 from geistfabrik.models import Suggestion
@@ -15,6 +20,40 @@ from geistfabrik.models import Suggestion
 # vault) is treated as an import artefact rather than a creative burst.
 MIN_IMPORT_SIZE = 20
 IMPORT_SHARE = 0.25
+# Smallest first-to-latest semantic drift that counts as a rewrite (vectors
+# are cached by content, so any drift means the text was edited; below this
+# the edit is trivial).
+REWRITE_DRIFT = 0.05
+MAX_NAMED_REWRITES = 3
+
+
+def _rewritten_sentence(vault: "VaultContext", notes: list["Note"]) -> str:
+    """One sentence naming the burst-day notes rewritten since their first
+    recorded session, or "" when none was."""
+    from geistfabrik.temporal_analysis import EmbeddingTrajectoryCalculator
+
+    rewritten: list[tuple[str, datetime]] = []
+    for note in notes:
+        calc = EmbeddingTrajectoryCalculator(vault, note)
+        snapshots = calc.snapshots()
+        if len(snapshots) >= 2 and calc.total_drift() >= REWRITE_DRIFT:
+            rewritten.append((note.link_text, snapshots[0][0]))
+
+    if not rewritten:
+        return ""
+
+    first_seen = min(date for _, date in rewritten)
+    links = [f"[[{link}]]" for link, _ in rewritten[:MAX_NAMED_REWRITES]]
+    more = len(rewritten) - len(links)
+    if more:
+        named = f"{', '.join(links)} and {more} more"
+    elif len(links) == 1:
+        named = links[0]
+    else:
+        named = f"{', '.join(links[:-1])} and {links[-1]}"
+    return (
+        f" Since your first session with them ({first_seen:%Y-%m-%d}), you have rewritten {named}."
+    )
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -74,7 +113,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     else:  # 3-5 notes
         question = "What were you circling around that day?"
 
-    text = f"On {day_date}, you created {count} notes in one day: {title_list}. {question}"
+    rewritten = _rewritten_sentence(vault, notes)
+    text = (
+        f"On {day_date}, you created {count} notes in one day: {title_list}.{rewritten} {question}"
+    )
 
     return [
         Suggestion(

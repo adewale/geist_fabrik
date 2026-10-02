@@ -4,7 +4,7 @@ Provides unified graph pattern detection for note link structures.
 Supports finding hubs, orphans, bridges, paths, and connected components.
 
 Replaces ad-hoc graph traversal code duplicated across bridge_builder,
-island_hopper, hidden_hub, and other geists.
+hidden_hub, and other geists.
 """
 
 from collections import deque

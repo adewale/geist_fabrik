@@ -198,7 +198,9 @@ class FunctionRegistry:
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("hubs")
-        def hubs(vault: "VaultContext", count: int = 5, min_backlinks: int = 1) -> list[str]:
+        def hubs(
+            vault: "VaultContext", count: int = 5, min_backlinks: int = 1, min_words: int = 0
+        ) -> list[str]:
             """Get count notes with most incoming links.
 
             Args:
@@ -208,19 +210,29 @@ class FunctionRegistry:
                     geist that calls its notes "central" should demand more,
                     since in a sparse vault the top-ranked notes may have a
                     single backlink.
+                min_words: Only notes with at least this many body words
+                    (the built-in word_count metadata) qualify. The default
+                    (0) keeps every note; a geist that asks whether a hub
+                    should be split or restructured should skip stubs, which
+                    have nothing to split.
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"]),
                 most-linked first; fewer than count (or []) when too few notes
-                reach min_backlinks
+                reach min_backlinks and min_words
             """
-            if min_backlinks <= 1:
+            if min_backlinks <= 1 and min_words <= 0:
                 notes = vault.hubs(count)
             else:
-                # vault.hubs() is sorted by backlink count, so the qualifying
-                # notes are a prefix of the full ranking.
-                ranked = vault.hubs(len(vault.notes()))
-                notes = [n for n in ranked if len(vault.backlinks(n)) >= min_backlinks][:count]
+                notes = []
+                # vault.hubs() is sorted by backlink count, so the notes with
+                # enough backlinks are a prefix of the full ranking.
+                for note in vault.hubs(len(vault.notes())):
+                    if len(notes) >= count or len(vault.backlinks(note)) < min_backlinks:
+                        break
+                    if min_words > 0 and vault.metadata(note).get("word_count", 0) < min_words:
+                        continue
+                    notes.append(note)
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("neighbours")

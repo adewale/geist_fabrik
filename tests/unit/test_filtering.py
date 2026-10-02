@@ -287,12 +287,12 @@ class TestBoundaryFilterVirtualNotes:
         kept = Suggestion(
             text="On this day you wrote something.",
             notes=["Journal#2025-01-15"],
-            geist_id="on_this_day",
+            geist_id="this_time_last_year",
         )
         dropped = Suggestion(
             text="References a note that does not exist.",
             notes=["Nonexistent#2025-01-15"],
-            geist_id="on_this_day",
+            geist_id="this_time_last_year",
         )
 
         result = filter_obj.filter_boundary([kept, dropped])

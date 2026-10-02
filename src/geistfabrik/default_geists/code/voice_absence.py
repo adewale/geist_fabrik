@@ -1,14 +1,18 @@
 """Voice absence geist - identifies missing voices in the vault.
 
 A reflective lens over what is NOT written: a vault that almost never
-uses the future tense, rarely looks backward, or almost never asks a
-question reveals a voice you never use. This geist counts linguistic
+uses the future tense or almost never asks a question reveals a voice you
+never use. This geist counts linguistic
 registers across the whole vault and names one that is conspicuously
 absent. (The missing "we" voice is self_and_other's question.)
 
 Each count is exactly what its sentence says: "use the future tense"
 counts notes with any future marker (will/shall/won't/going to/gonna),
 and "contain questions" counts notes with any question mark outside code.
+There is no "looks backward" check: the past orientation (more than 60% of
+detected verbs ending in -ed and the like) counts status tables and
+"used"/"enabled" as retrospection, so a count of it would not mean what the
+sentence says.
 """
 
 from typing import TYPE_CHECKING
@@ -37,7 +41,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Returns:
         At most one suggestion naming an absent voice (with notes=[])
     """
-    orientations = {"past": 0, "present": 0, "future": 0, "mixed": 0}
     has_future = 0
     has_questions = 0
     total = 0
@@ -45,9 +48,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for note in vault.notes():
         voice = vault.voice(note)
         total += 1
-
-        orientation = voice.temporal_orientation
-        orientations[orientation] += 1
 
         # Any future marker (will/shall/won't/going to/gonna). The "future"
         # orientation needs > 40% of detected verbs to be future, which
@@ -64,7 +64,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    # Check for missing temporal orientations
+    # Check for a missing future tense
     if has_future < total * 0.05:
         suggestions.append(
             Suggestion(
@@ -72,19 +72,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                     f"Only {has_future} of your {total} notes {_verb(has_future, 'use')} "
                     f"the future tense ('will', 'going to'). "
                     f"What are you anticipating that you haven't written about?"
-                ),
-                notes=[],
-                geist_id="voice_absence",
-            )
-        )
-
-    if orientations["past"] < total * 0.05:
-        suggestions.append(
-            Suggestion(
-                text=(
-                    f"Only {orientations['past']} of your {total} notes "
-                    f"{_verb(orientations['past'], 'look')} backward. "
-                    f"What from your past haven't you processed on paper?"
                 ),
                 notes=[],
                 geist_id="voice_absence",

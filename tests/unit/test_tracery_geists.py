@@ -4,11 +4,11 @@ Every test runs real YAML through TraceryGeist.suggest() on a VaultBuilder
 vault (pinned dates, lexical embedding stub), so outputs are deterministic and
 the assertions name the notes a designed fixture must produce. Engine
 mechanics (modifiers, save actions, preprocessing) are owned by
-tests/unit/test_tracery.py; the reflective lens geists' known answers are owned
-by tests/unit/test_reflective_tracery_geists.py.
+tests/unit/test_tracery.py; the extension examples in examples/geists/tracery/
+(note_combinations, semantic_neighbours, transformation_suggester) are tested
+in tests/integration/test_example_geists.py.
 """
 
-import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -17,7 +17,6 @@ import pytest
 import yaml
 
 from geistfabrik.default_geists import DEFAULT_TRACERY_GEISTS
-from geistfabrik.session_time import session_seed
 from geistfabrik.tracery import TraceryGeist
 from geistfabrik.validator import GeistValidator
 from geistfabrik.vault_context import VaultContext
@@ -30,19 +29,11 @@ GEISTS_DIR = (
 _WIKILINK = re.compile(r"\[\[([^\]]+)\]\]")
 
 # Minimum wikilinks every suggestion of a note-referencing geist must carry.
-# Geists absent from this table may or may not name notes (random_prompts
-# never does; what_if only in some templates).
+# Geists absent from this table may or may not name notes.
 MIN_WIKILINKS = {
     "contradictor": 1,
     "hub_explorer": 1,
-    "note_combinations": 2,
-    "orphan_connector": 1,
-    "perspective_shifter": 1,
-    "questioning_mind": 1,
-    "semantic_neighbours": 2,
-    "temporal_contrast": 1,
-    "transformation_suggester": 1,
-    "unexpected_neighbour": 1,
+    "what_if": 1,
 }
 
 
@@ -54,13 +45,17 @@ def _populated_vault(root: Path) -> VaultBuilder:
     """A vault in which every bundled Tracery geist has data to draw on.
 
     - "Hub Note" has eight backlinks and "Garden Hub" three: the only hubs.
+      Each repeats its three-word body (same bag-of-words direction) to
+      clear hub_explorer's 100-word floor.
     - "Orphan Note" is the most recently modified note with no links in or out.
     - "Questions", "Past Reflection" and "Future Plans" give the reflective
       lens functions a questioning, a past-focused and a future-focused note.
     """
     builder = VaultBuilder(root)
-    builder.note("Hub Note", "Gardens soil compost.", created=datetime(2023, 6, 1))
-    builder.note("Garden Hub", "Seeds roots sprouts.", created=datetime(2023, 6, 2))
+    builder.note("Hub Note", " ".join(["Gardens soil compost."] * 40), created=datetime(2023, 6, 1))
+    builder.note(
+        "Garden Hub", " ".join(["Seeds roots sprouts."] * 40), created=datetime(2023, 6, 2)
+    )
     for i in range(8):
         links = "[[Hub Note]]" + (" [[Garden Hub]]" if i < 3 else "")
         builder.note(
@@ -201,11 +196,16 @@ def test_hub_explorer_names_only_the_hubs(populated: VaultContext) -> None:
 
 
 def _hub_vault(root: Path) -> VaultBuilder:
-    """Notes with 5, 4, 3, 2 and 1 backlinks ("Five" ... "One"), plus the linkers."""
+    """Notes with 5, 4, 3, 2 and 1 backlinks ("Five" ... "One"), plus the linkers.
+
+    Each target repeats a two-word body to 120 words, over hub_explorer's
+    100-word floor.
+    """
     builder = VaultBuilder(root)
     backlinks = {"Five": 5, "Four": 4, "Three": 3, "Two": 2, "One": 1}
     for i, title in enumerate(backlinks):
-        builder.note(title, f"Topic {title.lower()}.", created=datetime(2024, 1, 1 + i))
+        body = " ".join([f"Topic {title.lower()}."] * 60)
+        builder.note(title, body, created=datetime(2024, 1, 1 + i))
     for i in range(5):
         links = " ".join(f"[[{t}]]" for t, n in backlinks.items() if i < n)
         builder.note(f"Linker {i}", f"Links {links}", created=datetime(2024, 2, 1 + i))
@@ -271,167 +271,31 @@ def test_hub_explorer_abstains_without_a_well_linked_note(tmp_path: Path) -> Non
         assert geist.suggest(builder.build()) == []
 
 
-def test_orphan_connector_rotates_among_orphans(populated: VaultContext) -> None:
-    """Contract: orphan_connector names an unlinked note, never a linked one, and rotates.
+def test_hub_explorer_never_names_a_stub_that_stub_expander_names(tmp_path: Path) -> None:
+    """Contract: hub_explorer only names hubs of at least 100 words, so a
+    well-linked stub is stub_expander's ("expand it") and never also
+    hub_explorer's ("split into subtopics?").
 
-    The fixture has four orphans (Orphan Note, Questions, Past Reflection,
-    Future Plans); across seeds each is named.
-    Regression: $vault.orphans(1) named the single most recently modified
-    orphan in every session (one note across 60 simulated sessions).
+    Regression: in the real 12-session run hub_explorer and stub_expander
+    both named the 19-word "Obsidian" (6 backlinks) every session.
     """
-    orphans = {"Orphan Note", "Questions", "Past Reflection", "Future Plans"}
+    from geistfabrik.default_geists.code import stub_expander
+
+    builder = _hub_vault(tmp_path)
+    builder.note("Obsidian", "A note-taking app.", created=datetime(2024, 1, 9))
+    for i in range(6):
+        builder.note(f"Mention {i}", "Uses [[Obsidian]]", created=datetime(2024, 3, 1 + i))
+    ctx = builder.build()
+
+    stubs = {ref for s in stub_expander.suggest(ctx) for ref in s.notes}
     named: set[str] = set()
-    for seed in range(20):
-        suggestions = TraceryGeist.from_yaml(_yaml("orphan_connector"), seed=seed).suggest(
-            populated
-        )
-        assert_valid_suggestions(suggestions, "orphan_connector", min_count=1)
-        assert len(suggestions) == 1
-        assert len(suggestions[0].notes) == 1, suggestions[0].text
-        named.update(suggestions[0].notes)
+    for seed in range(30):
+        suggestions = TraceryGeist.from_yaml(_yaml("hub_explorer"), seed=seed).suggest(ctx)
+        assert_valid_suggestions(suggestions, "hub_explorer", min_count=2)
+        named.update(ref for s in suggestions for ref in s.notes)
 
-    assert named == orphans
-
-
-def test_perspective_shifter_writes_whole_sentences(populated: VaultContext) -> None:
-    """Contract: every perspective_shifter suggestion starts with a capital and ends in . or ?.
-
-    Regression: one template began "try viewing [[X]] ..." and three of the
-    four had no terminal punctuation.
-    """
-    texts = [
-        s.text
-        for seed in range(30)
-        for s in TraceryGeist.from_yaml(_yaml("perspective_shifter"), seed=seed).suggest(populated)
-    ]
-
-    assert len(texts) == 60
-    assert [t for t in texts if not t[0].isupper() or t[-1] not in ".?"] == []
-    # Every template was exercised.
-    assert {t.split()[0] for t in texts} >= {"Try", "What"}
-
-
-@pytest.mark.parametrize("note_count", [2, 3, 6])
-def test_note_combinations_always_pairs_two_different_notes(
-    tmp_path: Path, note_count: int
-) -> None:
-    """Regression: note1 and note2 came from two independent draws.
-
-    With ``note1: $vault.sample_notes(2)`` and ``note2: $vault.sample_notes(2)``
-    each symbol drew on its own, so a suggestion could read "What if you
-    combined [[A]] with [[A]]?". The pair now comes from one note_pairs()
-    expansion, split by .split_seed/.split_neighbours.
-
-    Small vaults make a self-pairing likely on every draw; the loops vary the
-    session date (the vault seed in production) and the geist seed.
-    """
-    builder = VaultBuilder(tmp_path)
-    titles = [f"Topic {chr(ord('A') + i)}" for i in range(note_count)]
-    for i, title in enumerate(titles):
-        builder.note(title, f"Distinct words {title.lower()}.", created=datetime(2024, 1, 1 + i))
-
-    pairs = set()
-    for day in (1, 9, 20):
-        session = datetime(2024, 3, day)
-        ctx = builder.build(session_date=session, seed=session_seed(session))
-        for seed in range(25):
-            suggestions = TraceryGeist.from_yaml(_yaml("note_combinations"), seed=seed).suggest(ctx)
-            # Two notes make one distinct pair, which is offered only once.
-            assert_valid_suggestions(
-                suggestions, "note_combinations", min_count=min(2, math.comb(note_count, 2))
-            )
-            for suggestion in suggestions:
-                assert len(suggestion.notes) == 2, suggestion.text
-                assert suggestion.notes[0] != suggestion.notes[1], suggestion.text
-                assert set(suggestion.notes) <= set(titles), suggestion.text
-                pairs.add(frozenset(suggestion.notes))
-
-    # The pairing still varies: over these draws every possible pair is offered.
-    assert len(pairs) == math.comb(note_count, 2)
-
-
-def test_note_combinations_abstains_with_a_single_note(tmp_path: Path) -> None:
-    """With one note there is nothing to combine; it used to pair the note with itself."""
-    builder = VaultBuilder(tmp_path)
-    builder.note("Lonely Note", "Nothing else here.", created=datetime(2024, 1, 1))
-
-    assert TraceryGeist.from_yaml(_yaml("note_combinations"), seed=1).suggest(builder.build()) == []
-
-
-def test_random_prompts_never_connects_a_concept_with_itself(populated: VaultContext) -> None:
-    """Regression: "the connection between #concept# and #concept#" drew twice.
-
-    Two independent draws from six concepts paired a concept with itself
-    about one time in six ("between emergence and emergence").
-    """
-    between = re.compile(r"connection between (\w+) and (\w+)\?")
-    pairs = []
-    for seed in range(200):
-        for suggestion in TraceryGeist.from_yaml(_yaml("random_prompts"), seed=seed).suggest(
-            populated
-        ):
-            match = between.search(suggestion.text)
-            if match:
-                pairs.append(match.groups())
-
-    assert len(pairs) >= 50, "fixture rarely reaches the connection template"
-    assert all(first != second for first, second in pairs), [p for p in pairs if p[0] == p[1]]
-
-
-def test_seed_and_neighbours_come_from_the_same_cluster(tmp_path: Path) -> None:
-    """Each semantic_neighbours suggestion names ONE cluster: a seed and its own neighbours.
-
-    Contract: ``$vault.semantic_clusters`` bundles "[[Seed]]|||[[N1]], ..." so
-    that one cluster can be split into its two halves. The grammar must split
-    a single saved expansion of ``#cluster#``, not re-draw a cluster for the
-    seed and another for the neighbours.
-
-    Regression: with ``seed: #cluster.split_seed#`` and
-    ``neighbours: #cluster.split_neighbours#`` each reference re-expands
-    ``#cluster#`` independently, pairing seed A with seed B's neighbours
-    (observed: "around [[Note 1]]: [[Note 0]], [[Note 1]]", the seed listed
-    among its own neighbours).
-
-    Fixture: three groups of four notes with disjoint vocabulary, so each
-    note's three nearest neighbours are exactly the rest of its group. The
-    loop varies the session date (which seeds semantic_clusters samples) and
-    the geist seed (which cluster each template draws).
-    """
-    vocab = {
-        "Astronomy": "telescope galaxy nebula comet starlight orbit",
-        "Baking": "flour yeast dough oven crust knead",
-        "Sailing": "mast rudder harbour tide keel anchor",
-    }
-    builder = VaultBuilder(tmp_path)
-    group_of: dict[str, set[str]] = {}
-    for topic, words in vocab.items():
-        titles = {f"{topic} {label}" for label in ("One", "Two", "Three", "Four")}
-        for title in titles:
-            builder.note(title, f"{words} {words}", created=datetime(2024, 1, 1))
-            group_of[title] = titles
-
-    geist_path = _yaml("semantic_neighbours")
-    for day in (1, 9, 20):
-        context = builder.build(session_date=datetime(2024, 3, day))
-        # Fixture sanity: the lexical stub puts each note's neighbours in its group.
-        for note in context.notes():
-            found = {n.title for n in context.neighbours(note, 3)}
-            assert found == group_of[note.title] - {note.title}, note.title
-
-        for seed in range(30):
-            geist = TraceryGeist.from_yaml(geist_path, seed=seed)
-            suggestions = geist.suggest(context)
-            assert_valid_suggestions(suggestions, "semantic_neighbours", min_count=2)
-
-            for suggestion in suggestions:
-                links = _WIKILINK.findall(suggestion.text)
-                assert suggestion.text.count("[[") == suggestion.text.count("]]") == 4
-                seed_title, neighbours = links[0], links[1:]
-                assert seed_title not in neighbours, suggestion.text
-                assert set(neighbours) == group_of[seed_title] - {seed_title}, (
-                    f"neighbours drawn from another cluster: {suggestion.text}"
-                )
-                assert suggestion.notes == links
+    assert "Obsidian" in stubs
+    assert named == {"Five", "Four", "Three"}
 
 
 def test_semantic_clusters_link_virtual_notes_by_deeplink(tmp_path: Path) -> None:
@@ -474,3 +338,69 @@ def test_what_if_constraints_name_the_note_they_mean(populated: VaultContext) ->
                 assert suggestion.notes, suggestion.text
                 assert " it to " not in suggestion.text and "draw it" not in suggestion.text
     assert seen >= 5
+
+
+# The seven what_if templates, by a phrase only that template renders.
+WHAT_IF_TEMPLATES = {
+    "metaphor": re.compile(r"^What if you read \[\[[^\]]+\]\] as an? [a-z ]+\?$"),
+    "direction": re.compile(r"^What if you approached \[\[[^\]]+\]\] from .+\?$"),
+    "constraint": re.compile(r"^What if (you could|you had to|you rewrote) .+, what would .+\?$"),
+    "descriptor": re.compile(r"^What if \[\[[^\]]+\]\] were an? \w+, not an? \w+\?$"),
+    "split": re.compile(r"^What if \[\[[^\]]+\]\] split into (three|five) [a-z ]+s\? [A-Z].*\?$"),
+    "recent": re.compile(r"^What if you rewrote \[\[[^\]]+\]\] for an? \w+\?$"),
+    "old": re.compile(
+        r"^\[\[[^\]]+\]\] is one of the notes you have left alone longest\. "
+        r"What if you rewrote it as it would read now\?$"
+    ),
+}
+
+
+def _what_if_texts(context: VaultContext, seeds: range) -> list[tuple[str, list[str]]]:
+    return [
+        (s.text, s.notes)
+        for seed in seeds
+        for s in TraceryGeist.from_yaml(_yaml("what_if"), seed=seed).suggest(context)
+    ]
+
+
+def test_what_if_every_prompt_names_one_note(populated: VaultContext) -> None:
+    """Contract: every what_if suggestion names exactly one note, is a whole
+    question, and matches one of the seven templates; all seven are used.
+
+    Regression: about a third of what_if's output named no note ("What if your
+    thinking reframed the gaps in your knowledge?"), and filtering drops every
+    suggestion with no notes, so those prompts never reached a journal. The
+    merge with perspective_shifter, transformation_suggester and random_prompts
+    added the metaphor, descriptor, split and recency templates, and the
+    "opposite of [[X]]" template (contradictor's job) was removed.
+    """
+    rendered = _what_if_texts(populated, range(40))
+
+    assert len(rendered) == 120
+    used = set()
+    for text, notes in rendered:
+        assert len(notes) == 1 and _WIKILINK.findall(text) == notes, text
+        assert "opposite" not in text, text
+        matches = [name for name, pattern in WHAT_IF_TEMPLATES.items() if pattern.match(text)]
+        assert len(matches) == 1, text
+        used.update(matches)
+    assert used == set(WHAT_IF_TEMPLATES)
+
+
+def test_what_if_rewrite_prompt_names_a_note_left_alone_longest(populated: VaultContext) -> None:
+    """Contract: "left alone longest" is said only of a note among the five
+    least recently modified (VaultContext.old_notes(5)).
+
+    Regression: the prompt to rewrite an old note as it would read now came
+    from temporal_contrast (retired), which picked notes by a past-tense
+    heuristic that mostly matched status tables; what_if had no such prompt.
+    """
+    oldest = {n.link_text for n in populated.old_notes(5)}
+    named = {
+        notes[0]
+        for text, notes in _what_if_texts(populated, range(60))
+        if WHAT_IF_TEMPLATES["old"].match(text)
+    }
+
+    assert oldest == {"Hub Note", "Garden Hub", "Note 00", "Note 01", "Note 02"}
+    assert named and named <= oldest

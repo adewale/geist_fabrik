@@ -241,15 +241,21 @@ count: 2
 GeistFabrik includes bundled default geists that work immediately:
 
 **Code geists include:**
-- temporal_drift, creative_collision, bridge_builder, complexity_mismatch
+- temporal_drift, creative_collision, bridge_builder, orphan_connector
 - question_generator, link_density_analyser, task_archaeology, concept_cluster
-- stub_expander, recent_focus, columbo, session_drift
-- and 22 more...
+- stub_expander, recent_focus, columbo, concept_drift
+- and more (see `docs/GEIST_CATALOG.md`)
 
-**Tracery geists include:**
-- contradictor, hub_explorer, note_combinations, orphan_connector
-- perspective_shifter, random_prompts, semantic_neighbours, temporal_mirror
-- transformation_suggester, what_if
+**Tracery geists:** contradictor, hub_explorer, what_if
+
+**Extension examples in this directory** (not bundled; copy into
+`_geistfabrik/geists/...` to try them):
+- `geists/tracery/note_combinations.yaml` - `$vault.note_pairs()` with a
+  `[picked:#pair#]` save action and `.split_seed` / `.split_neighbours`
+- `geists/tracery/semantic_neighbours.yaml` - the cluster pattern
+  (`$vault.semantic_clusters()` split from one saved expansion)
+- `geists/tracery/transformation_suggester.yaml` - every Tracery modifier
+- `geists/code/metadata_outlier_detector.py` - the `MetadataAnalyser` API
 
 View their source code in `src/geistfabrik/default_geists/` to learn patterns.
 

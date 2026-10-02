@@ -85,8 +85,8 @@ def test_lexical_diversity_is_raw_case_insensitive_ttr(tmp_path: Path) -> None:
     """Public key contract: raw type-token ratio, a float in [0, 1], never None.
 
     It is not length-corrected: a short stub of distinct words scores 1.0.
-    Consumers that read it as vocabulary richness must apply their own
-    minimum length (metadata_driven_discovery.MIN_WORDS_FOR_DIVERSITY).
+    Consumers that read it as vocabulary richness should use the
+    length-corrected root_ttr key instead (as metadata_driven_discovery does).
     User plugins compare it with `.get("lexical_diversity", 0) > x`, so
     turning it into None or an unbounded length-corrected score would
     break them silently.

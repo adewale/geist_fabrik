@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 69 bundled geists (57 code, 12 Tracery) - automatically available
+  - **default_geists/**: 48 bundled geists (45 code, 3 Tracery) - automatically available
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
@@ -32,7 +32,7 @@ promises remain explicitly tracked in `specs/SPEC_STATUS.md`.
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 69 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 48 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns
@@ -170,7 +170,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 **Current Performance Status** (post-rollback):
 - ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
 - ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 69 default geists: Pass timeout thresholds on production vaults
+- ✅ All 48 default geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
 
@@ -314,7 +314,8 @@ template: "#seed# shares space with #neighbours#"
 - Save actions (`[key:rule]`, `[key:POP]`): `src/geistfabrik/tracery.py`
 - Validation: `src/geistfabrik/tracery.py::_validate_grammar()`
 - Documentation: `specs/tracery_research.md` (Designing Tracery-Safe Vault Functions section)
-- Tests: `tests/unit/test_tracery.py::test_tracery_split_*_modifier()`, `tests/unit/test_tracery_geists.py::test_semantic_clusters_*`
+- Worked example: `examples/geists/tracery/semantic_neighbours.yaml` (an extension example since its job merged into the bundled `concept_cluster` geist)
+- Tests: `tests/unit/test_tracery.py::test_tracery_split_*_modifier()`, `tests/unit/test_tracery_geists.py::test_semantic_clusters_*`, `tests/integration/test_example_geists.py::test_semantic_neighbours_example_splits_one_saved_cluster`
 
 **Future cluster functions** (post-1.0, see `docs/GeistFabrik2.0_Wishlist.md`):
 - `contrarian_clusters(count, k)` - Seed + contrarian notes
@@ -409,7 +410,7 @@ burst_days = vault.notes_grouped_by_creation_date(
 - ✅ **Consistency**: All geists use same abstraction level
 
 **What Changed**:
-- **Fixed geists**: creation_burst.py, burst_evolution.py (commit d80a93e)
+- **Fixed geists**: creation_burst.py, burst_evolution.py (commit d80a93e; burst_evolution has since been merged into creation_burst)
 - **New VaultContext method**: `notes_grouped_by_creation_date()` in vault_context.py:603
 - **Updated spec**: CREATION_BURST_GEIST_SPEC.md now shows VaultContext usage
 - **Added lesson**: This section in CLAUDE.md

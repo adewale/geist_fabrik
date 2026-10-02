@@ -3,24 +3,42 @@
 Finds groups of semantically related notes that might represent a theme or
 area of interest worth naming and organising. (Nothing about the group's age
 is checked, so the suggestion does not call it "emerging".)
+
+Absorbed the retired semantic_neighbours Tracery geist (its closing
+questions; the YAML lives on in examples/geists/tracery/ as the cluster-pattern
+demo) and pattern_finder's semantic-cluster branch ("no links between them",
+said here only after checking every pair in the cluster for a link).
 """
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
+    from geistfabrik.models import Note
+
+# One is sampled to close a suggestion about a cluster that has internal links.
+CLOSERS = (
+    "Could they be organised under a shared theme?",
+    "What's the common thread?",
+    "What do they share?",
+    "What pattern emerges?",
+)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Identify potential concept clusters.
 
+    Samples 5 seeds; a seed plus its 3 nearest neighbours is a cluster when
+    their average pairwise similarity exceeds SimilarityLevel.HIGH. Up to 2
+    distinct clusters are sampled and worded: one with no link between any of
+    its notes says so, any other ends with a sampled closer.
+
     Returns:
         List of suggestions for concept clusters
     """
-    from geistfabrik import Suggestion
     from geistfabrik.similarity_analysis import SimilarityLevel
 
-    suggestions = []
+    clusters: list[list[Note]] = []
     # Seeds from the same group find the same cluster; report each set once
     reported: set[frozenset[str]] = set()
 
@@ -59,21 +77,31 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # If average similarity is high, this is a real cluster
         if avg_similarity > SimilarityLevel.HIGH:
             reported.add(cluster_key)
-            note_titles = [n.link_text for n in cluster_notes]
-            formatted_titles = "]], [[".join(note_titles)
+            clusters.append(cluster_notes)
 
-            text = (
-                f"What if you named the cluster around [[{seed.link_text}]]? "
-                f"These notes are tightly related: [[{formatted_titles}]]. "
-                f"Could they be organised under a shared theme?"
-            )
+    return [_describe(vault, cluster) for cluster in vault.sample(clusters, count=2)]
 
-            suggestions.append(
-                Suggestion(
-                    text=text,
-                    notes=note_titles,
-                    geist_id="concept_cluster",
-                )
-            )
 
-    return vault.sample(suggestions, count=2)
+def _describe(vault: "VaultContext", cluster: list["Note"]) -> "Suggestion":
+    """Word one cluster (seed first), noting when none of its notes link."""
+    from geistfabrik import Suggestion
+
+    note_titles = [n.link_text for n in cluster]
+    formatted_titles = "]], [[".join(note_titles)
+    unlinked = not any(
+        vault.links_between(a, b) for i, a in enumerate(cluster) for b in cluster[i + 1 :]
+    )
+    if unlinked:
+        body = (
+            f"These notes are tightly related, but none of them links to another: "
+            f"[[{formatted_titles}]]. What's the theme you haven't named yet?"
+        )
+    else:
+        closer = vault.sample(CLOSERS, count=1)[0]
+        body = f"These notes are tightly related: [[{formatted_titles}]]. {closer}"
+
+    return Suggestion(
+        text=f"What if you named the cluster around [[{cluster[0].link_text}]]? {body}",
+        notes=note_titles,
+        geist_id="concept_cluster",
+    )

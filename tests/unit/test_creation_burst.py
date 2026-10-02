@@ -6,15 +6,20 @@ samples ONE such day and returns one suggestion naming the day, the count and
 (up to 8 of) its notes; 6+ notes ask "What was special about that day?",
 3-5 ask "What were you circling around that day?". Days with more than
 max(20, 25% of the vault) notes (bulk imports) and days after the session date
-are not bursts.
+are not bursts. When burst notes were rewritten since the first session that
+recorded them (semantic drift >= 0.05), one sentence names up to 3 of them.
 """
 
+import re
 from datetime import datetime
 from pathlib import Path
 
 from geistfabrik.default_geists.code import creation_burst
 from geistfabrik.vault_context import VaultContext
 from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
+from tests.fixtures.temporal import BASE16, set_session_text
+
+EXTRA9 = "quebec romeo sierra tango uniform victor whiskey xray yankee"
 
 BURST_DAY = datetime(2024, 2, 10, 9, 0)
 OTHER_DAY = datetime(2024, 1, 5, 9, 0)
@@ -174,3 +179,88 @@ def test_creation_burst_ignores_days_after_the_session(tmp_path):
 
     assert future == []
     assert same_day.text.startswith("On 2024-03-15, you created 3 notes in one day:")
+
+
+# --- Rewritten since (merged from burst_evolution) ---------------------------
+# Stub drift with title words: "Tweak" +1 word on 18 words = 0.03 (< 0.05,
+# trivial), "Moderate" 0.18, "Rewritten" 0.60. HISTORY is one earlier session.
+
+HISTORY = datetime(2023, 9, 1)
+EVOLVED_DAY = datetime(2023, 6, 10, 9, 0)
+
+
+def _evolved_burst(root: Path, notes: dict[str, tuple[str, str]]) -> VaultContext:
+    """``notes``: title -> (body at HISTORY, current body), all created EVOLVED_DAY."""
+    builder = VaultBuilder(root)
+    for title, (_, current) in notes.items():
+        builder.note(title, current, created=EVOLVED_DAY)
+    ctx = builder.build(history=[HISTORY])
+    for title, (earlier, _) in notes.items():
+        set_session_text(ctx, f"{title}.md", HISTORY, f"# {title}\n\n{earlier}")
+    return ctx
+
+
+def _rewritten(text: str) -> str:
+    """The "Since your first session ..." sentence, or "" when absent."""
+    match = re.search(r" (Since your first session with them [^.]*\.)", text)
+    return match.group(1) if match else ""
+
+
+def test_creation_burst_names_burst_notes_rewritten_since(tmp_path):
+    """Contract: one sentence names the burst-day notes whose text was
+    rewritten since the first session that recorded them (drift >= 0.05);
+    unchanged and trivially tweaked notes are not named.
+
+    Regression (merged from burst_evolution): creation_burst never said
+    which of a burst day's notes you went back to.
+    """
+    ctx = _evolved_burst(
+        tmp_path,
+        {
+            "Stable Note": ("steady unchanging text", "steady unchanging text"),
+            "Tweak Note": (BASE16, f"{BASE16} quebec"),
+            "Moderate Note": (BASE16, f"{BASE16} {EXTRA9}"),
+            "Rewritten Note": ("gardens soil compost", "rockets orbit fuel"),
+        },
+    )
+
+    [suggestion] = creation_burst.suggest(ctx)
+
+    named = re.findall(r"\[\[([^\]]+)\]\]", _rewritten(suggestion.text))
+    assert sorted(named) == ["Moderate Note", "Rewritten Note"]
+    assert _rewritten(suggestion.text) == (
+        f"Since your first session with them (2023-09-01), you have rewritten "
+        f"[[{named[0]}]] and [[{named[1]}]]."
+    )
+    assert suggestion.text.endswith(f"{_rewritten(suggestion.text)} {SMALL_QUESTION}")
+
+
+def test_creation_burst_says_nothing_about_rewrites_when_none_happened(tmp_path):
+    """Contract: the rewrite sentence appears only if true: with session
+    history but no edited note, the suggestion is the plain burst question.
+    (Guard for the merged-in branch; burst_evolution once reported an
+    all-unchanged group as a table of 0.00 distances.)
+    """
+    notes = {f"Steady {i}": (f"steady text {i}", f"steady text {i}") for i in range(3)}
+
+    [suggestion] = creation_burst.suggest(_evolved_burst(tmp_path, notes))
+
+    assert "rewritten" not in suggestion.text
+    assert suggestion.text.endswith(f". {SMALL_QUESTION}")
+
+
+def test_creation_burst_names_three_rewrites_then_counts_the_rest(tmp_path):
+    """Contract: at most three rewritten notes are named, the rest counted.
+
+    Regression: no rewrite sentence existed.
+    """
+    notes = {f"Changed {i}": ("gardens soil compost", f"rockets orbit fuel {i}x") for i in range(5)}
+
+    [suggestion] = creation_burst.suggest(_evolved_burst(tmp_path, notes))
+
+    sentence = _rewritten(suggestion.text)
+    assert sentence.startswith(
+        "Since your first session with them (2023-09-01), you have rewritten [[Changed "
+    )
+    assert sentence.endswith(" and 2 more.")
+    assert sentence.count("[[") == 3

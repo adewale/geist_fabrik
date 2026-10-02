@@ -8,6 +8,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Breaking Changes
+- **Duplicate geists merged.** Geists whose job duplicated another's were
+  merged into the one truest to the vision (claims that are true of the named
+  notes, grounded in the user's notes, sampling rather than ranking). The full
+  map is in `specs/SPEC_STATUS.md` ("Geist merges"). Removed ids are ignored
+  if they remain in a `default_geists:` config. Surviving geists gained:
+  - surprisal (from unexpected_neighbour): varied closing questions.
+  - creative_collision (from note_combinations, temporal_mirror): neutral
+    pairing templates; pairs created 2+ years apart get a cross-era framing
+    with real creation dates instead of "period 7".
+  - what_if (from perspective_shifter, transformation_suggester,
+    random_prompts, temporal_contrast's prompt): lenses, constraints,
+    "an origin, not an artifact", "split into N questions", rewriting a recent
+    note or one left alone longest; every prompt names a note. random_prompts
+    never named one, so filtering dropped all of its output.
+  - concept_cluster (from semantic_neighbours, pattern_finder's cluster
+    branch): says when none of a cluster's notes link to one another.
+  - question_harvester (from questioning_mind): prefers question-dense notes
+    and reads a note full of questions back as one suggestion.
+  - this_time_last_year (from on_this_day, seasonal_revisit): same day, then
+    +/-7 days, then the same season, in any earlier year.
+  - temporal_clustering (from seasonal_topic_analysis): one season's thread;
+    a cross-season link only when measured; ignores notes dated after the
+    session.
+  - concept_drift (from session_drift, drift_velocity_anomaly): "You've
+    rewritten [[X]] since your session on ...", and whether it has been
+    changing more lately.
+  - creation_burst (from burst_evolution): names burst-day notes rewritten
+    since. attention_shift (from cluster_evolution_tracker): samples among
+    shifted notes; the cluster-label API is kept.
+  - recent_focus (from anachronism_detector): says an old note resembles
+    recent work "more than anything else you've worked on lately" only when
+    measured, with the real year gap.
+  - stub_expander and orphan_connector (from complexity_mismatch):
+    orphan_connector is now a code geist that names an orphan's nearest notes
+    and asks long orphans "split it, or link it?". link_density_analyser
+    (from metadata_outlier_detector and metadata_driven_discovery's pattern 1)
+    states the vault median and groups isolated notes. task_archaeology (from
+    metadata_driven_discovery's pattern 3) asks "revive or archive?".
+    bridge_builder (from island_hopper) names the hub's cluster.
+  - hub_explorer uses `$vault.hubs(5, 3, 100)`: `hubs()` gains `min_words`,
+    so a stub that stub_expander asks to expand is never called a hub to split.
+- **Retired** temporal_voice and temporal_contrast: the past/future tense
+  signal (an "-ed" heuristic) labelled status tables as "past" and no real
+  note as "future". voice_absence no longer claims notes "look backward".
+  The `past_focused_notes` / `future_focused_notes` vault functions remain.
+- **Moved to `examples/geists/`** as extension examples (not bundled):
+  note_combinations, semantic_neighbours and transformation_suggester
+  (Tracery), metadata_outlier_detector (code).
 - Retired the `hermeneutic_instability` geist. Semantic vectors are cached by
   note content, so an unchanged note's representation never varies between
   sessions; the geist could only report an old edit as unexplained

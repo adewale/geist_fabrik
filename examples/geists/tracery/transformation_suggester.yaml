@@ -1,3 +1,15 @@
+# EXTENSION EXAMPLE - not a bundled geist.
+#
+# This file is not loaded by GeistFabrik. It was retired from the default
+# geists (what_if now carries its "an origin, not an artifact" and "split
+# into N questions" prompts). Copy it into
+# <vault>/_geistfabrik/geists/tracery/ to run it.
+#
+# What it demonstrates: every Tracery modifier the engine supports -
+# .capitalize, .capitalizeAll, .s (including irregular plurals), .ed
+# (including irregular past tenses such as grew/split), .a (a/an), and
+# chained modifiers such as .s.capitalize.
+#
 type: geist-tracery
 id: transformation_suggester
 description: Showcase geist demonstrating all Tracery modifiers (.capitalize, .capitalizeAll, .s, .ed, .a)

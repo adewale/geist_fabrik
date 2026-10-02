@@ -1,9 +1,17 @@
-"""Concept Drift geist - tracks semantic representations over time.
+"""Concept Drift geist - notices notes you have rewritten, and where they went.
 
-Maps the semantic trajectory of notes about the same concept across sessions,
-then offers a current neighbour whose vector aligns with that trajectory.
+Stored session vectors are computed from note content (and cached by it), so a
+note's meaning vector only moves when its text was edited. This geist finds
+notes that moved far from their first recorded vector, says since which
+session you have been rewriting them (the latest session whose vector differs
+from today's), adds "changing more lately" when the change across its last
+three recorded sessions exceeds the change across its first three, and names
+the current neighbour the edits moved it towards.
+
+(Absorbs the former session_drift and drift_velocity_anomaly geists.)
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -11,15 +19,40 @@ import numpy as np
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
+# A session whose vector differs from today's by more than this was before
+# a real rewrite (not a typo fix).
+REWRITE_DRIFT = 0.15
+# "Changing more lately": drift across the last three recorded sessions
+# exceeds drift across the first three by more than this.
+ACCELERATION = 0.1
+
+
+def _rewritten_since(snapshots: list[tuple[datetime, np.ndarray]]) -> datetime | None:
+    """Date of the latest earlier session whose meaning vector differs from the
+    latest one by more than REWRITE_DRIFT, or None."""
+    from geistfabrik.temporal_analysis import semantic_component
+
+    latest = semantic_component(snapshots[-1][1])
+    latest_norm = float(np.linalg.norm(latest))
+    for date, embedding in reversed(snapshots[:-1]):
+        earlier = semantic_component(embedding)
+        norm = float(np.linalg.norm(earlier)) * latest_norm
+        if norm < 1e-10:
+            continue
+        if 1.0 - float(np.dot(earlier, latest)) / norm > REWRITE_DRIFT:
+            return date
+    return None
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Track embedding trajectory of concept notes across sessions.
+    """Find rewritten notes and the neighbour their edits moved them towards.
 
-    Uses TemporalPatternFinder to identify high-drift notes, then analyzes
-    which current neighbours are most aligned with the drift direction.
+    Uses TemporalPatternFinder to identify high-drift notes (>= 3 snapshots,
+    first-to-latest drift >= 0.2), then finds which current neighbour is most
+    aligned with the drift direction.
 
     Returns:
-        List of suggestions reporting measured representation changes
+        Up to 2 suggestions about rewritten notes
     """
     from geistfabrik import Suggestion
     from geistfabrik.temporal_analysis import (
@@ -82,21 +115,21 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if top_alignment <= 0:
             continue
 
-        # Get trajectory dates for context
         calc = EmbeddingTrajectoryCalculator(vault, note)
         snapshots = calc.snapshots()
-
-        if len(snapshots) < 2:
+        since = _rewritten_since(snapshots) if len(snapshots) >= 2 else None
+        if since is None:
             continue
 
-        first_date = snapshots[0][0].strftime("%Y-%m")
-        last_date = snapshots[-1][0].strftime("%Y-%m")
-
+        lately = (
+            ", and it has been changing more lately"
+            if calc.is_accelerating(threshold=ACCELERATION)
+            else ""
+        )
         text = (
-            f"The semantic representation of [[{note.link_text}]] changed between "
-            f"{first_date} and {last_date}. Its measured direction aligns most with "
-            f"the current vector for [[{top_neighbour.link_text}]] among the sampled "
-            f"neighbours. Is that comparison useful on inspection?"
+            f"You've rewritten [[{note.link_text}]] since your session on "
+            f"{since:%Y-%m-%d}{lately}. Of its current neighbours, the edits moved it "
+            f"most toward [[{top_neighbour.link_text}]]. What were you reaching for?"
         )
 
         suggestions.append(

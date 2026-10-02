@@ -363,7 +363,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-7.8 | ⬜ | Future date temporal features | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.9 | ⬜ | Very old note temporal features | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.10 | ⬜ | Season calculation | `uv run pytest tests/unit/test_embeddings.py -v` |
-| AC-7.11 | ⬜ | Drift with no previous session | `uv run pytest tests/unit/test_session_drift.py -v` |
+| AC-7.11 | ⬜ | Drift with no previous session | `uv run pytest tests/unit/test_concept_drift.py::test_concept_drift_needs_three_snapshots -v` |
 | AC-7.12 | ⬜ | Drift with identical notes | Manual: drift on unchanged content; no dedicated test (drift computation covered by tests/unit/test_temporal_drift.py) |
 | AC-7.13 | ⬜ | Session pruning | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.14 | ⬜ | Storage limits | `uv run pytest tests/unit/test_embeddings.py -v` |

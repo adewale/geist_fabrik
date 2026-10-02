@@ -1,8 +1,11 @@
-"""Metadata-Driven Discovery - Find unexpected patterns in note properties.
+"""Metadata-Driven Discovery - buried gems.
 
-This geist creates surprising combinations by finding notes that share
-uncommon metadata characteristics. It reveals hidden patterns in how
-you think and organize information.
+Pairs two old notes with rich vocabulary that haven't been touched in
+months: language and ideas that may be gathering dust.
+
+(Its other patterns moved: long notes with at most one link, grouped in
+threes, are link_density_analyser's; stale notes with open tasks, grouped in
+twos with "revive or archive?", are task_archaeology's.)
 """
 
 from typing import TYPE_CHECKING, Any
@@ -14,61 +17,38 @@ from geistfabrik import Suggestion
 
 # Bound on how many notes the metadata sweeps inspect. vault.metadata() runs
 # every enabled inference module per note, so an unbounded full-vault scan can
-# be expensive on large vaults or with custom metadata modules. Each pattern
-# only needs 2-3 hits, so a sampled candidate set is plenty. The notes each
-# pattern names are sampled from all of its matches, so different sessions
-# surface different notes rather than the first few in candidate order.
+# be expensive on large vaults or with custom metadata modules. The pattern
+# only needs 2 hits, so a sampled candidate set is plenty. The notes it names
+# are sampled from all of its matches, so different sessions surface
+# different notes rather than the first few in candidate order.
 MAX_CANDIDATES = 300
 
 # Vocabulary richness is read from the built-in root_ttr (unique words /
 # sqrt(total words)), not raw lexical_diversity: raw TTR falls as a text grows,
-# so any stub of distinct words scores ~1.0 and would read as "complex".
-# Root TTR cannot exceed sqrt(word_count), so these thresholds also imply a
-# minimum length (12 needs >= 144 words, 15 needs >= 225). On real prose it
-# still rises with length (a few hundred words: ~10-15; several thousand:
-# ~25), so a long note clears them more easily than a short one.
-COMPLEX_ROOT_TTR = 12.0
+# so any stub of distinct words scores ~1.0 and would read as "rich".
+# Root TTR cannot exceed sqrt(word_count), so the threshold also implies a
+# minimum length (15 needs >= 225 words). On real prose it still rises with
+# length (a few hundred words: ~10-15; several thousand: ~25), so a long note
+# clears it more easily than a short one.
 BURIED_GEM_ROOT_TTR = 15.0
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find unexpected note groupings based on metadata patterns.
+    """Pair two buried gems: old notes with rich vocabulary.
 
     Args:
         vault: VaultContext with access to vault data
 
     Returns:
-        List of suggestions about metadata-driven discoveries
+        At most one suggestion, naming two notes
     """
     suggestions = []
 
-    # Sample a bounded candidate set once and reuse it across all three
-    # patterns (also avoids three separate full-vault passes).
+    # Sample a bounded candidate set rather than a full-vault pass.
     all_notes = vault.notes()
     candidates = vault.sample(all_notes, min(len(all_notes), MAX_CANDIDATES))
 
-    # Pattern 1: Long or lexically rich notes with at most one resolved link
-    # in either direction
-    high_complexity_isolated = _find_complex_but_isolated(vault, candidates)
-    if len(high_complexity_isolated) >= 3:
-        note_titles = [n.link_text for n in vault.sample(high_complexity_isolated, 3)]
-        text = (
-            "What do these have in common?\n"
-            + "\n".join(f"- [[{title}]]" for title in note_titles)
-            + "\n\nThey're all complex topics with few connections: "
-            + "each links to or from at most one other note. "
-            + "What pattern does this reveal?"
-        )
-
-        suggestions.append(
-            Suggestion(
-                text=text,
-                notes=note_titles,
-                geist_id="metadata_driven_discovery",
-            )
-        )
-
-    # Pattern 2: Old notes with high lexical diversity (buried gems)
+    # Old notes with high lexical diversity (buried gems)
     buried_gems = _find_buried_gems(vault, candidates)
     if len(buried_gems) >= 2:
         note_titles = [n.link_text for n in vault.sample(buried_gems, 2)]
@@ -87,32 +67,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
         )
 
-    # Pattern 3: Task-heavy but no recent updates (abandoned projects)
-    abandoned_projects = _find_abandoned_task_notes(vault, candidates)
-    if len(abandoned_projects) >= 2:
-        picked = vault.sample(abandoned_projects, 2)
-        note_titles = [n.link_text for n in picked]
-        incomplete_counts = [_get_incomplete_task_count(vault, n) for n in picked]
-
-        text = (
-            "These notes have incomplete tasks but haven't been updated recently:\n"
-            + "\n".join(
-                f"- [[{title}]] ({count} incomplete tasks)"
-                for title, count in zip(note_titles, incomplete_counts)
-            )
-            + "\n\nTime to revive them or archive them?"
-        )
-
-        suggestions.append(
-            Suggestion(
-                text=text,
-                notes=note_titles,
-                geist_id="metadata_driven_discovery",
-            )
-        )
-
-    # Sample suggestions to avoid overwhelming
-    return vault.sample(suggestions, min(2, len(suggestions)))
+    return suggestions
 
 
 def _root_ttr(metadata: dict[str, Any]) -> float:
@@ -121,28 +76,6 @@ def _root_ttr(metadata: dict[str, Any]) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return 0.0
     return float(value)
-
-
-def _find_complex_but_isolated(vault: "VaultContext", notes: list["Note"]) -> list["Note"]:
-    """Find notes with high complexity but low connectivity."""
-    complex_isolated = []
-
-    for note in notes:
-        metadata = vault.metadata(note)
-
-        # High complexity (rich vocabulary or long reading time)
-        root_ttr = _root_ttr(metadata)
-        reading_time = metadata.get("reading_time", 0)
-
-        # Low connectivity, on the resolved link graph: a link to a note that
-        # does not exist connects nothing (raw note.links counted it).
-        backlink_count = len(vault.backlinks(note))
-        link_count = len(vault.outgoing_links(note))
-
-        if (root_ttr > COMPLEX_ROOT_TTR or reading_time > 3) and (backlink_count + link_count < 2):
-            complex_isolated.append(note)
-
-    return complex_isolated
 
 
 def _find_buried_gems(vault: "VaultContext", notes: list["Note"]) -> list["Note"]:
@@ -160,30 +93,3 @@ def _find_buried_gems(vault: "VaultContext", notes: list["Note"]) -> list["Note"
             gems.append(note)
 
     return gems
-
-
-def _find_abandoned_task_notes(vault: "VaultContext", notes: list["Note"]) -> list["Note"]:
-    """Find notes with incomplete tasks that are stale."""
-    abandoned = []
-
-    for note in notes:
-        metadata = vault.metadata(note)
-
-        has_tasks = metadata.get("has_tasks", False)
-        task_count = metadata.get("task_count", 0)
-        completed = metadata.get("completed_task_count", 0)
-        days_since_modified = metadata.get("days_since_modified", 0)
-
-        # Has tasks, some incomplete, and old
-        if has_tasks and task_count > completed and days_since_modified > 60:
-            abandoned.append(note)
-
-    return abandoned
-
-
-def _get_incomplete_task_count(vault: "VaultContext", note: "Note") -> int:
-    """Get count of incomplete tasks in a note."""
-    metadata = vault.metadata(note)
-    total = int(metadata.get("task_count", 0))
-    completed = int(metadata.get("completed_task_count", 0))
-    return total - completed

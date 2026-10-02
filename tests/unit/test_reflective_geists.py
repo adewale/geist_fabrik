@@ -1,4 +1,4 @@
-"""Unit tests for the 8 reflective lens code geists.
+"""Unit tests for the reflective lens code geists.
 
 Covers a shared conformance battery (well-formed output, wikilink hygiene,
 3-note vault handling, determinism), run for each geist on a vault designed
@@ -18,7 +18,6 @@ from geistfabrik.default_geists.code import (
     self_and_other,
     sentence_variance,
     surprisal,
-    temporal_voice,
     this_time_last_year,
     uncertainty_mapper,
     voice_absence,
@@ -34,7 +33,6 @@ GEIST_MODULES = [
     self_and_other,
     sentence_variance,
     surprisal,
-    temporal_voice,
     this_time_last_year,
     uncertainty_mapper,
     voice_absence,
@@ -259,8 +257,8 @@ def _build_shifted_vault(vault_path) -> tuple:
 
 
 def _build_voiceless_vault(vault_path) -> tuple:
-    """20 neutral present-tense notes: no past, no future and no questions,
-    so all three voice_absence checks fire (and the pick among them is a
+    """20 neutral present-tense notes: no future tense and no questions,
+    so both voice_absence checks fire (and the pick between them is a
     seeded sample)."""
     fillers = {
         f"Plain {i}": f"The room {i} is quiet today. The desk is tidy. The lamp is on."
@@ -384,7 +382,7 @@ def tiny_vault(tmp_path):
 
 
 # ============================================================================
-# Conformance battery (all 8 geists)
+# Conformance battery (every geist in GEIST_MODULES)
 # ============================================================================
 
 
@@ -447,43 +445,6 @@ def test_deterministic_output(geist, voice_vault, tmp_path):
 
     assert first
     assert first == second
-
-
-# ============================================================================
-# temporal_voice
-# ============================================================================
-
-
-def test_temporal_voice_pairs_past_and_future(voice_vault):
-    """temporal_voice pairs one past-oriented and one future-oriented note."""
-    vault, session = voice_vault
-    context = _make_context(vault, session)
-
-    past_pool = {
-        n.link_text
-        for n in context.notes_excluding_journal()
-        if context.metadata(n)["temporal_orientation"] == "past"
-    }
-    future_pool = {
-        n.link_text
-        for n in context.notes_excluding_journal()
-        if context.metadata(n)["temporal_orientation"] == "future"
-    }
-
-    # Fixture sanity: the designed notes actually trip the thresholds
-    assert set(PAST_NOTES) <= past_pool
-    assert set(FUTURE_NOTES) <= future_pool
-
-    suggestions = temporal_voice.suggest(context)
-
-    assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "temporal_voice"
-    assert len(suggestion.notes) == 2
-    assert suggestion.notes[0] in past_pool
-    assert suggestion.notes[1] in future_pool
-    assert f"[[{suggestion.notes[0]}]]" in suggestion.text
-    assert f"[[{suggestion.notes[1]}]]" in suggestion.text
 
 
 # ============================================================================
@@ -726,6 +687,27 @@ def test_surprisal_skips_near_empty_notes_and_samples_the_top_five(tmp_path):
     assert picked == set(top_five)
 
 
+def test_surprisal_varies_its_closing_question(tmp_path):
+    """Contract: each suggestion ends with one of surprisal.CLOSERS, and over
+    several sessions every closer is used.
+
+    Regression: the retired unexpected_neighbour Tracery geist carried the
+    closers "What does it know that the others don't?" and "What's it doing
+    in your vault?"; surprisal only ever asked "seed or stray thought?".
+    """
+    vault, session = _build_surprisal_vault(tmp_path / "vault")
+
+    closers = set()
+    for seed in range(30):
+        (suggestion,) = surprisal.suggest(_make_context(vault, session, seed=seed))
+        prefix, closer = suggestion.text.rsplit(". ", 1)
+        assert prefix.endswith("but it says something different"), suggestion.text
+        closers.add(closer)
+
+    assert closers == set(surprisal.CLOSERS)
+    assert "What does it know that the others don't?" in closers
+
+
 # ============================================================================
 # attention_shift
 # ============================================================================
@@ -765,27 +747,26 @@ def test_attention_shift_names_the_note_whose_neighbours_moved(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("created", "fires"),
+    ("created", "opening"),
     [
-        (datetime(2023, 3, 8, 10, 0), True),  # 7 days before the anniversary
-        (datetime(2023, 3, 22, 10, 0), True),  # 7 days after
-        (datetime(2023, 3, 7, 10, 0), False),  # 8 days before: outside
-        (datetime(2023, 3, 23, 10, 0), False),  # 8 days after: outside
+        (datetime(2023, 3, 8, 10, 0), "Around this time a year ago"),  # 7 days before
+        (datetime(2023, 3, 22, 10, 0), "Around this time a year ago"),  # 7 days after
+        (datetime(2023, 3, 7, 10, 0), "Last spring"),  # 8 days before: outside
+        (datetime(2023, 3, 23, 10, 0), "Last spring"),  # 8 days after: outside
     ],
 )
-def test_this_time_last_year_window_boundaries(tmp_path, created, fires):
-    """A note created within +/- 7 days of a 1-year anniversary is resurfaced."""
+def test_this_time_last_year_window_boundaries(tmp_path, created, opening):
+    """A note created within +/- 7 days of a 1-year anniversary is resurfaced
+    as "around this time"; just outside the window it is still last spring's
+    note (the same-season fallback merged from seasonal_revisit)."""
     vault, session = _build_anniversary_vault(tmp_path / "vault", created)
     context = _make_context(vault, session, seed=20240315)
 
     suggestions = this_time_last_year.suggest(context)
 
-    if not fires:
-        assert suggestions == []
-        return
     assert_valid_suggestions(suggestions, "this_time_last_year")
     assert [s.notes for s in suggestions] == [["Anniversary Note"]]
-    assert "Around this time a year ago" in suggestions[0].text
+    assert suggestions[0].text.startswith(f"{opening}, you wrote [[Anniversary Note]].")
 
 
 # ============================================================================
@@ -931,8 +912,29 @@ def test_voice_absence_counts_notes_that_use_each_voice_at_all(tmp_path):
     assert voice_absence.suggest(context) == []
 
 
+def test_voice_absence_never_claims_notes_do_not_look_backward(tmp_path):
+    """Contract: voice_absence names only absences it can count truthfully
+    (future-tense markers, question marks); it has no "look backward" claim.
+
+    Regression: it counted notes whose temporal_orientation was "past" (more
+    than 60% of detected verbs in the past tense), an invalid tense heuristic,
+    and said "Only 0 of your 20 notes look backward" of a vault with plenty
+    of future-tense notes and questions but no -ed-heavy ones.
+    """
+    extra = {f"Extra {i}": _long_prose() for i in range(2)}
+    vault, session = _build_vault(
+        tmp_path / "vault", [FUTURE_NOTES, QUESTION_NOTES, FILLER_NOTES, extra]
+    )
+    context = _make_context(vault, session)
+    assert len(context.notes()) == 20
+    # Fixture sanity: no note has the "past" orientation the old branch counted.
+    assert not any(context.voice(n).temporal_orientation == "past" for n in context.notes())
+
+    assert voice_absence.suggest(context) == []
+
+
 def test_voice_absence_names_exactly_one_of_several_absences(tmp_path):
-    """With four voices missing, voice_absence still names exactly one."""
+    """With both voices missing, voice_absence still names exactly one."""
     vault, session = _build_voiceless_vault(tmp_path / "vault")
     context = _make_context(vault, session)
 

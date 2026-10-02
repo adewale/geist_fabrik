@@ -539,6 +539,12 @@ FIXME: clarify argument
 # what the extractor must return verbatim.
 
 HARVEST_NOTE = "Harvest Note"
+# 600 words of question-free prose: five questions in a note this long are
+# fewer than question_harvester.QUESTION_DENSE per 100 words, so the note is
+# not question-dense and each question stays its own suggestion. (A
+# question-dense note is read back as one gathered suggestion; see
+# test_question_harvester_reads_back_a_note_full_of_questions.)
+QUESTION_PADDING = "\n\n" + "Plain soil notes. " * 200
 
 HARVESTERS = [
     pytest.param(
@@ -550,7 +556,7 @@ HARVESTERS = [
             "When do worms surface after rain?",
             "Where do bees overwinter safely?",
         ],
-        "\n".join,
+        lambda items: "\n".join(items) + QUESTION_PADDING,
         "What if you revisited this question now?",
         id="question_harvester",
     ),
@@ -718,6 +724,77 @@ def test_quote_harvester_does_not_double_quotation_marks(tmp_path, quote, shown)
     assert suggestion.text == (
         f"From [[{HARVEST_NOTE}]]: {shown} What if you reflected on this again?"
     )
+
+
+# ============================================================================
+# question_harvester: question-dense notes (absorbed from questioning_mind)
+# ============================================================================
+
+FIVE_QUESTIONS = [
+    "What is soil made of?",
+    "Why do seeds sprout in spring?",
+    "How deep should compost go?",
+    "When do worms surface after rain?",
+    "Where do bees overwinter safely?",
+]
+
+
+def test_question_harvester_prefers_question_dense_notes(tmp_path) -> None:
+    """Contract: when the vault has a question-dense note with questions, that
+    note is harvested, never a note with a question lost in long prose.
+
+    Regression: the geist read one random note, so it fired in only 5 of 12
+    real-run sessions; the retired questioning_mind geist picked notes by
+    question density (more than 1 "?" per 100 words) instead.
+    """
+    builder = VaultBuilder(tmp_path)
+    for i in range(7):
+        builder.note(f"Plain {i}", f"Why does bed {i} drain so slowly?" + QUESTION_PADDING)
+    builder.note("Curious Note", "Why do roots bend? How do they find water?")
+
+    named = []
+    for seed in range(20):
+        suggestions = question_harvester.suggest(builder.build(seed=seed))
+        assert_valid_suggestions(suggestions, "question_harvester", min_count=2)
+        named.extend(note for s in suggestions for note in s.notes)
+
+    assert set(named) == {"Curious Note"}
+
+
+def test_question_harvester_reads_back_a_note_full_of_questions(tmp_path) -> None:
+    """Contract: a question-dense note with >= 3 short questions gives ONE
+    suggestion quoting three different questions from it, closed with "Which
+    one keeps you up at night?".
+
+    Regression: questioning_mind (retired) asked that question of notes full
+    of questions; question_harvester split such a note into three separate
+    "What if you revisited this question now?" suggestions.
+    """
+    ctx = _harvest_vault(tmp_path, "\n".join(FIVE_QUESTIONS))
+
+    (suggestion,) = question_harvester.suggest(ctx)
+
+    assert suggestion.notes == [HARVEST_NOTE]
+    prefix = f"[[{HARVEST_NOTE}]] is full of questions: "
+    suffix = " Which one keeps you up at night?"
+    assert suggestion.text.startswith(prefix) and suggestion.text.endswith(suffix)
+    quoted = suggestion.text.removeprefix(prefix).removesuffix(suffix)
+    shown = [q.strip('"') for q in quoted.split('" "')]
+    assert len(set(shown)) == 3 and set(shown) <= set(FIVE_QUESTIONS), quoted
+
+
+def test_question_harvester_gathers_only_short_questions(tmp_path) -> None:
+    """Contract: questions over GATHER_MAX_LEN characters are never gathered;
+    a dense note left with fewer than three short ones gets one suggestion per
+    question instead."""
+    long_question = "Why " + "really " * 30 + "does the compost heap steam on cold mornings?"
+    assert len(long_question) > question_harvester.GATHER_MAX_LEN
+    ctx = _harvest_vault(tmp_path, "\n".join([*FIVE_QUESTIONS[:2], long_question]))
+
+    suggestions = question_harvester.suggest(ctx)
+
+    assert len(suggestions) == 3
+    assert all(s.text.startswith(f"From [[{HARVEST_NOTE}]]: ") for s in suggestions)
 
 
 # ============================================================================

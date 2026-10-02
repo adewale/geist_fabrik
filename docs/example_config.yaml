@@ -30,63 +30,51 @@ default_geists:
   # These are bundled with GeistFabrik and execute in the order shown below.
   # Set to 'false' to disable a geist. Set to 'true' to enable it.
 
-  anachronism_detector: true      # Flags concepts that seem historically misplaced
   antithesis_generator: true      # Suggests opposite perspectives on note content
   assumption_challenger: true     # Questions assumptions in notes
   attention_shift: true           # Finds notes whose semantic neighbourhood shifted
   blind_spot_detector: true       # Identifies potentially overlooked connections
-  bridge_builder: true            # Connects distant but related notes
+  bridge_builder: true            # Unlinked twins of hubs, outside the hub's cluster
   bridge_hunter: true             # Finds notes that bridge different clusters
-  burst_evolution: true           # Compares burst-day representations over time
   claim_harvester: true           # Surfaces strong claims buried in notes
-  cluster_evolution_tracker: true  # Tracks notes migrating between clusters
   cluster_mirror: true            # Reveals hidden groupings via semantic clustering
   columbo: true                   # Asks probing "just one more thing" questions
-  complexity_mismatch: true       # Pairs simple and complex treatments of same topic
-  concept_cluster: true           # Groups notes by conceptual similarity
-  concept_drift: true             # Tracks semantic-representation direction over time
+  concept_cluster: true           # Tight semantic clusters with a theme to name
+  concept_drift: true             # Notices notes you rewrote, since when, and toward which neighbour
   convergent_evolution: true      # Finds note vectors whose similarity increased
-  creation_burst: true            # Detects bursts of note creation activity
-  creative_collision: true        # Juxtaposes unrelated notes for creative sparks
+  creation_burst: true            # Burst days and which of their notes you rewrote since
+  creative_collision: true        # Pairs unlinked, loosely related notes (cross-era framing)
   cyclical_thinking: true         # Detects notes cycling through semantic states
   definition_harvester: true      # Harvests definitions from notes
   density_inversion: true         # Pairs hub notes with isolated notes
   dialectic_triad: true           # Creates thesis-antithesis-synthesis triads
   divergent_evolution: true       # Finds note vectors whose similarity decreased
-  drift_velocity_anomaly: true    # Detects increasing semantic-change distance
   hidden_hub: true                # Discovers implicit hubs (semantically central)
   hypothesis_harvester: true      # Surfaces hypotheses worth testing
-  island_hopper: true             # Connects isolated note clusters
-  link_density_analyser: true     # Analyzes linking patterns across vault
-  metadata_driven_discovery: true # Uses metadata to suggest connections
-  metadata_outlier_detector: true # Finds notes with unusual metadata values
+  link_density_analyser: true     # Dense or sparse notes vs the vault median
+  metadata_driven_discovery: true # Buried gems: rich notes untouched for months
   method_scrambler: true          # Suggests applying methods from one domain to another
-  on_this_day: true               # Resurfaces notes from the same date in past years
-  pattern_finder: true            # Identifies recurring patterns across notes
+  orphan_connector: true          # Where an unlinked note belongs; split or link long orphans
+  pattern_finder: true            # Phrases repeated across unconnected notes
   question_generator: true        # Generates questions based on note content
-  question_harvester: true        # Surfaces questions buried in notes
+  question_harvester: true        # Questions buried in notes, preferring question-dense ones
   quote_harvester: true           # Surfaces blockquotes worth revisiting
-  recent_focus: true              # Highlights recently modified notes
+  recent_focus: true              # Connects recent work to the old note it most resembles
   scale_shifter: true             # Suggests zooming in/out on topics
   seasonal_patterns: true         # Finds seasonal rhythms in note-taking
-  seasonal_revisit: true          # Resurfaces notes from similar times of year
-  seasonal_topic_analysis: true   # Analyzes seasonal patterns in topic coverage
   self_and_other: true            # Compares self-focused and collective voice
   sentence_variance: true         # Finds unusually varied sentence rhythms
-  session_drift: true             # Tracks semantic-representation changes across sessions
   structure_diversity_checker: true # Analyzes diversity of note structures
-  stub_expander: true             # Identifies stubs that could be expanded
+  stub_expander: true             # Short notes that other notes link to
   surprisal: true                 # Finds semantically surprising notes
-  task_archaeology: true          # Unearths old incomplete tasks
-  temporal_clustering: true       # Groups notes by temporal proximity
+  task_archaeology: true          # Revive or archive notes with stale tasks
+  temporal_clustering: true       # A season's thread of closely related notes
   temporal_drift: true            # Finds stale but important notes
-  temporal_mirror: true           # Compares notes from different time periods
-  temporal_voice: true            # Contrasts past/future-oriented notes
-  this_time_last_year: true       # Revisits notes from this time last year
+  this_time_last_year: true       # Same day, nearby days or same season in earlier years
   todo_harvester: true            # Surfaces forgotten TODO/FIXME/HACK markers
   uncertainty_mapper: true        # Maps notes with heavy hedging or uncertainty
   vocabulary_expansion: true      # Tracks note-vector dispersion across sessions
-  voice_absence: true             # Notices missing temporal/pronoun voices
+  voice_absence: true             # Notices missing future-tense or question voices
 
   # ============================================================================
   # Default Tracery Geists (12 total)
@@ -94,17 +82,8 @@ default_geists:
   # These use Tracery grammars for declarative suggestion generation.
 
   contradictor: true              # Generates contradictory perspectives
-  hub_explorer: true              # Explores hub notes and their connections
-  note_combinations: true         # Combines random notes with creative prompts
-  orphan_connector: true          # Suggests connections for orphan notes
-  perspective_shifter: true       # Reframes notes from different viewpoints
-  questioning_mind: true          # Prompts from notes dense with questions
-  random_prompts: true            # Generates random creative prompts
-  semantic_neighbours: true       # Shows semantic neighborhoods around notes
-  temporal_contrast: true         # Invites rewriting a past-focused note looking forward
-  transformation_suggester: true  # Demonstrates Tracery text modifiers
-  unexpected_neighbour: true      # Surfaces semantically surprising notes
-  what_if: true                   # Generates "What if...?" prompts
+  hub_explorer: true              # Well-linked notes (3+ backlinks, 100+ words) to refine
+  what_if: true                   # "What if" lenses and constraints, each naming a note
 
   # ============================================================================
   # Custom Geists (Auto-discovered)

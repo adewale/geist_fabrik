@@ -180,7 +180,7 @@ class InitCommand(BaseCommand):
         )
         print(
             f"   - {TRACERY_GEIST_COUNT} Tracery geists "
-            "(contradictor, hub_explorer, transformation_suggester, etc.)"
+            "(contradictor, hub_explorer, what_if, etc.)"
         )
         print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
 

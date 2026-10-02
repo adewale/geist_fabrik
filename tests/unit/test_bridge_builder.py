@@ -4,7 +4,10 @@ bridge_builder walks the top hubs (most-backlinked notes) and suggests linking
 a hub to any semantic neighbour whose similarity exceeds SimilarityLevel.HIGH
 (0.65), that it is not linked to, and with which it shares no graph neighbour
 (no note links to or from both). Each unordered pair is reported once. It
-returns at most 3 suggestions.
+returns at most 3 suggestions. The text names up to two of the hub's
+backlinkers as its cluster (merged in from the retired island_hopper); the
+neighbour is linked to none of them, since they are in the hub's graph
+neighbourhood.
 
 Fixtures use the bag-of-words test stub: a note's embedding is its word
 counts (title included), so a hub and a "twin" sharing 8 of their 10 content
@@ -65,11 +68,12 @@ def test_bridge_builder_suggests_unlinked_twin_of_hub(tmp_path: Path) -> None:
     suggestions = bridge_builder.suggest(ctx)
 
     assert_valid_suggestions(suggestions, "bridge_builder", must_reference=[HUBS[0], TWINS[0]])
-    assert [s.notes for s in suggestions] == [[HUBS[0], TWINS[0]]]
+    assert [s.notes for s in suggestions] == [[HUBS[0], TWINS[0], "Linker 0"]]
     assert suggestions[0].text == (
         f"What if [[{HUBS[0]}]] and [[{TWINS[0]}]] were connected? They're semantically "
-        "similar but in different parts of your vault: no link joins them, directly or "
-        "through a shared neighbour. A link might bridge important concepts."
+        f"similar but in different parts of your vault: [[Linker 0]] links to "
+        f"[[{HUBS[0]}]], but no link joins [[{TWINS[0]}]] to it or to any note linked "
+        "with it. A link might bridge important concepts."
     )
 
 
@@ -84,7 +88,7 @@ def test_bridge_builder_caps_at_three_distinct_pairs(tmp_path: Path) -> None:
 
     assert_valid_suggestions(suggestions, "bridge_builder", min_count=CAP)
     assert len(suggestions) == CAP
-    pairs = {tuple(s.notes) for s in suggestions}
+    pairs = {tuple(s.notes[:2]) for s in suggestions}
     assert len(pairs) == CAP
     assert pairs <= set(zip(HUBS, TWINS))
 
@@ -171,7 +175,7 @@ def test_bridge_builder_reports_each_pair_once_when_both_are_hubs(tmp_path: Path
     suggestions = bridge_builder.suggest(ctx)
 
     assert len(suggestions) == 1
-    assert sorted(suggestions[0].notes) == sorted([HUBS[0], TWINS[0]])
+    assert sorted(suggestions[0].notes[:2]) == sorted([HUBS[0], TWINS[0]])
 
 
 def test_bridge_builder_skips_pairs_with_a_shared_graph_neighbour(tmp_path: Path) -> None:
@@ -188,5 +192,62 @@ def test_bridge_builder_skips_pairs_with_a_shared_graph_neighbour(tmp_path: Path
     ctx = builder.build()
     assert ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0])) > SimilarityLevel.HIGH
     assert not ctx.links_between(_get(ctx, HUBS[0]), _get(ctx, TWINS[0]))
+
+    assert bridge_builder.suggest(ctx) == []
+
+
+@pytest.mark.parametrize(
+    ("linkers", "phrase"),
+    [
+        (2, "{a} and {b} link to"),
+        (3, "{a}, {b} and 1 other note link to"),
+        (4, "{a}, {b} and 2 other notes link to"),
+    ],
+)
+def test_bridge_builder_names_the_hubs_cluster(tmp_path: Path, linkers: int, phrase: str) -> None:
+    """Contract: the text names two of the notes that link to the hub (its
+    cluster) and how many others do, and lists those two in notes.
+
+    Regression: the hub-cluster context was island_hopper's, a separate
+    geist proposing bridges to the same hubs; bridge_builder named only the
+    pair.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(HUBS[0], TOPICS[0], created=CREATED)
+    builder.note(TWINS[0], TOPICS[0], created=CREATED)
+    cluster = [f"Member {i}" for i in range(linkers)]
+    for i, title in enumerate(cluster):
+        builder.note(title, f"See [[{HUBS[0]}]] quokka{i} wombat{i}", created=CREATED)
+    ctx = builder.build()
+
+    suggestions = bridge_builder.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "bridge_builder")
+    assert len(suggestions) == 1
+    hub, twin, *named = suggestions[0].notes
+    assert (hub, twin) == (HUBS[0], TWINS[0])
+    assert len(named) == 2 and set(named) <= set(cluster)
+    a, b = (f"[[{t}]]" for t in named)
+    assert suggestions[0].text == (
+        f"What if [[{hub}]] and [[{twin}]] were connected? They're semantically "
+        f"similar but in different parts of your vault: {phrase.format(a=a, b=b)} "
+        f"[[{hub}]], but no link joins [[{twin}]] to it or to any note linked with it. "
+        "A link might bridge important concepts."
+    )
+
+
+def test_bridge_builder_skips_a_neighbour_linked_to_the_hubs_cluster(tmp_path: Path) -> None:
+    """Contract: "no link joins [[Twin]] to any note linked with [[Hub]]" holds:
+    a twin that links to one of the hub's backlinkers is not suggested.
+
+    Regression (from island_hopper): a "bridge" already linked to a member of
+    the cluster it was said to bridge to.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(HUBS[0], TOPICS[0], created=CREATED)
+    builder.note("Member", f"See [[{HUBS[0]}]] quokka", created=CREATED)
+    builder.note(TWINS[0], f"{TOPICS[0]} [[Member]]", created=CREATED)
+    ctx = builder.build()
+    assert ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0])) > SimilarityLevel.HIGH
 
     assert bridge_builder.suggest(ctx) == []

@@ -11,7 +11,7 @@ Inspired by Gordon Brander's work on tools for thought.
 ## Status
 
 **Version**: 0.11.0 (Beta)
-**Default Geists**: 69 (57 code + 12 Tracery) _[programmatically verified]_
+**Default Geists**: 48 (45 code + 3 Tracery) _[programmatically verified]_
 **Tests**: `./scripts/validate.sh` passing (unit, integration, acceptance)
 **Progress**: Feature-complete, release-candidate quality
 
@@ -77,9 +77,9 @@ geistfabrik --help
 # Initialise a vault (creates _geistfabrik directory structure)
 geistfabrik init /path/to/your/vault
 
-# This automatically configures 69 bundled default geists:
-# • 57 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, surprisal, etc.)
-# • 12 Tracery geists (contradictor, hub_explorer, questioning_mind, temporal_contrast, etc.)
+# This automatically configures 48 bundled default geists:
+# • 45 code geists (blind_spot_detector, temporal_drift, columbo, creation_burst, surprisal, etc.)
+# • 3 Tracery geists (contradictor, hub_explorer, what_if)
 
 # Preview suggestions (no journal or source-note writes; managed state is updated)
 geistfabrik invoke /path/to/your/vault
@@ -124,7 +124,7 @@ rm -rf testdata/kepano-obsidian-main/"geist journal"
 
 This is the **safest way** for early adopters to explore GeistFabrik without touching their personal vaults.
 
-**Note**: 69 default geists work immediately - no installation needed!
+**Note**: 48 default geists work immediately - no installation needed!
 
 ## Privacy & Data Safety
 
@@ -314,7 +314,7 @@ default_geists:
 
 **Custom Geists**: When you create custom geists, they're automatically added to the config file (enabled by default). You can then reorder or disable them as needed.
 
-**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 69 default geists with descriptions and configuration tips.
+**See [docs/example_config.yaml](docs/example_config.yaml) for a comprehensive example** showing all 48 default geists with descriptions and configuration tips.
 
 ### Cluster Labelling
 
@@ -589,7 +589,7 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Getting Started
 - **[examples/README.md](examples/README.md)** - Comprehensive extension guide
-- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 69 default geists
+- **[docs/example_config.yaml](docs/example_config.yaml)** - Configuration reference with all 48 default geists
 - **[STATUS.md](STATUS.md)** - Detailed implementation status
 
 ### Deep Dives

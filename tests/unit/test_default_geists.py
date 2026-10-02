@@ -145,13 +145,11 @@ def test_default_geist_lists():
     """Spot-check well-known default geists and the lists' sorted order."""
     assert "blind_spot_detector" in DEFAULT_CODE_GEISTS
     assert "temporal_drift" in DEFAULT_CODE_GEISTS
-    assert "temporal_mirror" in DEFAULT_CODE_GEISTS
+    assert "this_time_last_year" in DEFAULT_CODE_GEISTS
     assert "columbo" in DEFAULT_CODE_GEISTS
-    assert "on_this_day" in DEFAULT_CODE_GEISTS
 
     assert "contradictor" in DEFAULT_TRACERY_GEISTS
     assert "hub_explorer" in DEFAULT_TRACERY_GEISTS
-    assert "transformation_suggester" in DEFAULT_TRACERY_GEISTS
     assert "what_if" in DEFAULT_TRACERY_GEISTS
 
     # Lists should be sorted (filesystem-derived, sorted by name)

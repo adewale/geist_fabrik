@@ -1,99 +1,66 @@
 type: geist-tracery
 id: what_if
-description: Generates "What if" prompts for creative thinking
+description: '"What if" prompts that apply a lens, constraint or transformation to one of your notes'
+count: 3
 
 tracery:
+  # Absorbs perspective_shifter (metaphor/lens templates), transformation_suggester
+  # (descriptor and split templates; the YAML lives on in examples/ as the
+  # modifier showcase), random_prompts (recency anchors, "keep one idea") and
+  # temporal_contrast ("rewrite an old note as it would read now"). Every
+  # template names a note: a noteless prompt is dropped by the filter. The
+  # "opposite of #note#" template (contradictor's job) is gone.
   origin:
-    - "#question_start.capitalize# #subject# #verb.ed# #object#?"
-    - "#question_start.capitalize# the opposite of #note# were true?"
-    - "#question_start.capitalize# you #approach_verb.ed# #note# from #direction#?"
-    - "#question_start.capitalize# #constraint#, #result#?"
+    - "What if you read #note# as #metaphor.a#?"
+    - "What if you approached #note# from #direction#?"
+    - "What if #constraint#, #result#?"
+    - "What if #note# were #descriptor.a#, not #other_descriptor.a#?"
+    - "What if #note# split into #number# #new_form.s#? #question.capitalize#?"
+    - "What if you rewrote #recent# for #audience.a#?"
+    # old_notes() = least recently modified, so "left alone longest" is true.
+    - "#old# is one of the notes you have left alone longest. What if you rewrote it as it would read now?"
 
-  question_start:
-    - "what if"
-
-  subject:
-    - "you"
-    - "your vault"
-    - "your thinking"
-    - "the #connection.s# between #element.s#"
-
-  connection:
-    - "connection"
-    - "link"
-    - "relationship"
-
-  element:
-    - "note"
-    - "idea"
-    - "concept"
-
-  verb:
-    - "explore"
-    - "question"
-    - "invert"
-    - "reframe"
-    - "simplify"
-    - "complicate"
-
-  approach_verb:
-    - "approach"
-    - "view"
-    - "understand"
-    - "frame"
-
-  object:
-    - "what you take for granted"
-    - "the #gap.s# in your knowledge"
-    - "the #assumption.s# in your #element.s#"
-    - "the unlinked #connection.s#"
-
-  gap:
-    - "gap"
-    - "hole"
-    - "missing piece"
-
-  assumption:
-    - "assumption"
-    - "belief"
-    - "premise"
-
+  # Pools larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
   note:
-    - "$vault.sample_notes(3)"
+    - "$vault.sample_notes(9)"
+
+  recent:
+    - "$vault.recent_notes(5)"
+
+  old:
+    - "$vault.old_notes(5)"
+
+  metaphor:
+    - "experiment"
+    - "organism"
+    - "garden"
+    - "conversation"
+    - "map"
+    - "argument with yourself"
 
   direction:
-    - "#perspective.a#"
     - "the perspective of #viewpoint.a#"
     - "first principles"
-    - "the meta-level"
-
-  perspective:
-    - "completely different angle"
-    - "opposite viewpoint"
-    - "fresh perspective"
+    - "ten years in the future"
+    - "the point of view of someone who disagrees with it"
 
   viewpoint:
     - "beginner"
     - "expert"
     - "skeptic"
+    - "future version of yourself"
 
-  # Each constraint names the note it applies to: an "it" with nothing to
-  # refer to ("What if you had to draw it?") left the reader guessing.
   constraint:
     - "you could keep only one idea from #note#"
     - "you had to explain #note# to #audience.a#"
     - "you had to draw #note#"
-    - "you #write_verb.ed# #note# as #format.a#"
+    - "you rewrote #note# as #format.a#"
 
   audience:
     - "child"
     - "expert"
     - "skeptic"
-
-  write_verb:
-    - "write"
-    - "frame"
-    - "present"
 
   format:
     - "dialogue"
@@ -102,8 +69,32 @@ tracery:
 
   result:
     - "what would you choose"
-    - "how would it change"
+    - "what would change"
     - "what would you learn"
-    - "what would emerge"
 
-count: 3
+  descriptor:
+    - "beginning"
+    - "origin"
+    - "bridge"
+    - "question"
+    - "opening"
+
+  other_descriptor:
+    - "conclusion"
+    - "artifact"
+    - "answer"
+    - "tool"
+
+  number:
+    - "three"
+    - "five"
+
+  new_form:
+    - "question"
+    - "experiment"
+    - "smaller note"
+
+  question:
+    - "what emerges"
+    - "which one matters most"
+    - "where does each lead"

@@ -1,4 +1,4 @@
-"""Integration tests for all bundled default geists.
+"""Integration tests for the bundled default geists and the Tracery examples.
 
 These tests verify that all geists in src/geistfabrik/default_geists/ work correctly
 with a real vault. Uses stubs (kepano-obsidian-main test vault), not mocks.
@@ -8,11 +8,15 @@ Tests cover:
   execution log, since execute_geist swallows exceptions)
 - The harvester geists are deterministic for a fixed seed
 - Selected Tracery geists produce well-formed output
+- Each extension example in examples/geists/tracery/ (not bundled) still runs
+  and demonstrates the API it exists to show
 
 Per-geist behaviour is owned by the per-geist unit tests in tests/unit/,
 which use fixtures designed to make each geist fire.
 """
 
+import math
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -22,8 +26,13 @@ from geistfabrik import GeistExecutor, Vault, VaultContext
 from geistfabrik.default_geists import CODE_GEIST_COUNT
 from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.session_time import session_seed
 from geistfabrik.tracery import TraceryGeist
 from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
+
+REPO_ROOT = Path(__file__).parent.parent.parent
+EXAMPLES_DIR = REPO_ROOT / "examples" / "geists" / "tracery"
+_WIKILINK = re.compile(r"\[\[([^\]]+)\]\]")
 
 
 @pytest.fixture(scope="module")
@@ -80,56 +89,6 @@ def geist_executor(test_vault_path: Path) -> GeistExecutor:
 # ============================================================================
 
 
-def test_random_prompts_tracery_geist(vault_context: VaultContext):
-    """Test random_prompts Tracery geist."""
-    geist_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "geistfabrik"
-        / "default_geists"
-        / "tracery"
-        / "random_prompts.yaml"
-    )
-
-    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
-    assert geist.geist_id == "random_prompts"
-
-    suggestions = geist.suggest(vault_context)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) > 0
-
-    for suggestion in suggestions:
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "geist_id")
-        assert suggestion.geist_id == "random_prompts"
-
-
-def test_note_combinations_tracery_geist(vault_context: VaultContext):
-    """Test note_combinations Tracery geist."""
-    geist_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "geistfabrik"
-        / "default_geists"
-        / "tracery"
-        / "note_combinations.yaml"
-    )
-
-    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
-    assert geist.geist_id == "note_combinations"
-
-    suggestions = geist.suggest(vault_context)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) > 0
-
-    for suggestion in suggestions:
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "geist_id")
-        assert suggestion.geist_id == "note_combinations"
-        # Should reference vault notes
-        assert "[[" in suggestion.text
-
-
 def test_what_if_tracery_geist(vault_context: VaultContext):
     """Test what_if Tracery geist."""
     repo_root = Path(__file__).parent.parent.parent
@@ -146,35 +105,23 @@ def test_what_if_tracery_geist(vault_context: VaultContext):
         assert hasattr(suggestion, "text")
         assert hasattr(suggestion, "geist_id")
         assert suggestion.geist_id == "what_if"
-        # Should start with "What if"
-        assert suggestion.text.startswith("What if")
+        # Every template names exactly one note
+        assert len(suggestion.notes) == 1
+        assert _WIKILINK.findall(suggestion.text) == suggestion.notes
 
 
-def test_orphan_connector_tracery_geist(vault_context: VaultContext):
-    """Test orphan_connector Tracery geist."""
-    geist_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "geistfabrik"
-        / "default_geists"
-        / "tracery"
-        / "orphan_connector.yaml"
-    )
+def test_orphan_connector_geist(vault_context: VaultContext):
+    """orphan_connector (a code geist) names only notes with no links in or out."""
+    from geistfabrik.default_geists.code import orphan_connector
 
-    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
-    assert geist.geist_id == "orphan_connector"
-    assert geist.count == 1
+    orphans = {n.link_text for n in vault_context.orphans()}
+    suggestions = orphan_connector.suggest(vault_context)
 
-    suggestions = geist.suggest(vault_context)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 1
-
+    assert orphans
+    assert 1 <= len(suggestions) <= 2
     for suggestion in suggestions:
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "geist_id")
         assert suggestion.geist_id == "orphan_connector"
-        # Should reference orphan notes
-        assert "[[" in suggestion.text
+        assert suggestion.notes[0] in orphans
 
 
 def test_hub_explorer_tracery_geist(vault_context: VaultContext):
@@ -194,63 +141,20 @@ def test_hub_explorer_tracery_geist(vault_context: VaultContext):
 
     suggestions = geist.suggest(vault_context)
 
-    # Only notes with at least 3 backlinks are called "central"; each is
-    # named at most once, so a vault with one such hub gets one suggestion.
+    # Only notes with at least 3 backlinks and 100 words are called
+    # "central"; each is named at most once. In this vault the only
+    # well-linked note ("Obsidian") is a 19-word stub, which stub_expander
+    # asks to expand, so hub_explorer must stay silent.
     central = {
-        h.link_text for h in vault_context.hubs(5) if len(vault_context.backlinks(h)) >= 3
+        h.link_text
+        for h in vault_context.hubs(5)
+        if len(vault_context.backlinks(h)) >= 3 and vault_context.metadata(h)["word_count"] >= 100
     }
-    assert central
     assert len(suggestions) == min(2, len(central))
+    assert all(len(s.notes) == 1 and s.notes[0] != "Obsidian" for s in suggestions)
     for suggestion in suggestions:
         assert suggestion.geist_id == "hub_explorer"
         assert len(suggestion.notes) == 1 and suggestion.notes[0] in central
-
-
-def test_semantic_neighbours_tracery_geist(vault_context: VaultContext):
-    """Test semantic_neighbours Tracery geist."""
-    geist_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "geistfabrik"
-        / "default_geists"
-        / "tracery"
-        / "semantic_neighbours.yaml"
-    )
-
-    geist = TraceryGeist.from_yaml(geist_path, seed=12345)
-    assert geist.geist_id == "semantic_neighbours"
-    assert geist.count == 2
-
-    suggestions = geist.suggest(vault_context)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 2
-
-    for suggestion in suggestions:
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "geist_id")
-        assert suggestion.geist_id == "semantic_neighbours"
-
-        # Should reference seed note and neighbour notes with proper formatting
-        import re
-
-        wikilinks = re.findall(r"\[\[([^\]]+)\]\]", suggestion.text)
-
-        # Should have at least 2 wikilinks (seed + neighbours)
-        assert len(wikilinks) >= 2, (
-            f"Expected >= 2 wikilinks (seed + neighbours), got {len(wikilinks)} "
-            f"in: {suggestion.text}"
-        )
-
-        # All wikilinks should be properly formatted (no orphaned note references)
-        assert suggestion.text.count("[[") == suggestion.text.count("]]"), (
-            f"Mismatched brackets in: {suggestion.text}"
-        )
-
-        # Suggestion.notes should match extracted wikilinks
-        assert len(suggestion.notes) == len(wikilinks), (
-            f"Suggestion.notes has {len(suggestion.notes)} entries but text has "
-            f"{len(wikilinks)} wikilinks"
-        )
 
 
 # ============================================================================
@@ -293,14 +197,7 @@ def test_all_geists_execute_without_crashing(
 
 def test_geist_determinism(vault_context: VaultContext):
     """Test that geists produce deterministic output with same seed."""
-    geist_path = (
-        Path(__file__).parent.parent.parent
-        / "src"
-        / "geistfabrik"
-        / "default_geists"
-        / "tracery"
-        / "random_prompts.yaml"
-    )
+    geist_path = REPO_ROOT / "src" / "geistfabrik" / "default_geists" / "tracery" / "what_if.yaml"
 
     # Create two identical geists with same seed
     geist1 = TraceryGeist.from_yaml(geist_path, seed=12345)
@@ -323,9 +220,10 @@ def test_geist_determinism(vault_context: VaultContext):
 def _harvestable_vault(root: Path) -> VaultContext:
     """Every note carries four questions, four TODOs and four blockquotes.
 
-    Whichever note a harvester samples, it has more candidates than the
-    3-suggestion cap, so both the note choice and the candidate sample are
-    exercised by the seeded RNG.
+    Whichever note a harvester samples, it has more candidates than it shows
+    (the 3-suggestion cap; question_harvester reads three of a question-dense
+    note's questions back in one suggestion), so both the note choice and the
+    candidate sample are exercised by the seeded RNG.
     """
     builder = VaultBuilder(root)
     for i in range(6):
@@ -347,9 +245,12 @@ def _harvestable_vault(root: Path) -> VaultContext:
     return builder.build()
 
 
-@pytest.mark.parametrize("geist_id", ["question_harvester", "todo_harvester", "quote_harvester"])
+@pytest.mark.parametrize(
+    ("geist_id", "count"),
+    [("question_harvester", 1), ("todo_harvester", 3), ("quote_harvester", 3)],
+)
 def test_harvester_is_deterministic_for_a_fixed_seed(
-    tmp_path: Path, geist_executor: GeistExecutor, geist_id: str
+    tmp_path: Path, geist_executor: GeistExecutor, geist_id: str, count: int
 ) -> None:
     """Same vault + same seed gives the same harvested suggestions.
 
@@ -361,5 +262,134 @@ def test_harvester_is_deterministic_for_a_fixed_seed(
     first = geist_executor.execute_geist(geist_id, _harvestable_vault(tmp_path / "a"))
     second = geist_executor.execute_geist(geist_id, _harvestable_vault(tmp_path / "b"))
 
-    assert_valid_suggestions(first, geist_id, min_count=3, must_reference=("Garden Log",))
+    assert_valid_suggestions(first, geist_id, min_count=count, must_reference=("Garden Log",))
+    assert len(first) == count
     assert [(s.text, s.notes) for s in first] == [(s.text, s.notes) for s in second]
+
+
+# ============================================================================
+# Extension examples (examples/geists/tracery/, not bundled)
+# ============================================================================
+
+
+def _example(geist_id: str, seed: int) -> TraceryGeist:
+    return TraceryGeist.from_yaml(EXAMPLES_DIR / f"{geist_id}.yaml", seed=seed)
+
+
+@pytest.mark.parametrize("note_count", [2, 3, 6])
+def test_note_combinations_example_always_pairs_two_different_notes(
+    tmp_path: Path, note_count: int
+) -> None:
+    """The note_pairs + save-action example pairs two DIFFERENT notes.
+
+    Regression: note1 and note2 came from two independent sample_notes()
+    draws, so a suggestion could read "What if you combined [[A]] with [[A]]?".
+    The pair now comes from one note_pairs() expansion saved as `picked` and
+    split by .split_seed/.split_neighbours. Small vaults make a self-pairing
+    likely on every draw; the loops vary the session date and the geist seed.
+    """
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Topic {chr(ord('A') + i)}" for i in range(note_count)]
+    for i, title in enumerate(titles):
+        builder.note(title, f"Distinct words {title.lower()}.", created=datetime(2024, 1, 1 + i))
+
+    pairs = set()
+    for day in (1, 9, 20):
+        session_date = datetime(2024, 3, day)
+        ctx = builder.build(session_date=session_date, seed=session_seed(session_date))
+        for seed in range(25):
+            suggestions = _example("note_combinations", seed).suggest(ctx)
+            # Two notes make one distinct pair, which is offered only once.
+            assert_valid_suggestions(
+                suggestions, "note_combinations", min_count=min(2, math.comb(note_count, 2))
+            )
+            for suggestion in suggestions:
+                assert len(suggestion.notes) == 2, suggestion.text
+                assert suggestion.notes[0] != suggestion.notes[1], suggestion.text
+                assert set(suggestion.notes) <= set(titles), suggestion.text
+                pairs.add(frozenset(suggestion.notes))
+
+    # The pairing still varies: over these draws every possible pair is offered.
+    assert len(pairs) == math.comb(note_count, 2)
+
+
+def test_semantic_neighbours_example_splits_one_saved_cluster(tmp_path: Path) -> None:
+    """The cluster-pattern example names ONE cluster: a seed and its own neighbours.
+
+    Contract: ``$vault.semantic_clusters`` bundles "[[Seed]]|||[[N1]], ..." so
+    that one cluster can be split into its two halves. The grammar must split
+    a single saved expansion of ``#cluster#``, not re-draw a cluster for the
+    seed and another for the neighbours.
+
+    Regression: with ``seed: #cluster.split_seed#`` and
+    ``neighbours: #cluster.split_neighbours#`` each reference re-expands
+    ``#cluster#`` independently, pairing seed A with seed B's neighbours.
+
+    Fixture: three groups of four notes with disjoint vocabulary, so each
+    note's three nearest neighbours are exactly the rest of its group.
+    """
+    vocab = {
+        "Astronomy": "telescope galaxy nebula comet starlight orbit",
+        "Baking": "flour yeast dough oven crust knead",
+        "Sailing": "mast rudder harbour tide keel anchor",
+    }
+    builder = VaultBuilder(tmp_path)
+    group_of: dict[str, set[str]] = {}
+    for topic, words in vocab.items():
+        titles = {f"{topic} {label}" for label in ("One", "Two", "Three", "Four")}
+        for title in titles:
+            builder.note(title, f"{words} {words}", created=datetime(2024, 1, 1))
+            group_of[title] = titles
+
+    for day in (1, 9, 20):
+        context = builder.build(session_date=datetime(2024, 3, day))
+        # Fixture sanity: the lexical stub puts each note's neighbours in its group.
+        for note in context.notes():
+            found = {n.title for n in context.neighbours(note, 3)}
+            assert found == group_of[note.title] - {note.title}, note.title
+
+        for seed in range(30):
+            suggestions = _example("semantic_neighbours", seed).suggest(context)
+            assert_valid_suggestions(suggestions, "semantic_neighbours", min_count=2)
+
+            for suggestion in suggestions:
+                links = _WIKILINK.findall(suggestion.text)
+                assert suggestion.text.count("[[") == suggestion.text.count("]]") == 4
+                seed_title, neighbours = links[0], links[1:]
+                assert seed_title not in neighbours, suggestion.text
+                assert set(neighbours) == group_of[seed_title] - {seed_title}, (
+                    f"neighbours drawn from another cluster: {suggestion.text}"
+                )
+                assert suggestion.notes == links
+
+
+def test_transformation_suggester_example_renders_every_modifier(tmp_path: Path) -> None:
+    """The modifier showcase renders each modifier's output, never a raw symbol.
+
+    Over 60 seeds on a one-note vault: .capitalizeAll ("Hidden Pattern"),
+    chained .s.capitalize ("Gaps"), .s ("into three questions"), an irregular
+    .ed ("grew"), and .a ("an organism"); no '#' survives expansion and every
+    suggestion names the note.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Seed Note", "Some content.", created=datetime(2024, 1, 1))
+    ctx = builder.build()
+
+    texts = []
+    for seed in range(60):
+        for suggestion in _example("transformation_suggester", seed).suggest(ctx):
+            assert suggestion.notes == ["Seed Note"], suggestion.text
+            texts.append(suggestion.text)
+
+    assert len(texts) == 60
+    assert [t for t in texts if "#" in t] == []
+    joined = " ".join(texts)
+    checks = {
+        ".capitalizeAll": r"\b(Hidden Pattern|Emerging Theme|Key Insight|Missing Link): could",
+        ".s.capitalize": r"the (Assumptions|Connections|Gaps|Threads) in",
+        ".s": r"into (three|five|seven) (insights|questions|perspectives|directions)",
+        ".ed (irregular)": r"\]\] grew into",
+        ".a": r"\ban (organism|ecosystem|experiment|archive|origin|end|anchor|opening)\b",
+    }
+    missing = [name for name, pattern in checks.items() if not re.search(pattern, joined)]
+    assert missing == []

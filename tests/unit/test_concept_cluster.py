@@ -3,7 +3,9 @@
 concept_cluster needs >= 5 notes, samples 5 seed notes, and for each seed
 forms a cluster of the seed plus its 3 nearest neighbours. If the cluster's
 average pairwise similarity exceeds SimilarityLevel.HIGH (0.65) it suggests
-naming the cluster. At most 2 suggestions are returned.
+naming the cluster; a cluster with no link between any two of its notes is
+said to be unlinked, any other ends with a sampled closer. At most 2
+suggestions are returned.
 
 Fixtures use the bag-of-words test stub: a group is 4 notes whose bodies
 repeat the same 8 topic words twice, so within-group cosine is ~0.9 and
@@ -145,3 +147,61 @@ def test_concept_cluster_excludes_geist_journal(tmp_path: Path) -> None:
         must_reference=group,
         must_not_reference=["geist journal", *journal],
     )
+
+
+def test_concept_cluster_says_when_no_note_in_the_cluster_links_to_another(
+    tmp_path: Path,
+) -> None:
+    """Contract: a cluster with no link between any two of its notes is
+    described as such, with the "theme you haven't named yet" question.
+
+    Regression: pattern_finder carried this framing in a second, separate
+    semantic-cluster loop (now removed); concept_cluster, which found the same
+    clusters, never said whether their notes were linked.
+    """
+    builder = VaultBuilder(tmp_path)
+    group = _add_group(builder, "Orchard")
+    _filler(builder)
+    ctx = builder.build()
+
+    (suggestion,) = concept_cluster.suggest(ctx)
+
+    seed = suggestion.notes[0]
+    assert sorted(suggestion.notes) == sorted(group)
+    listed = "]], [[".join(suggestion.notes)
+    assert suggestion.text == (
+        f"What if you named the cluster around [[{seed}]]? These notes are tightly "
+        f"related, but none of them links to another: [[{listed}]]. "
+        "What's the theme you haven't named yet?"
+    )
+
+
+def test_concept_cluster_with_an_internal_link_uses_the_sampled_closers(
+    tmp_path: Path,
+) -> None:
+    """Contract: a cluster containing a link is never called unlinked; its
+    suggestion ends with one of concept_cluster.CLOSERS, and over several
+    sessions every closer is used.
+
+    Regression: the retired semantic_neighbours geist's closing questions
+    ("What's the common thread?", "What do they share?", "What pattern
+    emerges?") were merged in; before, every cluster ended "Could they be
+    organised under a shared theme?".
+    """
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Orchard Idea {i}" for i in range(GROUP_SIZE)]
+    for i, title in enumerate(titles):
+        link = f" [[{titles[1]}]]" if i == 0 else ""
+        builder.note(title, f"{TOPICS['Orchard']} {TOPICS['Orchard']}{link}", created=CREATED)
+    _filler(builder)
+
+    closers = set()
+    for seed in range(30):
+        (suggestion,) = concept_cluster.suggest(builder.build(seed=seed))
+        assert sorted(suggestion.notes) == sorted(titles)
+        assert "none of them links" not in suggestion.text
+        head, closer = suggestion.text.rsplit("]]. ", 1)
+        assert "These notes are tightly related: [[" in head, suggestion.text
+        closers.add(closer)
+
+    assert closers == set(concept_cluster.CLOSERS)

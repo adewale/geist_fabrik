@@ -1,9 +1,12 @@
-"""Tests for the concept_drift geist.
+"""Tests for the concept_drift geist (absorbs session_drift and drift_velocity_anomaly).
 
 Trigger: a non-journal note with >= 3 snapshots whose SEMANTIC drift
 1 - cos(first, last) >= 0.2. Among its 5 current nearest neighbours the geist
 names the one whose current vector is most aligned with the drift direction
-(last - first). Capped at 2.
+(last - first). Capped at 2. Vectors are content-cached, so the text speaks of
+edits: "You've rewritten [[X]] since your session on D", where D is the latest
+earlier session whose vector differs from today's by > 0.15, plus "and it has
+been changing more lately" when the 3-session windowed drift grew by > 0.1.
 
 History vectors are injected with ``set_history``: a note's current file
 content is its latest snapshot.
@@ -13,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 from geistfabrik.default_geists.code import concept_drift
+from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.vault_context import VaultContext
 from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 from tests.fixtures.temporal import BASE16, set_history
@@ -59,10 +63,84 @@ def test_concept_drift_names_the_neighbour_aligned_with_the_drift(tmp_path):
     suggestions = concept_drift.suggest(ctx)
 
     assert_valid_suggestions(suggestions, "concept_drift")
-    assert [s.notes for s in suggestions] == [["Drifting Note", "Rocket Note"]]
-    assert suggestions[0].text.startswith(
-        "The semantic representation of [[Drifting Note]] changed between 2023-10 and 2024-03."
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            "You've rewritten [[Drifting Note]] since your session on 2023-12-01. Of its "
+            "current neighbours, the edits moved it most toward [[Rocket Note]]. "
+            "What were you reaching for?",
+            ["Drifting Note", "Rocket Note"],
+        )
+    ]
+
+
+def test_concept_drift_dates_the_latest_session_before_the_rewrite(tmp_path):
+    """Contract: "since your session on D" names the latest earlier session
+    whose vector differs from today's by more than 0.15; a later typo-level
+    tweak (drift 0.10) does not move D.
+
+    Regression (merged from session_drift): the text gave only the first and
+    last snapshot months ("changed between 2023-10 and 2024-03"), never which
+    session the note has been rewritten since.
+    """
+    tweaked = f"{BASE16} quebec romeo sierra tango"
+    ctx = _vault(
+        tmp_path,
+        {
+            "Recent Edit": (ROCKETS, DRIFTED),
+            "Earlier Edit": (ROCKETS, {H1: GARDEN, H2: ROCKETS}),
+            "Tweaked Note": (tweaked, {H1: "kettle teapot boiling", H2: BASE16}),
+            **NEIGHBOURS,
+            "Base Note": (f"{BASE16} zulu", {}),
+        },
     )
+
+    since = {
+        s.notes[0]: s.text.split("since your session on ")[1][:10]
+        for seed in range(10)
+        for s in concept_drift.suggest(
+            VaultContext(ctx.vault, ctx.session, seed=seed, function_registry=FunctionRegistry())
+        )
+    }
+
+    assert since == {
+        "Recent Edit": "2023-12-01",
+        "Earlier Edit": "2023-10-01",
+        "Tweaked Note": "2023-10-01",
+    }
+
+
+def test_concept_drift_says_when_a_note_is_changing_more_lately(tmp_path):
+    """Contract: "and it has been changing more lately" is said only when the
+    drift across the last three recorded sessions exceeds the drift across the
+    first three by more than 0.1.
+
+    Regression (merged from drift_velocity_anomaly): concept_drift never
+    said whether the change was recent; a note that changed only in its
+    latest sessions read the same as one that changed long ago and settled.
+    """
+    history = [datetime(2023, m, 1) for m in (9, 10, 11, 12)]
+    home, away = GARDEN, ROCKETS
+    ctx = _vault(
+        tmp_path,
+        {
+            # home, home, home, away | away: windows 0.0 -> 0.8
+            "Late Mover": (away, {d: home for d in history[:3]}),
+            # home, away, away, away | away: windows 0.8 -> 0.0
+            "Early Mover": (away, {history[0]: home}),
+            **NEIGHBOURS,
+        },
+        history=history,
+    )
+
+    openings = {s.notes[0]: s.text.split(". Of its")[0] for s in concept_drift.suggest(ctx)}
+
+    assert openings == {
+        "Late Mover": (
+            "You've rewritten [[Late Mover]] since your session on 2023-11-01, "
+            "and it has been changing more lately"
+        ),
+        "Early Mover": "You've rewritten [[Early Mover]] since your session on 2023-09-01",
+    }
 
 
 def test_concept_drift_threshold_boundary(tmp_path):
@@ -125,7 +203,7 @@ def test_concept_drift_excludes_geist_journal(tmp_path):
     ctx = _vault(
         tmp_path,
         {"Drifting Note": (ROCKETS, DRIFTED), **NEIGHBOURS},
-        journal={"2023-12-01": (ROCKETS, DRIFTED)},
+        journal={"2023-12-02": (ROCKETS, DRIFTED)},
     )
 
     suggestions = concept_drift.suggest(ctx)
@@ -134,7 +212,7 @@ def test_concept_drift_excludes_geist_journal(tmp_path):
         suggestions,
         "concept_drift",
         must_reference=["Drifting Note", "Rocket Note"],
-        must_not_reference=["geist journal", "2023-12-01"],
+        must_not_reference=["geist journal", "2023-12-02"],
     )
 
 

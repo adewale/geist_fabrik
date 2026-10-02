@@ -1,7 +1,9 @@
-"""Pattern Finder geist - identifies repeated themes across unconnected notes.
+"""Pattern Finder geist - identifies repeated phrases across unconnected notes.
 
-Discovers patterns, phrases, or conceptual themes that appear in multiple notes
-that aren't linked to each other, suggesting implicit recurring interests.
+Discovers 3-word phrases that recur in several notes that aren't linked to
+each other, suggesting implicit recurring interests. (Its former second branch,
+semantic clusters of unlinked notes, duplicated concept_cluster and was merged
+into it.)
 """
 
 import re
@@ -16,7 +18,6 @@ from geistfabrik.markdown_parser import (
     markdown_prose_lines,
     parse_frontmatter,
 )
-from geistfabrik.similarity_analysis import SimilarityLevel
 
 # Whole-token stopwords. A phrase may not start or end with one (a single
 # stopword inside, as in "theory of mind", is fine). Matching whole tokens
@@ -73,7 +74,7 @@ def _phrases(content: str) -> Iterator[str]:
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find repeated themes across unconnected notes.
+    """Find phrases repeated across unconnected notes.
 
     Returns:
         List of suggestions highlighting hidden patterns
@@ -144,73 +145,5 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         geist_id="pattern_finder",
                     )
                 )
-
-    # Also look for semantic clusters of unlinked notes
-    # Group notes by semantic similarity
-    clusters = []
-    # Dict keyed by path: O(1) removal like a set, but iteration follows vault
-    # order, so seed choice does not depend on PYTHONHASHSEED (same date +
-    # vault = same output across processes).
-    unclustered = {note.path: note for note in notes}
-
-    while len(unclustered) > 5:
-        # Pick a seed note
-        seed = vault.sample(list(unclustered.values()), count=1)[0]
-        del unclustered[seed.path]
-
-        # Find similar notes
-        cluster = [seed]
-        to_remove = []
-        candidates = list(unclustered.values())
-        for start in range(0, len(candidates), 256):
-            batch = candidates[start : start + 256]
-            similarities = vault.batch_similarity([seed], batch)[0]
-            for note, similarity in zip(batch, similarities, strict=True):
-                if similarity > SimilarityLevel.VERY_HIGH:  # Very similar
-                    cluster.append(note)
-                    to_remove.append(note)
-
-                if len(cluster) >= 5:  # Limit cluster size
-                    break
-
-            if len(cluster) >= 5:
-                break
-
-        # Remove clustered notes from unclustered set
-        for note in to_remove:
-            del unclustered[note.path]
-
-        if len(cluster) >= 3:
-            clusters.append(cluster)
-
-        if len(clusters) >= 3:  # Enough clusters found
-            break
-
-    # Report on clusters of unlinked but similar notes
-    for cluster in clusters:
-        # Check if cluster notes are linked using O(1) set lookup
-        link_count = sum(
-            1
-            for i, n1 in enumerate(cluster)
-            for n2 in cluster[i + 1 :]
-            if tuple(sorted([n1.path, n2.path])) in all_link_pairs
-        )
-
-        if link_count == 0:  # No internal links
-            sample = vault.sample(cluster, count=3)
-            note_names = ", ".join([f"[[{n.link_text}]]" for n in sample])
-
-            text = (
-                f"Found a semantic cluster of similar notes with no links between them: "
-                f"{note_names}. What's the common theme you haven't named yet?"
-            )
-
-            suggestions.append(
-                Suggestion(
-                    text=text,
-                    notes=[n.link_text for n in sample],
-                    geist_id="pattern_finder",
-                )
-            )
 
     return vault.sample(suggestions, count=2)

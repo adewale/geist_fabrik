@@ -931,8 +931,8 @@ class VaultContext:
 
         Stores the label on the note's session_embeddings row so future
         sessions can compare assignments over time (the data that
-        previous_cluster_label_for_note() reads and cluster_evolution_tracker
-        builds on). This replaces the complete canonical assignment snapshot;
+        previous_cluster_label_for_note() reads; written for the retired
+        cluster_evolution_tracker). This replaces the complete canonical assignment snapshot;
         omitted notes (noise/unclustered) become NULL. Labels carry their
         configuration identity so incompatible historical runs are not compared.
 
@@ -1149,7 +1149,7 @@ class VaultContext:
             )
 
         # Persist this session's assignments so future sessions can compare
-        # cluster membership over time (cluster_evolution_tracker).
+        # cluster membership over time (formerly cluster_evolution_tracker).
         if canonical:
             self.persist_cluster_labels(
                 {

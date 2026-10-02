@@ -68,7 +68,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 | item | spec | status |
 |---|---|---|
 | `geist_status` failure-persistence table | geistfabrik_spec.md:1090 | BUILT (schema v8) |
-| `session_embeddings.cluster_label` | (cluster_evolution_tracker) | BUILT (schema v7) |
+| `session_embeddings.cluster_label` | (cluster_evolution_tracker, retired 2026-10) | BUILT (schema v7); API kept for comparing cluster membership across sessions |
 | GraphPatternFinder showcase geists (structural holes / path length / bridges) | reuse_abstractions_spec.md:1120 | BUILT (examples/geists/code/) |
 | `_geistfabrik/error.log` + file logging | geistfabrik_spec.md:1107 | NOT-BUILT — superseded by console hints + `geist_status.last_error`; amend spec |
 | Real connected-components stat | STATS_COMMAND_SPEC.md:181 | BUILT (uses GraphPatternFinder.find_connected_components) |
@@ -85,3 +85,32 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 | HDBSCAN cosine metric | TODO.md | DEFERRED — needs real-vault evaluation |
 | Timeout default 5s | geistfabrik_spec.md:856 | BUILT-DIFFERENTLY — 30s (production data); amend spec |
 | invoke write-by-default | spec/vision | BUILT-DIFFERENTLY — preview-by-default + `--write` (safer) |
+
+## Geist merges (2026-10)
+
+Geists whose job duplicated another's were merged into the one truest to the
+vision (honest claims, grounded in the user's notes, sampling not ranking);
+geists whose premise could not hold were retired. Specs that name a geist in
+the left column describe design history.
+
+| retired geist | now | note |
+|---|---|---|
+| unexpected_neighbour | surprisal | same `surprisal_scores()`; surprisal samples and skips stubs |
+| note_combinations | creative_collision | moved to `examples/geists/tracery/` (note_pairs + save actions) |
+| temporal_mirror | creative_collision | cross-era framing with real dates |
+| perspective_shifter, random_prompts | what_if | every prompt names a note |
+| transformation_suggester | what_if | moved to `examples/geists/tracery/` (modifier showcase) |
+| semantic_neighbours | concept_cluster | moved to `examples/geists/tracery/` (cluster pattern) |
+| questioning_mind | question_harvester | prefers question-dense notes |
+| on_this_day, seasonal_revisit | this_time_last_year | same day, ±7 days, then same season, any earlier year |
+| seasonal_topic_analysis | temporal_clustering | season thread; cross-season only when measured |
+| session_drift, drift_velocity_anomaly | concept_drift | worded as edits (vectors are content-cached) |
+| hermeneutic_instability | (retired) | an unchanged note's vector cannot vary |
+| burst_evolution | creation_burst | names burst-day notes rewritten since |
+| cluster_evolution_tracker | attention_shift | cluster-label API kept |
+| anachronism_detector | recent_focus | measured "more than anything recent" comparison |
+| temporal_voice, temporal_contrast | (retired) | past/future tense signal invalid on real notes |
+| complexity_mismatch | stub_expander, orphan_connector | orphan_connector is now a code geist |
+| metadata_outlier_detector | link_density_analyser | moved to `examples/geists/code/` (MetadataAnalyser) |
+| island_hopper | bridge_builder | names the hub's cluster |
+| metadata_driven_discovery patterns 1 and 3 | link_density_analyser, task_archaeology | the geist keeps "buried gems" |

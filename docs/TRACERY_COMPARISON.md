@@ -295,7 +295,7 @@ Output: "Alice found a treasure. Bob was happy." (potentially different names!)
 
 **GeistFabrik:**
 ```yaml
-# note_combinations.yaml
+# examples/geists/tracery/note_combinations.yaml (an extension example)
 type: geist-tracery
 id: note_combinations
 description: Suggests combining random notes in creative ways

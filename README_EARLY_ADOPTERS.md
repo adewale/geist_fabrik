@@ -9,7 +9,7 @@ This guide shows you how to safely test GeistFabrik (v0.11.0 Beta) and provide v
 **Current Status:**
 - ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
-- ✅ 69 default geists bundled (57 code + 12 Tracery)
+- ✅ 48 default geists bundled (45 code + 3 Tracery)
 - ✅ Source notes are never modified; managed state is written under `_geistfabrik/`
 
 **Expect:**
@@ -198,7 +198,7 @@ personal information present in the vault. Protect backups or copies of
 📊 Vault Summary:
    Notes found: 247
    Database size: 12.34 MB
-   Bundled default geists available: 69 (57 code + 12 Tracery)
+   Bundled default geists available: 48 (45 code + 3 Tracery)
 ```
 
 ### 3. Diff Mode
@@ -407,7 +407,7 @@ cd ~/Documents/MyVault-FullTest
 # Step 2: Backup (extra safety)
 tar -czf ../MyVault-FullTest-backup.tar.gz .
 
-# Step 3: Initialise (69 default geists enabled)
+# Step 3: Initialise (48 default geists enabled)
 uv run geistfabrik init ~/Documents/MyVault-FullTest
 
 # Step 4a: Try --full first (filtered but not sampled)

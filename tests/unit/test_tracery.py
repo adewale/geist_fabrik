@@ -530,7 +530,7 @@ def _expand_modifier(word: str, modifier: str) -> str:
         ("fox", "foxes"),
         ("box", "boxes"),
         ("city", "cities"),
-        # Irregulars (several used by transformation_suggester)
+        # Irregulars (several used by the transformation_suggester example)
         ("person", "people"),
         ("child", "children"),
         ("man", "men"),
@@ -551,14 +551,14 @@ def test_tracery_pluralize_modifier(singular: str, plural: str) -> None:
         ("create", "created"),
         ("try", "tried"),
         ("stop", "stopped"),
-        # Irregulars (several used by transformation_suggester)
+        # Irregulars (several used by the transformation_suggester example)
         ("go", "went"),
         ("think", "thought"),
         ("make", "made"),
         ("write", "wrote"),
         ("find", "found"),
         ("build", "built"),
-        # Used by what_if and perspective_shifter; was "understanded".
+        # Was "understanded" (what_if and the retired perspective_shifter).
         ("understand", "understood"),
     ],
 )
@@ -575,7 +575,7 @@ def test_tracery_past_tense_modifier(present: str, past: str) -> None:
         ("house", "a house"),
         ("hour", "an hour"),
         ("university", "a university"),
-        # Nouns used by transformation_suggester
+        # Nouns used by the transformation_suggester example
         ("organism", "an organism"),
         ("garden", "a garden"),
         ("experiment", "an experiment"),

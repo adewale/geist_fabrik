@@ -13,6 +13,7 @@ from geistfabrik import (
     vault_function,
 )
 from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder
 
 
 def test_function_registry_initialization() -> None:
@@ -364,3 +365,30 @@ def test_function_returns_none() -> None:
 
     result = registry.call("return_none", cast(VaultContext, MockVault()))
     assert result is None
+
+
+def test_hubs_min_words_skips_stub_hubs(tmp_path: Path) -> None:
+    """Contract: $vault.hubs(count, min_backlinks, min_words) keeps only notes
+    of at least min_words body words, still most-linked first; the default
+    (0) keeps every note.
+
+    Regression: hubs() had no length floor, so hub_explorer asked whether a
+    19-word note (the real run's "Obsidian", 6 backlinks) should be "split
+    into subtopics" in the same session stub_expander asked to expand it.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Stub", "Seed idea.")  # 4 words, 5 backlinks
+    builder.note("Essay", " ".join(f"term{i}" for i in range(120)))  # 122 words, 4
+    builder.note("Short", " ".join(f"term{i}" for i in range(60)))  # 62 words, 3
+    for i in range(5):
+        targets = ["Stub"] + (["Essay"] if i < 4 else []) + (["Short"] if i < 3 else [])
+        builder.note(f"Linker {i}", " ".join(f"[[{t}]]" for t in targets))
+    ctx = builder.build()
+
+    assert ctx.call_function("hubs", 5, 3) == ["[[Stub]]", "[[Essay]]", "[[Short]]"]
+    assert ctx.call_function("hubs", 5, 3, 0) == ["[[Stub]]", "[[Essay]]", "[[Short]]"]
+    assert ctx.call_function("hubs", 5, 3, 50) == ["[[Essay]]", "[[Short]]"]
+    assert ctx.call_function("hubs", 5, 3, 100) == ["[[Essay]]"]
+    assert ctx.call_function("hubs", 5, 1, 100) == ["[[Essay]]"]
+    assert ctx.call_function("hubs", 1, 1, 50) == ["[[Essay]]"]
+    assert ctx.call_function("hubs", 5, 3, 200) == []

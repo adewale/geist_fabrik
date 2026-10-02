@@ -1,3 +1,17 @@
+# EXTENSION EXAMPLE - not a bundled geist.
+#
+# This file is not loaded by GeistFabrik. It was retired from the default
+# geists (concept_cluster now names semantic clusters, and only when their
+# members really are similar to one another). Copy it into
+# <vault>/_geistfabrik/geists/tracery/ to run it.
+#
+# What it demonstrates - the cluster pattern:
+#   - $vault.semantic_clusters(count, k) bundles a seed note and its k
+#     nearest neighbours as "[[Seed]]|||[[N1]], [[N2]], ..."
+#   - a save action, "#[picked:#cluster#]template#", expands ONE cluster so
+#     the seed and its neighbours are split from the same string
+#   - the .split_seed / .split_neighbours modifiers extract the two halves
+#
 type: geist-tracery
 id: semantic_neighbours
 description: Shows semantic neighbourhoods to reveal hidden connections

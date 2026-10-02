@@ -115,28 +115,25 @@ CABIN_DAYS = {
 # contract instead of letting silent geists pass it vacuously. A geist that
 # stops producing here should either be re-triggered by the fixture or be
 # removed from this set with a reason.
-# burst_evolution, surprisal and uncertainty_mapper left this set when they
-# stopped firing on unchanged notes, near-empty notes and one-line notes
-# respectively; this fixture's journal entries are all three. They build
-# references from note.link_text like every geist here.
+# surprisal and uncertainty_mapper left this set when they stopped firing on
+# near-empty and one-line notes; this fixture's journal entries are both.
+# Retired or merged geists (burst_evolution, cluster_evolution_tracker,
+# seasonal_revisit, seasonal_topic_analysis, temporal_mirror, temporal_voice,
+# metadata_outlier_detector) left with their geists; temporal_clustering,
+# which now names a season's notes, joined.
 EXPECTED_VIRTUAL_REFERENCERS = frozenset(
     {
         "bridge_hunter",
-        "cluster_evolution_tracker",
         "cluster_mirror",
         "concept_cluster",
         "creation_burst",
         "creative_collision",
         "dialectic_triad",
-        "metadata_outlier_detector",
         "method_scrambler",
         "pattern_finder",
-        "seasonal_revisit",
-        "seasonal_topic_analysis",
         "self_and_other",
         "stub_expander",
-        "temporal_mirror",
-        "temporal_voice",
+        "temporal_clustering",
         "this_time_last_year",
     }
 )

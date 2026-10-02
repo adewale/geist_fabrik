@@ -208,10 +208,11 @@ def test_geists_do_not_use_direct_sql() -> None:
     SQLite connection. A geist that calls vault.db.execute(...) couples itself
     to the database schema and bypasses the abstraction layer.
 
-    This guards the migration of cyclical_thinking, drift_velocity_anomaly,
-    vocabulary_expansion, and cluster_evolution_tracker onto VaultContext
-    methods (e.g. session_count(), session_embeddings_by_session()) - a
-    previously-reported architectural violation that must not regress.
+    This guards the migration of cyclical_thinking, vocabulary_expansion and
+    the since-retired drift_velocity_anomaly and cluster_evolution_tracker
+    onto VaultContext methods (e.g. session_count(),
+    session_embeddings_by_session()) - a previously-reported architectural
+    violation that must not regress.
     """
     geist_dir = Path("src/geistfabrik/default_geists/code")
     violations = []

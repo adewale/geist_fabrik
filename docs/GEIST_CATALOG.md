@@ -2,19 +2,20 @@
 
 **A comprehensive classification of GeistFabrik's default geists by pattern and implementation status**
 
-GeistFabrik ships with 70 default geists following distinct patterns. This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
+GeistFabrik ships with a set of default geists following distinct patterns (counts: `geistfabrik.default_geists.TOTAL_GEIST_COUNT`). This document categorizes them by their core mechanisms, tracks implementation status, and provides guidance for understanding and extending the geist ecosystem.
 
-**Last Updated**: 2026-06-12
+**Last Updated**: 2026-10-02 (duplicate geists merged; see CHANGELOG)
 
 ---
 
 ## Summary
 
-| Category | Count | Status |
-|----------|-------|--------|
-| **Code Geists** | 58 | ✅ All implemented |
-| **Tracery Geists** | 12 | ✅ All implemented |
-| **Total Geists** | 70 | ✅ Production ready |
+Code and Tracery geists live in `src/geistfabrik/default_geists/code/` and
+`.../tracery/`; their counts are derived from the filesystem
+(`CODE_GEIST_COUNT`, `TRACERY_GEIST_COUNT`, `TOTAL_GEIST_COUNT`). Geists whose
+job duplicated another's were merged into the one truest to the vision
+(2026-10); a few retired geists now live in `examples/geists/` as extension
+examples.
 
 **Quality**: 100% pass rate on validation spec audit (see Quality Standards below)
 
@@ -30,11 +31,12 @@ These geists pick a random note, extract specific content types using regex, and
 
 | Geist | Extracts | Provocation |
 |-------|----------|-------------|
-| **question_harvester** | Questions (`?`) | "What if you revisited this question now?" |
-| **todo_harvester** | TODO/FIXME/HACK markers | "What if you tackled this now?" |
+| **question_harvester** | Questions (`?`), preferring question-dense notes | "What if you revisited this question now?" / "Which one keeps you up at night?" |
+| **todo_harvester** | TODO/FIXME/HACK/XXX markers | "What if you tackled this now?" |
 | **quote_harvester** | Blockquotes (`>`) | "What if you reflected on this again?" |
 | **claim_harvester** | Strong claims | "What if you tested this claim?" |
 | **hypothesis_harvester** | Hypotheses / maybe-statements | "What would prove or disprove this?" |
+| **definition_harvester** | "X is a Y" definitions, definition lists | "What if you explored this definition further?" |
 
 **Characteristics**:
 - ✅ O(1) per session (single note read)
@@ -56,18 +58,12 @@ themselves establish a change in meaning, interpretation, or mental state.
 | Geist | Compares | Detects |
 |-------|----------|---------|
 | **temporal_drift** | Old vs recent notes | Stale but important notes |
-| **session_drift** | Semantic dimensions across sessions | Changed content representations |
-| **concept_drift** | Semantic neighborhoods over time | Representation direction and neighbours |
-| **temporal_clustering** | Clusters across time periods | Content groupings by era |
+| **concept_drift** | A note's vector across sessions | Notes you rewrote, since which session, and toward which neighbour |
+| **temporal_clustering** | Notes within a season | A season's thread (anchor + 2 closest); cross-season only when measured |
 | **seasonal_patterns** | Notes by creation season | Dated topic distributions |
-| **seasonal_revisit** | Same season, different years | Yearly cycles |
-| **on_this_day** | Same calendar date | Anniversary reflections |
-| **anachronism_detector** | Temporal contradictions | Ideas out of sync with era |
 | **convergent_evolution** | Stored vectors becoming similar | Increased measured similarity |
 | **divergent_evolution** | Stored vectors becoming different | Decreased measured similarity |
-| **temporal_mirror** | Different time periods | Cross-temporal patterns |
-| **creation_burst** | Days with 3+ notes created | Productive burst days |
-| **burst_evolution** | Burst-day representations over time | Measured semantic distance |
+| **creation_burst** | Days with 3+ notes created | Burst days, and which of their notes you have rewritten since |
 
 **Characteristics**:
 - 📊 Uses temporal metadata (creation date, modification time)
@@ -85,10 +81,9 @@ These geists use embeddings to find notes that are semantically related (or deli
 
 | Geist | Strategy | Purpose |
 |-------|----------|---------|
-| **creative_collision** | Random dissimilar pairs | Force unexpected combinations |
-| **bridge_builder** | Unlinked similar notes | Suggest missing connections |
+| **creative_collision** | Unlinked, loosely related pairs | Unexpected combinations, framed across eras when years apart |
+| **bridge_builder** | Unlinked twin of a hub, outside the hub's cluster | Missing connection, naming the hub's cluster |
 | **bridge_hunter** | Two-step semantic paths between similar unlinked notes | Stepping-stone notes between two ideas |
-| **island_hopper** | Cross-cluster connections | Bridge isolated knowledge islands |
 
 **Characteristics**:
 - 🧮 Requires embedding computation
@@ -107,8 +102,9 @@ These geists examine the vault's link graph (nodes = notes, edges = links) to fi
 | Geist | Analyzes | Finds |
 |-------|----------|-------|
 | **columbo** | Claims vs linked evidence | Contradictions and inconsistencies |
-| **link_density_analyser** | Links per note | Under/over-linked notes |
+| **link_density_analyser** | Links per 100 words vs the vault median | Dense or sparse notes; groups isolated ones |
 | **hidden_hub** | Many semantic neighbours, few linked notes | Implicit hubs worth linking |
+| **orphan_connector** | Notes with no links in or out | Where it belongs: its nearest notes; long orphans: split or link? |
 | **density_inversion** | Linked neighbours vs semantic similarity (uses embeddings) | Structure/meaning mismatches |
 | **blind_spot_detector** | Recent note neighborhoods | Gaps in current thinking |
 
@@ -128,9 +124,9 @@ These geists identify groups of related notes and present them as patterns or th
 
 | Geist | Groups By | Presents |
 |-------|-----------|----------|
-| **concept_cluster** | Topic similarity | Conceptual neighborhoods |
+| **concept_cluster** | Tight semantic clusters (cohesion-checked) | A theme to name; says when none of them link |
 | **cluster_mirror** | Semantic clustering | Hidden groupings in vault |
-| **pattern_finder** | Recurring three-word prose phrases + similarity clusters | Themes that recur across notes |
+| **pattern_finder** | Recurring three-word prose phrases | Phrases repeated across unconnected notes |
 
 **Characteristics**:
 - 🤖 Uses unsupervised ML (clustering algorithms)
@@ -148,12 +144,11 @@ These geists examine note metadata (word count, links, tasks, etc.) to identify 
 
 | Geist | Examines | Suggests |
 |-------|----------|----------|
-| **stub_expander** | Word count + links | Develop short but connected notes |
-| **task_archaeology** | Incomplete tasks + age | Revisit forgotten tasks |
-| **complexity_mismatch** | Content complexity metrics | Notes with unexpected complexity |
+| **stub_expander** | Short notes others link to | Develop well-linked stubs |
+| **task_archaeology** | Incomplete tasks + age | Revive or archive forgotten tasks |
 | **vocabulary_expansion** | Whole-vault embedding dispersion across sessions | Whether your thinking is spreading or converging |
 | **structure_diversity_checker** | Note structure patterns | Add variety to writing |
-| **metadata_driven_discovery** | Metadata patterns | Unexpected property combinations |
+| **metadata_driven_discovery** | Root TTR + staleness | Buried gems: rich old notes |
 
 **Characteristics**:
 - 📏 Uses simple metrics (counts, ratios)
@@ -200,9 +195,7 @@ These geists apply creative transformations (SCAMPER, scale shifts, etc.) to gen
 | **question_generator** | Statements → Questions | Reframe declarative as inquiry |
 
 **Tracery geists**:
-- **perspective_shifter** - View notes through different lenses
-- **transformation_suggester** - Showcase all Tracery modifiers
-- **what_if** - Generate "What if...?" prompts
+- **what_if** - "What if...?" lenses, constraints and transformations, each naming a note
 
 **Characteristics**:
 - 🎨 Uses creative thinking frameworks
@@ -220,7 +213,7 @@ These geists analyze what you've been working on recently to reveal patterns in 
 
 | Geist | Examines | Reveals |
 |-------|----------|---------|
-| **recent_focus** | Recently modified notes | Current areas of attention |
+| **recent_focus** | Recent notes vs older notes | An old idea your recent work resembles most |
 | **blind_spot_detector** | Recent semantic neighborhoods | Gaps in current thinking |
 
 **Characteristics**:
@@ -241,19 +234,13 @@ rhythm, semantic surprisal, and neighbourhood churn.
 
 | Geist | Signal | Provocation |
 |-------|--------|-------------|
-| **temporal_voice** | Past vs future orientation | What changes when the note looks backward/forward? |
 | **self_and_other** | I/me vs we/us language | Where is thinking private vs collective? |
 | **uncertainty_mapper** | Hedging density | What are you not ready to commit to? |
 | **sentence_variance** | Sentence rhythm | Where does the prose speed up or fragment? |
 | **surprisal** | Semantic unexpectedness | What does the outlier know? |
-| **attention_shift** | Neighbourhood churn | Where has attention moved? |
-| **this_time_last_year** | Calendar recurrence | What has changed since this season last year? |
+| **attention_shift** | Neighbourhood churn (sampled) | Where has attention moved? |
+| **this_time_last_year** | Same day, ±7 days, then same season in earlier years | What has changed since then? |
 | **voice_absence** | Missing voice classes | What kinds of notes are absent? |
-
-**Tracery geists**:
-- **questioning_mind** - Prompts from notes dense with questions
-- **temporal_contrast** - Invites rewriting a past-focused note looking forward
-- **unexpected_neighbour** - Surfaces surprising notes via vault functions
 
 **Characteristics**:
 - 🔍 Evidence-backed prompts (names the signal it observed)
@@ -269,14 +256,14 @@ These geists use Tracery grammars rather than code, demonstrating the declarativ
 
 | Geist | Purpose |
 |-------|---------|
-| **hub_explorer** | Highlights hub notes with many connections |
-| **note_combinations** | Suggests combining random notes creatively |
-| **orphan_connector** | Suggests connections for orphaned notes |
-| **random_prompts** | Generates random creative prompts |
-| **questioning_mind** | Prompts from notes dense with questions |
-| **semantic_neighbours** | Shows semantic neighborhoods |
-| **temporal_contrast** | Invites rewriting a past-focused note looking forward |
-| **unexpected_neighbour** | Surfaces surprising notes |
+| **contradictor** | Asks what contradicts a sampled note |
+| **hub_explorer** | Well-linked notes (3+ backlinks, 100+ words) to review and refine |
+| **what_if** | "What if" lenses, constraints and transformations, each naming one of your notes |
+
+**Extension examples** (not bundled; `examples/geists/`): `tracery/note_combinations.yaml`
+(`$vault.note_pairs` + save actions), `tracery/semantic_neighbours.yaml` (the
+cluster pattern), `tracery/transformation_suggester.yaml` (every Tracery
+modifier), `code/metadata_outlier_detector.py` (the MetadataAnalyser API).
 
 ---
 
@@ -298,9 +285,9 @@ These geists use Tracery grammars rather than code, demonstrating the declarativ
 |----------|--------|
 | **Content only** | Harvesters, pattern_finder |
 | **Metadata only** | stub_expander, task_archaeology, recent_focus |
-| **Links only** | hidden_hub, link_density_analyser, orphan_connector |
+| **Links only** | link_density_analyser |
 | **Embeddings** | All semantic similarity + temporal drift geists |
-| **Multiple sessions** | session_drift |
+| **Multiple sessions** | concept_drift, attention_shift, convergent/divergent_evolution, cyclical_thinking |
 
 ---
 
@@ -319,7 +306,7 @@ These geists use Tracery grammars rather than code, demonstrating the declarativ
 │     - Compare snapshots
 │     - Detect drift
 │     - Question evolution
-│     - Example: session_drift
+│     - Example: concept_drift
 │
 ├─ Want to find unexpected connections?
 │  └─ YES → Use Semantic Similarity pattern

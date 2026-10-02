@@ -1,7 +1,19 @@
-"""Metadata Outlier Detector geist.
+"""Metadata Outlier Detector - example geist using MetadataAnalyser.
 
-Demonstrates MetadataAnalyser abstraction (Phase 5).
-Finds notes with unusual metadata values (outliers) that might warrant attention.
+Finds notes with unusual metadata values (outliers) that might warrant
+attention: an unusually long or short note (z-score on log word count), or
+an unusually link-dense or link-sparse one, each reported against the
+vault median.
+
+What it demonstrates: geistfabrik.metadata_system.MetadataAnalyser -
+distribution() for percentiles such as the median, and outliers() for
+z-score outliers over a chosen subset of notes.
+
+This is an EXTENSION EXAMPLE, not a bundled geist (it is not installed by
+default). Its observations overlap bundled geists - stub_expander for short
+notes, link_density_analyser for link density against the median - so it
+was retired from the defaults. To use it, copy it to
+<vault>/_geistfabrik/geists/code/.
 """
 
 import math
@@ -15,7 +27,7 @@ if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
 # Notes shorter than this are left out of the link-density distribution
-# (same floor as link_density_analyser).
+# (the same floor as the bundled link_density_analyser).
 MIN_WORDS_FOR_DENSITY = 50
 
 

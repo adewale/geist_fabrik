@@ -10,11 +10,14 @@ tracery:
     - "Many #path.s# lead through #hub#. #prompt.capitalize#?"
 
   # Up to five hubs, each with at least three backlinks, so "central" is
-  # true (in a sparse vault the top-ranked note may have one backlink). Each
-  # suggestion picks among them; a vault with no such note gets no
-  # suggestion. Repeats of a note within one session are skipped.
+  # true (in a sparse vault the top-ranked note may have one backlink), and
+  # at least 100 words, so a stub is never told to "split into subtopics"
+  # (stub_expander asks to expand any note under 100 words that five notes
+  # link to; the two geists never name the same note). Each suggestion
+  # picks among them; a vault with no such note gets no suggestion. Repeats
+  # of a note within one session are skipped.
   hub:
-    - "$vault.hubs(5, 3)"
+    - "$vault.hubs(5, 3, 100)"
 
   verb:
     - "connect"

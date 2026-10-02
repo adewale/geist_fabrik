@@ -4,7 +4,10 @@ Trigger arithmetic (see the geist source; metadata "now" is the session
 date):
 - a note qualifies when it has at least one open "- [ ]" task and
   days_since_modified > 30;
-- output is capped at 3 suggestions.
+- with two or more qualifying notes, two of them are paired in one
+  "revive them, or archive them?" suggestion (merged in from
+  metadata_driven_discovery); the rest are named singly, no note twice;
+- output is capped at 3 suggestions (4 notes: a pair and two singles).
 """
 
 from datetime import timedelta
@@ -64,9 +67,9 @@ def test_output_is_capped_when_more_notes_qualify(tmp_path: Path) -> None:
     suggestions = task_archaeology.suggest(builder.build())
 
     assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
-    assert len(suggestions) == CAP
+    assert [len(s.notes) for s in suggestions] == [2, 1, 1]
     referenced = [ref for s in suggestions for ref in s.notes]
-    assert len(set(referenced)) == CAP
+    assert len(set(referenced)) == 4
     assert set(referenced) <= set(planted)
 
 
@@ -94,3 +97,36 @@ def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
 
     assert first
     assert first == second
+
+
+@pytest.mark.parametrize(("stale", "expected_shape"), [(1, [1]), (2, [2]), (3, [2, 1])])
+def test_two_stale_task_notes_are_paired_with_revive_or_archive(
+    tmp_path: Path, stale: int, expected_shape: list[int]
+) -> None:
+    """Contract: two or more stale task notes yield one paired suggestion
+    listing each note's open-task count and staleness, asking "revive them,
+    or archive them?"; any others are named singly, and no note twice.
+
+    Regression: the pairing was metadata_driven_discovery's pattern 3, which
+    named the same stale task notes as this geist in the same session.
+    """
+    builder = VaultBuilder(tmp_path)
+    ages = {"Garden Plan": 45, "Shed Plan": 75, "Pond Plan": 120}
+    titles = list(ages)[:stale]
+    for title in titles:
+        _note(builder, title, TASKS, age_days=ages[title])
+
+    suggestions = task_archaeology.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST)
+    assert [len(s.notes) for s in suggestions] == expected_shape
+    assert sorted(ref for s in suggestions for ref in s.notes) == sorted(titles)
+    pairs = [s for s in suggestions if len(s.notes) == 2]
+    assert [p.text for p in pairs] == [
+        "These notes have incomplete tasks but haven't been updated recently:\n"
+        + "\n".join(
+            f"- [[{t}]] (2 incomplete tasks, untouched for {ages[t]} days)" for t in p.notes
+        )
+        + "\n\nTime to revive them, or archive them?"
+        for p in pairs
+    ]

@@ -186,7 +186,7 @@ def test_scenario_temporal_geist_finds_last_years_note(tmp_path: Path) -> None:
     written = datetime(2024, 1, 15, 9, 0).timestamp()
     os.utime(old, (written, written))
 
-    code = _invoke(vault, "--geist", "on_this_day", "--date", "2025-01-15", "--write")
+    code = _invoke(vault, "--geist", "this_time_last_year", "--date", "2025-01-15", "--write")
 
     assert code == 0
     note = _journal(vault, "2025-01-15")

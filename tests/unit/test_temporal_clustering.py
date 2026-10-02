@@ -1,186 +1,308 @@
-"""Tests for the temporal_clustering geist.
+"""Tests for the temporal_clustering geist (runs the former
+seasonal_topic_analysis algorithm).
 
-Trigger: >= 20 non-journal notes; notes are grouped into eight consecutive
-90-day windows ending at the session date (2 years). A window with >= 5 notes
-whose (sampled) average pairwise similarity is > 0.5 is a coherent period.
-With >= 2 coherent periods, ONE suggestion contrasts the two most coherent,
-naming 3 notes from each.
+Trigger: >= 20 user notes, and in at least one season window (the
+meteorological seasons of temporal_analysis.get_season(): winter Dec 1 -
+end of Feb, spring Mar - May, summer Jun - Aug, autumn Sep - Nov, each at its
+most recent occurrence that began on or before the session date) an anchor
+note with >= 2 other in-season notes at similarity >= 0.60. The suggestion
+names the anchor and its two closest companions. One suggestion per season,
+2 sampled. Winter is labelled with both years it spans ("winter 2023-24").
+Notes dated after the session date are not counted. When two seasons' threads
+have a mean cross-similarity >= 0.60, ONE suggestion names both as related.
 
-Session 2024-03-15 windows: #0 2023-12-16..2024-03-15, #1 2023-09-17..
-2023-12-16, #2 2023-06-19..2023-09-17, ... #7 ends 2022-03-26.
+Fixture arithmetic (lexical stub): the three notes of a season share their
+title words and five topic words and differ only by a digit (ignored by the
+stub), so their semantic similarity is 1.0; created days apart, their
+calendar features are near-identical too, so similarity is far above 0.60.
+Filler notes are created in 2022, before every window, with words of their own.
 """
 
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from geistfabrik.default_geists.code import temporal_clustering
 from geistfabrik.vault_context import VaultContext
-from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
 
-WINTER, AUTUMN, SUMMER = datetime(2024, 2, 1), datetime(2023, 11, 1), datetime(2023, 8, 1)
-LONG_AGO = datetime(2021, 6, 1)  # outside the 2-year horizon
-
-# Each note is "<theme words> <one unique word>" under a "<Theme> i" title, so
-# notes of one period share all but one word: pairwise similarity 8/9 = 0.89
-# (garden), 7/8 = 0.88 (rocket), 2/3 = 0.67 (violin).
-THEMES = {
-    "Garden": "gardens soil compost mulch seeds worms rain",
-    "Rocket": "rockets orbit fuel launch booster payload",
-    "Violin": "rosin",
+WINTER_2023 = [datetime(2023, 12, 28), datetime(2024, 1, 10), datetime(2024, 2, 5)]
+TOPICS = {
+    "Snow": "frost lantern cocoa blizzard sledge",
+    "Bloom": "tulips pollen meadow blossom bees",
+    "Tide": "surf sandcastle sunscreen harbour waves",
 }
 
 
-def _unique(prefix: str, i: int) -> str:
-    return " ".join(f"{prefix}{i}{suffix}" for suffix in ("alpha", "bravo", "charlie"))
-
-
 def _vault(
-    root: Path, periods: list[tuple[str, datetime, int]], *, scattered: int = 0
+    root: Path,
+    seasons: dict[str, list[datetime]],
+    *,
+    session_date: datetime = SESSION_DATE,
+    fillers: int = 17,
+    journal: dict[str, list[datetime]] | None = None,
 ) -> VaultContext:
-    """``periods``: (theme, created, count) coherent groups; plus ``scattered``
-    notes with unique vocabulary created in the SUMMER window."""
+    """``seasons`` maps a TOPICS key to the creation dates of its notes."""
     builder = VaultBuilder(root)
-    for theme, created, count in periods:
-        for i in range(count):
-            builder.note(f"{theme} {i}", f"{THEMES[theme]} {theme.lower()}{i}x", created=created)
-    for i in range(scattered):
-        builder.note(f"Scattered {i}", _unique("scatter", i), created=SUMMER)
-    return builder.build()
+    for topic, dates in seasons.items():
+        for i, created in enumerate(dates):
+            builder.note(f"{topic} Note {i}", TOPICS[topic], created=created)
+    for topic, dates in (journal or {}).items():
+        for i, created in enumerate(dates):
+            builder.journal(f"{topic} Session {i}", TOPICS[topic], created=created)
+    for i in range(fillers):
+        builder.note(
+            f"Filler {i}", f"ledger{i} invoice{i} receipt{i}", created=datetime(2022, 1, 5)
+        )
+    return builder.build(session_date=session_date)
 
 
-def test_temporal_clustering_contrasts_two_coherent_periods(tmp_path):
-    # Trigger arithmetic: 6 garden notes in window #0 and 6 rocket notes in
-    # window #1 are coherent (> 0.5); 8 scattered notes (~0) in window #2 are
-    # not. 20 notes in total.
-    ctx = _vault(tmp_path, [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6)], scattered=8)
+@pytest.mark.parametrize(
+    ("session_date", "created", "label"),
+    [
+        # January: inside the winter that began the previous December.
+        (
+            datetime(2024, 1, 15),
+            [datetime(2023, 12, 22), datetime(2024, 1, 2), datetime(2024, 1, 10)],
+            "winter 2023-24",
+        ),
+        # Mid March, spring: the latest winter is the one that began last December.
+        (SESSION_DATE, WINTER_2023, "winter 2023-24"),
+        # November: winter has not begun, so look back a year.
+        (datetime(2024, 11, 20), WINTER_2023, "winter 2023-24"),
+        # December: the winter that runs into the following year.
+        (
+            datetime(2024, 12, 30),
+            [datetime(2024, 12, 2), datetime(2024, 12, 24), datetime(2024, 12, 27)],
+            "winter 2024-25",
+        ),
+    ],
+    ids=["january", "mid-march", "november", "december"],
+)
+def test_temporal_clustering_finds_the_latest_winter(tmp_path, session_date, created, label):
+    """Happy path, and the regression for the winter window.
+
+    Bug: for session dates from March 1 on, the winter window was the one
+    starting the coming December, after the session date, so winter notes
+    were never found (mid-march and november failed).
+    """
+    ctx = _vault(tmp_path, {"Snow": created}, session_date=session_date)
 
     suggestions = temporal_clustering.suggest(ctx)
 
-    assert_valid_suggestions(
-        suggestions,
-        "temporal_clustering",
-        must_reference=["Garden", "Rocket"],
-        must_not_reference=["geist journal", "Scattered"],
-    )
-    [suggestion] = suggestions
-    assert len(suggestion.notes) == 6
-    assert sum(ref.startswith("Garden") for ref in suggestion.notes) == 3
-    assert sum(ref.startswith("Rocket") for ref in suggestion.notes) == 3
+    assert_valid_suggestions(suggestions, "temporal_clustering", must_reference=["Snow Note"])
+    assert len(suggestions) == 1
+    assert suggestions[0].text.startswith(f"In {label}, you wrote closely related notes: [[Snow")
+    # The anchor and its two in-season companions
+    assert sorted(suggestions[0].notes) == ["Snow Note 0", "Snow Note 1", "Snow Note 2"]
 
 
-def test_temporal_clustering_labels_periods_by_their_dates(tmp_path):
-    """Regression: windows were labelled "Q{i % 4 + 1}-{year}" by their index,
-    so November 2023 notes (window #1) were called "Q2-2023". Labels name the
-    months each window spans."""
-    ctx = _vault(tmp_path, [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6)], scattered=8)
+def test_temporal_clustering_window_ends_on_the_last_day(tmp_path):
+    """Boundary pair on the spring/summer edge (session in July).
 
-    [suggestion] = temporal_clustering.suggest(ctx)
+    Contract: seasons are get_season()'s, as in the sibling seasonal geists:
+    a note made on May 31 (late in the day) is the third spring note; one
+    made on June 1 is summer, leaving spring one note short.
 
-    assert suggestion.text.startswith("Your Dec 2023 to Mar 2024 notes hang together semantically")
-    assert "and so do your Sep 2023 to Dec 2023 notes" in suggestion.text
-    assert "Q2-2023" not in suggestion.text
-
-
-def test_temporal_clustering_does_not_claim_periods_are_separate(tmp_path):
-    """Contract: the text claims only what is measured: each period is
-    internally cohesive. It never says the periods are separate.
-
-    Regression: it said one period formed "a distinct semantic cluster ...
-    separate from" the other, but never compared the two periods. Here both
-    periods are about the same theme, so "separate" would be false.
+    Regression: the windows were astronomical (spring ran to June 20), so
+    June 1-20 notes were "spring" here and "summer" in the other seasonal
+    geists (seasonal_patterns, this_time_last_year). (Earlier regression:
+    each window ended at midnight at the START of its last day.)
     """
+    last_day = [datetime(2024, 4, 2), datetime(2024, 5, 2), datetime(2024, 5, 31, 15)]
+    next_day = [datetime(2024, 4, 2), datetime(2024, 5, 2), datetime(2024, 6, 1)]
+    july = datetime(2024, 7, 15)
+
+    inside = _vault(tmp_path / "inside", {"Bloom": last_day}, session_date=july)
+    outside = _vault(tmp_path / "outside", {"Bloom": next_day}, session_date=july)
+
+    assert_valid_suggestions(
+        temporal_clustering.suggest(inside),
+        "temporal_clustering",
+        must_reference=["In spring 2024"],
+    )
+    assert temporal_clustering.suggest(outside) == []
+
+
+def test_temporal_clustering_needs_an_anchor_and_two_companions(tmp_path):
+    """Boundary pair: two alike winter notes are not a pattern; three are."""
+    two = _vault(tmp_path / "two", {"Snow": WINTER_2023[:2]}, fillers=18)
+    three = _vault(tmp_path / "three", {"Snow": WINTER_2023})
+
+    assert temporal_clustering.suggest(two) == []
+    assert_valid_suggestions(
+        temporal_clustering.suggest(three),
+        "temporal_clustering",
+        must_reference=["Snow Note"],
+    )
+
+
+def test_temporal_clustering_needs_alike_notes(tmp_path):
+    """Three winter notes on three different topics share no words: whichever
+    is the anchor, no other note reaches 0.60 similarity."""
     builder = VaultBuilder(tmp_path)
-    for i in range(6):
-        builder.note(f"Garden {i}", f"{THEMES['Garden']} garden{i}x", created=WINTER)
-        builder.note(f"Garden Again {i}", f"{THEMES['Garden']} again{i}x", created=AUTUMN)
-    for i in range(8):
-        builder.note(f"Scattered {i}", _unique("scatter", i), created=SUMMER)
-    ctx = builder.build()
+    for (topic, words), created in zip(TOPICS.items(), WINTER_2023, strict=True):
+        builder.note(f"{topic} Note", words, created=created)
+    for i in range(17):
+        builder.note(
+            f"Filler {i}", f"ledger{i} invoice{i} receipt{i}", created=datetime(2022, 1, 5)
+        )
 
-    [suggestion] = temporal_clustering.suggest(ctx)
-
-    assert "separate" not in suggestion.text
-    assert "distinct" not in suggestion.text
-    assert suggestion.text.endswith("Different intellectual seasons, or one continuing thread?")
+    assert temporal_clustering.suggest(builder.build()) == []
 
 
 def test_temporal_clustering_needs_twenty_notes(tmp_path):
-    """Boundary pair: 19 notes -> nothing; 20 -> contrasted."""
-    periods = [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6)]
+    """Boundary pair: 3 winter notes + 16 fillers = 19 is too few; + 17 = 20 fires."""
+    nineteen = _vault(tmp_path / "19", {"Snow": WINTER_2023}, fillers=16)
+    twenty = _vault(tmp_path / "20", {"Snow": WINTER_2023}, fillers=17)
 
-    assert temporal_clustering.suggest(_vault(tmp_path / "19", periods, scattered=7)) == []
+    assert len(nineteen.notes()) == 19
+    assert temporal_clustering.suggest(nineteen) == []
     assert_valid_suggestions(
-        temporal_clustering.suggest(_vault(tmp_path / "20", periods, scattered=8)),
+        temporal_clustering.suggest(twenty),
         "temporal_clustering",
+        must_reference=["Snow Note"],
     )
 
 
-def test_temporal_clustering_period_needs_five_notes(tmp_path):
-    """Boundary pair: a coherent 4-note period does not count; 5 notes does."""
-    four = _vault(tmp_path / "4", [("Garden", WINTER, 6), ("Rocket", AUTUMN, 4)], scattered=10)
-    five = _vault(tmp_path / "5", [("Garden", WINTER, 6), ("Rocket", AUTUMN, 5)], scattered=9)
-
-    assert temporal_clustering.suggest(four) == []
-    assert_valid_suggestions(
-        temporal_clustering.suggest(five), "temporal_clustering", must_reference=["Rocket"]
-    )
-
-
-def test_temporal_clustering_reports_only_the_two_most_coherent_periods(tmp_path):
-    """Three coherent periods yield one suggestion about the top two; the least
-    coherent (violin, 0.67) is left out."""
+def test_temporal_clustering_caps_at_two(tmp_path):
+    """Cap: a November session sees last winter, this spring and this summer;
+    a pattern in all three yields exactly two suggestions, from different seasons."""
     ctx = _vault(
         tmp_path,
-        [("Garden", WINTER, 6), ("Rocket", AUTUMN, 6), ("Violin", SUMMER, 8)],
+        {
+            "Snow": WINTER_2023,
+            "Bloom": [datetime(2024, 4, d) for d in (2, 9, 16)],
+            "Tide": [datetime(2024, 7, d) for d in (2, 9, 16)],
+        },
+        session_date=datetime(2024, 11, 1),
+        fillers=11,
     )
 
     suggestions = temporal_clustering.suggest(ctx)
 
-    assert_valid_suggestions(
-        suggestions,
-        "temporal_clustering",
-        must_reference=["Garden", "Rocket"],
-        must_not_reference=["geist journal", "Violin"],
-    )
-    assert len(suggestions) == 1
-
-
-def test_temporal_clustering_ignores_periods_older_than_two_years(tmp_path):
-    """A coherent period from 2021 is outside the eight windows."""
-    ctx = _vault(tmp_path, [("Garden", WINTER, 6), ("Rocket", LONG_AGO, 6)], scattered=8)
-
-    assert temporal_clustering.suggest(ctx) == []
+    assert len(suggestions) == 2
+    assert_valid_suggestions(suggestions, "temporal_clustering")
+    seasons = {s.text.split(",")[0] for s in suggestions}
+    assert len(seasons) == 2
+    assert seasons <= {"In winter 2023-24", "In spring 2024", "In summer 2024"}
 
 
 def test_temporal_clustering_excludes_geist_journal(tmp_path):
-    """Session notes are near-identical, so they form the most coherent
-    "period" of all. Both directions: the two user periods are contrasted and
-    no session note is named."""
-    builder = VaultBuilder(tmp_path)
-    for theme, created in (("Garden", WINTER), ("Rocket", AUTUMN)):
-        for i in range(6):
-            builder.note(f"{theme} {i}", f"{THEMES[theme]} {theme.lower()}{i}x", created=created)
-    for i in range(8):
-        builder.journal(f"2023-08-{i + 1:02d}", "geist session suggestions output", created=SUMMER)
-    for i in range(8):
-        builder.note(f"Scattered {i}", _unique("scatter", i), created=datetime(2023, 3, 1))
-    ctx = builder.build()
+    """Both directions: session notes from the same winter on the same topic
+    are never named (and never count as companions); the user's notes are."""
+    ctx = _vault(tmp_path, {"Snow": WINTER_2023}, journal={"Snow": WINTER_2023})
 
     suggestions = temporal_clustering.suggest(ctx)
 
     assert_valid_suggestions(
         suggestions,
         "temporal_clustering",
-        must_reference=["Garden", "Rocket"],
-        must_not_reference=["geist journal", "2023-08-"],
+        must_reference=["Snow Note"],
+        must_not_reference=["geist journal", "Snow Session"],
     )
 
 
-def test_temporal_clustering_is_deterministic_for_a_seed(tmp_path):
-    periods = [("Garden", WINTER, 8), ("Rocket", AUTUMN, 8)]
+def test_temporal_clustering_names_the_anchor_in_get_season_terms(tmp_path):
+    """Contract: the suggestion names the anchor note itself plus its two
+    closest companions, says what was measured (closely related notes from
+    one season) without claiming a seasonal pattern, and places December
+    notes in winter, as get_season() and the sibling seasonal geists do.
 
-    first = temporal_clustering.suggest(_vault(tmp_path / "a", periods, scattered=4))
-    second = temporal_clustering.suggest(_vault(tmp_path / "b", periods, scattered=4))
+    Regression: the anchor was left out (only the companions were named), the
+    text asked "What seasonal pattern might this reflect?" although nothing
+    is compared across years, and December 1-20 counted as "fall".
+    """
+    december = [datetime(2024, 12, 5), datetime(2024, 12, 10), datetime(2024, 12, 15)]
+    ctx = _vault(tmp_path, {"Snow": december}, session_date=datetime(2025, 1, 15))
 
-    assert len(first) == 1
-    assert [s.text for s in first] == [s.text for s in second]
+    suggestions = temporal_clustering.suggest(ctx)
+
+    assert [sorted(s.notes) for s in suggestions] == [["Snow Note 0", "Snow Note 1", "Snow Note 2"]]
+    names = ", ".join(f"[[{n}]]" for n in suggestions[0].notes)
+    assert suggestions[0].text == (
+        f"In winter 2024-25, you wrote closely related notes: {names}. Is that thread still alive?"
+    )
+
+
+def test_temporal_clustering_names_one_seasons_thread(tmp_path):
+    """Contract: a single season holding an anchor and two closely related
+    companions is enough; the suggestion names those three notes as a thread.
+
+    Regression (merged from seasonal_topic_analysis): temporal_clustering
+    needed two 90-day windows of >= 5 notes each with a high average
+    similarity, so one season's thread of three notes went unmentioned.
+    """
+    ctx = _vault(tmp_path, {"Snow": WINTER_2023})
+
+    suggestions = temporal_clustering.suggest(ctx)
+
+    assert [sorted(s.notes) for s in suggestions] == [["Snow Note 0", "Snow Note 1", "Snow Note 2"]]
+    names = ", ".join(f"[[{n}]]" for n in suggestions[0].notes)
+    assert suggestions[0].text == (
+        f"In winter 2023-24, you wrote closely related notes: {names}. Is that thread still alive?"
+    )
+
+
+def test_temporal_clustering_joins_threads_only_when_measured_alike(tmp_path):
+    """Contract: two seasons' threads are called related to each other only
+    when their notes' mean cross-similarity reaches 0.60; then ONE suggestion
+    names both, earlier season first.
+
+    Regression: two cohesive periods were set side by side ("one continuing
+    thread?") without ever comparing them; here winter and spring threads on
+    the same topic are joined, while unrelated threads stay separate.
+    """
+    builder = VaultBuilder(tmp_path / "alike")
+    for i, created in enumerate(WINTER_2023):
+        builder.note(f"Snow Note {i}", TOPICS["Snow"], created=created)
+    for i, day in enumerate((2, 6, 10)):
+        builder.note(f"Thaw Note {i}", TOPICS["Snow"], created=datetime(2024, 3, day))
+    for i in range(14):
+        builder.note(
+            f"Filler {i}", f"ledger{i} invoice{i} receipt{i}", created=datetime(2022, 1, 5)
+        )
+    alike = temporal_clustering.suggest(builder.build())
+    unrelated = temporal_clustering.suggest(
+        _vault(
+            tmp_path / "unrelated",
+            {"Snow": WINTER_2023, "Bloom": [datetime(2024, 3, d) for d in (2, 6, 10)]},
+            fillers=14,
+        )
+    )
+
+    assert [sorted(s.notes) for s in alike] == [
+        [*(f"Snow Note {i}" for i in range(3)), *(f"Thaw Note {i}" for i in range(3))]
+    ]
+    winter = ", ".join(f"[[{n}]]" for n in alike[0].notes[:3])
+    spring = ", ".join(f"[[{n}]]" for n in alike[0].notes[3:])
+    assert alike[0].notes[0].startswith("Snow") and alike[0].notes[3].startswith("Thaw")
+    assert alike[0].text == (
+        f"Your winter 2023-24 thread ({winter}) and your spring 2024 thread ({spring}) "
+        "are closely related to each other too. Is it one line of thought you keep "
+        "returning to?"
+    )
+    assert sorted(s.text.split(",")[0] for s in unrelated) == [
+        "In spring 2024",
+        "In winter 2023-24",
+    ]
+    assert all("related to each other" not in s.text for s in unrelated)
+
+
+def test_temporal_clustering_ignores_notes_dated_after_the_session(tmp_path):
+    """Contract: on a replay, spring notes dated after the session date have
+    not been written yet, so they neither anchor nor join a thread.
+
+    Regression: the current season's window ran to its last day, so a March
+    15 replay counted notes from April and May.
+    """
+    later = [datetime(2024, 3, 10), datetime(2024, 4, 2), datetime(2024, 5, 2)]
+    before = [datetime(2024, 3, 2), datetime(2024, 3, 6), datetime(2024, 3, 10)]
+
+    assert temporal_clustering.suggest(_vault(tmp_path / "later", {"Bloom": later})) == []
+    assert_valid_suggestions(
+        temporal_clustering.suggest(_vault(tmp_path / "before", {"Bloom": before})),
+        "temporal_clustering",
+        must_reference=["Bloom Note"],
+    )

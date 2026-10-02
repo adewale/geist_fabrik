@@ -5,6 +5,11 @@
 *Supersedes: specs/sentiment_geists_spec.md (withdrawn)*
 *v1.1: Added performance characteristics, vectorised algorithms for surprisal/attention-drift, and a comprehensive testing strategy based on adewale/testing-best-practices*
 
+> **Geist merges (2026-10).** Several geists named here were merged into the one
+> truest to the vision or retired; see the merge table in
+> [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10). Code below that
+> names a retired geist is design history.
+
 ---
 
 ## Overview

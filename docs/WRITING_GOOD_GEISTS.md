@@ -595,7 +595,7 @@ for note in vault.sample(notes, min(30, len(notes))):
 - Sampling won't significantly reduce quality
 - You need representative results, not exhaustive
 
-**Used by**: `columbo`, `bridge_builder`, `temporal_mirror`
+**Used by**: `columbo`, `bridge_builder`, `creative_collision`
 
 ### Strategy 2: Analyze-All-Then-Sample (Quality-Focused)
 
@@ -1515,7 +1515,7 @@ def suggest(vault):
 - `TemporalSemanticQuery`: Fuse time + semantics (seasonal patterns, time-bounded similarity)
 
 **Example Geists**:
-- `drift_velocity_anomaly.py` - Detects accelerating drift (~30 lines vs 60+)
+- `concept_drift.py` - Notes you rewrote, and which neighbour they moved toward
 - `cyclical_thinking.py` - Finds cyclical patterns (~25 lines)
 
 ### Abstraction 4: Graph Analysis
@@ -1642,7 +1642,7 @@ To refactor existing geists:
 - **Specification**: `specs/reuse_abstractions_spec.md` - Complete API reference
 - **Example Geists**:
   - `definition_harvester.py` - Content extraction
-  - `drift_velocity_anomaly.py` - Temporal analysis
+  - `concept_drift.py` - Temporal analysis
   - `cyclical_thinking.py` - Pattern finding
 - **Source Modules**: `src/geistfabrik/{similarity,temporal,clustering,graph}_analysis.py`
 
@@ -1679,7 +1679,7 @@ To refactor existing geists:
 
 **Philosophy & craft**:
 - `columbo.py` - Gold standard for provocative questioning
-- `session_drift.py` - Excellent temporal framing
+- `concept_drift.py` - Temporal framing grounded in edits ("since your session on ...")
 - `assumption_challenger.py` - Great Socratic style
 - `scale_shifter.py` - Superb perspective shifting
 
@@ -1689,7 +1689,7 @@ To refactor existing geists:
 - `question_harvester.py` - Content extraction with validation
 
 **Tracery patterns**:
-- `transformation_suggester.yaml` - Modifier chaining
+- `examples/geists/tracery/transformation_suggester.yaml` - Modifier chaining (extension example)
 - `contradictor.yaml` - Template variation
 
 ### Documentation

@@ -1,12 +1,13 @@
 """Regression tests for per-session cluster label persistence (schema v7).
 
-cluster_evolution_tracker compares each note's current cluster against the
-label stored in session_embeddings.cluster_label for a previous session. The
-column historically did not exist and nothing wrote it, so the reader raised
-sqlite3.OperationalError on every run and the geist never worked. These tests
-lock down the schema column, the v6->v7 migration, the writer
-(VaultContext.persist_cluster_labels) and the reader
-(previous_cluster_label_for_note).
+VaultContext keeps an API for comparing each note's current cluster against
+the label stored in session_embeddings.cluster_label for a previous session
+(first used by the since-retired cluster_evolution_tracker geist; the API and
+column stay, as the DB change policy is non-destructive). The column
+historically did not exist and nothing wrote it, so the reader raised
+sqlite3.OperationalError on every run. These tests lock down the schema
+column, the v6->v7 migration, the writer (VaultContext.persist_cluster_labels)
+and the reader (previous_cluster_label_for_note).
 """
 
 import sqlite3

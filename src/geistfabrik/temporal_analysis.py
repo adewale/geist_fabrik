@@ -5,7 +5,7 @@ Tracks semantic trajectories, drift patterns, and temporal relationships
 between notes.
 
 This module extracts the recurring pattern from temporal geists (concept_drift,
-convergent_evolution, divergent_evolution, burst_evolution) into reusable
+convergent_evolution, divergent_evolution, creation_burst) into reusable
 components.
 """
 
