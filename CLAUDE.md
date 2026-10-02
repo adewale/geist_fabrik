@@ -490,7 +490,7 @@ class Note:
 @dataclass
 class Suggestion:
     text: str           # 1-2 sentence suggestion (variable length)
-    notes: List[str]    # Referenced note titles
+    notes: List[str]    # Referenced notes' link_text (file name, or "file|Title" when they differ)
     geist_id: str       # Identifier of creating geist
     title: str = None   # Optional suggested note title
 ```

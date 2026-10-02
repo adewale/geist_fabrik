@@ -4,6 +4,7 @@ import posixpath
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
+from pathlib import PurePosixPath
 
 
 def _normalise_vault_path(path: str) -> str:
@@ -52,6 +53,11 @@ def link_target_forms(
     return frozenset(forms)
 
 
+def _strip_alias(target: str) -> str:
+    """Drop an Obsidian display alias: "file|Shown title" -> "file"."""
+    return target.split("|", 1)[0]
+
+
 class NoteLinkIndex:
     """Resolve link identities consistently without a SQL query per edge.
 
@@ -97,6 +103,7 @@ class NoteLinkIndex:
 
     def candidates(self, target: str, source_path: str | None = None) -> frozenset[str]:
         """Return the best matching identities (possibly ambiguous)."""
+        target = _strip_alias(target)
         target = _normalise_vault_path(target.strip()).split("^", 1)[0].rstrip("#").strip()
         source_identity = source_path if source_path in self.sources else None
         if source_identity is None and source_path:
@@ -104,9 +111,12 @@ class NoteLinkIndex:
             if len(source_candidates) == 1:
                 source_identity = next(iter(source_candidates))
         source_file = self.sources.get(source_identity or "")
-        if source_file and self.sources.get(source_identity or "") != _normalise_vault_path(
-            source_identity or ""
-        ) and "#" not in target:
+        if (
+            source_file
+            and self.sources.get(source_identity or "")
+            != _normalise_vault_path(source_identity or "")
+            and "#" not in target
+        ):
             # Import here because date_collection also constructs Note objects.
             from .date_collection import parse_date_heading
 
@@ -173,7 +183,7 @@ class NoteLinkIndex:
         boundaries need the broader set: a public path alias must not conceal an
         excluded note that emits the same title.
         """
-        raw_target = target
+        raw_target = _strip_alias(target)
         normalised_target = _normalise_vault_path(raw_target)
         matches = set(self.forms.get(raw_target, set()))
         matches.update(self.forms.get(normalised_target, set()))
@@ -284,9 +294,12 @@ class Note:
             # Remove .md extension from source file
             filename = _normalise_vault_path(self.source_file).removesuffix(".md")
             return f"{filename}#{self.title}"
-        else:
-            # For regular notes, just use the title
-            return self.title
+        # Obsidian resolves [[...]] by file name (or alias), never by the H1 or
+        # frontmatter title. When the title differs from the file name, link
+        # to the file and show the title: [[EMBEDDINGS_SPEC|Embeddings Spec]].
+        # A bare [[Embeddings Spec]] would be a dead link in Obsidian.
+        stem = PurePosixPath(_normalise_vault_path(self.path)).name.removesuffix(".md")
+        return self.title if stem == self.title else f"{stem}|{self.title}"
 
 
 @dataclass(frozen=True)

@@ -68,6 +68,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
 
 ### Fixed
+- Journal links to a note whose title (H1 or frontmatter `title`) differs
+  from its file name were dead in Obsidian, which links by file name:
+  `EMBEDDINGS_SPEC.md` titled "Embeddings Specification" was written as
+  `[[Embeddings Specification]]`, and clicking it created an empty note.
+  `Note.link_text` now links to the file and shows the title
+  (`[[EMBEDDINGS_SPEC|Embeddings Specification]]`); notes whose title is their
+  file name are unchanged. Link resolution and privacy boundaries accept the
+  alias form.
 - Links written inside fenced, indented or inline code (Tracery examples
   such as `[[#note#]]`, f-strings like `f"[[{title}]]"`) were stored as real
   links, inflating link counts and inventing hubs. Tags now follow Obsidian's
