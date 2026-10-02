@@ -1066,7 +1066,8 @@ def test_similarity_ignores_calendar_features(tmp_path: Path) -> None:
         "SELECT embedding FROM session_embeddings WHERE note_path = ?", (old.path,)
     ).fetchone()[0]
     assert len(stored) == 387 * 4  # calendar features are still stored...
-    assert ctx.get_embedding(old.path).shape == (384,)  # ...but not compared
+    meaning = ctx.get_embedding(old.path)
+    assert meaning is not None and meaning.shape == (384,)  # ...but not compared
     assert ctx.similarity(old, new) == pytest.approx(1.0, abs=1e-6)
     assert ctx.batch_similarity([old], [new])[0, 0] == pytest.approx(1.0, abs=1e-6)
     assert ctx.neighbours(old, 1) == [new]
