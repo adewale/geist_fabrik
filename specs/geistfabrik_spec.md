@@ -31,7 +31,7 @@ class Note:
     links: List[Link]   # Outgoing [[links]]
     tags: List[str]     # #tags found in note
     created: datetime   # Declared: frontmatter `created:`, else a dated file name; else file timestamps
-    modified: datetime  # Last modification time
+    modified: datetime  # Declared: frontmatter `modified:`, else `updated:`; else file mtime
 ```
 
 Notes are lightweight, immutable data structures. All derived intelligence (metadata, graph metrics, semantic properties) lives in VaultContext, not in Note objects.

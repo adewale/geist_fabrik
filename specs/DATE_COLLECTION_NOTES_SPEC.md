@@ -169,7 +169,7 @@ class Note:
     links: list[Link]      # Links from this entry
     tags: list[str]        # Tags from this entry
     created: datetime      # Entry date (from heading)
-    modified: datetime     # File modification time
+    modified: datetime     # Source file's modified date (frontmatter `modified:`/`updated:`, else mtime)
 
     # Fields for date-collection support
     is_virtual: bool = False           # True for split entries

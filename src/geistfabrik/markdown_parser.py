@@ -302,6 +302,34 @@ def _as_naive_datetime(value: object) -> datetime | None:
     return parsed
 
 
+def _frontmatter_date(content: str, keys: tuple[str, ...]) -> datetime | None:
+    """The first frontmatter property among ``keys`` that holds a valid date.
+
+    Keys are matched case-insensitively and tried in the order given.
+    """
+    frontmatter, _ = parse_frontmatter(content)
+    if not frontmatter:
+        return None
+    by_key = {str(key).strip().lower(): value for key, value in frontmatter.items()}
+    for key in keys:
+        if key in by_key:
+            declared = _as_naive_datetime(by_key[key])
+            if declared is not None:
+                return declared
+    return None
+
+
+def declared_modification_date(content: str) -> datetime | None:
+    """When the note says it was last changed, if it says so.
+
+    A frontmatter ``modified:`` property, else ``updated:`` (both common in
+    Obsidian templates and "update time on edit" plugins). Returns None when
+    the note declares neither; callers then fall back to the file's mtime,
+    which copying, syncing or a git clone resets.
+    """
+    return _frontmatter_date(content, ("modified", "updated"))
+
+
 def declared_creation_date(path: str, content: str) -> datetime | None:
     """When the note says it was created, if it says so.
 
@@ -311,13 +339,9 @@ def declared_creation_date(path: str, content: str) -> datetime | None:
     note declares neither; callers then fall back to file timestamps, which
     copying, syncing or a git clone can reset.
     """
-    frontmatter, _ = parse_frontmatter(content)
-    if frontmatter:
-        for key, value in frontmatter.items():
-            if key.strip().lower() == "created":
-                declared = _as_naive_datetime(value)
-                if declared is not None:
-                    return declared
+    declared = _frontmatter_date(content, ("created",))
+    if declared is not None:
+        return declared
     match = _FILENAME_DATE.match(Path(path).name)
     if match:
         try:
