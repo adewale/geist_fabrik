@@ -7,7 +7,44 @@ meaning) or semantically similar but sparsely linked (meaning without form).
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from geistfabrik import Suggestion, VaultContext
+    from geistfabrik.models import Note
+
+# Rows of the neighbour similarity matrix computed at once, bounding memory
+# for a hub with thousands of graph neighbours.
+_SIMILARITY_ROW_BLOCK = 1024
+
+
+def _link_count(neighbours: list["Note"], neighbour_paths: "Callable[[Note], set[str]]") -> int:
+    """Pairs of the neighbours linked to each other (in either direction).
+
+    Two notes are linked exactly when each is in the other's graph
+    neighbours, so each link is seen from both of its ends.
+    """
+    members = {n.path for n in neighbours}
+    return sum(len(neighbour_paths(n) & members) for n in neighbours) // 2
+
+
+def _semantic_density(vault: "VaultContext", neighbours: list["Note"]) -> float:
+    """Mean pairwise similarity of the neighbours (upper triangle, i < j).
+
+    One vectorised similarity matrix (in row blocks) rather than a
+    similarity() call per pair; batch_similarity() returns cached values
+    where the session already has them, so each pair scores as similarity()
+    would.
+    """
+    count = len(neighbours)
+    total = 0.0
+    for start in range(0, count, _SIMILARITY_ROW_BLOCK):
+        block = vault.batch_similarity(
+            neighbours[start : start + _SIMILARITY_ROW_BLOCK], neighbours
+        )
+        for offset, row in enumerate(block):
+            total += float(row[start + offset + 1 :].sum())
+    pairs = count * (count - 1) / 2
+    return total / pairs if pairs else 0.0
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -25,6 +62,15 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 20:
         return []
 
+    # Graph neighbour paths per note, built once per run
+    adjacency: dict[str, set[str]] = {}
+
+    def neighbour_paths(n: "Note") -> set[str]:
+        paths = adjacency.get(n.path)
+        if paths is None:
+            paths = adjacency[n.path] = {m.path for m in vault.graph_neighbours(n)}
+        return paths
+
     for note in vault.sample(notes, min(30, len(notes))):
         # Get graph neighbours (notes linked to/from this note)
         graph_neighbours = vault.graph_neighbours(note)
@@ -33,23 +79,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             continue
 
         # Calculate graph density (how interconnected are the neighbours?)
-        edges = 0
-        for i, n1 in enumerate(graph_neighbours):
-            for n2 in graph_neighbours[i + 1 :]:
-                if vault.links_between(n1, n2):
-                    edges += 1
+        edges = _link_count(graph_neighbours, neighbour_paths)
 
         max_possible_edges = len(graph_neighbours) * (len(graph_neighbours) - 1) / 2
         graph_density = edges / max_possible_edges if max_possible_edges > 0 else 0
 
         # Calculate semantic density (how similar are the neighbours?)
-        similarities = []
-        for i, n1 in enumerate(graph_neighbours):
-            for n2 in graph_neighbours[i + 1 :]:
-                sim = vault.similarity(n1, n2)
-                similarities.append(sim)
-
-        semantic_density = sum(similarities) / len(similarities) if similarities else 0
+        semantic_density = _semantic_density(vault, graph_neighbours)
 
         # Detect inversions
 
@@ -79,7 +115,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             text = (
                 f"[[{note.link_text}]]'s neighbours ({neighbour_names}) are "
-                f"semantically similar but aren't linked to each other. "
+                f"semantically similar but few of them link to each other. "
                 f"Missing connections in a coherent cluster?"
             )
 

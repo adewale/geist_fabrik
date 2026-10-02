@@ -83,8 +83,17 @@ class VoiceMetadata:
 # YAML frontmatter at the very start of the document
 _FRONTMATTER_RE = re.compile(r"\A---[ \t]*\n.*?\n---[ \t]*\n?", re.DOTALL)
 
-# Fenced code blocks (``` or ~~~). Non-greedy; unclosed fences are left alone.
-_FENCED_CODE_RE = re.compile(r"^(```|~~~)[^\n]*\n.*?^\1[^\n]*$", re.DOTALL | re.MULTILINE)
+# Fenced code blocks (``` or ~~~), including fences indented inside list
+# items. Non-greedy; unclosed fences are left alone.
+_FENCED_CODE_RE = re.compile(
+    r"^[ \t]*(```|~~~)[^\n]*\n.*?^[ \t]*\1[^\n]*$", re.DOTALL | re.MULTILINE
+)
+
+# Slash compounds such as "I/O" or "and/or": their parts are not words in
+# their own right (the "I" of "I/O" is not the first person). The leading
+# \b anchors each attempt at a word start: without it, a long slash-free
+# run of word characters is retried from every offset (quadratic time).
+_SLASH_COMPOUND_RE = re.compile(r"\b\w+(?:/\w+)+")
 
 # Inline code spans (single backticks, no newlines)
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
@@ -108,7 +117,10 @@ _GOING_TO_RE = re.compile(r"\bgoing to\b|\bgonna\b")
 
 #: Hedge words and phrases (from specs/reflective_lenses_spec.md).
 #: Multi-word hedges are matched via a single compiled alternation
-#: over lowercased raw text (see _HEDGE_RE below).
+#: over lowercased raw text (see _HEDGE_RE below). "may" is the one
+#: case-sensitive entry: only lower-case "may" is a hedge, because
+#: capitalised "May" is usually the month ("Shipped in May"). "rather"
+#: is deliberately absent: "rather than" states a choice, not doubt.
 HEDGES = frozenset(
     {
         "maybe",
@@ -123,7 +135,6 @@ HEDGES = frozenset(
         "could",
         "may",
         "somewhat",
-        "rather",
         "fairly",
         "roughly",
         "approximately",
@@ -140,10 +151,14 @@ HEDGES = frozenset(
     }
 )
 
-# Single alternation; longest phrases first so "sort of" wins over "sort"
+# Single alternation over lowercased text; longest phrases first so
+# "sort of" wins over "sort". "may" is matched separately, case-sensitively.
 _HEDGE_RE = re.compile(
-    r"\b(?:" + "|".join(re.escape(h) for h in sorted(HEDGES, key=len, reverse=True)) + r")\b"
+    r"\b(?:"
+    + "|".join(re.escape(h) for h in sorted(HEDGES - {"may"}, key=len, reverse=True))
+    + r")\b"
 )
+_MAY_HEDGE_RE = re.compile(r"\bmay\b")
 
 #: Common irregular simple-past forms (heuristic — not exhaustive).
 #: Includes the past auxiliaries "was", "were", "had", "did".
@@ -372,8 +387,9 @@ def strip_for_analysis(text: str) -> str:
     """Remove markdown noise before linguistic analysis.
 
     Strips, in order: YAML frontmatter (only at document start), fenced
-    code blocks (``` or ~~~), inline code spans, and URLs. Each removed
-    region is replaced with a single space so sentence boundaries survive.
+    code blocks (``` or ~~~), inline code spans, URLs and slash compounds
+    such as "I/O". Each removed region is replaced with a single space so
+    sentence boundaries survive.
 
     Unclosed fences/spans are left in place — totality matters more than
     perfect stripping.
@@ -388,6 +404,7 @@ def strip_for_analysis(text: str) -> str:
     text = _FENCED_CODE_RE.sub(" ", text)
     text = _INLINE_CODE_RE.sub(" ", text)
     text = _URL_RE.sub(" ", text)
+    text = _SLASH_COMPOUND_RE.sub(" ", text)
     return text
 
 
@@ -425,8 +442,9 @@ def split_sentences(text: str) -> list[str]:
 def count_hedges(text: str) -> int:
     """Count hedge word/phrase occurrences in text.
 
-    Strips code, URLs and frontmatter, lowercases, then counts matches
-    of the single compiled hedge alternation (longest phrase wins).
+    Strips code, URLs and frontmatter, then counts matches of the single
+    compiled hedge alternation over the lowercased text (longest phrase
+    wins), plus lower-case "may" (capitalised "May" is usually the month).
 
     Args:
         text: Raw note content
@@ -434,7 +452,12 @@ def count_hedges(text: str) -> int:
     Returns:
         Number of hedge occurrences (>= 0)
     """
-    return len(_HEDGE_RE.findall(strip_for_analysis(text).lower()))
+    return _count_hedges_in(strip_for_analysis(text))
+
+
+def _count_hedges_in(stripped: str) -> int:
+    """Count hedges in text that has already been through strip_for_analysis."""
+    return len(_HEDGE_RE.findall(stripped.lower())) + len(_MAY_HEDGE_RE.findall(stripped))
 
 
 def compute_voice(content: str) -> VoiceMetadata:
@@ -534,7 +557,7 @@ def compute_voice(content: str) -> VoiceMetadata:
     self_focus = fps / (fps + fpp) if (fps + fpp) > 0 else 0.5
 
     # Uncertainty markers
-    hedge_count = len(_HEDGE_RE.findall(lowered))
+    hedge_count = _count_hedges_in(text)
     hedging_ratio = hedge_count / len(sentences) if sentences else 0.0
     question_density = text.count("?") / word_count * 100.0 if word_count > 0 else 0.0
     modal_density = modals / word_count * 100.0 if word_count > 0 else 0.0

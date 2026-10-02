@@ -1,4 +1,4 @@
-"""Tests for the eight reflective-lens vault functions.
+"""Tests for the six reflective-lens vault functions.
 
 Contract: every function returns a list of bracketed Obsidian links
 ([[Note]]), returns [] gracefully when no candidates exist, and is
@@ -12,15 +12,13 @@ import pytest
 
 from geistfabrik import Vault, VaultContext
 from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
+from geistfabrik.function_registry import FunctionRegistry
 
 pytestmark = pytest.mark.timeout(60)
 
 BRACKETED_LINK_RE = re.compile(r"^\[\[.+\]\]$")
 
 REFLECTIVE_FUNCTIONS = [
-    "past_focused_notes",
-    "future_focused_notes",
     "self_focused_notes",
     "we_notes",
     "uncertain_notes",
@@ -29,23 +27,15 @@ REFLECTIVE_FUNCTIONS = [
     "attention_shifted_notes",
 ]
 
-# Functions whose candidates come from voice metadata in the fixture vault
-VOICE_FUNCTIONS = [
-    "past_focused_notes",
-    "future_focused_notes",
-    "self_focused_notes",
-    "we_notes",
-    "uncertain_notes",
-    "questioning_notes",
-]
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
+# Voice-metadata functions: (notes designed to qualify, notes of an opposite
+# voice that must not). Voice scoring itself is owned by test_voice_analysis.py.
+VOICE_CASES = {
+    "self_focused_notes": ({"Self A", "Self B"}, {"We A", "We B", "Question A"}),
+    "we_notes": ({"We A", "We B"}, {"Self A", "Self B", "Past A"}),
+    "uncertain_notes": ({"Hedgy A", "Hedgy B"}, {"Past A", "Future A", "Question A"}),
+    "questioning_notes": ({"Question A", "Question B"}, {"Hedgy A", "Past A", "Future A"}),
+}
+VOICE_FUNCTIONS = list(VOICE_CASES)
 
 
 # ============================================================================
@@ -133,39 +123,22 @@ def _context(vault: Vault, session: Session, registry: FunctionRegistry) -> Vaul
 # ============================================================================
 
 
-def test_all_functions_registered() -> None:
-    """All eight reflective-lens functions are built-ins."""
-    registry = FunctionRegistry()
-    for name in REFLECTIVE_FUNCTIONS:
-        assert registry.has_function(name), name
-
-
-def test_voice_functions_return_bracketed_links(voice_vault) -> None:
-    """Voice-metadata functions return non-empty lists of [[links]]."""
+@pytest.mark.parametrize("name", VOICE_FUNCTIONS)
+def test_voice_functions_select_the_designed_notes(voice_vault, name: str) -> None:
+    """Each voice lens returns bracketed links to its designed notes, not to opposite voices."""
     vault, session = voice_vault
     registry = FunctionRegistry()
     context = _context(vault, session, registry)
+    expected, excluded = VOICE_CASES[name]
 
-    for name in VOICE_FUNCTIONS:
-        result = registry.call(name, context)
-        assert isinstance(result, list), name
-        assert len(result) > 0, f"{name} found no candidates in the voice vault"
-        for entry in result:
-            assert isinstance(entry, str), name
-            assert BRACKETED_LINK_RE.match(entry), f"{name} returned unbracketed entry: {entry}"
+    result = registry.call(name, context, len(VOICE_NOTES))
 
-
-def test_surprising_notes_returns_bracketed_links(voice_vault) -> None:
-    """surprising_notes returns top-k bracketed links (12 notes >= k+1)."""
-    vault, session = voice_vault
-    registry = FunctionRegistry()
-    context = _context(vault, session, registry)
-
-    result = registry.call("surprising_notes", context)
-    assert isinstance(result, list)
-    assert 0 < len(result) <= 5
-    for entry in result:
-        assert BRACKETED_LINK_RE.match(entry), entry
+    assert all(BRACKETED_LINK_RE.match(entry) for entry in result), result
+    # The fixture's file names differ from the titles, so links read
+    # [[past_a|Past A]]: compare the displayed titles.
+    titles = {entry[2:-2].split("|")[-1] for entry in result}
+    assert expected <= titles, f"{name} missed designed notes: {sorted(expected - titles)}"
+    assert not titles & excluded, f"{name} picked opposite voices: {sorted(titles & excluded)}"
 
 
 def test_attention_shifted_notes_no_history_returns_empty(voice_vault) -> None:
@@ -179,7 +152,12 @@ def test_attention_shifted_notes_no_history_returns_empty(voice_vault) -> None:
 
 
 def test_attention_shifted_notes_with_history(tmp_path) -> None:
-    """With an old session and min_churn=0.0, returns bracketed links."""
+    """min_churn is an inclusive floor and count caps the result.
+
+    Both sessions embed the same text, so every note's neighbourhood is
+    unchanged (churn 0.0): a floor of 0.0 admits all notes, capped at count,
+    and any positive floor admits none.
+    """
     vault = _make_voice_vault(tmp_path)
     notes = vault.all_notes()
 
@@ -193,14 +171,13 @@ def test_attention_shifted_notes_with_history(tmp_path) -> None:
     context = _context(vault, new_session, registry)
 
     result = registry.call("attention_shifted_notes", context, 6, 0.0, 5)
-    assert isinstance(result, list)
-    assert 0 < len(result) <= 5
-    for entry in result:
-        assert BRACKETED_LINK_RE.match(entry), entry
+    assert len(result) == 5
+    assert all(BRACKETED_LINK_RE.match(entry) for entry in result), result
+    assert registry.call("attention_shifted_notes", context, 6, 0.01, 5) == []
 
 
 def test_all_functions_empty_vault(empty_vault) -> None:
-    """All eight functions return [] on an empty vault, without raising."""
+    """All six functions return [] on an empty vault, without raising."""
     vault, session = empty_vault
     registry = FunctionRegistry()
     context = _context(vault, session, registry)
@@ -224,34 +201,12 @@ def test_functions_deterministic_for_same_seed(voice_vault) -> None:
         assert result_a == result_b, name
 
 
-def test_k_parameter_limits_results(voice_vault) -> None:
-    """The k parameter caps the number of returned links."""
+def test_count_parameter_caps_results(voice_vault) -> None:
+    """The count argument is honoured exactly when enough candidates exist."""
     vault, session = voice_vault
     registry = FunctionRegistry()
     context = _context(vault, session, registry)
 
     for name in VOICE_FUNCTIONS:
-        result = registry.call(name, context, 1)
-        assert len(result) <= 1, name
-
-    result = registry.call("surprising_notes", context, 2)
-    assert len(result) <= 2
-
-
-def test_candidates_match_expected_voices(voice_vault) -> None:
-    """Spot-check that the controlled fixture notes appear as candidates."""
-    vault, session = voice_vault
-    registry = FunctionRegistry()
-    context = _context(vault, session, registry)
-
-    questioning = registry.call("questioning_notes", context, 12)
-    assert any("Question" in entry for entry in questioning)
-
-    uncertain = registry.call("uncertain_notes", context, 12)
-    assert any("Hedgy" in entry for entry in uncertain)
-
-    future = registry.call("future_focused_notes", context, 12)
-    assert any("Future" in entry for entry in future)
-
-    we = registry.call("we_notes", context, 12)
-    assert any("We" in entry for entry in we)
+        assert len(registry.call(name, context, 1)) == 1, name
+    assert len(registry.call("surprising_notes", context, 2)) == 2

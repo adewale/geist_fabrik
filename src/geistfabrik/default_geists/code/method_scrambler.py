@@ -20,7 +20,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 10:
         return []
@@ -54,10 +54,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         similar = vault.neighbours(note, count=5)
 
         # Deduplicate by combining into a set
-        all_candidates = list(set(linked_notes + similar))
+        # dict.fromkeys keeps first-seen order; a set would order by string
+        # hash, which varies per process and breaks same-seed replay.
+        all_candidates = list(dict.fromkeys(linked_notes + similar))
 
-        # Filter out geist journal notes
-        candidates = [n for n in all_candidates if not n.path.startswith("geist journal/")]
+        candidates = all_candidates
 
         if len(candidates) < 2:
             continue

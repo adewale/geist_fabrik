@@ -2,9 +2,20 @@
 
 Insights from ranking v1.0 geists against Gordon Brander's philosophy of "muses not oracles."
 
+> **Historical ranking (2025-11).** The tiers below rank an earlier geist set.
+> Many geists named here were since merged or retired (2026-10), including
+> columbo, antithesis_generator, dialectic_triad and blind_spot_detector
+> (embeddings measure topic, not stance: see
+> `specs/research/OPPOSITION_GEISTS_RESEARCH.md`), anachronism_detector,
+> on_this_day, seasonal_revisit, island_hopper, temporal_mirror,
+> random_prompts and note_combinations. See
+> [`specs/SPEC_STATUS.md`](../specs/SPEC_STATUS.md) ("Geist merges (2026-10)")
+> for where each went. A "contrarian" function can only return notes distant
+> in topic, never notes that oppose a seed.
+
 ## Core Finding: The Divergence Gradient
 
-Our 45 geists form a clear spectrum from **pure provocation** to **vault maintenance**:
+The v1.0 geists form a clear spectrum from **pure provocation** to **vault maintenance**:
 
 ```
 Divergent                                            Convergent
@@ -42,7 +53,6 @@ Brander's philosophy celebrates the left side. v1.0 has a mix across the entire 
 - `anachronism_detector` - Temporal displacement creates surprise
 - `scale_shifter` - Zoom in/out provokes new perspectives
 - `blind_spot_detector` - Reveals overlooked connections (note: not prescriptive)
-- `hermeneutic_instability` - Notes whose semantic representations varied across snapshots
 - `on_this_day` / `seasonal_revisit` - Temporal serendipity
 
 **Characteristics**:
@@ -455,7 +465,7 @@ User reaction should be:
 
 ### Tracery-Safe Cluster Functions
 
-**Context**: The `semantic_neighbours` geist revealed a limitation in Tracery's preprocessing model—vault functions that take note titles as parameters (like `neighbours(title, k)` and `contrarian_to(title, k)`) cannot work in Tracery because symbol expansion happens after preprocessing.
+**Context**: The `semantic_neighbours` geist (now an extension example in `examples/geists/tracery/`) revealed a limitation in Tracery's preprocessing model—vault functions that take note titles as parameters (like `neighbours(title, k)` and `contrarian_to(title, k)`) cannot work in Tracery because symbol expansion happens after preprocessing.
 
 **Solution Pattern**: "Cluster" functions that bundle related data using delimiters:
 
@@ -468,9 +478,10 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 
 **Tracery Usage**:
 ```yaml
+origin: ["#[picked:#cluster#]template#"]  # split ONE saved cluster
 cluster: ["$vault.semantic_clusters(2, 3)"]
-seed: ["#cluster.split_seed#"]
-neighbours: ["#cluster.split_neighbours#"]
+seed: ["#picked.split_seed#"]
+neighbours: ["#picked.split_neighbours#"]
 ```
 
 **Additional Cluster Functions Needed** (post-1.0):
@@ -479,39 +490,40 @@ neighbours: ["#cluster.split_neighbours#"]
    ```yaml
    # Enables contradictor-style Tracery geists
    cluster: ["$vault.contrarian_clusters(2, 3)"]
-   note: ["#cluster.split_seed#"]
-   opposites: ["#cluster.split_contrarians#"]
+   note: ["#picked.split_seed#"]  # with origin "#[picked:#cluster#]template#"
+   opposites: ["#picked.split_contrarians#"]
    ```
 
 2. **`temporal_clusters(count, k)`** - Pairs notes with temporally distant neighbours
    ```yaml
    # Enables time-based provocations
    cluster: ["$vault.temporal_clusters(2, 3)"]
-   old_note: ["#cluster.split_seed#"]
-   recent_similar: ["#cluster.split_temporal_neighbours#"]
+   old_note: ["#picked.split_seed#"]  # with origin "#[picked:#cluster#]template#"
+   recent_similar: ["#picked.split_temporal_neighbours#"]
    ```
 
 3. **`bridge_clusters(count)`** - Identifies note pairs that bridge clusters
    ```yaml
    # Enables bridge-finding in Tracery
    cluster: ["$vault.bridge_clusters(2)"]
-   cluster_a: ["#cluster.split_cluster_a#"]
-   cluster_b: ["#cluster.split_cluster_b#"]
-   bridge: ["#cluster.split_bridge_note#"]
+   cluster_a: ["#picked.split_cluster_a#"]  # with origin "#[picked:#cluster#]template#"
+   cluster_b: ["#picked.split_cluster_b#"]
+   bridge: ["#picked.split_bridge_note#"]
    ```
 
 4. **`tag_clusters(count, k)`** - Samples tags and their associated notes
    ```yaml
    # Enables tag-based provocations
    cluster: ["$vault.tag_clusters(2, 3)"]
-   tag: ["#cluster.split_tag#"]
-   tagged_notes: ["#cluster.split_notes#"]
+   tag: ["#picked.split_tag#"]  # with origin "#[picked:#cluster#]template#"
+   tagged_notes: ["#picked.split_notes#"]
    ```
 
 **Design Principles**:
 - All parameters must be resolvable at preprocessing (integers, string literals)
 - Return structured strings with delimiters (|||, ::, |)
-- Add matching Tracery modifiers to extract parts
+- Add matching Tracery modifiers to extract parts, applied to ONE saved draw
+  (`#[picked:#cluster#]template#`) so every part comes from the same cluster
 - Format lists using Tracery conventions ("A, B, and C")
 
 **Validation**: Static analysis prevents unsafe patterns (`$vault.neighbours(#symbol#, 3)` raises error at load time)
@@ -525,57 +537,13 @@ neighbours: ["#cluster.split_neighbours#"]
 
 ### VaultContext API Enhancements
 
-**Context**: Several geists need to filter journal notes from VaultContext results. Currently, this filtering happens in two ways:
-
-1. **Initial corpus filtering**: `vault.notes_excluding_journal()` before processing
-2. **Result filtering**: Manual `startswith("geist journal/")` checks after calling methods like `neighbours()`, `get_clusters()`, etc.
-
-**Current Pattern Issues**:
-- Result filtering logic duplicated across multiple geists
-- Some methods (like `get_clusters()`) always return journal notes, requiring post-processing
-- Filtering after clustering is inefficient (notes filtered, clusters recalculated)
-
-**Proposed Enhancement**: Add `exclude_journal` parameter to VaultContext methods:
-
-```python
-# Current approach (manual filtering required)
-all_clusters = vault.get_clusters(min_size=5)
-clusters = {}
-for cluster_id, cluster_info in all_clusters.items():
-    non_journal_notes = [
-        n for n in cluster_info["notes"]
-        if not n.path.startswith("geist journal/")
-    ]
-    if len(non_journal_notes) >= min_size:
-        clusters[cluster_id] = {"notes": non_journal_notes, ...}
-
-# Proposed approach (centralized filtering)
-clusters = vault.get_clusters(min_size=5, exclude_journal=True)
-```
-
-**Methods That Would Benefit**:
-1. `get_clusters(min_size, exclude_journal=False)` - Filter journal notes before clustering
-2. `neighbours(note, k, exclude_journal=False)` - Exclude journal from semantic neighbours
-3. `unlinked_pairs(k, exclude_journal=False)` - Exclude journal from candidate pairs
-
-**Benefits**:
-- **Single source of truth**: Filtering logic lives in VaultContext, not scattered across geists
-- **Better performance**: Filter before expensive operations (clustering, similarity)
-- **Cleaner geist code**: Removes 5-10 lines of filtering boilerplate per geist
-- **Consistent behavior**: All geists filter journal notes the same way
-
-**Backward Compatibility**:
-- Default `exclude_journal=False` preserves existing behavior
-- Geists can opt-in to exclusion explicitly
-- No breaking changes to existing code
-
-**Geists That Would Simplify**:
-- `cluster_mirror.py` - Remove 12 lines of post-clustering filtering
-- `bridge_hunter.py` - Could use `unlinked_pairs(..., exclude_journal=True)`
-- `hidden_hub.py` - Could exclude journal from centrality calculations
-- `pattern_finder.py`, `scale_shifter.py`, etc. - Already use `notes_excluding_journal()`, unaffected
-
-**Implementation Priority**: Post-1.0 (quality-of-life improvement, not blocking)
+**Status**: Done, differently than proposed. An opt-in `exclude_journal=False`
+parameter was proposed here; instead `VaultContext` now excludes geist journal
+notes from every vault-wide lookup by default (see "Geist Journal Exclusion"
+in `docs/GEIST_CATALOG.md`). Opt-in was rejected because every journal leak
+found in the bundled geists was a geist that forgot to filter: 26 geists
+suggested session notes, and several went silent when journal notes filled a
+top-N result before filtering. Per-geist filtering code was removed.
 
 ---
 

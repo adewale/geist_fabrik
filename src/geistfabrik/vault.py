@@ -9,10 +9,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .config import MAX_NOTE_BYTES
+from .config import MAX_NOTE_BYTES, semantic_cache_key
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
-from .markdown_parser import MarkdownLimitError, parse_markdown
+from .markdown_parser import (
+    MarkdownLimitError,
+    declared_creation_date,
+    declared_modification_date,
+    parse_markdown,
+)
 from .models import Link, Note, NoteLinkIndex
 from .path_safety import PathSafetyError, ensure_contained
 from .schema import init_db
@@ -229,8 +234,13 @@ class Vault:
                 raise _VaultSnapshotChangedError from None
             if self._stat_signature(stat) != self._stat_signature(initial_stat):
                 raise _VaultSnapshotChangedError
-            created = datetime.fromtimestamp(stat.st_ctime)
-            modified = datetime.fromtimestamp(stat.st_mtime)
+            # A date the note declares (frontmatter `created:` / `modified:` /
+            # `updated:`, or a dated file name) is authoritative; file
+            # timestamps are only an estimate.
+            declared_modified = declared_modification_date(content)
+            modified = declared_modified or datetime.fromtimestamp(stat.st_mtime)
+            declared_created = declared_creation_date(rel_path, content)
+            created = declared_created or self._estimate_created(stat, declared_modified)
 
             # Check if this is a date-collection note (if enabled and not excluded)
             dc_config = self.config.date_collection
@@ -292,11 +302,35 @@ class Vault:
                     source_fingerprint,
                     links,
                     tags,
+                    created_is_declared=declared_created is not None,
                 )
 
                 processed_count += 1
 
         return processed_count
+
+    @staticmethod
+    def _estimate_created(
+        stat: os.stat_result, declared_modified: datetime | None = None
+    ) -> datetime:
+        """Best available creation time for a note file.
+
+        ``st_ctime`` is the last inode change on Linux and macOS, so on its own
+        every edit (or chmod, or checkout) would make a note look brand new.
+        A file cannot have been created after it was last modified, and
+        ``st_birthtime`` (macOS, BSD, Windows on Python 3.12+) is the real
+        creation time where the platform records one, so take the earliest.
+        A declared ``modified:`` date bounds the estimate the same way, so a
+        freshly cloned note never looks created after its declared last edit.
+        """
+        candidates = [stat.st_mtime, stat.st_ctime]
+        birthtime = getattr(stat, "st_birthtime", None)
+        if birthtime is not None and birthtime > 0:
+            candidates.append(birthtime)
+        estimate = datetime.fromtimestamp(min(candidates))
+        if declared_modified is not None and declared_modified < estimate:
+            return declared_modified
+        return estimate
 
     @staticmethod
     def _stat_signature(stat: os.stat_result) -> tuple[int, int, int, int, int]:
@@ -314,12 +348,17 @@ class Vault:
 
         Reclassification must occur even when only date-collection settings
         change. The revision also refreshes persisted links that older parsers
-        stored without journal anchors; no schema migration is needed.
+        stored without journal anchors, (v3) re-derives ``created`` for rows
+        stored from ``st_ctime`` alone, (v4) drops links and tags that older
+        parsers read from inside code or from URL fragments and numbers, and
+        (v5) takes ``created`` from frontmatter or a dated file name where the
+        note declares one, and (v6) takes ``modified`` from frontmatter
+        ``modified:``/``updated:``; no schema migration is needed.
         """
         settings = json.dumps(self.config.date_collection.to_dict(), sort_keys=True)
         config_digest = hashlib.sha256(settings.encode()).hexdigest()
         stat_key = ":".join(str(value) for value in self._stat_signature(stat))
-        return f"parser-v2:{config_digest}:{stat_key}"
+        return f"parser-v6:{config_digest}:{stat_key}"
 
     def _delete_missing_notes(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> None:
         """Delete notes absent from the validated, writer-owned filesystem view."""
@@ -396,8 +435,15 @@ class Vault:
         source_fingerprint: str,
         links: list[Link],
         tags: list[str],
+        *,
+        created_is_declared: bool = False,
     ) -> None:
-        """Update a note and its relationships in the database."""
+        """Update a note and its relationships in the database.
+
+        A declared creation date (frontmatter or file name) replaces the stored
+        one, so correcting `created:` takes effect; an estimate from file
+        timestamps never moves the stored date later.
+        """
         # Construct a Note object for regular (non-virtual) entries
         note = Note(
             path=path,
@@ -412,10 +458,17 @@ class Vault:
             entry_date=None,
         )
         # Delegate to the full update method
-        self._update_note_from_object(note, file_mtime, source_fingerprint)
+        self._update_note_from_object(
+            note, file_mtime, source_fingerprint, created_is_declared=created_is_declared
+        )
 
     def _update_note_from_object(
-        self, note: Note, file_mtime: float, source_fingerprint: str
+        self,
+        note: Note,
+        file_mtime: float,
+        source_fingerprint: str,
+        *,
+        created_is_declared: bool = False,
     ) -> None:
         """Update a note from a Note object (including virtual entries).
 
@@ -424,9 +477,14 @@ class Vault:
             file_mtime: File modification time
         """
         # Semantic embeddings are a cache of current content and must be
-        # invalidated on a processed update. Session embeddings are historical
-        # records and deliberately survive same-path updates.
-        self.db.execute("DELETE FROM embeddings WHERE note_path = ?", (note.path,))
+        # invalidated on a processed update, unless the content is unchanged
+        # (a parser-revision reprocess must not force re-embedding the whole
+        # vault). Session embeddings are historical records and
+        # deliberately survive same-path updates.
+        self.db.execute(
+            "DELETE FROM embeddings WHERE note_path = ? AND model_version != ?",
+            (note.path, semantic_cache_key(note.content)),
+        )
         self.db.execute(
             """
             INSERT INTO notes (
@@ -437,7 +495,15 @@ class Vault:
             ON CONFLICT(path) DO UPDATE SET
                 title = excluded.title,
                 content = excluded.content,
-                created = excluded.created,
+                -- An estimated creation time never moves later on re-sync
+                -- (edits bump st_ctime, not the note's true age); a date the
+                -- note declares always wins.
+                created = CASE
+                    WHEN ? = 0 AND excluded.is_virtual = 0 AND notes.is_virtual = 0
+                        AND notes.created < excluded.created
+                    THEN notes.created
+                    ELSE excluded.created
+                END,
                 modified = excluded.modified,
                 file_mtime = excluded.file_mtime,
                 source_fingerprint = excluded.source_fingerprint,
@@ -456,6 +522,7 @@ class Vault:
                 1 if note.is_virtual else 0,
                 note.source_file,
                 note.entry_date.isoformat() if note.entry_date else None,
+                1 if created_is_declared else 0,
             ),
         )
 

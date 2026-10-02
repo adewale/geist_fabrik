@@ -82,7 +82,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
 -- Session embeddings table (temporal embeddings)
 -- cluster_label records which semantic cluster the note belonged to in that
 -- session (written when clusters are computed; NULL for noise/unclustered).
--- It is what lets cluster_evolution_tracker compare assignments across time.
+-- It lets geists compare cluster membership across sessions (it was written
+-- for cluster_evolution_tracker, since retired).
 CREATE TABLE IF NOT EXISTS session_embeddings (
     session_id INTEGER NOT NULL,
     note_path TEXT NOT NULL,

@@ -14,9 +14,10 @@ This directory contains validation and utility scripts for development.
 
 It is the authoritative local CI gate and runs:
 - locked dependency sync
-- Ruff and Mypy strict
+- Ruff, Mypy strict and ty
 - database and security checks
-- split unit/integration coverage with the canonical fast marker selection
+- split unit/integration coverage with the canonical fast marker selection,
+  then the 70% branch-coverage gate (`check_branch_coverage.py`)
 - acceptance-criteria verification
 - `test_wheel.sh` for wheel/sdist inspection and isolated real-model inference
 

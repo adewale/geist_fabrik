@@ -1,5 +1,11 @@
 # Geist Validation Specification
 
+> **Status:** design history (written at 0.9.0). The `geistfabrik validate`
+> command proposed under "Planned Validation" is built
+> (`src/geistfabrik/commands/validate.py`, `validator.py`) with `--geist`,
+> `--strict`, `--format text|json` and `--verbose` (no `summary` format). Line
+> numbers below refer to the code at that time.
+
 ## Overview
 
 This document specifies all validation mechanisms for GeistFabrik geists, both currently implemented and planned. The goal is to enforce geist quality, safety, and correctness at multiple stages: load time, runtime, and post-execution.

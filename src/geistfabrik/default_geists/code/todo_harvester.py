@@ -1,7 +1,7 @@
 """TODO Harvester geist - extracts TODO markers from random notes.
 
-Surfaces inline TODO markers (TODO:, FIXME:, HACK:, NOTE:, XXX:) scattered
-through notes. Unlike task_archaeology (which finds checkbox tasks), this
+Surfaces inline TODO markers (TODO, FIXME, HACK, XXX, written in capitals)
+scattered through notes. Unlike task_archaeology (which finds checkbox tasks), this
 geist focuses on prose-style TODO markers that represent forgotten intentions
 and deferred work.
 
@@ -11,6 +11,8 @@ intentions we meant to pursue but forgot about.
 
 import re
 from typing import TYPE_CHECKING
+
+from geistfabrik.content_extraction import quote_for_display, strip_code, unmask_code
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
@@ -45,7 +47,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         todo_clean = " ".join(todo.split())
 
-        text = f'From [[{note.link_text}]]: "{todo_clean}" What if you tackled this now?'
+        text = (
+            f"From [[{note.link_text}]]: {quote_for_display(todo_clean)} "
+            "What if you tackled this now?"
+        )
 
         suggestions.append(
             Suggestion(
@@ -62,24 +67,26 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 def extract_todos(content: str) -> list[str]:
     """Extract TODO markers from content.
 
-    Finds TODO:, FIXME:, HACK:, NOTE:, XXX: markers with their associated text.
+    Finds TODO, FIXME, HACK and XXX markers with their associated text. Markers
+    must be written in capitals as whole words: "todo:" or "Note:" in ordinary
+    prose is not a deferred task, and NOTE is not a marker at all (a remark is
+    not something to tackle).
 
     Args:
         content: Markdown content
 
     Returns:
-        List of TODO strings (formatted as "MARKER: text")
+        List of TODO strings (formatted as "MARKER: text", marker as written)
     """
     # Remove code blocks (those TODOs are for code, not notes)
-    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
-    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
+    content_no_code = strip_code(content)
 
     todos = []
 
     # Match TODO markers with their text
     # Captures: TODO: text until end of line or period
-    pattern = r"(TODO|FIXME|HACK|NOTE|XXX):\s*([^.\n]+(?:\.[^\n]+)?)"
-    matches = re.findall(pattern, content_no_code, re.IGNORECASE)
+    pattern = r"\b(TODO|FIXME|HACK|XXX)\b:?\s*([^.\n]+(?:\.[^\n]+)?)"
+    matches = re.findall(pattern, content_no_code)
 
     seen = set()
     for marker, text in matches:
@@ -93,8 +100,8 @@ def extract_todos(content: str) -> list[str]:
         todo_normalized = todo_text.lower()
         if todo_normalized not in seen:
             # Format: "TODO: investigate this"
-            formatted = f"{marker.upper()}: {todo_text}"
-            todos.append(formatted)
+            formatted = f"{marker}: {todo_text}"
+            todos.append(unmask_code(formatted))
             seen.add(todo_normalized)
 
     return todos

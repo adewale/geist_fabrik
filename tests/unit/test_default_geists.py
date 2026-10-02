@@ -3,8 +3,16 @@
 import tempfile
 from pathlib import Path
 
-from geistfabrik import GeistFabrikConfig, generate_default_config, load_config, save_config
+from geistfabrik import (
+    GeistFabrikConfig,
+    default_geists,
+    generate_default_config,
+    load_config,
+    save_config,
+)
 from geistfabrik.default_geists import DEFAULT_CODE_GEISTS, DEFAULT_TRACERY_GEISTS
+from geistfabrik.geist_executor import GeistExecutor
+from geistfabrik.tracery import TraceryGeistLoader
 
 
 def test_config_default_values():
@@ -12,7 +20,7 @@ def test_config_default_values():
     config = GeistFabrikConfig()
 
     # All geists should default to enabled
-    assert config.is_geist_enabled("blind_spot_detector") is True
+    assert config.is_geist_enabled("temporal_drift") is True
     assert config.is_geist_enabled("contradictor") is True
     assert config.is_geist_enabled("unknown_geist") is True  # Unknown defaults to True
 
@@ -21,14 +29,15 @@ def test_config_with_disabled_geists():
     """Test that disabled geists are properly respected."""
     config = GeistFabrikConfig(
         default_geists={
-            "blind_spot_detector": False,
+            "temporal_drift": False,
             "contradictor": True,
         }
     )
 
-    assert config.is_geist_enabled("blind_spot_detector") is False
+    assert config.is_geist_enabled("temporal_drift") is False
     assert config.is_geist_enabled("contradictor") is True
-    assert config.is_geist_enabled("on_this_day") is True  # Not specified, defaults to True
+    # Any unlisted id (here a since-merged geist) defaults to True
+    assert config.is_geist_enabled("on_this_day") is True
 
 
 def test_config_from_dict():
@@ -36,14 +45,14 @@ def test_config_from_dict():
     data = {
         "enabled_modules": ["test_module"],
         "default_geists": {
-            "blind_spot_detector": False,
+            "temporal_drift": False,
         },
     }
 
     config = GeistFabrikConfig.from_dict(data)
 
     assert config.enabled_modules == ["test_module"]
-    assert config.is_geist_enabled("blind_spot_detector") is False
+    assert config.is_geist_enabled("temporal_drift") is False
     assert config.is_geist_enabled("contradictor") is True
 
 
@@ -51,13 +60,13 @@ def test_config_to_dict():
     """Test converting config to dictionary."""
     config = GeistFabrikConfig(
         enabled_modules=["test_module"],
-        default_geists={"blind_spot_detector": False},
+        default_geists={"temporal_drift": False},
     )
 
     data = config.to_dict()
 
     assert data["enabled_modules"] == ["test_module"]
-    assert data["default_geists"] == {"blind_spot_detector": False}
+    assert data["default_geists"] == {"temporal_drift": False}
 
 
 def test_load_config_nonexistent():
@@ -80,7 +89,7 @@ def test_save_and_load_config():
         original_config = GeistFabrikConfig(
             enabled_modules=["module1", "module2"],
             default_geists={
-                "blind_spot_detector": False,
+                "temporal_drift": False,
                 "contradictor": True,
             },
         )
@@ -90,7 +99,7 @@ def test_save_and_load_config():
         loaded_config = load_config(config_path)
 
         assert loaded_config.enabled_modules == ["module1", "module2"]
-        assert loaded_config.is_geist_enabled("blind_spot_detector") is False
+        assert loaded_config.is_geist_enabled("temporal_drift") is False
         assert loaded_config.is_geist_enabled("contradictor") is True
 
 
@@ -110,43 +119,41 @@ def test_generate_default_config():
         assert f"{geist}: true" in content
 
 
+def test_default_geist_directories_load_exactly_the_default_lists(tmp_path: Path) -> None:
+    """The ids the production loaders load from the bundled dirs are the DEFAULT_* lists.
+
+    DEFAULT_CODE_GEISTS / DEFAULT_TRACERY_GEISTS are filename globs. This
+    checks them against what actually loads: every code module imports and
+    exports suggest(), every YAML parses with an id equal to its filename
+    stem, nothing fails to load, and neither set is empty.
+    """
+    bundled = Path(default_geists.__file__).parent
+    no_custom_geists = tmp_path / "no-custom-geists"
+
+    executor = GeistExecutor(no_custom_geists, default_geists_dir=bundled / "code")
+    executor.load_geists()
+    loader = TraceryGeistLoader(no_custom_geists, seed=1, default_geists_dir=bundled / "tracery")
+    tracery_geists, _ = loader.load_all()
+
+    assert executor.execution_log == [], "code geists failed to load"
+    assert loader.load_errors == [], "Tracery geists failed to load"
+    assert sorted(executor.geists) == DEFAULT_CODE_GEISTS
+    assert sorted(g.geist_id for g in tracery_geists) == DEFAULT_TRACERY_GEISTS
+    assert DEFAULT_CODE_GEISTS and DEFAULT_TRACERY_GEISTS
+
+
 def test_default_geist_lists():
-    """Test that default geist lists are derived from filesystem and complete."""
-    from geistfabrik.default_geists import CODE_GEIST_COUNT, TRACERY_GEIST_COUNT
-
-    # Lists should match programmatic counts (both derived from filesystem)
-    assert len(DEFAULT_CODE_GEISTS) == CODE_GEIST_COUNT
-    assert len(DEFAULT_TRACERY_GEISTS) == TRACERY_GEIST_COUNT
-
-    # Spot check a few key geists
-    assert "blind_spot_detector" in DEFAULT_CODE_GEISTS
+    """Spot-check well-known default geists and the lists' sorted order."""
+    assert "assumption_challenger" in DEFAULT_CODE_GEISTS
     assert "temporal_drift" in DEFAULT_CODE_GEISTS
-    assert "temporal_mirror" in DEFAULT_CODE_GEISTS
-    assert "columbo" in DEFAULT_CODE_GEISTS
-    assert "on_this_day" in DEFAULT_CODE_GEISTS
+    assert "this_time_last_year" in DEFAULT_CODE_GEISTS
+    for retired in ("antithesis_generator", "blind_spot_detector", "columbo", "dialectic_triad"):
+        assert retired not in DEFAULT_CODE_GEISTS
 
     assert "contradictor" in DEFAULT_TRACERY_GEISTS
     assert "hub_explorer" in DEFAULT_TRACERY_GEISTS
-    assert "transformation_suggester" in DEFAULT_TRACERY_GEISTS
     assert "what_if" in DEFAULT_TRACERY_GEISTS
 
     # Lists should be sorted (filesystem-derived, sorted by name)
     assert DEFAULT_CODE_GEISTS == sorted(DEFAULT_CODE_GEISTS)
     assert DEFAULT_TRACERY_GEISTS == sorted(DEFAULT_TRACERY_GEISTS)
-
-
-def test_default_geists_exist():
-    """Test that default geist files actually exist."""
-    package_dir = Path(__file__).parent.parent.parent / "src" / "geistfabrik"
-    default_code_dir = package_dir / "default_geists" / "code"
-    default_tracery_dir = package_dir / "default_geists" / "tracery"
-
-    # Check code geists
-    for geist_id in DEFAULT_CODE_GEISTS:
-        geist_file = default_code_dir / f"{geist_id}.py"
-        assert geist_file.exists(), f"Default code geist {geist_id}.py not found"
-
-    # Check Tracery geists
-    for geist_id in DEFAULT_TRACERY_GEISTS:
-        geist_file = default_tracery_dir / f"{geist_id}.yaml"
-        assert geist_file.exists(), f"Default Tracery geist {geist_id}.yaml not found"

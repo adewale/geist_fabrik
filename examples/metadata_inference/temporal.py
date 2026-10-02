@@ -3,7 +3,6 @@
 Infers staleness, modification patterns, and other temporal properties.
 """
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -25,9 +24,13 @@ def infer(note: "Note", vault: "VaultContext") -> dict[str, Any]:
         - is_recent: True if modified in last 7 days
         - is_old: True if not modified in last 90 days
     """
-    now = datetime.now()
-    days_since_modified = (now - note.modified).days
-    days_since_created = (now - note.created).days
+    # "Now" is the session date, not the wall clock, so replaying a session
+    # with --date gives the same metadata (same date + vault = same output).
+    # note.created is the date the note declares (frontmatter `created:` or a
+    # dated file name) when it has one; note.modified is the file's mtime.
+    now = vault.session.date
+    days_since_modified = max(0, (now.date() - note.modified.date()).days)
+    days_since_created = max(0, (now.date() - note.created.date()).days)
 
     # Staleness: 0 (fresh) to 1 (very stale), asymptotic curve
     # 30 days = 0.5, 90 days = 0.75, 365 days = ~0.9

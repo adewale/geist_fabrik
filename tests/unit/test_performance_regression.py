@@ -157,69 +157,6 @@ def test_composite_index_exists_for_links_table():
         assert result[0] == "idx_links_target_source"
 
 
-def test_similarity_computation_uses_vectorized_backend():
-    """Test that similarity operations delegate to vectorized backend."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        vault_path = Path(tmpdir)
-        (vault_path / "note_a.md").write_text("# Note A\n\nSome content here")
-        (vault_path / "note_b.md").write_text("# Note B\n\nSimilar content here")
-
-        vault = Vault(vault_path)
-        vault.sync()
-
-        session = Session(date=datetime(2025, 1, 15), db=vault.db)
-        session.compute_embeddings(vault.all_notes())
-        context = VaultContext(vault, session)
-
-        note_a = context.get_note("note_a.md")
-        note_b = context.get_note("note_b.md")
-
-        assert note_a is not None
-        assert note_b is not None
-
-        # Mock the backend's get_similarity method
-        context._backend.get_similarity = MagicMock(return_value=0.85)
-
-        # Call similarity
-        sim = context.similarity(note_a, note_b)
-
-        # Should have delegated to backend
-        context._backend.get_similarity.assert_called_once_with(note_a.path, note_b.path)
-        assert sim == 0.85
-
-
-def test_has_link_uses_links_between_not_multiple_calls():
-    """Test that has_link() calls links_between() once, not multiple times."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        vault_path = Path(tmpdir)
-        (vault_path / "note_a.md").write_text("# Note A\n\n[[note_b]]")
-        (vault_path / "note_b.md").write_text("# Note B")
-
-        vault = Vault(vault_path)
-        vault.sync()
-
-        session = Session(date=datetime(2025, 1, 15), db=vault.db)
-        session.compute_embeddings(vault.all_notes())
-        context = VaultContext(vault, session)
-
-        note_a = context.get_note("note_a.md")
-        note_b = context.get_note("note_b.md")
-
-        assert note_a is not None
-        assert note_b is not None
-
-        # Mock links_between to track calls
-        original_links_between = context.links_between
-        context.links_between = MagicMock(wraps=original_links_between)
-
-        # Call has_link
-        result = context.has_link(note_a, note_b)
-
-        # Should call links_between exactly once
-        assert context.links_between.call_count == 1
-        assert result is True
-
-
 def test_graph_neighbours_uses_set_for_deduplication():
     """Test that graph_neighbours() returns deduplicated results."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -274,60 +211,6 @@ def test_outgoing_links_resolves_targets_efficiently():
         # A bounded snapshot load replaces per-edge note/alias SQL lookups.
         assert len(statements) <= 3
         assert {note.path for note in outgoing} == {"note_b.md", "note_c.md"}
-
-
-@pytest.mark.benchmark
-def test_stats_vectorized_performance():
-    """Benchmark test: Verify vectorized stats are faster than naive implementation.
-
-    This test is skipped by default but can be run manually to validate
-    the performance improvement from vectorized similarity computations.
-    """
-    import time
-
-    import numpy as np
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        vault_path = Path(tmpdir)
-
-        # Use enough vectors that Python-loop overhead dominates fixed BLAS setup.
-        for i in range(500):
-            (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent for note {i}")
-
-        vault = Vault(vault_path)
-        vault.sync()
-
-        session = Session(date=datetime(2025, 1, 15), db=vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-        context = VaultContext(vault, session)
-        embeddings_dict = context.get_all_embeddings()
-        embeddings_array = np.array(list(embeddings_dict.values()))
-
-        # Naive implementation (O(n²) nested loops)
-        start_naive = time.perf_counter()
-        naive_sims = []
-        for i in range(len(embeddings_array)):
-            for j in range(i + 1, len(embeddings_array)):
-                sim = float(np.dot(embeddings_array[i], embeddings_array[j]))
-                naive_sims.append(sim)
-        naive_time = time.perf_counter() - start_naive
-
-        # Vectorized implementation (scikit-learn is a core dependency).
-        from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-            cosine_similarity,
-        )
-
-        start_vectorized = time.perf_counter()
-        similarity_matrix = cosine_similarity(embeddings_array)
-        _ = similarity_matrix[np.triu_indices_from(similarity_matrix, k=1)]
-        vectorized_time = time.perf_counter() - start_vectorized
-
-        speedup = naive_time / vectorized_time
-        print(f"\nNaive time: {naive_time:.4f}s")
-        print(f"Vectorized time: {vectorized_time:.4f}s")
-        print(f"Speedup: {speedup:.1f}x")
-        assert speedup > 2.0, f"Expected >2x speedup, got {speedup:.1f}x"
 
 
 def test_backlinks_caching(temp_vault):

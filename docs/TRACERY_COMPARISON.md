@@ -4,7 +4,10 @@
 > custom modifier support and is retained as design history, not as a current
 > feature reference. See `src/geistfabrik/tracery.py`,
 > `tests/unit/test_tracery.py`, and [WRITING_GOOD_GEISTS.md](WRITING_GOOD_GEISTS.md)
-> for the supported engine.
+> for the supported engine. It also predates the bracketed-link API (v0.9.1):
+> vault functions now return `[[links]]`, so current templates write `#note#`,
+> never `[[#note#]]`, and save actions (`[key:#symbol#]`) now let a template
+> reuse one draw.
 
 This document provides a detailed comparison between GeistFabrik's custom Tracery-like implementation and standard Tracery (original JavaScript version and pytracery Python port).
 
@@ -295,7 +298,8 @@ Output: "Alice found a treasure. Bob was happy." (potentially different names!)
 
 **GeistFabrik:**
 ```yaml
-# note_combinations.yaml
+# Historical note_combinations (the current extension example at
+# examples/geists/tracery/note_combinations.yaml uses $vault.note_pairs)
 type: geist-tracery
 id: note_combinations
 description: Suggests combining random notes in creative ways

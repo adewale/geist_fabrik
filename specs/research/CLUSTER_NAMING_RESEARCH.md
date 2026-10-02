@@ -4,6 +4,13 @@
 **Context**: Improving cluster names in the `cluster_mirror` geist
 **Current Method**: c-TF-IDF with MMR diversity filtering
 
+> **Status (2026-10):** The KeyBERT recommendation was built, without the
+> `keybert` library: `label_keybert()` in `src/geistfabrik/cluster_labeling.py`
+> (TF-IDF candidates ranked by similarity to the cluster centroid, then MMR) is
+> now the default, with `label_tfidf()` kept; labelling moved out of `stats.py`,
+> so the line references below are historical. BM25 weighting was not built. See
+> `specs/CLUSTER_NAMING.md`.
+
 ## Executive Summary
 
 Research into academic literature (2018-2025) reveals several promising techniques for improving automatic cluster naming beyond basic c-TF-IDF. The **recommended approach** is a hybrid system combining:

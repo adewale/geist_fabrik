@@ -9,11 +9,12 @@ import pytest
 from geistfabrik.config_loader import GeistFabrikConfig
 from geistfabrik.embedding_metrics import EmbeddingMetricsComputer
 from geistfabrik.embeddings import Session
-from geistfabrik.models import Note
 from geistfabrik.schema import init_db
 from geistfabrik.stats import StatsCollector, VaultStats
 from geistfabrik.stats_formatter import StatsFormatter, generate_recommendations
 from geistfabrik.vault import Vault
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder
+from tests.fixtures.temporal import set_session_text
 
 # Add 5 second timeout to ALL tests to prevent hangs
 pytestmark = pytest.mark.timeout(5)
@@ -48,41 +49,6 @@ def vault_with_embeddings(sample_notes, mock_embedding_computer, temp_dir):
 
     yield vault
     vault.close()
-
-
-def _create_vault_with_sessions(vault_path, notes, session_dates, embedding_computer):
-    """Helper to create vault with multiple sessions for testing.
-
-    Args:
-        vault_path: Path where vault should be created
-        notes: List of Note objects to add to vault
-        session_dates: List of datetime objects for sessions to create
-        embedding_computer: EmbeddingComputer instance to use
-
-    Returns:
-        Initialized Vault with embeddings computed for all sessions
-    """
-    # Create vault directory structure
-    vault_path.mkdir(exist_ok=True)
-    (vault_path / ".obsidian").mkdir(exist_ok=True)
-
-    # Create note files
-    for note in notes:
-        (vault_path / note.path).write_text(note.content)
-
-    # Initialize vault
-    db_path = vault_path / "_geistfabrik" / "vault.db"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    vault = Vault(vault_path, db_path)
-    vault.sync()
-
-    # Compute from the canonical rows produced by filesystem synchronization.
-    persisted_notes = vault.all_notes()
-    for session_date in session_dates:
-        session = Session(session_date, vault.db, computer=embedding_computer)
-        session.compute_embeddings(persisted_notes)
-
-    return vault
 
 
 # ========== StatsCollector Tests ==========
@@ -165,41 +131,64 @@ def test_compute_metrics_basic(vault_with_embeddings):
     assert "n_notes" in metrics
     assert "dimension" in metrics
     assert metrics["n_notes"] == 3
-    assert metrics["dimension"] == 387  # 384 semantic + 3 temporal
+    # Stats describe meaning: the 3 calendar features of a stored session
+    # embedding are dropped, leaving the 384 semantic dimensions.
+    assert metrics["dimension"] == 384
 
 
-def test_compute_basic_metrics(vault_with_embeddings):
-    """Test _compute_basic_metrics method."""
-    computer = EmbeddingMetricsComputer(vault_with_embeddings.db)
+@pytest.fixture(params=[True, False], ids=["sklearn", "fallback"])
+def similarity_path(request, monkeypatch):
+    """Run a test through both the sklearn and the pure-Python similarity branch."""
+    import geistfabrik.embedding_metrics as em
 
-    # Get embeddings
-    collector = StatsCollector(vault_with_embeddings, GeistFabrikConfig())
-    latest = collector.get_latest_embeddings()
-    assert latest is not None
-    _, embeddings, _ = latest
-
-    metrics = computer._compute_basic_metrics(embeddings)
-
-    # Check that metrics are present (may be None if dependencies missing)
-    assert "intrinsic_dim" in metrics or metrics.get("intrinsic_dim") is None
-    assert "vendi_score" in metrics or metrics.get("vendi_score") is None
-    assert "isoscore" in metrics or metrics.get("isoscore") is None
+    monkeypatch.setattr(em, "HAS_SKLEARN", request.param)
+    monkeypatch.setattr(em, "HAS_VENDI", False)
+    monkeypatch.setattr(em, "HAS_SKDIM", False)
+    return request.param
 
 
-def test_compute_basic_metrics_insufficient_data():
-    """Test metrics computation with insufficient data."""
+@pytest.mark.parametrize(
+    ("embeddings", "mean", "std"),
+    [
+        # Orthogonal rows of different lengths: every pair scores 0.
+        (np.eye(4, 8) * np.array([[1.0], [2.0], [0.5], [3.0]]), 0.0, 0.0),
+        # Identical (scaled) directions: every pair scores 1.
+        (np.array([[1.0, 2.0, 2.0]] * 3) * np.array([[1.0], [3.0], [0.1]]), 1.0, 0.0),
+        # Pairs (e1, e1), (e1, e2), (e1, e2) score 1, 0, 0.
+        (np.array([[1.0, 0.0], [2.0, 0.0], [0.0, 5.0]]), 1 / 3, np.sqrt(2) / 3),
+    ],
+    ids=["orthogonal", "identical", "mixed"],
+)
+def test_basic_metrics_similarity_known_answers(similarity_path, embeddings, mean, std):
+    """avg/std_similarity are the mean and population std of pairwise cosine
+    over distinct pairs (upper triangle, no diagonal), on either branch.
+
+    Regressions caught: including self-pairs, using dot products instead of
+    cosine, or reporting variance instead of standard deviation.
+    """
     db = init_db()
-    computer = EmbeddingMetricsComputer(db)
+    try:
+        metrics = EmbeddingMetricsComputer(db)._compute_basic_metrics(embeddings.astype(np.float32))
+    finally:
+        db.close()
 
-    # Create a small embedding array (< 10 samples)
-    small_embeddings = np.random.rand(5, 387).astype(np.float32)
+    assert metrics["avg_similarity"] == pytest.approx(mean, abs=1e-6)
+    assert metrics["std_similarity"] == pytest.approx(std, abs=1e-6)
 
-    metrics = computer._compute_basic_metrics(small_embeddings)
 
-    # Should still return a dict, but some metrics may be None
-    assert isinstance(metrics, dict)
+def test_basic_metrics_insufficient_data_omits_undefined_metrics(similarity_path):
+    """Metrics that need more data are absent, never NaN or zero placeholders:
+    one note has no pairs; fewer than 10 notes gets no IsoScore."""
+    db = init_db()
+    try:
+        computer = EmbeddingMetricsComputer(db)
+        single = computer._compute_basic_metrics(np.ones((1, 387), dtype=np.float32))
+        few = computer._compute_basic_metrics(np.eye(5, 387, dtype=np.float32))
+    finally:
+        db.close()
 
-    db.close()
+    assert single == {}
+    assert set(few) == {"avg_similarity", "std_similarity"}
 
 
 @pytest.mark.parametrize(
@@ -386,43 +375,107 @@ def test_temporal_drift_no_past_session(vault_with_embeddings):
     assert drift is None
 
 
-def test_temporal_drift_with_past_session(temp_dir, mock_embedding_computer):
-    """Test temporal drift analysis with a past session."""
-    # Create test notes
-    notes = [
-        Note(
-            path="drift1.md",
-            title="Drift Test 1",
-            content="Original content about AI",
-            links=[],
-            tags=[],
-            created=datetime(2024, 12, 1),
-            modified=datetime(2024, 12, 1),
-        ),
-    ]
+def test_temporal_drift_aligns_sessions_by_note_path(tmp_path):
+    """Drift compares each note with ITS OWN past embedding.
 
-    # Create vault with past and current sessions
-    vault_path = temp_dir / "drift_test_vault"
-    vault = _create_vault_with_sessions(
-        vault_path,
-        notes,
-        session_dates=[datetime(2024, 12, 16), datetime(2025, 1, 15)],
-        embedding_computer=mock_embedding_computer,
+    Content is unchanged between sessions, but a new note that sorts first
+    appears, shifting every row index. Aligned by path, every note has zero
+    drift; paired by row position, notes are compared with their neighbours.
+    Titles are under three characters so the lexical stub embeds only the
+    bodies, whose irregular word overlaps make row-mispaired notes differ.
+    """
+    bodies = {
+        "N1": "amber basil cedar",
+        "N2": "basil cedar delta ember",
+        "N3": "amber fjord",
+        "N4": "cedar ember fjord grove",
+        "N5": "amber delta grove",
+        "N6": "basil fjord",
+    }
+    for title, body in bodies.items():
+        (tmp_path / f"{title}.md").write_text(f"# {title}\n\n{body}")
+    vault = Vault(str(tmp_path), ":memory:")
+    try:
+        vault.sync()
+        Session(datetime(2024, 12, 1), vault.db).compute_embeddings(vault.all_notes())
+        (tmp_path / "A0.md").write_text("# A0\n\nburrow termites savanna")
+        vault.sync()
+        Session(datetime(2025, 1, 15), vault.db).compute_embeddings(vault.all_notes())
+
+        drift = StatsCollector(vault, GeistFabrikConfig()).get_temporal_drift(
+            "2025-01-15", days_back=30
+        )
+    finally:
+        vault.close()
+
+    assert drift is not None
+    assert drift["comparison_date"] == "2024-12-01"
+    assert drift["notes_compared"] == 6  # A0 has no past embedding
+    reported = drift["high_drift_notes"] + drift["stable_notes"]
+    assert {n["title"] for n in reported} == set(bodies)
+    assert drift["average_drift"] == 0.0
+    assert all(n["drift"] == 0.0 for n in reported), reported
+
+
+# Eight notes with mutually disjoint vocabularies. Only REWRITTEN and REVISED
+# said something different in the history session; FRESH was created on the
+# history date, so its calendar tail (age, session season) moves the most.
+DRIFT_HISTORY = datetime(2022, 9, 15)
+DRIFT_BODIES = {
+    "Rewritten": "harbour lighthouse tide ferry anchor",
+    "Revised": "glacier moraine crevasse summit valley",
+    "Fresh": "pottery kiln glaze clay wheel",
+    "Ledger": "invoice receipt budget audit",
+    "Orchid": "petal stamen pollen nectar",
+    "Comet": "orbit perihelion nucleus coma",
+    "Falcon": "talon plumage hover swoop",
+    "Quartz": "crystal lattice facet mineral",
+}
+# Title word shared, bodies disjoint: 6 vs 5 content words, overlap 1.
+REWRITTEN_PAST = "# Rewritten\n\nviolin sonata rehearsal concerto"
+# Title plus three body words shared, two swapped: 6 vs 6 words, overlap 4.
+REVISED_PAST = "# Revised\n\nglacier moraine crevasse orchard vineyard"
+
+
+def test_temporal_drift_known_answers_for_rewritten_unchanged_and_calendar_only(tmp_path):
+    """Drift measures what a note says, in the pinned model's own coordinates.
+
+    Contract: a note whose text was replaced drifts by 1 - cos(old, new); an
+    unchanged note drifts 0 even when its calendar features moved; the
+    changed notes head the report and never appear among the stable ones.
+    Regressions caught: re-introducing an alignment fitted to the same few
+    notes (a rotation in 384 dims absorbs the rewrite and smears it over
+    unchanged notes), comparing the full vector including the calendar tail,
+    and reporting a rewritten note as a "smallest change" in small vaults.
+    """
+    builder = VaultBuilder(tmp_path)
+    for title, body in DRIFT_BODIES.items():
+        created = DRIFT_HISTORY if title == "Fresh" else datetime(2021, 6, 1)
+        builder.note(title, body, created=created, modified=created)
+    ctx = builder.build(history=[DRIFT_HISTORY])
+    set_session_text(ctx, "Rewritten.md", DRIFT_HISTORY, REWRITTEN_PAST)
+    set_session_text(ctx, "Revised.md", DRIFT_HISTORY, REVISED_PAST)
+
+    drift = StatsCollector(ctx.vault, GeistFabrikConfig()).get_temporal_drift(
+        SESSION_DATE.strftime("%Y-%m-%d")
     )
 
-    # Test drift analysis - the method should either return valid drift or None
-    collector = StatsCollector(vault, GeistFabrikConfig())
-    drift = collector.get_temporal_drift("2025-01-15", days_back=30)
-
-    # If drift is computed, verify structure
-    if drift is not None:
-        assert "current_date" in drift
-        assert "comparison_date" in drift
-        assert "average_drift" in drift
-        assert "drift_trend" in drift
-        assert 0 <= drift["average_drift"] <= 2
-
-    vault.close()
+    assert drift is not None
+    assert drift["comparison_date"] == DRIFT_HISTORY.strftime("%Y-%m-%d")
+    assert drift["notes_compared"] == len(DRIFT_BODIES)
+    high = [(n["title"], n["drift"]) for n in drift["high_drift_notes"]]
+    rewritten = round(1 - 1 / np.sqrt(6 * 5), 2)  # 0.82
+    revised = round(1 - 4 / 6, 2)  # 0.33
+    assert high[:2] == [("Rewritten", rewritten), ("Revised", revised)]
+    # Every other note, including calendar-only FRESH, did not move.
+    stable = [(n["title"], n["drift"]) for n in drift["stable_notes"]]
+    assert not {title for title, _ in high} & {title for title, _ in stable}
+    unchanged = high[2:] + stable
+    assert {title for title, _ in unchanged} <= set(DRIFT_BODIES) - {"Rewritten", "Revised"}
+    assert "Fresh" in {title for title, _ in unchanged}
+    assert all(value == 0.0 for _, value in unchanged), unchanged
+    expected_mean = (1 - 1 / np.sqrt(30) + 1 - 4 / 6) / len(DRIFT_BODIES)
+    assert drift["average_drift"] == pytest.approx(expected_mean, abs=0.002)
 
 
 # ========== Recommendations Tests ==========
@@ -759,33 +812,25 @@ def test_isoscore_computation():
     db.close()
 
 
-def test_procrustes_alignment():
-    """Test Procrustes alignment improves similarity."""
-    from scipy.linalg import orthogonal_procrustes  # type: ignore[import-untyped]
+def test_hub_summary_counts_the_same_notes_as_the_hub_list(tmp_path):
+    """Contract: "Hubs (>=10 links in or out)" counts the notes the verbose
+    "Hub Notes (>=10 connections)" list shows.
 
-    from geistfabrik.embeddings import cosine_similarity
+    Regression: the summary counted notes with >= 10 OUTGOING links while the
+    list used incoming + outgoing, so a note that ten others link to was
+    listed as a hub but missing from the count.
+    """
+    for i in range(10):
+        (tmp_path / f"Spoke {i}.md").write_text(f"# Spoke {i}\n\nSee [[Centre]].")
+    (tmp_path / "Centre.md").write_text("# Centre\n\nThe middle.")
+    vault = Vault(str(tmp_path), ":memory:")
+    try:
+        vault.sync()
+        collector = StatsCollector(vault, GeistFabrikConfig())
+        graph = collector._collect_graph_stats()
+        hub_titles = [note["title"] for note in collector.get_hub_notes()]
+    finally:
+        vault.close()
 
-    # Create two sets of embeddings with rotation
-    np.random.seed(42)
-    embeddings1 = np.random.rand(10, 20).astype(np.float32)
-
-    # Create rotated version
-    angle = np.pi / 4
-    rotation_2d = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-
-    # Expand to full rotation matrix
-    rotation_full = np.eye(20)
-    rotation_full[:2, :2] = rotation_2d
-
-    embeddings2 = embeddings1 @ rotation_full.T
-
-    # Compute Procrustes alignment
-    rotation, _ = orthogonal_procrustes(embeddings2, embeddings1)
-    embeddings2_aligned = embeddings2 @ rotation
-
-    # After alignment, embeddings should be closer
-    sim_before = cosine_similarity(embeddings1[0], embeddings2[0])
-    sim_after = cosine_similarity(embeddings1[0], embeddings2_aligned[0])
-
-    # After alignment should be better (closer to 1)
-    assert sim_after >= sim_before - 0.1  # Allow small numerical error
+    assert hub_titles == ["Centre"]
+    assert graph["hubs"] == 1

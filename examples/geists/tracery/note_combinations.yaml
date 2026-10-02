@@ -1,0 +1,54 @@
+# EXTENSION EXAMPLE - not a bundled geist.
+#
+# This file is not loaded by GeistFabrik. It was retired from the default
+# geists (creative_collision now pairs notes, and checks that each pair is
+# unlinked and only loosely related). Copy it into
+# <vault>/_geistfabrik/geists/tracery/ to run it.
+#
+# What it demonstrates:
+#   - $vault.note_pairs(n): a pair of two DIFFERENT notes bundled as
+#     "[[A]]|||[[B]]" in one expansion
+#   - a save action, "#[picked:#pair#]template#", which expands ONE pair and
+#     reuses it, so both halves come from the same draw
+#   - the .split_seed / .split_neighbours modifiers that split the saved pair
+#
+type: geist-tracery
+id: note_combinations
+description: Suggests combining random notes in creative ways
+
+tracery:
+  # Expand ONE pair per suggestion and save it as `picked`, so note1 and note2
+  # are split from the same "[[A]]|||[[B]]" string and always differ.
+  # (Two independent sample_notes() draws could combine a note with itself.)
+  origin:
+    - "#[picked:#pair#]template#"
+
+  template:
+    - "What if you combined #note1# with #note2#? #reason#"
+    - "Consider connecting #note1# and #note2#. #reason#"
+    - "#note1# and #note2# might #relationship# in interesting ways."
+
+  # Pool larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
+  pair:
+    - "$vault.note_pairs(6)"
+
+  note1:
+    - "#picked.split_seed#"
+
+  note2:
+    - "#picked.split_neighbours#"
+
+  reason:
+    - "They might reveal unexpected patterns."
+    - "The contrast could clarify your thinking."
+    - "A synthesis might emerge from the tension."
+    - "Their intersection could be fertile ground."
+
+  relationship:
+    - "complement each other"
+    - "challenge each other"
+    - "illuminate each other"
+    - "transform each other"
+
+count: 2

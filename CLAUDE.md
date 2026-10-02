@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 70 bundled geists (58 code, 12 Tracery) - automatically available
+  - **default_geists/**: 44 bundled geists (41 code, 3 Tracery) - automatically available
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
@@ -32,7 +32,7 @@ promises remain explicitly tracked in `specs/SPEC_STATUS.md`.
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 70 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 44 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns
@@ -47,9 +47,10 @@ promises remain explicitly tracked in `specs/SPEC_STATUS.md`.
 ### Pre-Commit (Automatic)
 Pre-commit hooks run automatically on `git commit`:
 - Ruff linting and formatting
-- Trailing whitespace removal
+- ty type checking (mypy is not in pre-commit; validate.sh runs it)
+- Trailing whitespace, end-of-file, merge-conflict and large-file checks
 - YAML validation
-- Basic checks
+- Unused database table detection
 
 ### Before Pushing (MANDATORY)
 
@@ -66,8 +67,8 @@ and timeouts):
 4. `ty check src tests --error-on-warning` - Additive whole-project type checking
 5. `python scripts/detect_unused_tables.py` - Database validation
 6. `bandit -c pyproject.toml -r src/geistfabrik -ll -q` - Security scan
-7. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60` - Unit tests plus first coverage pass
-8. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Integration tests, appended coverage, measured 70% branch gate
+7. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60 --require-geist-firing` - Unit tests plus first coverage pass, suite-hygiene checks, and the geist firing gate (every bundled geist must produce a suggestion in some test)
+8. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Integration tests and appended coverage, then `python scripts/check_branch_coverage.py --minimum 70` - measured 70% branch gate
 9. `python scripts/check_phase_completion.py` - Acceptance-criteria gate: *runs*
    every machine-verifiable criterion in `specs/acceptance_criteria.md` (it does
    not trust the status column) so the spec cannot silently drift from the code.
@@ -157,7 +158,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
 2. **Respect Session-Scoped Caches**
    - **What happened**: scale_shifter switched from `similarity()` to `batch_similarity()`
-   - **Reality**: `batch_similarity()` bypasses session cache that other geists populate
+   - **Reality**: `batch_similarity()` then bypassed the session cache that other geists populate (since fixed: both methods are now cache-aware, see below)
    - **Impact**: Recomputed similarities already cached, losing 15-25% speedup potential
    - **Lesson**: Individual `similarity()` calls > batch calls when cache is warm
 
@@ -167,10 +168,13 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
    - **Impact**: Reduced suggestion quality led to worse user experience
    - **Lesson**: A 5-second geist that works > 2-second geist that doesn't
 
-**Current Performance Status** (post-rollback):
-- ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
-- ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 70 default geists: Pass timeout thresholds on production vaults
+**Performance Status at the rollback** (November 2025, 10k-note vault, 90 s
+timeout; see `specs/research/POST_MORTEM_PHASE3B.md`). These figures predate
+the 2026 scaling fixes in CHANGELOG `[Unreleased]` and the current 30 s default
+timeout, so treat them as history, not current numbers:
+- pattern_finder: 76.8 s, full coverage, quality suggestions
+- scale_shifter: Cache-aware, benefits from warm cache
+- 37 of the 47 geists then bundled succeeded within the timeout
 
 **Implementation Guidance**:
 
@@ -189,7 +193,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 - Small number of comparisons (<10 pairs)
 - Iterating with conditional logic between similarity checks
 
-**Key insight**: Both methods now integrate with session-scoped cache:
+**Key insight**: Both methods now integrate with session-scoped cache
+(`batch_similarity()` reads cached pairs always, but writes new pairs to the
+cache only for matrices up to 10,000 pairs; larger matrices are one vectorised
+multiply, so the cache never balloons):
 - **100% cache hit**: Both return immediately (fast path)
 - **Partial cache hits**: batch_similarity() computes full matrix; individual calls skip cached pairs
 - **0% cache hit**: batch_similarity() wins via vectorized operations
@@ -203,9 +210,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 - See `docs/WRITING_GOOD_GEISTS.md` for detailed analysis
 
 **Regression Prevention**:
-- Regression tests: `tests/integration/test_phase3b_regression.py` (Note: Some assertions outdated post-cache implementation)
+- Regression tests: `tests/integration/test_phase3b_regression.py` (pattern_finder must read every note, not a sample)
+- Cache consistency: the `batch_similarity` cache tests in `tests/unit/test_vault_context.py`
 - Performance guidance: `docs/WRITING_GOOD_GEISTS.md` (Performance Guidance section)
-- Static checks: Tests verify no `batch_similarity` in cache-sensitive geists
 
 ## Core Architecture
 
@@ -238,7 +245,7 @@ GeistFabrik uses a two-layer architecture for understanding Obsidian vaults:
 2. **Tracery geists**: YAML files in `<vault>/_geistfabrik/geists/tracery/` using Tracery grammar with `$vault.*` function calls
 
 ### Output: Session Notes
-- Each session creates `<vault>/geist journal/YYYY-MM-DD.md`
+- Each session run with `invoke --write` creates `<vault>/geist journal/YYYY-MM-DD.md` (without `--write`, `invoke` only previews)
 - Contains suggestions with geist identifiers and block IDs (`^gYYYYMMDD-NNN`)
 - Sessions are linkable and embeddable like any Obsidian note
 
@@ -294,21 +301,28 @@ $vault.neighbours(#note#, 3)  # ✗ Fails - #note# not expanded during preproces
 # Solution: Cluster functions bundle seed + related notes with delimiters
 semantic_clusters(2, 3) → ["[[Seed]]|||[[N1]], [[N2]]"]
 
-# Custom modifiers extract parts:
+# Save ONE expansion, then split it with custom modifiers:
 cluster: ["$vault.semantic_clusters(2, 3)"]
-seed: ["#cluster.split_seed#"]           # Extracts "[[Seed]]"
-neighbours: ["#cluster.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+origin: "#[picked:#cluster#]template#"      # [key:rule] saves one draw
+seed: ["#picked.split_seed#"]               # Extracts "[[Seed]]"
+neighbours: ["#picked.split_neighbours#"]   # Extracts "[[N1]], [[N2]]"
 
 # Template uses extracted values (already bracketed):
-origin: "#seed# shares space with #neighbours#"
+template: "#seed# shares space with #neighbours#"
+
+# ✗ Wrong: "#cluster.split_seed#" and "#cluster.split_neighbours#" each
+# re-expand #cluster#, so the seed and neighbours can come from different
+# clusters.
 ```
 
 **Implementation locations**:
 - Pattern implementation: `src/geistfabrik/function_registry.py::semantic_clusters()`
 - Custom modifiers: `src/geistfabrik/tracery.py::_split_seed()`, `_split_neighbours()`
+- Save actions (`[key:rule]`, `[key:POP]`): `src/geistfabrik/tracery.py`
 - Validation: `src/geistfabrik/tracery.py::_validate_grammar()`
 - Documentation: `specs/tracery_research.md` (Designing Tracery-Safe Vault Functions section)
-- Tests: `tests/unit/test_tracery.py::test_tracery_split_*_modifier()`, `tests/unit/test_tracery_geists.py::test_semantic_clusters_*`
+- Worked example: `examples/geists/tracery/semantic_neighbours.yaml` (an extension example since its job merged into the bundled `concept_cluster` geist)
+- Tests: `tests/unit/test_tracery.py::test_tracery_split_*_modifier()`, `tests/unit/test_tracery_geists.py::test_semantic_clusters_*`, `tests/integration/test_example_geists.py::test_semantic_neighbours_example_splits_one_saved_cluster`
 
 **Future cluster functions** (post-1.0, see `docs/GeistFabrik2.0_Wishlist.md`):
 - `contrarian_clusters(count, k)` - Seed + contrarian notes
@@ -403,8 +417,8 @@ burst_days = vault.notes_grouped_by_creation_date(
 - ✅ **Consistency**: All geists use same abstraction level
 
 **What Changed**:
-- **Fixed geists**: creation_burst.py, burst_evolution.py (commit d80a93e)
-- **New VaultContext method**: `notes_grouped_by_creation_date()` in vault_context.py:603
+- **Fixed geists**: creation_burst.py, burst_evolution.py (commit d80a93e; burst_evolution has since been merged into creation_burst)
+- **New VaultContext method**: `notes_grouped_by_creation_date()` in vault_context.py
 - **Updated spec**: CREATION_BURST_GEIST_SPEC.md now shows VaultContext usage
 - **Added lesson**: This section in CLAUDE.md
 
@@ -426,7 +440,7 @@ If yes to any → Add a VaultContext method instead.
 
 **See Also**:
 - Commit d80a93e: Fix architectural violation in burst geists
-- `src/geistfabrik/vault_context.py:603`: Implementation of aggregation method
+- `src/geistfabrik/vault_context.py` (`notes_grouped_by_creation_date()`): Implementation of aggregation method
 - `docs/ARCHITECTURE.md`: Two-layer architecture documentation
 
 ## Three-Dimensional Extensibility
@@ -450,13 +464,21 @@ If yes to any → Add a VaultContext method instead.
 
 ## Temporal Embeddings
 
-A key architectural feature: GeistFabrik computes fresh embeddings for all notes at each session, enabling:
-- Tracking how understanding of notes evolves over time
-- Detecting interpretive drift even when content doesn't change
+GeistFabrik stores a session embedding for every note at each session, enabling:
+- Tracking how notes change over time (trajectories across sessions)
 - Discovering temporal patterns and seasonal thinking rhythms
 - Identifying notes developing toward or away from each other
 
-Embeddings combine semantic (384 dims from sentence-transformers) with temporal features (3 dims: note age, creation season, session season).
+Semantic vectors are cached by note content, so an unchanged note has the same
+meaning vector in every session: drift reflects edits (and new neighbours),
+never a shifting "reading" of unchanged text.
+
+Stored session embeddings are the 384 semantic dims followed by 3 calendar
+features (note age, creation season, session season). All similarity,
+neighbour, clustering, surprisal and drift computations use only the 384
+meaning dimensions (`src/geistfabrik/semantic_vectors.py`); the calendar
+features are stored but not compared, because they made notes of similar age
+look alike and shifted "similar" counts between sessions on unchanged text.
 
 ## Data Structures
 
@@ -469,8 +491,8 @@ class Note:
     content: str                 # Full markdown content
     links: List[Link]            # Outgoing [[links]]
     tags: List[str]              # #tags found in note
-    created: datetime            # File creation or entry date
-    modified: datetime           # File modification time
+    created: datetime            # Frontmatter `created:`, else dated file name, else file timestamps (entry date for virtual notes)
+    modified: datetime           # Frontmatter `modified:`, else `updated:`, else file mtime
     # Virtual entry fields (for date-collection notes)
     is_virtual: bool = False     # True for journal entries
     source_file: str | None = None  # Source file for virtual entries
@@ -484,7 +506,7 @@ class Note:
 @dataclass
 class Suggestion:
     text: str           # 1-2 sentence suggestion (variable length)
-    notes: List[str]    # Referenced note titles
+    notes: List[str]    # Referenced notes' link_text (file name, or "file|Title" when they differ)
     geist_id: str       # Identifier of creating geist
     title: str = None   # Optional suggested note title
 ```
@@ -494,16 +516,19 @@ class Suggestion:
 The CLI supports:
 
 ```bash
-# Default: filtered + sampled (~5 suggestions)
+# Default: filtered + sampled (~5 suggestions), preview only
 uv run geistfabrik invoke ~/my-vault
 
+# Write the session to <vault>/geist journal/YYYY-MM-DD.md
+uv run geistfabrik invoke ~/my-vault --write
+
 # Single geist mode
-uv run geistfabrik invoke ~/my-vault --geist columbo
+uv run geistfabrik invoke ~/my-vault --geist temporal_drift
 
 # Multiple geists mode
-uv run geistfabrik invoke ~/my-vault --geists columbo,drift,skeptic
+uv run geistfabrik invoke ~/my-vault --geists what_if,concept_drift,surprisal
 
-# Full firehose (all filtered suggestions, 50-200+)
+# Full mode (all filtered suggestions, no sampling; --no-filter skips filtering too)
 uv run geistfabrik invoke ~/my-vault --full
 
 # Replay specific session
@@ -611,7 +636,7 @@ def test_mathematical_ground_truth():
 
 ## Key Files to Reference
 
-- `specs/geistfabrik_spec.md` - Complete technical specification (~1500 lines)
+- `specs/geistfabrik_spec.md` - Complete technical specification (~1600 lines; check `specs/SPEC_STATUS.md` for what is actually built)
 - `specs/geistfabrik_vision.md` - Design philosophy and user experience goals
 - `specs/tracery_research.md` - Background on Tracery grammar system
 - `README.md` - High-level project description
@@ -635,7 +660,8 @@ from geistfabrik.default_geists import (
 - `src/geistfabrik/default_geists/__init__.py` counts files programmatically using `Path.glob()`
 - These constants are the single source of truth for all geist counts
 - Automated tests verify that documentation stays synchronised (see `tests/unit/test_geist_count_consistency.py`)
-- Tests will fail if README.md or CLAUDE.md mention outdated counts
+- Tests verify that README.md, README_EARLY_ADOPTERS.md and CLAUDE.md state the current counts (a stale
+  count elsewhere in a doc is not detected, so don't write counts at all)
 
 **When adding/removing geists**:
 1. Add/remove the geist file (*.py or *.yaml)
@@ -647,19 +673,19 @@ from geistfabrik.default_geists import (
 ### Adding a Metadata Module
 1. Create `<vault>/_geistfabrik/metadata_inference/module_name.py`
 2. Export `infer(note: Note, vault: VaultContext) -> Dict`
-3. Add to `_geistfabrik/config.yaml` enabled_modules list
-4. System auto-loads and detects key conflicts on startup
+3. If `_geistfabrik/config.yaml` sets an `enabled_modules` allowlist, add it there (an empty list loads every module)
+4. System auto-loads it; a key clash with another module raises `MetadataConflictError` when inference runs
 
 ### Adding a Vault Function
 1. Create `<vault>/_geistfabrik/vault_functions/function_name.py`
 2. Use decorator: `@vault_function("function_name")`
 3. Function automatically available in Tracery as `$vault.function_name()`
-4. Add to config.yaml enabled_modules for verification
+4. If config.yaml sets an `enabled_modules` allowlist, add it there (an empty list loads every module)
 
 ### Adding a Code Geist
 1. Create `<vault>/_geistfabrik/geists/code/geist_name.py`
 2. Export `suggest(vault: VaultContext) -> List[Suggestion]`
-3. Include timeout handling (30 second default)
+3. Keep work bounded: the executor enforces the timeout (30 second default, `geist_execution.timeout`)
 4. Return empty list if no quality suggestions found
 
 ### Adding a Tracery Geist
@@ -677,10 +703,10 @@ from geistfabrik.default_geists import (
 
 From the spec:
 - Geists execute with 30-second timeout (configurable)
-- After 3 failures, geist automatically disabled
-- Error logs include test command to reproduce: `geistfabrik test geist_id /path/to/vault --date YYYY-MM-DD`
+- After 3 consecutive failures (`geist_execution.max_failures`), a geist is automatically disabled, persisted across sessions
+- Error logs include a test command to reproduce: `geistfabrik test <geist_id> <vault>` (add `--date YYYY-MM-DD` to replay a session)
 - System continues if individual geists fail
-- Metadata conflicts detected at startup, not runtime
+- Metadata key conflicts raise `MetadataConflictError` when inference first runs (not at module load)
 
 ## Performance Targets
 

@@ -1,112 +1,152 @@
-"""Temporal Clustering geist - discovers automatic intellectual periods.
+"""Temporal Clustering geist - threads of closely related notes within a season.
 
-Uses temporal embeddings to find notes that naturally cluster by era, revealing
-distinct "seasons" of thinking without manual tagging.
+Looks at the most recent occurrence of each season and, when a sampled anchor
+note from that season has closely related companions written in the same
+season, names the anchor and its two closest companions as a thread of
+thought.
+
+Only when two seasons both hold a thread does it compare them, and it claims a
+thread continued across seasons only when it measured that: the mean
+similarity between the notes of one thread and the notes of the other must
+reach MIN_SIMILARITY. Seasons are the meteorological ones of temporal_analysis.get_season()
+(winter = Dec-Feb), as in this_time_last_year and seasonal_patterns, so a
+note's season agrees across the seasonal geists.
+
+(Absorbs the former seasonal_topic_analysis geist, which demonstrated the
+TemporalSemanticQuery abstraction.)
 """
 
-import logging
+from datetime import datetime, timedelta
+from itertools import combinations
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from geistfabrik import Note, Suggestion, VaultContext
+from geistfabrik.models import Suggestion
+from geistfabrik.temporal_analysis import TemporalSemanticQuery, get_season
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from geistfabrik.models import Note
+    from geistfabrik.vault_context import VaultContext
+
+# First month of each season, as get_season() defines them (Northern
+# Hemisphere); each season ends where the next one starts, so winter runs
+# from December 1 into the following year.
+_SEASON_START_MONTHS = (12, 3, 6, 9)
+MIN_SIMILARITY = 0.60
+
+
+def _latest_season_windows(today: datetime) -> dict[str, tuple[datetime, datetime]]:
+    """Each season's most recent occurrence that began on or before ``today``.
+
+    Returns label -> (start, end), end inclusive to the last microsecond of the
+    season's final day. Winter is labelled with both years it spans
+    ("winter 2023-24"); a December session is in the winter that runs into the
+    following year, earlier sessions look back to the previous winter.
+    """
+    windows: dict[str, tuple[datetime, datetime]] = {}
+    for month in _SEASON_START_MONTHS:
+        start = datetime(today.year, month, 1)
+        if start > today:
+            start = start.replace(year=today.year - 1)
+        next_month = month % 12 + 3
+        next_year = start.year + 1 if month == 12 else start.year
+        end = datetime(next_year, next_month, 1) - timedelta(microseconds=1)
+        name = get_season(start).lower()
+        if month == 12:
+            label = f"{name} {start.year}-{(start.year + 1) % 100:02d}"
+        else:
+            label = f"{name} {start.year}"
+        windows[label] = (start, end)
+    return windows
+
+
+def _links(thread: list["Note"]) -> str:
+    return ", ".join(f"[[{n.link_text}]]" for n in thread)
+
+
+def _cross_similarity(vault: "VaultContext", a: list["Note"], b: list["Note"]) -> float:
+    """Mean similarity between every note of thread ``a`` and every note of ``b``."""
+    matrix = vault.batch_similarity(a, b)
+    return float(matrix.mean())
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find temporal clusters that reveal intellectual periods.
+    """Find threads of closely related notes written within one season.
 
-    Returns:
-        List of suggestions highlighting temporal thinking patterns
+    Uses TemporalSemanticQuery to find notes created in the same season that
+    are semantically similar to a sampled anchor note from that season.
     """
-    from geistfabrik import Suggestion
-    from geistfabrik.similarity_analysis import SimilarityLevel
+    notes = vault.notes()
 
-    suggestions = []
-
-    try:
-        notes = vault.notes()
-
-        if len(notes) < 20:
-            return []
-
-        # Group notes by time periods (quarters)
-        from datetime import timedelta
-
-        # Session date, not wall-clock: keeps --date replays deterministic
-        now = vault.session.date
-
-        # Define time windows (quarters going back 2 years)
-        quarters = []
-        for i in range(8):  # 8 quarters = 2 years
-            end_date = now - timedelta(days=i * 90)
-            start_date = end_date - timedelta(days=90)
-            quarters.append((start_date, end_date, f"Q{(i % 4) + 1}-{end_date.year}"))
-
-        # Group notes by quarter and find if distinct semantic clusters emerge
-        quarter_groups: dict[str, list[Note]] = {}
-
-        for note in notes:
-            for start, end, label in quarters:
-                if start <= note.created <= end:
-                    if label not in quarter_groups:
-                        quarter_groups[label] = []
-                    quarter_groups[label].append(note)
-                    break
-
-        # Find quarters with distinct semantic character
-        significant_clusters = []
-
-        for label, quarter_notes in quarter_groups.items():
-            if len(quarter_notes) < 5:
-                continue
-
-            # Calculate intra-cluster similarity (how similar are notes within this quarter)
-            sample = vault.sample(quarter_notes, min(10, len(quarter_notes)))
-
-            # Calculate pairwise similarities using individual calls to benefit from cache
-            similarities = []
-            for i in range(len(sample)):
-                for j in range(i + 1, len(sample)):
-                    sim = vault.similarity(sample[i], sample[j])
-                    similarities.append(sim)
-
-            if similarities:
-                avg_similarity = sum(similarities) / len(similarities)
-
-                # High intra-cluster similarity suggests a coherent intellectual period
-                if avg_similarity > SimilarityLevel.MODERATE:
-                    significant_clusters.append((label, quarter_notes, avg_similarity))
-
-        # Report on significant temporal clusters
-        if len(significant_clusters) >= 2:
-            # Compare two different periods
-            significant_clusters.sort(key=lambda x: x[2], reverse=True)
-            cluster1_label, cluster1_notes, cluster1_sim = significant_clusters[0]
-            cluster2_label, cluster2_notes, cluster2_sim = significant_clusters[1]
-
-            sample1 = vault.sample(cluster1_notes, count=3)
-            sample2 = vault.sample(cluster2_notes, count=3)
-
-            names1 = ", ".join([f"[[{n.link_text}]]" for n in sample1])
-            names2 = ", ".join([f"[[{n.link_text}]]" for n in sample2])
-
-            text = (
-                f"Your {cluster1_label} notes form a distinct semantic cluster "
-                f"(including {names1}) separate from your {cluster2_label} notes "
-                f"({names2}). Different intellectual seasons?"
-            )
-
-            suggestions.append(
-                Suggestion(
-                    text=text,
-                    notes=[n.link_text for n in sample1 + sample2],
-                    geist_id="temporal_clustering",
-                )
-            )
-
-    except Exception:
-        logger.debug("temporal_clustering geist failed", exc_info=True)
+    if len(notes) < 20:
         return []
 
-    return vault.sample(suggestions, count=2)
+    tsq = TemporalSemanticQuery(vault)
+
+    # label -> (season start, anchor + two closest companions)
+    threads: dict[str, tuple[datetime, list[Note]]] = {}
+    today = vault.session.date
+    for label, (start_date, season_end) in _latest_season_windows(today).items():
+        # The current season is not over: notes dated after the session date
+        # (a --date replay) have not been written yet.
+        end_date = min(season_end, today)
+        seasonal_notes = [n for n in notes if start_date <= n.created <= end_date]
+
+        if len(seasonal_notes) < 3:
+            continue
+
+        anchor = vault.sample(seasonal_notes, count=1)[0]
+        similar_in_season = tsq.notes_created_similar_to(
+            anchor=anchor,
+            start_date=start_date,
+            end_date=end_date,
+            min_similarity=MIN_SIMILARITY,
+        )
+
+        if len(similar_in_season) >= 2:
+            # The anchor and its two closest companions (not the first two in
+            # vault order)
+            companions = sorted(
+                similar_in_season, key=lambda n: (-vault.similarity(anchor, n), n.path)
+            )[:2]
+            threads[label] = (start_date, [anchor, *companions])
+
+    suggestions = [
+        Suggestion(
+            text=(
+                f"In {label}, you wrote closely related notes: {_links(thread)}. "
+                f"Is that thread still alive?"
+            ),
+            notes=[n.link_text for n in thread],
+            geist_id="temporal_clustering",
+        )
+        for label, (_, thread) in threads.items()
+    ]
+
+    # Cross-season claim, only where measured: the mean similarity between two
+    # seasons' threads reaches the threshold a companion needs within a season.
+    continuing = []
+    for (label_a, (start_a, thread_a)), (label_b, (start_b, thread_b)) in combinations(
+        threads.items(), 2
+    ):
+        if _cross_similarity(vault, thread_a, thread_b) < MIN_SIMILARITY:
+            continue
+        if start_b < start_a:
+            label_a, thread_a, label_b, thread_b = label_b, thread_b, label_a, thread_a
+        continuing.append(
+            Suggestion(
+                text=(
+                    f"Your {label_a} thread ({_links(thread_a)}) and your {label_b} "
+                    f"thread ({_links(thread_b)}) are closely related to each other too. "
+                    f"Is it one line of thought you keep returning to?"
+                ),
+                notes=[n.link_text for n in thread_a + thread_b],
+                geist_id="temporal_clustering",
+            )
+        )
+
+    if continuing:
+        # One measured cross-season link says more than the two separate
+        # threads it joins; never offer both views of the same notes.
+        return vault.sample(continuing, count=1)
+
+    return vault.sample(suggestions, count=min(2, len(suggestions)))

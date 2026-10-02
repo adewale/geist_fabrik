@@ -3,6 +3,7 @@
 import os
 import sqlite3
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -119,6 +120,215 @@ def test_sync_modified_file(tmp_path: Path) -> None:
     vault.close()
 
 
+def test_created_is_not_later_than_modified(tmp_path: Path) -> None:
+    """A note's age comes from its file history, not the last inode change.
+
+    Regression for BUG-4: ``created`` was read from ``st_ctime``, which on
+    Linux and macOS is reset by every write, so all notes looked brand new.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "old.md"
+    note_file.write_text("# Old\n\nWritten years ago.")
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+
+    vault = Vault(vault_path)
+    vault.sync()
+    note = vault.get_note("old.md")
+    assert note is not None
+    assert note.created == datetime(2020, 1, 1)
+    vault.close()
+
+
+def test_editing_a_note_does_not_move_its_created_date(tmp_path: Path) -> None:
+    """Re-syncing an edited note keeps the earliest creation time on record."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "idea.md"
+    note_file.write_text("# Idea\n\nFirst draft.")
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+
+    vault = Vault(vault_path)
+    vault.sync()
+
+    note_file.write_text("# Idea\n\nSecond draft.")
+    edited = datetime(2024, 6, 1).timestamp()
+    os.utime(note_file, (edited, edited))
+    assert vault.sync() == 1
+
+    note = vault.get_note("idea.md")
+    assert note is not None
+    assert "Second draft" in note.content
+    assert note.created == datetime(2020, 1, 1)
+    assert note.modified == datetime(2024, 6, 1)
+    vault.close()
+
+
+@pytest.mark.parametrize(
+    ("name", "content", "expected"),
+    [
+        ("idea.md", "---\ncreated: 2023-09-14\n---\n# Idea\n", datetime(2023, 9, 14)),
+        (
+            "idea.md",
+            "---\ncreated: 2023-09-14T08:30\n---\n# Idea\n",
+            datetime(2023, 9, 14, 8, 30),
+        ),
+        ("2021-03-05.md", "# Daily\n\nNo frontmatter.", datetime(2021, 3, 5)),
+        ("2021-03-05 Meeting with Steph.md", "# Meeting\n", datetime(2021, 3, 5)),
+        (
+            "2021-03-05.md",
+            "---\ncreated: 2019-07-01\n---\n# Daily\n",
+            datetime(2019, 7, 1),
+        ),
+        ("idea.md", "---\ncreated: someday\n---\n# Idea\n", datetime(2020, 1, 1)),
+        ("2021-13-40.md", "# Not a date\n", datetime(2020, 1, 1)),
+    ],
+    ids=[
+        "frontmatter-date",
+        "frontmatter-datetime",
+        "filename-date",
+        "filename-date-prefix",
+        "frontmatter-beats-filename",
+        "unparseable-falls-back",
+        "invalid-filename-falls-back",
+    ],
+)
+def test_created_comes_from_the_note_before_file_timestamps(
+    tmp_path: Path, name: str, content: str, expected: datetime
+) -> None:
+    """Contract: created = frontmatter `created:`, else a dated file name,
+    else the file timestamps (here 2020-01-01).
+
+    Regression: created came only from file timestamps, which copying,
+    syncing or a git clone reset, so a 2023 note cloned today was "new".
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / name
+    note_file.write_text(content)
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+
+    vault = Vault(vault_path)
+    vault.sync()
+    note = vault.get_note(name)
+    assert note is not None
+    assert note.created == expected
+    vault.close()
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("---\nmodified: 2023-11-02\n---\n# Idea\n", datetime(2023, 11, 2)),
+        ("---\nupdated: 2023-11-02T09:15\n---\n# Idea\n", datetime(2023, 11, 2, 9, 15)),
+        (
+            "---\nupdated: 2022-01-01\nModified: 2023-11-02\n---\n# Idea\n",
+            datetime(2023, 11, 2),
+        ),
+        ("---\nmodified: never\nupdated: 2023-11-02\n---\n# Idea\n", datetime(2023, 11, 2)),
+        ("---\nmodified: never\n---\n# Idea\n", datetime(2024, 6, 1)),
+        ("# Idea\n\nNo frontmatter.", datetime(2024, 6, 1)),
+    ],
+    ids=[
+        "frontmatter-modified",
+        "frontmatter-updated",
+        "modified-beats-updated",
+        "unparseable-modified-falls-to-updated",
+        "unparseable-falls-back",
+        "no-frontmatter",
+    ],
+)
+def test_modified_comes_from_the_note_before_file_mtime(
+    tmp_path: Path, content: str, expected: datetime
+) -> None:
+    """Contract: modified = frontmatter `modified:`, else `updated:`, else the
+    file's mtime (here 2024-06-01).
+
+    Regression: modified came only from mtime, which a copy, sync or git clone
+    resets, so staleness ("untouched for N days") changed between machines.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "idea.md"
+    note_file.write_text(content)
+    edited = datetime(2024, 6, 1).timestamp()
+    os.utime(note_file, (edited, edited))
+
+    vault = Vault(vault_path)
+    vault.sync()
+    note = vault.get_note("idea.md")
+    assert note is not None
+    assert note.modified == expected
+    vault.close()
+
+
+def test_declared_modified_bounds_an_estimated_created_date(tmp_path: Path) -> None:
+    """A freshly cloned note (all file timestamps = today) that declares an old
+    `modified:` cannot have been created after that edit."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "cloned.md"
+    note_file.write_text("---\nmodified: 2021-04-09\n---\n# Cloned\n")
+
+    vault = Vault(vault_path)
+    vault.sync()
+    note = vault.get_note("cloned.md")
+    assert note is not None
+    assert note.modified == datetime(2021, 4, 9)
+    assert note.created == datetime(2021, 4, 9)
+    vault.close()
+
+
+def test_existing_databases_pick_up_declared_modification_dates(tmp_path: Path) -> None:
+    """Migration: rows written by parser-v5 (mtime-only modified dates) are
+    reprocessed once and take the date the note declares. No rebuild."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "kept.md"
+    note_file.write_text("---\nupdated: 2023-02-03\n---\n# Kept\n")
+    vault = Vault(vault_path)
+    vault.sync()
+    vault.db.execute(
+        "UPDATE notes SET modified = ?, source_fingerprint = 'parser-v5:legacy' WHERE path = ?",
+        (datetime(2026, 10, 1).isoformat(), "kept.md"),
+    )
+    vault.db.commit()
+
+    assert vault.sync() == 1
+
+    note = vault.get_note("kept.md")
+    assert note is not None
+    assert note.modified == datetime(2023, 2, 3)
+    vault.close()
+
+
+def test_correcting_frontmatter_created_takes_effect(tmp_path: Path) -> None:
+    """Contract: a declared creation date replaces the stored one, even later.
+
+    The "never moves later" rule protects estimates from file timestamps; it
+    must not stop a user from correcting `created:` to a later date.
+    """
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "idea.md"
+    note_file.write_text("---\ncreated: 2019-01-01\n---\n# Idea\n")
+    vault = Vault(vault_path)
+    vault.sync()
+
+    note_file.write_text("---\ncreated: 2022-05-17\n---\n# Idea\n")
+    stat = note_file.stat()
+    os.utime(note_file, (stat.st_atime, stat.st_mtime + 5))
+    assert vault.sync() == 1
+
+    note = vault.get_note("idea.md")
+    assert note is not None
+    assert note.created == datetime(2022, 5, 17)
+    vault.close()
+
+
 def test_sync_detects_content_change_with_preserved_mtime(tmp_path: Path) -> None:
     """Incremental identity does not treat a same-mtime replacement as unchanged."""
     vault_path = tmp_path / "vault"
@@ -179,9 +389,10 @@ def test_sync_update_preserves_temporal_history_and_invalidates_semantic_cache(
     os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
 
     assert vault.sync() == 1
-    assert vault.db.execute(
-        "SELECT 1 FROM embeddings WHERE note_path = ?", ("test.md",)
-    ).fetchone() is None
+    assert (
+        vault.db.execute("SELECT 1 FROM embeddings WHERE note_path = ?", ("test.md",)).fetchone()
+        is None
+    )
     historical = vault.db.execute(
         "SELECT embedding FROM session_embeddings WHERE session_id = ? AND note_path = ?",
         (session_id[0], "test.md"),
@@ -258,9 +469,7 @@ def test_date_collection_update_preserves_only_stable_path_history(tmp_path: Pat
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
     journal_path = vault_path / "journal.md"
-    journal_path.write_text(
-        "# Journal\n\n## 2024-01-01\n\nOriginal\n\n## 2024-01-02\n\nRemoved"
-    )
+    journal_path.write_text("# Journal\n\n## 2024-01-01\n\nOriginal\n\n## 2024-01-02\n\nRemoved")
     vault = Vault(vault_path)
     assert vault.sync() == 2
 
@@ -279,22 +488,17 @@ def test_date_collection_update_preserves_only_stable_path_history(tmp_path: Pat
             (path, b"semantic", "test", "2024-02-01T00:00:00"),
         )
         vault.db.execute(
-            "INSERT INTO session_embeddings (session_id, note_path, embedding) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO session_embeddings (session_id, note_path, embedding) VALUES (?, ?, ?)",
             (session_id[0], path, path.encode()),
         )
     vault.db.commit()
 
     previous_mtime = journal_path.stat().st_mtime
-    journal_path.write_text(
-        "# Journal\n\n## 2024-01-01\n\nUpdated\n\n## 2024-01-03\n\nAdded"
-    )
+    journal_path.write_text("# Journal\n\n## 2024-01-01\n\nUpdated\n\n## 2024-01-03\n\nAdded")
     os.utime(journal_path, (previous_mtime + 2, previous_mtime + 2))
 
     assert vault.sync() == 2
-    assert vault.db.execute(
-        "SELECT note_path FROM embeddings ORDER BY note_path"
-    ).fetchall() == []
+    assert vault.db.execute("SELECT note_path FROM embeddings ORDER BY note_path").fetchall() == []
     assert vault.db.execute(
         "SELECT note_path FROM session_embeddings ORDER BY note_path"
     ).fetchall() == [("journal.md/2024-01-01",)]
@@ -546,4 +750,88 @@ def test_large_note(tmp_path: Path) -> None:
     assert note is not None
     assert len(note.content) > 1024 * 1024
 
+    vault.close()
+
+
+def test_sync_rederives_created_dates_stored_by_an_older_parser(tmp_path: Path) -> None:
+    """Migration for the creation-date fix: rows written by parser-v2 (which
+    stored st_ctime, i.e. the last write) are reprocessed once, and their
+    ``created`` moves back to the file's real age. No rebuild is needed."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "old.md"
+    note_file.write_text("# Old\n\nWritten long ago.")
+    written = datetime(2020, 1, 1).timestamp()
+    os.utime(note_file, (written, written))
+    vault = Vault(vault_path)
+    vault.sync()
+    # Simulate a database written before the fix: a late created date and a
+    # parser-v2 fingerprint.
+    vault.db.execute(
+        "UPDATE notes SET created = ?, source_fingerprint = 'parser-v2:legacy' WHERE path = ?",
+        (datetime(2026, 9, 1).isoformat(), "old.md"),
+    )
+    vault.db.commit()
+
+    assert vault.sync() == 1
+
+    note = vault.get_note("old.md")
+    assert note is not None
+    assert note.created == datetime(2020, 1, 1)
+    vault.close()
+
+
+def test_reprocessing_unchanged_content_keeps_its_semantic_embedding(tmp_path: Path) -> None:
+    """A parser-revision reprocess must not discard cached semantic embeddings
+    for unchanged notes (that would re-embed the whole vault); a content edit
+    still invalidates them."""
+    from geistfabrik.config import semantic_cache_key
+
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "test.md"
+    note_file.write_text("# Same\n\nUnchanged body")
+    vault = Vault(vault_path)
+    vault.sync()
+    content = note_file.read_text()
+    vault.db.execute(
+        "INSERT INTO embeddings (note_path, embedding, model_version, computed_at) "
+        "VALUES (?, ?, ?, ?)",
+        ("test.md", b"\x00" * 8, semantic_cache_key(content), "2026-01-01"),
+    )
+    vault.db.execute("UPDATE notes SET source_fingerprint = 'parser-v2:legacy'")
+    vault.db.commit()
+
+    assert vault.sync() == 1  # reprocessed, content unchanged
+    cached = vault.db.execute("SELECT model_version FROM embeddings WHERE note_path = 'test.md'")
+    assert cached.fetchall() == [(semantic_cache_key(content),)]
+
+    previous_mtime = note_file.stat().st_mtime
+    note_file.write_text("# Same\n\nEdited body")
+    os.utime(note_file, (previous_mtime + 2, previous_mtime + 2))
+    assert vault.sync() == 1
+    assert vault.db.execute("SELECT 1 FROM embeddings WHERE note_path = 'test.md'").fetchall() == []
+    vault.close()
+
+
+def test_existing_databases_pick_up_declared_creation_dates(tmp_path: Path) -> None:
+    """Migration: rows written by parser-v4 (file-timestamp created dates) are
+    reprocessed once and take the date the note declares. No rebuild."""
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+    note_file = vault_path / "clipped.md"
+    note_file.write_text("---\ncreated: 2023-09-14\n---\n# Clipped\n")
+    vault = Vault(vault_path)
+    vault.sync()
+    vault.db.execute(
+        "UPDATE notes SET created = ?, source_fingerprint = 'parser-v4:legacy' WHERE path = ?",
+        (datetime(2026, 10, 1).isoformat(), "clipped.md"),
+    )
+    vault.db.commit()
+
+    assert vault.sync() == 1
+
+    note = vault.get_note("clipped.md")
+    assert note is not None
+    assert note.created == datetime(2023, 9, 14)
     vault.close()

@@ -1,475 +1,322 @@
-"""Unit tests for density_inversion geist."""
+"""Unit tests for the density_inversion geist.
+
+density_inversion needs >= 20 notes. For each sampled note with >= 3 graph
+neighbours it compares how interlinked those neighbours are (graph density)
+with how similar they are (semantic density):
+  - dense links, sparse meaning: graph density > 0.6 and semantic < 0.3
+  - sparse links, dense meaning: graph density < 0.3 and semantic > 0.6
+It returns at most 2 suggestions.
+
+Fixtures use the bag-of-words test stub. Semantically scattered notes each
+have 20 words of their own, so two clique members share only the few title
+words that their links contribute (cosine ~0.1). Semantically dense notes
+repeat the same 8 topic words (cosine ~0.9).
+"""
+
+from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import density_inversion
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_dense_links_sparse_meaning(tmp_path):
-    """Create a vault with densely linked but semantically scattered notes."""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create a hub note
-    hub_path = vault_path / "hub.md"
-    hub_content = "# Hub\n\nCentral hub note.\n\n"
-    # Link to diverse topics
-    for i in range(5):
-        hub_content += f"[[diverse_{i}]]\n"
-    hub_path.write_text(hub_content)
-
-    # Create diverse neighbour notes that all link to each other (dense links)
-    # but have very different content (sparse meaning)
-    topics = [
-        "quantum physics",
-        "impressionist art",
-        "medieval history",
-        "jazz music",
-        "molecular biology",
-    ]
-    for i, topic in enumerate(topics):
-        path = vault_path / f"diverse_{i}.md"
-        content = f"# Diverse {i}\n\nContent about {topic}.\n\n"
-        # Link back to hub and to all other neighbours (creating dense graph)
-        content += "[[hub]]\n"
-        for j in range(5):
-            if j != i:
-                content += f"[[diverse_{j}]]\n"
-        path.write_text(content)
-
-    # Add more notes to reach minimum threshold
-    for i in range(15):
-        (vault_path / f"filler_{i}.md").write_text(f"# Filler {i}\n\nFiller content.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+CAP = 2
+MIN_NOTES = 20
+CREATED = datetime(2024, 1, 1)
+CLIQUE = ["Anchor", "Bramble", "Cobalt", "Dune", "Ember"]
+TOPIC = "orchard pruning grafting apple blossom cider rootstock scion"
 
 
-@pytest.fixture
-def vault_with_sparse_links_dense_meaning(tmp_path):
-    """Create a vault with sparsely linked but semantically similar notes."""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create a hub note
-    hub_path = vault_path / "hub.md"
-    hub_content = "# Hub\n\nCentral hub note.\n\n"
-    for i in range(5):
-        hub_content += f"[[similar_{i}]]\n"
-    hub_path.write_text(hub_content)
-
-    # Create similar neighbour notes that DON'T link to each other (sparse links)
-    # but have very similar content (dense meaning)
-    for i in range(5):
-        path = vault_path / f"similar_{i}.md"
-        # All about machine learning but with slight variations
-        content = (
-            f"# Similar {i}\n\nContent about machine learning and neural networks variant {i}.\n\n"
-        )
-        # Only link back to hub, not to neighbours
-        content += "[[hub]]\n"
-        path.write_text(content)
-
-    # Add more notes to reach minimum threshold
-    for i in range(15):
-        (vault_path / f"filler_{i}.md").write_text(f"# Filler {i}\n\nFiller content.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _own_words(title: str) -> str:
+    """20 words nobody else uses."""
+    return " ".join(f"{title.lower()}word{i}" for i in range(20))
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes for density analysis."""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only 15 notes (below minimum of 20)
-    for i in range(15):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _add_clique(builder: VaultBuilder, titles: list[str]) -> None:
+    """Every pair linked (earlier note links to later ones); disjoint vocabulary."""
+    for i, title in enumerate(titles):
+        links = " ".join(f"[[{t}]]" for t in titles[i + 1 :])
+        builder.note(title, f"{_own_words(title)} {links}", created=CREATED)
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _add_fillers(builder: VaultBuilder, count: int) -> None:
+    """Unlinked notes: no graph neighbours, so never analysed."""
+    for i in range(count):
+        builder.note(f"Filler {i}", f"filler{i} loose{i} idle{i}", created=CREATED)
 
 
-def test_density_inversion_returns_suggestions(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion returns suggestions.
+def test_density_inversion_flags_dense_links_with_scattered_meaning(tmp_path: Path) -> None:
+    """Contract (case 1): a fully linked 5-clique of unrelated notes is flagged.
 
-    Setup:
-        Vault with varying link density areas.
+    Trigger: each member's 4 graph neighbours are all interlinked (density
+    1.0 > 0.6) but share only link-title words (semantic ~0.1 < 0.3).
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_clique(builder, CLIQUE)
+    _add_fillers(builder, MIN_NOTES - len(CLIQUE))
+    ctx = builder.build()
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_dense_links_sparse_meaning
+    suggestions = density_inversion.suggest(ctx)
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(suggestions, "density_inversion", min_count=CAP)
+    for s in suggestions:
+        assert set(s.notes) <= set(CLIQUE)
+        assert len(s.notes) == 4  # focal note + 3 sampled neighbours
+        assert "tightly linked to each other but semantically scattered" in s.text
+
+
+def test_density_inversion_flags_similar_but_unlinked_neighbours(tmp_path: Path) -> None:
+    """Contract (case 2): a hub whose near-identical spokes are not interlinked is flagged.
+
+    Trigger: the hub's 4 spokes share TOPIC (semantic ~0.9 > 0.6) and have no
+    links among themselves (graph density 0 < 0.3). Spokes have only one graph
+    neighbour (the hub), so the hub is the only analysable note.
+    """
+    builder = VaultBuilder(tmp_path)
+    spokes = [f"Grove {i}" for i in range(4)]
+    builder.note("Hub Index", " ".join(f"[[{s}]]" for s in spokes), created=CREATED)
+    for spoke in spokes:
+        builder.note(spoke, f"{TOPIC} {TOPIC}", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 5)
+    ctx = builder.build()
+
+    suggestions = density_inversion.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "density_inversion", must_reference=["Hub Index"])
+    assert len(suggestions) == 1
+    assert suggestions[0].notes[0] == "Hub Index"
+    assert set(suggestions[0].notes[1:]) <= set(spokes)
+    assert "semantically similar but few of them link to each other" in suggestions[0].text
+
+
+def test_density_inversion_caps_at_two_distinct_notes(tmp_path: Path) -> None:
+    """Contract: 5 qualifying clique members -> exactly 2 suggestions, distinct focal notes."""
+    builder = VaultBuilder(tmp_path)
+    _add_clique(builder, CLIQUE)
+    _add_fillers(builder, MIN_NOTES - len(CLIQUE))
+    ctx = builder.build()
+
+    suggestions = density_inversion.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "density_inversion", min_count=CAP)
+    assert len(suggestions) == CAP
+    assert len({s.notes[0] for s in suggestions}) == CAP
+
+
+@pytest.mark.parametrize(("clique_size", "fires"), [(3, False), (4, True)])
+def test_density_inversion_needs_three_graph_neighbours(
+    tmp_path: Path, clique_size: int, fires: bool
+) -> None:
+    """Contract: notes with 2 graph neighbours are skipped; 3 are analysed.
+
+    A 3-clique gives each member 2 neighbours; a 4-clique gives 3.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_clique(builder, CLIQUE[:clique_size])
+    _add_fillers(builder, MIN_NOTES - clique_size)
+    ctx = builder.build()
+
+    suggestions = density_inversion.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, "density_inversion")
+    else:
+        assert suggestions == []
+
+
+@pytest.mark.parametrize(("total_notes", "fires"), [(MIN_NOTES - 1, False), (MIN_NOTES, True)])
+def test_density_inversion_needs_twenty_notes(
+    tmp_path: Path, total_notes: int, fires: bool
+) -> None:
+    """Contract: a qualifying clique is ignored in a 19-note vault, flagged in a 20-note one."""
+    builder = VaultBuilder(tmp_path)
+    _add_clique(builder, CLIQUE)
+    _add_fillers(builder, total_notes - len(CLIQUE))
+    ctx = builder.build()
+
+    suggestions = density_inversion.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, "density_inversion")
+    else:
+        assert suggestions == []
+
+
+def test_density_inversion_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are neither analysed nor named as neighbours.
+
+    Two journal session notes link to every member of a regular 4-clique, as
+    real session notes do. Unfiltered, each journal note is itself a flagged
+    focal note (its neighbours form the clique) and appears among the clique
+    members' graph neighbours.
+    """
+    builder = VaultBuilder(tmp_path)
+    regular = CLIQUE[:4]
+    _add_clique(builder, regular)
+    journal = ["Session Alpha", "Session Beta"]
+    for title in journal:
+        builder.journal(title, " ".join(f"[[{t}]]" for t in regular), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - len(regular))
+    ctx = builder.build()
+
+    suggestions = density_inversion.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "density_inversion",
+        min_count=CAP,
+        must_not_reference=["geist journal", *journal],
     )
+    assert all(set(s.notes) <= set(regular) for s in suggestions)
 
-    suggestions = density_inversion.suggest(context)
 
-    # Should return list (up to 2 suggestions)
+def test_density_inversion_output_does_not_depend_on_hash_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same date + vault = same output, whatever PYTHONHASHSEED a process has.
+
+    Regression: graph_neighbours() came from a set of Notes, so the list the
+    geist samples from followed string-hash order. Salting Note.__hash__
+    stands in for a different hash seed within one process.
+    """
+    from geistfabrik.models import Note
+
+    builder = VaultBuilder(tmp_path)
+    _add_clique(builder, CLIQUE)
+    _add_fillers(builder, MIN_NOTES - len(CLIQUE))
+    baseline = [s.text for s in density_inversion.suggest(builder.build())]
+    assert baseline
+
+    for salt in ("a", "b", "c", "d", "e", "f"):
+        monkeypatch.setattr(Note, "__hash__", lambda self, salt=salt: hash(salt + self.path))
+        assert [s.text for s in density_inversion.suggest(builder.build())] == baseline, salt
+
+
+def _reference_densities(ctx, neighbours: list) -> tuple[int, float]:
+    """The pre-vectorisation computation: links_between and similarity() per pair."""
+    edges = 0
+    similarities = []
+    for i, n1 in enumerate(neighbours):
+        for n2 in neighbours[i + 1 :]:
+            if ctx.links_between(n1, n2):
+                edges += 1
+            similarities.append(ctx.similarity(n1, n2))
+    return edges, sum(similarities) / len(similarities)
+
+
+def _mixed_vault(tmp_path: Path):
+    """Cliques, hubs with similar spokes, and random cross links (incl. one-way)."""
+    import random
+
+    rng = random.Random(7)
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Node {i:02d}" for i in range(48)]
+    words = ["orchard", "graft", "cider", "tide", "harbour", "sail", "ledger", "audit"]
+    for i, title in enumerate(titles):
+        topic = words[i % 4 * 2 : i % 4 * 2 + 2] * 4
+        targets = rng.sample(titles, rng.randint(0, 9))
+        if i < 6:  # a clique among the first six notes
+            targets += titles[:6]
+        body = " ".join(topic + [f"own{i}x{k}" for k in range(rng.randint(0, 12))])
+        builder.note(title, body + " " + " ".join(f"[[{t}]]" for t in targets), created=CREATED)
+    return builder
+
+
+def test_density_inversion_densities_match_per_pair_reference(tmp_path: Path) -> None:
+    """Equivalence: adjacency-set link counts and the similarity matrix mean
+    equal the original per-pair links_between()/similarity() computation for
+    every analysable note (counts exactly, means to float tolerance)."""
+    ctx = _mixed_vault(tmp_path).build()
+    reference_ctx = _mixed_vault(tmp_path).build()
+    adjacency = {n.path: {m.path for m in ctx.graph_neighbours(n)} for n in ctx.notes()}
+    checked = 0
+    for note in ctx.notes():
+        neighbours = ctx.graph_neighbours(note)
+        if len(neighbours) < 3:
+            continue
+        ref_neighbours = reference_ctx.graph_neighbours(reference_ctx.get_note(note.path))
+        assert [n.path for n in ref_neighbours] == [n.path for n in neighbours]
+        edges, semantic = _reference_densities(reference_ctx, ref_neighbours)
+        assert density_inversion._link_count(neighbours, lambda n: adjacency[n.path]) == edges
+        assert density_inversion._semantic_density(ctx, neighbours) == pytest.approx(
+            semantic, rel=0, abs=1e-12
+        )
+        checked += 1
+    assert checked >= 20
+
+
+def _reference_suggest(vault) -> list:
+    """density_inversion.suggest() as it was before vectorisation."""
+    from geistfabrik import Suggestion
+
+    suggestions = []
+    notes = vault.notes()
+    if len(notes) < 20:
+        return []
+    for note in vault.sample(notes, min(30, len(notes))):
+        graph_neighbours = vault.graph_neighbours(note)
+        if len(graph_neighbours) < 3:
+            continue
+        edges, semantic_density = _reference_densities(vault, graph_neighbours)
+        max_possible_edges = len(graph_neighbours) * (len(graph_neighbours) - 1) / 2
+        graph_density = edges / max_possible_edges
+        if graph_density > 0.6 and semantic_density < 0.3:
+            sample = vault.sample(graph_neighbours, count=3)
+            text = f"scattered {note.path} " + ", ".join(n.link_text for n in sample)
+        elif graph_density < 0.3 and semantic_density > 0.6:
+            sample = vault.sample(graph_neighbours, count=3)
+            text = f"missing {note.path} " + ", ".join(n.link_text for n in sample)
+        else:
+            continue
+        notes_out = [note.link_text] + [n.link_text for n in sample]
+        suggestions.append(Suggestion(text=text, notes=notes_out, geist_id="density_inversion"))
+    return vault.sample(suggestions, count=2)
+
+
+def _kind_and_notes(suggestion) -> tuple[str, list[str]]:
+    kind = "missing" if "Missing connections" in suggestion.text else "scattered"
+    if suggestion.text.startswith(("missing ", "scattered ")):
+        kind = suggestion.text.split(" ", 1)[0]
+    return kind, suggestion.notes
+
+
+@pytest.mark.parametrize("fixture", ["mixed", "both_cases"])
+def test_density_inversion_suggestions_match_reference(tmp_path: Path, fixture: str) -> None:
+    """Equivalence: same vault and seed give the same suggestions (kind, focal
+    note, sampled neighbours) as the per-pair implementation."""
+    if fixture == "mixed":
+        builder = _mixed_vault(tmp_path)
+    else:
+        builder = VaultBuilder(tmp_path)
+        _add_clique(builder, CLIQUE)
+        spokes = [f"Grove {i}" for i in range(4)]
+        builder.note("Hub Index", " ".join(f"[[{s}]]" for s in spokes), created=CREATED)
+        for spoke in spokes:
+            builder.note(spoke, f"{TOPIC} {TOPIC}", created=CREATED)
+        _add_fillers(builder, MIN_NOTES)
+
+    actual = [_kind_and_notes(s) for s in density_inversion.suggest(builder.build())]
+    expected = [_kind_and_notes(s) for s in _reference_suggest(builder.build())]
+
+    assert actual == expected
+    if fixture == "both_cases":
+        assert actual
+
+
+@pytest.mark.timeout(20)
+def test_density_inversion_dense_clique_is_not_cubic(tmp_path: Path) -> None:
+    """Regression: a 120-note clique took ~48 s (links_between rescans both
+    notes' links for each of ~7k neighbour pairs, for 30 sampled notes); with
+    adjacency sets and one similarity matrix per note it takes well under 1 s."""
+    builder = VaultBuilder(tmp_path)
+    titles = [f"Member {i:03d}" for i in range(120)]
+    for title in titles:
+        links = " ".join(f"[[{t}]]" for t in titles if t != title)
+        builder.note(title, f"{_own_words(title.replace(' ', ''))} {links}", created=CREATED)
+    ctx = builder.build()
+
+    suggestions = density_inversion.suggest(ctx)
+
     assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
-
-
-def test_density_inversion_suggestion_structure(vault_with_dense_links_sparse_meaning):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with density contrasts.
-
-    Verifies:
-        - Has required fields
-        - References notes from different density areas"""
-    vault, session = vault_with_dense_links_sparse_meaning
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "density_inversion"
-
-        # Should reference at least 1 note (hub + sample of neighbours)
-        assert len(suggestion.notes) >= 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_density_inversion_uses_link_text(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion uses link_text for note references.
-
-    Setup:
-        Vault with density variations.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_dense_links_sparse_meaning
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_density_inversion_empty_vault(tmp_path):
-    """Test that density_inversion handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_density_inversion_insufficient_notes(vault_insufficient_notes):
-    """Test that density_inversion handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 20 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    # Should return empty list when < 20 notes
-    assert len(suggestions) == 0
-
-
-def test_density_inversion_notes_without_neighbours(tmp_path):
-    """Test that density_inversion handles notes with few neighbours."""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create 25 isolated notes with no links
-    for i in range(25):
-        (vault_path / f"isolated_{i}.md").write_text(f"# Isolated {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    # May return empty if no notes have sufficient neighbours
-    assert isinstance(suggestions, list)
-
-
-def test_density_inversion_max_suggestions(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion never returns more than 2 suggestions.
-
-    Setup:
-        Vault with density contrasts.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_dense_links_sparse_meaning
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_density_inversion_deterministic_with_seed(vault_with_dense_links_sparse_meaning):
-    """Test that density_inversion returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_dense_links_sparse_meaning
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = density_inversion.suggest(context1)
-    suggestions2 = density_inversion.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_density_inversion_detects_dense_links_sparse_meaning(
-    vault_with_dense_links_sparse_meaning,
-):
-    """Test that density_inversion detects dense links with sparse meaning."""
-    vault, session = vault_with_dense_links_sparse_meaning
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    # Should detect at least one inversion
-    if suggestions:
-        # Text should mention tightly linked but scattered
-        found_dense_sparse = any(
-            "tightly linked" in s.text and "scattered" in s.text for s in suggestions
-        )
-        # Or sparse links but similar
-        found_sparse_dense = any(
-            "similar" in s.text and "aren't linked" in s.text for s in suggestions
-        )
-        assert found_dense_sparse or found_sparse_dense
-
-
-def test_density_inversion_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    from datetime import datetime
-
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with sessions
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
-        journal_note.write_text(
-            f"# Session {i}\n\n"
-            "## Suggestions\n\n"
-            "The hub note links densely to scattered neighbours.\n\n"
-            "[[hub]] connects to [[note_1]], [[note_2]], [[note_3]]"
-        )
-
-    # Create a hub note with dense links
-    hub_path = vault_path / "hub.md"
-    hub_content = "# Hub\n\nCentral hub note.\n\n"
-    for i in range(5):
-        hub_content += f"[[diverse_{i}]]\n"
-    hub_path.write_text(hub_content)
-
-    # Create diverse neighbour notes
-    topics = [
-        "quantum physics",
-        "impressionist art",
-        "medieval history",
-        "jazz music",
-        "molecular biology",
-    ]
-    for i, topic in enumerate(topics):
-        path = vault_path / f"diverse_{i}.md"
-        content = f"# Diverse {i}\n\nContent about {topic}.\n\n[[hub]]\n"
-        path.write_text(content)
-
-    # Add filler notes to reach minimum threshold
-    for i in range(15):
-        (vault_path / f"filler_{i}.md").write_text(f"# Filler {i}\n\nFiller content.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = density_inversion.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern
+    assert len(ctx.graph_neighbours(ctx.notes()[0])) == 119

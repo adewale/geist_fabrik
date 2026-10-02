@@ -5,6 +5,9 @@
 **Target Release:** Post-1.0
 **Related:** STATS_COMMAND_SPEC.md
 
+> Not built. `island_hopper`, named below as an existing geist, was merged
+> into `bridge_builder` (2026-10); see [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10).
+
 ---
 
 ## 1. Overview

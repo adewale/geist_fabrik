@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Iterator
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,14 +15,60 @@ from .models import Link
 # Handles: [[link]], [[link|text]], ![[embed]], [[note#heading]], [[note^block]]
 WIKILINK_PATTERN = re.compile(r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 
-# Pattern for inline tags: #tag, including nested tags like #parent/child
-TAG_PATTERN = re.compile(r"#([a-zA-Z0-9_/-]+)")
+# Pattern for inline tags: #tag, including nested tags like #parent/child.
+# As in Obsidian, the # must start the text or follow whitespace, so URL
+# fragments (page#section), markdown anchors ([toc](#section)) and "C#" are
+# not tags. A tag also needs a non-numeric character (see _is_tag): "PR #30"
+# and "#2023" are not tags.
+TAG_PATTERN = re.compile(r"(?<!\S)#([a-zA-Z0-9_/-]+)")
 
-# Code regions are stripped before tag extraction: Obsidian does not treat
-# #words inside fenced or inline code as tags (#define, #!/bin/bash, hex
-# colours like #fff in CSS, URL fragments in code samples, ...).
+# Code regions are stripped before link and tag extraction: Obsidian does
+# not treat [[...]] or #words inside fenced or inline code as links or tags
+# (#define, #!/bin/bash, hex colours like #fff, template examples such as
+# "[[#note#]]" or f"[[{title}]]" in code samples, ...).
 FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
+
+
+def _prose_without_code(content: str) -> str:
+    """Content with fenced, indented and inline code removed."""
+    prose = "\n".join(line for _, line in markdown_prose_lines(content))
+    return INLINE_CODE_PATTERN.sub("", prose)
+
+
+def iter_wikilinks(text: str) -> Iterator[re.Match[str]]:
+    """Yield the same matches as ``WIKILINK_PATTERN.finditer(text)``, in linear time.
+
+    finditer retries a failed match from every following offset, and each
+    attempt scans the target up to the next "]" or "|", so a long run of
+    "[" (or of "[[" without a closing "]]") took quadratic time. After a
+    failed attempt at "[[", every start before the next "]" fails for the
+    same reason (they share the same closing "]"), so the scan resumes there.
+    """
+    pos = 0
+    while True:
+        i = text.find("[[", pos)
+        if i < 0:
+            return
+        start = i - 1 if i > pos and text[i - 1] == "!" else i
+        match = WIKILINK_PATTERN.match(text, start)
+        if match is not None:
+            yield match
+            pos = match.end()
+            continue
+        if i + 2 < len(text) and text[i + 2] in "]|":
+            # Empty target: the only cheap failure; the next "[[" may succeed.
+            pos = i + 1
+            continue
+        close = text.find("]", i + 2)
+        if close < 0:
+            return
+        pos = close + 1
+
+
+def _is_tag(candidate: str) -> bool:
+    """Obsidian tags need at least one non-numeric character."""
+    return re.search(r"[A-Za-z_]", candidate) is not None
 
 
 def markdown_prose_lines(content: str) -> Iterator[tuple[int, str]]:
@@ -145,8 +192,8 @@ def extract_links(content: str) -> list[Link]:
     """
     links: list[Link] = []
 
-    # Use pre-compiled pattern for better performance
-    for match in WIKILINK_PATTERN.finditer(content):
+    # Links inside code are examples, not links (see FENCED_CODE_PATTERN).
+    for match in iter_wikilinks(_prose_without_code(content)):
         is_embed = match.group(1) == "!"
         target_raw = match.group(2).strip()
         display_text = match.group(3).strip() if match.group(3) else None
@@ -216,17 +263,92 @@ def extract_tags(content: str, frontmatter: dict[str, Any] | None = None) -> lis
 
     # Strip code regions first so #words inside fenced/inline code are not
     # misread as tags (matches Obsidian's behaviour).
-    content_no_code = "\n".join(line for _, line in markdown_prose_lines(content))
-    content_no_code = INLINE_CODE_PATTERN.sub("", content_no_code)
-
-    # Extract inline tags from content using pre-compiled pattern
-    for match in TAG_PATTERN.finditer(content_no_code):
+    for match in TAG_PATTERN.finditer(_prose_without_code(content)):
         tag = match.group(1)
+        if not _is_tag(tag):
+            continue
         tags.add(tag)
         if len(tags) > MAX_NOTE_TAGS:
             raise MarkdownLimitError(f"note exceeds {MAX_NOTE_TAGS} unique tags")
 
     return sorted(tags)
+
+
+# A note file named "2023-09-12.md" or "2023-09-12 Meeting with Steph.md".
+_FILENAME_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?!\d)")
+
+
+def _as_naive_datetime(value: object) -> datetime | None:
+    """A frontmatter value as a naive local datetime, or None if it isn't a date."""
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, date):
+        parsed = datetime(value.year, value.month, value.day)
+    elif isinstance(value, str):
+        text = value.strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone().replace(tzinfo=None)
+    # Reject placeholders and typos such as 0001-01-01 or 20230-01-01.
+    if not 1900 <= parsed.year <= 2200:
+        return None
+    return parsed
+
+
+def _frontmatter_date(content: str, keys: tuple[str, ...]) -> datetime | None:
+    """The first frontmatter property among ``keys`` that holds a valid date.
+
+    Keys are matched case-insensitively and tried in the order given.
+    """
+    frontmatter, _ = parse_frontmatter(content)
+    if not frontmatter:
+        return None
+    by_key = {str(key).strip().lower(): value for key, value in frontmatter.items()}
+    for key in keys:
+        if key in by_key:
+            declared = _as_naive_datetime(by_key[key])
+            if declared is not None:
+                return declared
+    return None
+
+
+def declared_modification_date(content: str) -> datetime | None:
+    """When the note says it was last changed, if it says so.
+
+    A frontmatter ``modified:`` property, else ``updated:`` (both common in
+    Obsidian templates and "update time on edit" plugins). Returns None when
+    the note declares neither; callers then fall back to the file's mtime,
+    which copying, syncing or a git clone resets.
+    """
+    return _frontmatter_date(content, ("modified", "updated"))
+
+
+def declared_creation_date(path: str, content: str) -> datetime | None:
+    """When the note says it was created, if it says so.
+
+    Precedence: a frontmatter ``created:`` property (Obsidian's convention,
+    used by its templates and kepano's vault), then a date at the start of the
+    file name (daily notes such as ``2023-09-12.md``). Returns None when the
+    note declares neither; callers then fall back to file timestamps, which
+    copying, syncing or a git clone can reset.
+    """
+    declared = _frontmatter_date(content, ("created",))
+    if declared is not None:
+        return declared
+    match = _FILENAME_DATE.match(Path(path).name)
+    if match:
+        try:
+            return datetime(int(match[1]), int(match[2]), int(match[3]))
+        except ValueError:
+            return None
+    return None
 
 
 def parse_markdown(path: str, content: str) -> tuple[str, str, list[Link], list[str]]:

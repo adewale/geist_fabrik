@@ -11,6 +11,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
+# Notes tried per session before abstaining.
+MAX_NOTES_TRIED = 10
+# Longest hypothesis (characters) shown. The extractor skips longer sentences
+# up front: they would be filtered out anyway, and matching its patterns
+# against a huge run-on sentence is slow.
+MAX_HYPOTHESIS_LENGTH = 300
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Extract hypotheses from a randomly selected note and ask how to test them.
@@ -24,20 +31,25 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ExtractionPipeline,
         HypothesisExtractor,
         LengthFilter,
+        quote_for_display,
     )
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
     if not notes:
         return []
 
-    note = vault.random_notes(count=1)[0]
-    content = vault.read(note)
-
     pipeline = ExtractionPipeline(
-        strategies=[HypothesisExtractor()],
-        filters=[LengthFilter(min_len=20, max_len=300), AlphaFilter()],
+        strategies=[HypothesisExtractor(max_sentence_length=MAX_HYPOTHESIS_LENGTH)],
+        filters=[LengthFilter(min_len=20, max_len=MAX_HYPOTHESIS_LENGTH), AlphaFilter()],
     )
-    hypotheses = pipeline.extract(content)
+    # Try a few random notes (deterministic by session seed) and harvest the
+    # first one that has any; most notes have none.
+    note = notes[0]
+    hypotheses: list[str] = []
+    for note in vault.sample(notes, MAX_NOTES_TRIED):
+        hypotheses = pipeline.extract(vault.read(note))
+        if hypotheses:
+            break
     if not hypotheses:
         return []
 
@@ -45,7 +57,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for hypothesis in hypotheses:
         hyp_clean = " ".join(hypothesis.split())
         text = (
-            f'[[{note.link_text}]] speculates: "{hyp_clean}" '
+            f"[[{note.link_text}]] speculates: {quote_for_display(hyp_clean)} "
             f"What is the smallest experiment that would tell you if it holds?"
         )
         suggestions.append(

@@ -6,7 +6,18 @@
 > the stated date and are not a current API inventory. For supported extension
 > APIs and executable examples, use
 > [WRITING_GOOD_GEISTS.md](WRITING_GOOD_GEISTS.md) and
-> [../examples/README.md](../examples/README.md).
+> [../examples/README.md](../examples/README.md). Several geists in these tables
+> have since been merged or retired (see the merge table in
+> [../specs/SPEC_STATUS.md](../specs/SPEC_STATUS.md#geist-merges-2026-10)).
+>
+> Current corrections (2026-10): every vault function now returns bracketed
+> `[[links]]`, so templates use `#hub#`, never `[[#hub#]]`; `contrarian_to` is
+> a built-in vault function that returns the most *distant* notes by topic, not
+> opposing ones (see `specs/research/OPPOSITION_GEISTS_RESEARCH.md`), and, like
+> `neighbours`, accepts only a literal note name, so the `devil_advocate`
+> sketch below cannot work as written. `hub_explorer` and `orphan_connector`
+> now exist as bundled geists. The registered vault functions are listed in
+> `src/geistfabrik/function_registry.py`.
 
 This document shows all extension points in GeistFabrik and which geists use them.
 
@@ -30,7 +41,8 @@ These functions are registered automatically in `FunctionRegistry` and available
 
 | Function | Purpose | Used By | Usage Example |
 |----------|---------|---------|---------------|
-| `sample_notes(k)` | Random sample of notes | **note_combinations**, **what_if** | `$vault.sample_notes(1)` |
+| `sample_notes(k)` | Random sample of notes | **what_if** | `$vault.sample_notes(1)` |
+| `note_pairs(k)` | k pairs of two different notes, `"[[A]]\|\|\|[[B]]"` | **note_combinations** | `$vault.note_pairs(3)` |
 | `old_notes(k)` | Oldest notes by creation | **temporal_mirror** | `$vault.old_notes(1)` |
 | `recent_notes(k)` | Most recent notes | **temporal_mirror** | `$vault.recent_notes(1)` |
 | `orphans()` | Notes with no links | ❌ **Unused** | - |

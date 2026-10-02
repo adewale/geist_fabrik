@@ -1,7 +1,7 @@
 # GeistFabrik Version 0.9.1 Plan
 
 **Purpose**: Documentation cleanup and final polishing before 1.0 release
-**Status**: Planning
+**Status**: Historical (the 0.9.1 documentation pass; the project has moved on — see CHANGELOG.md)
 **Target Release**: December 2025
 **Estimated Effort**: 2-3 days
 

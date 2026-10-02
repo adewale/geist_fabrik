@@ -17,7 +17,7 @@ from geistfabrik.date_collection import (
 )
 from geistfabrik.embeddings import EmbeddingComputer, Session
 from geistfabrik.filtering import SuggestionFilter
-from geistfabrik.graph_analysis import GraphPatternFinder, _are_linked
+from geistfabrik.graph_analysis import GraphPatternFinder
 from geistfabrik.models import Note, NoteLinkIndex, Suggestion
 from geistfabrik.stats import StatsCollector
 from geistfabrik.vault import Vault
@@ -186,11 +186,12 @@ def test_persisted_links_resolve_consistently_across_consumers(tmp_path: Path) -
         assert ctx.resolve_link_target("Journal#2025-01-16", first.path) == second
         assert vault.resolve_link_target("Journal#2025-01-15") is None
         assert ctx.outgoing_links(reader) == [first]
-        assert ctx.outgoing_links(first) == [second, second]
+        # Two links to the same entry are one edge in the graph (links_between
+        # and the stats link counts still see both links).
+        assert ctx.outgoing_links(first) == [second]
         assert ctx.backlinks(first) == [reader]
         assert ctx.backlinks(second) == [first]
         assert len(ctx.links_between(first, second)) == 2
-        assert _are_linked(first, second, ctx.link_index())
         assert GraphPatternFinder(ctx).shortest_path(reader, second) == [reader, first, second]
 
         stats = StatsCollector(vault, vault.config)
@@ -394,5 +395,45 @@ def test_stats_count_reciprocal_aliases_as_resolved_edges(tmp_path: Path) -> Non
             (1, 1),
             (1, 1),
         ]
+    finally:
+        vault.close()
+
+
+def test_link_text_targets_the_file_name_when_the_title_differs(tmp_path: Path) -> None:
+    """Contract: journal links resolve in Obsidian, which links by file name.
+
+    Regression: link_text was the H1/frontmatter title, so a note in
+    EMBEDDINGS_SPEC.md titled "Embeddings Specification" was written to the
+    journal as [[Embeddings Specification]], a dead link in Obsidian (clicking
+    it creates an empty note). It is now [[EMBEDDINGS_SPEC|Embeddings
+    Specification]]; notes whose title is their file name are unchanged, and
+    the alias form still resolves and still meets privacy boundaries.
+    """
+    (tmp_path / "Private").mkdir()
+    (tmp_path / "EMBEDDINGS_SPEC.md").write_text("# Embeddings Specification\nVectors.")
+    (tmp_path / "Garden.md").write_text("# Garden\nSoil.")
+    (tmp_path / "Private" / "diary_01.md").write_text("# Secret Diary\nPrivate.")
+    vault = Vault(tmp_path)
+    try:
+        vault.sync()
+        spec = vault.get_note("EMBEDDINGS_SPEC.md")
+        garden = vault.get_note("Garden.md")
+        diary = vault.get_note("Private/diary_01.md")
+        assert spec is not None and garden is not None and diary is not None
+        assert spec.link_text == "EMBEDDINGS_SPEC|Embeddings Specification"
+        assert garden.link_text == "Garden"
+        assert diary.link_text == "diary_01|Secret Diary"
+
+        assert vault.resolve_link_target(spec.link_text) == spec
+        index = NoteLinkIndex.from_notes(vault.all_notes())
+        assert index.matching_paths(diary.link_text) == {"Private/diary_01.md"}
+
+        filtering = SuggestionFilter(vault.db, EmbeddingComputer())
+        filtering.config["boundary"]["exclude_paths"] = ["Private/"]
+        public, private = (
+            Suggestion(text="Revisit", notes=[note.link_text], geist_id="test")
+            for note in (spec, diary)
+        )
+        assert filtering.filter_boundary([public, private]) == [public]
     finally:
         vault.close()

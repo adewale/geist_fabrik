@@ -23,6 +23,14 @@ away from the code without turning CI red. Two rules follow from that:
     test requests `production_model`; command spelling does not activate it.
     Do **not** repeat the fast marker here. Explicit marker commands such as
     `-m benchmark` are preserved and run separately.
+  - **Evidence must be whole.** Every AUTO pytest criterion must select at
+    least one test, and so must each `tests/…` target it names. A target that
+    names a whole file (or class) while the canonical filter deselects some of
+    its tests is rejected as partial evidence: list the node IDs that carry the
+    evidence (a `{a,b}` brace list keeps the cell short). Five criteria once
+    named `tests/integration/test_scenarios.py` whole; under the canonical
+    filter that file then ran only its empty-vault test, yet all five were
+    reported verified.
   - **MANUAL** — any cell that is prose. Use this for criteria that genuinely
     need human judgement, a platform we can't run in CI, or a behaviour with no
     dedicated automated test. MANUAL criteria are reported and counted but do
@@ -62,7 +70,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-0.8 | ⬜ | uv configuration correct | `test -f uv.lock && uv run python -c "import geistfabrik"` |
 | AC-0.9 | ⬜ | Python version enforcement | `uv run python -c "import sys; assert sys.version_info >= (3, 11)"` |
 | AC-0.10 | ⬜ | Development dependencies separate | Manual: dev/prod dependency separation; verified by the CI install steps, not the gate (uv sync would mutate the developer's environment) |
-| AC-0.11 | ⬜ | Git initialisation | `test -d .git && test -f .gitignore && grep "^\.venv$" .gitignore` |
+| AC-0.11 | ⬜ | Git initialisation | `test -e .git && test -f .gitignore && grep "^\.venv$" .gitignore` (`-e`: a worktree's `.git` is a file) |
 | AC-0.12 | ⬜ | Editable install works | `uv run python -c "import geistfabrik; assert 'src' in geistfabrik.__file__"` (points to src/) |
 | AC-0.13 | ⬜ | Pre-commit hooks | `test -f .pre-commit-config.yaml` |
 | AC-0.14 | ⬜ | Package metadata complete | Verify project.name, version, dependencies in pyproject.toml |
@@ -111,7 +119,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 ### Test Coverage Target
 - `src/geistfabrik/vault.py`: >90%
 - `src/geistfabrik/markdown_parser.py`: >90%
-- `src/geistfabrik/persistence.py`: >85%
+- `src/geistfabrik/schema.py`: >85%
 
 ### Exit Criteria
 - All AC-1.* checks pass
@@ -171,7 +179,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-3.2 | ⬜ | Semantic search via context | Verify neighbours() via VaultContext returns ≤k results |
 | AC-3.3 | ⬜ | Graph operations work | Verify orphans(), hubs(), unlinked_pairs() return correct types |
 | AC-3.4 | ⬜ | Deterministic sampling | Same seed = same sample results |
-| AC-3.5 | ⬜ | Temporal queries | `uv run pytest tests/unit/test_vault_context.py::test_{old_notes,recent_notes} -v` |
+| AC-3.5 | ⬜ | Temporal queries | `uv run pytest tests/unit/test_vault_context.py::test_old_and_recent_notes_order_by_modification_time -v` |
 
 ### Edge Cases & Error Handling
 
@@ -209,9 +217,9 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-4.1 | ⬜ | Geist executor tests pass | `uv run pytest tests/unit/test_geist_executor.py -v` (15+ tests) |
 | AC-4.2 | ⬜ | Load sample geists | Verify geist loader discovers .py files in geists/code/ |
 | AC-4.3 | ⬜ | Execute geist | Verify simple geist returns suggestions |
-| AC-4.4 | ⬜ | Timeout works | `uv run pytest tests/unit/test_geist_executor.py::test_code_geist_timeout -v` (5s timeout) |
+| AC-4.4 | ⬜ | Timeout works | `uv run pytest tests/unit/test_geist_executor.py::test_code_geist_timeout -v` (1 s test timeout; the default is 30 s) |
 | AC-4.5 | ⬜ | Failure tracking | `uv run pytest tests/unit/test_geist_executor.py::test_disable_after_three_failures -v` |
-| AC-4.6 | ⬜ | Integration scenario | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-4.6 | ⬜ | Integration scenario | `uv run pytest tests/integration/test_scenarios.py::test_scenario_{daily_invocation_writes_the_session_note,tracery_geist_links_a_real_note,temporal_geist_finds_last_years_note} -v` (code, Tracery and bundled temporal geists run through `invoke`) |
 
 ### Edge Cases & Error Handling
 
@@ -252,10 +260,10 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 |----|--------|----------|--------------|
 | AC-5.1 | ⬜ | Filtering tests pass | `uv run pytest tests/unit/test_filtering.py -v` (15+ tests) |
 | AC-5.2 | ⬜ | Session tests pass | Manual: session-note writing exercised end-to-end by the integration scenarios; no dedicated journal_writer unit suite |
-| AC-5.3 | ⬜ | Write session note | `uv run pytest tests/integration/test_scenarios.py -v` |
-| AC-5.4 | ⬜ | Session note format correct | Verify title, block IDs in format `^gYYYYMMDD-NNN` |
+| AC-5.3 | ⬜ | Write session note | `uv run pytest tests/integration/test_scenarios.py::test_scenario_daily_invocation_writes_the_session_note -v` |
+| AC-5.4 | ⬜ | Session note format correct | `uv run pytest tests/integration/test_scenarios.py::test_scenario_daily_invocation_writes_the_session_note -v` (title, heading, `^gYYYYMMDD-NNN` block ID) |
 | AC-5.5 | ⬜ | Filtering works | Verify duplicates and short suggestions filtered |
-| AC-5.6 | ⬜ | Multi-day sessions | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-5.6 | ⬜ | Multi-day sessions | `uv run pytest tests/integration/test_scenarios.py::test_scenario_multi_day_sessions_do_not_read_their_own_journal -v` |
 
 ### Edge Cases & Error Handling
 
@@ -278,7 +286,6 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 
 ### Test Coverage Target
 - `src/geistfabrik/filtering.py`: >85%
-- `src/geistfabrik/session.py`: >85%
 - `src/geistfabrik/journal_writer.py`: >90%
 
 ### Exit Criteria
@@ -301,7 +308,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-6.3 | ⬜ | Expand grammar | Verify grammar expansion includes `[[links]]` |
 | AC-6.4 | ⬜ | Vault function calls work | `uv run pytest tests/unit/test_tracery.py -v` |
 | AC-6.5 | ⬜ | Deterministic expansion | Same seed = same expansion text |
-| AC-6.6 | ⬜ | Integration with vault | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-6.6 | ⬜ | Integration with vault | `uv run pytest tests/integration/test_scenarios.py::test_scenario_tracery_geist_links_a_real_note -v` |
 
 ### Edge Cases & Error Handling
 
@@ -342,9 +349,9 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 |----|--------|----------|--------------|
 | AC-7.1 | ⬜ | Temporal embedding tests pass | `uv run pytest tests/unit/test_embeddings.py -v` etc. |
 | AC-7.2 | ⬜ | Session embeddings computed | Verify all notes have session embeddings |
-| AC-7.3 | ⬜ | Temporal features included | Verify embeddings are 387 dims (384+3) |
+| AC-7.3 | ⬜ | Temporal features included | Verify stored session embeddings are 387 dims (384+3); comparisons read only the 384 semantic dims |
 | AC-7.4 | ⬜ | Multi-session tracking | `uv run pytest tests/unit/test_embeddings.py -v` |
-| AC-7.5 | ⬜ | Temporal geists work | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-7.5 | ⬜ | Temporal geists work | `uv run pytest tests/integration/test_scenarios.py::test_scenario_temporal_geist_finds_last_years_note -v` |
 
 ### Edge Cases & Error Handling
 
@@ -355,7 +362,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-7.8 | ⬜ | Future date temporal features | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.9 | ⬜ | Very old note temporal features | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.10 | ⬜ | Season calculation | `uv run pytest tests/unit/test_embeddings.py -v` |
-| AC-7.11 | ⬜ | Drift with no previous session | `uv run pytest tests/unit/test_session_drift.py -v` |
+| AC-7.11 | ⬜ | Drift with no previous session | `uv run pytest tests/unit/test_concept_drift.py::test_concept_drift_needs_three_snapshots -v` |
 | AC-7.12 | ⬜ | Drift with identical notes | Manual: drift on unchanged content; no dedicated test (drift computation covered by tests/unit/test_temporal_drift.py) |
 | AC-7.13 | ⬜ | Session pruning | `uv run pytest tests/unit/test_embeddings.py -v` |
 | AC-7.14 | ⬜ | Storage limits | `uv run pytest tests/unit/test_embeddings.py -v` |
@@ -365,7 +372,7 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-7.18 | ⬜ | Temporal geist robustness | `uv run pytest tests/unit/test_temporal_drift.py -v` |
 
 ### Test Coverage Target
-- `src/geistfabrik/temporal_embeddings.py`: >85%
+- `src/geistfabrik/embeddings.py` (`Session`) and `src/geistfabrik/temporal_analysis.py`: >85%
 
 ### Exit Criteria
 - All AC-7.* checks pass
@@ -518,9 +525,9 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 
 | ID | Status | Criteria | Verification |
 |----|--------|----------|--------------|
-| AC-11.1 | ⬜ | Performance benchmarks pass | `uv run pytest tests/unit/test_performance_regression.py tests/unit/test_phase1_benchmarks.py tests/unit/test_phase2_batch_loading.py tests/unit/test_phase2_hubs_optimization.py tests/unit/test_phase2_return_scores.py tests/unit/test_cluster_performance.py tests/integration/test_phase3b_regression.py tests/integration/test_scenarios.py -v -m benchmark` |
+| AC-11.1 | ⬜ | Performance benchmarks pass | `uv run pytest tests/unit/test_phase1_benchmarks.py tests/unit/test_phase2_batch_loading.py tests/unit/test_phase2_hubs_optimization.py tests/unit/test_phase2_return_scores.py tests/unit/test_cluster_performance.py tests/integration/test_phase3b_regression.py tests/integration/test_scenarios.py -v -m benchmark` |
 | AC-11.2 | ⬜ | Test coverage target | Manual: validation and CI enforce at least 70% combined branch coverage across the fast unit/integration lanes |
-| AC-11.3 | ⬜ | All E2E tests pass | `uv run pytest tests/integration/test_scenarios.py -v` |
+| AC-11.3 | ⬜ | All E2E tests pass | `uv run pytest tests/integration/test_scenarios.py::test_scenario_{empty_vault,daily_invocation_writes_the_session_note,multi_day_sessions_do_not_read_their_own_journal,tracery_geist_links_a_real_note,temporal_geist_finds_last_years_note} -v` (the two benchmark-marked scenarios run under AC-11.1) |
 | AC-11.4 | ⬜ | Large vault performance | 1000 notes processable in <3 minutes |
 | AC-11.5 | ⬜ | Documentation builds | Manual: no mkdocs site; documentation is plain Markdown under docs/ |
 | AC-11.6 | ⬜ | Example geists work | ≥20 examples, all execute without errors |

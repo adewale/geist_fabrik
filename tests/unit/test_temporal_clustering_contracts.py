@@ -2,7 +2,7 @@
 
 from contextlib import closing
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -134,18 +134,29 @@ def test_small_vault_metrics_report_unclustered_notes_without_crashing(count):
         db.close()
 
 
-def test_stats_clustering_uses_configured_minimum():
+@pytest.mark.parametrize(("min_cluster_size", "clusters"), [(2, 2), (5, 0)])
+def test_stats_clustering_uses_configured_minimum(min_cluster_size: int, clusters: int) -> None:
+    """Two tight triples form two clusters only when the configured minimum allows it.
+
+    With the default minimum of 5, six notes cannot hold two clusters, so all
+    are reported as gaps; with a configured minimum of 2 HDBSCAN finds both.
+    """
+    triples = np.array(
+        [[1, 0, 0], [0.99, 0.01, 0], [0.98, 0.02, 0], [0, 1, 0], [0.01, 0.99, 0], [0.02, 0.98, 0]],
+        dtype=np.float32,
+    )
     db = init_db()
     try:
+        db.execute("INSERT INTO sessions (date, created_at) VALUES ('2024-01-01', '2024-01-01')")
+        db.commit()
         config = GeistFabrikConfig()
-        config.clustering.min_cluster_size = 2
+        config.clustering.min_cluster_size = min_cluster_size
         config.clustering.labeling_method = "tfidf"
-        computer = EmbeddingMetricsComputer(db, config)
-        constructor = Mock()
-        constructor.return_value.fit_predict.return_value = np.array([-1] * 4)
-        with patch("geistfabrik.embedding_metrics.HDBSCAN", constructor):
-            computer._compute_clustering_metrics(np.eye(4), ["a", "b", "c", "d"])
-        constructor.assert_called_once_with(min_cluster_size=2, min_samples=3)
+        result = EmbeddingMetricsComputer(db, config).compute_metrics(
+            "2024-01-01", triples, list("abcdef")
+        )
+        assert result["n_clusters"] == clusters
+        assert result["n_gaps"] == (0 if clusters else 6)
     finally:
         db.close()
 
@@ -167,3 +178,49 @@ def test_large_vault_stats_are_independent_of_global_random_state():
                 assert first == second
         finally:
             np.random.set_state(state)
+
+
+def test_small_vaults_cluster_with_brute_force_distances(replay_context):
+    """Contract: up to BRUTE_HDBSCAN_MAX_NOTES notes, HDBSCAN uses brute-force
+    distances (about 8x faster than the kd-tree in 384 dimensions).
+
+    Regression: the default kd-tree made clustering ~exponent 1.9 in vault
+    size, so cluster_mirror exceeded its timeout on large vaults.
+    """
+    context, _sessions = replay_context
+    with (
+        patch("sklearn.cluster.HDBSCAN") as constructor,
+        patch("geistfabrik.cluster_labeling.label_tfidf", return_value={0: "first"}),
+    ):
+        constructor.return_value.fit_predict.return_value = np.array([0] * 6)
+        context.get_clusters()
+    constructor.return_value.set_params.assert_called_once_with(algorithm="brute")
+
+
+def test_warm_clusters_gives_up_cleanly_on_its_own_budget(replay_context):
+    """Contract: clustering runs once before geists under its own budget; on
+    timeout the session continues and cluster geists see no clusters.
+
+    Regression: clustering ran inside cluster_mirror's 30 s geist timeout and
+    a timeout discarded the half-built result, so on large vaults the geist
+    failed every session.
+    """
+    import time
+
+    context, _sessions = replay_context
+
+    def slow_fit(self, *args, **kwargs):
+        time.sleep(5)
+        raise AssertionError("timeout did not fire")
+
+    with patch("sklearn.cluster.HDBSCAN") as constructor:
+        constructor.return_value.fit_predict.side_effect = lambda *a, **k: slow_fit(None)
+        started = time.monotonic()
+        assert context.warm_clusters(timeout_seconds=1) is False
+        assert time.monotonic() - started < 4
+
+    # The session's canonical clusters are now "none": no recomputation.
+    with patch("sklearn.cluster.HDBSCAN") as constructor:
+        assert context.get_clusters() == {}
+        constructor.assert_not_called()
+    assert cluster_mirror.suggest(context) == []

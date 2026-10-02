@@ -1,5 +1,13 @@
 # Multidimensional Movement Analysis: GeistFabrik Note Trajectories
 
+> **Status (2026-10):** None of the multidimensional patterns proposed here was
+> built as a geist (see `MISSING_MULTIDIMENSIONAL_GEISTS.md`). Section 1.2 no
+> longer holds: the 3 calendar features are stored in session vectors but never
+> compared, so all similarity uses only the 384 semantic dims, and since
+> semantic vectors are cached by content an unchanged note does not move between
+> sessions. drift_velocity_anomaly was merged into concept_drift. See
+> `specs/SPEC_STATUS.md` ("Geist merges (2026-10)").
+
 ## Executive Summary
 
 This document catalogues all the ways notes can move closer together or farther apart in GeistFabrik's multidimensional space, identifying **non-obvious combinations** where notes move in different directions across different dimensions, and proposing extensions to the primitive pattern taxonomy.

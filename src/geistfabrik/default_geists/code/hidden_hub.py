@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
+# Semantic neighbours examined per note.
+MAX_NEIGHBOURS = 30
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find notes that are semantically important but under-connected.
@@ -27,13 +30,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         return []
 
     for note in vault.sample(notes, min(50, len(notes))):
-        # Count actual links (outgoing + incoming)
-        outgoing = len(note.links)
-        incoming = len(vault.backlinks(note))
-        total_links = outgoing + incoming
+        # Count real connections: distinct notes linked to or from this one
+        # (raw note.links also counted unresolved and repeated links)
+        total_links = len(vault.graph_neighbours(note))
 
         # Find semantic neighbours with scores
-        neighbours_with_scores = vault.neighbours(note, count=30, return_scores=True)
+        neighbours_with_scores = vault.neighbours(note, count=MAX_NEIGHBOURS, return_scores=True)
 
         # Filter to only high-similarity neighbours
         high_similarity_count = sum(
@@ -47,11 +49,21 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             neighbour_sample = vault.sample(neighbour_notes, count=3)
             neighbour_names = ", ".join([f"[[{n.link_text}]]" for n in neighbour_sample])
 
+            # Only the top MAX_NEIGHBOURS are examined, so a full count is a floor
+            related = (
+                f"at least {high_similarity_count}"
+                if high_similarity_count == MAX_NEIGHBOURS
+                else str(high_similarity_count)
+            )
+            if total_links == 0:
+                linked = "isn't linked to any notes"
+            else:
+                linked = f"is linked to only {total_links} note{'s' if total_links > 1 else ''}"
+
             text = (
                 f"[[{note.link_text}]] is semantically related to "
-                f"{high_similarity_count} notes (including {neighbour_names}) but only "
-                f"has {total_links} links. Hidden hub? Maybe it's a concept that "
-                f"connects things implicitly."
+                f"{related} notes (including {neighbour_names}) but {linked}. "
+                f"Hidden hub? Maybe it's a concept that connects things implicitly."
             )
 
             suggestions.append(

@@ -11,6 +11,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
+# Notes tried per session before abstaining.
+MAX_NOTES_TRIED = 10
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Extract claims from a randomly selected note and question them.
@@ -24,20 +27,25 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ClaimExtractor,
         ExtractionPipeline,
         LengthFilter,
+        quote_for_display,
     )
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
     if not notes:
         return []
-
-    note = vault.random_notes(count=1)[0]
-    content = vault.read(note)
 
     pipeline = ExtractionPipeline(
         strategies=[ClaimExtractor()],
         filters=[LengthFilter(min_len=20, max_len=300), AlphaFilter()],
     )
-    claims = pipeline.extract(content)
+    # Try a few random notes (deterministic by session seed) and harvest the
+    # first one that has any; most notes have none.
+    note = notes[0]
+    claims: list[str] = []
+    for note in vault.sample(notes, MAX_NOTES_TRIED):
+        claims = pipeline.extract(vault.read(note))
+        if claims:
+            break
     if not claims:
         return []
 
@@ -45,7 +53,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for claim in claims:
         claim_clean = " ".join(claim.split())
         text = (
-            f'In [[{note.link_text}]] you claimed: "{claim_clean}" '
+            f"In [[{note.link_text}]] you claimed: {quote_for_display(claim_clean)} "
             f"Is that still true - and what would change your mind?"
         )
         suggestions.append(

@@ -16,6 +16,9 @@ from ..session_time import session_seed
 from ..tracery import TraceryGeist, TraceryGeistLoader
 from .base import BaseCommand, ExecutionContext
 
+#: Bundled geists that read VaultContext.get_clusters().
+CLUSTER_GEISTS = frozenset({"cluster_mirror"})
+
 
 @dataclass
 class GeistResults:
@@ -82,8 +85,7 @@ class InvokeCommand(BaseCommand):
         total_geists = len(code_executor.geists)
         if total_geists == 0:
             if any(
-                entry.get("status") == "load_error"
-                for entry in code_executor.get_execution_log()
+                entry.get("status") == "load_error" for entry in code_executor.get_execution_log()
             ):
                 self._show_execution_errors(code_executor)
                 return 1
@@ -104,9 +106,7 @@ class InvokeCommand(BaseCommand):
         self.print(f"Generated {len(results.all_suggestions)} raw suggestions")
 
         # Filter suggestions
-        filtered, filter_report = self._filter_suggestions(
-            results.all_suggestions, session_date
-        )
+        filtered, filter_report = self._filter_suggestions(results.all_suggestions, session_date)
 
         # Select final suggestions
         final = self._select_final_suggestions(filtered, session_date)
@@ -277,14 +277,9 @@ class InvokeCommand(BaseCommand):
         print(f"  - Code geists: {code_geists_count} ({len(enabled_code_geists)} enabled)")
         print(f"  - Tracery geists: {len(tracery_geists)} ({len(enabled_tracery)} enabled)")
         if disabled_geists:
-            print(
-                f"  - Auto-disabled: {len(disabled_geists)} "
-                f"({', '.join(disabled_geists)})"
-            )
+            print(f"  - Auto-disabled: {len(disabled_geists)} ({', '.join(disabled_geists)})")
         configured_off = [
-            geist_id
-            for geist_id, enabled in exec_ctx.config.default_geists.items()
-            if not enabled
+            geist_id for geist_id, enabled in exec_ctx.config.default_geists.items() if not enabled
         ]
         if configured_off:
             print(f"  - Configured off: {len(configured_off)}")
@@ -368,6 +363,11 @@ class InvokeCommand(BaseCommand):
             execution_order = configured + undisclosed
         else:
             execution_order = list(code_executor.geists)
+
+        # Clustering can outlast one geist's timeout on a large vault; compute
+        # it once, under its own budget, before any geist that reads it.
+        if any(geist_id in CLUSTER_GEISTS for geist_id in execution_order):
+            context.warm_clusters()
 
         # Code and Tracery callables share one executor, but result typing and
         # configured cross-type order remain observable CLI contracts.
@@ -477,9 +477,7 @@ class InvokeCommand(BaseCommand):
             )
         )
 
-    def _print_execution_summary(
-        self, results: GeistResults, executor: GeistExecutor
-    ) -> None:
+    def _print_execution_summary(self, results: GeistResults, executor: GeistExecutor) -> None:
         """Print an outcome-aware execution summary."""
 
         if not (results.code_results or results.tracery_results):
@@ -518,9 +516,7 @@ class InvokeCommand(BaseCommand):
         suggestion_filter = SuggestionFilter(
             self._vault.db, embedding_computer, config=filter_config
         )
-        filtered, report = suggestion_filter.filter_all_with_report(
-            suggestions, session_date
-        )
+        filtered, report = suggestion_filter.filter_all_with_report(suggestions, session_date)
         self.print(f"Filtered to {len(filtered)} suggestions")
         return filtered, report
 
@@ -557,18 +553,14 @@ class InvokeCommand(BaseCommand):
             self.print(f"  - {geist_id}: {detail}")
 
         load_failures = [
-            entry
-            for entry in executor.get_execution_log()
-            if entry.get("status") == "load_error"
+            entry for entry in executor.get_execution_log() if entry.get("status") == "load_error"
         ]
         for entry in load_failures:
             self.print(f"  - {entry['geist_id']}: load failed")
 
         self.print("  Filtering:")
         if filter_report is None:
-            self.print(
-                f"    - bypassed (--no-filter): {len(results.all_suggestions)} kept"
-            )
+            self.print(f"    - bypassed (--no-filter): {len(results.all_suggestions)} kept")
         elif not filter_report.stages:
             self.print(f"    - no configured stages: {filter_report.input_count} kept")
         else:

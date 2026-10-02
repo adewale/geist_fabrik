@@ -5,6 +5,19 @@
 **Date**: 2025-11-06
 **Purpose**: Explain temporal embeddings approach with academic grounding
 
+> **Status (2026-10):** Several claims below no longer describe the system.
+> Semantic vectors are cached by note content, so an unchanged note's vector is
+> identical in every session: drift reflects edits (and new neighbours), never a
+> shifting "reading" of unchanged text. The 3 calendar features are stored but
+> never compared; all similarity, drift and clustering use only the 384 semantic
+> dims (`src/geistfabrik/semantic_vectors.py`), so the "99.2% / 0.8%" weighting
+> no longer applies. Geists: session_drift (and drift_velocity_anomaly, the
+> "Velocity Tracker") were merged into concept_drift, worded as edits;
+> hermeneutic_instability was retired; anachronism_detector was built, then
+> merged into recent_focus; convergent_evolution, divergent_evolution,
+> seasonal_patterns and temporal_clustering are bundled. File and line
+> references are historical. See `specs/SPEC_STATUS.md` ("Geist merges (2026-10)").
+
 ---
 
 ## Core Approach
@@ -69,7 +82,13 @@ When drift exceeds 0.15 (15% change), the system suggests interpretive shift has
 
 ### 3. Hermeneutic Theory and Interpretive Variance
 
-The `hermeneutic_instability` geist (`src/geistfabrik/default_geists/code/hermeneutic_instability.py`) draws implicitly on **hermeneutic circle** theory, though the implementation is computational rather than philosophical.
+> **Retired (2026-10):** the `hermeneutic_instability` geist described here was
+> removed. Semantic vectors are cached by note content, so an unchanged note's
+> vector never varies between sessions: the "reading of an unchanged note
+> shifts" premise below cannot be observed, and the geist only ever reported
+> old edits as unexplained variance. The section is kept as research history.
+
+The `hermeneutic_instability` geist (formerly `src/geistfabrik/default_geists/code/hermeneutic_instability.py`) drew implicitly on **hermeneutic circle** theory, though the implementation was computational rather than philosophical.
 
 **Hermeneutic Circle**: Friedrich Schleiermacher's interpretive framework posits that "understanding involved repeated circular movements between the parts and the whole." Heidegger later reconceptualized this: "understanding is not merely a cognitive process but a fundamental aspect of how we exist in the world."
 

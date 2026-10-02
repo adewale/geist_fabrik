@@ -6,7 +6,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from geistfabrik.config_loader import DateCollectionConfig, GeistFabrikConfig
 from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.schema import SCHEMA_VERSION
 
 REPO = Path(__file__).resolve().parents[2]
 MAINTAINED_GUIDES = (
@@ -67,14 +69,17 @@ def test_operational_guides_match_current_runtime_contracts() -> None:
     assert "5s default" not in early
     assert "rm ~/MyVault/_geistfabrik/geists/code/temporal_drift.py" not in early
     assert "temporal_drift: false" in early
-    assert "**Current Version**: v10" in status
+    # Documented values are read from the code, so a code change without a doc
+    # change fails here instead of leaving the guide wrong.
+    assert f"**Current Version**: v{SCHEMA_VERSION}" in status
     assert "Consolidate clustering pipeline" not in status
     assert "Daily Journal - 2025-01-15" not in journal
     assert "within 0.01s tolerance" not in journal
-    assert "At least **2 H2 headings**" in journal
+    assert f"At least **{DateCollectionConfig().min_sections} H2 headings**" in journal
     assert "Never modifies files or computes new embeddings" not in stats
     assert '"hdbscan>=0.8.0"' not in stats
-    assert "The current default is `keybert`" in stats
+    default_labeler = GeistFabrikConfig().clustering.labeling_method
+    assert f"The current default is `{default_labeler}`" in stats
     assert "get_representatives(cluster_id, count=" not in authoring
     assert "$vault.neighbours(#seed#, 3)" not in authoring
     assert "$vault.semantic_clusters(2, 3)" in authoring

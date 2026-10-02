@@ -53,8 +53,8 @@ Your geist should:
 **✅ Good** (speculative):
 ```python
 "What if [[{note}]] is only half the story?"
-"[[{note_a}]] and [[{note_b}]] seem to contradict each other—what gives?"
-"I think you're lying about your claim in [[{note}]]..." (playful provocation)
+"[[{note_a}]] is certain where [[{note_b}]] hedges—what gives?"
+"Who would disagree with [[{note}]]?" (playful provocation)
 ```
 
 **Key words**: Use "might", "could", "what if", "perhaps" - never "must", "should", "needs to".
@@ -121,15 +121,15 @@ Connector vs. island?"
 Report measured changes over time without inventing a mental state or cause.
 
 ```python
-"The semantic representation of [[{note}]] changed between snapshots,
-although its source has not been edited in 127 days. What explains the mismatch?"
+"[[{note}]] has not been edited in 127 days, but 9 notes still link to it.
+Might your thinking have moved on?"
 ```
 
 ### Pattern 4: Provocative Framing
 Use playful or challenging framing to spark engagement.
 
 ```python
-"I think you're lying about your claim in [[{note}]] because..." (Columbo-style)
+"[[{note}]] assumes something. What if that's backwards?"
 "What would the opposite of [[{note}]] look like?"
 "Who would disagree with [[{note}]]?"
 ```
@@ -221,29 +221,26 @@ Before finalizing a geist, ask:
 
 Study these geists for excellent patterns:
 
-### Columbo (Provocative Challenger)
+### Concept Drift (Edit Mirror)
 ```python
-"I think you're lying about your claim in [[{note.title}]]
-because [[{other.title}]] argues something that seems to contradict it"
+"You've rewritten [[{note}]] since your session on {since:%Y-%m-%d}. Of its
+current neighbours, the edits moved it most toward [[{top_neighbour}]].
+What were you reaching for?"
 ```
-**Why it's gold**: Playful, specific, catches user in contradictions they wouldn't notice.
+**Why it's gold**: States only what was measured (vectors are cached by
+content, so they move only when the text was edited), avoids inventing a
+mental state, and leaves interpretation with the user.
 
----
-
-### Session Drift (Representation-Change Mirror)
-```python
-"The semantic representation of [[{note}]] changed between recorded sessions.
-What, if anything, do the source edits reveal?"
-```
-**Why it's gold**: States the measured change, avoids inventing a mental state,
-and leaves interpretation with the user.
+(The former Columbo geist, which claimed to catch contradictions between
+notes, was retired: embeddings measure topic, not stance. See
+`specs/research/OPPOSITION_GEISTS_RESEARCH.md`.)
 
 ---
 
 ### Scale Shifter (Perspective Transformer)
 ```python
-"[[{note}]] operates at high abstraction. What if you zoomed in?
-[[{example}]] might be a more concrete instance."
+"[[{note}]] operates at a high level of abstraction. What if you zoomed in?
+[[{example}]] might be a more concrete instance of the same ideas."
 ```
 **Why it's gold**: Suggests perspective shift, uses "might", connects specific notes.
 
@@ -251,11 +248,11 @@ and leaves interpretation with the user.
 
 ### Assumption Challenger (Socratic Questioner)
 ```python
-"[[{note}]] makes claims that seem certain,
-but [[{other}]] expresses uncertainty.
-What assumptions underlie the certainty?"
+"In [[{note}]] you wrote "{certain_sentence}", while [[{other}]]
+(semantically similar) hedges: "{hedged_sentence}".
+What is the certainty in [[{note}]] resting on?"
 ```
-**Why it's gold**: Points out pattern, asks "what" not "you should".
+**Why it's gold**: Quotes the sentences it is reacting to, so the observation is true by construction, then asks "what" not "you should".
 
 ---
 
@@ -596,7 +593,7 @@ for note in vault.sample(notes, min(30, len(notes))):
 - Sampling won't significantly reduce quality
 - You need representative results, not exhaustive
 
-**Used by**: `columbo`, `bridge_builder`, `temporal_mirror`
+**Used by**: `method_scrambler`, `hidden_hub`, `density_inversion`, `scale_shifter`
 
 ### Strategy 2: Analyze-All-Then-Sample (Quality-Focused)
 
@@ -643,7 +640,29 @@ return suggestions
 - Continuing past N provides no additional value
 - You want fastest possible runtime
 
-**Used by**: `antithesis_generator`
+**Used by**: `assumption_challenger`; the harvesters stop at the first sampled note with content
+
+### Keep Text Scans Linear
+
+Every geist eventually meets a hostile note: a 200k-character line, a
+hard-wrapped 2 MB clipping, a bibliography of initials. A regex or loop that
+is quadratic on such input silently costs the geist its 30-second timeout.
+
+- A `findall`/`sub`/`finditer` pattern that starts with an unbounded class and
+  needs a later character (`[^.!?]*\?`, `\w+://`, `\w+(?:/\w+)+`) retries
+  from every offset of a long run. Anchor it (`\b`, `^`, a lookbehind) or
+  split on the delimiter instead.
+- Never re-run a regex over a growing slice or a growing concatenation inside
+  a loop; search a bounded window, or collect parts and join once.
+- Cap work at the length your filters keep anyway (e.g. skip sentences longer
+  than the extractor's maximum before running expensive patterns).
+- Add a pathological-input test with a pytest timeout (see
+  `tests/unit/test_content_extraction.py` and `test_voice_analysis.py`).
+
+For pairwise vector work inside loops (one snapshot pair at a time), use numpy
+dot products (`temporal_analysis.cosine_to_rows`) rather than per-call
+`sklearn` `cosine_similarity`, whose input validation costs ~0.6 ms per call;
+keep sklearn for single large matrices.
 
 ### Adaptive Sampling
 
@@ -673,7 +692,7 @@ Used universally for deterministic sampling.
 random_notes = vault.sample(notes, count=3)
 
 # Random from filtered set
-stale_notes = [n for n in notes if vault.metadata(n)["staleness"] > 90]
+stale_notes = [n for n in notes if vault.metadata(n)["days_since_modified"] > 90]
 random_stale = vault.sample(stale_notes, count=2)
 
 # Random element from list
@@ -708,8 +727,10 @@ metadata = vault.metadata(note)
 
 # Available properties
 word_count = metadata.get("word_count", 0)
-lexical_diversity = metadata.get("lexical_diversity", 0.0)
-staleness = metadata.get("staleness", 0)
+lexical_diversity = metadata.get("lexical_diversity", 0.0)  # raw TTR: ~1.0 for short notes
+root_ttr = metadata.get("root_ttr", 0.0)  # unique / sqrt(words): <= sqrt(word_count), rises with length
+link_density = metadata.get("link_density", 0.0)  # links per word (x100 = per 100 words)
+staleness = metadata.get("staleness", 0.0)  # 0 (fresh) -> 1 (stale)
 days_since_modified = metadata.get("days_since_modified", 0)
 task_count = metadata.get("task_count", 0)
 
@@ -790,13 +811,15 @@ neighbor_notes = [n for n, sim in neighbors_with_scores[:10]]
 strong_connections = [(n, sim) for n, sim in neighbors_with_scores if sim > 0.7]
 ```
 
-### Technique 3: Use Sets for Deduplication
+### Technique 3: Deduplicate Without Losing Order
 
 ```python
-# Combine and deduplicate in one operation
+# Combine and deduplicate in one operation. dict.fromkeys keeps first-seen
+# order; a set orders by string hash, which varies per process and breaks
+# same-seed replay (see method_scrambler.py).
 linked_notes = vault.outgoing_links(note)[:3]
 similar_notes = vault.neighbours(note, count=5)
-candidates = list(set(linked_notes + similar_notes))
+candidates = list(dict.fromkeys(linked_notes + similar_notes))
 ```
 
 ### Technique 4: Early Termination
@@ -896,9 +919,8 @@ text = f"What if [[{note.title}]]'s contradictions are revealing something?"
 
 ```python
 text = (
-    f"**Thesis**: [[{note.link_text}]]\n"
-    f"**Antithesis**: [[{antithesis.title}]]\n"
-    f"\nWhat if you synthesized both?"
+    "These notes have high lexical diversity but haven't been touched in months:\n"
+    + "\n".join(f"- [[{n.link_text}]]" for n in gems)
 )
 ```
 
@@ -907,10 +929,10 @@ text = (
 ```python
 suggestions.append(
     Suggestion(
-        text=f"What if [[{note.title}]] had an opposite?",
-        notes=[note.title],
-        geist_id="antithesis_generator",
-        title=f"Anti-{note.title}"  # Suggested new note title
+        text=f'What if you reframed [[{note.link_text}]] as a question, such as "{question}"',
+        notes=[note.link_text],
+        geist_id="question_generator",
+        title=question,  # Suggested new note title
     )
 )
 ```
@@ -919,11 +941,16 @@ suggestions.append(
 
 ```python
 Suggestion(
-    text="Mean note-vector distance from the session centroid decreased...",
-    notes=[],  # No specific notes - vault-level observation
+    text="Mean note-vector distance from the session centroid is lower... "
+    "[[A]] and [[B]] sit nearest the centre now. Is the vault gathering around them?",
+    notes=["A", "B"],  # Name a few notes the observation is visible in
     geist_id="vocabulary_expansion",
 )
 ```
+
+Even a vault-wide observation names notes: the quality filter drops any
+suggestion whose `notes` is empty, so a `notes=[]` suggestion never reaches
+the journal. Name the notes where the pattern shows, or a note to start from.
 
 ### Pattern 5: Contextual Reasoning
 
@@ -946,8 +973,11 @@ text = (
 content_no_code = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
 content_no_code = re.sub(r'`[^`]+`', '', content_no_code)
 
-# Now extract from prose only
-questions = re.findall(r'([^.!?\n][^.!?]*\?)', content_no_code)
+# Now extract from prose only (split on sentence ends rather than using an
+# unanchored findall, which is quadratic on long runs; see "Keep Text Scans
+# Linear" above)
+sentences = re.split(r'(?<=[.!?])\s+', content_no_code)
+questions = [s.strip() for s in sentences if s.strip().endswith("?")]
 ```
 
 ### Technique 2: Word Lists for Classification
@@ -964,8 +994,9 @@ concrete_words = [
 ]
 
 content = vault.read(note).lower()
-abstract_score = sum(1 for word in abstract_words if word in content)
-concrete_score = sum(1 for word in concrete_words if word in content)
+# Match whole words: a substring test finds "case" in "because"
+abstract_score = sum(1 for word in abstract_words if re.search(rf"\b{word}s?\b", content))
+concrete_score = sum(1 for word in concrete_words if re.search(rf"\b{word}s?\b", content))
 ```
 
 ### Technique 3: Regex with Validation
@@ -973,8 +1004,9 @@ concrete_score = sum(1 for word in concrete_words if word in content)
 ```python
 def extract_questions(content: str) -> list[str]:
     """Extract questions from content."""
-    # Step 1: Extract all question-like patterns
-    candidates = re.findall(r'([^.!?\n][^.!?]*\?)', content)
+    # Step 1: Split into sentences and keep the questions (linear time)
+    sentences = re.split(r'(?<=[.!?])\s+', content)
+    candidates = [s.strip() for s in sentences if s.strip().endswith("?")]
 
     # Step 2: Validate quality
     return [q for q in candidates if is_valid_question(q)]
@@ -1032,6 +1064,9 @@ tracery:
 "#metaphor.a#"  # "organism" → "an organism"
 ```
 
+GeistFabrik adds two custom modifiers, `.split_seed` and `.split_neighbours`,
+for the cluster pattern below (see `src/geistfabrik/tracery.py`).
+
 ### Chaining Modifiers
 
 ```yaml
@@ -1052,14 +1087,27 @@ hub:
 orphan:
   - "$vault.orphans(1)"
 
-# Context-sensitive pairs must be bundled before Tracery expands symbols
+# Context-sensitive pairs must be bundled before Tracery expands symbols,
+# then split from ONE saved draw: each #cluster# reference draws anew.
+origin:
+  - "#[picked:#cluster#]template#"
+template:
+  - "#seed# shares conceptual space with #neighbours#."
 cluster:
   - "$vault.semantic_clusters(2, 3)"
 seed:
-  - "#cluster.split_seed#"
+  - "#picked.split_seed#"
 neighbours:
-  - "#cluster.split_neighbours#"
+  - "#picked.split_neighbours#"
 ```
+
+### Saving a Draw for Reuse
+
+Every `#symbol#` reference picks a fresh rule. To mention the same draw twice,
+save it with a Tracery action: `[key:#symbol#]` saves one expansion for the
+rest of the suggestion, `#[key:#symbol#]other#` saves it only while `#other#`
+expands, and `[key:POP]` discards it. `#key#` (with any modifiers) then reuses
+the saved text. See `specs/tracery_research.md` ("Save actions") for details.
 
 ### Template Variation
 
@@ -1067,10 +1115,10 @@ Multiple variants prevent repetitive phrasing:
 
 ```yaml
 origin:
-  - "[[#note#]] exists. But what about the opposite?"
-  - "You wrote [[#note#]]. What would the opposite look like?"
-  - "[[#note#]] - have you considered the inverse perspective?"
-  - "What contradicts [[#note#]]?"
+  - "#note# exists. But what about the opposite?"
+  - "You wrote #note#. What would the opposite look like?"
+  - "#note# - have you considered the inverse perspective?"
+  - "What contradicts #note#?"
   # ... more variants
 ```
 
@@ -1157,13 +1205,13 @@ Geists run within a 30-second timeout (default) and must complete efficiently.
 
 **Default timeout**: 30 seconds per geist
 - Configurable via `--timeout` flag during testing/development
-- After 3 consecutive timeouts, geist is automatically disabled
+- After 3 consecutive failures (timeouts or errors), geist is automatically disabled
 - Timeout logged with test command for reproduction
 
 **What happens on timeout**:
 ```
-⚠ scale_shifter timed out (30.0s)
-→ Test: geistfabrik test scale_shifter /path/to/vault --date YYYY-MM-DD
+✗ scale_shifter: Execution timed out (>30s)
+  → Test with longer timeout: geistfabrik test scale_shifter <vault>
 ```
 
 ### Phase 3B Lessons Learned
@@ -1274,7 +1322,7 @@ Before committing your geist, verify:
 **Performance**:
 - [ ] Completes in <5s on 500-note vault
 - [ ] Completes in <30s on 1000-note vault (if available)
-- [ ] Uses `similarity()` not `batch_similarity()` when cache might be warm
+- [ ] Uses `batch_similarity()` for N×M matrices and `similarity()` for loops with early exit (both are cache-aware)
 - [ ] Builds lookup structures for O(1) repeated searches
 - [ ] Uses adaptive sampling, not fixed sizes
 - [ ] Early terminates when enough suggestions found
@@ -1501,7 +1549,7 @@ def suggest(vault):
 - `TemporalSemanticQuery`: Fuse time + semantics (seasonal patterns, time-bounded similarity)
 
 **Example Geists**:
-- `drift_velocity_anomaly.py` - Detects accelerating drift (~30 lines vs 60+)
+- `concept_drift.py` - Notes you rewrote, and which neighbour they moved toward
 - `cyclical_thinking.py` - Finds cyclical patterns (~25 lines)
 
 ### Abstraction 4: Graph Analysis
@@ -1535,7 +1583,7 @@ def suggest(vault):
 
 **Available Methods**:
 - `find_hubs()`, `find_orphans()`, `find_bridges()`
-- `shortest_path()`, `k_hop_neighborhood()`
+- `shortest_path()`, `k_hop_neighbourhood()`
 - `find_connected_components()`, `detect_structural_holes()`
 
 ### Abstraction 5: Clustering Analysis
@@ -1580,7 +1628,10 @@ from geistfabrik.metadata_system import MetadataAnalyser
 
 def suggest(vault):
     analyser = MetadataAnalyser(vault)
-    outliers = analyser.outliers("word_count", threshold=2.0)  # Z-score based
+    outliers = analyser.outliers("word_count", threshold=2.0)  # Z-score, most extreme first
+    # Restrict the population when a metric is meaningless for some notes:
+    prose = [n for n in vault.notes() if vault.metadata(n)["word_count"] >= 50]
+    dense = analyser.outliers("link_density", notes=prose)
     profile = analyser.profile(note)  # {'word_count': 'high', 'link_density': 'low'}
 ```
 
@@ -1618,14 +1669,14 @@ To refactor existing geists:
 4. **Test equivalence**: Ensure output matches original behavior
 5. **Simplify**: Remove now-redundant helper functions
 
-**Example**: See how `concept_drift.py` could be refactored from 65 lines to 15 lines using `TemporalPatternFinder`.
+**Example**: `concept_drift.py` uses `TemporalPatternFinder` and `EmbeddingTrajectoryCalculator` instead of hand-written session queries.
 
 ### Reference Documentation
 
 - **Specification**: `specs/reuse_abstractions_spec.md` - Complete API reference
 - **Example Geists**:
   - `definition_harvester.py` - Content extraction
-  - `drift_velocity_anomaly.py` - Temporal analysis
+  - `concept_drift.py` - Temporal analysis
   - `cyclical_thinking.py` - Pattern finding
 - **Source Modules**: `src/geistfabrik/{similarity,temporal,clustering,graph}_analysis.py`
 
@@ -1635,13 +1686,13 @@ To refactor existing geists:
 
 ### Q: Can I ever use directive language?
 **A**: Rarely. If you do, it should be playful/provocative, not authoritative:
-- ✅ "I think you're lying about..." (playful challenge)
+- ✅ "Who would disagree with [[note]]?" (playful challenge)
 - ❌ "You should link these notes" (authoritative command)
 
 ### Q: What if my geist genuinely finds an error?
 **A**: Frame it as a question, not a correction:
 - ❌ "[[note]] has an error"
-- ✅ "[[note_a]] and [[note_b]] seem to contradict—what gives?"
+- ✅ "In [[note_a]] you wrote X; [[note_b]] hedges. What is the certainty resting on?" (quote what you found; embeddings cannot tell you two notes disagree)
 
 ### Q: Can I suggest creating a new note?
 **A**: Yes, but make it speculative:
@@ -1661,18 +1712,17 @@ To refactor existing geists:
 ### Exemplary Geists to Study
 
 **Philosophy & craft**:
-- `columbo.py` - Gold standard for provocative questioning
-- `session_drift.py` - Excellent temporal framing
+- `concept_drift.py` - Temporal framing grounded in edits ("since your session on ...")
 - `assumption_challenger.py` - Great Socratic style
 - `scale_shifter.py` - Superb perspective shifting
 
 **Implementation patterns**:
 - `pattern_finder.py` - Set-based lookups, quality gates
-- `bridge_hunter.py` - Batch similarity for matrices
+- `seasonal_patterns.py` - Batch similarity for matrices
 - `question_harvester.py` - Content extraction with validation
 
 **Tracery patterns**:
-- `transformation_suggester.yaml` - Modifier chaining
+- `examples/geists/tracery/transformation_suggester.yaml` - Modifier chaining (extension example)
 - `contradictor.yaml` - Template variation
 
 ### Documentation

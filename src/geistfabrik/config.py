@@ -5,6 +5,7 @@ used throughout the application. These serve as default values that can
 be overridden by user configuration files or CLI arguments.
 """
 
+import hashlib
 from typing import Any
 
 # Embedding Configuration
@@ -18,6 +19,20 @@ This model produces 384-dimensional semantic vectors. The model is bundled
 with GeistFabrik to enable offline operation.
 """
 
+
+def semantic_cache_key(content: str) -> str:
+    """Key of a cached semantic embedding: the model plus a hash of the content.
+
+    The one definition shared by the embedding cache writer/reader and by vault
+    sync, which keeps a cached embedding exactly while its content is unchanged.
+    """
+    return f"{MODEL_NAME}:{hashlib.sha256(content.encode()).hexdigest()}"
+
+
+# Folder (relative to the vault root) where each session's journal note is
+# written. Its notes are engine output, not the user's writing.
+GEIST_JOURNAL_DIR = "geist journal"
+
 SEMANTIC_DIM = 384
 """int: Dimension of semantic embeddings from sentence-transformers.
 
@@ -29,27 +44,29 @@ TEMPORAL_DIM = 3
 """int: Dimension of temporal feature vectors.
 
 Temporal features include:
-1. Note age (days since creation, normalised)
-2. Creation season (sin/cos encoding of time of year)
-3. Session season (sin/cos encoding of current session time)
+1. Note age (days since creation, in years)
+2. Creation season (sine of the creation day-of-year)
+3. Session season (sine of the session day-of-year)
 
-Currently using 3 dimensions for simplicity. Could be expanded to
-include more temporal features in the future.
+These features are stored but never compared: similarity and every other
+comparison use only the SEMANTIC_DIM meaning dimensions (semantic_vectors.py).
 """
 
 TOTAL_DIM = SEMANTIC_DIM + TEMPORAL_DIM  # 387 total
 """int: Total dimension of combined semantic + temporal embeddings.
 
-GeistFabrik combines semantic embeddings (384-dim) with temporal features (3-dim)
-to create 387-dimensional vectors that capture both meaning and time.
+Stored session embeddings are semantic embeddings (384-dim) followed by
+temporal features (3-dim). Comparisons read only the first SEMANTIC_DIM
+dimensions (semantic_vectors.meaning_vector).
 """
 
 DEFAULT_SEMANTIC_WEIGHT = 0.9
-"""float: Weight given to semantic similarity vs. temporal similarity.
+"""float: Scale applied to each part of a stored session embedding.
 
-When computing similarity, we use:
-    semantic_weight * semantic_sim + (1-semantic_weight) * temporal_sim
-A value of 0.9 means semantic similarity is emphasized over temporal similarity.
+The stored vector is ``concat(semantic * w, temporal * (1 - w))`` (see
+embeddings.combine_embedding). Similarity does not blend the two parts: it
+uses only the semantic dimensions, and cosine similarity is unaffected by the
+uniform scale ``w``.
 Range: [0.0, 1.0]
 """
 

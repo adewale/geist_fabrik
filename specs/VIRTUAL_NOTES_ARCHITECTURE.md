@@ -24,16 +24,19 @@ Separate title from link syntax via a property:
 def link_text(self) -> str:
     """Return the Obsidian wiki-link string for this note."""
     if self.is_virtual and self.source_file:
-        filename = self.source_file.replace(".md", "")
+        filename = self.source_file.removesuffix(".md")
         return f"{filename}#{self.title}"
-    else:
-        return self.title
+    # Obsidian resolves [[...]] by file name, not by H1/frontmatter title
+    stem = PurePosixPath(self.path).name.removesuffix(".md")
+    return self.title if stem == self.title else f"{stem}|{self.title}"
 ```
 
 **Regular notes:**
 - path: `"Project Ideas.md"`
 - title: `"Project Ideas"`
-- link_text: `"Project Ideas"` (same as title)
+- link_text: `"Project Ideas"` (file name; same as title here)
+- A note at `"EMBEDDINGS_SPEC.md"` titled `"Embeddings Spec"` has link_text
+  `"EMBEDDINGS_SPEC|Embeddings Spec"`
 
 **Virtual notes:**
 - path: `"Journal.md/2025-01-15"` (internal identifier with ISO date)
@@ -48,8 +51,8 @@ Geists use `note.link_text` uniformly:
 
 ```python
 # Works for both regular and virtual notes
-def suggest(vault: VaultContext) -> List[Suggestion]:
-    note = vault.sample_notes(1)[0]
+def suggest(vault: VaultContext) -> list[Suggestion]:
+    note = vault.sample(vault.notes(), 1)[0]
     return [Suggestion(
         text=f"Consider linking [[{note.link_text}]] to your current work.",
         notes=[note.link_text],
@@ -82,7 +85,7 @@ No conditional logic. No awareness of virtual vs regular notes.
 
 ### Application Layer (Should NOT Know)
 
-✅ **All 47 default geists** - Use `note.link_text`, don't check `is_virtual`
+✅ **All default geists** - Use `note.link_text`, don't check `is_virtual`
 ✅ **VaultContext** - No virtual-note-specific methods or logic
 ✅ **Filtering pipeline** - Operates on Suggestions, not notes directly
 ✅ **Session output** - Just writes suggestions with links as-is
@@ -98,7 +101,7 @@ The title field is **what the note is called**, not how to link to it:
 ### 2. link_text Encapsulates Linking Logic
 
 The `link_text` property knows **how to reference this note in Obsidian**:
-- Regular note: Same as title
+- Regular note: File name, or `"file|Title"` when the title differs
 - Virtual note: Constructs deeplink from source_file + title
 
 ### 3. Original Heading Text Preserved
@@ -175,7 +178,7 @@ Virtual notes are tested at multiple levels:
 3. **Property tests** (via test cases)
    - Virtual notes have `is_virtual=True`
    - Virtual notes have `link_text != title`
-   - Regular notes have `link_text == title`
+   - Regular notes whose file name matches the title have `link_text == title`
 
 ## Migration Notes
 

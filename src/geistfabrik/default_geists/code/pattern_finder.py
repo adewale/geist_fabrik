@@ -1,19 +1,84 @@
-"""Pattern Finder geist - identifies repeated themes across unconnected notes.
+"""Pattern Finder geist - identifies repeated phrases across unconnected notes.
 
-Discovers patterns, phrases, or conceptual themes that appear in multiple notes
-that aren't linked to each other, suggesting implicit recurring interests.
+Discovers 3-word phrases that recur in several notes that aren't linked to
+each other, suggesting implicit recurring interests. (Its former second branch,
+semantic clusters of unlinked notes, duplicated concept_cluster and was merged
+into it.)
 """
 
+import re
 from collections import defaultdict
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
-from geistfabrik.similarity_analysis import SimilarityLevel
+from geistfabrik.markdown_parser import (
+    INLINE_CODE_PATTERN,
+    markdown_prose_lines,
+    parse_frontmatter,
+)
+
+# Whole-token stopwords. A phrase may not start or end with one (a single
+# stopword inside, as in "theory of mind", is fine). Matching whole tokens
+# matters: the old substring test rejected any phrase containing "other",
+# "understand" or "together" while letting "for large vaults" through.
+STOPWORDS = frozenset(
+    """
+    a an the and or but nor so yet for of to in on at by with from into onto
+    over under about as than then that this these those there here it its is
+    are was were be been being am do does did done have has had having i me
+    my we our us you your he she they them their his her him not no if when
+    while which who whom whose what where why how all any each every some
+    such can could will would shall should may might must also just only very
+    more most other another
+    """.split()
+)
+_WORD = re.compile(r"[a-z](?:[a-z'-]*[a-z])?")
+# Punctuation that ends a run of words: a phrase never spans a sentence,
+# clause, bracket, table cell or emphasis boundary.
+_BREAK = re.compile(r"[.!?;:,()\[\]{}|<>\"=+*/\\]+")
+_HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
+# The leading \b anchors each attempt at the start of a word: without it a
+# long run of word characters with no "://" was retried from every offset
+# (quadratic; a 200 KB unbroken line timed the geist out). A URL's scheme
+# always starts a word, so the matches are unchanged.
+_URL = re.compile(r"\b\w+://\S+")
+
+
+def _phrases(content: str) -> Iterator[str]:
+    """Yield the 3-word phrases of a note's prose.
+
+    Frontmatter, fenced/indented code, inline code, headings (often template
+    boilerplate such as "## Success Metrics"), table rows and URLs are not
+    prose. Any token that is not a plain word (a number, "note.links",
+    "list[link]", a list marker) ends the current run of words.
+    """
+    body = parse_frontmatter(content)[1]
+    for _, line in markdown_prose_lines(body):
+        if _HEADING.match(line) or line.lstrip().startswith("|"):
+            continue
+        line = line.lower().replace("\u2019", "'")
+        line = _URL.sub(" | ", INLINE_CODE_PATTERN.sub(" | ", line))
+        for segment in _BREAK.split(line):
+            run: list[str] = []
+            for token in segment.split() + [""]:
+                word = token.strip("'_~`\u2018\u201c\u201d")
+                if word and _WORD.fullmatch(word):
+                    run.append(word)
+                    continue
+                for i in range(len(run) - 2):
+                    tri = run[i : i + 3]
+                    if tri[0] in STOPWORDS or tri[2] in STOPWORDS:
+                        continue
+                    phrase = " ".join(tri)
+                    if len(phrase) > 15:
+                        yield phrase
+                run = []
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find repeated themes across unconnected notes.
+    """Find phrases repeated across unconnected notes.
 
     Returns:
         List of suggestions highlighting hidden patterns
@@ -22,7 +87,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
 
-    notes = vault.notes_excluding_journal()
+    notes = vault.notes()
 
     if len(notes) < 15:
         return []
@@ -36,23 +101,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             pair = tuple(sorted([note.path, target.path]))
             all_link_pairs.add(pair)
 
-    # Look for repeated significant phrases (2-3 word combinations)
+    # Look for repeated significant 3-word phrases
     phrase_to_notes = defaultdict(list)
 
+    # Every note is read: sampling the corpus here (Phase 3B) lost most
+    # patterns on large vaults (tests/integration/test_phase3b_regression.py).
     for note in notes:
-        content = vault.read(note).lower()
-        words = content.split()
-
-        # Extract 2-3 word phrases
-        for i in range(len(words) - 2):
-            # Skip common words
-            phrase = " ".join(words[i : i + 3])
-
-            # Filter out common phrases
-            if len(phrase) > 15 and not any(
-                common in phrase for common in ["the", "and", "but", "with", "from", "this", "that"]
-            ):
-                phrase_to_notes[phrase].append(note)
+        # Count each phrase once per note so a note repeating itself is not
+        # mistaken for several notes. (A dict, not a set: insertion order
+        # keeps output independent of hash seeds.)
+        note_phrases = dict.fromkeys(_phrases(vault.read(note)))
+        for phrase in note_phrases:
+            phrase_to_notes[phrase].append(note)
 
     # Find phrases that appear in multiple unlinked notes
     for phrase, phrase_notes in phrase_to_notes.items():
@@ -89,71 +149,5 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                         geist_id="pattern_finder",
                     )
                 )
-
-    # Also look for semantic clusters of unlinked notes
-    # Group notes by semantic similarity
-    clusters = []
-    # Use set for O(1) remove operations instead of O(N) list remove
-    unclustered_set = set(notes)
-
-    while len(unclustered_set) > 5:
-        # Pick a seed note
-        seed = vault.sample(list(unclustered_set), count=1)[0]
-        unclustered_set.remove(seed)  # O(1) set remove
-
-        # Find similar notes
-        cluster = [seed]
-        to_remove = []
-        candidates = list(unclustered_set)
-        for start in range(0, len(candidates), 256):
-            batch = candidates[start : start + 256]
-            similarities = vault.batch_similarity([seed], batch)[0]
-            for note, similarity in zip(batch, similarities, strict=True):
-                if similarity > SimilarityLevel.VERY_HIGH:  # Very similar
-                    cluster.append(note)
-                    to_remove.append(note)
-
-                if len(cluster) >= 5:  # Limit cluster size
-                    break
-
-            if len(cluster) >= 5:
-                break
-
-        # Remove clustered notes from unclustered set
-        for note in to_remove:
-            unclustered_set.remove(note)  # O(1) set remove
-
-        if len(cluster) >= 3:
-            clusters.append(cluster)
-
-        if len(clusters) >= 3:  # Enough clusters found
-            break
-
-    # Report on clusters of unlinked but similar notes
-    for cluster in clusters:
-        # Check if cluster notes are linked using O(1) set lookup
-        link_count = sum(
-            1
-            for i, n1 in enumerate(cluster)
-            for n2 in cluster[i + 1 :]
-            if tuple(sorted([n1.path, n2.path])) in all_link_pairs
-        )
-
-        if link_count == 0:  # No internal links
-            sample = vault.sample(cluster, count=3)
-            note_names = ", ".join([f"[[{n.link_text}]]" for n in sample])
-
-            text = (
-                f"Found a semantic cluster of similar notes with no links between them: "
-                f"{note_names}. What's the common theme you haven't named yet?"
-            )
-
-            suggestions.append(
-                Suggestion(
-                    text=text,
-                    notes=[n.link_text for n in sample],
-                    geist_id="pattern_finder",
-                )
-            )
 
     return vault.sample(suggestions, count=2)

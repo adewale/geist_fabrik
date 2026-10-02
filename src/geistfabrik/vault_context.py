@@ -5,7 +5,7 @@ import logging
 import random
 import re
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
@@ -19,19 +19,42 @@ from typing import (
 import numpy as np
 
 from .clustering_analysis import Cluster, format_cluster_label
-from .config import TOTAL_DIM
-from .embeddings import Session, cosine_similarity
+from .config import GEIST_JOURNAL_DIR, SEMANTIC_DIM
+from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
+from .markdown_parser import parse_frontmatter
 from .models import Link, Note, NoteLinkIndex
+from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
-from .voice_analysis import VoiceMetadata, compute_voice, compute_voice_metadata
+from .voice_analysis import VoiceMetadata, compute_voice
 
 logger = logging.getLogger(__name__)
+
+#: Up to this many notes, HDBSCAN uses brute-force distances (see get_clusters).
+BRUTE_HDBSCAN_MAX_NOTES = 5000
+
+#: Budget for computing a session's clusters before geists run (warm_clusters).
+CLUSTERING_TIMEOUT_SECONDS = 120
 
 T = TypeVar("T")
 
 # Markdown checkbox tasks: "- [ ] open" / "- [x] done" (also * and + bullets)
+_JOURNAL_PREFIX = f"{GEIST_JOURNAL_DIR}/"
+
+
+def is_geist_journal_path(path: str) -> bool:
+    """True for session output written by the engine under ``geist journal/``."""
+    return path.startswith(_JOURNAL_PREFIX)
+
+
+#: batch_similarity() reads and fills the per-pair session cache only for
+#: matrices up to this many pairs (100 x 100). Above it, per-pair Python
+#: bookkeeping cost ~25x the matrix multiply (1.1 s against 0.04 s for a
+#: 4000 x 240 matrix) and filled the cache with ~1M pairs (~150 MB) that
+#: nothing reads again.
+_BATCH_SIMILARITY_CACHE_PAIR_LIMIT = 10_000
+
 _TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[ xX]\]", re.MULTILINE)
 _COMPLETED_TASK_PATTERN = re.compile(r"^\s*[-*+]\s+\[[xX]\]", re.MULTILINE)
 
@@ -111,15 +134,57 @@ def _jaccard_churn(old: set[str], new: set[str]) -> float:
     return 1.0 - len(old & new) / len(union)
 
 
+def _normalised_matrix(embeddings: dict[str, np.ndarray]) -> tuple[list[str], np.ndarray]:
+    """Sorted paths and the float64 row-normalised matrix in that order."""
+    paths = sorted(embeddings)
+    if not paths:
+        return paths, np.zeros((0, 0))
+    matrix = np.stack([np.asarray(embeddings[p], dtype=np.float64) for p in paths])
+    return paths, _normalise_rows(matrix)
+
+
+def _topk_indices(normalised: np.ndarray, k: int, block_size: int = 1024) -> np.ndarray:
+    """Top-k cosine neighbour row indices for every row of a normalised matrix.
+
+    Uses blocked matrix multiplication (block_size rows at a time) so peak
+    memory stays bounded at roughly block_size × N floats, followed by
+    np.argpartition for O(N) top-k selection per row. Self-similarity is
+    masked out. Requires 1 <= k <= N - 1.
+
+    This is the shared core of surprisal_scores() and neighbour_churn(), so
+    both select exactly the same neighbours (float64 throughout: in float32,
+    near-tied neighbours at the k-th place can swap).
+
+    Args:
+        normalised: (N, d) row-normalised float64 matrix
+        k: Number of neighbours per row
+        block_size: Rows per block (memory/speed trade-off)
+
+    Returns:
+        (N, k) array of neighbour row indices (unordered within a row)
+    """
+    n = normalised.shape[0]
+    result = np.empty((n, k), dtype=np.intp)
+    for start in range(0, n, block_size):
+        end = min(start + block_size, n)
+        sims = normalised[start:end] @ normalised.T
+        # Mask self-similarity so a note is never its own neighbour
+        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
+        result[start:end] = np.argpartition(sims, -k, axis=1)[:, -k:]
+    return result
+
+
+def _neighbour_sets_from_indices(paths: list[str], topk_idx: np.ndarray) -> dict[str, set[str]]:
+    """Map each path to the set of paths at its top-k neighbour indices."""
+    return {path: {paths[j] for j in row} for path, row in zip(paths, topk_idx)}
+
+
 def _topk_neighbour_sets(
     matrix: np.ndarray, paths: list[str], k: int, block_size: int = 1024
 ) -> dict[str, set[str]]:
     """Compute top-k cosine neighbour path sets for every row of a matrix.
 
-    Uses blocked matrix multiplication (block_size rows at a time) so peak
-    memory stays bounded at roughly block_size × N floats, followed by
-    np.argpartition for O(N) top-k selection per row. Self-similarity is
-    masked out, and k is capped at N - 1.
+    k is capped at N - 1; see _topk_indices for the method.
 
     Args:
         matrix: (N, d) embedding matrix; row i corresponds to paths[i]
@@ -139,18 +204,35 @@ def _topk_neighbour_sets(
         return {path: set() for path in paths}
 
     normalised = _normalise_rows(matrix.astype(np.float64))
+    return _neighbour_sets_from_indices(paths, _topk_indices(normalised, k_eff, block_size))
 
-    result: dict[str, set[str]] = {}
+
+def _surprisal_from_topk(
+    paths: list[str], normalised: np.ndarray, topk_idx: np.ndarray, block_size: int = 1024
+) -> dict[str, float]:
+    """Surprisal for every row, given its top-k neighbour indices.
+
+    centroid = normalise(mean of the top-k rows) (zero-norm guarded);
+    surprisal = 1 - row · centroid, clipped to [0.0, 2.0].
+    """
+    scores: dict[str, float] = {}
+    n = len(paths)
     for start in range(0, n, block_size):
         end = min(start + block_size, n)
-        sims = normalised[start:end] @ normalised.T
-        # Mask self-similarity so a note is never its own neighbour
-        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
-        topk_idx = np.argpartition(sims, -k_eff, axis=1)[:, -k_eff:]
-        for offset in range(end - start):
-            result[paths[start + offset]] = {paths[j] for j in topk_idx[offset]}
+        block = normalised[start:end]
+        # Centroids of top-k neighbours: (b, k, d) -> (b, d), then normalise
+        centroids = normalised[topk_idx[start:end]].mean(axis=1)
+        centroid_norms = np.linalg.norm(centroids, axis=1, keepdims=True)
+        centroid_norms = np.where(centroid_norms == 0, 1.0, centroid_norms)
+        centroids = centroids / centroid_norms
 
-    return result
+        surprisal = 1.0 - np.einsum("ij,ij->i", block, centroids)
+        surprisal = np.clip(surprisal, 0.0, 2.0)
+
+        for offset in range(end - start):
+            scores[paths[start + offset]] = float(surprisal[offset])
+
+    return scores
 
 
 def _surprisal_blocked(
@@ -177,86 +259,11 @@ def _surprisal_blocked(
         Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
         fewer than k_neighbours + 1 notes are available
     """
-    paths = sorted(embeddings)
-    n = len(paths)
-    if k_neighbours < 1 or n < k_neighbours + 1:
+    if k_neighbours < 1 or len(embeddings) < k_neighbours + 1:
         return {}
-
-    matrix = np.stack([np.asarray(embeddings[p], dtype=np.float64) for p in paths])
-    normalised = _normalise_rows(matrix)
-
-    scores: dict[str, float] = {}
-    for start in range(0, n, block_size):
-        end = min(start + block_size, n)
-        block = normalised[start:end]
-        sims = block @ normalised.T
-        # Mask self-similarity so a note is never its own neighbour
-        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
-        topk_idx = np.argpartition(sims, -k_neighbours, axis=1)[:, -k_neighbours:]
-
-        # Centroids of top-k neighbours: (b, k, d) -> (b, d), then normalise
-        centroids = normalised[topk_idx].mean(axis=1)
-        centroid_norms = np.linalg.norm(centroids, axis=1, keepdims=True)
-        centroid_norms = np.where(centroid_norms == 0, 1.0, centroid_norms)
-        centroids = centroids / centroid_norms
-
-        surprisal = 1.0 - np.einsum("ij,ij->i", block, centroids)
-        surprisal = np.clip(surprisal, 0.0, 2.0)
-
-        for offset in range(end - start):
-            scores[paths[start + offset]] = float(surprisal[offset])
-
-    return scores
-
-
-def _surprisal_naive(embeddings: dict[str, np.ndarray], k_neighbours: int) -> dict[str, float]:
-    """Readable reference implementation of surprisal (plain Python loops).
-
-    Used by the differential test to define correctness for the blocked
-    implementation (_surprisal_blocked). O(N²) Python-level work — do NOT
-    use in production code.
-
-    Args:
-        embeddings: Mapping of note path to embedding vector
-        k_neighbours: Number of nearest neighbours forming the centroid
-
-    Returns:
-        Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
-        fewer than k_neighbours + 1 notes are available
-    """
-    paths = sorted(embeddings)
-    n = len(paths)
-    if k_neighbours < 1 or n < k_neighbours + 1:
-        return {}
-
-    # Normalise each vector (zero vectors stay zero)
-    normed: dict[str, np.ndarray] = {}
-    for path in paths:
-        vector = np.asarray(embeddings[path], dtype=np.float64)
-        norm = float(np.linalg.norm(vector))
-        normed[path] = vector / norm if norm > 0 else vector
-
-    scores: dict[str, float] = {}
-    for path in paths:
-        # Rank all other notes by cosine similarity
-        sims = []
-        for other in paths:
-            if other == path:
-                continue
-            sims.append((float(np.dot(normed[path], normed[other])), other))
-        sims.sort(key=lambda pair: pair[0], reverse=True)
-        top_paths = [other for _, other in sims[:k_neighbours]]
-
-        # Centroid of the top-k neighbours, normalised (zero-norm guarded)
-        centroid = np.mean([normed[other] for other in top_paths], axis=0)
-        norm = float(np.linalg.norm(centroid))
-        if norm > 0:
-            centroid = centroid / norm
-
-        surprisal = 1.0 - float(np.dot(normed[path], centroid))
-        scores[path] = float(min(max(surprisal, 0.0), 2.0))
-
-    return scores
+    paths, normalised = _normalised_matrix(embeddings)
+    topk_idx = _topk_indices(normalised, k_neighbours, block_size)
+    return _surprisal_from_topk(paths, normalised, topk_idx, block_size)
 
 
 class VaultContext:
@@ -299,8 +306,10 @@ class VaultContext:
         self._function_registry = function_registry
 
         # Cache for notes (performance optimisation)
+        self._all_notes_cache: list[Note] | None = None
         self._notes_cache: list[Note] | None = None
         self._link_index: NoteLinkIndex | None = None
+        self._full_link_index: NoteLinkIndex | None = None
         self._link_graph_ready = False
 
         # Cache for metadata
@@ -336,6 +345,12 @@ class VaultContext:
         # Cache for neighbour churn (session-scoped - keyed by (since_days, k))
         self._churn_cache: dict[tuple[int, int], dict[str, ChurnResult]] = {}
 
+        # Current-epoch top-k neighbour index shared by surprisal_scores() and
+        # neighbour_churn() (session-scoped - keyed by k), over the sorted
+        # user paths and normalised matrix built once per session
+        self._current_matrix: tuple[list[str], np.ndarray] | None = None
+        self._current_topk_cache: dict[int, np.ndarray] = {}
+
         # Cache for typed voice metadata (session-scoped - keyed by note path)
         self._voice_cache: dict[str, VoiceMetadata] = {}
 
@@ -359,48 +374,61 @@ class VaultContext:
         self._embeddings: dict[str, np.ndarray] = {}
         for row in cursor.fetchall():
             note_path, embedding_bytes = row
-            self._embeddings[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+            self._embeddings[note_path] = decode_meaning_vector(embedding_bytes)
+        # The population every vault-wide lookup works over: session journal
+        # notes are the engine's own output, so they never count as the
+        # user's notes, neighbours, links, clusters or history.
+        self._user_embeddings: dict[str, np.ndarray] = {
+            path: vec for path, vec in self._embeddings.items() if not is_geist_journal_path(path)
+        }
 
     # Direct vault access (delegated)
 
-    def notes(self) -> list[Note]:
-        """Get all notes in vault (cached).
+    def _all_notes(self) -> list[Note]:
+        """Every synced note, including session journal notes (cached).
 
-        Performance optimisation: Notes are loaded once and cached
-        for the duration of the VaultContext session.
+        Only link resolution needs these: a user's link to a journal note must
+        resolve to it rather than to some other note of the same name.
+        """
+        if self._all_notes_cache is None:
+            self._all_notes_cache = self.vault.all_notes()
+        return self._all_notes_cache
+
+    def notes(self) -> list[Note]:
+        """Get the user's notes (cached for the session).
+
+        Session journal notes under ``geist journal/`` are excluded here and
+        from every other vault-wide lookup (neighbours, backlinks, outgoing
+        links, hubs, orphans, recent/old notes, random notes, unlinked pairs,
+        clusters, surprisal, churn, embeddings), so geists never mistake the
+        engine's own output for the user's writing. ``get_note()`` and
+        ``resolve_link_target()`` still return a journal note when asked for
+        it explicitly.
 
         Returns:
-            List of all notes
+            List of all non-journal notes
         """
         if self._notes_cache is None:
-            self._notes_cache = self.vault.all_notes()
+            self._notes_cache = [
+                note for note in self._all_notes() if not is_geist_journal_path(note.path)
+            ]
         return self._notes_cache
 
     def notes_excluding_journal(self) -> list[Note]:
-        """Get all notes except geist journal entries.
+        """Same as ``notes()``, which already excludes session journal notes.
 
-        Convenience method for geists that analyze vault history.
-        Geist journal notes are ephemeral session output and should
-        typically be excluded from historical analysis to avoid:
-        - Circular references (analyzing system output as user notes)
-        - Statistical skew (session notes have different characteristics)
-        - False patterns (journal structure is predictable)
-
-        When to use:
-        - Analyzing vault history or temporal patterns
-        - Computing statistical distributions
-        - Tracking note evolution over time
-        - Building cohort analysis
-
-        When NOT to use:
-        - Point-in-time content analysis (pattern extraction)
-        - Semantic similarity queries (no risk of circular reference)
-        - Single-note operations
-
-        Returns:
-            List of notes excluding those in "geist journal/" directory
+        Kept for geists and plugins written before journal exclusion moved
+        into VaultContext itself.
         """
-        return [n for n in self.notes() if not n.path.startswith("geist journal/")]
+        return self.notes()
+
+    def journal_notes(self) -> list[Note]:
+        """Get the engine's own session notes under ``geist journal/``.
+
+        Every other vault-wide lookup leaves these out. Use this only when a
+        geist deliberately reasons about past sessions.
+        """
+        return [note for note in self._all_notes() if is_geist_journal_path(note.path)]
 
     def get_note(self, path: str) -> Note | None:
         """Get specific note by path.
@@ -435,29 +463,47 @@ class VaultContext:
             READ-ONLY views shared with every other caller this session (see
             get_embedding); call .copy() before mutating.
         """
-        return self._embeddings
+        return self._user_embeddings
 
     def link_index(self) -> NoteLinkIndex:
-        """Resolve graph identities against this context's note snapshot."""
+        """Resolve graph identities among the user's notes (no geist journal).
+
+        Journal notes are left out of the index, not just out of results:
+        session notes are named YYYY-MM-DD, like many daily notes, and an
+        index that contained both would make the user's ``[[2025-01-15]]``
+        ambiguous and leave it unresolved.
+        """
         if self._link_index is None:
             self._link_index = NoteLinkIndex.from_notes(self.notes())
         return self._link_index
 
+    def _all_notes_link_index(self) -> NoteLinkIndex:
+        """Index over every note, journal included, for explicit lookups."""
+        if self._full_link_index is None:
+            self._full_link_index = NoteLinkIndex.from_notes(self._all_notes())
+        return self._full_link_index
+
     def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
         """Resolve a wiki-link target to a Note.
 
-        Tries multiple resolution strategies:
-        1. Exact path match
-        2. Path with .md extension
-        3. Lookup by note title
+        Resolution follows NoteLinkIndex: exact path, path plus ``.md``, then
+        title/basename aliases (a bare date in a journal prefers that
+        journal's entry; ambiguous names stay unresolved). The user's notes
+        are tried first; a session journal note resolves only when no user
+        note matches.
 
         Args:
             target: Link target (path or title)
+            source_path: Path of the linking note, for source-local resolution
 
         Returns:
             Note or None if not found
         """
+        # The user's notes win; only a target that names no user note falls
+        # back to the journal, so an explicit link to a session note resolves.
         path = self.link_index().resolve(target, source_path)
+        if path is None:
+            path = self._all_notes_link_index().resolve(target, source_path)
         return self.get_note(path) if path is not None else None
 
     def read(self, note: Note) -> str:
@@ -504,7 +550,7 @@ class VaultContext:
 
         Args:
             note: Query note
-            k: Number of neighbours to return
+            count: Number of neighbours to return
             return_scores: If True, return (Note, score) tuples; if False, just Notes
 
         Returns:
@@ -524,15 +570,19 @@ class VaultContext:
         except KeyError:
             return [] if not return_scores else []
 
-        # Find similar notes (request k+1 to exclude self)
-        similar = self._backend.find_similar(query_embedding, count=count + 1)
+        # Find similar notes: request k+1 to exclude self, plus one per
+        # journal note so dropping them cannot leave fewer than k results
+        journal_count = len(self._embeddings) - len(self._user_embeddings)
+        similar = self._backend.find_similar(query_embedding, count=count + 1 + journal_count)
 
         # Convert paths to notes using batch loading (OP-6)
         # Collect paths first (excluding self)
-        paths_to_load = []
+        paths_to_load: list[str] = []
         path_score_map = {}
         for path, score in similar:
-            if path != note.path:
+            if path != note.path and not is_geist_journal_path(path):
+                if len(paths_to_load) >= count:
+                    break
                 paths_to_load.append(path)
                 # Clip score to [0, 1] range (handle floating-point precision errors)
                 path_score_map[path] = _clip_similarity(score)
@@ -596,13 +646,17 @@ class VaultContext:
         """Calculate semantic similarity between two sets of notes (cache-aware).
 
         Computes all pairwise similarities between notes_a and notes_b using
-        vectorised matrix operations. Now integrates with the session-scoped
-        similarity cache for best performance in all scenarios.
+        vectorised matrix operations. Values already in the session-scoped
+        similarity cache are always returned as cached, so a pair scores the
+        same here as in similarity().
 
         Performance characteristics:
-        - 100% cache hits: O(N×M) dict lookups (~1-2ms for 100 pairs)
-        - 0% cache hits: Same as before (vectorized batch computation)
-        - Mixed hits: Batch compute all, then cache for subsequent calls
+        - Up to 10,000 pairs: cache-aware. 100% cache hits are O(N×M) dict
+          lookups with no embedding access; otherwise one vectorised matrix,
+          and the missing pairs are added to the cache.
+        - Larger matrices: one vectorised matrix plus an overlay of whatever
+          the cache already holds (O(min(cache, N×M))). These pairs are not
+          added to the cache: per-pair bookkeeping dominated large matrices.
 
         OPTIMISATION #3: Use this instead of nested similarity() calls:
 
@@ -626,81 +680,98 @@ class VaultContext:
         if not notes_a or not notes_b:
             return np.array([]).reshape(0, 0)
 
-        # Phase 1: Check cache for all pairs
-        result = np.zeros((len(notes_a), len(notes_b)))
-        needs_computation = np.ones((len(notes_a), len(notes_b)), dtype=bool)
+        paths_a = [note.path for note in notes_a]
+        paths_b = [note.path for note in notes_b]
+        cache = self._similarity_cache
+        pair_count = len(paths_a) * len(paths_b)
 
-        for i, note_a in enumerate(notes_a):
-            for j, note_b in enumerate(notes_b):
-                # Create order-independent cache key (same as similarity())
-                sorted_paths = sorted([note_a.path, note_b.path])
-                cache_key: tuple[str, str] = (sorted_paths[0], sorted_paths[1])
+        if pair_count > _BATCH_SIMILARITY_CACHE_PAIR_LIMIT:
+            # Large matrix: one vectorised computation. Per-pair cache
+            # bookkeeping is skipped (it dominated big matrices); pairs
+            # already cached are still overlaid, so every value equals what
+            # the per-pair path returns.
+            result = self._similarity_matrix(paths_a, paths_b)
+            self._overlay_cached_similarities(result, paths_a, paths_b)
+            return result
 
-                if cache_key in self._similarity_cache:
-                    result[i, j] = self._similarity_cache[cache_key]
+        # Small matrix: cache-aware, as individual similarity() calls are.
+        # Phase 1: read every pair already in the session cache.
+        keys = [[(a, b) if a <= b else (b, a) for b in paths_b] for a in paths_a]
+        result = np.zeros((len(paths_a), len(paths_b)))
+        needs_computation = np.ones((len(paths_a), len(paths_b)), dtype=bool)
+        for i, row in enumerate(keys):
+            for j, key in enumerate(row):
+                cached = cache.get(key)
+                if cached is not None:
+                    result[i, j] = cached
                     needs_computation[i, j] = False
 
         # If fully cached, return immediately (fast path)
         if not needs_computation.any():
             return result
 
-        # Phase 2: Batch compute all pairs (existing implementation)
-        # Note: We compute ALL pairs even if some cached, because vectorized
-        # matrix operations are most efficient when done as single operation
-        embeddings_a = []
-        embeddings_b = []
-
-        for note in notes_a:
-            try:
-                emb = self._backend.get_embedding(note.path)
-                embeddings_a.append(emb)
-            except KeyError:
-                # Note not found, use zero vector
-                embeddings_a.append(np.zeros(TOTAL_DIM))  # 384 + 3 temporal features
-
-        for note in notes_b:
-            try:
-                emb = self._backend.get_embedding(note.path)
-                embeddings_b.append(emb)
-            except KeyError:
-                # Note not found, use zero vector
-                embeddings_b.append(np.zeros(TOTAL_DIM))
-
-        # Stack into matrices: (n, d) and (m, d)
-        matrix_a = np.stack(embeddings_a)  # shape: (len(notes_a), 387)
-        matrix_b = np.stack(embeddings_b)  # shape: (len(notes_b), 387)
-
-        # Normalise rows to unit vectors for cosine similarity
-        # ||a|| = sqrt(sum(a^2)) for each row
-        norms_a = np.linalg.norm(matrix_a, axis=1, keepdims=True)
-        norms_b = np.linalg.norm(matrix_b, axis=1, keepdims=True)
-
-        # Avoid division by zero
-        norms_a = np.where(norms_a == 0, 1, norms_a)
-        norms_b = np.where(norms_b == 0, 1, norms_b)
-
-        matrix_a_normalised = matrix_a / norms_a
-        matrix_b_normalised = matrix_b / norms_b
-
-        # Compute cosine similarity matrix: A @ B.T
-        # Result shape: (len(notes_a), len(notes_b))
-        similarity_matrix = matrix_a_normalised @ matrix_b_normalised.T
-
-        # Clip to [0, 1] range (numerical errors can cause slight overshoot)
-        similarity_matrix = np.clip(similarity_matrix, 0.0, 1.0)
-
-        # Phase 3: Populate cache for newly computed pairs
-        for i in range(len(notes_a)):
-            for j in range(len(notes_b)):
-                if needs_computation[i, j]:
-                    result[i, j] = similarity_matrix[i, j]
-
-                    # Cache this pair for future use
-                    sorted_paths = sorted([notes_a[i].path, notes_b[j].path])
-                    cache_key_store: tuple[str, str] = (sorted_paths[0], sorted_paths[1])
-                    self._similarity_cache[cache_key_store] = similarity_matrix[i, j]
+        # Phase 2: compute the whole matrix in one vectorised operation, then
+        # Phase 3: fill and cache the pairs that were missing.
+        similarity_matrix = self._similarity_matrix(paths_a, paths_b)
+        for i, j in zip(*np.nonzero(needs_computation)):
+            value = similarity_matrix[i, j]
+            result[i, j] = value
+            cache[keys[i][j]] = value
 
         return result
+
+    def _similarity_matrix(self, paths_a: list[str], paths_b: list[str]) -> np.ndarray:
+        """Cosine similarity matrix of two path lists, clipped to [0, 1].
+
+        A path with no session embedding contributes a zero row (similarity
+        0.0 with everything), matching similarity()'s KeyError fallback.
+        """
+        embeddings_a = [self._embedding_or_zeros(path) for path in paths_a]
+        embeddings_b = [self._embedding_or_zeros(path) for path in paths_b]
+        matrix: np.ndarray = np.clip(
+            cosine_similarity_matrix(np.stack(embeddings_a), np.stack(embeddings_b)), 0.0, 1.0
+        )
+        return matrix
+
+    def _embedding_or_zeros(self, path: str) -> np.ndarray:
+        try:
+            return self._backend.get_embedding(path)
+        except KeyError:
+            return np.zeros(SEMANTIC_DIM)
+
+    def _overlay_cached_similarities(
+        self, result: np.ndarray, paths_a: list[str], paths_b: list[str]
+    ) -> None:
+        """Replace computed values with any already in the similarity cache.
+
+        Walks whichever is smaller, the cache or the pair grid, so the cost
+        is O(min(cache size, pairs)) rather than one key build per pair.
+        """
+        cache = self._similarity_cache
+        if not cache:
+            return
+        if len(cache) >= len(paths_a) * len(paths_b):
+            for i, a in enumerate(paths_a):
+                for j, b in enumerate(paths_b):
+                    cached = cache.get((a, b) if a <= b else (b, a))
+                    if cached is not None:
+                        result[i, j] = cached
+            return
+
+        rows: dict[str, list[int]] = {}
+        for i, path in enumerate(paths_a):
+            rows.setdefault(path, []).append(i)
+        cols: dict[str, list[int]] = {}
+        for j, path in enumerate(paths_b):
+            cols.setdefault(path, []).append(j)
+        for (low, high), value in cache.items():
+            for row_path, col_path in ((low, high), (high, low)):
+                row_idx = rows.get(row_path)
+                col_idx = cols.get(col_path)
+                if row_idx is not None and col_idx is not None:
+                    result[np.ix_(row_idx, col_idx)] = value
+                if low == high:
+                    break
 
     # Graph operations
 
@@ -708,20 +779,26 @@ class VaultContext:
         """Resolve each edge once, sharing the result in both graph directions."""
         if self._link_graph_ready:
             return
+        # Only user notes are sources or targets: journal suggestions link to
+        # the notes they mention, and counting those as backlinks would turn
+        # every suggested note into a hub. link_index() holds user notes only,
+        # so a link to a journal note simply does not resolve here.
         notes = self.notes()
         by_path = {note.path: note for note in notes}
         index = self.link_index()
         self._backlinks_cache = {note.path: [] for note in notes}
         self._outgoing_links_cache = {note.path: [] for note in notes}
         for note in notes:
-            seen: set[str] = set()
+            # One edge per target. A link back to the note itself ("[[#Section]]",
+            # "[[Own title]]") is navigation within the note, not a connection:
+            # counted, it made the note its own backlink and therefore a "hub".
+            seen: set[str] = {note.path}
             for link in note.links:
                 path = index.resolve(link.target, note.path)
-                if path is not None:
+                if path is not None and path not in seen:
+                    seen.add(path)
                     self._outgoing_links_cache[note.path].append(by_path[path])
-                    if path not in seen:
-                        self._backlinks_cache[path].append(note)
-                        seen.add(path)
+                    self._backlinks_cache[path].append(note)
         self._link_graph_ready = True
 
     def backlinks(self, note: Note) -> list[Note]:
@@ -768,16 +845,28 @@ class VaultContext:
         every note, and the composite index added for it went unused.)
 
         Args:
-            k: Maximum number to return. If None, return all.
+            count: Maximum number to return. If None, return all.
 
         Returns:
             List of orphan notes, most recently modified first
         """
         self._ensure_link_graph()
+        full_index = self._all_notes_link_index()
+
+        def has_outgoing(note: Note) -> bool:
+            # A link counts unless it resolves to a geist journal note or back
+            # to the note itself (unresolved links still count, as they always
+            # have).
+            for link in note.links:
+                target = full_index.resolve(link.target, note.path)
+                if target != note.path and not is_geist_journal_path(target or ""):
+                    return True
+            return False
+
         result = [
             note
             for note in sorted(self.notes(), key=lambda n: (-n.modified.timestamp(), n.path))
-            if not note.links and not self._backlinks_cache[note.path]
+            if not has_outgoing(note) and not self._backlinks_cache[note.path]
         ]
         return result if count is None else result[:count]
 
@@ -785,10 +874,11 @@ class VaultContext:
         """Find most-linked-to notes using the canonical resolved link graph.
 
         Args:
-            k: Number of hubs to return
+            count: Number of hubs to return
 
         Returns:
-            List of hub notes, sorted by link count descending
+            Notes with at least one backlink, sorted by backlink count
+            descending
         """
         self._ensure_link_graph()
         linked = [note for note in self.notes() if self._backlinks_cache[note.path]]
@@ -811,7 +901,7 @@ class VaultContext:
             Dictionary mapping date strings (YYYY-MM-DD) to lists of notes
             created on that date, sorted by note count descending
         """
-        journal_filter = "WHERE NOT path LIKE 'geist journal/%'" if exclude_journal else ""
+        journal_filter = f"WHERE NOT path GLOB '{_JOURNAL_PREFIX}*'" if exclude_journal else ""
 
         cursor = self.db.execute(
             f"""
@@ -890,6 +980,10 @@ class VaultContext:
     ) -> list[tuple[int, str, list[np.ndarray]]]:
         """Get embeddings grouped by session for temporal analysis.
 
+        Geist journal notes are excluded: each session writes one after it
+        runs, so counting them would make later sessions look different
+        simply because more session output exists.
+
         Returns:
             List of (session_id, date_str, embeddings) tuples
             ordered by date DESC, limited to 5 most recent sessions.
@@ -910,11 +1004,11 @@ class VaultContext:
             emb_cursor = self.db.execute(
                 """
                 SELECT embedding FROM session_embeddings
-                WHERE session_id = ?
+                WHERE session_id = ? AND note_path NOT GLOB ?
                 """,
-                (session_id,),
+                (session_id, f"{_JOURNAL_PREFIX}*"),
             )
-            embeddings = [np.frombuffer(row[0], dtype=np.float32) for row in emb_cursor.fetchall()]
+            embeddings = [decode_meaning_vector(row[0]) for row in emb_cursor.fetchall()]
             date_str = datetime.fromisoformat(str(session_date)).strftime("%Y-%m-%d")
             result_list.append((session_id, date_str, embeddings))
 
@@ -930,8 +1024,8 @@ class VaultContext:
 
         Stores the label on the note's session_embeddings row so future
         sessions can compare assignments over time (the data that
-        previous_cluster_label_for_note() reads and cluster_evolution_tracker
-        builds on). This replaces the complete canonical assignment snapshot;
+        previous_cluster_label_for_note() reads; written for the retired
+        cluster_evolution_tracker). This replaces the complete canonical assignment snapshot;
         omitted notes (noise/unclustered) become NULL. Labels carry their
         configuration identity so incompatible historical runs are not compared.
 
@@ -998,7 +1092,7 @@ class VaultContext:
         """Get the most recent session IDs.
 
         Args:
-            limit: Maximum number of session IDs to return
+            count: Maximum number of session IDs to return
 
         Returns:
             List of session IDs ordered by date descending
@@ -1014,12 +1108,39 @@ class VaultContext:
         )
         return [row[0] for row in cursor.fetchall()]
 
+    def warm_clusters(self, timeout_seconds: int = CLUSTERING_TIMEOUT_SECONDS) -> bool:
+        """Compute this session's canonical clusters once, under their own budget.
+
+        Clustering a large vault can take longer than one geist's timeout, and a
+        geist timeout discarded the half-built result, so cluster geists failed
+        every session. Calling this before geists run keeps clustering out of
+        their budgets; on timeout the session proceeds with no clusters.
+
+        Returns:
+            True if clusters are ready (possibly empty), False on timeout.
+        """
+        from .execution_timeout import GeistTimeoutError, alarm_timeout
+
+        try:
+            with alarm_timeout(timeout_seconds):
+                self.get_clusters()
+            return True
+        except GeistTimeoutError:
+            config = self.vault.config.clustering
+            key = (config.min_cluster_size, config.labeling_method, config.n_label_terms)
+            self._clusters_cache[key] = {}
+            logger.warning(
+                "Clustering exceeded %ds; cluster geists see no clusters this session",
+                timeout_seconds,
+            )
+            return False
+
     def get_clusters(self, min_size: int | None = None) -> dict[int, Cluster]:
         """Get cluster assignments and labels for current session.
 
-        Uses HDBSCAN clustering on embeddings, then generates labels via
-        c-TF-IDF with MMR diversity filtering. Returns cluster information
-        including formatted labels and member notes.
+        Uses HDBSCAN clustering on the session's meaning vectors, then labels
+        each cluster with the configured method (``clustering.labeling_method``:
+        KeyBERT by default, or c-TF-IDF with MMR diversity filtering).
 
         Results are cached by size and labeling settings. Only the configured
         cluster size writes canonical history; alternate sizes are exploratory.
@@ -1028,16 +1149,10 @@ class VaultContext:
             min_size: Minimum notes required to form a cluster; defaults to config
 
         Returns:
-            Dictionary mapping cluster_id to cluster info:
-            {
-                cluster_id: {
-                    "label": "keyword, list, here",
-                    "formatted_label": "Notes about keyword, list, and here",
-                    "notes": [Note, ...],
-                    "size": int,
-                    "centroid": np.ndarray,
-                }
-            }
+            Dictionary mapping cluster_id to a Cluster with fields
+            ``cluster_id``, ``label`` ("keyword, list, here"),
+            ``formatted_label``, ``notes`` (list[Note]), ``size`` and
+            ``centroid`` (np.ndarray)
         """
         config = self.vault.config.clustering
         min_size = config.min_cluster_size if min_size is None else min_size
@@ -1068,7 +1183,7 @@ class VaultContext:
         from . import cluster_labeling
 
         # Use cached session embeddings instead of re-querying DB
-        embeddings_dict = self._embeddings
+        embeddings_dict = self._user_embeddings
 
         if len(embeddings_dict) < min_size * 2:  # Need at least 2 clusters worth
             empty_result_2: dict[int, Cluster] = {}
@@ -1083,6 +1198,13 @@ class VaultContext:
 
         # Run HDBSCAN clustering
         clusterer = HDBSCAN(min_cluster_size=min_size, min_samples=3)
+        # Brute-force distances are ~8x faster than the default kd-tree in 384
+        # dimensions but hold an N x N matrix (~0.4 GB at 5k notes). Ties in
+        # mutual-reachability distance can reassign a handful of points
+        # (measured <= 0.1%), an accepted difference; above the limit the
+        # memory-bounded default is kept.
+        if len(paths) <= BRUTE_HDBSCAN_MAX_NOTES:
+            clusterer.set_params(algorithm="brute")
         labels = clusterer.fit_predict(embeddings_array)
 
         # Group notes by cluster
@@ -1115,7 +1237,12 @@ class VaultContext:
 
         if labeling_method == "keybert":
             cluster_labels_raw = cluster_labeling.label_keybert(
-                paths, labels, self.db, n_terms=n_terms
+                paths,
+                labels,
+                self.db,
+                n_terms=n_terms,
+                computer=getattr(self.session, "computer", None),
+                note_vectors=self._user_embeddings,
             )
         else:  # Default to tfidf
             cluster_labels_raw = cluster_labeling.label_tfidf(
@@ -1148,7 +1275,7 @@ class VaultContext:
             )
 
         # Persist this session's assignments so future sessions can compare
-        # cluster membership over time (cluster_evolution_tracker).
+        # cluster membership over time (formerly cluster_evolution_tracker).
         if canonical:
             self.persist_cluster_labels(
                 {
@@ -1177,13 +1304,13 @@ class VaultContext:
 
         Args:
             cluster_id: Cluster ID from get_clusters()
-            k: Number of representative notes to return
+            count: Number of representative notes to return
             clusters: Optional pre-computed clusters dict from get_clusters().
                      If not provided, will call get_clusters() internally.
                      Passing this avoids redundant clustering.
 
         Returns:
-            List of k notes closest to cluster centroid
+            Up to count notes closest to cluster centroid
         """
         if clusters is None:
             clusters = self.get_clusters()
@@ -1218,11 +1345,12 @@ class VaultContext:
         faster than the loop-based approach, especially for large vaults.
 
         Args:
-            k: Number of pairs to return
+            count: Number of pairs to return
             candidate_limit: Maximum number of notes to consider (to avoid O(n²) on large vaults)
 
         Returns:
-            List of (note_a, note_b) tuples sorted by similarity
+            List of (note_a, note_b) tuples with similarity above 0.5,
+            sorted by similarity descending
         """
         all_notes = self.notes()
 
@@ -1254,12 +1382,7 @@ class VaultContext:
         # Vectorised: Compute all pairwise similarities at once
         embeddings_matrix = np.array(embeddings_list)
 
-        # Matrix multiplication: X @ X^T gives all dot products
-        similarity_matrix = np.dot(embeddings_matrix, embeddings_matrix.T)
-
-        # Normalise to get cosine similarities
-        norms = np.linalg.norm(embeddings_matrix, axis=1)
-        similarity_matrix = similarity_matrix / np.outer(norms, norms)
+        similarity_matrix = cosine_similarity_matrix(embeddings_matrix, embeddings_matrix)
 
         # Extract high-similarity pairs (upper triangle only, threshold > 0.5)
         pairs = []
@@ -1337,17 +1460,10 @@ class VaultContext:
         if note.path in self._graph_neighbours_cache:
             return self._graph_neighbours_cache[note.path]
 
-        neighbours = set()
-
-        # Add outgoing link targets (now cached)
-        for target in self.outgoing_links(note):
-            neighbours.add(target)
-
-        # Add incoming link sources (now cached)
-        for source in self.backlinks(note):
-            neighbours.add(source)
-
-        result = list(neighbours)
+        # Outgoing targets then backlink sources, deduplicated in first-seen
+        # order. (A set would order Notes by string hash, which changes per
+        # process and broke same-seed replay for geists that sample this list.)
+        result = list(dict.fromkeys([*self.outgoing_links(note), *self.backlinks(note)]))
 
         # Cache the result
         self._graph_neighbours_cache[note.path] = result
@@ -1359,12 +1475,15 @@ class VaultContext:
         """Find least recently modified notes.
 
         Args:
-            k: Number of notes to return
+            count: Number of notes to return
 
         Returns:
             List of old notes, sorted by modification time ascending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified ASC LIMIT ?", (count,))
+        cursor = self.db.execute(
+            "SELECT path FROM notes WHERE path NOT GLOB ? ORDER BY modified ASC LIMIT ?",
+            (f"{_JOURNAL_PREFIX}*", count),
+        )
 
         result = []
         for row in cursor.fetchall():
@@ -1378,12 +1497,15 @@ class VaultContext:
         """Find most recently modified notes.
 
         Args:
-            k: Number of notes to return
+            count: Number of notes to return
 
         Returns:
             List of recent notes, sorted by modification time descending
         """
-        cursor = self.db.execute("SELECT path FROM notes ORDER BY modified DESC LIMIT ?", (count,))
+        cursor = self.db.execute(
+            "SELECT path FROM notes WHERE path NOT GLOB ? ORDER BY modified DESC LIMIT ?",
+            (f"{_JOURNAL_PREFIX}*", count),
+        )
 
         result = []
         for row in cursor.fetchall():
@@ -1424,9 +1546,30 @@ class VaultContext:
         if k_neighbours in self._surprisal_cache:
             return self._surprisal_cache[k_neighbours]
 
-        scores = _surprisal_blocked(self._embeddings, k_neighbours)
+        if k_neighbours < 1 or len(self._user_embeddings) < k_neighbours + 1:
+            scores: dict[str, float] = {}
+        else:
+            paths, normalised = self._current_normalised_matrix()
+            scores = _surprisal_from_topk(paths, normalised, self._current_topk(k_neighbours))
         self._surprisal_cache[k_neighbours] = scores
         return scores
+
+    def _current_normalised_matrix(self) -> tuple[list[str], np.ndarray]:
+        """Sorted user paths and their row-normalised matrix (session-cached)."""
+        if self._current_matrix is None:
+            self._current_matrix = _normalised_matrix(self._user_embeddings)
+        return self._current_matrix
+
+    def _current_topk(self, k: int) -> np.ndarray:
+        """This session's top-k neighbour indices (1 <= k < N), computed once.
+
+        surprisal_scores() and neighbour_churn() both need it; before it was
+        shared, every session ran the O(N^2) pass twice.
+        """
+        if k not in self._current_topk_cache:
+            _paths, normalised = self._current_normalised_matrix()
+            self._current_topk_cache[k] = _topk_indices(normalised, k)
+        return self._current_topk_cache[k]
 
     def neighbour_churn(self, since_days: int = 180, k: int = 10) -> dict[str, ChurnResult]:
         """Jaccard churn between each note's current semantic neighbours and
@@ -1445,8 +1588,8 @@ class VaultContext:
 
         1. ONE bulk SELECT loads the historical session's embeddings —
            never per-note queries
-        2. Two blocked top-k passes (shared helper with surprisal_scores),
-           one per epoch
+        2. Two blocked top-k passes, one per epoch; the current epoch's
+           index is session-cached and shared with surprisal_scores()
         3. Set-based Jaccard per note (O(k) each):
            churn = 1 - |old ∩ new| / |old ∪ new| (0.0 if both empty)
 
@@ -1518,9 +1661,10 @@ class VaultContext:
         )
         historical: dict[str, np.ndarray] = {}
         for note_path, embedding_bytes in cursor.fetchall():
-            historical[note_path] = np.frombuffer(embedding_bytes, dtype=np.float32)
+            if not is_geist_journal_path(note_path):
+                historical[note_path] = decode_meaning_vector(embedding_bytes)
 
-        if not historical or not self._embeddings:
+        if not historical or not self._user_embeddings:
             return {}
 
         # Top-k neighbour path sets per epoch (same blocked helper)
@@ -1528,9 +1672,13 @@ class VaultContext:
         old_matrix = np.stack([historical[p] for p in old_paths])
         old_sets = _topk_neighbour_sets(old_matrix, old_paths, k)
 
-        new_paths = sorted(self._embeddings)
-        new_matrix = np.stack([self._embeddings[p] for p in new_paths])
-        new_sets = _topk_neighbour_sets(new_matrix, new_paths, k)
+        # The current epoch's index is shared with surprisal_scores()
+        new_paths, _normalised = self._current_normalised_matrix()
+        k_eff = min(k, len(new_paths) - 1)
+        if k_eff <= 0:
+            new_sets: dict[str, set[str]] = {path: set() for path in new_paths}
+        else:
+            new_sets = _neighbour_sets_from_indices(new_paths, self._current_topk(k_eff))
 
         # Jaccard churn for notes present in BOTH epochs
         result: dict[str, ChurnResult] = {}
@@ -1562,16 +1710,20 @@ class VaultContext:
         # Built-in metadata. "Now" is the session date, not wall-clock, so
         # --date replays stay deterministic (same date + vault = same output).
         session_now = self.session.date
-        words = note.content.split()
+        # Count the note body: YAML frontmatter (tags, aliases, dates) is not
+        # writing, and counting it made metadata-only notes look substantial.
+        words = parse_frontmatter(note.content)[1].split()
         word_count = len(words)
-        days_since_modified = max(
-            0, (session_now.date() - note.modified.date()).days
-        )
+        days_since_modified = max(0, (session_now.date() - note.modified.date()).days)
         task_count = len(_TASK_PATTERN.findall(note.content))
         completed_task_count = len(_COMPLETED_TASK_PATTERN.findall(note.content))
+        unique_word_count = len({w.lower() for w in words})
         metadata = {
             "word_count": word_count,
             "link_count": len(note.links),
+            # Outgoing links per word, as defined in the spec
+            # (len(note.links) / max(1, word_count)); x100 = links per 100 words.
+            "link_density": round(len(note.links) / max(1, word_count), 6),
             "tag_count": len(note.tags),
             "age_days": max(0, (session_now.date() - note.created.date()).days),
             "days_since_modified": days_since_modified,
@@ -1582,17 +1734,21 @@ class VaultContext:
             "has_tasks": task_count > 0,
             "task_count": task_count,
             "completed_task_count": completed_task_count,
-            "lexical_diversity": (
-                round(len({w.lower() for w in words}) / word_count, 3) if word_count else 0.0
-            ),
+            # Raw type-token ratio in [0, 1]. Length-biased: it falls as a
+            # note grows, so any short stub scores ~1.0.
+            "lexical_diversity": (round(unique_word_count / word_count, 3) if word_count else 0.0),
+            # Root TTR (Guiraud's index): unique / sqrt(total). It cannot
+            # exceed sqrt(word_count), so stubs score low, but it rises with
+            # length on real prose - compare notes of broadly similar length.
+            "root_ttr": (round(unique_word_count / word_count**0.5, 3) if word_count else 0.0),
             "reading_time": round(word_count / 200.0, 2),  # minutes at ~200 wpm
         }
 
-        # Merge in linguistic voice metadata (computed lazily per note,
-        # cached via the same session-scoped metadata cache). Built-in keys
-        # take precedence: both layers compute a lexical_diversity, and
-        # metadata_driven_discovery's thresholds are tuned to the built-in.
-        for key, value in compute_voice_metadata(note.content).items():
+        # Merge in linguistic voice metadata, from the same session cache as
+        # voice(), so voice analysis runs once per note per session. Built-in
+        # keys take precedence: both layers compute a lexical_diversity, and
+        # metadata()["lexical_diversity"] is documented as the built-in raw TTR.
+        for key, value in asdict(self.voice(note)).items():
             metadata.setdefault(key, value)
 
         # Run metadata inference modules if available
@@ -1641,25 +1797,25 @@ class VaultContext:
     # Deterministic sampling
 
     def sample(self, items: Sequence[T], count: int) -> list[T]:
-        """Deterministically sample k items.
+        """Deterministically sample count items.
 
         Args:
             items: List to sample from
-            k: Number of items to sample
+            count: Number of items to sample
 
         Returns:
-            Sample of k items (or fewer if list is smaller)
+            Sample of count items (or fewer if list is smaller), in random order.
+            Asking for all items still shuffles them: returning the input
+            order made geists that sample and then take the first few name the
+            same notes, in vault order, every session.
         """
-        if count >= len(items):
-            return list(items)
-
-        return self.rng.sample(items, count)
+        return self.rng.sample(items, min(max(count, 0), len(items)))
 
     def random_notes(self, count: int = 1) -> list[Note]:
-        """Sample k random notes.
+        """Sample count random notes (session journal notes excluded).
 
         Args:
-            k: Number of notes to sample
+            count: Number of notes to sample
 
         Returns:
             Random sample of notes
@@ -1694,6 +1850,7 @@ class VaultContext:
 
         Raises:
             KeyError: If function not found
+            FunctionRegistryError: If a registry function raises
         """
         # Try function registry first
         if self._function_registry is not None:

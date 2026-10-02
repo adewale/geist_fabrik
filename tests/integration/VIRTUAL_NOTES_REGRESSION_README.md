@@ -33,12 +33,15 @@ The `Note.link_text` property handles this complexity:
 def link_text(self) -> str:
     if self.is_virtual and self.source_file:
         # Returns deeplink: "Work Journal#2024-03-15"
-        filename = self.source_file.replace(".md", "")
+        filename = self.source_file.removesuffix(".md")
         return f"{filename}#{self.title}"
-    else:
-        # Returns regular title: "Project Ideas"
-        return self.title
+    # Returns the file name, "Project Ideas", or "file|Title" when the
+    # note's title differs from its file name (Obsidian links by file name)
+    stem = PurePosixPath(self.path).name.removesuffix(".md")
+    return self.title if stem == self.title else f"{stem}|{self.title}"
 ```
+
+(Simplified from `src/geistfabrik/models.py`.)
 
 ### The Bug Pattern: Abstraction Layer Bypass
 
@@ -60,64 +63,51 @@ links = [note.link_text for note in notes]
 
 ## What The Tests Check
 
-### 1. `test_geist_uses_link_text_for_virtual_notes` (Parametrized)
+### `test_code_geists_reference_virtual_notes_by_link_text`
 
-Runs **all current and future code geists** against a vault with virtual notes and verifies:
+Runs **every code geist**, each on its own fresh `VaultContext`, against a vault
+that is mostly virtual notes: four journals whose dated entries collide on the
+same dates, session history, and last session's persisted cluster labels. It
+checks two things over the real output:
 
-- ✅ **No duplicate note references**: If a geist shows `["2024-03-15", "2024-03-15"]`, it's querying raw titles
-- ✅ **Virtual notes use deeplinks**: References to virtual notes must contain `#` (e.g., `Work Journal#2024-03-15`)
-- ✅ **Suggestion text uses deeplinks**: `[[2024-03-15]]` alone is wrong, must be `[[Work Journal#2024-03-15]]`
+- every `Suggestion.notes` entry is the `link_text` of exactly one note (a bare
+  date such as `"2024-05-22"` matches every journal's entry for that date, so
+  the boundary filter cannot tell a public entry from an excluded one);
+- no `[[wikilink]]` in the suggestion text is a bare virtual title.
 
-This test is **parametrized** - it discovers all code geists dynamically and tests each one. When you add a new geist, this test automatically covers it.
+The contract can only be checked where a geist produces output, so the test
+also requires every geist in `EXPECTED_VIRTUAL_REFERENCERS` to reference at
+least one virtual note on the fixture. An empty run fails. If a geist stops
+producing on this fixture, re-trigger it in the fixture or remove it from the
+set with a reason.
 
-### 2. `test_regression_creation_burst_specific`
+`test_fixture_titles_collide_across_journals` guards the fixture itself: each
+shared date must be the bare title of several virtual notes.
 
-Explicit regression test for the `creation_burst` geist where this bug was originally discovered.
+### Where the creation_burst regression lives
 
-Verifies:
-- At least 3 virtual notes in burst day
-- All use deeplink format (contain `#`)
-- No duplicates in the notes list
-- Suggestion text uses deeplinks, not plain titles
+The original bug was found in `creation_burst`. Its dedicated regression test is
+`tests/unit/test_creation_burst.py::test_creation_burst_virtual_notes_use_deeplinks`,
+which asserts that three same-date journal entries appear as distinct
+`Journal#date` deeplinks in both the suggestion text and `suggestion.notes`.
 
-## How It Catches The Bug
-
-The test vault contains:
-- 3 journal files (Work Journal, Personal Journal, Research Journal)
-- Each with entries for the same dates (2024-03-15, 2024-03-20)
-- This creates 6 virtual notes with duplicate titles
-
-If a geist bypasses `link_text`:
-1. **Duplicate detection**: Same title appears multiple times in `suggestion.notes`
-2. **Missing deeplink detection**: Note reference matches virtual title exactly without `#`
-3. **Text analysis**: Suggestion text contains `[[2024-03-15]]` without deeplink format
+The same bug survived in `cluster_evolution_tracker`, `metadata_outlier_detector`
+and `seasonal_topic_analysis` (all since retired from the bundled set), which put
+`note.title` into `Suggestion.notes`.
+The previous version of this test checked each geist only inside a loop over its
+output, and none of those three produced output on its fixture, so it passed.
 
 ## Running The Tests
 
 ```bash
-# Run all virtual note regression tests
 uv run pytest tests/integration/test_virtual_notes_regression.py -v
-
-# Run for specific geist
-uv run pytest tests/integration/test_virtual_notes_regression.py::test_geist_uses_link_text_for_virtual_notes[creation_burst] -v
-
-# Run just the creation_burst regression test
-uv run pytest tests/integration/test_virtual_notes_regression.py::test_regression_creation_burst_specific -v
+uv run pytest tests/unit/test_creation_burst.py::test_creation_burst_virtual_notes_use_deeplinks -v
 ```
 
 ## When To Update This Test
 
-### Add Geists To Skip List
-
-If you create a geist that intentionally doesn't reference specific notes (e.g., a geist that only generates abstract prompts), add it to the skip list:
-
-```python
-skip_geists = {"abstract_prompt", "random_quote"}
-```
-
-### Modify For New Virtual Note Types
-
-If GeistFabrik adds new types of virtual entities beyond journal entries, update the test vault creation to include them.
+If GeistFabrik adds new types of virtual entities beyond journal entries, add
+them to the fixture.
 
 ## Historical Context
 

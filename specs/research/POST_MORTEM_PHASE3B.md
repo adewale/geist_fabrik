@@ -6,6 +6,12 @@
 
 > **UPDATE (2025-01-13)**: The recommendation to "Add Caching to batch_similarity()" (Option 1, documented at line 403) has been **implemented** as of commit 8ce5c8c. The `batch_similarity()` method now integrates with the session-scoped cache, providing best of both worlds: batch efficiency + cache benefits. This eliminates the cache bypass issue that motivated the scale_shifter rollback. See vault_context.py:339-447 for implementation details.
 
+> **Status (2026-10):** Geists named below that are no longer bundled:
+> congruence_mirror was removed for scalability (see CHANGELOG.md), and
+> antithesis_generator was retired on 2026-10-02 (see `OPPOSITION_GEISTS_RESEARCH.md`).
+> The figures are historical. pattern_finder, scale_shifter, assumption_challenger
+> and hidden_hub remain bundled.
+
 ## Executive Summary
 
 Phase 3B geist optimisations introduced a **21% regression** in 10k vault success rates (95% → 74%). A surgical rollback of two specific optimisations restored performance while keeping beneficial changes:
@@ -295,33 +301,33 @@ If 10k vault performance becomes a bottleneck again:
 
 ## Regression Tests Added
 
-To prevent similar issues in future optimisation work, comprehensive regression tests were added in `tests/integration/test_phase3b_regression.py`:
+To prevent similar issues in future optimisation work, regression tests were added in `tests/integration/test_phase3b_regression.py`:
 
 ### Test Coverage
 
-**Pattern Finder Coverage Tests** (2 tests):
-- `test_pattern_finder_processes_all_notes_not_sample`: Creates 1000-note vault with pattern in notes 500-504 to ensure full corpus examination
-- `test_pattern_finder_no_sampling_behavior`: Verifies pattern_finder completes successfully on vaults with detectable patterns
+**Pattern Finder Coverage** (1 test):
+- `test_pattern_finder_processes_all_notes_not_sample`: Builds a 503-note corpus whose only repeated phrase sits after the historical 500-note sampling boundary, records every note the geist reads, and asserts that it reads all of them and reports the phrase
 
-**Pattern Finder Performance Tests** (1 test):
-- `test_pattern_finder_completes_on_large_vault`: Ensures pattern_finder completes within timeout on 1000-note vault (scales to 10k)
+**Pattern Finder Performance** (1 test, in the `slow`/`benchmark` lane):
+- `test_pattern_finder_completes_on_large_vault`: Ensures pattern_finder completes within a generous bound on a 1000-note vault
 
-**Scale Shifter Cache Tests** (2 tests):
-- `test_scale_shifter_uses_individual_similarity_calls`: Verifies scale_shifter benefits from warm similarity cache
-- `test_scale_shifter_code_structure_validation`: Static code check to ensure no `batch_similarity()` calls present
+### Tests Since Removed
 
-**Documentation Tests** (2 tests):
-- `test_post_mortem_document_exists`: Verifies POST_MORTEM_PHASE3B.md exists and documents key issues
-- `test_rollback_commit_message_exists`: Confirms git history contains Phase 3B rollback commits
-
-### Test Results
-
-```bash
-$ pytest tests/integration/test_phase3b_regression.py -v
-============================ 7 passed in 2.91s =============================
-```
-
-All regression tests pass with current (post-rollback) code.
+The original suite also had two scale_shifter cache tests, two documentation
+tests and a second pattern_finder test. They were removed because none of them
+could detect a product regression:
+- The scale_shifter tests grepped its source for `batch_similarity` and
+  asserted a non-negative cache growth. Since commit 8ce5c8c both
+  `similarity()` and `batch_similarity()` are cache-aware, so the choice is not
+  a correctness contract (pattern_finder itself now uses `batch_similarity`).
+  Cache consistency is owned by the `batch_similarity` cache tests in
+  `tests/unit/test_vault_context.py`.
+- The documentation tests checked that this file exists (the dead-link test in
+  `tests/unit/test_doc_links.py` already fails if it goes missing) and searched
+  the commit history for the rollback commit (no code change can break that,
+  and it fails in shallow clones).
+- `test_pattern_finder_no_sampling_behavior` used 20 notes, where the old
+  `min(500, n)` sample was already the whole corpus.
 
 ---
 

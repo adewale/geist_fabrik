@@ -11,6 +11,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+from .config import GEIST_JOURNAL_DIR
 from .models import Suggestion
 from .path_safety import PathSafetyError, ensure_contained
 from .suggestion_limits import validate_session_suggestions
@@ -59,7 +60,7 @@ class JournalWriter:
     def __init__(self, vault_path: Path, db: sqlite3.Connection):
         self.vault_path = vault_path.resolve(strict=True)
         self.db = db
-        self.journal_dir = self.vault_path / "geist journal"
+        self.journal_dir = self.vault_path / GEIST_JOURNAL_DIR
         if self.journal_dir.exists() and not self.db.in_transaction:
             ensure_contained(
                 self.journal_dir,

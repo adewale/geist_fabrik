@@ -96,7 +96,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
     if not notes:
         return []
 
-    note = vault.random_notes(k=1)[0]
+    note = vault.random_notes(count=1)[0]
     content = vault.read(note)
 
     # 2. Extract target content using optimised regex
@@ -117,7 +117,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
         ))
 
     # 5. Sample 1-3 items to avoid overwhelming
-    return vault.sample(suggestions, k=min(3, len(suggestions)))
+    return vault.sample(suggestions, count=min(3, len(suggestions)))
 ```
 
 ### Performance Characteristics
@@ -218,8 +218,12 @@ Inline TODO markers commonly used in prose and code comments:
 - `TODO:` - General things to do
 - `FIXME:` - Things that need fixing
 - `HACK:` - Temporary solutions to revisit
-- `NOTE:` - Important reminders
 - `XXX:` - Warnings or urgent items
+
+> **Implementation note (2026-10):** markers are matched case-sensitively as
+> whole words (`\b(TODO|FIXME|HACK|XXX)\b`) and quoted as written. `NOTE:`
+> was dropped: in prose, "note:" is ordinary writing (19 of 21 hits in a
+> real vault), not a task. The `NOTE` pattern examples below are historical.
 
 **Focus**: Prose TODOs, not checkbox tasks (`- [ ]`). Those are handled by `task_archaeology`.
 
@@ -434,11 +438,11 @@ All harvesters implement these performance strategies:
 #### 1. Single Note Read
 ```python
 # ✅ Good: Read one note
-note = vault.random_notes(k=1)[0]
+note = vault.random_notes(count=1)[0]
 content = vault.read(note)
 
 # ❌ Bad: Read multiple notes
-for note in vault.sample(vault.notes(), k=10):
+for note in vault.sample(vault.notes(), count=10):
     content = vault.read(note)  # 10× slower
 ```
 

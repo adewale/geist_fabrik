@@ -1,433 +1,247 @@
-"""Unit tests for stub_expander geist."""
+"""Unit tests for stub_expander geist.
 
-from datetime import datetime
+Trigger arithmetic (see the geist source):
+- a note qualifies when word_count < 50 (whitespace tokens of the body,
+  frontmatter excluded, including the 2-token "# Title" heading VaultBuilder
+  writes for a one-word title) and at least one other user note links to it
+  (outgoing links alone do not count);
+- a well-linked stub (merged in from the retired complexity_mismatch) also
+  qualifies: word_count < 100 and at least 5 notes link to it;
+- the most linked-to stubs come first; output is capped at 3 suggestions.
+"""
+
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import stub_expander
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+GEIST = "stub_expander"
+CAP = 3
+HEADING_TOKENS = 2
 
 
-@pytest.fixture
-def vault_with_stubs(tmp_path):
-    """Create a vault with stub notes (short with connections)."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _words(total_words: int) -> str:
+    return " ".join(f"term{i}" for i in range(total_words - HEADING_TOKENS))
 
-    # Create stub notes (< 50 words with links)
-    for i in range(5):
-        path = vault_path / f"stub_{i}.md"
-        content = f"""# Stub {i}
 
-Short note with [[link_{i}]]. Only a few words."""
-        path.write_text(content)
+def _long_note(builder: VaultBuilder, title: str, extra: str = "") -> None:
+    # 120 words: too long to be a stub, whatever its links.
+    builder.note(title, f"{_words(120)} {extra}")
 
-    # Create stub notes with backlinks
-    for i in range(5):
-        path = vault_path / f"stub_backlinked_{i}.md"
-        content = f"""# Stub Backlinked {i}
 
-Brief content here."""
-        path.write_text(content)
+def test_short_linked_to_note_is_flagged(tmp_path: Path) -> None:
+    """Contract: the text states the body word count and how many notes link
+    to the stub, with correct plurals.
 
-    # Create notes that link to stubs (to create backlinks)
-    for i in range(5):
-        path = vault_path / f"linker_{i}.md"
-        content = f"""# Linker {i}
+    Regression: the text said "has 1 connections", counting raw outgoing
+    links (duplicates, embeds, unresolved targets) as connections.
+    """
+    # "Stub" (5 words) is linked from "Essay"; "Lonely" is short but
+    # unconnected; "Essay" is linked from "Stub" but long.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Stub", "Seed idea. [[Essay]]")
+    builder.note("Lonely", "Seed idea.")
+    _long_note(builder, "Essay", "[[Stub]]")
 
-This note links to [[Stub Backlinked {i}]]."""
-        path.write_text(content)
+    suggestions = stub_expander.suggest(builder.build())
 
-    # Create substantial notes (> 50 words, for contrast)
-    for i in range(5):
-        path = vault_path / f"substantial_{i}.md"
-        content = f"""# Substantial {i}
-
-This is a substantial note with many words. It contains multiple sentences
-that elaborate on various topics. The content is rich and detailed, exploring
-different aspects of the subject matter. There are many paragraphs and
-extensive discussion of relevant themes and ideas."""
-        path.write_text(content)
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_no_stubs(tmp_path):
-    """Create a vault with no stub notes (all substantial)."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create substantial notes (> 50 words)
-    for i in range(10):
-        path = vault_path / f"substantial_{i}.md"
-        content = f"""# Substantial {i}
-
-This is a substantial note with many words. It contains multiple sentences
-that elaborate on various topics. The content is rich and detailed, exploring
-different aspects of the subject matter. There are many paragraphs and
-extensive discussion of relevant themes and ideas."""
-        path.write_text(content)
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_stub_expander_returns_suggestions(vault_with_stubs):
-    """Test that stub_expander returns suggestions with stub notes.
-
-    Setup:
-        Vault with stub notes (short, under-developed).
-
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_stubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = stub_expander.suggest(context)
-
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
-
-
-def test_stub_expander_suggestion_structure(vault_with_stubs):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with stubs.
-
-    Verifies:
-        - Has required fields
-        - References 1 stub note"""
-    vault, session = vault_with_stubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = stub_expander.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "stub_expander"
-
-        # Should reference 1 note (the stub)
-        assert len(suggestion.notes) == 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_stub_expander_uses_link_text(vault_with_stubs):
-    """Test that stub_expander uses link_text for note references.
-
-    Setup:
-        Vault with stubs.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_stubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = stub_expander.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_stub_expander_empty_vault(tmp_path):
-    """Test that stub_expander handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = stub_expander.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_stub_expander_no_stubs(vault_no_stubs):
-    """Test that stub_expander handles vault with no stub notes.
-
-    Setup:
-        Vault with all well-developed notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_no_stubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = stub_expander.suggest(context)
-
-    # Should return empty list when no stubs exist
-    assert len(suggestions) == 0
-
-
-def test_stub_expander_short_notes_no_connections(tmp_path):
-    """Test that stub_expander ignores short notes without connections."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create short notes without links or backlinks
-    for i in range(5):
-        path = vault_path / f"short_isolated_{i}.md"
-        content = f"""# Short Isolated {i}
-
-Brief content."""
-        path.write_text(content)
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = stub_expander.suggest(context)
-
-    # Should return empty when short notes have no connections
-    assert len(suggestions) == 0
-
-
-def test_stub_expander_max_suggestions(vault_with_stubs):
-    """Test that stub_expander never returns more than 3 suggestions.
-
-    Setup:
-        Vault with many stubs.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_stubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = stub_expander.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_stub_expander_deterministic_with_seed(vault_with_stubs):
-    """Test that stub_expander returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_stubs
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = stub_expander.suggest(context1)
-    suggestions2 = stub_expander.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_stub_expander_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with stub-like content
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"""# Session {i}
-
-Short note with [[link_{i}]]. Only a few words.
-
-^g20240315-{i}"""
+    assert_valid_suggestions(suggestions, GEIST)
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            "[[Stub]] has only 5 words, but 1 note links to it. "
+            "Is it a seed waiting to grow, or finished as it is?",
+            ["Stub"],
         )
+    ]
 
-    # Create stub notes (< 50 words with links)
-    for i in range(5):
-        path = vault_path / f"stub_{i}.md"
-        content = f"""# Stub {i}
 
-Short note with [[link_{i}]]. Only a few words."""
-        path.write_text(content)
+@pytest.mark.parametrize(("total_words", "fires"), [(49, True), (50, False)])
+def test_word_count_boundary(tmp_path: Path, total_words: int, fires: bool) -> None:
+    builder = VaultBuilder(tmp_path)
+    builder.note("Stub", _words(total_words - 1) + " [[Essay]]")
+    _long_note(builder, "Essay", "[[Stub]]")
 
-    # Create stub notes with backlinks
-    for i in range(5):
-        path = vault_path / f"stub_backlinked_{i}.md"
-        content = f"""# Stub Backlinked {i}
+    suggestions = stub_expander.suggest(builder.build())
 
-Brief content here."""
-        path.write_text(content)
+    assert [s.notes for s in suggestions] == ([["Stub"]] if fires else [])
 
-    # Create notes that link to stubs (to create backlinks)
-    for i in range(5):
-        path = vault_path / f"linker_{i}.md"
-        content = f"""# Linker {i}
 
-This note links to [[Stub Backlinked {i}]]."""
-        path.write_text(content)
+@pytest.mark.parametrize(
+    ("stub_body", "essay_extra", "fires"),
+    [
+        ("Seed idea.", "", False),  # no connections
+        ("Seed idea. [[Essay]]", "", False),  # outgoing link only
+        ("Seed idea. [[Trips]] [[Kyoto]] [[Japan]]", "", False),  # unresolved links
+        ("Seed idea.", "[[Stub]]", True),  # backlink only
+    ],
+)
+def test_needs_at_least_one_backlink(
+    tmp_path: Path, stub_body: str, essay_extra: str, fires: bool
+) -> None:
+    """Contract: a stub is worth expanding when another note links to it.
 
-    # Create substantial notes (> 50 words)
-    for i in range(5):
-        path = vault_path / f"substantial_{i}.md"
-        content = f"""# Substantial {i}
+    Regression: any outgoing link qualified a note, so daily notes embedding
+    a template and frontmatter-only notes listing unresolved links were
+    suggested as "connected stubs". (Updated: the outgoing-only row used to
+    expect a suggestion.)
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Stub", stub_body)
+    _long_note(builder, "Essay", essay_extra)
 
-This is a substantial note with many words. It contains multiple sentences
-that elaborate on various topics. The content is rich and detailed, exploring
-different aspects of the subject matter. There are many paragraphs and
-extensive discussion of relevant themes and ideas."""
-        path.write_text(content)
+    suggestions = stub_expander.suggest(builder.build())
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
+    assert [s.notes for s in suggestions] == ([["Stub"]] if fires else [])
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+def test_output_is_capped_when_more_notes_qualify(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    planted = [f"Stub {i}" for i in range(6)]
+    for title in planted:
+        builder.note(title, "Seed idea. [[Essay]]")
+    _long_note(builder, "Essay", " ".join(f"[[{t}]]" for t in planted))
+
+    suggestions = stub_expander.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
+    assert len(suggestions) == CAP
+    referenced = [ref for s in suggestions for ref in s.notes]
+    assert len(set(referenced)) == CAP
+    assert set(referenced) <= set(planted)
+
+
+def test_geist_journal_notes_are_never_flagged(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    builder.note("Stub", "Seed idea. [[Essay]]")
+    for i in range(4):
+        builder.journal(f"Session Log {i}", "Short session. [[Essay]]")
+    _long_note(builder, "Essay", "[[Stub]] [[Session Log 0]]")
+
+    suggestions = stub_expander.suggest(builder.build())
+
+    assert_valid_suggestions(
+        suggestions, GEIST, must_reference=["Stub"], must_not_reference=["Session Log"]
     )
 
-    suggestions = stub_expander.suggest(context)
 
-    # Verify no suggestions reference geist journal notes
-    # Note: This test reveals that stub_expander does NOT currently
-    # filter geist journal notes, which is a bug that should be fixed.
-    all_notes = vault.all_notes()
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            # Check that the referenced note is not from geist journal
-            # The note_ref is an link_text (title), so we need to find
-            # the actual note to check its path
-            matching_notes = [n for n in all_notes if n.link_text == note_ref]
-            for note in matching_notes:
-                assert not note.path.startswith("geist journal/"), (
-                    f"geist should exclude geist journal notes, but found: {note.path}"
-                )
+def test_journal_mentions_do_not_count_as_connections(tmp_path: Path) -> None:
+    # Regression: every session journal wikilinks the notes it suggested, so
+    # counting journal backlinks turned any short note the engine had ever
+    # mentioned into a "connected stub" - a feedback loop on its own output.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Mentioned", "Seed idea.")
+    builder.note("Stub", "Seed idea. [[Essay]]")
+    builder.journal("Session Log", f"{_words(60)} [[Mentioned]]")
+    _long_note(builder, "Essay", "[[Stub]]")
+
+    suggestions = stub_expander.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == [["Stub"]]
+
+
+def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(6):
+        builder.note(f"Stub {i}", "Seed idea. [[Essay]]")
+    _long_note(builder, "Essay", " ".join(f"[[Stub {i}]]" for i in range(6)))
+
+    first = [s.text for s in stub_expander.suggest(builder.build())]
+    second = [s.text for s in stub_expander.suggest(builder.build())]
+
+    assert first
+    assert first == second
+
+
+def test_most_linked_to_stub_is_always_named(tmp_path: Path) -> None:
+    """Contract: stubs are ranked by backlinks; the seed only breaks ties.
+
+    Regression: a uniform sample of 3 from every candidate meant the best
+    stub (a thin note many notes link to, like "Obsidian" with 6 backlinks
+    in the real run) was often not named.
+    """
+    builder = VaultBuilder(tmp_path)
+    minor = [f"Minor {i}" for i in range(7)]
+    for title in [*minor, "Hub Stub"]:
+        builder.note(title, "Seed idea.")
+    _long_note(builder, "Essay", " ".join(f"[[{t}]]" for t in [*minor, "Hub Stub"]))
+    _long_note(builder, "Review", "[[Hub Stub]]")
+    _long_note(builder, "Survey", "[[Hub Stub]]")
+    ctx = builder.build()
+
+    suggestions = stub_expander.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
+    assert len(suggestions) == CAP
+    assert suggestions[0].notes == ["Hub Stub"]
+    assert "but 3 notes link to it" in suggestions[0].text
+    assert {ref for s in suggestions[1:] for ref in s.notes} <= set(minor)
+
+
+def _linkers(builder: VaultBuilder, target: str, count: int) -> None:
+    for i in range(count):
+        _long_note(builder, f"Linker {i}", f"[[{target}]]")
+
+
+@pytest.mark.parametrize(("backlinks", "fires"), [(4, False), (5, True)])
+def test_well_linked_note_under_100_words_is_a_stub(
+    tmp_path: Path, backlinks: int, fires: bool
+) -> None:
+    """Contract: a note of 50-99 words that at least 5 notes link to is a
+    stub worth expanding; with 4 backlinks it is not.
+
+    Regression: complexity_mismatch's "highly connected but only N words"
+    case lived in a separate geist that named the same notes as this one;
+    before the merge stub_expander ignored every note of 50+ words.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Pillar", _words(70))
+    _linkers(builder, "Pillar", backlinks)
+
+    suggestions = stub_expander.suggest(builder.build())
+
+    expected = [
+        (
+            "[[Pillar]] has only 70 words, but 5 notes link to it. Is its brevity "
+            "intentional, a hinge that works because it is short, or a placeholder "
+            "waiting to grow?",
+            ["Pillar"],
+        )
+    ]
+    assert [(s.text, s.notes) for s in suggestions] == (expected if fires else [])
+
+
+@pytest.mark.parametrize(("total_words", "fires"), [(99, True), (100, False)])
+def test_well_linked_stub_word_boundary(tmp_path: Path, total_words: int, fires: bool) -> None:
+    """Contract: a well-linked note is a stub only under 100 words.
+
+    Regression: complexity_mismatch's bound (< 100 words with >= 5
+    backlinks) carried over unchanged.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Pillar", _words(total_words))
+    _linkers(builder, "Pillar", 5)
+
+    suggestions = stub_expander.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == ([["Pillar"]] if fires else [])
+
+
+def test_journal_mentions_do_not_make_a_note_well_linked(tmp_path: Path) -> None:
+    """Contract: only user notes count towards the 5 backlinks.
+
+    Regression (from complexity_mismatch): session journals wikilink every
+    note they suggest, so journal mentions made a note "highly connected" on
+    the strength of the engine's own output.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Pillar", _words(70))
+    builder.note("Stub", "Seed idea.")
+    for i in range(5):
+        builder.journal(f"Session Log {i}", "Suggested [[Pillar]].")
+    _long_note(builder, "Essay", "[[Stub]]")
+
+    suggestions = stub_expander.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == [["Stub"]]

@@ -1,7 +1,9 @@
 # Creation Burst Geists Specification
 
 **Date**: 2025-11-08
-**Status**: Proposed - Specification Only
+**Status**: Implemented differently (design history). `creation_burst` is a bundled
+geist; `burst_evolution` was merged into it (2026-10) — it now names burst-day
+notes rewritten since. See [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10).
 
 ## Overview
 
@@ -37,7 +39,7 @@ burst_days = vault.notes_grouped_by_creation_date(
 ```
 On March 15, 2024, you created 4 notes in one day: [[Systems Thinking]],
 [[Emergence]], [[Feedback Loops]], [[Complexity]].
-Does today feel generative?
+What were you circling around that day?
 ```
 
 **Larger burst (6+ notes):**
@@ -293,7 +295,7 @@ def suggest(vault: VaultContext) -> list[Suggestion]:
     if count >= 6:
         question = "What was special about that day?"
     else:  # 3-5 notes
-        question = "Does today feel generative?"
+        question = "What were you circling around that day?"
 
     text = f"On {date}, you created {count} notes: {display}. {question}"
 
@@ -429,7 +431,7 @@ def _generate_drift_observation(vault, date, drifts) -> Suggestion:
 **Together:** Complementary perspectives on the same phenomenon (burst days)
 
 **Separately:** Each stands alone as useful
-- creation_burst: "Does today feel generative?" or "What was special about that day?"
+- creation_burst: "What were you circling around that day?" or "What was special about that day?"
 - burst_evolution: "Here's what happened to those notes"
 
 **Compare to rejected approach:**

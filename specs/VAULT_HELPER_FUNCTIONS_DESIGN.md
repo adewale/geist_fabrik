@@ -2,9 +2,12 @@
 
 **Date**: 2025-10-31
 **Status**: ✅ Implemented
-**Related**: `specs/CONGRUENCE_MIRROR_GEIST_SPEC.md`, `docs/BLOCKED_GEISTS.md`
-**Implementation**: `src/geistfabrik/vault_context.py` (outgoing_links:211-228, has_link:523-535, graph_neighbors:537-562)
-**Tests**: `tests/unit/test_vault_context_helpers.py` (16 tests passing)
+**Related**: `specs/CONGRUENCE_MIRROR_GEIST_SPEC.md` and `docs/BLOCKED_GEISTS.md` (both since removed, along with the `congruence_mirror` geist)
+**Implementation**: `src/geistfabrik/vault_context.py` (`outgoing_links`, `has_link`, and `graph_neighbors`, since renamed `graph_neighbours`)
+**Tests**: `tests/unit/test_vault_context_helpers.py`
+
+> Design history: the body below uses the original `graph_neighbors` name; the
+> public method is `graph_neighbours()`.
 
 ---
 

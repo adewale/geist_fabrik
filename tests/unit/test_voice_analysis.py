@@ -11,7 +11,6 @@ from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from geistfabrik.voice_analysis import (
-    HEDGES,
     VOICE_METADATA_KEYS,
     compute_voice_metadata,
     count_hedges,
@@ -173,13 +172,6 @@ def test_split_sentences_basic() -> None:
     assert len(sentences) == 4
 
 
-def test_hedges_frozenset_matches_spec() -> None:
-    """HEDGES contains the spec's words and is a frozenset."""
-    assert isinstance(HEDGES, frozenset)
-    for hedge in ("maybe", "sort of", "i think", "presumably", "in a way"):
-        assert hedge in HEDGES
-
-
 # ============================================================================
 # Sad paths and boundary values
 # ============================================================================
@@ -300,3 +292,51 @@ def test_split_sentences_total(content: str) -> None:
     sentences = split_sentences(content)
     assert isinstance(sentences, list)
     assert all(s.strip() for s in sentences)
+
+
+def test_indented_code_fences_and_slash_compounds_are_not_voice() -> None:
+    """Contract: code inside list items and "I/O" are not first-person writing.
+
+    Regression: only fences at column 0 were stripped, so a loop variable
+    `i` in an indented code block counted as "I"; "I/O" did too.
+    """
+    content = (
+        "Plain prose about storage and throughput.\n"
+        "- Step one:\n"
+        "  ```python\n"
+        "  for i in range(3):\n"
+        "      print(i)\n"
+        "  ```\n"
+        "Disk I/O and/or network limits matter.\n"
+    )
+    assert compute_voice_metadata(content)["first_person_singular"] == 0.0
+    assert compute_voice_metadata("I think this matters.")["first_person_singular"] > 0.0
+
+
+def test_month_may_and_rather_than_are_not_hedges() -> None:
+    """Contract: only lower-case "may" is a hedge, and "rather" is not one.
+
+    Regression: hedges were matched over lowercased text, so the month
+    ("Shipped in May") counted as a hedge, as did "rather than" (a choice,
+    not doubt): a confident release log looked like the vault's most
+    uncertain note.
+    """
+    assert count_hedges("Shipped in May. Planned for May 2025. Speed rather than polish.") == 0
+    assert count_hedges("It may rain. Maybe it will.") == 2
+    meta = compute_voice_metadata("Shipped in May. Reviewed in May. Released in May.")
+    assert meta["hedging_ratio"] == 0.0
+
+
+def test_slash_compound_stripping_is_linear_time() -> None:
+    """Contract: strip_for_analysis is linear in the length of its input.
+
+    Regression: the slash-compound pattern ``\\w+(?:/\\w+)+`` retried a long
+    slash-free word from every offset, so a 50k-character token took about
+    30 seconds (the hostile-input test hit its timeout). 2M characters must
+    now take well under a second.
+    """
+    import time
+
+    started = time.perf_counter()
+    assert strip_for_analysis("x" * 2_000_000) == "x" * 2_000_000
+    assert time.perf_counter() - started < 5.0

@@ -3,12 +3,16 @@
 Tests the get_notes_batch() method and its usage in neighbours(), backlinks(), and hubs().
 """
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from geistfabrik.function_registry import FunctionRegistry
 from geistfabrik.models import Note
 from geistfabrik.vault import Vault
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import SEED, VaultBuilder
 
 
 @pytest.fixture
@@ -127,75 +131,73 @@ class TestBatchLoading:
         assert len(batch_notes) == len(individual_notes)
 
 
-class TestBatchLoadingInVaultContext:
-    """Test that VaultContext methods use batch loading (OP-6)."""
+def _sql_during(ctx: VaultContext, action: Callable[[], object]) -> list[str]:
+    """SQL statements the context's connection executes while ``action`` runs."""
+    statements: list[str] = []
+    ctx.db.set_trace_callback(statements.append)
+    try:
+        action()
+    finally:
+        ctx.db.set_trace_callback(None)
+    return statements
 
-    def test_neighbours_uses_batch_loading(self, vault_with_notes: Vault):
-        """Test that neighbours() uses get_notes_batch() internally."""
-        from datetime import datetime
 
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
+@pytest.fixture
+def linked_context(tmp_path: Path) -> VaultContext:
+    """ "Hub" is linked from 20 notes, "Leaf" from one; Spoke i also links Spoke i+1."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Hub", "central garden idea")
+    builder.note("Leaf", "quiet corner")
+    for i in range(20):
+        nxt = f" [[Spoke {i + 1}]]" if i < 19 else " [[Leaf]]"
+        builder.note(f"Spoke {i}", f"garden idea number {i} [[Hub]]{nxt}")
+    ctx = builder.build()
+    ctx.neighbours(ctx.notes()[0], count=1)  # load the vector backend once
+    return ctx
 
-        # Create session and context
-        session = Session(datetime.today(), vault_with_notes.db)
-        notes = vault_with_notes.all_notes()
-        session.compute_embeddings(notes)
-        context = VaultContext(vault_with_notes, session)
 
-        # Get any note
-        note = vault_with_notes.get_note("note_0.md")
-        assert note is not None
+def _fresh(ctx: VaultContext) -> VaultContext:
+    """A new context on the same session, so no session cache can hide queries."""
+    return VaultContext(ctx.vault, ctx.session, seed=SEED, function_registry=FunctionRegistry())
 
-        # This should use batch loading internally
-        neighbours = context.neighbours(note, count=5)
 
-        # Verify we got results
-        assert isinstance(neighbours, list)
-        assert all(isinstance(n, Note) for n in neighbours)
+class TestQueryCountDoesNotGrowWithResultSize:
+    """OP-6: VaultContext loads result notes in a constant number of queries.
 
-    def test_backlinks_uses_batch_loading(self, vault_with_notes: Vault):
-        """Test that backlinks() uses get_notes_batch() internally."""
-        from datetime import datetime
+    The regression each test catches is loading notes one path at a time
+    (N+1 queries), which only shows up as slowness on large vaults.
+    """
 
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
+    def test_neighbours(self, linked_context: VaultContext) -> None:
+        hub = next(n for n in linked_context.notes() if n.title == "Hub")
+        small_ctx, large_ctx = _fresh(linked_context), _fresh(linked_context)
 
-        session = Session(datetime.today(), vault_with_notes.db)
-        notes = vault_with_notes.all_notes()
-        session.compute_embeddings(notes)
-        context = VaultContext(vault_with_notes, session)
+        small = _sql_during(small_ctx, lambda: small_ctx.neighbours(hub, count=2))
+        large = _sql_during(large_ctx, lambda: large_ctx.neighbours(hub, count=20))
 
-        # Get a note that is linked to
-        note = vault_with_notes.get_note("note_1.md")
-        assert note is not None
+        assert len(large_ctx.neighbours(hub, count=20)) == 20
+        assert len(large) == len(small) <= 3, large
 
-        # This should use batch loading internally
-        backlinks = context.backlinks(note)
+    def test_backlinks(self, linked_context: VaultContext) -> None:
+        notes = {n.title: n for n in linked_context.notes()}
+        few_ctx, many_ctx = _fresh(linked_context), _fresh(linked_context)
 
-        # Verify we got results (note_0 and note_2 should link to note_1)
-        assert isinstance(backlinks, list)
-        assert all(isinstance(n, Note) for n in backlinks)
+        few = _sql_during(few_ctx, lambda: few_ctx.backlinks(notes["Leaf"]))
+        many = _sql_during(many_ctx, lambda: many_ctx.backlinks(notes["Hub"]))
 
-    def test_hubs_uses_batch_loading(self, vault_with_notes: Vault):
-        """Test that hubs() uses get_notes_batch() internally."""
-        from datetime import datetime
+        assert [n.title for n in few_ctx.backlinks(notes["Leaf"])] == ["Spoke 19"]
+        assert len(many_ctx.backlinks(notes["Hub"])) == 20
+        assert len(many) == len(few) <= 3, many
 
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
+    def test_hubs(self, linked_context: VaultContext) -> None:
+        one_ctx, many_ctx = _fresh(linked_context), _fresh(linked_context)
 
-        session = Session(datetime.today(), vault_with_notes.db)
-        notes = vault_with_notes.all_notes()
-        session.compute_embeddings(notes)
-        context = VaultContext(vault_with_notes, session)
+        one = _sql_during(one_ctx, lambda: one_ctx.hubs(count=1))
+        many = _sql_during(many_ctx, lambda: many_ctx.hubs(count=21))
 
-        # This should use batch loading internally
-        hubs = context.hubs(count=3)
-
-        # Verify we got results
-        assert isinstance(hubs, list)
-        assert len(hubs) <= 3
-        assert all(isinstance(n, Note) for n in hubs)
+        assert [n.title for n in one_ctx.hubs(count=1)] == ["Hub"]
+        assert len(many_ctx.hubs(count=21)) == 21  # Hub, Leaf and Spokes 1-19
+        assert len(many) == len(one) <= 3, many
 
 
 class TestBatchLoadingCorrectness:

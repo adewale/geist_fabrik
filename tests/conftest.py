@@ -9,7 +9,20 @@ import pytest
 
 from geistfabrik.embeddings import EmbeddingComputer, _bundled_model_path
 from geistfabrik.schema import init_db
+from tests.plugins import geist_firing, selection_report
 from tests.stubs import SentenceTransformerStub
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register suite-level gate options (see tests/plugins/)."""
+    geist_firing.pytest_addoption(parser)
+    selection_report.pytest_addoption(parser)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Activate opt-in gates (``--require-geist-firing``, ``--selection-report``)."""
+    geist_firing.pytest_configure(config)
+    selection_report.pytest_configure(config)
 
 
 @pytest.fixture

@@ -108,7 +108,9 @@ class MetadataLoader:
 
         Raises:
             MetadataInferenceError: If module is invalid
-            MetadataConflictError: If module keys conflict with existing modules
+
+        Key conflicts between modules are detected when inference runs
+        (MetadataConflictError), not at load time.
         """
         if self.module_dir is None:
             raise MetadataInferenceError("Metadata module directory is not configured")
@@ -153,9 +155,7 @@ class MetadataLoader:
             raise
         infer_func = cast(MetadataInfer, infer_export)
 
-        # Detect key conflicts by doing a dry run with a dummy note
-        # (This is optional but helps catch conflicts early)
-        # For now, we'll detect conflicts during actual inference
+        # Key conflicts are detected during inference, when real keys exist.
 
         self.modules[module_name] = infer_func
         logger.debug(f"Loaded metadata module: {module_name}")
@@ -278,27 +278,29 @@ class MetadataAnalyser:
         """
         self.vault = vault
 
-    def distribution(self, metadata_key: str) -> dict[str, float]:
+    def _numeric_values(self, metadata_key: str, notes: list[Note] | None) -> dict[str, float]:
+        """Map note path -> numeric value of metadata_key (bools and non-numbers skipped)."""
+        population = self.vault.notes() if notes is None else notes
+        values: dict[str, float] = {}
+        for note in population:
+            value = self.vault.metadata(note).get(metadata_key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                values[note.path] = float(value)
+        return values
+
+    def distribution(self, metadata_key: str, notes: list[Note] | None = None) -> dict[str, float]:
         """Get percentiles (p10, p25, p50, p75, p90) for metadata.
 
         Args:
             metadata_key: Metadata key to analyze
+            notes: Population to analyse (default: all user notes)
 
         Returns:
             Dictionary with percentile values
         """
         import numpy as np
 
-        notes = self.vault.notes()
-        values = []
-
-        for note in notes:
-            metadata = self.vault.metadata(note)
-            if metadata_key in metadata:
-                value = metadata[metadata_key]
-                # Only numeric values can be analyzed
-                if isinstance(value, (int, float)):
-                    values.append(float(value))
+        values = list(self._numeric_values(metadata_key, notes).values())
 
         if not values:
             return {
@@ -318,50 +320,41 @@ class MetadataAnalyser:
             "p90": float(np.percentile(values_array, 90)),
         }
 
-    def outliers(self, metadata_key: str, threshold: float = 2.0) -> list[Note]:
+    def outliers(
+        self, metadata_key: str, threshold: float = 2.0, notes: list[Note] | None = None
+    ) -> list[Note]:
         """Find notes with metadata > threshold standard deviations from mean.
 
         Args:
             metadata_key: Metadata key to analyze
             threshold: Number of standard deviations (default: 2.0)
+            notes: Population to analyse (default: all user notes)
 
         Returns:
-            List of notes with outlier values
+            Notes with outlier values, most extreme first (ties by path)
         """
         import numpy as np
 
-        notes = self.vault.notes()
-        values = []
-        note_value_map: dict[str, float] = {}
-
-        for note in notes:
-            metadata = self.vault.metadata(note)
-            if metadata_key in metadata:
-                value = metadata[metadata_key]
-                if isinstance(value, (int, float)):
-                    values.append(float(value))
-                    note_value_map[note.path] = float(value)
-
-        if not values:
+        population = self.vault.notes() if notes is None else notes
+        note_value_map = self._numeric_values(metadata_key, population)
+        if not note_value_map:
             return []
 
-        values_array = np.array(values)
+        values_array = np.array(list(note_value_map.values()))
         mean = float(np.mean(values_array))
         std = float(np.std(values_array))
 
         if std < 1e-10:  # Avoid division by zero
             return []
 
-        # Find outliers
-        outlier_notes = []
-        for note in notes:
-            if note.path in note_value_map:
-                value = note_value_map[note.path]
-                z_score = abs((value - mean) / std)
-                if z_score > threshold:
-                    outlier_notes.append(note)
-
-        return outlier_notes
+        scored = [
+            (abs((note_value_map[note.path] - mean) / std), note)
+            for note in population
+            if note.path in note_value_map
+        ]
+        outliers = [(z, note) for z, note in scored if z > threshold]
+        outliers.sort(key=lambda pair: (-pair[0], pair[1].path))
+        return [note for _, note in outliers]
 
     def compare_notes(self, note_a: Note, note_b: Note, keys: list[str]) -> dict[str, float]:
         """Compare metadata between two notes (ratios).

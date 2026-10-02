@@ -41,6 +41,9 @@ Tracery grammars are JSON objects where keys are symbols and values are arrays o
 ```
 Syntax: `[variable:value]` saves generated text for reuse within the expansion.
 
+GeistFabrik's engine supports this syntax (see "Save actions" under
+GeistFabrik Implementation below for its exact semantics).
+
 #### Built-in Modifiers
 - `.capitalize` - Capitalizes first letter
 - `.s` - Pluralizes
@@ -68,8 +71,34 @@ Example: `#animal.a.capitalize#` might produce "An Owl" or "A Fox"
 - **Core features**: Symbol expansion, modifiers, deterministic randomness
 - **Built-in modifiers**: `.capitalize`, `.capitalizeAll`, `.s` (pluralize), `.ed` (past tense), `.a` (article)
 - **Custom modifiers**: `.split_seed`, `.split_neighbours` (for cluster functions)
+- **Save actions**: `[key:#symbol#]`, `[key:POP]` and tag preactions `#[key:#symbol#]other#`
 - **Vault integration**: `$vault.*` function preprocessing
 - **Safety features**: Anti-pattern validation, recursion limits (`max_depth = 50`)
+
+#### Save actions
+
+Every `#symbol#` reference draws a fresh rule. When two parts of one sentence
+must describe the same draw, save it once and reuse it:
+
+| Syntax | Effect |
+|--------|--------|
+| `[key:#symbol#]` in a rule | Expands `#symbol#` once and pushes the text onto `key`, for the rest of this suggestion |
+| `#key#`, `#key.modifier#` | Reuses the saved text verbatim (it is not re-expanded); modifiers apply to it |
+| `[key:POP]` | Discards the latest saved value, restoring the previous one |
+| `#[key:#symbol#]other#` | Saves `key` only while `#other#` expands, then pops it |
+
+GeistFabrik specifics, compared with tracery.js:
+
+- A saved key shadows a grammar symbol of the same name.
+- The pushed rule is one value; commas in it are literal text (no `a,b` choice lists).
+- Saved values reset at the start of every suggestion, so nothing leaks between them.
+- Only `[identifier:` starts an action. `[[wikilinks]]`, `[text](url)` and other
+  brackets remain literal text.
+- `$vault.*` calls cannot appear inside an action (they run before expansion):
+  give the call its own symbol and save `#symbol#`.
+- Load-time preflight, shared by the loader and `geistfabrik validate`, rejects
+  malformed actions: an unterminated `[key:...`, a preaction that is not
+  `key:rule`, a tag with actions but no symbol, or an action after the symbol.
 
 The custom implementation was chosen over pytracery to:
 - Integrate deeply with VaultContext and vault functions
@@ -329,8 +358,8 @@ symbol_name: ["$vault.function_name(arg1, arg2)"]
 1. YAML parser loads geist file
 2. System detects `$vault.*` patterns in symbol arrays
 3. Before Tracery expansion, vault functions execute:
-   - `$vault.sample_notes(3)` → `["Note A", "Note B", "Note C"]`
-   - `$vault.orphans(2)` → `["Orphan 1", "Orphan 2"]`
+   - `$vault.sample_notes(3)` → `["[[Note A]]", "[[Note B]]", "[[Note C]]"]`
+   - `$vault.orphans(2)` → `["[[Orphan 1]]", "[[Orphan 2]]"]`
 4. Grammar symbols updated with results
 5. Tracery expansion proceeds with populated arrays
 
@@ -351,9 +380,9 @@ Vault functions must return **lists of strings** containing bracketed wikilinks:
 
 ```python
 @vault_function("sample_notes")
-def sample_notes(vault: VaultContext, k: int) -> List[str]:
-    """Sample k random notes, return as bracketed wikilinks"""
-    notes = vault.sample(k)
+def sample_notes(vault: VaultContext, count: int = 5) -> list[str]:
+    """Sample count random notes, return as bracketed wikilinks"""
+    notes = vault.sample(vault.notes(), count)
     return [f"[[{note.link_text}]]" for note in notes]  # Returns "[[Note Title]]"
 ```
 
@@ -404,23 +433,25 @@ tracery:
 
 **Challenge**: Extract note titles from generated text to populate `Suggestion.notes` field.
 
-**Solution**: Parse wikilink patterns `[[Note Title]]` from final expansion:
+**Solution**: Parse wikilink patterns `[[Note Title]]` from final expansion
+(`TraceryGeist.suggest()` in `src/geistfabrik/tracery.py`):
 
 ```python
-def extract_note_references(text: str) -> List[str]:
-    """Extract note titles from [[wikilinks]]"""
+def extract_note_references(text: str) -> list[str]:
+    """Extract link text from [[wikilinks]]"""
     import re
     pattern = r'\[\[([^\]]+)\]\]'
     return re.findall(pattern, text)
 ```
 
-**Best Practice**: Always wrap vault function calls in wikilinks:
+**Best Practice**: Because vault functions already return bracketed links,
+references are trackable when the template uses the symbol as-is:
 ```yaml
-# Good - trackable references
-origin: "[[#note1#]] connects to [[#note2#]]"
-
-# Bad - no way to track which notes were used
+# Good - "#note1#" expands to "[[Note A]]", which is tracked
 origin: "#note1# connects to #note2#"
+
+# Bad - double brackets ("[[[[Note A]]]]")
+origin: "[[#note1#]] connects to [[#note2#]]"
 ```
 
 ### Deterministic Randomness
@@ -440,7 +471,7 @@ geist = TraceryGeist.from_yaml(yaml_path, seed=int(date.strftime('%Y%m%d')))
 ```
 
 **How it works**:
-1. **Session-level seed**: Derived from date (e.g., `int(date.strftime('%Y%m%d'))`)
+1. **Session-level seed**: Derived from date (`session_seed()`: YYYYMMDD as an integer)
 2. **VaultContext random state**: Seeded RNG passed to all vault functions
 3. **Vault function sampling**: Use context's RNG, not Python's `random.choice()`
 4. **Tracery rule selection**: Uses `random.Random(seed)` for reproducible choice
@@ -476,24 +507,24 @@ origin: "#greting#"  # Should be #greeting#
 greeting: ["Hello"]
 ```
 
-**Detection**: Pytracery raises `KeyError` or returns `#greting#` unexpanded.
+**Detection**: The custom TraceryEngine leaves `#greting#` unexpanded in the output (as tracery.js does).
 
 **Handling**:
 - Validate YAML structure on load
 - Dry-run test expansion with dummy data
 - Catch exceptions during execution
-- After 3 failures, disable geist (per spec)
+- After `geist_execution.max_failures` consecutive failures (default 3), disable geist
 
 #### Debugging Workflow
 
 ```bash
 # Test single geist with specific date
-geistfabrik test semantic_bridge --vault ~/notes --date 2025-01-15
+geistfabrik test semantic_bridge ~/notes --date 2025-01-15 --verbose
 
-# Expected verbose output:
+# Illustrative verbose output:
 # ✓ Loaded geist: semantic_bridge
-# ✓ Executed $vault.sample_notes(1) → ["Project Planning"]
-# ✓ Executed $vault.sample_notes(1) → ["Fermentation"]
+# ✓ Executed $vault.sample_notes(1) → ["[[Project Planning]]"]
+# ✓ Executed $vault.sample_notes(1) → ["[[Fermentation]]"]
 # ✓ Tracery expansion: "[[Project Planning]] and [[Fermentation]]..."
 # ✓ Generated 1 suggestion
 ```
@@ -511,20 +542,20 @@ type: geist-tracery
 id: example
 count: 3  # Generate 3 suggestions
 tracery:
-  origin: "[[#note1#]] and [[#note2#]] might be #relationship#"
+  origin: "#note1# and #note2# might be #relationship#"
   note1: ["$vault.sample_notes(1)"]
   note2: ["$vault.sample_notes(1)"]
   relationship: ["connected", "contrasting", "complementary"]
 ```
 
 **How it works**:
-1. Grammar expands `count` times (line 638 in tracery.py)
+1. Grammar expands `count` times (`TraceryGeist.suggest()` in tracery.py)
 2. Each expansion is independent with potentially different outputs
 3. Randomness is deterministic (based on session seed)
 4. Each expansion produces one `Suggestion` object
 5. Returns list with `count` suggestions
 
-**Example**: `semantic_neighbours.yaml` has `count: 2` and generates 2 suggestions per session.
+**Example**: `examples/geists/tracery/semantic_neighbours.yaml` has `count: 2` and generates 2 suggestions per session.
 
 ### Python Implementation Reference
 
@@ -562,6 +593,7 @@ def execute_tracery_geist(geist_id: str, grammar: dict, count: int,
 - Validation catches unsafe patterns at load time
 - Deterministic randomness via `seed` parameter
 - Custom modifiers (`.split_seed`, `.split_neighbours`) for cluster functions
+- Save actions (`[key:#symbol#]`, `[key:POP]`, `#[key:#symbol#]other#`); saved text is reused verbatim
 
 ### Metadata Bridge Pattern
 
@@ -578,25 +610,25 @@ complex_notes: ["$note.complexity > 0.8"]  # ✗ Invalid
 
 ```python
 # <vault>/_geistfabrik/vault_functions/by_complexity.py
-from geistfabrik.function_registry import vault_function
+from geistfabrik import vault_function
 
 @vault_function("complex_notes")
-def complex_notes(vault: VaultContext, k: int) -> List[str]:
-    """Get k notes with highest complexity"""
+def complex_notes(vault: VaultContext, count: int = 1) -> list[str]:
+    """Get the count notes with highest complexity"""
     notes_with_meta = [
-        (note, vault.metadata(note, 'complexity'))
-        for note in vault.all_notes()
+        (note, vault.metadata(note).get('complexity'))
+        for note in vault.notes()
     ]
-    # Sort by complexity, take top k
+    # Sort by complexity, take the top count
     sorted_notes = sorted(notes_with_meta,
                           key=lambda x: x[1] or 0,
                           reverse=True)
-    return [note.link_text for note, _ in sorted_notes[:k]]
+    return [f"[[{note.link_text}]]" for note, _ in sorted_notes[:count]]
 ```
 
 ```yaml
 # Now Tracery can access it
-origin: "Your most complex notes: [[#note#]]"
+origin: "Your most complex notes: #note#"
 note: ["$vault.complex_notes(1)"]
 ```
 
@@ -609,7 +641,7 @@ note: ["$vault.complex_notes(1)"]
 **Question**: Can vault symbols reference other vault symbols?
 
 ```yaml
-origin: "[[#note1#]] vs [[#note2#]]"
+origin: "#note1# vs #note2#"
 note1: ["$vault.sample_notes(1)"]
 note2: ["$vault.neighbours(#note1#, 1)"]  # Can we reference note1?
 ```
@@ -621,7 +653,7 @@ note2: ["$vault.neighbours(#note1#, 1)"]  # Can we reference note1?
 **Critical Anti-Pattern** (DO NOT USE):
 ```yaml
 # ❌ BROKEN - Will produce empty results
-origin: "[[#seed#]] shares space with #neighbours#"
+origin: "#seed# shares space with #neighbours#"
 seed: ["$vault.sample_notes(1)"]
 neighbours: ["$vault.neighbours(#seed#, 3)"]  # Passes "#seed#" as string!
 ```
@@ -635,14 +667,15 @@ neighbours: ["$vault.neighbours(#seed#, 3)"]  # Passes "#seed#" as string!
 2. Symbol expansion happens second → `#symbols#` expand
 
 **Unsafe Functions** (code-only, not for Tracery):
-- `neighbours(note_title, k)` - Requires expanded note title
-- `contrarian_to(note_title, k)` - Requires expanded note title
+- `neighbours(note_title, count)` - Requires expanded note title
+- `contrarian_to(note_title, count)` - Requires expanded note title (least similar in topic, not stance)
 - Any function with string parameters expecting note references
 
 **Safe Functions** (work in Tracery):
-- `sample_notes(k)` - Only primitive parameters
-- `orphans(k)` - Only primitive parameters
-- `hubs(k)` - Only primitive parameters
+- `sample_notes(count)` - Only primitive parameters
+- `orphans(count)` - Only primitive parameters
+- `hubs(count)` - Only primitive parameters
+- `note_pairs(count)` - Bundles two different notes as `"[[A]]|||[[B]]"`
 - `semantic_clusters(count, k)` - Bundles seeds with neighbours using delimiters
 
 **Workaround Pattern - The Cluster Function Pattern**:
@@ -714,12 +747,19 @@ def semantic_clusters(vault: VaultContext, count: int = 2, k: int = 3) -> List[s
 
 **Tracery Usage**:
 ```yaml
-# ✓ WORKS - Bundles seed + neighbours in preprocessing
-# Template uses extracted values as-is (already bracketed)
-origin: "#seed# shares space with #neighbours#. What connects them?"
+# ✓ WORKS - Bundles seed + neighbours in preprocessing, then splits ONE
+# saved cluster. Template uses extracted values as-is (already bracketed).
+origin: "#[picked:#cluster#]template#"   # Draw one cluster, save it as `picked`
+template: "#seed# shares space with #neighbours#. What connects them?"
 cluster: ["$vault.semantic_clusters(2, 3)"]
-seed: ["#cluster.split_seed#"]           # Extracts "[[Seed Note]]"
-neighbours: ["#cluster.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+seed: ["#picked.split_seed#"]           # Extracts "[[Seed Note]]"
+neighbours: ["#picked.split_neighbours#"]  # Extracts "[[N1]], [[N2]]"
+
+# ❌ WRONG - Splitting two separate references to #cluster#
+# seed: ["#cluster.split_seed#"]
+# neighbours: ["#cluster.split_neighbours#"]
+# Each #cluster# reference draws its own cluster, so the seed can be paired
+# with another seed's neighbours (even listed among its own "neighbours").
 
 # ❌ WRONG - Don't add brackets, they're already in the extracted values
 # origin: "[[#seed#]] shares space with [[#neighbours#]]"
@@ -743,6 +783,7 @@ This design provides:
 2. **Parameters must be resolvable at preprocessing** - Only integers, strings (quoted literals), not symbols
 3. **Return structured strings** (for cluster functions) - Use delimiters (|||, |, ::, etc.) to bundle related data
 4. **Add matching modifiers** (for cluster functions) - Custom Tracery modifiers to extract parts
+   from ONE saved expansion (`#[picked:#cluster#]template#`), never from separate `#cluster#` references
 5. **Format like Tracery** - Use same comma/and patterns for lists
 6. **Test the preprocessing** - Functions execute once before any symbol expansion
 
@@ -915,7 +956,7 @@ tracery:
 # Output: "Your three assumptions might all be symptoms of the same problem"
 ```
 
-**Status**: ✅ **IMPLEMENTED** - see `semantic_neighbours.yaml` for working example
+**Status**: ✅ **IMPLEMENTED** - see `examples/geists/tracery/semantic_neighbours.yaml` for a working example
 
 ---
 

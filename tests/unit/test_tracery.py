@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import Mock
 
 import numpy as np
@@ -516,88 +516,79 @@ def test_tracery_capitalize_all_modifier() -> None:
     assert result in ["Hello World", "Foo Bar"]
 
 
-def test_tracery_pluralize_modifier() -> None:
-    """Test .s modifier pluralizes words correctly."""
-    grammar = {
-        "origin": ["#animal.s#"],
-        "animal": ["cat", "dog", "fox", "box", "city", "person"],
-    }
-
-    engine = TraceryEngine(grammar, seed=42)
-
-    # Test various pluralization rules
-    test_cases = {
-        "cat": "cats",
-        "dog": "dogs",
-        "fox": "foxes",
-        "box": "boxes",
-        "city": "cities",
-        "person": "people",
-    }
-
-    for singular, expected_plural in test_cases.items():
-        grammar = {"origin": ["#word.s#"], "word": [singular]}
-        engine = TraceryEngine(grammar, seed=42)
-        result = engine.expand("#origin#")
-        assert result == expected_plural, f"Expected {expected_plural}, got {result}"
+def _expand_modifier(word: str, modifier: str) -> str:
+    """Expand ``#word.<modifier>#`` through the public engine boundary."""
+    engine = TraceryEngine({"origin": [f"#word.{modifier}#"], "word": [word]}, seed=42)
+    return engine.expand("#origin#")
 
 
-def test_tracery_past_tense_modifier() -> None:
-    """Test .ed modifier converts to past tense."""
-    test_cases = {
-        "walk": "walked",
-        "run": "ran",  # Note: 'ran' not in our irregulars, will be 'runned'
-        "create": "created",
-        "try": "tried",
-        "go": "went",
-        "think": "thought",
-    }
-
-    for present, expected_past in test_cases.items():
-        grammar = {"origin": ["#verb.ed#"], "verb": [present]}
-        engine = TraceryEngine(grammar, seed=42)
-        result = engine.expand("#origin#")
-
-        # Skip irregular verbs not in our list
-        if present in [
-            "be",
-            "have",
-            "do",
-            "say",
-            "go",
-            "get",
-            "make",
-            "know",
-            "think",
-            "take",
-            "see",
-            "come",
-            "find",
-            "give",
-            "tell",
-            "feel",
-            "become",
-            "leave",
-            "put",
-        ]:
-            assert result == expected_past, f"Expected {expected_past}, got {result}"
+@pytest.mark.parametrize(
+    ("singular", "plural"),
+    [
+        ("cat", "cats"),
+        ("dog", "dogs"),
+        ("fox", "foxes"),
+        ("box", "boxes"),
+        ("city", "cities"),
+        # Irregulars (several used by the transformation_suggester example)
+        ("person", "people"),
+        ("child", "children"),
+        ("man", "men"),
+        ("woman", "women"),
+        ("foot", "feet"),
+        ("tooth", "teeth"),
+    ],
+)
+def test_tracery_pluralize_modifier(singular: str, plural: str) -> None:
+    """The .s modifier pluralizes regular and irregular nouns."""
+    assert _expand_modifier(singular, "s") == plural
 
 
-def test_tracery_article_modifier() -> None:
-    """Test .a modifier adds correct article."""
-    test_cases = {
-        "cat": "a cat",
-        "owl": "an owl",
-        "house": "a house",
-        "hour": "an hour",
-        "university": "a university",
-    }
+@pytest.mark.parametrize(
+    ("present", "past"),
+    [
+        ("walk", "walked"),
+        ("create", "created"),
+        ("try", "tried"),
+        ("stop", "stopped"),
+        # Irregulars (several used by the transformation_suggester example)
+        ("go", "went"),
+        ("think", "thought"),
+        ("make", "made"),
+        ("write", "wrote"),
+        ("find", "found"),
+        ("build", "built"),
+        # Was "understanded" (what_if and the retired perspective_shifter).
+        ("understand", "understood"),
+    ],
+)
+def test_tracery_past_tense_modifier(present: str, past: str) -> None:
+    """The .ed modifier forms regular and irregular past tenses."""
+    assert _expand_modifier(present, "ed") == past
 
-    for word, expected in test_cases.items():
-        grammar = {"origin": ["#noun.a#"], "noun": [word]}
-        engine = TraceryEngine(grammar, seed=42)
-        result = engine.expand("#origin#")
-        assert result == expected, f"Expected '{expected}', got '{result}'"
+
+@pytest.mark.parametrize(
+    ("word", "expected"),
+    [
+        ("cat", "a cat"),
+        ("owl", "an owl"),
+        ("house", "a house"),
+        ("hour", "an hour"),
+        ("university", "a university"),
+        # Nouns used by the transformation_suggester example
+        ("organism", "an organism"),
+        ("garden", "a garden"),
+        ("experiment", "an experiment"),
+        ("map", "a map"),
+        ("archive", "an archive"),
+        ("understanding", "an understanding"),
+        ("hypothesis", "a hypothesis"),
+        ("insight", "an insight"),
+    ],
+)
+def test_tracery_article_modifier(word: str, expected: str) -> None:
+    """The .a modifier picks "a" or "an" by sound."""
+    assert _expand_modifier(word, "a") == expected
 
 
 def test_tracery_modifier_chaining() -> None:
@@ -1118,7 +1109,7 @@ def test_preprocessing_warns_when_fewer_items_returned(tmp_path: Path, caplog: A
         engine.set_vault_context(context)
 
     # A smaller valid result remains a successful bounded preprocessing pass.
-    assert engine.grammar["orphan"] == ["[[Orphan]]"]
+    assert engine.grammar["orphan"] == ["[[orphan|Orphan]]"]  # file orphan.md, title "Orphan"
 
 
 def test_validation_rejects_unsafe_vault_function_pattern(tmp_path: Path) -> None:
@@ -1197,23 +1188,269 @@ tracery:
     assert geist.geist_id == "safe_geist"
 
 
-def test_validation_allows_semantic_clusters_pattern(tmp_path: Path) -> None:
-    """Validation should allow the semantic_clusters pattern."""
-    yaml_content = """type: geist-tracery
-id: semantic_neighbours
-tracery:
-  origin: "[[#seed#]] connects to #neighbours#"
-  cluster:
-    - "$vault.semantic_clusters(2, 3)"
-  seed:
-    - "#cluster.split_seed#"
-  neighbours:
-    - "#cluster.split_neighbours#"
-"""
+# ============================================================================
+# Save actions: [key:rule], [key:POP], #[key:rule]symbol#
+# ============================================================================
 
-    yaml_file = tmp_path / "clusters.yaml"
-    yaml_file.write_text(yaml_content)
+NAMES = ["alder", "birch", "cedar", "damson", "elm", "fir", "gorse", "hazel"]
 
-    # Should not raise any error (no vault function with symbol args)
-    geist = TraceryGeist.from_yaml(yaml_file, seed=42)
-    assert geist.geist_id == "semantic_neighbours"
+
+def test_saved_symbol_expands_once_and_is_reused() -> None:
+    """``[hero:#name#]`` draws ONE name; every later ``#hero#`` repeats it.
+
+    Contract: a save action expands its rule exactly once and later references
+    reuse that text (with modifiers applied to it), across many seeds.
+    Regression: re-expanding ``#name#`` per reference (the semantic_neighbours
+    bug) yields different names within one sentence.
+    """
+    draws = 0
+
+    def counted(text: str) -> str:
+        nonlocal draws
+        draws += 1
+        return text
+
+    for seed in range(40):
+        draws = 0
+        engine = TraceryEngine(
+            {
+                "origin": ["[hero:#name.counted#]#hero# met #hero.capitalize#, then #hero#"],
+                "name": NAMES,
+            },
+            seed=seed,
+        )
+        engine.add_modifier("counted", counted)
+        first, second, third = engine.expand("#origin#").replace(",", "").split(" ")[::2]
+        assert draws == 1
+        assert first in NAMES
+        assert second == first.capitalize()
+        assert third == first
+
+
+def test_two_saved_symbols_stay_independent() -> None:
+    """Two saves from the same rule keep their own values.
+
+    Regression: one shared slot for every key would make ``#a#`` and ``#b#``
+    always equal; independent draws must differ for some seed.
+    """
+    grammar = {"origin": ["[a:#name#][b:#name#]#a#|#b#|#a#|#b#"], "name": NAMES}
+    pairs = set()
+    for seed in range(40):
+        a1, b1, a2, b2 = TraceryEngine(grammar, seed=seed).expand("#origin#").split("|")
+        assert (a1, b1) == (a2, b2)
+        pairs.add((a1, b1))
+    assert any(a != b for a, b in pairs)
+    assert len({a for a, _ in pairs}) > 1
+
+
+@pytest.mark.parametrize(
+    ("rule", "expected"),
+    [
+        # A later push shadows an earlier one; POP restores it.
+        ("[x:alpha][x:beta]#x# #x#[x:POP] #x#", "beta beta alpha"),
+        # A saved key shadows the grammar symbol of the same name.
+        ("[word:saved]#word#", "saved"),
+        # A tag preaction lasts only while that tag expands.
+        ("#[x:inner]show# #x#", "inner #x#"),
+        ("[x:outer]#[x:inner]show# #x#", "inner outer"),
+        # Modifiers apply to the saved text.
+        ("[x:#word#]#x.capitalize#", "Word"),
+        # An unterminated action (e.g. in vault data) is literal; later tags still expand.
+        ("[x: never closed #word#", "[x: never closed word"),
+        # Wikilinks, markdown links and non-action brackets stay literal.
+        ("[[Todo: list]] and [text](url) [see this]", "[[Todo: list]] and [text](url) [see this]"),
+    ],
+)
+def test_save_action_known_answers(rule: str, expected: str) -> None:
+    """Known answers for push, POP, shadowing, tag scope, and literal brackets."""
+    engine = TraceryEngine({"origin": [rule], "show": ["#x#"], "word": ["word"]}, seed=1)
+    assert engine.expand("#origin#") == expected
+
+
+def test_saved_values_do_not_leak_between_top_level_expansions() -> None:
+    """Each suggestion starts clean: a save from one expansion is gone in the next."""
+    engine = TraceryEngine({"origin": ["[x:first]#x#"]}, seed=1)
+    assert engine.expand("#origin#") == "first"
+    assert engine.expand("#x#") == "#x#"
+
+
+@pytest.mark.parametrize(
+    ("rule", "story", "expected"),
+    [
+        (
+            "[pair:#cluster#]#pair.split_seed# and #pair.split_neighbours#",
+            "x",
+            "[[A]] and [[B]]",
+        ),
+        ("#[pair:#cluster#]story#", "#pair#", "[[A]]|||[[B]]"),
+        ("#[a:#cluster#][b:#cluster#]story#", "#a# + #b#", "[[A]]|||[[B]] + [[A]]|||[[B]]"),
+        ("[pair:#cluster#]#pair#[pair:POP]", "x", "[[A]]|||[[B]]"),
+        ("[[Wikilink: with colon]] [not an action] [text](url)", "x", None),
+    ],
+)
+def test_preflight_accepts_valid_actions(rule: str, story: str, expected: str | None) -> None:
+    """Well-formed actions pass the shared load/validate preflight and expand
+    as actions; brackets that are not actions stay literal text."""
+    grammar = {"origin": [rule], "cluster": ["[[A]]|||[[B]]"], "story": [story]}
+
+    TraceryGeist.preflight_grammar(grammar, "ok", Path("ok.yaml"))
+    expanded = TraceryEngine(grammar, seed=1).expand("#origin#")
+
+    assert expanded == (rule if expected is None else expected)
+
+
+@pytest.mark.parametrize(
+    ("rule", "problem"),
+    [
+        ("[pair:#cluster# never closed", "unterminated action"),
+        ("#[pair:#cluster#]#", "has actions but no symbol"),
+        ("#[pair]story#", "malformed preaction"),
+        ("#[pair:#cluster#", "unterminated preaction"),
+        ("#[pair:#cluster#]story", "unterminated tag"),
+        ("#story[pair:x]#", "actions must come before the symbol"),
+        ("[pair:$vault.sample_notes(1)]#pair#", "contains a $vault call"),
+        ("[outer:#[bad]story#]#outer#", "malformed preaction"),
+    ],
+)
+def test_preflight_rejects_malformed_actions(rule: str, problem: str) -> None:
+    """Malformed actions fail at load time instead of degrading to literal text."""
+    grammar = {"origin": [rule], "cluster": ["[[A]]|||[[B]]"], "story": ["x"]}
+    with pytest.raises(ValueError, match="Malformed Tracery action") as exc_info:
+        TraceryGeist.preflight_grammar(grammar, "bad", Path("bad.yaml"))
+    assert problem in str(exc_info.value)
+
+
+def test_preflight_rejects_deep_action_nesting_as_a_value_error() -> None:
+    """Pathological nesting is a load error, not a RecursionError crash."""
+    rule = "[a:" * 2000 + "x" + "]" * 2000
+    with pytest.raises(ValueError, match="nested deeper than"):
+        TraceryGeist.preflight_grammar({"origin": [rule]}, "deep", Path("deep.yaml"))
+
+
+def test_validator_treats_saved_keys_as_defined_symbols(tmp_path: Path) -> None:
+    """Strict ``geistfabrik validate`` passes a grammar that reads a saved key.
+
+    Regression: the undefined-symbol check only knew grammar keys, so ``#hero#``
+    was reported as undefined (blocking in strict mode) although it runs.
+    """
+    from geistfabrik.validator import GeistValidator
+
+    geist_file = tmp_path / "saver.yaml"
+    geist_file.write_text(
+        "type: geist-tracery\n"
+        "id: saver\n"
+        "description: saves a name\n"
+        "tracery:\n"
+        '  origin: ["#[hero:#name#]story#"]\n'
+        '  story: ["#hero# and #hero#"]\n'
+        '  name: ["alder", "birch"]\n'
+    )
+    result = GeistValidator(strict=True).validate_tracery_geist(geist_file, root=tmp_path)
+    assert result.passed, [issue.message for issue in result.issues]
+
+    geist_file.write_text(geist_file.read_text().replace("#[hero:#name#]story#", "#story#"))
+    result = GeistValidator(strict=True).validate_tracery_geist(geist_file, root=tmp_path)
+    # Control: without the save, the same reference really is undefined.
+    assert "Undefined symbols referenced: hero" in [i.message for i in result.issues]
+
+
+def test_block_scalar_templates_still_produce_suggestions(tmp_path: Path) -> None:
+    """A YAML literal block (``- |``) always ends in a newline; that newline is
+    not an empty placeholder, so the suggestion must survive the filter.
+
+    Regression: the empty-edge-placeholder check rejected every suggestion
+    whose text ended in a line break, silencing such user geists."""
+    from tests.fixtures.helpers import VaultBuilder
+
+    yaml_file = tmp_path / "block.yaml"
+    yaml_file.write_text(
+        "type: geist-tracery\n"
+        "id: block\n"
+        "count: 1\n"
+        "tracery:\n"
+        "  origin:\n"
+        "    - |\n"
+        "      What if #note# were different?\n"
+        "      Consider it today.\n"
+        "  note: ['$vault.sample_notes(1)']\n"
+    )
+    builder = VaultBuilder(tmp_path / "vault")
+    builder.note("Garden", "Soil and seeds.")
+    ctx = builder.build()
+
+    suggestions = TraceryGeist.from_yaml(yaml_file, seed=42).suggest(ctx)
+
+    assert [s.text for s in suggestions] == [
+        "What if [[Garden]] were different?\nConsider it today.\n"
+    ]
+
+
+def test_vault_text_is_never_parsed_as_grammar(tmp_path: Path) -> None:
+    """Titles from $vault calls are data: a title containing ``[key:...]`` or
+    ``#symbol#`` is inserted verbatim and cannot overwrite saved values or
+    expand grammar symbols."""
+    from tests.fixtures.helpers import VaultBuilder
+
+    builder = VaultBuilder(tmp_path / "vault")
+    builder.note("Meeting [ref:2024] notes #ref#", "Agenda items.")
+    ctx = builder.build()
+    geist = TraceryGeist(
+        "literal",
+        {"origin": ["#note# then #ref#"], "note": ["$vault.sample_notes(1)"], "ref": ["REF"]},
+        count=1,
+        seed=1,
+    )
+
+    [suggestion] = geist.suggest(ctx)
+
+    assert suggestion.text == "[[Meeting [ref:2024] notes #ref#]] then REF"
+
+
+# A grammar without $vault calls never touches the context.
+NO_VAULT = cast("VaultContext", None)
+
+
+def test_geists_sharing_a_session_seed_make_different_choices() -> None:
+    """Contract: the session seed is mixed with the geist id.
+
+    Regression: every Tracery geist was seeded with the bare session seed, so
+    geists with the same number of templates picked the same template index
+    every day. The same id and seed still give the same output.
+    """
+    grammar = {"origin": [f"template {i}" for i in range(8)]}
+    picks = {
+        geist_id: [
+            TraceryGeist(geist_id, grammar, seed=seed).suggest(NO_VAULT)[0].text
+            for seed in range(12)
+        ]
+        for geist_id in ("alpha", "beta")
+    }
+
+    assert picks["alpha"] != picks["beta"]
+    assert picks["alpha"] == [
+        TraceryGeist("alpha", grammar, seed=seed).suggest(NO_VAULT)[0].text for seed in range(12)
+    ]
+
+
+def test_a_session_never_suggests_the_same_note_twice(tmp_path: Path) -> None:
+    """Contract: one invocation names each note (or note set) at most once.
+
+    Regression: expansions draw from the same pool with replacement, so with
+    count equal to the pool size most sessions repeated a note.
+    """
+    from tests.fixtures.helpers import VaultBuilder
+
+    builder = VaultBuilder(tmp_path / "vault")
+    for title in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"):
+        builder.note(title, f"{title} words.")
+    ctx = builder.build()
+    grammar = {
+        "origin": ["Think about #note#.", "Revisit #note# today."],
+        "note": ["$vault.sample_notes(6)"],
+    }
+
+    for seed in range(40):
+        suggestions = TraceryGeist("distinct", grammar, count=4, seed=seed).suggest(ctx)
+        named = [tuple(s.notes) for s in suggestions]
+        assert len(named) == 4, seed
+        assert len(set(named)) == 4, (seed, named)

@@ -1,13 +1,15 @@
-"""Unit tests for the 8 reflective lens code geists.
+"""Unit tests for the reflective lens code geists.
 
-Covers a shared conformance battery (return types, wikilink hygiene,
-empty/minimal vault handling, determinism) plus per-geist behaviour
-tests against a controlled "voice vault" whose notes deliberately trip
-the voice metadata thresholds (temporal orientation, pronouns, hedging,
-question density, sentence variance).
+Covers a shared conformance battery (well-formed output, wikilink hygiene,
+3-note vault handling, determinism), run for each geist on a vault designed
+to make it fire, plus per-geist behaviour tests against a controlled "voice
+vault" whose notes deliberately trip the voice metadata thresholds
+(temporal orientation, pronouns, hedging, question density, sentence
+variance). Empty-vault behaviour is owned by test_code_geists_empty_data.py.
 """
 
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -17,22 +19,22 @@ from geistfabrik.default_geists.code import (
     self_and_other,
     sentence_variance,
     surprisal,
-    temporal_voice,
     this_time_last_year,
     uncertainty_mapper,
     voice_absence,
 )
 from geistfabrik.embeddings import Session
+from geistfabrik.filtering import SuggestionFilter
 from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
 from geistfabrik.models import Suggestion
-from geistfabrik.voice_analysis import count_hedges
+from geistfabrik.voice_analysis import count_hedges, strip_for_analysis, tokenize
+from tests.fixtures.helpers import assert_valid_suggestions
 
 GEIST_MODULES = [
     attention_shift,
     self_and_other,
     sentence_variance,
     surprisal,
-    temporal_voice,
     this_time_last_year,
     uncertainty_mapper,
     voice_absence,
@@ -41,14 +43,6 @@ GEIST_MODULES = [
 
 def _geist_name(module) -> str:
     return module.__name__.rsplit(".", 1)[-1]
-
-
-@pytest.fixture(autouse=True)
-def clear_global_registry():
-    """Clear the global function registry before each test."""
-    _GLOBAL_REGISTRY.clear()
-    yield
-    _GLOBAL_REGISTRY.clear()
 
 
 # ============================================================================
@@ -169,6 +163,17 @@ FILLER_NOTES = {
 }
 
 
+def _long_prose(extra: str = "", sentences: int = 22) -> str:
+    """About 240 words of pronoun-free, present-tense prose plus ``extra``.
+
+    Long enough that a single pronoun, "will" or "?" in ``extra`` is a low
+    per-100-word rate (about 0.4), so tests can tell "says it once" from
+    "says it a lot".
+    """
+    body = " ".join(["The quiet path is wide and the old stone wall is warm."] * sentences)
+    return f"{body} {extra}".strip()
+
+
 def _write_notes(vault_path, notes: dict) -> None:
     for title, body in notes.items():
         (vault_path / f"{title}.md").write_text(f"# {title}\n\n{body}\n")
@@ -192,6 +197,150 @@ def _make_context(vault, session, seed=20250615) -> VaultContext:
         seed=seed,
         function_registry=FunctionRegistry(),
     )
+
+
+def _set_created(vault, title: str, created: datetime) -> None:
+    vault.db.execute("UPDATE notes SET created = ? WHERE title = ?", (created.isoformat(), title))
+    vault.db.commit()
+
+
+def _build_anniversary_vault(vault_path, created: datetime) -> tuple:
+    """Three notes; only "Anniversary Note" can fall in a 1-3 year window.
+
+    The session date is 2024-03-15, so the 1-year window is 2023-03-08 to
+    2023-03-22 inclusive. The other two notes sit outside every window.
+    """
+    vault_path.mkdir()
+    _write_notes(
+        vault_path,
+        {
+            "Anniversary Note": "A thought captured in the early spring.",
+            "Other Note": "A thought from a different season entirely.",
+            "Recent Note": "A thought from just a few days back.",
+        },
+    )
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    _set_created(vault, "Anniversary Note", created)
+    _set_created(vault, "Other Note", datetime(2023, 9, 1, 10, 0))
+    _set_created(vault, "Recent Note", datetime(2024, 3, 10, 10, 0))
+    session = Session(datetime(2024, 3, 15), vault.db)
+    session.compute_embeddings(vault.all_notes())
+    return vault, session
+
+
+ALPHA_WORDS = "quartz lichen harbour violin saffron glacier"
+BETA_WORDS = "meadow lantern cobalt thistle walnut falcon"
+
+
+def _build_shifted_vault(vault_path) -> tuple:
+    """A note whose vocabulary moved from one topic group to another.
+
+    Ten "Alpha" notes share one vocabulary and ten "Beta" notes another. In
+    the historical session (2024-06-01, over 180 days before the current
+    one) "Pivot" used the Alpha words, so its 10 nearest neighbours were the
+    Alpha notes; it was then rewritten with the Beta words, so its current
+    neighbours are the Beta notes: churn 1.0 > 0.6.
+    """
+    vault_path.mkdir()
+    for i in range(10):
+        _write_notes(vault_path, {f"Alpha {i}": f"{ALPHA_WORDS} a{i}x"})
+        _write_notes(vault_path, {f"Beta {i}": f"{BETA_WORDS} b{i}x"})
+    _write_notes(vault_path, {"Pivot": ALPHA_WORDS})
+    vault = Vault(str(vault_path), ":memory:")
+    vault.sync()
+    Session(datetime(2024, 6, 1), vault.db).compute_embeddings(vault.all_notes())
+
+    _write_notes(vault_path, {"Pivot": BETA_WORDS})
+    vault.sync()
+    session = Session(datetime(2025, 6, 15), vault.db)
+    session.compute_embeddings(vault.all_notes())
+    return vault, session
+
+
+def _build_voiceless_vault(vault_path) -> tuple:
+    """20 neutral present-tense notes: no future tense and no questions,
+    so both voice_absence checks fire (and the pick between them is a
+    seeded sample)."""
+    fillers = {
+        f"Plain {i}": f"The room {i} is quiet today. The desk is tidy. The lamp is on."
+        for i in range(20)
+    }
+    return _build_vault(vault_path, [fillers])
+
+
+UNIFORM_SENTENCE = "The quiet {word} square fills with morning light."
+LONG_SENTENCE = (
+    "The committee deliberated for eleven hours across two long days about the "
+    "proposed water treatment facility and its complicated funding arrangement."
+)
+
+
+def _choppy_body(burst: str = "Stop.") -> str:
+    """Eleven sentences alternating one-word bursts with 21-word stretches."""
+    return " ".join([burst, LONG_SENTENCE] * 5 + [burst])
+
+
+def _uniform_notes(count: int = 10) -> dict:
+    """Notes of ten identical 8-word sentences (zero spread)."""
+    return {
+        f"Uniform {word.title()}": " ".join([UNIFORM_SENTENCE.format(word=word)] * 10)
+        for word in _FILLER_WORDS[:count]
+    }
+
+
+def _build_choppy_vault(vault_path) -> tuple:
+    """Ten uniform notes plus one note mixing very short and very long sentences."""
+    notes = _uniform_notes()
+    notes["Choppy Note"] = _choppy_body()
+    return _build_vault(vault_path, [notes])
+
+
+# Long-form hedgy notes: uncertainty_mapper only considers notes of at least
+# 5 sentences and 80 words (the voice-vault HEDGY_NOTES are 4 sentences).
+LONG_HEDGY_NOTES = {title: " ".join([body] * 4) for title, body in HEDGY_NOTES.items()}
+
+
+def _build_hedgy_vault(vault_path) -> tuple:
+    """Two long, heavily hedged notes among twelve plain fillers."""
+    return _build_vault(vault_path, [LONG_HEDGY_NOTES, FILLER_NOTES])
+
+
+def _build_surprisal_vault(vault_path) -> tuple:
+    """Long notes (>= 50 words) with graded surprisal, plus one near-empty note.
+
+    Fourteen "Cluster" notes share 40 words. Six "Odd" notes share fewer of
+    them (40 down to 15) and add 40 words of their own, so they are more
+    surprising than any Cluster note. "Tiny Aside" has two words nobody else
+    uses, so it is the most surprising note of all, but it is near-empty.
+    """
+    shared = [f"soil{j}" for j in range(40)]
+    notes = {
+        f"Cluster {i:02d}": " ".join(shared + [f"leaf{i}x{j}" for j in range(15)])
+        for i in range(14)
+    }
+    for k in range(6):
+        notes[f"Odd {k}"] = " ".join(shared[: 40 - 5 * k] + [f"odd{k}x{j}" for j in range(40)])
+    notes["Tiny Aside"] = "Quasar nebula."
+    return _build_vault(vault_path, [notes])
+
+
+def _firing_vault(geist, voice_vault, tmp_path) -> tuple:
+    """A vault on which ``geist`` is designed to fire (see each builder)."""
+    name = _geist_name(geist)
+    if name == "attention_shift":
+        return _build_shifted_vault(tmp_path / "vault")
+    if name == "this_time_last_year":
+        return _build_anniversary_vault(tmp_path / "vault", datetime(2023, 3, 18, 10, 0))
+    if name == "voice_absence":
+        return _build_voiceless_vault(tmp_path / "vault")
+    if name == "sentence_variance":
+        return _build_choppy_vault(tmp_path / "vault")
+    if name == "uncertainty_mapper":
+        return _build_hedgy_vault(tmp_path / "vault")
+    if name == "surprisal":
+        return _build_surprisal_vault(tmp_path / "vault")
+    return voice_vault
 
 
 # ============================================================================
@@ -235,57 +384,42 @@ def tiny_vault(tmp_path):
 
 
 # ============================================================================
-# Conformance battery (all 8 geists)
+# Conformance battery (every geist in GEIST_MODULES)
 # ============================================================================
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_returns_suggestion_list_on_voice_vault(geist, voice_vault):
-    """Every geist returns a list of well-formed Suggestions."""
-    vault, session = voice_vault
+def test_returns_well_formed_suggestions_when_firing(geist, voice_vault, tmp_path):
+    """On its designed-to-trigger vault every geist fires with well-formed
+    output that references only real notes."""
+    vault, session = _firing_vault(geist, voice_vault, tmp_path)
     context = _make_context(vault, session)
+    real_notes = {n.link_text for n in vault.all_notes()}
 
     suggestions = geist.suggest(context)
 
-    assert isinstance(suggestions, list)
+    assert_valid_suggestions(suggestions, _geist_name(geist))
     for suggestion in suggestions:
-        assert isinstance(suggestion, Suggestion)
-        assert suggestion.geist_id == _geist_name(geist)
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        for ref in suggestion.notes:
-            assert isinstance(ref, str)
-            assert len(ref) > 0
+        assert set(suggestion.notes) <= real_notes
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_wikilinks_well_formed(geist, voice_vault):
-    """Wikilinks in suggestion text are balanced and not double-bracketed."""
-    vault, session = voice_vault
+def test_wikilinks_well_formed(geist, voice_vault, tmp_path):
+    """Wikilinks in suggestion text are balanced, not double-bracketed, and
+    every referenced note is linked in the text."""
+    vault, session = _firing_vault(geist, voice_vault, tmp_path)
     context = _make_context(vault, session)
 
     suggestions = geist.suggest(context)
 
-    assert isinstance(suggestions, list)
+    assert suggestions, "fixture is designed to trigger"
     for suggestion in suggestions:
         text = suggestion.text
         assert text.count("[[") == text.count("]]")
         assert "[[[[" not in text
         assert "[[]]" not in text
-
-
-@pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_empty_vault_returns_empty(geist, empty_vault):
-    """Every geist returns [] on an empty vault."""
-    vault, session = empty_vault
-    context = _make_context(vault, session)
-
-    suggestions = geist.suggest(context)
-
-    assert isinstance(suggestions, list)
-    assert suggestions == []
-    assert len(vault.all_notes()) == 0
+        for ref in suggestion.notes:
+            assert f"[[{ref}]]" in text
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
@@ -303,54 +437,16 @@ def test_three_note_vault_no_crash(geist, tiny_vault):
 
 
 @pytest.mark.parametrize("geist", GEIST_MODULES, ids=_geist_name)
-def test_deterministic_output(geist, voice_vault):
-    """Same vault + session + seed produces identical suggestions."""
-    vault, session = voice_vault
+def test_deterministic_output(geist, voice_vault, tmp_path):
+    """Same vault + session + seed produces identical, non-empty suggestions."""
+    vault, session = _firing_vault(geist, voice_vault, tmp_path)
 
     first = geist.suggest(_make_context(vault, session, seed=777))
     _GLOBAL_REGISTRY.clear()  # Reset before creating second context
     second = geist.suggest(_make_context(vault, session, seed=777))
 
-    assert isinstance(first, list)
-    assert isinstance(second, list)
+    assert first
     assert first == second
-
-
-# ============================================================================
-# temporal_voice
-# ============================================================================
-
-
-def test_temporal_voice_pairs_past_and_future(voice_vault):
-    """temporal_voice pairs one past-oriented and one future-oriented note."""
-    vault, session = voice_vault
-    context = _make_context(vault, session)
-
-    past_pool = {
-        n.link_text
-        for n in context.notes_excluding_journal()
-        if context.metadata(n)["temporal_orientation"] == "past"
-    }
-    future_pool = {
-        n.link_text
-        for n in context.notes_excluding_journal()
-        if context.metadata(n)["temporal_orientation"] == "future"
-    }
-
-    # Fixture sanity: the designed notes actually trip the thresholds
-    assert set(PAST_NOTES) <= past_pool
-    assert set(FUTURE_NOTES) <= future_pool
-
-    suggestions = temporal_voice.suggest(context)
-
-    assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "temporal_voice"
-    assert len(suggestion.notes) == 2
-    assert suggestion.notes[0] in past_pool
-    assert suggestion.notes[1] in future_pool
-    assert f"[[{suggestion.notes[0]}]]" in suggestion.text
-    assert f"[[{suggestion.notes[1]}]]" in suggestion.text
 
 
 # ============================================================================
@@ -376,29 +472,169 @@ def test_self_and_other_fires_with_i_and_we_notes(voice_vault):
     assert "When do you think alone" in suggestion.text
 
 
+def test_self_and_other_ignores_a_single_stray_i(tmp_path):
+    """Contract: an "I" note uses the first person singular at >= 1 per 100
+    words, not merely more often than "we".
+
+    Regression: self_focus_ratio alone qualified a note, so one "I" (from
+    "Did I implement...", a quoted example or a code variable) in a long
+    technical note made it an "I" note.
+    """
+    stray = {f"Spec {i}": _long_prose("Did I implement the parser correctly?") for i in range(3)}
+    vault, session = _build_vault(tmp_path / "vault", [stray, WE_NOTES, FILLER_NOTES])
+    context = _make_context(vault, session)
+    assert all(
+        context.voice(n).self_focus_ratio == 1.0
+        for n in context.notes()
+        if n.title.startswith("Spec")
+    )
+
+    assert self_and_other.suggest(context) == []
+
+
+def test_self_and_other_does_not_claim_no_we_notes_when_some_say_we(tmp_path):
+    """Contract: the rarity sentence counts every note that says "we" at all.
+
+    Regression: the "You have no 'we' notes" branch fired whenever no note
+    reached 2 "we" per 100 words, even when many notes said "we" (29 of 77 in
+    the real run). Three of 18 notes saying "we" once is not rare (>= 5%), so
+    the geist abstains.
+    """
+    occasional_we = {
+        f"Team Note {i}": _long_prose("Later we compare the results.") for i in range(3)
+    }
+    vault, session = _build_vault(tmp_path / "vault", [I_NOTES, occasional_we, FILLER_NOTES])
+    context = _make_context(vault, session)
+    assert len(context.notes()) == 18
+
+    assert self_and_other.suggest(context) == []
+
+
+@pytest.mark.parametrize(
+    ("we_notes", "rarity"),
+    [
+        ({}, "None of your 20 notes say 'we'."),
+        (
+            {"Team Note": _long_prose("Later we compare the results.")},
+            "Only 1 of your 21 notes says 'we' at all.",
+        ),
+    ],
+)
+def test_self_and_other_states_the_true_we_count(tmp_path, we_notes, rarity):
+    """Contract: when "we" is rare (< 5% of notes), the count stated is the
+    number of notes that say "we"/"us"/"our" at all.
+
+    Regression: the text said "You have no 'we' notes" whatever the count.
+    """
+    extra_fillers = {f"Extra {i}": _long_prose() for i in range(5)}
+    vault, session = _build_vault(
+        tmp_path / "vault", [I_NOTES, we_notes, FILLER_NOTES, extra_fillers]
+    )
+    context = _make_context(vault, session)
+
+    suggestions = self_and_other.suggest(context)
+
+    assert_valid_suggestions(suggestions, "self_and_other")
+    assert len(suggestions) == 1
+    assert sorted(suggestions[0].notes) == sorted(I_NOTES)
+    titles = ", ".join(f"[[{t}]]" for t in suggestions[0].notes)
+    assert suggestions[0].text == (
+        f"These notes say 'I': {titles}. {rarity} Who could you be thinking with?"
+    )
+
+
 # ============================================================================
 # uncertainty_mapper
 # ============================================================================
 
 
-def test_uncertainty_mapper_picks_hedgy_note_and_counts(voice_vault):
-    """uncertainty_mapper names the hedgiest note with hedge/word counts."""
-    vault, session = voice_vault
+def test_uncertainty_mapper_picks_hedgy_note_and_counts(tmp_path):
+    """uncertainty_mapper names a hedgy note with true hedge/word counts.
+
+    Updated: the word count is now the prose word count (frontmatter, code
+    and URLs stripped, as the hedges are), not whitespace tokens of the raw
+    file, and the fixture notes are long enough to pass the length minimum.
+    """
+    vault, session = _build_hedgy_vault(tmp_path / "vault")
     context = _make_context(vault, session)
 
     suggestions = uncertainty_mapper.suggest(context)
 
+    assert_valid_suggestions(suggestions, "uncertainty_mapper")
     assert len(suggestions) == 1
     suggestion = suggestions[0]
-    assert suggestion.geist_id == "uncertainty_mapper"
     assert len(suggestion.notes) == 1
-    assert suggestion.notes[0] in HEDGY_NOTES
-    assert "What are you not ready to commit to?" in suggestion.text
-
-    # The reported hedge count matches count_hedges() on the actual content
+    assert suggestion.notes[0] in LONG_HEDGY_NOTES
     picked = next(n for n in vault.all_notes() if n.title == suggestion.notes[0])
-    assert f"hedges {count_hedges(picked.content)} times" in suggestion.text
-    assert f"in {len(picked.content.split())} words" in suggestion.text
+    words = len(tokenize(strip_for_analysis(picked.content)))
+    assert suggestion.text == (
+        f"[[{picked.title}]] hedges {count_hedges(picked.content)} times in {words} words. "
+        "What are you not ready to commit to?"
+    )
+
+
+def test_uncertainty_mapper_ignores_one_line_notes(tmp_path):
+    """Contract: only notes with >= 5 sentences and >= 80 words compete, and
+    they are ranked by hedges per 100 words.
+
+    Regression: hedges per sentence with no minimum length let a one-liner
+    ("Maybe we could perhaps call Bob.", 1.5 per sentence) beat a long note
+    that hedges in every sentence (0.94 per sentence).
+    """
+    steady = " ".join(["The plan might work out well in the end."] * 16)
+    vault, session = _build_vault(
+        tmp_path / "vault",
+        [
+            {"Quick Thought": "Maybe we could perhaps call Bob.", "Steady Doubt": steady},
+            FILLER_NOTES,
+        ],
+    )
+    context = _make_context(vault, session)
+
+    suggestions = uncertainty_mapper.suggest(context)
+
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            "[[Steady Doubt]] hedges 16 times in 146 words. What are you not ready to commit to?",
+            ["Steady Doubt"],
+        )
+    ]
+
+
+def test_uncertainty_mapper_month_may_and_rather_are_not_hedges(tmp_path):
+    """Contract: capitalised "May" (the month) and "rather than" are not hedges.
+
+    Regression: "The release shipped in May ... speed rather than polish"
+    counted two hedges per sentence, so a confident release log was named as
+    the vault's most uncertain note.
+    """
+    log = " ".join(["The release shipped in May and the team chose speed rather than polish."] * 8)
+    vault, session = _build_vault(tmp_path / "vault", [{"Release Log": log}, FILLER_NOTES])
+    context = _make_context(vault, session)
+    note = next(n for n in context.notes() if n.title == "Release Log")
+    assert count_hedges(note.content) == 0
+
+    assert uncertainty_mapper.suggest(context) == []
+
+
+def test_uncertainty_mapper_samples_among_the_top_three(tmp_path):
+    """Contract: the named note is sampled from the three most hedged notes,
+    never a lower-ranked one.
+
+    Regression: a fixed argmax named the same note every session.
+    """
+    hedge = "The plan might work out well in the end."
+    plain = "The plan works out well in the end."
+    notes = {f"Doubt {n}": " ".join([hedge] * n + [plain] * (16 - n)) for n in (16, 14, 12, 10)}
+    vault, session = _build_vault(tmp_path / "vault", [notes, FILLER_NOTES])
+
+    picked = {
+        tuple(s.notes)
+        for seed in range(30)
+        for s in uncertainty_mapper.suggest(_make_context(vault, session, seed=seed))
+    }
+
+    assert picked == {("Doubt 16",), ("Doubt 14",), ("Doubt 12",)}
 
 
 # ============================================================================
@@ -406,40 +642,72 @@ def test_uncertainty_mapper_picks_hedgy_note_and_counts(voice_vault):
 # ============================================================================
 
 
-def test_surprisal_references_existing_notes(voice_vault):
-    """surprisal returns <= 1 suggestion referencing real vault notes."""
-    vault, session = voice_vault
+def test_surprisal_references_existing_notes(tmp_path):
+    """surprisal returns 1 suggestion: a note plus its 3 nearest neighbours."""
+    vault, session = _build_surprisal_vault(tmp_path / "vault")
     context = _make_context(vault, session)
 
     all_links = {n.link_text for n in vault.all_notes()}
     suggestions = surprisal.suggest(context)
 
-    assert len(suggestions) <= 1
-    assert len(suggestions) == 1  # 27 notes > k_neighbours + 1, so it fires
+    assert_valid_suggestions(suggestions, "surprisal")
+    assert len(suggestions) == 1  # 21 notes > k_neighbours + 1, so it fires
     suggestion = suggestions[0]
-    assert suggestion.geist_id == "surprisal"
     # 1 surprising note + 3 neighbours
     assert len(suggestion.notes) == 4
-    for ref in suggestion.notes:
-        assert ref in all_links
+    assert set(suggestion.notes) <= all_links
     assert "doesn't quite fit" in suggestion.text
 
 
-def test_surprisal_picks_max_score_note(voice_vault):
-    """surprisal names the note with the highest surprisal score."""
-    vault, session = voice_vault
-    context = _make_context(vault, session)
+def test_surprisal_skips_near_empty_notes_and_samples_the_top_five(tmp_path):
+    """Contract: notes under 50 prose words never compete; the named note is
+    sampled from the five most surprising remaining notes.
 
-    scores = context.surprisal_scores()
-    assert scores  # non-empty for 27 notes
-    top_path = max(scores, key=lambda p: scores[p])
-    top_note = context.get_note(top_path)
-    assert top_note is not None
+    Regression: a fixed argmax over all notes always named the same note,
+    typically a near-empty one ("Product usage analysis", 18 words, in both
+    real-run sessions), and so did unexpected_neighbour. (Replaces
+    test_surprisal_picks_max_score_note, which encoded the argmax.)
+    """
+    vault, session = _build_surprisal_vault(tmp_path / "vault")
+    scores = _make_context(vault, session).surprisal_scores()
+    by_title = {n.title: scores[n.path] for n in vault.all_notes()}
+    # Fixture sanity: the near-empty note is the most surprising of all; the
+    # next five are Odd notes, and a sixth Odd note ranks just below them.
+    assert max(by_title, key=by_title.__getitem__) == "Tiny Aside"
+    ranked = sorted(
+        (t for t in by_title if t != "Tiny Aside"), key=by_title.__getitem__, reverse=True
+    )
+    top_five = ranked[:5]
+    assert all(t.startswith("Odd") for t in ranked[:6])
 
-    suggestions = surprisal.suggest(context)
+    picked = {
+        s.notes[0]
+        for seed in range(30)
+        for s in surprisal.suggest(_make_context(vault, session, seed=seed))
+    }
 
-    assert len(suggestions) == 1
-    assert suggestions[0].notes[0] == top_note.link_text
+    assert picked == set(top_five)
+
+
+def test_surprisal_varies_its_closing_question(tmp_path):
+    """Contract: each suggestion ends with one of surprisal.CLOSERS, and over
+    several sessions every closer is used.
+
+    Regression: the retired unexpected_neighbour Tracery geist carried the
+    closers "What does it know that the others don't?" and "What's it doing
+    in your vault?"; surprisal only ever asked "seed or stray thought?".
+    """
+    vault, session = _build_surprisal_vault(tmp_path / "vault")
+
+    closers = set()
+    for seed in range(30):
+        (suggestion,) = surprisal.suggest(_make_context(vault, session, seed=seed))
+        prefix, closer = suggestion.text.rsplit(". ", 1)
+        assert prefix.endswith("but it says something different"), suggestion.text
+        closers.add(closer)
+
+    assert closers == set(surprisal.CLOSERS)
+    assert "What does it know that the others don't?" in closers
 
 
 # ============================================================================
@@ -457,8 +725,22 @@ def test_attention_shift_empty_without_old_session(voice_vault):
 
     suggestions = attention_shift.suggest(context)
 
-    assert isinstance(suggestions, list)
     assert suggestions == []
+
+
+def test_attention_shift_names_the_note_whose_neighbours_moved(tmp_path):
+    vault, session = _build_shifted_vault(tmp_path / "vault")
+    context = _make_context(vault, session)
+
+    suggestions = attention_shift.suggest(context)
+
+    assert_valid_suggestions(suggestions, "attention_shift")
+    assert len(suggestions) == 1
+    pivot, *moved = suggestions[0].notes
+    assert pivot == "Pivot"
+    departed, arrived = moved[:3], moved[3:]
+    assert departed and all(t.startswith("Alpha") for t in departed)
+    assert arrived and all(t.startswith("Beta") for t in arrived)
 
 
 # ============================================================================
@@ -466,62 +748,27 @@ def test_attention_shift_empty_without_old_session(voice_vault):
 # ============================================================================
 
 
-def test_this_time_last_year_finds_anniversary_note(tmp_path):
-    """this_time_last_year surfaces a note created ~1 year before the session."""
-    vault_path = tmp_path / "vault"
-    notes = {
-        "Anniversary Note": "A thought captured in the early spring.",
-        "Other Note": "A thought from a different season entirely.",
-        "Recent Note": "A thought from just a few days back.",
-    }
-    vault_path.mkdir()
-    _write_notes(vault_path, notes)
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    # Session date is 2024-03-15; the anniversary note sits inside the
-    # +/- 7 day window around 2023-03-15. The others do not match any window.
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2023, 3, 18, 10, 0).isoformat(), "Anniversary Note"),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2023, 9, 1, 10, 0).isoformat(), "Other Note"),
-    )
-    vault.db.execute(
-        "UPDATE notes SET created = ? WHERE title = ?",
-        (datetime(2024, 3, 10, 10, 0).isoformat(), "Recent Note"),
-    )
-    vault.db.commit()
-
-    session = Session(datetime(2024, 3, 15), vault.db)
-    session.compute_embeddings(vault.all_notes())
+@pytest.mark.parametrize(
+    ("created", "opening"),
+    [
+        (datetime(2023, 3, 8, 10, 0), "Around this time a year ago"),  # 7 days before
+        (datetime(2023, 3, 22, 10, 0), "Around this time a year ago"),  # 7 days after
+        (datetime(2023, 3, 7, 10, 0), "Last spring"),  # 8 days before: outside
+        (datetime(2023, 3, 23, 10, 0), "Last spring"),  # 8 days after: outside
+    ],
+)
+def test_this_time_last_year_window_boundaries(tmp_path, created, opening):
+    """A note created within +/- 7 days of a 1-year anniversary is resurfaced
+    as "around this time"; just outside the window it is still last spring's
+    note (the same-season fallback merged from seasonal_revisit)."""
+    vault, session = _build_anniversary_vault(tmp_path / "vault", created)
     context = _make_context(vault, session, seed=20240315)
 
     suggestions = this_time_last_year.suggest(context)
 
-    assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "this_time_last_year"
-    assert suggestion.notes == ["Anniversary Note"]
-    assert "Around this time a year ago" in suggestion.text
-    assert "[[Anniversary Note]]" in suggestion.text
-
-
-def test_this_time_last_year_empty_without_anniversaries(voice_vault):
-    """No notes near any anniversary window means no suggestion."""
-    vault, session = voice_vault
-    context = _make_context(vault, session)
-
-    # Notes were created at sync time (today), not 1-3 years before the
-    # 2025-06-15 session date, so no window matches.
-    suggestions = this_time_last_year.suggest(context)
-
-    assert isinstance(suggestions, list)
-    assert suggestions == []
-    assert len(vault.all_notes()) >= 25
+    assert_valid_suggestions(suggestions, "this_time_last_year")
+    assert [s.notes for s in suggestions] == [["Anniversary Note"]]
+    assert suggestions[0].text.startswith(f"{opening}, you wrote [[Anniversary Note]].")
 
 
 # ============================================================================
@@ -530,30 +777,70 @@ def test_this_time_last_year_empty_without_anniversaries(voice_vault):
 
 
 def test_sentence_variance_fires_on_choppy_note(tmp_path):
-    """A single high-variance note among uniform notes is flagged."""
-    uniform_sentence = "The quiet {word} square fills with morning light."
-    notes = {
-        f"Uniform {word.title()}": " ".join([uniform_sentence.format(word=word)] * 3)
-        for word in _FILLER_WORDS[:10]
-    }
-    notes["Choppy Note"] = (
-        "Stop. The committee deliberated for eleven hours across two long days "
-        "about the proposed water treatment facility and its complicated "
-        "funding arrangement before reaching any decision. No. The vote "
-        "happened anyway."
-    )
-
-    vault, session = _build_vault(tmp_path / "vault", [notes])
+    """A single high-spread note among uniform notes is flagged."""
+    vault, session = _build_choppy_vault(tmp_path / "vault")
     context = _make_context(vault, session)
 
     suggestions = sentence_variance.suggest(context)
 
-    assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "sentence_variance"
-    assert suggestion.notes == ["Choppy Note"]
-    assert "choppy" in suggestion.text
-    assert "[[Choppy Note]]" in suggestion.text
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            "[[Choppy Note]] has unusually choppy sentences — short bursts mixed "
+            "with long stretches. Were you working something out when you wrote this?",
+            ["Choppy Note"],
+        )
+    ]
+
+
+def test_sentence_variance_ignores_tables_headings_and_tight_lists(tmp_path):
+    """Contract: table rows and headings are not sentences, and each list
+    item is its own sentence.
+
+    Regression: a markdown table (or a tight bullet list) was one 200-token
+    "sentence", so a structured ledger had by far the largest raw variance
+    and was named as "choppy" every session, ahead of genuinely choppy prose.
+    """
+    rows = "\n".join(
+        f"| item {i} | specification section {i} | implemented and verified in release {i} |"
+        for i in range(12)
+    )
+    bullets = "\n".join(f"- {UNIFORM_SENTENCE.format(word=w)[:-1]}" for w in _FILLER_WORDS)
+    ledger = (
+        "## Status\n\n"
+        + " ".join([UNIFORM_SENTENCE.format(word="ledger")] * 4)
+        + f"\n\n{rows}\n\n### Items\n{bullets}\n"
+    )
+    notes = _uniform_notes()
+    notes["Choppy Note"] = _choppy_body()
+    notes["Status Ledger"] = ledger
+    vault, session = _build_vault(tmp_path / "vault", [notes])
+
+    picked = {
+        tuple(s.notes)
+        for seed in range(10)
+        for s in sentence_variance.suggest(_make_context(vault, session, seed=seed))
+    }
+
+    assert picked == {("Choppy Note",)}
+
+
+def test_sentence_variance_samples_among_outliers(tmp_path):
+    """Contract: when several notes are outliers, the session seed picks one.
+
+    Regression: a fixed argmax named the same note every session.
+    """
+    notes = _uniform_notes()
+    notes["Choppy Note"] = _choppy_body()
+    notes["Halting Note"] = _choppy_body("Wait.")
+    vault, session = _build_vault(tmp_path / "vault", [notes])
+
+    picked = {
+        tuple(s.notes)
+        for seed in range(20)
+        for s in sentence_variance.suggest(_make_context(vault, session, seed=seed))
+    }
+
+    assert picked == {("Choppy Note",), ("Halting Note",)}
 
 
 def test_sentence_variance_empty_below_ten_candidates(tiny_vault):
@@ -574,10 +861,14 @@ def test_sentence_variance_empty_below_ten_candidates(tiny_vault):
 
 
 def test_voice_absence_fires_on_missing_future_voice(tmp_path):
-    """A 20-note vault with no future-tense notes triggers exactly that absence."""
-    # 3 past + 2 we + 3 question + 12 present fillers = 20 notes, no future.
-    # Past, we and question voices are all above their thresholds, so only
-    # the future absence fires.
+    """A 20-note vault with no future-tense words triggers exactly that absence.
+
+    3 past + 2 we + 3 question + 12 present fillers = 20 notes, none using
+    'will' or 'going to'. Past and question voices are present, so only the
+    future absence fires. (Updated: the text used to say "look forward",
+    counting the near-unreachable "future" orientation; it now states what
+    is counted.)
+    """
     vault, session = _build_vault(
         tmp_path / "vault",
         [PAST_NOTES, WE_NOTES, QUESTION_NOTES, FILLER_NOTES],
@@ -587,23 +878,98 @@ def test_voice_absence_fires_on_missing_future_voice(tmp_path):
 
     suggestions = voice_absence.suggest(context)
 
+    # No note uses the future voice, so the suggestion starts from one
+    # recently changed note (the quality filter drops a suggestion that
+    # names no note, which is how this geist used to vanish from journals).
     assert len(suggestions) == 1
-    suggestion = suggestions[0]
-    assert suggestion.geist_id == "voice_absence"
-    assert suggestion.notes == []
-    assert "look forward" in suggestion.text
-    assert "of your 20 notes" in suggestion.text
+    (named,) = suggestions[0].notes
+    assert named in {note.link_text for note in context.recent_notes(count=5)}
+    assert suggestions[0].text == (
+        "None of your 20 notes use the future tense ('will', 'going to'). "
+        f"What is [[{named}]] anticipating that it doesn't say?"
+    )
+    assert SuggestionFilter(context.db, MagicMock()).filter_quality(suggestions) == suggestions
 
 
-def test_voice_absence_returns_at_most_one(voice_vault):
-    """voice_absence never returns more than one suggestion."""
-    vault, session = voice_vault
+def test_voice_absence_names_the_few_notes_that_use_the_voice(tmp_path):
+    """Contract: when only a few notes use the voice, the suggestion names
+    them; regression: it named no note, so filtering always dropped it."""
+    future_once = {"Plan": _long_prose("The gardener will rest after noon.")}
+    vault, session = _build_vault(
+        tmp_path / "vault",
+        [future_once, PAST_NOTES, WE_NOTES, QUESTION_NOTES, FILLER_NOTES],
+    )
+    context = _make_context(vault, session)
+    assert len(context.notes()) == 21  # 1 of 21 is under the 5% threshold
+
+    suggestions = voice_absence.suggest(context)
+
+    assert [(s.text, s.notes) for s in suggestions] == [
+        (
+            "Only 1 of your 21 notes uses the future tense ('will', 'going to'), "
+            "among them [[Plan]]. What are you anticipating that you haven't written about?",
+            ["Plan"],
+        )
+    ]
+    assert SuggestionFilter(context.db, MagicMock()).filter_quality(suggestions) == suggestions
+
+
+def test_voice_absence_counts_notes_that_use_each_voice_at_all(tmp_path):
+    """Contract: "Only N of your T notes use the future tense / contain
+    questions" counts notes with ANY future marker / question mark, and
+    voice_absence never makes the "we" claim (self_and_other owns it).
+
+    Regression: the future count was notes whose verbs were > 40% future
+    (almost none), questions needed > 0.5 per 100 words, and "say 'we'"
+    needed > 1 per 100 words, so a vault where notes do say "will", ask
+    questions and say nothing about "we" got a false "Only 0 of your 20
+    notes ..." sentence.
+    """
+    future_once = {f"Plan {i}": _long_prose("The gardener will rest after noon.") for i in range(2)}
+    question_once = {f"Puzzle {i}": _long_prose("Why does the wall lean north?") for i in range(2)}
+    fillers = dict(list(FILLER_NOTES.items())[:10])
+    fillers.update({f"Extra {i}": _long_prose() for i in range(3)})
+    vault, session = _build_vault(
+        tmp_path / "vault", [PAST_NOTES, future_once, question_once, fillers]
+    )
+    context = _make_context(vault, session)
+    assert len(context.notes()) == 20
+    # Fixture sanity: the old thresholds counted none of these notes.
+    assert not any(context.voice(n).temporal_orientation == "future" for n in context.notes())
+    assert not any(context.voice(n).question_density > 0.5 for n in context.notes())
+
+    assert voice_absence.suggest(context) == []
+
+
+def test_voice_absence_never_claims_notes_do_not_look_backward(tmp_path):
+    """Contract: voice_absence names only absences it can count truthfully
+    (future-tense markers, question marks); it has no "look backward" claim.
+
+    Regression: it counted notes whose temporal_orientation was "past" (more
+    than 60% of detected verbs in the past tense), an invalid tense heuristic,
+    and said "Only 0 of your 20 notes look backward" of a vault with plenty
+    of future-tense notes and questions but no -ed-heavy ones.
+    """
+    extra = {f"Extra {i}": _long_prose() for i in range(2)}
+    vault, session = _build_vault(
+        tmp_path / "vault", [FUTURE_NOTES, QUESTION_NOTES, FILLER_NOTES, extra]
+    )
+    context = _make_context(vault, session)
+    assert len(context.notes()) == 20
+    # Fixture sanity: no note has the "past" orientation the old branch counted.
+    assert not any(context.voice(n).temporal_orientation == "past" for n in context.notes())
+
+    assert voice_absence.suggest(context) == []
+
+
+def test_voice_absence_names_exactly_one_of_several_absences(tmp_path):
+    """With both voices missing, voice_absence still names exactly one."""
+    vault, session = _build_voiceless_vault(tmp_path / "vault")
     context = _make_context(vault, session)
 
     suggestions = voice_absence.suggest(context)
 
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 1
-    for suggestion in suggestions:
-        assert suggestion.notes == []
-        assert suggestion.geist_id == "voice_absence"
+    assert_valid_suggestions(suggestions, "voice_absence")
+    assert len(suggestions) == 1
+    assert len(suggestions[0].notes) == 1
+    assert suggestions[0].text.startswith("None of your 20 notes")

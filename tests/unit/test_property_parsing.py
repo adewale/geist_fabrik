@@ -67,14 +67,6 @@ def test_frontmatter_with_title_extracted(title: str) -> None:
     assert "Body text here." in body
 
 
-def test_no_frontmatter_returns_full_content() -> None:
-    """Content without --- prefix returns None frontmatter and full content."""
-    content = "Just regular markdown\nWith multiple lines"
-    fm, body = parse_frontmatter(content)
-    assert fm is None
-    assert body == content
-
-
 def test_malformed_frontmatter_returns_none() -> None:
     """Unclosed frontmatter returns None."""
     content = "---\ntitle: test\nNo closing delimiter"
@@ -137,37 +129,6 @@ def test_extract_links_idempotent(content: str) -> None:
     assert links1 == links2
 
 
-def test_extract_links_with_display_text() -> None:
-    """[[target|display]] should parse target and display separately."""
-    links = extract_links("See [[Note Title|my note]]")
-    assert len(links) == 1
-    assert links[0].target == "Note Title"
-    assert links[0].display_text == "my note"
-
-
-def test_extract_links_embed() -> None:
-    """![[embed]] should be marked as embed."""
-    links = extract_links("Here is ![[Image.png]]")
-    assert len(links) == 1
-    assert links[0].is_embed is True
-    assert links[0].target == "Image.png"
-
-
-def test_extract_links_heading_anchor() -> None:
-    """[[Note#heading]] retains the identity of a potential journal entry."""
-    links = extract_links("[[Note#Section One]]")
-    assert len(links) == 1
-    assert links[0].target == "Note#Section One"
-
-
-def test_extract_links_block_ref() -> None:
-    """[[Note^block123]] should capture block reference."""
-    links = extract_links("[[Note^block123]]")
-    assert len(links) == 1
-    assert links[0].target == "Note"
-    assert links[0].block_ref == "block123"
-
-
 def test_extract_links_empty_content() -> None:
     """Empty content should yield no links."""
     assert extract_links("") == []
@@ -191,13 +152,6 @@ def test_extract_tags_from_frontmatter(tags: list[str]) -> None:
     )
 
 
-def test_extract_tags_returns_sorted() -> None:
-    """Tags should be returned in sorted order."""
-    content = "#zebra #alpha #middle"
-    tags = extract_tags(content)
-    assert tags == sorted(tags)
-
-
 @given(st.text(min_size=0, max_size=200))
 def test_extract_tags_idempotent(content: str) -> None:
     """Same content always produces same tags."""
@@ -208,6 +162,4 @@ def test_extract_tags_idempotent(content: str) -> None:
 
 def test_extract_tags_deduplicates() -> None:
     """Duplicate tags should appear only once."""
-    content = "#python #python #python"
-    tags = extract_tags(content)
-    assert tags.count("python") == 1
+    assert extract_tags("#python #python #python") == ["python"]

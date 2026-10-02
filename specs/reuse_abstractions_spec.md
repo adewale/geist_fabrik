@@ -1,6 +1,14 @@
 # GeistFabrik Reuse Abstractions Specification
 
-**Status**: Proposed
+**Status**: Implemented (design history). All seven abstractions exist:
+`EmbeddingTrajectoryCalculator`, `TemporalPatternFinder` and
+`TemporalSemanticQuery` (`temporal_analysis.py`), `SimilarityProfile`/
+`SimilarityFilter` (`similarity_analysis.py`), `ClusterAnalyser`
+(`clustering_analysis.py`), `GraphPatternFinder` (`graph_analysis.py`), the
+extraction pipeline (`content_extraction.py`) and `MetadataAnalyser`
+(`metadata_system.py`). Geist names and counts below are as of 2025-11; the
+"unlocked geists" list is aspirational (see `specs/SPEC_STATUS.md`) and several
+named geists were later merged or retired ([specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10)).
 **Version**: 1.0
 **Date**: 2025-11-10
 
@@ -1031,7 +1039,7 @@ src/geistfabrik/metadata_system.py (+ MetadataAnalyser)
 **How do these proposed abstractions differ from existing `stats.py` functionality?**
 
 `stats.py` currently provides:
-- `get_temporal_drift()`: Vault-wide drift using Procrustes alignment
+- `get_temporal_drift()`: Vault-wide drift (semantic component, same-model snapshots, no alignment)
 - `EmbeddingMetricsComputer`: Clustering, diversity, intrinsic dimensionality
 - `_label_clusters_tfidf()` / `_label_clusters_keybert()`: Cluster labelling
 
@@ -1070,7 +1078,7 @@ stats.py ──────────┴────────────�
 - `stats.py` depends on `ClusterAnalyser` and `cluster_labeling.py`
 
 **What stats.py keeps**:
-- Vault-wide temporal drift (Procrustes alignment)
+- Vault-wide temporal drift (semantic component; no Procrustes alignment, see STATS_COMMAND_SPEC.md)
 - Embedding diversity metrics
 - Intrinsic dimensionality estimation
 - Silhouette score computation
@@ -1157,31 +1165,24 @@ All abstractions use constructor DI for VaultContext. No static methods with vau
 ### Principle 8: Minimal State
 Abstractions hold only VaultContext references. Computational state (caching) only when valuable.
 
-### Principle 9: Filter Geist Journal for Historical Analysis
-Geists analyzing vault history must exclude geist journal notes to avoid circular references and statistical skew.
+### Principle 9: The Geist Journal Is Not Vault Content
+Geist journal notes are ephemeral session output, not persistent user knowledge.
+Including them causes circular references, statistical skew and false temporal
+patterns, and their links inflate backlink counts.
 
-**Pattern**: Use `vault.notes_excluding_journal()` instead of `vault.notes()` when:
-- Analyzing vault history or temporal patterns
-- Computing statistical distributions
-- Tracking note evolution over time
-- Building cohort analysis
-
-**Why**: Geist journal notes are ephemeral session output, not persistent user knowledge. Including them causes:
-- **Circular references**: Analyzing system output as user notes
-- **Statistical skew**: Journal notes have predictable structure and metadata
-- **False patterns**: Session output creates misleading temporal patterns
+**Pattern** (superseded the original per-geist `notes_excluding_journal()` rule):
+`VaultContext` excludes `geist journal/` notes from every vault-wide lookup —
+`notes()`, neighbours, links, hubs, orphans, recency, clusters, embeddings — so
+abstractions and geists built on it inherit the exclusion and need no filters.
+Explicit lookups (`get_note(path)`, `resolve_link_target()`) still return a
+journal note when asked for it.
 
 **Implementation**:
 ```python
-# ✅ Correct - excludes geist journal for historical analysis
-def suggest(vault: VaultContext) -> list[Suggestion]:
-    notes = vault.notes_excluding_journal()
-    # ... analyze history, compute statistics, track evolution ...
-
-# ❌ Wrong - includes journal in historical analysis
+# ✅ Correct - VaultContext already excludes the geist journal
 def suggest(vault: VaultContext) -> list[Suggestion]:
     notes = vault.notes()
-    # ... risk of circular references and skewed statistics ...
+    # ... analyze history, compute statistics, track evolution ...
 ```
 
 **When NOT to filter**:

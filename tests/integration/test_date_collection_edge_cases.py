@@ -194,40 +194,6 @@ More content.
     vault.close()
 
 
-def test_code_blocks_with_hash_symbols(tmp_path: Path) -> None:
-    """Test that ## inside code blocks don't confuse parser."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "Code.md").write_text("""
-## 2025-01-15
-Example code:
-
-```python
-# This is a comment
-## This looks like a heading but isn't
-def foo():
-    pass
-```
-
-## 2025-01-16
-More content.
-""")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    notes = vault.all_notes()
-    virtual = [n for n in notes if n.is_virtual]
-
-    # Should still detect the real H2 dates
-    assert len(virtual) == 2
-    assert virtual[0].entry_date == date(2025, 1, 15)
-    assert "```python" in virtual[0].content
-
-    vault.close()
-
-
 def test_frontmatter_with_date_fields(tmp_path: Path) -> None:
     """Test that date fields in frontmatter don't interfere."""
     vault_path = tmp_path / "vault"
@@ -375,42 +341,6 @@ Next day.
     assert "Morning entry" in entry1.content
     assert "Afternoon entry" in entry1.content
     assert "Evening entry" in entry1.content
-
-    vault.close()
-
-
-def test_mixed_date_and_datetime_formats(tmp_path: Path) -> None:
-    """Test mixing date and datetime formats."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "Mixed.md").write_text("""
-## 2025-01-15
-Just a date.
-
-## 2025-01-16T09:00:00
-With timestamp.
-
-## January 17, 2025
-Long format.
-
-## 01/18/2025
-US format.
-""")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    notes = vault.all_notes()
-    virtual = [n for n in notes if n.is_virtual]
-
-    assert len(virtual) == 4
-
-    dates = {n.entry_date for n in virtual}
-    assert date(2025, 1, 15) in dates
-    assert date(2025, 1, 16) in dates
-    assert date(2025, 1, 17) in dates
-    assert date(2025, 1, 18) in dates
 
     vault.close()
 

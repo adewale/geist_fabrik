@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 import numpy as np
 
+from .semantic_vectors import decode_meaning_vector
+
 if TYPE_CHECKING:
     from .config_loader import GeistFabrikConfig
     from .vault import Vault
@@ -105,7 +107,11 @@ class StatsCollector:
         self.stats["geists"] = self._collect_geist_stats()
 
     def _get_last_sync(self) -> str:
-        """Get timestamp of last vault sync."""
+        """Latest file mtime among synced notes (a proxy for the last sync).
+
+        The database records no sync time, so this is when the most recently
+        edited synced file changed on disk, not when the sync ran.
+        """
         cursor = self.db.execute("SELECT MAX(file_mtime) FROM notes")
         row = cursor.fetchone()
         if row and row[0]:
@@ -254,16 +260,9 @@ class StatsCollector:
         orphans = len(self.get_orphan_notes())
         orphan_pct = (orphans / note_count * 100) if note_count > 0 else 0
 
-        # Hubs: notes with >= 10 connections (outgoing)
-        cursor = self.db.execute(
-            """
-            SELECT source_path
-            FROM links
-            GROUP BY source_path
-            HAVING COUNT(*) >= 10
-            """
-        )
-        hubs = len(cursor.fetchall())
+        # Hubs: notes with >= 10 links in or out, the same rule as the
+        # verbose hub list (get_hub_notes), so the two never disagree.
+        hubs = len(self.get_hub_notes())
 
         # Graph density
         possible_links = note_count * (note_count - 1)
@@ -324,9 +323,7 @@ class StatsCollector:
         suggestion_sessions = self.db.execute(
             "SELECT COUNT(DISTINCT session_date) FROM session_suggestions"
         ).fetchone()[0]
-        avg_suggestions = (
-            total_suggestions / suggestion_sessions if suggestion_sessions > 0 else 0
-        )
+        avg_suggestions = total_suggestions / suggestion_sessions if suggestion_sessions > 0 else 0
 
         # Recent sessions
         cursor = self.db.execute(
@@ -408,11 +405,11 @@ class StatsCollector:
             "auto_disabled_geists": sorted(auto_disabled),
         }
 
-    def get_top_linked_notes(self, limit: int = 10) -> list[dict[str, Any]]:
+    def get_top_linked_notes(self, limit: int | None = 10) -> list[dict[str, Any]]:
         """Get top linked notes with incoming and outgoing counts.
 
         Args:
-            limit: Maximum number of notes to return
+            limit: Maximum number of notes to return (None for all)
 
         Returns:
             List of dicts with path, title, outgoing, incoming, total
@@ -474,7 +471,7 @@ class StatsCollector:
         Returns:
             List of dicts with path, title, total connections
         """
-        top_notes = self.get_top_linked_notes(limit=100)
+        top_notes = self.get_top_linked_notes(limit=None)
         return [note for note in top_notes if note["total"] >= min_connections]
 
     def has_embeddings(self) -> bool:
@@ -528,7 +525,7 @@ class StatsCollector:
         paths = []
         for row in cursor.fetchall():
             path, blob = row
-            embedding = np.frombuffer(blob, dtype=np.float32)
+            embedding = decode_meaning_vector(blob)
             embeddings_list.append(embedding)
             paths.append(path)
 
@@ -539,7 +536,13 @@ class StatsCollector:
         return session_date, embeddings, paths
 
     def get_temporal_drift(self, current_date: str, days_back: int = 30) -> dict[str, Any] | None:
-        """Analyze temporal drift between current and historical embeddings.
+        """Measure how far each note's meaning moved since an earlier session.
+
+        Drift is ``1 - cosine`` between a note's own past and current semantic
+        vectors, paired by path. Both sessions are embedded by the same pinned
+        model, so no alignment is applied, and the calendar tail of each stored
+        vector is ignored. A rewritten note therefore scores high, and an
+        unchanged note scores 0 however much time has passed.
 
         Args:
             current_date: Current session date (YYYY-MM-DD)
@@ -549,8 +552,6 @@ class StatsCollector:
             Dictionary with drift analysis or None if not enough data
         """
         from datetime import timedelta
-
-        from scipy.linalg import orthogonal_procrustes  # type: ignore[import-untyped]
 
         # Get current embeddings
         current = self.get_latest_embeddings(as_of=current_date)
@@ -605,7 +606,7 @@ class StatsCollector:
         past_emb_dict = {}
         for row in cursor.fetchall():
             path, blob = row
-            embedding = np.frombuffer(blob, dtype=np.float32)
+            embedding = decode_meaning_vector(blob)
             past_emb_dict[path] = embedding
 
         # Find common notes
@@ -613,35 +614,25 @@ class StatsCollector:
         if len(common_paths) < 5:
             return None  # Not enough overlap
 
-        # Build aligned embedding matrices
-        # Use dict lookup instead of list.index() for O(N) instead of O(N²)
-        path_to_idx = {p: i for i, p in enumerate(curr_paths)}
+        # Compare each note with its own past vector, directly. Every session
+        # embeds with the same pinned model (MODEL_NAME), so both sessions share
+        # one coordinate system and there is nothing to align. Do NOT fit a
+        # Procrustes rotation here: with n notes in 384 dimensions (n << d) an
+        # orthogonal map can carry almost any configuration onto almost any
+        # other, so it absorbs the very change being measured (a fully
+        # rewritten note scored ~0). Only the semantic component is compared,
+        # so calendar features (note age, season) cannot register as drift.
+        from geistfabrik.embeddings import cosine_similarity
         from geistfabrik.temporal_analysis import semantic_component
 
-        curr_aligned = np.vstack(
-            [semantic_component(curr_emb[path_to_idx[p]]) for p in common_paths]
-        )
-        past_aligned = np.vstack(
-            [semantic_component(past_emb_dict[p]) for p in common_paths]
-        )
-
-        # Align past embeddings to current via Procrustes
-        try:
-            rotation_matrix, _ = orthogonal_procrustes(past_aligned, curr_aligned)
-            past_rotated = past_aligned @ rotation_matrix
-        except Exception:
-            # Procrustes can fail
-            logger.debug("Procrustes alignment failed", exc_info=True)
-            past_rotated = past_aligned
-
-        # Compute drift per note (1 - cosine similarity)
-        from geistfabrik.embeddings import cosine_similarity
-
+        path_to_idx = {p: i for i, p in enumerate(curr_paths)}
         drift_scores = []
-        for i in range(len(common_paths)):
-            sim = cosine_similarity(past_rotated[i], curr_aligned[i])
-            drift = 1.0 - sim
-            drift_scores.append((common_paths[i], drift))
+        for path in common_paths:
+            sim = cosine_similarity(
+                semantic_component(past_emb_dict[path]),
+                semantic_component(curr_emb[path_to_idx[path]]),
+            )
+            drift_scores.append((path, max(0.0, 1.0 - sim)))  # no "-0.00"
 
         # Sort by drift
         drift_scores.sort(key=lambda x: x[1], reverse=True)
@@ -669,7 +660,8 @@ class StatsCollector:
             ],
             "stable_notes": [
                 {"title": path.removesuffix(".md"), "drift": round(d, 2)}
-                for path, d in drift_scores[-5:]
+                # Never repeat a high-drift note as "stable" in small vaults.
+                for path, d in drift_scores[max(5, len(drift_scores) - 5) :]
             ],
         }
 

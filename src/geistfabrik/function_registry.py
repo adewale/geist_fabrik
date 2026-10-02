@@ -60,9 +60,10 @@ def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
 
     Example:
         @vault_function("find_questions")
-        def find_question_notes(vault: VaultContext, count: int = 5):
+        def find_question_notes(vault: VaultContext, count: int = 5) -> list[str]:
             questions = [n for n in vault.notes() if "?" in n.title]
-            return vault.sample(questions, count)
+            # Like every vault function, return bracketed [[links]]
+            return [f"[[{n.link_text}]]" for n in vault.sample(questions, count)]
     """
 
     registry = _IMPORT_REGISTRY.get()
@@ -198,23 +199,55 @@ class FunctionRegistry:
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("hubs")
-        def hubs(vault: "VaultContext", count: int = 5) -> list[str]:
+        def hubs(
+            vault: "VaultContext", count: int = 5, min_backlinks: int = 1, min_words: int = 0
+        ) -> list[str]:
             """Get count notes with most incoming links.
 
+            Args:
+                count: Maximum number of hubs to return
+                min_backlinks: Only notes with at least this many backlinks
+                    qualify. The default (1) keeps every linked-to note; a
+                    geist that calls its notes "central" should demand more,
+                    since in a sparse vault the top-ranked notes may have a
+                    single backlink.
+                min_words: Only notes with at least this many body words
+                    (the built-in word_count metadata) qualify. The default
+                    (0) keeps every note; a geist that asks whether a hub
+                    should be split or restructured should skip stubs, which
+                    have nothing to split.
+
             Returns:
-                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
+                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"]),
+                most-linked first; fewer than count (or []) when too few notes
+                reach min_backlinks and min_words
             """
-            notes = vault.hubs(count)
+            if min_backlinks <= 1 and min_words <= 0:
+                notes = vault.hubs(count)
+            else:
+                notes = []
+                # vault.hubs() is sorted by backlink count, so the notes with
+                # enough backlinks are a prefix of the full ranking.
+                for note in vault.hubs(len(vault.notes())):
+                    if len(notes) >= count or len(vault.backlinks(note)) < min_backlinks:
+                        break
+                    if min_words > 0 and vault.metadata(note).get("word_count", 0) < min_words:
+                        continue
+                    notes.append(note)
             return [f"[[{note.link_text}]]" for note in notes]
 
         @vault_function("neighbours")
         def neighbours(vault: "VaultContext", note_title: str, count: int = 5) -> list[str]:
             """Get count semantically similar notes to given note.
 
-            Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
+            In Tracery it accepts only a literal note name: a ``#symbol#``
+            argument is rejected by the grammar validator, because vault
+            functions run before symbols expand. For "a note and its
+            neighbours", use ``semantic_clusters`` with ``.split_seed`` /
+            ``.split_neighbours``.
 
             Args:
-                note_title: Note link (string from Tracery)
+                note_title: Note title, path or link target to resolve
                 count: Number of neighbours to return
 
             Returns:
@@ -233,17 +266,23 @@ class FunctionRegistry:
 
         @vault_function("contrarian_to")
         def contrarian_to(vault: "VaultContext", note_title: str, count: int = 3) -> list[str]:
-            """Find notes that are semantically dissimilar to given note.
+            """Find the notes least similar in topic to the given note.
 
-            Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
+            Embedding similarity measures topic, not stance: the result is the
+            most *distant* notes, never notes that oppose or contradict this
+            one (contradictions are on-topic and score high). See
+            ``specs/research/OPPOSITION_GEISTS_RESEARCH.md``.
+
+            Like ``neighbours``, in Tracery it accepts only a literal note
+            name, never a ``#symbol#`` argument.
 
             Performance optimised: Uses vectorised numpy operations to compute all
             similarities at once via matrix multiplication, rather than looping.
             This is 10-100x faster than the loop-based approach.
 
             Args:
-                note_title: Note link (string from Tracery)
-                count: Number of contrarian notes to return
+                note_title: Note title, path or link target to resolve
+                count: Number of distant notes to return
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
@@ -310,8 +349,10 @@ class FunctionRegistry:
                 neighbour_count: Number of neighbours per seed
 
             Returns:
-                List of formatted strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
-                The ||| delimiter allows splitting in Tracery templates
+                List of strings "[[Seed]]|||NEIGHBOURS", where NEIGHBOURS is
+                "[[N1]]", "[[N1]] and [[N2]]" or "[[N1]], [[N2]], and [[N3]]"
+                (empty when the seed has no neighbours). The ||| delimiter is
+                split by the .split_seed and .split_neighbours modifiers
             """
             import hashlib
             import random
@@ -358,29 +399,31 @@ class FunctionRegistry:
 
             return results
 
+        @vault_function("note_pairs")
+        def note_pairs(vault: "VaultContext", count: int = 2) -> list[str]:
+            """Sample count pairs of two different notes.
+
+            Two separate sample_notes() draws can pick the same note twice;
+            a pair is drawn without replacement, so its notes always differ.
+
+            Returns:
+                List of "[[A]]|||[[B]]" strings for the .split_seed and
+                .split_neighbours modifiers, or [] with fewer than two notes
+            """
+            notes = vault.notes()
+            if len(notes) < 2:
+                return []
+            pairs = []
+            for _ in range(count):
+                first, second = vault.sample(notes, 2)
+                pairs.append(f"[[{first.link_text}]]|||[[{second.link_text}]]")
+            return pairs
+
         # --- Reflective lens functions (voice metadata + embedding drift) ---
 
-        @vault_function("past_focused_notes")
-        def past_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
-            """Sample count notes with past-tense temporal orientation.
-
-            Returns:
-                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
-            """
-            candidates = [n for n in vault.notes() if vault.voice(n).temporal_orientation == "past"]
-            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
-
-        @vault_function("future_focused_notes")
-        def future_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
-            """Sample count notes with future-tense temporal orientation.
-
-            Returns:
-                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
-            """
-            candidates = [
-                n for n in vault.notes() if vault.voice(n).temporal_orientation == "future"
-            ]
-            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+        # No past_focused_notes / future_focused_notes: the tense heuristic
+        # they selected on labels status tables as "past" and almost no real
+        # note as "future" (see specs/SPEC_STATUS.md, temporal_voice).
 
         @vault_function("self_focused_notes")
         def self_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:

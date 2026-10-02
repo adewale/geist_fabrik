@@ -1,5 +1,11 @@
 # GeistFabrik Phase 3: Performance Optimisation Plan
 
+> **Status:** historical plan (2025-11). Parts were rolled back after
+> benchmarking (see CLAUDE.md "Optimisation Lessons" and
+> `specs/research/POST_MORTEM_PHASE3B.md`); geists named here such as
+> `session_drift` and `hermeneutic_instability` were later merged or retired
+> ([specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10)).
+
 This plan implements four major optimisations in sequence, each validated with unit tests and benchmarked before committing. Expected gains: 60-75% total runtime reduction on 10k vault (247s → ~62-90s).
 
 ---

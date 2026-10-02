@@ -1,374 +1,252 @@
-"""Unit tests for scale_shifter geist."""
+"""Unit tests for the scale_shifter geist.
+
+scale_shifter needs >= 20 non-journal notes. It scores each note by counting
+the distinct abstract words (theory, principle, framework, ...) and concrete
+words (example, instance, specific, ...) that occur in it as whole words
+(plurals included):
+  - abstract note (>= 3 abstract, <= 1 concrete): "zoom in" to a neighbour
+    with similarity >= 0.5 and >= 2 concrete words, more concrete than
+    abstract;
+  - concrete note (>= 3 concrete, <= 1 abstract): "zoom out" to a neighbour
+    with similarity >= 0.5 and >= 2 abstract words, more abstract than
+    concrete;
+  - cross-scale: an abstract and a concrete note with similarity > 0.6 that
+    are not linked.
+Each pair of notes is suggested at most once; at most 2 suggestions.
+
+Fixtures use the bag-of-words test stub: notes on one topic repeat the same
+8 topic words twice (cosine ~0.85 between them); topic and filler words are
+checked to contain no scale-word substrings, so scores are exactly what is
+planted.
+"""
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import scale_shifter
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.similarity_analysis import SimilarityLevel
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_scale_variety(tmp_path):
-    """Create a vault with notes at different abstraction scales."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create abstract/theoretical notes
-    for i in range(10):
-        (vault_path / f"abstract_{i}.md").write_text(
-            f"# Abstract Theory {i}\n\n"
-            f"This note explores theoretical frameworks and general principles. "
-            f"The concept provides a paradigm for understanding universal patterns "
-            f"and abstract models that apply across categories and systems."
-        )
-
-    # Create concrete/specific notes
-    for i in range(10):
-        (vault_path / f"concrete_{i}.md").write_text(
-            f"# Concrete Example {i}\n\n"
-            f"This note describes a specific case study with practical details. "
-            f"The actual implementation shows real individual instances and "
-            f"tangible examples of particular situations."
-        )
-
-    # Create mixed notes (to reach 30+ for sampling)
-    for i in range(15):
-        (vault_path / f"mixed_{i}.md").write_text(
-            f"# Mixed Note {i}\n\nSome general content and some specific details."
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+CAP = 2
+MIN_NOTES = 20
+CREATED = datetime(2024, 1, 1)
+ABSTRACT = "theory principle framework"
+CONCRETE = "example instance specific"
+SCALE_WORDS = (
+    "theory principle concept framework paradigm model pattern system structure abstract "
+    "general universal category class example case instance specific particular detail "
+    "concrete actual practical real individual tangible implementation"
+).split()
+# Title and filler words other than the planted "Theory"/"Example" markers.
+NEUTRAL_TITLE_WORDS = ["thinking", "visit", "session", "filler", "loose", "idle"]
+TOPICS = {
+    "Orchard": "orchard pruning grafting apple blossom cider rootstock scion",
+    "Glacier": "glacier moraine crevasse icefall serac firn cirque tarn",
+    "Violin": "violin bowing rosin fingerboard vibrato luthier spruce purfling",
+}
 
 
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with too few notes for scale analysis."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 10 notes (need at least 20)
-    for i in range(10):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _body(topic: str, markers: str) -> str:
+    return f"{TOPICS[topic]} {markers} {TOPICS[topic]}"
 
 
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+def _add_fillers(builder: VaultBuilder, count: int) -> None:
+    for i in range(count):
+        builder.note(f"Filler {i}", f"filler{i} loose{i} idle{i}", created=CREATED)
 
 
-def test_scale_shifter_returns_suggestions(vault_with_scale_variety):
-    """Test that scale_shifter returns suggestions with varied notes.
+def test_fixture_words_contain_no_scale_substrings() -> None:
+    """Guard for the fixture itself: scores must come only from planted scale words."""
+    vocabulary = " ".join(TOPICS.values()).split() + NEUTRAL_TITLE_WORDS
+    assert not [(v, w) for v in vocabulary for w in SCALE_WORDS if w in v]
 
-    Setup:
-        Vault with notes at different abstraction levels.
 
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_scale_variety
+def test_scale_shifter_links_abstract_and_concrete_notes_on_one_topic(tmp_path: Path) -> None:
+    """Contract: an abstract note and a concrete note on the same topic are paired.
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Trigger: 20 notes; "Orchard Theory" scores 3 abstract/0 concrete,
+    "Orchard Example" 3 concrete/0 abstract, cosine ~0.85 (> 0.6, unlinked).
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Orchard Theory", _body("Orchard", ABSTRACT), created=CREATED)
+    builder.note("Orchard Example", _body("Orchard", CONCRETE), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 2)
+    ctx = builder.build()
+
+    suggestions = scale_shifter.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions, "scale_shifter", must_reference=["Orchard Theory", "Orchard Example"]
+    )
+    for s in suggestions:
+        assert set(s.notes) == {"Orchard Theory", "Orchard Example"}
+
+
+def test_scale_shifter_caps_at_two_suggestions(tmp_path: Path) -> None:
+    """Contract: 3 topics x (zoom in, zoom out, cross-scale) -> exactly 2 distinct suggestions."""
+    builder = VaultBuilder(tmp_path)
+    for topic in TOPICS:
+        builder.note(f"{topic} Theory", _body(topic, ABSTRACT), created=CREATED)
+        builder.note(f"{topic} Example", _body(topic, CONCRETE), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 2 * len(TOPICS))
+    ctx = builder.build()
+
+    suggestions = scale_shifter.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "scale_shifter", min_count=CAP)
+    assert len(suggestions) == CAP
+    assert len({s.text for s in suggestions}) == CAP
+
+
+@pytest.mark.parametrize(("abstract_words", "fires"), [(2, False), (3, True)])
+def test_scale_shifter_abstract_threshold(tmp_path: Path, abstract_words: int, fires: bool) -> None:
+    """Contract: a note needs >= 3 abstract words to be treated as abstract.
+
+    Its concrete neighbour has only 2 concrete words: enough to be a zoom-in
+    target, not enough to be a concrete note itself, so the abstract note is
+    the only possible trigger.
+    """
+    builder = VaultBuilder(tmp_path)
+    markers = " ".join(ABSTRACT.split()[:abstract_words])
+    builder.note("Orchard Thinking", _body("Orchard", markers), created=CREATED)
+    builder.note("Orchard Visit", _body("Orchard", "instance specific"), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 2)
+    ctx = builder.build()
+
+    suggestions = scale_shifter.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, "scale_shifter", must_reference=["Orchard Visit"])
+        assert "What if you zoomed in?" in suggestions[0].text
+    else:
+        assert suggestions == []
+
+
+@pytest.mark.parametrize(("total_notes", "fires"), [(MIN_NOTES - 1, False), (MIN_NOTES, True)])
+def test_scale_shifter_needs_twenty_notes(tmp_path: Path, total_notes: int, fires: bool) -> None:
+    """Contract: a qualifying pair is ignored in a 19-note vault, used in a 20-note one."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Orchard Theory", _body("Orchard", ABSTRACT), created=CREATED)
+    builder.note("Orchard Example", _body("Orchard", CONCRETE), created=CREATED)
+    _add_fillers(builder, total_notes - 2)
+    ctx = builder.build()
+
+    suggestions = scale_shifter.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, "scale_shifter")
+    else:
+        assert suggestions == []
+
+
+def test_scale_shifter_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are never offered as the other scale.
+
+    Three abstract notes can only zoom in (their one regular concrete
+    neighbour has 2 concrete words, so no zoom-out or cross-scale). Four
+    journal notes on the same topic also have 2 concrete words: unfiltered,
+    they are 4 of the 5 zoom-in targets for every abstract note.
+    """
+    builder = VaultBuilder(tmp_path)
+    abstract = [f"Orchard Theory {c}" for c in "ABC"]
+    for title in abstract:
+        builder.note(title, _body("Orchard", ABSTRACT), created=CREATED)
+    builder.note("Orchard Visit", _body("Orchard", "instance specific"), created=CREATED)
+    journal = [f"Session {c}" for c in "ABCD"]
+    for title in journal:
+        builder.journal(title, _body("Orchard", "instance specific"), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 4)
+    ctx = builder.build()
+
+    suggestions = scale_shifter.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "scale_shifter",
+        min_count=CAP,
+        must_reference=["Orchard Visit"],
+        must_not_reference=["geist journal", *journal],
     )
 
-    suggestions = scale_shifter.suggest(context)
 
-    # Should return list (up to 2 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 2
+def test_scale_words_match_whole_words_only(tmp_path: Path) -> None:
+    """Contract: scale words are matched as whole words, so "because",
+    "really" and "actually" are not the concrete words "case", "real" and
+    "actual".
 
-
-def test_scale_shifter_suggestion_structure(vault_with_scale_variety):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with scale variations.
-
-    Verifies:
-        - Has required fields
-        - References 2+ notes at different scales"""
-    vault, session = vault_with_scale_variety
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Regression: substring matching gave this abstract note a concrete score
+    of 3, so it was classed as neither abstract nor concrete and the zoom-in
+    to its concrete neighbour never happened.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(
+        "Orchard Theory",
+        _body("Orchard", f"{ABSTRACT} because really actually"),
+        created=CREATED,
     )
+    builder.note("Orchard Visit", _body("Orchard", "instance specific"), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 2)
 
-    suggestions = scale_shifter.suggest(context)
+    suggestions = scale_shifter.suggest(builder.build())
 
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "scale_shifter"
-
-        # Should mention scale/zoom
-        assert any(
-            keyword in suggestion.text.lower()
-            for keyword in ["zoom", "abstract", "concrete", "specific", "scale"]
-        )
-
-        # Should reference at least 1 note
-        assert len(suggestion.notes) >= 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
+    assert [s.text for s in suggestions] == [
+        "[[Orchard Theory]] operates at a high level of abstraction. What if you "
+        "zoomed in? [[Orchard Visit]] might be a more concrete instance of the same ideas."
+    ]
 
 
-def test_scale_shifter_uses_link_text(vault_with_scale_variety):
-    """Test that scale_shifter uses link_text for note references.
+def test_broader_framework_must_be_more_abstract_and_pairs_are_deduped(
+    tmp_path: Path,
+) -> None:
+    """Contract: the note offered as a "broader framework" leans abstract by
+    the same measure (more abstract than concrete words), and a pair of notes
+    is suggested once, not once per route.
 
-    Setup:
-        Vault with scale variations.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_scale_variety
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Regression: any neighbour with 2 abstract words qualified, so "Orchard
+    Survey" (2 abstract, 3 concrete words) was offered as the broader
+    framework for "Orchard Example"; and the Glacier pair was emitted by
+    the zoom loop and again by the cross-scale loop, filling both slots.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Orchard Example", _body("Orchard", CONCRETE), created=CREATED)
+    builder.note(
+        "Orchard Survey",
+        _body("Orchard", "theory principle example instance specific"),
+        created=CREATED,
     )
+    builder.note("Glacier Theory", _body("Glacier", ABSTRACT), created=CREATED)
+    builder.note("Glacier Example", _body("Glacier", CONCRETE), created=CREATED)
+    _add_fillers(builder, MIN_NOTES - 4)
 
-    suggestions = scale_shifter.suggest(context)
+    suggestions = scale_shifter.suggest(builder.build())
 
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
+    assert [sorted(s.notes) for s in suggestions] == [["Glacier Example", "Glacier Theory"]]
 
 
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
+def test_zoom_partner_needs_moderate_similarity(tmp_path: Path) -> None:
+    """Contract: a zoom partner must be at least moderately similar (>= 0.5),
+    not merely one of the 10 nearest notes.
 
-
-def test_scale_shifter_empty_vault(tmp_path):
-    """Test that scale_shifter handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Regression: neighbours had no similarity floor, so an abstract note
+    sharing 3 of 8 topic words (similarity ~0.46) was offered as the
+    broader framework for a concrete note, and vice versa.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Orchard Example", _body("Orchard", CONCRETE), created=CREATED)
+    part = " ".join(TOPICS["Orchard"].split()[:3])
+    builder.note(
+        "Partial Theory",
+        f"{part} {ABSTRACT} zinc wax oat rye elk gnu {part}",
+        created=CREATED,
     )
-
-    suggestions = scale_shifter.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_scale_shifter_insufficient_notes(vault_insufficient_notes):
-    """Test that scale_shifter handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 15 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    _add_fillers(builder, MIN_NOTES - 2)
+    ctx = builder.build()
+    example, partial = (
+        next(n for n in ctx.notes() if n.title == title)
+        for title in ("Orchard Example", "Partial Theory")
     )
+    assert 0.3 < ctx.similarity(example, partial) < SimilarityLevel.MODERATE
 
-    suggestions = scale_shifter.suggest(context)
-
-    # Should return empty list when < 20 notes
-    assert len(suggestions) == 0
-
-
-def test_scale_shifter_max_suggestions(vault_with_scale_variety):
-    """Test that scale_shifter never returns more than 2 suggestions.
-
-    Setup:
-        Vault with scale variations.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_scale_variety
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = scale_shifter.suggest(context)
-
-    # Should never return more than 2
-    assert len(suggestions) <= 2
-
-
-def test_scale_shifter_deterministic_with_seed(vault_with_scale_variety):
-    """Test that scale_shifter returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_scale_variety
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = scale_shifter.suggest(context1)
-    suggestions2 = scale_shifter.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_scale_shifter_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with abstract content
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\n"
-            f"This explores theoretical frameworks and general principles. "
-            f"The concept provides a paradigm for understanding universal patterns."
-        )
-
-    # Create regular notes with scale variety
-    # Create abstract/theoretical notes
-    for i in range(10):
-        (vault_path / f"abstract_{i}.md").write_text(
-            f"# Abstract Theory {i}\n\n"
-            f"This note explores theoretical frameworks and general principles. "
-            f"The concept provides a paradigm for understanding universal patterns "
-            f"and abstract models that apply across categories and systems."
-        )
-
-    # Create concrete/specific notes
-    for i in range(10):
-        (vault_path / f"concrete_{i}.md").write_text(
-            f"# Concrete Example {i}\n\n"
-            f"This note describes a specific case study with practical details. "
-            f"The actual implementation shows real individual instances and "
-            f"tangible examples of particular situations."
-        )
-
-    # Create mixed notes to reach minimum
-    for i in range(5):
-        (vault_path / f"mixed_{i}.md").write_text(
-            f"# Mixed Note {i}\n\nSome general content and some specific details."
-        )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = scale_shifter.suggest(context)
-
-    # Get all journal note titles to check against
-    journal_notes = [n for n in vault.all_notes() if "geist journal" in n.path.lower()]
-    journal_titles = {n.title for n in journal_notes}
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert note_ref not in journal_titles, (
-                f"Geist journal note '{note_ref}' was included in suggestions. "
-                f"Expected only non-journal notes."
-            )
+    assert scale_shifter.suggest(ctx) == []

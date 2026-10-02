@@ -33,6 +33,7 @@ from .config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_SEMANTIC_WEIGHT,
     MODEL_NAME,
+    semantic_cache_key,
 )
 from .models import Note
 from .session_time import normalise_session_date
@@ -142,7 +143,7 @@ def is_offline_mode() -> bool:
 #   - fast_path: Uses np.dot() for L2-normalised vectors
 #
 # Performance improvement: 21.5% speedup on large vaults (10k+ notes)
-# Key improvements:
+# Key improvements (historical; antithesis_generator and columbo since retired):
 #   - hidden_hub: 43.52s → 32.77s (32.8% faster)
 #   - antithesis_generator: 7.74s → 5.95s (30% faster)
 #   - method_scrambler: 27.76s → 21.70s (22% faster)
@@ -151,6 +152,27 @@ def is_offline_mode() -> bool:
 SKLEARN_OPTIMIZATIONS = {
     "fast_path": True,
 }
+
+
+def combine_embedding(
+    semantic: np.ndarray,
+    temporal: np.ndarray,
+    semantic_weight: float = DEFAULT_SEMANTIC_WEIGHT,
+) -> np.ndarray:
+    """Weight and concatenate semantic and temporal features.
+
+    The single implementation of session-embedding composition, used by
+    ``Session.compute_embeddings`` and ``EmbeddingComputer.compute_temporal_embedding``.
+
+    Args:
+        semantic: Semantic embedding (384 dims in production)
+        temporal: Temporal features (3 dims)
+        semantic_weight: Weight for the semantic part; temporal gets 1 - weight
+
+    Returns:
+        ``concat(semantic * w, temporal * (1 - w))``
+    """
+    return np.concatenate([semantic * semantic_weight, temporal * (1.0 - semantic_weight)])
 
 
 class EmbeddingComputer:
@@ -284,8 +306,8 @@ class EmbeddingComputer:
         Returns:
             3-dimensional temporal features:
             - note_age: days since note creation
-            - creation_season: sin/cos encoding of creation day-of-year
-            - session_season: sin/cos encoding of session day-of-year
+            - creation_season: sine of creation day-of-year
+            - session_season: sine of session day-of-year
         """
         # Sessions are calendar-day identities.  Compare calendar dates rather
         # than elapsed 24-hour periods so time-of-day cannot move a note across
@@ -316,20 +338,11 @@ class EmbeddingComputer:
         Returns:
             387-dimensional embedding (384 semantic + 3 temporal)
         """
-        # Compute semantic embedding
-        semantic = self.compute_semantic(note.content)
-
-        # Compute temporal features
-        temporal = self.compute_temporal_features(note, session_date)
-
-        # Weight and combine
-        temporal_weight = 1.0 - semantic_weight
-        semantic_scaled = semantic * semantic_weight
-        temporal_scaled = temporal * temporal_weight
-
-        # Concatenate
-        embedding = np.concatenate([semantic_scaled, temporal_scaled])
-        return embedding
+        return combine_embedding(
+            self.compute_semantic(note.content),
+            self.compute_temporal_features(note, session_date),
+            semantic_weight,
+        )
 
     def close(self) -> None:
         """Clean up model resources."""
@@ -470,17 +483,6 @@ class Session:
                 hasher.update(encoded)
         return hasher.hexdigest()
 
-    def _compute_content_hash(self, content: str) -> str:
-        """Compute hash of note content for cache invalidation.
-
-        Args:
-            content: Note content
-
-        Returns:
-            SHA256 hash of content
-        """
-        return hashlib.sha256(content.encode()).hexdigest()
-
     def _get_cached_semantic_embedding(self, note: Note) -> np.ndarray | None:
         """Get cached semantic embedding if available and valid.
 
@@ -490,14 +492,12 @@ class Session:
         Returns:
             Cached semantic embedding or None if not found/invalid
         """
-        content_hash = self._compute_content_hash(note.content)
-
         cursor = self.db.execute(
             """
             SELECT embedding FROM embeddings
             WHERE note_path = ? AND model_version = ?
             """,
-            (note.path, f"{MODEL_NAME}:{content_hash}"),
+            (note.path, semantic_cache_key(note.content)),
         )
         row = cursor.fetchone()
 
@@ -515,7 +515,6 @@ class Session:
             note: Note to cache embedding for
             embedding: Semantic embedding to cache
         """
-        content_hash = self._compute_content_hash(note.content)
         # Serialise using numpy's native format (safe, no code execution risk)
         # Store as float32 to reduce storage size (sufficient precision)
         embedding_bytes = embedding.astype(np.float32).tobytes()
@@ -532,7 +531,7 @@ class Session:
             (
                 note.path,
                 embedding_bytes,
-                f"{MODEL_NAME}:{content_hash}",
+                semantic_cache_key(note.content),
                 datetime.now().isoformat(),
             ),
         )
@@ -645,13 +644,7 @@ class Session:
         for note in notes:
             semantic = semantic_embeddings[note.path]
             temporal = self.computer.compute_temporal_features(note, self.date)
-
-            # Weight and combine (matching compute_temporal_embedding logic)
-            semantic_weight = DEFAULT_SEMANTIC_WEIGHT
-            temporal_weight = 1.0 - DEFAULT_SEMANTIC_WEIGHT
-            semantic_scaled = semantic * semantic_weight
-            temporal_scaled = temporal * temporal_weight
-            embedding = np.concatenate([semantic_scaled, temporal_scaled])
+            embedding = combine_embedding(semantic, temporal)
 
             # Serialise embedding to bytes using numpy's native format (safe)
             # Store as float32 to reduce storage size (sufficient precision for embeddings)
@@ -841,11 +834,12 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
     # Fast path: for unit-norm vectors, cosine similarity is just the dot
     # product. NOTE: production embeddings do NOT take this path - encode()
-    # is called without normalize_embeddings=True, and the stored 387-dim
+    # is called without normalize_embeddings=True, the stored 387-dim
     # temporal embeddings (semantic*0.9 concatenated with temporal*0.1) have
-    # norms around 0.90-1.04. The branch only fires for vectors that happen
-    # to be unit-norm (e.g. the normalised test stubs). Do not rely on a
-    # unit-norm invariant anywhere in this codebase.
+    # norms around 0.90-1.04, and the 384-dim meaning vectors that are
+    # actually compared (semantic*0.9) have norms near 0.9. The branch only
+    # fires for vectors that happen to be unit-norm (e.g. the normalised test
+    # stubs). Do not rely on a unit-norm invariant anywhere in this codebase.
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
         # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
@@ -859,6 +853,31 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return max(-1.0, min(1.0, similarity))
 
 
+def cosine_similarity_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Compute pairwise cosine similarity between the rows of two matrices.
+
+    Vectorised counterpart of :func:`cosine_similarity`, shared by every
+    VaultContext similarity matrix (``batch_similarity`` and
+    ``unlinked_pairs``). Computed in float64; a zero row has similarity 0.0
+    with every row (never NaN), and results are clamped to [-1, 1].
+
+    Args:
+        a: (N, d) matrix
+        b: (M, d) matrix
+
+    Returns:
+        (N, M) matrix where element [i, j] is cosine(a[i], b[j])
+    """
+    a64 = np.asarray(a, dtype=np.float64)
+    b64 = np.asarray(b, dtype=np.float64)
+    norms_a = np.linalg.norm(a64, axis=1, keepdims=True)
+    norms_b = np.linalg.norm(b64, axis=1, keepdims=True)
+    unit_a = a64 / np.where(norms_a == 0, 1.0, norms_a)
+    unit_b = b64 / np.where(norms_b == 0, 1.0, norms_b)
+    result: np.ndarray = np.clip(unit_a @ unit_b.T, -1.0, 1.0)
+    return result
+
+
 def find_similar_notes(
     query_embedding: np.ndarray,
     embeddings: dict[str, np.ndarray],
@@ -870,7 +889,7 @@ def find_similar_notes(
     Args:
         query_embedding: Query embedding
         embeddings: Dictionary of note paths to embeddings
-        k: Number of similar notes to return
+        count: Number of similar notes to return
         exclude_paths: Set of paths to exclude from results
 
     Returns:

@@ -1,0 +1,56 @@
+# EXTENSION EXAMPLE - not a bundled geist.
+#
+# This file is not loaded by GeistFabrik. It was retired from the default
+# geists (concept_cluster now names semantic clusters, and only when their
+# members really are similar to one another). Copy it into
+# <vault>/_geistfabrik/geists/tracery/ to run it.
+#
+# What it demonstrates - the cluster pattern:
+#   - $vault.semantic_clusters(count, k) bundles a seed note and its k
+#     nearest neighbours as "[[Seed]]|||[[N1]], [[N2]], ..."
+#   - a save action, "#[picked:#cluster#]template#", expands ONE cluster so
+#     the seed and its neighbours are split from the same string
+#   - the .split_seed / .split_neighbours modifiers extract the two halves
+#
+type: geist-tracery
+id: semantic_neighbours
+description: Shows semantic neighbourhoods to reveal hidden connections
+
+tracery:
+  # Expand ONE cluster per suggestion and save it as `picked`, so the seed and
+  # its neighbours are split from the same "[[Seed]]|||[[N1]], ..." string.
+  # (Referencing #cluster# twice would draw two independent clusters.)
+  origin:
+    - "#[picked:#cluster#]template#"
+
+  template:
+    - "Notes near #seed# in meaning: #neighbours#. #prompt#"
+    - "Semantic cluster around #seed#: #neighbours#. What connects them?"
+    - "#seed# shares conceptual space with #neighbours#. #question#"
+
+  # Use semantic_clusters to get paired seed/neighbour data
+  # Pool larger than count: repeats of a note within one session are
+  # skipped, so the extra candidates keep `count` filled.
+  cluster:
+    - "$vault.semantic_clusters(6, 3)"
+
+  # Extract seed and neighbours from the saved cluster using custom modifiers
+  seed:
+    - "#picked.split_seed#"
+
+  neighbours:
+    - "#picked.split_neighbours#"
+
+  prompt:
+    - "What pattern emerges?"
+    - "What do they share?"
+    - "How are they related?"
+    - "What's the common thread?"
+
+  question:
+    - "Coincidence or connection?"
+    - "Surface similarity or deep relationship?"
+    - "What would link them together?"
+    - "Is there a missing bridge note?"
+
+count: 2

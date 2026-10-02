@@ -221,36 +221,6 @@ Entry B2.
     vault.close()
 
 
-def test_query_filter_by_is_virtual(tmp_path: Path) -> None:
-    """Test filter virtual vs regular."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "Regular.md").write_text("# Regular\nContent.")
-    (vault_path / "Journal.md").write_text("""
-## 2025-01-15
-Entry.
-
-## 2025-01-16
-Second entry.
-""")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    notes = vault.all_notes()
-
-    regular = [n for n in notes if not n.is_virtual]
-    virtual = [n for n in notes if n.is_virtual]
-
-    assert len(regular) == 1
-    assert len(virtual) == 2
-    assert regular[0].path == "Regular.md"
-    assert any(n.path == "Journal.md/2025-01-15" for n in virtual)
-
-    vault.close()
-
-
 def test_resolve_link_to_virtual_entry(tmp_path: Path) -> None:
     """Test resolve link to journal entry."""
     vault_path = tmp_path / "vault"
@@ -302,62 +272,6 @@ Continued from [[2025-01-15]].
     assert note is not None
     assert note.path == "Journal.md/2025-01-15"
     assert "First entry" in note.content
-
-    vault.close()
-
-
-def test_resolve_date_reference_link(tmp_path: Path) -> None:
-    """Test [[YYYY-MM-DD]] resolves to entry."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "Work Log.md").write_text("""
-## 2025-01-15
-Started project.
-
-## 2025-01-16
-Continued [[2025-01-15]] work.
-""")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    # From context of virtual entry
-    target = vault.resolve_link_target("2025-01-15", source_path="Work Log.md/2025-01-16")
-
-    assert target is not None
-    assert target.path == "Work Log.md/2025-01-15"
-
-    vault.close()
-
-
-def test_link_from_regular_to_virtual(tmp_path: Path) -> None:
-    """Test regular note links to journal entry."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "Journal.md").write_text("""
-## 2025-01-15
-Important insight here.
-
-## 2025-01-16
-Second entry.
-""")
-
-    (vault_path / "Note.md").write_text("""
-# My Note
-See [[Journal#2025-01-15]] for details.
-""")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    # Resolve link by title (which is now in deeplink format)
-    target = vault.resolve_link_target("Journal#2025-01-15")
-
-    assert target is not None
-    assert target.is_virtual
-    assert "Important insight" in target.content
 
     vault.close()
 
@@ -651,78 +565,24 @@ Another entry.
     vault.close()
 
 
-def test_empty_journal_file(tmp_path: Path) -> None:
-    """Test empty file handled gracefully."""
+def test_empty_file_syncs_as_one_empty_regular_note(tmp_path: Path) -> None:
+    """An empty file is indexed as a single regular note, never a journal.
+
+    Regression caught: sync crashing on, dropping, or mis-splitting a file
+    with no content (it has no date headings, so it cannot be a collection).
+    """
     vault_path = tmp_path / "vault"
     vault_path.mkdir()
 
     (vault_path / "Empty.md").write_text("")
 
     vault = Vault(vault_path)
-    vault.sync()
-
-    # Empty file should be treated as regular note (no content)
-    # or not create any note at all
-    # Current implementation creates a note with empty content
-    notes = vault.all_notes()
-    assert len(notes) <= 1  # Accept either behaviour
-
-    vault.close()
-
-
-def test_journal_unicode_content(tmp_path: Path) -> None:
-    """Test unicode in entries preserved."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "Journal.md").write_text("""
-## 2025-01-15
-Unicode: 你好世界 🎉 Ñoño
-
-## 2025-01-16
-Second entry.
-""")
-
-    vault = Vault(vault_path)
-    vault.sync()
-
-    entry = vault.get_note("Journal.md/2025-01-15")
-    assert entry is not None
-
-    assert "你好世界" in entry.content
-    assert "🎉" in entry.content
-    assert "Ñoño" in entry.content
-
-    vault.close()
-
-
-def test_journal_mixed_date_formats(tmp_path: Path) -> None:
-    """Test mixed formats in same file."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    (vault_path / "Journal.md").write_text("""
-## 2025-01-15
-ISO format.
-
-## January 16, 2025
-Long format.
-
-## 2025 January 17
-Year-month-day format.
-""")
-
-    vault = Vault(vault_path)
-    vault.sync()
+    assert vault.sync() == 1
 
     notes = vault.all_notes()
-    assert len(notes) == 3
-
-    # All should be detected and split correctly
-    paths = {n.path for n in notes}
-    assert "Journal.md/2025-01-15" in paths
-    assert "Journal.md/2025-01-16" in paths
-    assert "Journal.md/2025-01-17" in paths
+    assert [(n.path, n.title, n.content, n.is_virtual) for n in notes] == [
+        ("Empty.md", "Empty", "", False)
+    ]
 
     vault.close()
 

@@ -1,403 +1,165 @@
-"""Unit tests for question_generator geist."""
+"""Unit tests for question_generator geist.
 
-from datetime import datetime
+Trigger arithmetic (see the geist source):
+- a note qualifies when its title does not end with "?", is not date-titled
+  (starts with YYYY-MM-DD, has no letters, or is a date-collection entry),
+  and its word_count
+  (whitespace tokens of the whole note, including the 2-token "# Title"
+  heading VaultBuilder writes for a one-word title) is > 50;
+- each qualifying note yields one suggestion whose ``title`` is a question
+  built from the note title, quoted in curly quotes;
+- output is capped at 3 suggestions.
+"""
+
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import question_generator
-from geistfabrik.embeddings import Session
 from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def vault_with_declarative_notes(tmp_path):
-    """Create a vault with declarative notes (not questions)."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Declarative notes with substantial content (>50 words)
-    declarative_content = "This is a declarative statement about a topic. " * 10  # ~80 words
-
-    declarative_notes = [
-        "Technology Adoption",
-        "Market Dynamics",
-        "Learning Process",
-        "Innovation Patterns",
-        "Social Behavior",
-    ]
-
-    for title in declarative_notes:
-        (vault_path / f"{title}.md").write_text(f"# {title}\n\n{declarative_content}")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+GEIST = "question_generator"
+CAP = 3
+HEADING_TOKENS = 2
 
 
-@pytest.fixture
-def vault_with_questions(tmp_path):
-    """Create a vault with notes that are already questions."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    question_notes = [
-        "Why does this happen?",
-        "How can we improve?",
-        "What if we tried differently?",
-    ]
-
-    for title in question_notes:
-        (vault_path / f"{title}.md").write_text(f"# {title}\n\nSome content here.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+def _words(total_words: int) -> str:
+    return " ".join(f"term{i}" for i in range(total_words - HEADING_TOKENS))
 
 
-@pytest.fixture
-def vault_with_short_notes(tmp_path):
-    """Create a vault with notes too short to generate questions."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def test_developed_note_is_reframed_as_a_question(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    builder.note("Compost", _words(80))
+    builder.note("Seedling", "Too short to question.")
 
-    # Notes with <50 words
-    for i in range(5):
-        (vault_path / f"short_{i}.md").write_text(f"# Short Note {i}\n\nBrief.")
+    suggestions = question_generator.suggest(builder.build())
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+    assert_valid_suggestions(suggestions, GEIST)
+    assert [s.notes for s in suggestions] == [["Compost"]]
+    question = suggestions[0].title
+    assert question is not None and question.endswith("?") and "Compost" in question
+    assert suggestions[0].text == (
+        f'What if you reframed [[Compost]] as a question: "{question}"'
+    )
+    # Regression: the template closed the quoted question with a second
+    # "?", printing '..."How does “Compost” work?"? Questions...'.
+    assert '?"?' not in suggestions[0].text
 
 
-def test_question_generator_returns_suggestions(vault_with_declarative_notes):
-    """Test that question_generator returns suggestions with declarative notes.
+@pytest.mark.parametrize(("total_words", "fires"), [(50, False), (51, True)])
+def test_word_count_boundary(tmp_path: Path, total_words: int, fires: bool) -> None:
+    builder = VaultBuilder(tmp_path)
+    builder.note("Compost", _words(total_words))
 
-    Setup:
-        Vault with various notes.
+    suggestions = question_generator.suggest(builder.build())
 
-    Verifies:
-        - Returns suggestions (max 3)"""
-    vault, session = vault_with_declarative_notes
+    assert [s.notes for s in suggestions] == ([["Compost"]] if fires else [])
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+@pytest.mark.parametrize(("title", "fires"), [("Why compost", True), ("Why compost?", False)])
+def test_titles_already_questions_are_skipped(tmp_path: Path, title: str, fires: bool) -> None:
+    builder = VaultBuilder(tmp_path)
+    builder.note(title, _words(80))
+
+    suggestions = question_generator.suggest(builder.build())
+
+    assert [s.notes for s in suggestions] == ([[title]] if fires else [])
+
+
+def test_output_is_capped_when_more_notes_qualify(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    planted = [f"Topic {i}" for i in range(6)]
+    for title in planted:
+        builder.note(title, _words(80))
+
+    suggestions = question_generator.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
+    assert len(suggestions) == CAP
+    referenced = [ref for s in suggestions for ref in s.notes]
+    assert len(set(referenced)) == CAP
+    assert set(referenced) <= set(planted)
+
+
+def test_geist_journal_notes_are_never_reframed(tmp_path: Path) -> None:
+    # Journal session notes are long statements too; only "Compost" may appear.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Compost", _words(80))
+    for i in range(4):
+        builder.journal(f"Session Log {i}", _words(80))
+
+    suggestions = question_generator.suggest(builder.build())
+
+    assert_valid_suggestions(
+        suggestions, GEIST, must_reference=["Compost"], must_not_reference=["Session Log"]
     )
 
-    suggestions = question_generator.suggest(context)
 
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
+def test_date_titled_notes_are_not_reframed(tmp_path: Path) -> None:
+    """Contract: daily notes and date-collection entries are not reframed;
+    a date is not a statement to question.
 
-
-def test_question_generator_suggestion_structure(vault_with_declarative_notes):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with notes.
-
-    Verifies:
-        - Has required fields
-        - References 1 note to question"""
-    vault, session = vault_with_declarative_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Regression: "Who benefits from 2023-09-12?" was proposed for daily notes.
+    (This replaces a test that a date-collection entry was linked by its
+    deeplink: entries are titled by their date heading, so they are now
+    skipped altogether.)
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("2023-09-12", _words(80))
+    builder.note("2023-09-12 Meeting with Steph", _words(80))
+    builder.note("Compost", _words(80))
+    (tmp_path / "Diary.md").write_text(
+        f"## 2024-01-10\n\n{_words(80)}\n\n## January 11, 2024\n\n{_words(80)}\n"
     )
+    ctx = builder.build()
+    assert sum(n.is_virtual for n in ctx.notes()) == 2
 
-    suggestions = question_generator.suggest(context)
+    suggestions = question_generator.suggest(ctx)
 
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "question_generator"
-
-        # Should reference 1 note
-        assert len(suggestion.notes) == 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
+    assert [s.notes for s in suggestions] == [["Compost"]]
 
 
-def test_question_generator_uses_link_text(vault_with_declarative_notes):
-    """Test that question_generator uses link_text for note references.
+def test_question_frames_quote_the_title_and_stay_grammatical(tmp_path: Path) -> None:
+    """Contract: every frame quotes the title, and none is "Why is <title>?",
+    which is ungrammatical for a noun-phrase title.
 
-    Setup:
-        Vault with notes.
+    Regression: output included "Why is Emotion Regulation, Creativity, and
+    Cultural Research?" and the unquoted "When does Temporal Embeddings
+    Research and New Geist Proposals apply?", also used as suggested titles.
+    """
+    title = "Emotion Regulation, Creativity, and Cultural Research"
+    builder = VaultBuilder(tmp_path)
+    builder.note(title, _words(80))
+    base = builder.build()
+    quoted = f"\u201c{title}\u201d"
+    allowed = {
+        f"How does {quoted} work?",
+        f"What if {quoted} is wrong?",
+        f"When does {quoted} not apply?",
+        f"Who benefits from {quoted}?",
+        f"What question is {quoted} an answer to?",
+    }
 
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_declarative_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = question_generator.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_question_generator_suggests_question_titles(vault_with_declarative_notes):
-    """Test that question_generator suggests question-based titles."""
-    vault, session = vault_with_declarative_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = question_generator.suggest(context)
-
-    # All suggestions should have title field
-    for suggestion in suggestions:
-        assert hasattr(suggestion, "title")
-        assert suggestion.title is not None
-        # Title should end with question mark
-        assert suggestion.title.endswith("?")
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_question_generator_empty_vault(tmp_path):
-    """Test that question_generator handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = question_generator.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_question_generator_skips_existing_questions(vault_with_questions):
-    """Test that question_generator skips notes that are already questions."""
-    vault, session = vault_with_questions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = question_generator.suggest(context)
-
-    # Should return empty list since all notes are already questions
-    assert len(suggestions) == 0
-
-
-def test_question_generator_skips_short_notes(vault_with_short_notes):
-    """Test that question_generator skips notes with <50 words."""
-    vault, session = vault_with_short_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = question_generator.suggest(context)
-
-    # Should return empty list since all notes are too short
-    assert len(suggestions) == 0
-
-
-def test_question_generator_max_suggestions(vault_with_declarative_notes):
-    """Test that question_generator never returns more than 3 suggestions.
-
-    Setup:
-        Vault with many notes.
-
-    Verifies:
-        - Returns at most 3"""
-    vault, session = vault_with_declarative_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = question_generator.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_question_generator_deterministic_with_seed(vault_with_declarative_notes):
-    """Test that question_generator returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_declarative_notes
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = question_generator.suggest(context1)
-    suggestions2 = question_generator.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_question_generator_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with sessions
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        journal_note = journal_dir / f"2024-03-{15 + i:02d}.md"
-        # Give journal notes substantial declarative content
-        declarative_content = "This is a declarative statement about the session. " * 15
-        journal_note.write_text(
-            f"# Session {i}\n\n"
-            f"{declarative_content}\n\n"
-            "## Suggestions\n\n"
-            "What if [[Technology Adoption]] asked different questions?\n\n"
-            "Reframing as questions reveals new perspectives."
+    questions = {
+        s.title
+        for seed in range(30)
+        for s in question_generator.suggest(
+            VaultContext(base.vault, base.session, seed=seed, function_registry=FunctionRegistry())
         )
+    }
 
-    # Create declarative notes with substantial content (>50 words)
-    declarative_content = "This is a declarative statement about a topic. " * 10  # ~80 words
+    assert questions == allowed
 
-    declarative_notes = [
-        "Technology Adoption",
-        "Market Dynamics",
-        "Learning Process",
-        "Innovation Patterns",
-        "Social Behavior",
-    ]
 
-    for title in declarative_notes:
-        (vault_path / f"{title}.md").write_text(f"# {title}\n\n{declarative_content}")
+def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(6):
+        builder.note(f"Topic {i}", _words(80))
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
+    first = [(s.text, s.title) for s in question_generator.suggest(builder.build())]
+    second = [(s.text, s.title) for s in question_generator.suggest(builder.build())]
 
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = question_generator.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "2024-03-" not in note_ref.lower()  # Journal note naming pattern
+    assert first
+    assert first == second

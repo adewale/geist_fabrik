@@ -28,9 +28,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Find linked note pairs
     notes = vault.notes()
     linked_pairs = []
+    seen_pairs: set[frozenset[str]] = set()
 
     for note in vault.sample(notes, min(30, len(notes))):
-        for target_note in vault.outgoing_links(note)[:5]:  # Check first 5 links
+        targets = vault.outgoing_links(note)
+        for target_note in targets[:5]:  # Check first 5 links
+            # A <-> B links in both directions are one pair, not two
+            pair_key = frozenset((note.path, target_note.path))
+            if pair_key in seen_pairs:
+                continue
+            seen_pairs.add(pair_key)
             linked_pairs.append((note, target_note))
 
     if len(linked_pairs) < 2:
@@ -48,9 +55,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
     for note_a, note_b in diverging:
-        # Get session count for context
-        calc = EmbeddingTrajectoryCalculator(vault, note_a)
-        session_count = len(calc.snapshots())
+        # Number of sessions both notes share (the compared trajectory)
+        session_count = len(
+            EmbeddingTrajectoryCalculator(vault, note_a).similarity_with_trajectory(
+                EmbeddingTrajectoryCalculator(vault, note_b)
+            )
+        )
 
         if session_count < 3:
             continue

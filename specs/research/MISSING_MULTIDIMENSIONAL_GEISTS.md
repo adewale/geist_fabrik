@@ -4,6 +4,21 @@
 **Context**: Analysis of missing geists based on MULTIDIMENSIONAL_MOVEMENT_ANALYSIS.md
 **Status**: Research document identifying implementation gaps
 
+> **Status (2026-10):** None of the 17 proposed multidimensional geists was built.
+> The "implemented" baseline and counts in section 1 are a 2025 snapshot: many of
+> those geists were since merged or retired (session_drift and
+> drift_velocity_anomaly → concept_drift; burst_evolution → creation_burst;
+> island_hopper → bridge_builder; cluster_evolution_tracker → attention_shift;
+> complexity_mismatch → stub_expander/orphan_connector; anachronism_detector →
+> recent_focus; on_this_day and seasonal_revisit → this_time_last_year;
+> seasonal_topic_analysis → temporal_clustering; temporal_mirror →
+> creative_collision; metadata_outlier_detector → an example; columbo,
+> blind_spot_detector, antithesis_generator and hermeneutic_instability retired).
+> The sentiment geists spec was withdrawn (see `specs/reflective_lenses_spec.md`).
+> Semantic vectors are cached by content, so "drift" patterns only see edits. For
+> the current bundled set see `geistfabrik.default_geists`; for the merge map see
+> `specs/SPEC_STATUS.md` ("Geist merges (2026-10)").
+
 ---
 
 ## Executive Summary

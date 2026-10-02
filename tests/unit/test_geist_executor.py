@@ -1,6 +1,5 @@
 """Tests for geist executor."""
 
-import cProfile
 import sys
 import time
 from datetime import datetime
@@ -42,33 +41,55 @@ def geists_dir(tmp_path: Path):
     return geists
 
 
-def test_extract_profile_stats_uses_typed_pstats_adapter(geists_dir: Path) -> None:
-    """Real cProfile output is converted to the stable ProfileStats contract."""
-    executor = GeistExecutor(geists_dir)
-    profiler = cProfile.Profile()
+def test_debug_execution_profile_reports_geist_function_stats(
+    geists_dir: Path, sample_context: VaultContext
+) -> None:
+    """Debug mode turns real cProfile output into ProfileStats for the geist's own code."""
+    (geists_dir / "profiled.py").write_text(
+        "def profiled_work():\n"
+        "    total = 0\n"
+        "    for index in range(300_000):\n"
+        "        total += index\n"
+        "    return total\n"
+        "\n"
+        "def suggest(vault):\n"
+        "    profiled_work()\n"
+        "    return []\n"
+    )
+    executor = GeistExecutor(geists_dir, debug=True)
+    executor.load_geists()
 
-    def profiled_work() -> int:
-        return sum(range(10))
+    assert executor.execute_geist("profiled", sample_context) == []
 
-    profiler.enable()
-    assert profiled_work() == 45
-    profiler.disable()
-
-    stats = executor._extract_profile_stats(profiler)
-    row = next(item for item in stats if "profiled_work" in item.name)
+    [profile] = executor.get_execution_profiles()
+    assert (profile.geist_id, profile.status, profile.suggestion_count) == (
+        "profiled",
+        "success",
+        0,
+    )
+    assert profile.function_stats is not None
+    row = next(item for item in profile.function_stats if item.name.endswith(":profiled_work"))
     assert row.calls == 1
-    assert row.total_time >= 0
+    assert row.total_time > 0
     assert row.cumulative_time >= row.total_time
 
 
-def test_geist_executor_initialization(geists_dir: Path):
-    """Test creating a GeistExecutor."""
-    executor = GeistExecutor(geists_dir, timeout=5, max_failures=3)
-
-    assert executor.geists_dir == geists_dir
-    assert executor.timeout == 5
-    assert executor.max_failures == 3
-    assert len(executor.geists) == 0
+@pytest.mark.parametrize(
+    "timeout,max_failures,field",
+    [
+        (0, 3, "timeout"),
+        (-1, 3, "timeout"),
+        (True, 3, "timeout"),
+        (30, 0, "max_failures"),
+        (30, True, "max_failures"),
+    ],
+)
+def test_executor_rejects_non_positive_limits(
+    geists_dir: Path, timeout: int, max_failures: int, field: str
+) -> None:
+    """A zero/boolean limit would disable the timeout or the failure cap."""
+    with pytest.raises(ValueError, match=f"{field} must be a positive integer"):
+        GeistExecutor(geists_dir, timeout=timeout, max_failures=max_failures)
 
 
 def test_load_empty_directory(geists_dir: Path):
@@ -109,6 +130,9 @@ def suggest(vault):
     assert len(suggestions) == 1
     assert suggestions[0].text == "This is a test suggestion"
     assert suggestions[0].geist_id == "simple"
+    assert executor.get_execution_log() == [
+        {"geist_id": "simple", "status": "success", "suggestion_count": 1}
+    ]
 
 
 def test_code_geist_timeout(geists_dir: Path, sample_context: VaultContext):
@@ -136,9 +160,13 @@ def suggest(vault):
     # Should timeout quickly (within 2 seconds)
     assert elapsed < 2.0
 
-    # Check execution log
-    log = executor.get_execution_log()
-    assert any(entry["status"] == "error" and entry["error_type"] == "timeout" for entry in log)
+    # The empty return must be explained by a recorded timeout failure.
+    [entry] = executor.get_execution_log()
+    assert entry["geist_id"] == "sleeper"
+    assert entry["status"] == "error"
+    assert entry["error_type"] == "timeout"
+    assert entry["failure_count"] == 1
+    assert "timed out (>1s)" in entry["error"]
 
 
 def test_code_geist_import_timeout(geists_dir: Path) -> None:
@@ -201,13 +229,21 @@ def suggest(vault):
         else:
             assert not geist.is_enabled  # Disabled after 3rd failure
 
-    # Fourth execution should skip
+    log = executor.get_execution_log()
+    assert [(entry["status"], entry.get("error_type")) for entry in log] == [
+        ("error", "exception"),
+        ("error", "exception"),
+        ("error", "exception"),
+        ("disabled", None),
+    ]
+    assert all("Always fails" in entry["error"] for entry in log[:3])
+
+    # Fourth execution is skipped: the geist is not run again.
     suggestions = executor.execute_geist("failer", sample_context)
     assert suggestions == []
-
-    # Check log for disabled status
-    log = executor.get_execution_log()
-    assert any(entry["status"] == "disabled" for entry in log)
+    assert executor.geists["failer"].failure_count == 3
+    assert executor.get_execution_log()[-1]["status"] == "skipped"
+    assert len(executor.get_execution_log()) == 5
 
 
 def test_geist_syntax_error(geists_dir: Path):
@@ -305,23 +341,24 @@ def suggest(vault):
     )
 
 
-def test_duplicate_geist_ids(geists_dir: Path):
-    """Test detection of duplicate geist IDs (AC-4.12)."""
-    # Create two geists with same name
-    geist1 = geists_dir / "duplicate.py"
-    geist1.write_text("""
-def suggest(vault):
-    return []
-""")
+def test_duplicate_geist_ids(geists_dir: Path, tmp_path: Path):
+    """A custom geist cannot shadow a default with the same ID (AC-4.12)."""
+    defaults_dir = tmp_path / "defaults"
+    defaults_dir.mkdir()
+    default_geist = defaults_dir / "duplicate.py"
+    default_geist.write_text("def suggest(vault):\n    return []\n")
+    custom_geist = geists_dir / "duplicate.py"
+    custom_geist.write_text("def suggest(vault):\n    return []\n")
 
-    # Can't have two files with same name, so test the check differently
-    # by trying to load the same geist twice
-    executor = GeistExecutor(geists_dir)
+    executor = GeistExecutor(geists_dir, default_geists_dir=defaults_dir)
     executor.load_geists()
 
-    # Try to load again - should fail with duplicate ID
-    with pytest.raises(ValueError, match="Duplicate geist ID"):
-        executor._load_geist(geist1)
+    assert executor.geists["duplicate"].path == default_geist
+    [entry] = executor.get_execution_log()
+    assert entry["geist_id"] == "duplicate"
+    assert entry["status"] == "load_error"
+    assert entry["path"] == str(custom_geist)
+    assert "Duplicate geist ID 'duplicate'" in entry["error"]
 
 
 def test_missing_geist_directory(tmp_path: Path):
@@ -374,6 +411,12 @@ def suggest(vault):
 
     assert suggestions == []
     assert elapsed < 2.0  # Should timeout quickly
+    [entry] = executor.get_execution_log()
+    assert (entry["geist_id"], entry["status"], entry["error_type"]) == (
+        "infinite",
+        "error",
+        "timeout",
+    )
 
 
 def test_geist_excessive_suggestions(geists_dir: Path, sample_context: VaultContext):
@@ -531,10 +574,11 @@ def suggest(vault):
 
     results = executor.execute_all(sample_context)
 
-    assert len(results) == 3
-    for i in range(3):
-        assert f"geist{i}" in results
-        assert len(results[f"geist{i}"]) == 1
+    assert list(results) == ["geist0", "geist1", "geist2"]
+    assert all(len(suggestions) == 1 for suggestions in results.values())
+    assert executor.get_execution_log() == [
+        {"geist_id": f"geist{i}", "status": "success", "suggestion_count": 1} for i in range(3)
+    ]
 
 
 def test_get_enabled_geists(geists_dir: Path, sample_context: VaultContext):

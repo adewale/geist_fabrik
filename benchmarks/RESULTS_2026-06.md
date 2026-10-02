@@ -1,5 +1,12 @@
 # Before/After Benchmark — June 2026 performance work
 
+> **Status (2026-10):** Historical results. Geists named below that are no
+> longer bundled: island_hopper (merged into bridge_builder),
+> cluster_evolution_tracker (merged into attention_shift), and columbo and
+> blind_spot_detector (retired 2026-10-02). `issue78_replica.py` now reports
+> them as "(absent)" on current HEAD. See `specs/SPEC_STATUS.md` ("Geist merges
+> (2026-10)").
+
 Reproduce with `uv run python benchmarks/perf_before_after.py`. Each case runs
 the shipped path and an inline reconstruction of the previous implementation on
 the same synthetic data (best-of-N timings, single machine), so the ratio

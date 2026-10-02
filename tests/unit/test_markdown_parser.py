@@ -1,5 +1,7 @@
 """Unit tests for markdown parser."""
 
+import pytest
+
 from geistfabrik.markdown_parser import (
     extract_links,
     extract_tags,
@@ -49,7 +51,7 @@ def test_parse_unclosed_code_blocks() -> None:
     """Test parsing markdown with unclosed code blocks."""
     content = """# My Note
 
-Some content
+Some content about [[Before Fence]] and #prose
 
 ```python
 def foo():
@@ -61,13 +63,12 @@ And more content without closing the code block."""
     title = extract_title("test.md", None, content)
     assert title == "My Note"
 
-    # Links should still be extracted from non-code parts
+    # Links and tags in the prose before the unclosed fence still extract
     links = extract_links(content)
-    assert links == []  # No links in this content
+    assert [link.target for link in links] == ["Before Fence"]
 
-    # Tags should still work
     tags = extract_tags(content, None)
-    assert tags == []
+    assert tags == ["prose"]
 
 
 def test_extract_title_from_frontmatter() -> None:
@@ -239,9 +240,72 @@ def test_extract_tags_ignores_inline_code() -> None:
     assert tags == ["styling"]
 
 
-def test_extract_tags_unclosed_fence_keeps_prose_tags() -> None:
-    """An unclosed fence is not stripped (no closing ```), so prose tags
-    before it still extract; behaviour stays deterministic."""
-    content = "Before #real\n```python\nx = 1\n"
-    tags = extract_tags(content)
-    assert "real" in tags
+def test_extract_links_ignores_links_inside_code() -> None:
+    """Contract: [[...]] inside fenced, indented or inline code is not a link.
+
+    Regression: links were read from raw content, so Tracery examples such as
+    "[[#note#]]" and f-strings like f"[[{title}]]" in code samples became
+    links (one note had 73 such "links" and no real connection).
+    """
+    content = (
+        "See [[Real Target]].\n"
+        "```python\n"
+        'text = f"[[{note.title}]]"\n'
+        "```\n"
+        "Template: `origin: [[#note#]]`\n"
+        "\n"
+        "    indented = '[[Indented Code]]'\n"
+    )
+    assert [link.target for link in extract_links(content)] == ["Real Target"]
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("Fixed in PR #30 and #2023.", []),
+        ("Read https://example.com/page#Section first.", []),
+        ("Jump to [contents](#benchmark-types).", []),
+        ("Written in C# and F#.", []),
+        ("Tagged #y2023 and #1a and #area/sub-topic.", ["1a", "area/sub-topic", "y2023"]),
+        ("#start-of-line tag", ["start-of-line"]),
+    ],
+    ids=["numeric", "url-fragment", "anchor", "suffix", "valid", "line-start"],
+)
+def test_extract_tags_follows_obsidian_tag_rules(content: str, expected: list[str]) -> None:
+    """Contract: a tag starts the text or follows whitespace and has a non-digit.
+
+    Regression: "#30" in "PR #30" and URL fragments were read as tags, so
+    seasonal_patterns reported topics such as "#1" and "#30".
+    """
+    assert extract_tags(content) == expected
+
+
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param("[" * 100_000, id="100k-open-brackets"),
+        pytest.param("[[a|" * 45_000, id="45k-unclosed-piped-links"),
+        pytest.param("[[" + "a" * 100_000 + "|" + "[[b" * 30_000, id="unclosed-display"),
+    ],
+)
+def test_extract_links_is_linear_on_unclosed_brackets(content: str) -> None:
+    """Regression: WIKILINK_PATTERN.finditer retried from every "[[" and each
+    attempt scanned to the next "]", so these took over 30 s (sync hung)."""
+    links = extract_links("[[Real Note]] " + content)
+    assert [link.target for link in links] == ["Real Note"]
+
+
+def test_iter_wikilinks_yields_exactly_what_finditer_yields() -> None:
+    import random
+
+    from geistfabrik.markdown_parser import WIKILINK_PATTERN, iter_wikilinks
+
+    rng = random.Random(11)
+    texts = ["[[a]] ![[b|c]] [[|x]] [[d|]] [[[e]] [[f[g]]", "![[x]]", "!![[y|z]]]"]
+    texts += [
+        "".join(rng.choice("[[[]]|!a ") for _ in range(rng.randint(0, 24))) for _ in range(5000)
+    ]
+    for text in texts:
+        expected = [(m.span(), m.groups()) for m in WIKILINK_PATTERN.finditer(text)]
+        assert [(m.span(), m.groups()) for m in iter_wikilinks(text)] == expected

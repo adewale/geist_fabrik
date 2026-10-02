@@ -63,7 +63,7 @@ Examples:
   geistfabrik invoke ~/my-vault --write  # [3] Write to journal
 
   # Advanced usage
-  geistfabrik invoke ~/my-vault --geist drift   # Run specific geist
+  geistfabrik invoke ~/my-vault --geist what_if  # Run specific geist
   geistfabrik invoke ~/my-vault --full          # All filtered suggestions
   geistfabrik invoke ~/my-vault --date 2025-01-15  # Replay session
   geistfabrik test my_geist ~/my-vault          # Test geist during development
@@ -134,7 +134,10 @@ def _add_invoke_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     invoke_parser.add_argument(
         "--geists",
         type=str,
-        help="Run multiple specific geists by ID, comma-separated (e.g., drift,columbo,skeptic)",
+        help=(
+            "Run multiple specific geists by ID, comma-separated "
+            "(e.g., what_if,concept_drift,surprisal)"
+        ),
     )
     invoke_parser.add_argument(
         "--date",

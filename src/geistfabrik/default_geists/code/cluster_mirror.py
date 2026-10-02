@@ -7,7 +7,6 @@ Pure pattern presentation without interpretation - a mirror that reflects
 the unconscious organizational structure of your vault back to you.
 """
 
-from dataclasses import replace
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -17,8 +16,9 @@ if TYPE_CHECKING:
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Show named clusters and ask what they remind you of.
 
-    Uses HDBSCAN clustering with c-TF-IDF labelling (+ MMR diversity filtering)
-    to reveal the natural semantic structure of the vault. Shows 2-3 clusters
+    Uses VaultContext.get_clusters() (HDBSCAN, labelled by the configured
+    method: KeyBERT by default, or c-TF-IDF with MMR diversity filtering)
+    to reveal the semantic structure of the vault. Shows 2-3 clusters
     with representative note examples, then asks a direct question without
     interpretation.
 
@@ -31,18 +31,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     min_size = vault.vault.config.clustering.min_cluster_size
     all_clusters = vault.get_clusters(min_size=min_size)
 
-    # Filter out clusters that only contain geist journal notes
-    clusters = {}
-    for cluster_id, cluster_info in all_clusters.items():
-        # Remove journal notes from cluster
-        non_journal_notes = [
-            n for n in cluster_info.notes if not n.path.startswith("geist journal/")
-        ]
-        if len(non_journal_notes) >= min_size:
-            # Cluster with the journal notes filtered out
-            clusters[cluster_id] = replace(
-                cluster_info, notes=non_journal_notes, size=len(non_journal_notes)
-            )
+    clusters = all_clusters
 
     # Need at least 2 clusters to show patterns
     if len(clusters) < 2:

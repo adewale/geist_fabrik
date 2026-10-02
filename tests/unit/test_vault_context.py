@@ -1,6 +1,7 @@
 """Tests for VaultContext."""
 
 from datetime import datetime
+from itertools import combinations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -9,6 +10,7 @@ import pytest
 from geistfabrik import Session, Vault
 from geistfabrik.models import Note
 from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder
 
 
 @pytest.fixture
@@ -234,17 +236,6 @@ def test_orphans_detects_exactly_two_orphans():
         vault.close()
 
 
-def test_hubs(vault_with_notes):
-    """Test finding hub notes."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
-
-    hubs = ctx.hubs(count=2)
-
-    # Should find notes that are linked to
-    assert len(hubs) <= 2
-
-
 def test_hubs_returns_actual_notes_not_empty():
     """Test that hubs() returns actual Note objects with titles, not empty results.
 
@@ -343,16 +334,17 @@ def test_neighbours_resolves_by_title():
     """Test that neighbours vault function works as adapter layer.
 
     This verifies that the neighbours() vault function (adapter layer):
-    - Accepts string (title) from Tracery
+    - Accepts a string (title or path), e.g. a literal name in a Tracery rule
     - Resolves string → Note internally
-    - Returns strings (titles) back to Tracery
+    - Returns strings (bracketed links) rather than Note objects
 
-    Real-world scenario: semantic_neighbours.yaml does:
-        seed: $vault.sample_notes(1)      # Returns strings (titles)
-        neighbours: $vault.neighbours(#seed#, 3)  # Receives string, returns strings
+    A Tracery rule cannot pass a symbol (``$vault.neighbours(#seed#, 3)``):
+    the validator rejects it because vault functions run before symbols
+    expand. The seed-plus-neighbours pattern uses semantic_clusters (see
+    examples/geists/tracery/semantic_neighbours.yaml).
 
     NOTE: This test only verifies the adapter layer logic, not actual semantic
-    similarity (which requires embeddings and network access to download models).
+    similarity (no session embeddings are computed here).
     """
     with TemporaryDirectory() as tmpdir:
         vault_path = Path(tmpdir)
@@ -390,7 +382,7 @@ def test_neighbours_resolves_by_title():
         # (no embeddings computed, so will return empty list, but shouldn't error)
         result = registry.call("neighbours", ctx, "Artificial Intelligence", 3)
 
-        # Adapter layer should return strings (titles), not Note objects
+        # Adapter layer should return strings (bracketed links), not Note objects
         assert isinstance(result, list), "Should return list"
         assert all(isinstance(item, str) for item in result), "Should return strings, not Notes"
 
@@ -459,8 +451,9 @@ def test_vault_functions_adapter_layer():
         result = registry.call("hubs", ctx, 5)
         assert isinstance(result, list), "hubs should return list"
         assert all(isinstance(item, str) for item in result), "Should return strings"
-        if result:  # If we found hubs
-            assert "[[Hub Note]]" in result, "Should find hub by title with brackets"
+        # hub.md is titled "Hub Note": the link targets the file name and shows
+        # the title, which is how Obsidian resolves it.
+        assert result == ["[[hub|Hub Note]]"]
 
         # Test random_note_title: Note → str
         result = registry.call("random_note_title", ctx)
@@ -477,19 +470,166 @@ def test_vault_functions_adapter_layer():
         vault.close()
 
 
-def test_unlinked_pairs(vault_with_notes):
-    """Test finding similar but unlinked note pairs."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
+def _unlinked_fixture(tmp_path: Path) -> VaultContext:
+    """Six garden notes (three linked pairs) plus two music notes.
 
-    pairs = ctx.unlinked_pairs(count=3)
+    Under the lexical stub, notes sharing vocabulary score ~1.0 and the two
+    topics score ~0, so both the similarity threshold and the link filter
+    have work to do.
+    """
+    builder = VaultBuilder(tmp_path)
+    garden = "gardens soil compost seedlings"
+    builder.note("Garden A", f"{garden} [[Garden B]]")
+    builder.note("Garden B", garden)
+    builder.note("Garden C", f"{garden} [[Garden D|the plot]]")  # alias link
+    builder.note("Garden D", garden)
+    builder.note("Garden E", garden)
+    builder.note("Garden F", f"{garden} [[Garden E.md]]")  # link by path, F -> E
+    builder.note("Music A", "violin concerto orchestra rehearsal")
+    builder.note("Music B", "violin concerto orchestra rehearsal")
+    return builder.build()
 
-    assert len(pairs) <= 3
-    for a, b in pairs:
-        assert isinstance(a, Note)
-        assert isinstance(b, Note)
-        # Verify no links between them
-        assert len(ctx.links_between(a, b)) == 0
+
+def test_unlinked_pairs_matches_bruteforce_oracle(tmp_path: Path) -> None:
+    """unlinked_pairs returns exactly the unlinked pairs with similarity > 0.5,
+    most similar first.
+
+    Regressions caught: a wrong similarity matrix (unnormalised, NaN), a link
+    filter that misses aliased/path links or only checks one direction, and
+    dropped or duplicated pairs.
+    """
+    ctx = _unlinked_fixture(tmp_path)
+    linked = {
+        frozenset(("Garden A", "Garden B")),
+        frozenset(("Garden C", "Garden D")),
+        frozenset(("Garden E", "Garden F")),
+    }
+    oracle = {
+        frozenset((a.title, b.title))
+        for a, b in combinations(ctx.notes(), 2)
+        if ctx.similarity(a, b) > 0.5 and frozenset((a.title, b.title)) not in linked
+    }
+    by_title = {n.title: n for n in ctx.notes()}
+    assert all(ctx.similarity(*(by_title[t] for t in pair)) > 0.5 for pair in linked)
+    assert frozenset(("Music A", "Music B")) in oracle
+    assert not any("Music" in a and "Garden" in b for a, b in map(sorted, oracle))
+
+    got = ctx.unlinked_pairs(count=100)
+
+    keys = [frozenset((a.title, b.title)) for a, b in got]
+    assert len(keys) == len(set(keys))
+    assert set(keys) == oracle
+    sims = [ctx.similarity(a, b) for a, b in got]
+    assert sims == sorted(sims, reverse=True)
+    assert len(ctx.unlinked_pairs(count=3)) == 3
+
+
+def test_unlinked_pairs_sampling_never_pairs_a_note_with_itself(tmp_path: Path) -> None:
+    """With more notes than candidate_limit, the recent + random sample must
+    not contain a note twice, or the note is "paired" with itself (sim 1.0,
+    trivially unlinked).
+    """
+    builder = VaultBuilder(tmp_path)
+    for i in range(30):
+        builder.note(f"Note {i}", "Shared idea about gardens.", modified=datetime(2024, 1, 1 + i))
+    ctx = builder.build()
+
+    got = ctx.unlinked_pairs(count=1000, candidate_limit=10)
+
+    assert got, "identical notes are all similar; the sampling branch must yield pairs"
+    assert all(a.path != b.path for a, b in got)
+    keys = [frozenset((a.path, b.path)) for a, b in got]
+    assert len(keys) == len(set(keys))
+    # 10 distinct candidates, all mutually similar and unlinked: C(10, 2) pairs.
+    assert len(got) == 45
+
+
+def test_unlinked_pairs_ignores_the_journal_before_the_count_cut(tmp_path: Path) -> None:
+    """Templated session notes are near-identical, so their pairs would outrank
+    every user pair: journal notes must be gone before the top-``count`` cut,
+    not filtered from the result afterwards.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Soil A", "compost soil worms mulch garden")
+    builder.note("Soil B", "compost soil worms mulch beds")
+    for i in range(6):  # C(6, 2) = 15 identical-journal pairs > count
+        builder.journal(f"Session {i}", "geist suggestions for today")
+    ctx = builder.build()
+
+    pairs = ctx.unlinked_pairs(count=10)
+
+    assert [{a.title, b.title} for a, b in pairs] == [{"Soil A", "Soil B"}]
+
+
+def test_notes_excludes_only_the_session_journal(tmp_path: Path) -> None:
+    """Session output under "geist journal/" is not the user's writing; every
+    user note, including one whose name merely starts with "geist journal", is
+    kept, and a journal note is still reachable when asked for by path.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Ideas", "garden plans")
+    builder.note("geist journal ideas", "notes about the journal, written by the user")
+    builder.note("Daily", "a nested note", folder="Archive")
+    builder.journal("2024-03-14", "yesterday's suggestions")
+    journal = builder.journal("2024-03-15", "today's suggestions")
+    ctx = builder.build()
+
+    kept = {n.path for n in ctx.notes()}
+
+    assert kept == {"Ideas.md", "geist journal ideas.md", "Archive/Daily.md"}
+    assert ctx.notes_excluding_journal() == ctx.notes()
+    assert ctx.get_note(journal) is not None
+
+
+def test_no_vault_wide_lookup_returns_a_journal_note(tmp_path: Path) -> None:
+    """Every lookup that ranges over the vault skips session journal notes.
+
+    The journal note is built to win each lookup were it visible: it shares
+    all of Seed's vocabulary (nearest neighbour, unlinked pair, cluster
+    member, contrarian candidate), links to Seed and Target (backlinks, hub
+    count, graph neighbours), is the oldest and newest edit in turn, and is
+    linked from Seed (outgoing link). The user's link to it still resolves.
+    """
+    old, new = datetime(2020, 1, 1), datetime(2024, 3, 1)
+    builder = VaultBuilder(tmp_path)
+    builder.note("Seed", "orchard cider apples pruning [[Target]] [[Echo]]", created=new)
+    builder.note("Twin", "orchard cider apples pruning grafting", created=new)
+    builder.note("Target", "glacier moraine crevasse", created=new)
+    for i in range(3):
+        builder.note(f"Cluster {i}", "violin bow rosin strings", created=new)
+    for i in range(3):
+        builder.note(f"More {i}", "orchard cider apples pruning", created=new)
+    builder.journal(
+        "Echo", "orchard cider apples pruning [[Seed]] [[Target]]", created=old, modified=old
+    )
+    ctx = builder.build()
+    by_title = {n.title: n for n in ctx.notes()}
+    seed, target = by_title["Seed"], by_title["Target"]
+
+    def journal(notes: list[Note]) -> list[str]:
+        return [n.path for n in notes if n.path.startswith("geist journal/")]
+
+    assert "Echo" not in by_title
+    assert journal(ctx.neighbours(seed, count=20)) == []
+    assert journal([n for n, _ in ctx.neighbours(seed, count=20, return_scores=True)]) == []
+    assert len(ctx.neighbours(seed, count=5)) == 5
+    assert journal(ctx.backlinks(target)) == [] and ctx.backlinks(target) == [seed]
+    assert journal(ctx.backlinks(seed)) == []
+    assert journal(ctx.outgoing_links(seed)) == [] and ctx.outgoing_links(seed) == [target]
+    assert journal(ctx.graph_neighbours(seed)) == []
+    assert journal(ctx.hubs(10)) == [] and journal(ctx.orphans()) == []
+    assert journal(ctx.old_notes(1)) == [] and journal(ctx.recent_notes(20)) == []
+    assert journal(ctx.random_notes(20)) == []
+    assert journal([n for pair in ctx.unlinked_pairs(count=100) for n in pair]) == []
+    assert not any(p.startswith("geist journal/") for p in ctx.get_all_embeddings())
+    assert not any(p.startswith("geist journal/") for p in ctx.surprisal_scores(k_neighbours=3))
+    clustered = [n for c in ctx.get_clusters(min_size=3).values() for n in c.notes]
+    assert clustered and journal(clustered) == []
+    assert ctx.call_function("contrarian_to", "Target", 20)
+    assert not any("Echo" in ref for ref in ctx.call_function("contrarian_to", "Target", 20))
+    # Explicit access still works: a user's link to a session note resolves.
+    echo = ctx.resolve_link_target("Echo", seed.path)
+    assert echo is not None and echo.path == "geist journal/Echo.md"
 
 
 def test_links_between(vault_with_notes):
@@ -508,30 +648,16 @@ def test_links_between(vault_with_notes):
     assert len(links) > 0
 
 
-def test_old_notes(vault_with_notes):
-    """Test finding oldest notes."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
+def test_old_and_recent_notes_order_by_modification_time(tmp_path: Path) -> None:
+    """old_notes() is the least recently modified first, recent_notes() the
+    most recently modified first, each cut to ``count``."""
+    builder = VaultBuilder(tmp_path)
+    for title, day in [("March", 3), ("January", 1), ("April", 4), ("February", 2)]:
+        builder.note(title, f"Notes from {title}.", modified=datetime(2024, day, 10))
+    ctx = builder.build()
 
-    old = ctx.old_notes(count=2)
-
-    assert len(old) <= 2
-    # Should be sorted by modification time ascending
-    if len(old) >= 2:
-        assert old[0].modified <= old[1].modified
-
-
-def test_recent_notes(vault_with_notes):
-    """Test finding most recent notes."""
-    vault, session = vault_with_notes
-    ctx = VaultContext(vault, session)
-
-    recent = ctx.recent_notes(count=2)
-
-    assert len(recent) <= 2
-    # Should be sorted by modification time descending
-    if len(recent) >= 2:
-        assert recent[0].modified >= recent[1].modified
+    assert [n.title for n in ctx.old_notes(count=2)] == ["January", "February"]
+    assert [n.title for n in ctx.recent_notes(count=3)] == ["April", "March", "February"]
 
 
 def test_metadata(vault_with_notes):
@@ -581,6 +707,24 @@ def test_sample(vault_with_notes):
     # But with same seed, sequence is deterministic
     assert len(sample1) == 5
     assert len(sample2) == 5
+
+
+def test_sample_of_everything_is_shuffled(vault_with_notes):
+    """Contract: sample() returns a random order even when asked for all items.
+
+    Regression: asking for >= len(items) returned the input order, so geists
+    that sampled and then took the first few named the same notes, in vault
+    order, every session. The order is still deterministic per seed.
+    """
+    vault, session = vault_with_notes
+    items = list(range(20))
+
+    orders = [VaultContext(vault, session, seed=seed).sample(items, 50) for seed in range(5)]
+
+    assert all(sorted(order) == items for order in orders)
+    assert any(order != items for order in orders)
+    assert len({tuple(order) for order in orders}) > 1
+    assert VaultContext(vault, session, seed=3).sample(items, 50) == orders[3]
 
 
 def test_random_notes(vault_with_notes):
@@ -729,6 +873,39 @@ def test_batch_similarity_cache_consistency_with_individual(vault_with_notes):
     assert len(ctx._similarity_cache) == cache_size_after
 
 
+def test_batch_similarity_matches_scalar_similarity_on_cold_caches(vault_with_notes):
+    """batch_similarity's matrix equals similarity() computed independently.
+
+    Two fresh contexts, so neither result can come from the other's cache.
+    Stored embeddings are not unit-norm (0.9-weighted semantic + temporal),
+    so a matrix that skips normalisation on either side fails here. A note
+    absent from the session scores 0.0 in both APIs (a zero row, never NaN).
+    """
+    import numpy as np
+
+    vault, session = vault_with_notes
+    batch_ctx = VaultContext(vault, session)
+    scalar_ctx = VaultContext(vault, session)
+    notes = batch_ctx.notes()
+    ghost = Note(
+        path="ghost.md",
+        title="Ghost",
+        content="# Ghost",
+        links=[],
+        tags=[],
+        created=datetime(2023, 1, 1),
+        modified=datetime(2023, 1, 1),
+    )
+    rows = [*notes, ghost]
+
+    result = batch_ctx.batch_similarity(rows, notes)
+
+    expected = np.array([[scalar_ctx.similarity(a, b) for b in notes] for a in rows])
+    np.testing.assert_allclose(result, expected, rtol=0, atol=1e-6)
+    assert np.all(result[-1] == 0.0)
+    assert np.any((expected > 0.05) & (expected < 0.95)), "fixture must not be all 0/1"
+
+
 def test_batch_similarity_100_percent_cache_hit(vault_with_notes):
     """Verify fast path when all pairs cached."""
     from unittest.mock import patch
@@ -827,3 +1004,250 @@ def test_list_functions_includes_registry_builtins(vault_with_notes):
 
     ctx.register_function("my_local", lambda vault: [])
     assert "my_local" in ctx.list_functions()
+
+
+def test_a_session_note_never_makes_a_users_link_ambiguous(tmp_path: Path) -> None:
+    """Session notes are named YYYY-MM-DD, like many daily notes. A user's
+    ``[[2025-01-15]]`` must still resolve to their daily note, so its
+    backlinks, hub status and orphan status ignore the journal entirely."""
+    builder = VaultBuilder(tmp_path)
+    daily = builder.note("2025-01-15", "Daily log.", folder="Daily")
+    builder.note("Ideas", "See [[2025-01-15]].")
+    builder.note("Other", "Also [[2025-01-15]].")
+    builder.note("Lonely", "Only mentions a session: [[2024-03-14]].")
+    builder.journal("2025-01-15", "Session output mentioning [[Ideas]].")
+    builder.journal("2024-03-14", "Older session output.")
+    ctx = builder.build()
+    by_title = {n.title: n for n in ctx.notes()}
+    daily_note = ctx.get_note(daily)
+    assert daily_note is not None
+
+    assert {n.title for n in ctx.backlinks(daily_note)} == {"Ideas", "Other"}
+    assert ctx.hubs(1) == [daily_note]
+    assert ctx.has_link(by_title["Ideas"], daily_note)
+    resolved = ctx.resolve_link_target("2025-01-15", by_title["Ideas"].path)
+    assert resolved is not None and resolved.path == daily
+    # A note whose only link points at a session note is still an orphan.
+    assert {n.title for n in ctx.orphans()} == {"Lonely"}
+    # The journal stays reachable on purpose, never by accident.
+    assert {n.path for n in ctx.journal_notes()} == {
+        "geist journal/2025-01-15.md",
+        "geist journal/2024-03-14.md",
+    }
+    session = ctx.resolve_link_target("geist journal/2024-03-14")
+    assert session is not None and session.path == "geist journal/2024-03-14.md"
+
+
+def test_similarity_ignores_calendar_features(tmp_path: Path) -> None:
+    """Contract: similarity measures meaning only.
+
+    Regression: stored session embeddings append 3 calendar features (note
+    age, creation season, session season), and similarity used all 387
+    dimensions, so two notes with identical text but different ages scored
+    below 1.0 and neighbours leaned toward notes of a similar age.
+    """
+    from tests.fixtures.helpers import VaultBuilder
+
+    builder = VaultBuilder(tmp_path / "vault")
+    body = "compost worms soil nitrogen garden beds"
+    builder.note("Seed", body, created=datetime(2024, 7, 2), modified=datetime(2024, 7, 2))
+    builder.note("Other", "violin rosin bow string concerto tuning")
+    # Byte-identical files of very different ages (no "# title" heading).
+    for name, stamp in (
+        ("twin_old.md", datetime(2015, 1, 10)),
+        ("twin_new.md", datetime(2024, 6, 1)),
+    ):
+        builder.root.joinpath(name).write_text(body)
+        builder._times[name] = (stamp, stamp)
+    ctx = builder.build()
+    by_path = {n.path: n for n in ctx.notes()}
+    old, new = by_path["twin_old.md"], by_path["twin_new.md"]
+
+    stored = ctx.db.execute(
+        "SELECT embedding FROM session_embeddings WHERE note_path = ?", (old.path,)
+    ).fetchone()[0]
+    assert len(stored) == 387 * 4  # calendar features are still stored...
+    meaning = ctx.get_embedding(old.path)
+    assert meaning is not None and meaning.shape == (384,)  # ...but not compared
+    assert ctx.similarity(old, new) == pytest.approx(1.0, abs=1e-6)
+    assert ctx.batch_similarity([old], [new])[0, 0] == pytest.approx(1.0, abs=1e-6)
+    assert ctx.neighbours(old, 1) == [new]
+
+
+def _reference_batch_similarity(ctx: VaultContext, notes_a: list[Note], notes_b: list[Note]):
+    """batch_similarity() as it was: per-pair cache reads, then per-pair writes."""
+    import numpy as np
+
+    from geistfabrik.embeddings import cosine_similarity_matrix
+
+    result = np.zeros((len(notes_a), len(notes_b)))
+    needs = np.ones((len(notes_a), len(notes_b)), dtype=bool)
+
+    def key_of(a: Note, b: Note) -> tuple[str, str]:
+        low, high = sorted([a.path, b.path])
+        return (low, high)
+
+    for i, a in enumerate(notes_a):
+        for j, b in enumerate(notes_b):
+            key = key_of(a, b)
+            if key in ctx._similarity_cache:
+                result[i, j] = ctx._similarity_cache[key]
+                needs[i, j] = False
+    if not needs.any():
+        return result
+
+    def embedding(path: str):
+        try:
+            return ctx._backend.get_embedding(path)
+        except KeyError:
+            return np.zeros(384)
+
+    matrix = np.clip(
+        cosine_similarity_matrix(
+            np.stack([embedding(n.path) for n in notes_a]),
+            np.stack([embedding(n.path) for n in notes_b]),
+        ),
+        0.0,
+        1.0,
+    )
+    for i in range(len(notes_a)):
+        for j in range(len(notes_b)):
+            if needs[i, j]:
+                result[i, j] = matrix[i, j]
+                ctx._similarity_cache[key_of(notes_a[i], notes_b[j])] = matrix[i, j]
+    return result
+
+
+@pytest.mark.parametrize("pair_limit", [10_000, 3])
+def test_batch_similarity_equals_per_pair_reference_exactly(
+    vault_with_notes, monkeypatch: pytest.MonkeyPatch, pair_limit: int
+) -> None:
+    """Equivalence (bitwise) with the per-pair implementation, through both the
+    cache-filling path and the large-matrix path (limit forced down to 3):
+    cold, partially warm (similarity() values), duplicated rows, a note with
+    no embedding, and the symmetric notes x notes case."""
+    import numpy as np
+
+    import geistfabrik.vault_context as vc
+
+    monkeypatch.setattr(vc, "_BATCH_SIMILARITY_CACHE_PAIR_LIMIT", pair_limit, raising=False)
+    vault, session = vault_with_notes
+    ghost = Note(
+        path="ghost.md",
+        title="Ghost",
+        content="",
+        links=[],
+        tags=[],
+        created=datetime(2023, 1, 1),
+        modified=datetime(2023, 1, 1),
+    )
+    new_ctx = VaultContext(vault, session)
+    ref_ctx = VaultContext(vault, session)
+    notes = new_ctx.notes()
+    by_path = {n.path: n for n in notes}
+    for ctx in (new_ctx, ref_ctx):  # identical warm-up: scalar similarity() values
+        ctx.similarity(by_path["ai.md"], by_path["ml.md"])
+        ctx.similarity(by_path["baking.md"], by_path["cooking.md"])
+    cases = [
+        (notes[:2], notes[2:]),
+        (notes, notes),
+        ([notes[0], notes[0], ghost], [notes[1], notes[0]]),
+        (notes[1:], [ghost, *notes]),
+    ]
+    for notes_a, notes_b in cases:
+        cache_before = dict(new_ctx._similarity_cache)
+        actual = new_ctx.batch_similarity(notes_a, notes_b)
+        expected = _reference_batch_similarity(ref_ctx, notes_a, notes_b)
+        assert np.array_equal(actual, expected)
+        if len(notes_a) * len(notes_b) <= pair_limit:
+            assert new_ctx._similarity_cache == ref_ctx._similarity_cache
+        else:
+            assert new_ctx._similarity_cache == cache_before  # large: no per-pair writes
+            ref_ctx._similarity_cache.clear()
+            ref_ctx._similarity_cache.update(cache_before)
+
+
+class _ArrayBackend:
+    """Minimal backend serving fixed embeddings (for a large synthetic matrix)."""
+
+    def __init__(self, embeddings: dict) -> None:
+        self.embeddings = embeddings
+
+    def get_embedding(self, path: str):
+        return self.embeddings[path]
+
+    def get_similarity(self, path_a: str, path_b: str) -> float:
+        from geistfabrik.embeddings import cosine_similarity
+
+        return cosine_similarity(self.embeddings[path_a], self.embeddings[path_b])
+
+
+@pytest.mark.timeout(15)
+def test_batch_similarity_large_matrix_has_no_per_pair_python_work(
+    vault_with_notes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a 2000 x 1000 matrix spent ~10 us per pair building cache
+    keys and dict entries (2M of them, >20 s and hundreds of MB); now it is
+    one matrix multiply and the per-pair cache is left alone."""
+    import numpy as np
+
+    from geistfabrik.embeddings import cosine_similarity_matrix
+
+    vault, session = vault_with_notes
+    ctx = VaultContext(vault, session)
+    rng = np.random.default_rng(0)
+    paths = [f"bulk/{i:04d}.md" for i in range(3000)]
+    embeddings = {p: rng.standard_normal(384).astype(np.float32) for p in paths}
+    monkeypatch.setattr(ctx, "_backend", _ArrayBackend(embeddings))
+    when = datetime(2023, 1, 1)
+    notes = [
+        Note(path=p, title=p, content="", links=[], tags=[], created=when, modified=when)
+        for p in paths
+    ]
+    ctx.similarity(notes[0], notes[2500])  # one warm pair must still be honoured
+
+    result = ctx.batch_similarity(notes[:2000], notes[2000:])
+
+    assert result.shape == (2000, 1000)
+    assert len(ctx._similarity_cache) == 1
+    expected = np.clip(
+        cosine_similarity_matrix(
+            np.stack([embeddings[p] for p in paths[:2000]]),
+            np.stack([embeddings[p] for p in paths[2000:]]),
+        ),
+        0.0,
+        1.0,
+    )
+    expected[0, 500] = ctx._similarity_cache[(paths[0], paths[2500])]
+    assert np.array_equal(result, expected)
+
+
+def test_get_clusters_labels_with_the_session_embedding_computer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: KeyBERT labelling constructed a fresh EmbeddingComputer
+    (reloading the model) every session and re-encoded every clustered note's
+    label text; it now gets the session's computer and meaning vectors."""
+    import geistfabrik.cluster_labeling as cluster_labeling
+
+    builder = VaultBuilder(tmp_path)
+    for i in range(8):
+        builder.note(f"Orchard {i}", "orchard apple graft cider blossom pruning rootstock " * 3)
+        builder.note(f"Harbour {i}", "harbour tide sail anchor mooring ferry quay " * 3)
+    ctx = builder.build()
+    assert ctx.vault.config.clustering.labeling_method == "keybert"
+    seen: list[object] = []
+
+    vectors: list[object] = []
+
+    def spy(paths, labels, db, n_terms=4, computer=None, note_vectors=None):  # type: ignore[no-untyped-def]
+        seen.append(computer)
+        vectors.append(note_vectors)
+        return {}
+
+    monkeypatch.setattr(cluster_labeling, "label_keybert", spy)
+
+    ctx.get_clusters()
+
+    assert seen == [ctx.session.computer]
+    assert vectors == [ctx.get_all_embeddings()]

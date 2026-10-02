@@ -5,6 +5,7 @@ when your writing patterns become too repetitive. It suggests breaking
 out of structural ruts by pointing to notes with different structures.
 """
 
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,6 +17,9 @@ from geistfabrik import Suggestion
 # metadata call per note) only a bounded, date-seeded sample rather than the
 # whole vault.
 MAX_STRUCTURE_CANDIDATES = 50
+
+_HEADING = re.compile(r"^#{1,6}\s+", re.MULTILINE)
+_LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+", re.MULTILINE)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -29,8 +33,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """
     suggestions = []
 
-    # Get recent notes
-    recent = vault.recent_notes(count=8)
+    # The user's most recently modified notes
+    user_notes = vault.notes()
+    recent = sorted(user_notes, key=lambda n: (n.modified, n.path), reverse=True)[:8]
     if len(recent) < 5:
         return []
 
@@ -44,7 +49,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     structure_types = [s for _, s in recent_structures]
     unique_types = set(structure_types)
 
-    # If 80%+ of recent notes have same structure type, flag it
+    # If 70%+ of recent notes have the same structure type, flag it
     if len(unique_types) <= 2:
         dominant_type = max(set(structure_types), key=structure_types.count)
         dominant_count = structure_types.count(dominant_type)
@@ -85,11 +90,15 @@ def _classify_structure(vault: "VaultContext", note: "Note") -> str:
         "code-heavy", or "mixed"
     """
     metadata = vault.metadata(note)
+    content = note.content
 
-    list_count = metadata.get("list_item_count", 0)
+    # Built-in metadata has task_count but no list/code/heading counts (those
+    # come from the optional examples/metadata_inference/structure.py), so
+    # count them from the markdown unless a metadata module supplies them.
+    list_count = metadata.get("list_item_count", len(_LIST_ITEM.findall(content)))
     task_count = metadata.get("task_count", 0)
-    code_block_count = metadata.get("code_block_count", 0)
-    heading_count = metadata.get("heading_count", 0)
+    code_block_count = metadata.get("code_block_count", content.count("```") // 2)
+    heading_count = metadata.get("heading_count", len(_HEADING.findall(content)))
     word_count = len(note.content.split())
 
     # Normalise by word count to get density
@@ -113,12 +122,15 @@ def _classify_structure(vault: "VaultContext", note: "Note") -> str:
 def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note | None":
     """Find a note with a different structure type.
 
+    "mixed" is never offered: it is the absence of a dominant structure,
+    not a style to try.
+
     Args:
         vault: VaultContext for accessing notes
         avoid_type: Structure type to avoid
 
     Returns:
-        A note with different structure, or None if not found
+        A note with a different (non-mixed) structure, or None if not found
     """
     # Look through a bounded sample of notes for different structures.
     all_notes = vault.notes()
@@ -127,7 +139,7 @@ def _find_different_structure(vault: "VaultContext", avoid_type: str) -> "Note |
     different_notes = []
     for note in candidates:
         structure_type = _classify_structure(vault, note)
-        if structure_type != avoid_type:
+        if structure_type not in (avoid_type, "mixed"):
             different_notes.append(note)
 
     if different_notes:

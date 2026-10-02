@@ -1,5 +1,9 @@
 # Geist Instrumentation and Debugging System
 
+> **Status:** implemented (`GeistExecutionProfile` and `--debug` in
+> `src/geistfabrik/geist_executor.py`). The 5-second timeout in the examples
+> below is illustrative; the default timeout is 30 seconds.
+
 ## Problem
 
 Users encounter timeout errors with no visibility into what's causing them:

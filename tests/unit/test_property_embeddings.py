@@ -1,4 +1,4 @@
-"""Property-based tests for cosine similarity invariants."""
+"""Property-based tests for cosine similarity invariants (scalar and matrix)."""
 
 import math
 
@@ -9,7 +9,7 @@ from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
 from geistfabrik.config import SEMANTIC_DIM, TOTAL_DIM
-from geistfabrik.embeddings import cosine_similarity
+from geistfabrik.embeddings import cosine_similarity, cosine_similarity_matrix
 
 # Timeout all tests in this module
 pytestmark = pytest.mark.timeout(10)
@@ -68,6 +68,55 @@ def test_nonunit_vectors_match_scalar_cosine_reference(
     norm_a = math.sqrt(math.fsum(float(x) ** 2 for x in a))
     norm_b = math.sqrt(math.fsum(float(x) ** 2 for x in b))
     assert cosine_similarity(a, b) == pytest.approx(dot / (norm_a * norm_b), abs=1e-5)
+
+
+def _scalar_cosine_reference(a: np.ndarray, b: np.ndarray) -> float:
+    """Independent double-precision oracle; zero vectors score 0.0."""
+    dot = math.fsum(float(x) * float(y) for x, y in zip(a, b, strict=True))
+    norm_a = math.sqrt(math.fsum(float(x) ** 2 for x in a))
+    norm_b = math.sqrt(math.fsum(float(x) ** 2 for x in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return max(-1.0, min(1.0, dot / (norm_a * norm_b)))
+
+
+@st.composite
+def _row_matrix(draw: st.DrawFn, rows: int, dimension: int) -> np.ndarray:
+    """Rows of arbitrary magnitude; roughly one in four rows is all zeros."""
+    matrix = np.zeros((rows, dimension), dtype=np.float64)
+    for i in range(rows):
+        if draw(st.integers(min_value=0, max_value=3)) == 0:
+            continue  # zero row
+        matrix[i] = draw(_nonzero_array(dimension)).astype(np.float64) * draw(_positive_scale)
+    return matrix
+
+
+@st.composite
+def matrix_pairs(draw: st.DrawFn) -> tuple[np.ndarray, np.ndarray]:
+    dimension = draw(st.sampled_from([1, 3, 8, TOTAL_DIM]))
+    rows_a = draw(st.integers(min_value=1, max_value=5))
+    rows_b = draw(st.integers(min_value=1, max_value=5))
+    return draw(_row_matrix(rows_a, dimension)), draw(_row_matrix(rows_b, dimension))
+
+
+@given(pair=matrix_pairs())
+@_pbt_settings
+def test_similarity_matrix_matches_scalar_cosine_reference(
+    pair: tuple[np.ndarray, np.ndarray],
+) -> None:
+    """The vectorised matrix behind VaultContext.batch_similarity and
+    unlinked_pairs equals scalar cosine element-wise, for non-unit rows and
+    zero rows alike.
+
+    Regressions caught: normalising only one side (or neither) so magnitude
+    leaks into the score, and zero rows producing NaN (NaN slips past
+    unlinked_pairs' ``sim <= 0.5`` filter).
+    """
+    a, b = pair
+    got = cosine_similarity_matrix(a, b)
+    assert got.shape == (len(a), len(b))
+    expected = np.array([[_scalar_cosine_reference(x, y) for y in b] for x in a])
+    np.testing.assert_allclose(got, expected, rtol=0, atol=1e-9)
 
 
 @given(

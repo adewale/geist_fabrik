@@ -33,8 +33,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.1.0
@@ -59,7 +57,7 @@ jobs:
         run: >-
           uv run pytest tests/unit -v
           -m "not slow and not benchmark and not artifact and not production_model"
-          --timeout=60 --cov=geistfabrik --cov-branch --cov-report=
+          --timeout=60 --require-geist-firing --cov=geistfabrik --cov-branch --cov-report=
 
       - name: Run integration tests and enforce branch coverage
         run: >-

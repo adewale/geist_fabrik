@@ -486,8 +486,8 @@ class GeistFabrikConfig:
 
 
 # Top-level config.yaml keys GeistFabrikConfig understands. A typo or a
-# spec'd-but-unwired key surfaces as a warning instead of silently doing
-# nothing (the failure mode behind several "specified but not built" gaps).
+# spec'd-but-unwired key is rejected with a ConfigError instead of silently
+# doing nothing (the failure mode behind several "specified but not built" gaps).
 KNOWN_CONFIG_KEYS = frozenset(
     {
         "enabled_modules",

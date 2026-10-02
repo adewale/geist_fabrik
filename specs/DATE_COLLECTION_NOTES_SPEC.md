@@ -81,14 +81,15 @@ Split date-collection files into virtual atomic entries:
 def link_text(self) -> str:
     """Return the Obsidian wiki-link string for this note."""
     if self.is_virtual and self.source_file:
-        filename = self.source_file.replace(".md", "")
+        filename = self.source_file.removesuffix(".md")
         return f"{filename}#{self.title}"
-    else:
-        return self.title
+    # Obsidian resolves [[...]] by file name; show the title when they differ
+    stem = PurePosixPath(self.path).name.removesuffix(".md")
+    return self.title if stem == self.title else f"{stem}|{self.title}"
 ```
 
 **Examples**:
-- **Regular note**: `title="Project Ideas"`, `link_text="Project Ideas"`
+- **Regular note**: `title="Project Ideas"`, `link_text="Project Ideas"` (a note at `Ideas.md` titled "Project Ideas" gets `"Ideas|Project Ideas"`)
 - **Virtual note**: `title="2025-01-15"`, `link_text="Journal#2025-01-15"`
 
 ### Title vs Path vs Link
@@ -106,7 +107,7 @@ Three distinct concepts that must NOT be conflated:
    - Purpose: Display, human reference, Obsidian heading match
 
 3. **`link_text`** (Linking syntax)
-   - Regular: `"Project Ideas"` (same as title)
+   - Regular: `"Project Ideas"` (file name; `"file|Title"` when the title differs)
    - Virtual: `"Journal#2025-01-15"` (deeplink format)
    - Purpose: Obsidian wiki-links, geist suggestions
 
@@ -169,7 +170,7 @@ class Note:
     links: list[Link]      # Links from this entry
     tags: list[str]        # Tags from this entry
     created: datetime      # Entry date (from heading)
-    modified: datetime     # File modification time
+    modified: datetime     # Source file's modified date (frontmatter `modified:`/`updated:`, else mtime)
 
     # Fields for date-collection support
     is_virtual: bool = False           # True for split entries
@@ -180,7 +181,7 @@ class Note:
     def link_text(self) -> str:
         """Return the Obsidian wiki-link string for this note.
 
-        For regular notes: Returns title
+        For regular notes: Returns the file name, or "file|Title" when they differ
         For virtual notes: Returns deeplink format "filename#heading"
 
         Examples:
@@ -188,10 +189,10 @@ class Note:
             Virtual: "Journal#2025-01-15" or "Journal#January 15, 2025"
         """
         if self.is_virtual and self.source_file:
-            filename = self.source_file.replace(".md", "")
+            filename = self.source_file.removesuffix(".md")
             return f"{filename}#{self.title}"
-        else:
-            return self.title
+        stem = PurePosixPath(self.path).name.removesuffix(".md")
+        return self.title if stem == self.title else f"{stem}|{self.title}"
 ```
 
 **Key Properties**:
@@ -200,7 +201,7 @@ class Note:
 |----------|--------------|--------------|---------|
 | `path` | `"Ideas.md"` | `"Journal.md/2025-01-15"` | Database key, uniqueness |
 | `title` | `"Project Ideas"` | `"2025-01-15"` (original) | Display, heading match |
-| `link_text` | `"Project Ideas"` | `"Journal#2025-01-15"` | Wiki-link syntax |
+| `link_text` | `"Ideas\|Project Ideas"` | `"Journal#2025-01-15"` | Wiki-link syntax |
 | `is_virtual` | `False` | `True` | Infrastructure flag |
 | `source_file` | `None` | `"Journal.md"` | Parent journal file |
 | `entry_date` | `None` | `date(2025, 1, 15)` | Parsed date value |
@@ -596,7 +597,7 @@ suggestion_text = f"What if you revisited [[{note.link_text}]]?"
 
 **Correct behaviour**:
 - For virtual notes: `note.link_text` returns `"Journal#2025-01-15"` (Obsidian deeplink format)
-- For regular notes: `note.link_text` returns `"Project Ideas"` (just the title)
+- For regular notes: `note.link_text` returns `"Project Ideas"` (the file name, or `"file|Title"` when the title differs)
 - Geists use `[[{note.link_text}]]` uniformly for ALL note types
 
 **Example output**:
@@ -615,8 +616,8 @@ Consider connecting [[Journal#2025-01-15]] with [[Paper on Transformers]]. Both 
 ```python
 def suggest(vault: VaultContext) -> list["Suggestion"]:
     """Example geist using link_text."""
-    old = vault.old_notes(k=1)[0]
-    recent = vault.recent_notes(k=1)[0]
+    old = vault.old_notes(count=1)[0]
+    recent = vault.recent_notes(count=1)[0]
 
     # CORRECT: Use link_text (works for both regular and virtual notes)
     return [Suggestion(
@@ -739,7 +740,10 @@ Some content here...
 
 **Problem**: User adds/removes/edits entries in journal
 
-**Solution**: Full re-sync on file modification
+**Solution**: Re-split on file modification. (Sketch; the implementation
+compares an exact stat fingerprint, `notes.source_fingerprint`, rather than
+mtime, and updates surviving virtual paths in place so their historical session
+embeddings survive, deleting only entries that disappeared.)
 ```python
 def sync_file(file_path: str, content: str, file_mtime: float):
     """Re-sync file if modified."""

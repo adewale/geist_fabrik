@@ -13,13 +13,15 @@ if TYPE_CHECKING:
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find note pairs whose semantic similarity increased across sessions.
 
-    Uses TemporalPatternFinder to identify pairs with increasing similarity,
-    then filters for unlinked notes.
+    Uses TemporalPatternFinder to identify pairs with increasing similarity
+    (trend and net change), then keeps unlinked pairs that are at least
+    weakly similar now.
 
     Returns:
         List of suggestions reporting increased measured similarity
     """
     from geistfabrik import Suggestion
+    from geistfabrik.similarity_analysis import SimilarityLevel
     from geistfabrik.temporal_analysis import (
         EmbeddingTrajectoryCalculator,
         TemporalPatternFinder,
@@ -49,15 +51,21 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
     suggestions = []
     for note_a, note_b in converging:
-        # Check if they're currently similar but not linked
+        # Only unlinked pairs: a link is what the suggestion invites
         if vault.links_between(note_a, note_b):
             continue
 
-        # Get session count for context
-        calc = EmbeddingTrajectoryCalculator(vault, note_a)
-        session_count = len(calc.snapshots())
+        # Similarities over the sessions both notes share; the last is now
+        similarities = EmbeddingTrajectoryCalculator(vault, note_a).similarity_with_trajectory(
+            EmbeddingTrajectoryCalculator(vault, note_b)
+        )
+        session_count = len(similarities)
 
         if session_count < 3:
+            continue
+
+        # "Became more similar" must hold today, not just at a past peak
+        if similarities[-1] < SimilarityLevel.WEAK:
             continue
 
         text = (

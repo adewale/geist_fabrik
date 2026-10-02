@@ -5,7 +5,10 @@
 **Author**: Research synthesis from embedding corpus analysis
 **Spec Date**: 2025-01-30
 **Implementation Date**: 2025-01-30
-**Implementation**: src/geistfabrik/stats.py (26 passing tests)
+**Implementation**: src/geistfabrik/stats.py, stats_formatter.py, embedding_metrics.py, commands/stats.py
+
+> Example outputs below follow the implemented text format; blocks marked
+> **(not built)** are design ideas that the command does not print.
 
 ---
 
@@ -72,20 +75,19 @@ geistfabrik stats --history 60
 **Always displayed**
 
 ```
-================================================
+======================================================================
 GeistFabrik Vault Statistics
-================================================
+======================================================================
 Vault: /Users/user/Documents/MyVault
-Database: _geistfabrik/vault.db (12.34 MB)
-Last sync: 2025-01-30 14:32:15
-Configuration: _geistfabrik/config.yaml
+Database: 12.34 MB
+Latest note change: 2025-01-30T14:32:15
 ```
 
 **Data sources:**
 - Vault path: From argument or auto-detection
 - Database size: `os.stat(db_path).st_size`
-- Last sync: Most recent note `file_mtime` from database
-- Configuration: Existence check
+- Latest note change (JSON `last_sync`): Most recent note `file_mtime` from database (a proxy: the database records no sync time)
+- Configuration path: reported in JSON (`vault.config_path`), not in text output
 
 ---
 
@@ -96,22 +98,23 @@ Configuration: _geistfabrik/config.yaml
 ```
 Notes:
   Total: 247 notes
-  Regular notes: 235 (95.1%)
-  Virtual notes: 12 (4.9%) from 3 date-collection files
-  Average note age: 142 days
-  Most recent: 2025-01-30
-  Oldest: 2023-06-15
+  Regular: 235 (95.1%)
+  Virtual: 12 (4.9%)
+    From 3 date-collection files
+  Average age: 142 days
+  Most recent: 2025-01-30T09:12:44
+  Oldest: 2023-06-15T00:00:00
 
 Tags:
   Unique tags: 45
-  Total tag instances: 312
-  Average tags per note: 1.26
-  Most used: #project (23 notes), #todo (18 notes), #idea (15 notes)
+  Total instances: 312
+  Average per note: 1.26
+  Most used: project (23), todo (18), idea (15)
 
 Links:
-  Total links: 1,234
-  Average links per note: 5.0
-  Bidirectional links: 234 (18.9%)
+  Total: 1234
+  Average per note: 5.0
+  Bidirectional: 234 (18.9%)
 ```
 
 **Data sources:**
@@ -151,26 +154,27 @@ SELECT COUNT(DISTINCT source_path) FROM links;
 -- Bidirectional: links where reverse link exists
 ```
 
-**Verbose additions:**
+**Verbose additions** (Virtual Notes by Source follows the Notes block; Tag
+Distribution follows Tags; Top 10 Most Linked Notes is printed under Graph
+Structure):
 ```
-Top 10 Most Linked Notes:
-  1. [[Index]] - 45 outgoing, 32 incoming (77 total)
-  2. [[Projects]] - 32 outgoing, 28 incoming (60 total)
-  3. [[People]] - 28 outgoing, 15 incoming (43 total)
-  ...
+  Virtual Notes by Source:
+    journal/2025-Q1.md → 45 virtual entries
+    journal/2025-Q2.md → 32 virtual entries
+    meetings/All Hands.md → 12 virtual entries
 
-Tag Distribution:
-  #project: 23 notes (9.3%)
-  #todo: 18 notes (7.3%)
-  #idea: 15 notes (6.1%)
-  #research: 12 notes (4.9%)
-  #meeting: 8 notes (3.2%)
-  [40 more tags...]
+  Tag Distribution:
+    project: 23 notes (9.3%)
+    todo: 18 notes (7.3%)
+    idea: 15 notes (6.1%)
+    research: 12 notes (4.9%)
+    meeting: 8 notes (3.2%)
 
-Virtual Notes by Source:
-  journal/2025-Q1.md → 45 virtual entries
-  journal/2025-Q2.md → 32 virtual entries
-  meetings/All Hands.md → 12 virtual entries
+  Top 10 Most Linked Notes:
+    [[Index]] - 45 out, 32 in (77 total)
+    [[Projects]] - 32 out, 28 in (60 total)
+    [[People]] - 28 out, 15 in (43 total)
+    ...
 ```
 
 ---
@@ -181,11 +185,10 @@ Virtual Notes by Source:
 
 ```
 Graph Structure:
-  Orphans: 23 notes (9.3%)
-  Hubs (≥10 connections): 8 notes
-  Average degree: 5.0 links/note
-  Density: 0.021 (2.1% of possible links exist)
-  Largest connected component: 224 notes (90.7%)
+  Orphans: 23 (9.3%)
+  Hubs (≥10 links in or out): 8
+  Density: 0.0210
+  Largest component: 224 (90.7%)
 ```
 
 **Data sources:**
@@ -193,9 +196,10 @@ Graph Structure:
 # Orphans: notes with no incoming or outgoing links
 orphans = vault.orphans()
 
-# Hubs: notes with high link count
+# Hubs (summary count): notes with >= 10 outgoing links
 all_links = vault.db.execute("SELECT source_path, COUNT(*) FROM links GROUP BY source_path")
 hubs = [note for note, count in all_links if count >= 10]
+# (The verbose "Hub Notes" list instead uses >= 10 total in+out connections.)
 
 # Density: actual_links / possible_links
 n = len(vault.all_notes())
@@ -203,27 +207,29 @@ possible_links = n * (n - 1)
 actual_links = vault.db.execute("SELECT COUNT(*) FROM links").fetchone()[0]
 density = actual_links / possible_links
 
-# Connected components: Use NetworkX on link graph
+# Connected components: union-find over resolved links, treated as undirected
 ```
 
 **Verbose additions:**
 ```
-Orphan Notes (no links):
-  [[Random Idea 2023-06-15]]
-  [[Quick Note on X]]
-  [[Untitled Note]]
-  ...
+  Orphan Notes (23 total):
+    [[Random Idea 2023-06-15]]
+    [[Quick Note on X]]
+    [[Untitled Note]]
+    ... and 13 more
 
-Hub Notes (≥10 connections):
-  [[Index]] (77 connections)
-  [[Projects]] (60 connections)
-  [[People]] (43 connections)
-  ...
+  Hub Notes (≥10 connections):
+    [[Index]] (77 connections)
+    [[Projects]] (60 connections)
+    [[People]] (43 connections)
+```
 
+**(not built)** Bridge Notes (high betweenness centrality) — see
+`specs/SPEC_STATUS.md`:
+```
 Bridge Notes (high betweenness centrality):
   [[Systems Thinking]] - connects 3 major communities
   [[Interdisciplinary Methods]] - connects 2 communities
-  ...
 ```
 
 ---
@@ -234,23 +240,23 @@ Bridge Notes (high betweenness centrality):
 
 ```
 Semantic Structure:
-  Backend: sqlite-vec
-  Embedding dimension: 387 (384 semantic + 3 temporal)
-
-  Intrinsic dimensionality: 15.3 dimensions
-  Diversity (Vendi Score): 142.7 effective concepts
+  Dimension: 384
+  Clusters detected: 7
+  Clustering quality: 0.42
   Shannon entropy: 2.81 bits
-
-  Clusters detected: 7 (HDBSCAN, min_size=5)
-  Clustering quality (Silhouette): 0.42 (moderate)
   Notes in gaps: 18 (7.3%)
 ```
+
+Metrics are computed on the 384 semantic dimensions of the latest session's
+vectors (the 3 calendar features are never compared). Intrinsic
+dimensionality, Vendi Score and IsoScore are computed when their optional
+dependencies are installed and appear in JSON output (`intrinsic_dim`,
+`vendi_score`, `isoscore`), not in the text summary.
 
 **Data sources:**
 ```python
 from sklearn.cluster import HDBSCAN
 from sklearn.metrics import silhouette_score
-from sklearn.neighbours import LocalOutlierFactor
 from skdim.id import TwoNN
 from vendi_score import vendi
 from scipy.stats import entropy
@@ -276,13 +282,19 @@ shannon = entropy(cluster_dist)
 if len(set(labels)) > 1:
     silhouette = silhouette_score(embeddings, labels)
 
-# Gap detection
-lof = LocalOutlierFactor(n_neighbors=20, contamination=0.1)
-gap_scores = lof.fit_predict(embeddings)
-n_gaps = np.sum(gap_scores == -1)
+# Gap detection: notes HDBSCAN labels as noise
+n_gaps = np.sum(labels == -1)
 ```
 
-**Verbose additions:**
+**Verbose additions** (only Detected Clusters is built; it prints
+`<id>. <label>` per cluster):
+```
+  Detected Clusters:
+    0. machine learning, neural networks, deep
+    1. philosophy, ethics, epistemology, moral
+```
+
+**(not built)** richer verbose output:
 ```
 Detected Clusters:
   1. "machine learning, neural networks, deep" (28 notes)
@@ -308,7 +320,7 @@ Semantic Health:
 ```
 
 **Implementation notes:**
-- Cluster naming: Use c-TF-IDF for speed (see Section 7 for implementation)
+- Cluster naming: `clustering.labeling_method` (see "Cluster Naming Implementation" below)
 - IsoScore: Compute from eigenvalues of covariance matrix
 - Cache these metrics to avoid recomputing on every `stats` call
 
@@ -320,19 +332,19 @@ Semantic Health:
 
 ```
 Sessions:
-  Total sessions: 15
+  Indexed sessions: 15
   Date range: 2025-01-05 to 2025-01-30
   Average interval: 1.7 days
+  Total suggestions: 234
+  Sessions with suggestions: 15
+  Average per session with suggestions: 15.6
+```
 
-  Suggestions generated: 234 total
-  Average per session: 15.6 suggestions
-
-  Recent sessions (last 5):
-    2025-01-30: 18 suggestions (12 geists active)
-    2025-01-29: 12 suggestions (11 geists active)
-    2025-01-28: 16 suggestions (12 geists active)
-    2025-01-27: 14 suggestions (10 geists active)
-    2025-01-26: 20 suggestions (12 geists active)
+With `--verbose`, the five most recent sessions follow:
+```
+  Recent sessions:
+    2025-01-30: 18 suggestions (12 geists)
+    2025-01-29: 12 suggestions (11 geists)
 ```
 
 **Data sources:**
@@ -357,7 +369,7 @@ LIMIT 5;
 SELECT COUNT(*) FROM session_suggestions;
 ```
 
-**Verbose additions:**
+**(not built)** further verbose additions:
 ```
 Session Activity Over Time:
   Week 1 (Jan 05-11): 4 sessions, 62 suggestions (avg: 15.5)
@@ -369,7 +381,7 @@ Most Active Geists (last 30 days):
   1. temporal_drift: 34 suggestions (22.7%)
   2. bridge_builder: 28 suggestions (18.7%)
   3. concept_cluster: 21 suggestions (14.0%)
-  4. columbo: 18 suggestions (12.0%)
+  4. what_if: 18 suggestions (12.0%)
   5. creative_collision: 15 suggestions (10.0%)
   [40 more geists...]
 
@@ -387,42 +399,51 @@ Temporal Patterns:
 
 ```
 Temporal Analysis:
-  Sessions with embeddings: 15
-  Oldest embeddings: 2025-01-05
-  Most recent: 2025-01-30
+  Comparing: 2025-01-30 vs 2024-12-31
+  Days elapsed: 30
+  Notes compared: 240
+  Average semantic distance: 0.150
+  Trend: not measured
+```
 
-  Semantic drift analysis (last 30 days):
-    Average drift rate: 0.15 per session
-    Drift accelerating: Yes (+12% vs previous period)
-
-  High-drift notes (evolving concepts):
+With `--verbose`:
+```
+  Largest representation changes:
     [[Machine Learning Ethics]] - drift: 0.73
     [[Personal Philosophy]] - drift: 0.68
-    [[Software Architecture]] - drift: 0.61
 
-  Stable anchors (unchanging meaning):
+  Smallest representation changes:
     [[Python Basics]] - drift: 0.02
     [[Daily Routines]] - drift: 0.04
-    [[Meeting Templates]] - drift: 0.05
 ```
+
+Because semantic vectors are cached by content, drift is non-zero only for
+notes edited between the two sessions. A trend needs more than one interval,
+so `drift_trend` is reported as "not measured".
 
 **Data sources:**
 ```python
-from scipy.linalg import orthogonal_procrustes
+from geistfabrik.temporal_analysis import semantic_component
 
-# Get embeddings from two time points (30 days apart)
+# Get embeddings from two time points (30 days apart), paired by note path
 current_date = datetime.now()
 past_date = current_date - timedelta(days=30)
 
 current_emb = session.get_embeddings(current_date)
 past_emb = session.get_embeddings(past_date)
 
-# Align embedding spaces via Procrustes
-R, scale = orthogonal_procrustes(past_emb, current_emb)
-aligned_past = past_emb @ R
+# Compare the semantic component only: calendar features (note age, season)
+# change every session and must not register as drift.
+# (semantic_component works on one stored vector, so apply it per row.)
+current_sem = np.vstack([semantic_component(v) for v in current_emb])
+past_sem = np.vstack([semantic_component(v) for v in past_emb])
 
-# Compute drift per note
-drift_scores = 1 - cosine_similarity(aligned_past, current_emb).diagonal()
+# No alignment step. Every session embeds with the same pinned model, so both
+# snapshots share one coordinate system. (An earlier draft fitted an orthogonal
+# Procrustes rotation between the snapshots; with n notes in 384 dimensions a
+# rotation fitted to those same notes absorbs real change, and a fully
+# rewritten note scored ~0 drift.)
+drift_scores = 1 - cosine_similarity(past_sem, current_sem).diagonal()
 
 # Identify high-drift and low-drift notes
 high_drift_idx = np.argsort(drift_scores)[-5:]
@@ -435,9 +456,9 @@ avg_drift = drift_scores.mean()
 **Requirements:**
 - Only display if at least 2 sessions exist
 - Default: compare current session to 30 days ago (adjustable via `--history`)
-- Skip if sessions don't span enough time
+- Skip if sessions don't span enough time, or fewer than 5 notes are common to both
 
-**Verbose additions:**
+**(not built)** further verbose additions:
 ```
 Drift Distribution:
   Very stable (drift < 0.1): 45 notes (18.2%)
@@ -466,19 +487,20 @@ Diversity Evolution:
 
 ```
 Geists:
-  Code geists: 35 total (31 enabled, 4 disabled)
-  Tracery geists: 10 total (10 enabled)
-  Custom geists: 2 (in _geistfabrik/geists/)
-
-  Total enabled: 43 geists
+  Code geists: <n> (<n> enabled)
+  Tracery geists: <n> (<n> enabled)
+  Custom geists: 2 (2 enabled)
+  Total enabled: <n>
 
   Disabled geists:
-    temporal_drift: 3 consecutive failures
-    broken_custom_geist: 3 consecutive failures
-
-  Configuration: _geistfabrik/config.yaml
-  Default geists: 45 bundled (43 enabled in config)
+    - temporal_drift
+    - broken_custom_geist
+  Auto-disabled after repeated failures: broken_custom_geist
 ```
+
+(Counts come from `geistfabrik.default_geists`; the custom line appears only
+when the vault has custom geists. Auto-disabled geists are read from the
+`geist_status` table.)
 
 **Data sources:**
 ```python
@@ -501,27 +523,22 @@ custom_tracery_count = len(list(custom_tracery_dir.glob("*.yaml"))) if custom_tr
 enabled_count = sum(1 for v in config.default_geists.values() if v)
 disabled_count = len(config.default_geists) - enabled_count
 
-# Failure tracking (would need to add to database schema)
-# Could query execution logs to find recently failed geists
+# Failure tracking: geist_status table (disabled after max_failures)
 ```
 
-**Verbose additions:**
+**(not built)** verbose additions:
 ```
-Enabled Code Geists (31):
-  - anachronism_detector
+Enabled Code Geists:
   - assumption_challenger
-  - blind_spot_detector
+  - attention_shift
   - bridge_builder
   - bridge_hunter
-  ... [26 more]
+  ...
 
-Enabled Tracery Geists (10):
+Enabled Tracery Geists:
   - contradictor
   - hub_explorer
-  - note_combinations
-  - orphan_connector
-  - perspective_shifter
-  ... [5 more]
+  - what_if
 
 Custom Geists (2):
   Code:
@@ -546,30 +563,25 @@ Backend Configuration:
 Recommendations:
 
   ⚠ Performance
-    • Consider sqlite-vec backend (current: in-memory)
-      Your vault has 1,847 notes - sqlite-vec provides 5-6x faster queries
-      Installed release: python -m pip install "geistfabrik[vector-search]"
-      Source checkout: uv sync --extra vector-search
-      Configure in config.yaml:
-        vector_search:
-          backend: sqlite-vec
+    Consider sqlite-vec backend for 1847 notes (5-6x faster queries)
+    → python -m pip install "geistfabrik[vector-search]"; set vector_search.backend: sqlite-vec in config.yaml
 
-  ⚠ Knowledge Structure
-    • 23 orphan notes (9.3%) - consider linking or tagging
-      Run: geistfabrik invoke --geist orphan_connector
+  ⚠ Structure
+    23 orphan notes (11.2%) could be linked
+    → geistfabrik invoke --geist orphan_connector
 
-    • 18 notes in semantic gaps (potential bridges)
-      Run: geistfabrik invoke --geist bridge_builder
+  ⚠ Structure
+    18 notes in semantic gaps (potential bridges)
+    → geistfabrik invoke --geist bridge_builder
 
-  ⚠ Geist Health
-    • 4 geists disabled due to failures
-      Test individually: geistfabrik test temporal_drift
-
-  ✓ All checks passed
-    • Vault structure is healthy
-    • Embeddings are up to date
-    • Configuration is valid
+  ✓ Configuration
+    4 geists disabled by configuration or failures
+    → Review config.yaml to enable or test individually
 ```
+
+When nothing is flagged, a single `✓ Health` entry reads "All checks passed -
+vault structure is healthy". (Source checkouts install the extra with
+`uv sync --extra vector-search`.)
 
 **Heuristics:**
 
@@ -580,13 +592,13 @@ Recommendations:
    - If `orphan_pct > 10%`: Recommend orphan_connector geist
 
 3. **Gap alert:**
-   - If `gap_pct > 5%`: Recommend bridge_builder or semantic_gap geist
+   - If `gap_pct > 5%`: Recommend bridge_builder (a semantic_gap geist is proposed, not built)
 
 4. **Disabled geist alert:**
    - If any geists disabled: Recommend testing them individually
 
 5. **Diversity alert:**
-   - If `vendi_score` decreasing over time: Alert about narrowing focus
+   - If `vendi_score < 0.3 × n_notes`: Alert about low conceptual diversity (a trend over time is not built)
    - If `shannon_entropy < 1.5`: Alert about over-clustering
 
 6. **Drift alert:**
@@ -601,13 +613,11 @@ Recommendations:
 
 ```
 src/geistfabrik/
-  cli.py                 # Add stats_command() function
-  stats/                 # New module
-    __init__.py
-    collector.py         # Data collection from DB
-    metrics.py           # Compute embedding metrics
-    formatter.py         # Format output (text/JSON)
-    recommendations.py   # Generate recommendations
+  cli.py                 # `stats` subparser
+  commands/stats.py      # StatsCommand: wires collector, metrics, formatter
+  stats.py               # StatsCollector: data collection from DB
+  embedding_metrics.py   # EmbeddingMetricsComputer: metrics + cache
+  stats_formatter.py     # Text/JSON output and generate_recommendations()
 ```
 
 ### Core Algorithm
@@ -655,22 +665,23 @@ def stats_command(args: argparse.Namespace) -> int:
 **Solution:** Cache metrics in database, recompute only when embeddings change.
 
 ```sql
--- Add new table for cached metrics
+-- Implemented table (schema v9+): metrics are keyed by the exact source
+-- vectors and the algorithm inputs, so a changed vault, config or dependency
+-- set never reads a stale cache entry.
 CREATE TABLE IF NOT EXISTS embedding_metrics (
-    session_date TEXT PRIMARY KEY,
-    intrinsic_dim REAL,
-    vendi_score REAL,
-    shannon_entropy REAL,
-    silhouette_score REAL,
-    n_clusters INTEGER,
-    n_gaps INTEGER,
-    cluster_labels TEXT,  -- JSON: {0: "ml, neural, networks", 1: "philosophy, ethics"}
+    session_date TEXT NOT NULL,
+    source_digest TEXT NOT NULL,     -- digest of the vectors and note paths
+    algorithm_digest TEXT NOT NULL,  -- algorithm version, clustering config, deps
+    metrics_json TEXT NOT NULL,
     computed_at TEXT NOT NULL,
+    PRIMARY KEY (session_date, source_digest, algorithm_digest),
     FOREIGN KEY (session_date) REFERENCES sessions(date) ON DELETE CASCADE
 );
 ```
 
-**Caching logic:**
+**Caching logic** (original sketch; the implementation looks up
+`(session_date, source_digest, algorithm_digest)` and has no
+`--force-recompute` flag):
 ```python
 # Check if metrics already computed
 cursor = db.execute(
@@ -816,7 +827,10 @@ Generate a concise 2-4 word label:"""
 
 ## JSON Output Format
 
-When `--json` flag is used, output structured data:
+When `--json` flag is used, output structured data (geist counts shown as
+`0` are placeholders; real values come from `geistfabrik.default_geists`).
+`embeddings` and `temporal` appear only when available; `--verbose` details
+are text-only and do not change the JSON:
 
 ```json
 {
@@ -824,24 +838,27 @@ When `--json` flag is used, output structured data:
     "path": "/Users/user/Documents/MyVault",
     "database_size_mb": 12.34,
     "last_sync": "2025-01-30T14:32:15",
-    "config_path": "_geistfabrik/config.yaml"
+    "config_path": "/Users/user/Documents/MyVault/_geistfabrik/config.yaml",
+    "vector_backend": "in-memory"
   },
   "notes": {
     "total": 247,
     "regular": 235,
     "virtual": 12,
-    "average_age_days": 142,
-    "oldest": "2023-06-15",
-    "most_recent": "2025-01-30"
+    "virtual_pct": 4.9,
+    "virtual_sources": {"journal/2025-Q1.md": 12},
+    "average_age_days": 142.0,
+    "most_recent": "2025-01-30T09:12:44",
+    "oldest": "2023-06-15T00:00:00"
   },
   "tags": {
     "unique": 45,
     "total_instances": 312,
     "average_per_note": 1.26,
     "top_tags": [
-      {"tag": "#project", "count": 23},
-      {"tag": "#todo", "count": 18},
-      {"tag": "#idea", "count": 15}
+      {"tag": "project", "count": 23},
+      {"tag": "todo", "count": 18},
+      {"tag": "idea", "count": 15}
     ]
   },
   "links": {
@@ -859,22 +876,27 @@ When `--json` flag is used, output structured data:
     "largest_component_pct": 90.7
   },
   "embeddings": {
-    "backend": "sqlite-vec",
-    "dimension": 387,
-    "intrinsic_dimensionality": 15.3,
+    "session_date": "2025-01-30",
+    "n_notes": 247,
+    "dimension": 384,
+    "intrinsic_dim": 15.3,
     "vendi_score": 142.7,
-    "shannon_entropy": 2.81,
+    "isoscore": 0.67,
+    "avg_similarity": 0.31,
+    "std_similarity": 0.12,
     "n_clusters": 7,
-    "silhouette_score": 0.42,
     "n_gaps": 18,
     "gap_pct": 7.3,
-    "clusters": [
-      {"id": 0, "size": 28, "label": "machine learning, neural networks, deep"},
-      {"id": 1, "size": 23, "label": "philosophy, ethics, epistemology, moral"}
-    ]
+    "silhouette_score": 0.42,
+    "shannon_entropy": 2.81,
+    "cluster_labels": {
+      "0": "machine learning, neural networks, deep",
+      "1": "philosophy, ethics, epistemology, moral"
+    }
   },
   "sessions": {
     "total": 15,
+    "suggestion_sessions": 15,
     "date_range": ["2025-01-05", "2025-01-30"],
     "average_interval_days": 1.7,
     "total_suggestions": 234,
@@ -884,10 +906,13 @@ When `--json` flag is used, output structured data:
       {"date": "2025-01-29", "suggestions": 12, "active_geists": 11}
     ]
   },
-  "temporal_analysis": {
-    "average_drift_rate": 0.15,
-    "drift_trend": "accelerating",
-    "drift_change_pct": 12.0,
+  "temporal": {
+    "current_date": "2025-01-30",
+    "comparison_date": "2024-12-31",
+    "days_elapsed": 30,
+    "notes_compared": 240,
+    "average_drift": 0.15,
+    "drift_trend": "not measured",
     "high_drift_notes": [
       {"title": "Machine Learning Ethics", "drift": 0.73},
       {"title": "Personal Philosophy", "drift": 0.68}
@@ -898,29 +923,30 @@ When `--json` flag is used, output structured data:
     ]
   },
   "geists": {
-    "code_total": 35,
-    "code_enabled": 31,
-    "code_disabled": 4,
-    "tracery_total": 10,
-    "tracery_enabled": 10,
-    "custom_total": 2,
-    "total_enabled": 43,
-    "disabled_geists": [
-      {"id": "temporal_drift", "reason": "3 consecutive failures"},
-      {"id": "broken_custom_geist", "reason": "3 consecutive failures"}
-    ]
+    "code_total": 0,
+    "code_enabled": 0,
+    "code_disabled": 0,
+    "tracery_total": 0,
+    "tracery_enabled": 0,
+    "tracery_disabled": 0,
+    "custom_code": 2,
+    "custom_tracery": 0,
+    "custom_enabled": 2,
+    "total_enabled": 0,
+    "disabled_geists": ["temporal_drift", "broken_custom_geist"],
+    "auto_disabled_geists": ["broken_custom_geist"]
   },
   "recommendations": [
     {
       "type": "performance",
       "severity": "warning",
       "message": "Consider sqlite-vec backend for 1847 notes (5-6x faster queries)",
-      "action": "uv pip install -e \".[vector-search]\" && update config"
+      "action": "python -m pip install \"geistfabrik[vector-search]\"; set vector_search.backend: sqlite-vec in config.yaml"
     },
     {
       "type": "structure",
       "severity": "warning",
-      "message": "23 orphan notes (9.3%) could be linked or tagged",
+      "message": "23 orphan notes (11.2%) could be linked",
       "action": "geistfabrik invoke --geist orphan_connector"
     }
   ]
@@ -972,7 +998,7 @@ def test_stats_on_kepano_vault():
     """Test stats on real vault (kepano testdata)."""
     result = cli_invoke(["stats", "testdata/kepano-obsidian-main"])
     assert result.exit_code == 0
-    assert "247 notes" in result.output  # Kepano vault has ~247 notes
+    assert "Total:" in result.output
 
 def test_stats_performance():
     """Test that stats completes in < 1s for 500 note vault."""

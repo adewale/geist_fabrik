@@ -11,7 +11,9 @@ This document compares three Tracery implementations:
 2. **PyTracery** - Python port by Allison Parrish (aparrish/pytracery)
 3. **GeistFabrik Tracery** - Custom implementation for vault-aware text generation
 
-**Key Finding**: GeistFabrik implements standard Tracery's core expansion and modifier features, but intentionally omits state management (push-pop stacks) in favour of a novel `$vault.*` function system for dynamic vault queries.
+**Key Finding**: GeistFabrik implements standard Tracery's core expansion and modifier features plus a novel `$vault.*` function system for dynamic vault queries.
+
+> **Update (2026-10):** GeistFabrik now supports Tracery save actions: `[key:rule]`, `[key:POP]` and tag preactions (`#[key:rule]symbol#`). Differences from tracery.js: only `[identifier:` starts an action (so `[[wikilinks]]` stay literal), a save holds one value (no comma lists), saved text is reused without re-expansion, and `$vault` calls are rejected inside actions. Rows below marked ❌ for push-pop predate this; see `specs/tracery_research.md` (Save actions).
 
 ## Quick Reference: Feature Support Matrix
 
@@ -20,7 +22,7 @@ This document compares three Tracery implementations:
 | **Core Expansion** | ✅ Full | ✅ Full | ✅ Full |
 | **English Modifiers** | ✅ 5+ modifiers | ✅ 5+ modifiers | ✅ 5 modifiers |
 | **Custom Modifiers** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **State Management** | ✅ Push-pop stacks | ✅ Push-pop stacks | ❌ None |
+| **State Management** | ✅ Push-pop stacks | ✅ Push-pop stacks | ✅ Save actions (one value per save) |
 | **Dynamic Functions** | ❌ None | ❌ None | ✅ `$vault.*` |
 | **Format** | JSON | JSON/Dict | YAML |
 
@@ -72,10 +74,10 @@ State management allows storing and reusing generated values across an expansion
 
 | Feature | Syntax | Description | Tracery.js | PyTracery | GeistFabrik |
 |---------|--------|-------------|------------|-----------|-------------|
-| **Push (labelled action)** | `[key:value]` | Store value on stack | ✅ | ✅ | ❌ |
-| **Pop action** | `[key:POP]` | Remove top value from stack | ✅ | ✅ | ❌ |
+| **Push (labelled action)** | `[key:value]` | Store value on stack | ✅ | ✅ | ✅ |
+| **Pop action** | `[key:POP]` | Remove top value from stack | ✅ | ✅ | ✅ |
 | **Unlabeled actions** | `[#symbol#]` | Execute without storing | ✅ | ✅ | ❌ |
-| **Variable consistency** | Reuse same random choice | ✅ Via push-pop | ✅ Via push-pop | ❌ Each expansion independent |
+| **Variable consistency** | Reuse same random choice | ✅ Via push-pop | ✅ Via push-pop | ✅ Via save actions |
 | **Nested contexts** | Temporary variable override | ✅ | ✅ | ❌ |
 
 **Example of Push-Pop**:
@@ -257,11 +259,10 @@ This section tracks features as they're added to GeistFabrik.
 - [x] YAML format with metadata
 - [x] Multiple suggestions per geist (`count` parameter)
 - [x] Structured output (`Suggestion` objects)
+- [x] Save actions (`[var:value]`, `[var:POP]`, preactions)
 
 ### Not Implemented (Intentional) ❌
 
-- [ ] Push-pop stack memory (`[var:value]`)
-- [ ] POP actions (`[var:POP]`)
 - [ ] Unlabeled actions (`[#symbol#]`)
 - [ ] JSON format support
 - [ ] Variable consistency across expansions
@@ -287,7 +288,7 @@ This section tracks features as they're added to GeistFabrik.
 - Random selection
 
 **What Breaks**:
-- Any use of push-pop syntax (`[var:value]`)
+- Push-pop values containing commas (one value per save in GeistFabrik)
 - Any use of `.a`, `.s`, `.ed` modifiers (UPDATE: Now works! ✅)
 - Parameterised modifiers
 - JSON format (needs conversion to YAML + metadata)

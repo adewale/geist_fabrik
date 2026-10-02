@@ -1,463 +1,244 @@
-"""Unit tests for assumption_challenger geist."""
+"""Unit tests for assumption_challenger geist.
 
-from datetime import datetime
+Trigger arithmetic (see the geist source):
+- the vault needs >= 10 non-journal notes, otherwise the geist returns [];
+- causal trigger: a note with >= 3 distinct causal markers ("because",
+  "therefore", "thus", ...) and fewer than 2 outgoing links;
+- certainty trigger: a note with >= 2 distinct assumption phrases
+  ("obviously", "clearly", ...; not "always"/"must be", which are requirement
+  language) as whole words. The first such sentence is quoted. It is paired
+  with a semantic neighbour (similarity >= 0.35) only if that neighbour has a
+  hedged sentence ("maybe", "perhaps", ...) sharing a content word with the
+  quote; otherwise the quote stands alone. Under the bag-of-words test stub,
+  shared content words make two notes neighbours;
+- output is capped at 3 suggestions.
+"""
+
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import assumption_challenger
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+GEIST = "assumption_challenger"
+CAP = 3
+CAUSAL_BODY = "Growth happens because of soil, therefore roots spread, and thus it leads to fruit."
 
 
-@pytest.fixture
-def vault_with_assumptions(tmp_path):
-    """Create a vault with notes containing assumption indicators."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _fillers(builder: VaultBuilder, count: int) -> None:
+    for i in range(count):
+        builder.note(f"Filler {i}", f"Plain remark number {i} about pebbles.")
 
-    # Notes with strong assumption indicators
-    assumption_notes = [
+
+def _causal_vault(
+    tmp_path: Path, *, total_notes: int, causal_body: str = CAUSAL_BODY
+) -> VaultContext:
+    builder = VaultBuilder(tmp_path)
+    builder.note("Causal Claim", causal_body)
+    _fillers(builder, total_notes - 1)
+    return builder.build()
+
+
+def test_causal_claims_without_links_are_challenged(tmp_path: Path) -> None:
+    ctx = _causal_vault(tmp_path, total_notes=12)
+
+    suggestions = assumption_challenger.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, GEIST, must_reference=["Causal Claim"])
+    assert [s.notes for s in suggestions] == [["Causal Claim"]]
+    assert "causal claims" in suggestions[0].text
+
+
+def test_certain_note_is_paired_with_hedging_neighbour(tmp_path: Path) -> None:
+    """Contract: the certain sentence and the neighbour's hedge are quoted.
+
+    Regression: the text asserted "[[X]] makes claims that seem certain, but
+    [[Y]] expresses uncertainty" on phrase counts alone; it now shows both
+    sentences.
+    """
+    # The two notes share "orchard", "pruning" and "yield", so under the
+    # lexical stub the hedging note is the certain note's nearest neighbour.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Certain Orchard", "Obviously orchard pruning clearly raises yield.")
+    builder.note("Hedging Orchard", "Maybe orchard pruning raises yield.")
+    _fillers(builder, 10)
+    ctx = builder.build()
+
+    suggestions = assumption_challenger.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, GEIST)
+    assert [(s.notes, s.text) for s in suggestions] == [
         (
-            "Obvious Facts.md",
-            "Obviously this is true. Clearly everyone knows this. Of course it must be so.",
-        ),
-        (
-            "Certainty.md",
-            "Certainly this is the case. Without a doubt, it has to be this way. Naturally so.",
-        ),
-        (
-            "Well Known.md",
-            "It is well known that this occurs. Needless to say, this must be true.",
-        ),
-    ]
-
-    for filename, content in assumption_notes:
-        (vault_path / filename).write_text(f"# {filename.replace('.md', '')}\n\n{content}")
-
-    # Notes with contrasting language (uncertainty)
-    contrast_notes = [
-        (
-            "Uncertainty.md",
-            "Maybe this is the case. Perhaps it could be different. It's unclear and debatable.",
-        ),
-        (
-            "Hedging.md",
-            "This might work. Possibly it depends on context. Sometimes it varies significantly.",
-        ),
-    ]
-
-    for filename, content in contrast_notes:
-        (vault_path / filename).write_text(f"# {filename.replace('.md', '')}\n\n{content}")
-
-    # Fill out with regular notes
-    for i in range(7):
-        (vault_path / f"regular_{i}.md").write_text(f"# Regular {i}\n\nNormal content.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_with_causal_claims(tmp_path):
-    """Create a vault with causal claims but few supporting links."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Note with many causal patterns but few links
-    (vault_path / "causal.md").write_text(
-        "# Causal Claims\n\n"
-        "This happens because of that. Therefore, this results in that. "
-        "Hence, it leads to this outcome. Thus, this causes that effect. "
-        "This is due to various factors."
-    )
-
-    # Add filler notes
-    for i in range(12):
-        (vault_path / f"filler_{i}.md").write_text(f"# Filler {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only 5 notes (below minimum of 10)
-    for i in range(5):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_assumption_challenger_returns_suggestions(vault_with_assumptions):
-    """Test that assumption_challenger returns suggestions with assumption notes.
-
-    Setup:
-        Vault with notes containing assumption indicators.
-
-    Verifies:
-        - Returns list of suggestions (max 2)"""
-    vault, session = vault_with_assumptions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
-
-
-def test_assumption_challenger_suggestion_structure(vault_with_assumptions):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with notes containing assumption indicators.
-
-    Verifies:
-        - Suggestion has required fields
-        - References exactly 1 note with assumptions"""
-    vault, session = vault_with_assumptions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "assumption_challenger"
-
-        # Should reference at least 1 note
-        assert len(suggestion.notes) >= 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_assumption_challenger_uses_link_text(vault_with_assumptions):
-    """Test that assumption_challenger uses link_text for note references.
-
-    Setup:
-        Vault with notes containing assumption indicators.
-
-    Verifies:
-        - Uses [[wiki-link]] format in text
-        - References use link_text property"""
-    vault, session = vault_with_assumptions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_assumption_challenger_detects_causal_claims(vault_with_causal_claims):
-    """Test that assumption_challenger detects causal claims without evidence.
-
-    Setup:
-        Vault with notes containing causal claim indicators.
-
-    Verifies:
-        - Detects 'because', 'therefore', 'causes' patterns
-        - Suggests questioning causal relationships"""
-    vault, session = vault_with_causal_claims
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    # Should detect notes with causal claims
-    assert isinstance(suggestions, list)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_assumption_challenger_empty_vault(tmp_path):
-    """Test that assumption_challenger handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list without crashing"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_assumption_challenger_insufficient_notes(vault_insufficient_notes):
-    """Test that assumption_challenger handles insufficient notes gracefully.
-
-    Setup:
-        Vault with only 5 notes (minimum is 10).
-
-    Verifies:
-        - Returns empty list when too few notes"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    # Should return empty list when < 10 notes
-    assert len(suggestions) == 0
-
-
-def test_assumption_challenger_no_assumptions(tmp_path):
-    """Test that assumption_challenger handles vault without assumption indicators.
-
-    Setup:
-        Vault with 15 notes but no assumption indicators.
-
-    Verifies:
-        - Returns empty list when no assumptions detected"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create 15 notes without assumption indicators
-    for i in range(15):
-        (vault_path / f"note_{i}.md").write_text(
-            f"# Note {i}\n\nContent without assumption indicators."
+            ["Certain Orchard", "Hedging Orchard"],
+            'In [[Certain Orchard]] you wrote "Obviously orchard pruning clearly raises '
+            'yield", while [[Hedging Orchard]] (semantically similar) hedges: "Maybe '
+            'orchard pruning raises yield". What is the certainty in [[Certain Orchard]] '
+            "resting on?",
         )
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    # May return empty list if no notes pass assumption threshold
-    assert isinstance(suggestions, list)
-
-
-def test_assumption_challenger_max_suggestions(vault_with_assumptions):
-    """Test that assumption_challenger never returns more than 3 suggestions.
-
-    Setup:
-        Vault with assumption-heavy notes.
-
-    Verifies:
-        - Returns at most 2 suggestions"""
-    vault, session = vault_with_assumptions
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = assumption_challenger.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_assumption_challenger_deterministic_with_seed(vault_with_assumptions):
-    """Test that assumption_challenger returns same results with same seed.
-
-    Setup:
-        Vault tested with identical seed twice.
-
-    Verifies:
-        - Same seed produces identical output"""
-    vault, session = vault_with_assumptions
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = assumption_challenger.suggest(context1)
-    suggestions2 = assumption_challenger.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_assumption_challenger_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal notes in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with assumption indicators
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\n"
-            f"Obviously this is true. Clearly everyone knows this. "
-            f"Of course it must be so. Certainly this is the case."
-        )
-
-    # Create regular notes with assumption indicators
-    assumption_notes = [
-        (
-            "Obvious Facts.md",
-            "Obviously this is true. Clearly everyone knows this. Of course it must be so.",
-        ),
-        (
-            "Certainty.md",
-            "Certainly this is the case. Without a doubt, it has to be this way. Naturally so.",
-        ),
-        (
-            "Well Known.md",
-            "It is well known that this occurs. Needless to say, this must be true.",
-        ),
     ]
 
-    for filename, content in assumption_notes:
-        (vault_path / filename).write_text(f"# {filename.replace('.md', '')}\n\n{content}")
 
-    # Create regular notes
-    for i in range(7):
-        (vault_path / f"regular_{i}.md").write_text(f"# Regular {i}\n\nNormal content.")
+UNPAIRED = (
+    ["Certain Orchard"],
+    'In [[Certain Orchard]] you wrote "Obviously orchard pruning clearly raises yield". '
+    "What is that assumption resting on?",
+)
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
 
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
+def test_certain_note_without_hedging_neighbour_stands_alone(tmp_path: Path) -> None:
+    """Contract: with no hedging neighbour the quoted assumption stands alone."""
+    builder = VaultBuilder(tmp_path)
+    builder.note("Certain Orchard", "Obviously orchard pruning clearly raises yield.")
+    builder.note("Plain Orchard", "Orchard pruning raises yield.")
+    _fillers(builder, 10)
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert [(s.notes, s.text) for s in suggestions] == [UNPAIRED]
+
+
+def test_hedge_about_other_terms_is_not_paired(tmp_path: Path) -> None:
+    """Contract: a neighbour is only said to hedge when its hedged sentence
+    shares a term with the quoted certain sentence.
+
+    Regression: any similar note containing two hedge words anywhere ("perhaps",
+    "might") was paired, even when the hedging was about something else.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(
+        "Certain Orchard",
+        "Obviously orchard pruning clearly raises yield. Orchard soil drains well.",
+    )
+    builder.note("Hedging Orchard", "Orchard soil drains well. Perhaps glaciers might melt.")
+    _fillers(builder, 10)
+
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert [(s.notes, s.text) for s in suggestions] == [UNPAIRED]
+
+
+def test_requirement_language_is_not_an_assumption(tmp_path: Path) -> None:
+    """Contract: "always" and "must be" alone do not make a note "certain".
+
+    Regression: they counted as assumption phrases, so specification notes
+    ("tokens always expire", "the cache must be cleared") were challenged.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note("Cache Spec", "The cache must be cleared. Tokens always expire.")
+    builder.note("Cache Doubts", "Maybe the cache must be cleared. Perhaps tokens expire.")
+    _fillers(builder, 10)
+
+    assert assumption_challenger.suggest(builder.build()) == []
+
+
+@pytest.mark.parametrize(("total_notes", "fires"), [(9, False), (10, True)])
+def test_minimum_vault_size_boundary(tmp_path: Path, total_notes: int, fires: bool) -> None:
+    ctx = _causal_vault(tmp_path, total_notes=total_notes)
+
+    suggestions = assumption_challenger.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, GEIST, must_reference=["Causal Claim"])
+    else:
+        assert suggestions == []
+
+
+@pytest.mark.parametrize(
+    ("causal_body", "fires"),
+    [
+        ("Growth happens because of soil, therefore roots spread.", False),
+        (CAUSAL_BODY, True),
+        # Regression: markers matched inside other words ("enthusiasm" has
+        # "thus", "residue to" has "due to", "henceforth" has "hence").
+        (
+            "Growth happens because of soil. Enthusiasm grows. The residue "
+            "tonight stays. Henceforth roots spread.",
+            False,
+        ),
+    ],
+)
+def test_causal_marker_count_boundary(tmp_path: Path, causal_body: str, fires: bool) -> None:
+    ctx = _causal_vault(tmp_path, total_notes=12, causal_body=causal_body)
+
+    suggestions = assumption_challenger.suggest(ctx)
+
+    assert (suggestions != []) is fires
+
+
+@pytest.mark.parametrize(("link_count", "fires"), [(1, True), (2, False)])
+def test_causal_note_link_count_boundary(tmp_path: Path, link_count: int, fires: bool) -> None:
+    links = " ".join(f"[[Filler {i}]]" for i in range(link_count))
+    ctx = _causal_vault(tmp_path, total_notes=12, causal_body=f"{CAUSAL_BODY} {links}")
+
+    suggestions = assumption_challenger.suggest(ctx)
+
+    assert (suggestions != []) is fires
+
+
+def test_output_is_capped_when_more_notes_qualify(tmp_path: Path) -> None:
+    # Six causal notes qualify: twice the cap of 3.
+    builder = VaultBuilder(tmp_path)
+    planted = [f"Causal {i}" for i in range(6)]
+    for title in planted:
+        builder.note(title, CAUSAL_BODY)
+    _fillers(builder, 6)
+
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST, min_count=CAP)
+    assert len(suggestions) == CAP
+    referenced = [ref for s in suggestions for ref in s.notes]
+    assert len(set(referenced)) == CAP, "cap must not be filled by repeats"
+    assert set(referenced) <= set(planted)
+
+
+def test_geist_journal_is_excluded_both_as_subject_and_as_neighbour(tmp_path: Path) -> None:
+    # Journal session notes carry causal claims and hedging language that
+    # would trigger both branches; only the regular causal note may appear.
+    builder = VaultBuilder(tmp_path)
+    builder.note("Causal Claim", CAUSAL_BODY)
+    builder.note("Certain Orchard", "Obviously orchard pruning clearly raises yield.")
+    for i in range(4):
+        builder.journal(f"Session Echo {i}", CAUSAL_BODY)
+    builder.journal("Session Doubt", "Maybe orchard pruning perhaps raises yield.")
+    _fillers(builder, 8)
+
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert_valid_suggestions(
+        suggestions,
+        GEIST,
+        must_reference=["Causal Claim"],
+        must_not_reference=["Session Echo", "Session Doubt"],
     )
 
-    suggestions = assumption_challenger.suggest(context)
 
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()
+def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
+    builder = VaultBuilder(tmp_path)
+    for i in range(6):
+        builder.note(f"Causal {i}", CAUSAL_BODY)
+    _fillers(builder, 6)
+
+    first = [s.text for s in assumption_challenger.suggest(builder.build())]
+    second = [s.text for s in assumption_challenger.suggest(builder.build())]
+
+    assert first
+    assert first == second
+
+
+def test_unrelated_hedging_note_is_not_called_similar(tmp_path: Path) -> None:
+    # Control for the pairing test on similarity: the hedging note has two
+    # hedges but shares no vocabulary with the certain note. The vault has the
+    # minimum 10 notes, so every other note is among the 10 nearest
+    # neighbours; only a similarity floor keeps the geist from calling the
+    # unrelated note "semantically similar".
+    builder = VaultBuilder(tmp_path)
+    builder.note("Certain Orchard", "Obviously orchard pruning clearly raises yield.")
+    builder.note("Hedging Glacier", "Maybe glacier moraine perhaps shifts crevasses.")
+    _fillers(builder, 8)
+
+    suggestions = assumption_challenger.suggest(builder.build())
+
+    assert [(s.notes, s.text) for s in suggestions] == [UNPAIRED]

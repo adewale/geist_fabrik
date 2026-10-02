@@ -7,6 +7,452 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+- **Duplicate geists merged.** Geists whose job duplicated another's were
+  merged into the one truest to the vision (claims that are true of the named
+  notes, grounded in the user's notes, sampling rather than ranking). The full
+  map is in `specs/SPEC_STATUS.md` ("Geist merges"). Removed ids are ignored
+  if they remain in a `default_geists:` config. Surviving geists gained:
+  - surprisal (from unexpected_neighbour): varied closing questions.
+  - creative_collision (from note_combinations, temporal_mirror): neutral
+    pairing templates; pairs created 2+ years apart get a cross-era framing
+    with real creation dates instead of "period 7".
+  - what_if (from perspective_shifter, transformation_suggester,
+    random_prompts, temporal_contrast's prompt): lenses, constraints,
+    "an origin, not an artifact", "split into N questions", rewriting a recent
+    note or one left alone longest; every prompt names a note. random_prompts
+    never named one, so filtering dropped all of its output.
+  - concept_cluster (from semantic_neighbours, pattern_finder's cluster
+    branch): says when none of a cluster's notes link to one another.
+  - question_harvester (from questioning_mind): prefers question-dense notes
+    and reads a note full of questions back as one suggestion.
+  - this_time_last_year (from on_this_day, seasonal_revisit): same day, then
+    +/-7 days, then the same season, in any earlier year.
+  - temporal_clustering (from seasonal_topic_analysis): one season's thread;
+    a cross-season link only when measured; ignores notes dated after the
+    session.
+  - concept_drift (from session_drift, drift_velocity_anomaly): "You've
+    rewritten [[X]] since your session on ...", and whether it has been
+    changing more lately.
+  - creation_burst (from burst_evolution): names burst-day notes rewritten
+    since. attention_shift (from cluster_evolution_tracker): samples among
+    shifted notes; the cluster-label API is kept.
+  - recent_focus (from anachronism_detector): says an old note resembles
+    recent work "more than anything else you've worked on lately" only when
+    measured, with the real year gap.
+  - stub_expander and orphan_connector (from complexity_mismatch):
+    orphan_connector is now a code geist that names an orphan's nearest notes
+    and asks long orphans "split it, or link it?". link_density_analyser
+    (from metadata_outlier_detector and metadata_driven_discovery's pattern 1)
+    states the vault median and groups isolated notes. task_archaeology (from
+    metadata_driven_discovery's pattern 3) asks "revive or archive?".
+    bridge_builder (from island_hopper) names the hub's cluster.
+  - hub_explorer uses `$vault.hubs(5, 3, 100)`: `hubs()` gains `min_words`,
+    so a stub that stub_expander asks to expand is never called a hub to split.
+- **Retired the opposition geists** columbo, dialectic_triad,
+  antithesis_generator and blind_spot_detector. Each needed to know when one
+  note opposes or contradicts another, and sentence embeddings measure topic,
+  not stance (contradictions score *higher* than paraphrases on the bundled
+  model), so "least similar note" stood in for "opposite". A working version
+  needs an opt-in NLI model and a cached tension index
+  (`specs/research/OPPOSITION_GEISTS_RESEARCH.md`). contradictor (a question
+  about one sampled note) and assumption_challenger (quotes unhedged
+  certainty) stay. `contrarian_to` is re-documented as "least similar in
+  topic". Leftover ids in `default_geists:` config are ignored.
+- **Retired** temporal_voice and temporal_contrast: the past/future tense
+  signal (an "-ed" heuristic) labelled status tables as "past" and no real
+  note as "future". voice_absence no longer claims notes "look backward".
+  The `past_focused_notes` / `future_focused_notes` vault functions, which
+  selected notes by the same heuristic, are removed.
+- **Moved to `examples/geists/`** as extension examples (not bundled):
+  note_combinations, semantic_neighbours and transformation_suggester
+  (Tracery), metadata_outlier_detector (code).
+- Retired the `hermeneutic_instability` geist. Semantic vectors are cached by
+  note content, so an unchanged note's representation never varies between
+  sessions; the geist could only report an old edit as unexplained
+  "interpretive drift". `concept_drift` covers notes rewritten since an
+  earlier session. A leftover `hermeneutic_instability:` entry in
+  `default_geists` config is ignored.
+- `VaultContext` now excludes geist journal session notes (`geist journal/`)
+  from every vault-wide lookup: `notes()`, `neighbours()`, `backlinks()`,
+  `outgoing_links()`, `graph_neighbours()`, `hubs()`, `orphans()`,
+  `recent_notes()`, `old_notes()`, `random_notes()`, `unlinked_pairs()`,
+  `get_clusters()`, `get_all_embeddings()`, `surprisal_scores()` and
+  `neighbour_churn()`, and so from every vault function built on them. Journal
+  notes are dropped before any top-N cut, never count as a link endpoint, and
+  no longer make a user's link ambiguous (a session note named `2025-01-15`
+  used to leave the user's `[[2025-01-15]]` unresolved). **Custom geists**
+  that relied on seeing session notes in these lookups should call the new
+  `VaultContext.journal_notes()`; `get_note()`, `get_embedding()` and
+  `resolve_link_target()` still return a journal note when asked for it
+  explicitly. `notes_excluding_journal()` is now an alias of `notes()`. The
+  per-geist journal filters in the bundled geists were removed.
+
+### Added
+- Tracery save actions: `[key:rule]` expands a rule once and saves it,
+  `[key:POP]` discards it, and `#[key:rule]symbol#` saves it only while that
+  tag expands. Only `[identifier:` starts an action, so `[[wikilinks]]` stay
+  literal. Grammar preflight (loading and `geistfabrik validate`) rejects
+  malformed actions.
+- `$vault.note_pairs(count)` vault function: pairs of two different notes as
+  `"[[A]]|||[[B]]"`, for use with save actions and `.split_seed` /
+  `.split_neighbours`.
+- `VaultContext.journal_notes()`: the explicit accessor for session notes.
+- Built-in metadata keys `root_ttr` (unique words / sqrt(total words), a
+  length-corrected lexical diversity that cannot exceed sqrt(word_count), so
+  stubs no longer look rich; on real prose it still rises with length) and
+  `link_density` (links per word, as in the spec). `lexical_diversity` keeps
+  its raw-TTR meaning for existing plugins. A user metadata module that
+  defines either key still overrides it.
+- `MetadataAnalyser.outliers()` and `distribution()` take an optional `notes`
+  population, and `outliers()` returns the most extreme note first.
+- Test-suite quality gates in `validate.sh` and CI: a geist firing gate
+  (`--require-geist-firing`), a suite-hygiene scan, and an acceptance-criteria
+  evidence check (see the Tests section).
+
+### Changed
+- `Note.created` now comes from what the note declares: a frontmatter
+  `created:` property (date or datetime), else a date at the start of the file
+  name (`2023-09-12.md`, `2023-09-12 Meeting.md`), else the file timestamps as
+  before. File timestamps are reset by copying, syncing and `git clone`, so a
+  cloned vault looked brand new to age-, anniversary- and season-based geists.
+  A declared date replaces the stored one (so correcting `created:` takes
+  effect); a timestamp estimate still never moves later. The parser revision
+  bump (v5) reprocesses notes once on the next sync; no rebuild is needed.
+- `Note.modified` likewise comes from a frontmatter `modified:` property, else
+  `updated:`, else the file's mtime, so staleness ("untouched for N days") no
+  longer changes when a vault is cloned or synced. A declared `modified:` also
+  bounds a timestamp-estimated `created`, so a cloned note is never created
+  after its declared last edit. The parser revision bump (v6) reprocesses
+  notes once; no rebuild is needed.
+- Similarity is measured on meaning only. Stored session embeddings append
+  three calendar features (note age, creation season, session season) to the
+  384 semantic dimensions; `similarity()`, `batch_similarity()`,
+  `neighbours()`, both vector-search backends, clustering, surprisal,
+  neighbour churn, stats and drift now compare the 384 semantic dimensions
+  only (`geistfabrik.semantic_vectors`). With the calendar features, notes of
+  similar age looked more alike (up to +0.07) and "similar" counts shifted
+  between sessions on unchanged text. `VaultContext.get_embedding()` returns
+  the 384-dimension meaning vector. Stored data is unchanged; no migration.
+- `Note.created` is now the earliest of a file's modification, inode-change and
+  (where the platform records it) birth time, and re-syncing an edited note no
+  longer moves its creation date later. Previously it was `st_ctime`, which on
+  Linux and macOS is reset by every write, so edited notes looked brand new to
+  age-, anniversary- and season-based geists (BUG-4 in
+  `docs/DEEP_AUDIT_REPORT.md`). Migration is automatic: the parser revision
+  bump makes the next sync re-derive `created` for every note, keeping the
+  earlier of the stored and re-derived values. No rebuild is required, and
+  cached semantic embeddings of unchanged notes are kept, so the one-time
+  reprocess does not re-embed the vault.
+- `Session.compute_embeddings()` and `EmbeddingComputer.compute_temporal_embedding()`
+  now share one `combine_embedding()` implementation of the semantic/temporal
+  weighting (no change to stored values).
+- Removed dead code: `SqliteVecBackend._get_or_create_vec_id`,
+  `EmbeddingMetricsComputer._apply_mmr_filtering`, `graph_analysis._are_linked`
+  (now `VaultContext.has_link`). The test-only `_surprisal_naive` oracle moved
+  from `vault_context.py` into `tests/unit/test_surprisal_churn.py`.
+
+- Development dependency floor raised to `pytest>=8.0`: the geist firing
+  plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
+
+### Fixed
+- vocabulary_expansion and voice_absence never reached a journal: their
+  suggestions named no note, and the quality filter drops those. They now
+  name notes: vocabulary_expansion two of the notes nearest the centre (when
+  the spread narrowed) or farthest from it (when it widened); voice_absence
+  the few notes that do use the missing voice, or one recent note to start
+  from.
+- Geist text now claims only what the code checks: density_inversion says
+  "few of them link to each other" (it checks density below 0.3, not zero
+  links), cyclical_thinking describes edits that moved a note away from its
+  first recorded version and back (vectors are cached by content), and
+  assumption_challenger counts causal markers as whole words in prose
+  ("thus" no longer matches "enthusiasm"). question_generator, stub_expander
+  and link_density_analyser drop phrasing that `docs/WRITING_GOOD_GEISTS.md`
+  lists as anti-patterns.
+- `geistfabrik stats` labels the newest note file time "Latest note change";
+  it was "Last sync", but no sync time is recorded. The JSON key `last_sync`
+  is unchanged. Its "Hubs" summary now counts notes with 10 or more links in
+  or out, the same rule as the verbose hub list (it counted outgoing links
+  only, so a note ten others link to was listed but not counted), and "info"
+  recommendations print with "ℹ" instead of the success tick.
+- **Performance (scaling benchmark of every geist, 100 to 10,000 notes and
+  pathological notes).** All results are unchanged unless noted:
+  - Quadratic text scans that timed out geists or hung vault sync on
+    pathological notes are now linear: question extraction on long lines
+    without `?`, pattern_finder's URL pattern on long unbroken words,
+    sentence splitting over runs of initials, rejoining hard-wrapped
+    paragraphs (especially under an unclosed `**`), hypothesis matching on
+    run-on sentences, and wikilink parsing on runs of `[` (56 s to over 120 s
+    each, now milliseconds).
+  - Temporal trajectory helpers use numpy instead of one sklearn call per
+    snapshot pair, and drift finders load trajectories with one query
+    (cyclical_thinking on 4,000 notes: 5.1 s to 0.4 s).
+  - `batch_similarity()` is fully vectorised; matrices above 10,000 pairs read
+    but no longer fill the per-pair cache (4000x240: 1.1 s to 0.04 s).
+    `surprisal_scores()` and `neighbour_churn()` share one top-k pass;
+    `metadata()` reuses the `voice()` cache, so voice analysis runs once per
+    note per session; density_inversion uses adjacency sets and one matrix.
+  - Clustering: up to 5,000 notes HDBSCAN uses brute-force distances (about
+    8x faster than the kd-tree in 384 dimensions; distance ties can reassign
+    up to ~0.1% of notes to a different cluster, a one-time change). Cluster
+    labelling reuses the session's embedding model and caches label-text
+    embeddings in-process; KeyBERT cluster centroids now come from the
+    session's whole-note meaning vectors instead of re-encoding truncated
+    note text, so labels may shift slightly (cluster_mirror on 4,000 notes
+    with the real model: 53 s to 2 s). Clusters are computed once per session before
+    cluster geists run, under their own 120 s budget, so a large vault no
+    longer makes cluster_mirror time out every session.
+- Journal links to a note whose title (H1 or frontmatter `title`) differs
+  from its file name were dead in Obsidian, which links by file name:
+  `EMBEDDINGS_SPEC.md` titled "Embeddings Specification" was written as
+  `[[Embeddings Specification]]`, and clicking it created an empty note.
+  `Note.link_text` now links to the file and shows the title
+  (`[[EMBEDDINGS_SPEC|Embeddings Specification]]`); notes whose title is their
+  file name are unchanged. Link resolution and privacy boundaries accept the
+  alias form.
+- Links written inside fenced, indented or inline code (Tracery examples
+  such as `[[#note#]]`, f-strings like `f"[[{title}]]"`) were stored as real
+  links, inflating link counts and inventing hubs. Tags now follow Obsidian's
+  rules: `#` must start the text or follow whitespace, and a tag needs a
+  non-numeric character, so "PR #30", "#2023", URL fragments and `(#anchor)`
+  links are no longer tags. The parser revision bump (v4) reprocesses every
+  note once on the next sync; no rebuild is needed and unchanged notes keep
+  their cached embeddings.
+- A link from a note to itself (`[[#Section]]`, or a note naming its own
+  title) made the note its own backlink, so notes with no real connections
+  filled `hubs()` and were called "central to your vault". Self-links are no
+  longer edges, a repeated link is one edge in `outgoing_links()`, and a note
+  whose only links point at itself counts as an orphan.
+- `VaultContext.sample(items, k)` returned the input order when `k` was at
+  least the number of items, so geists that sampled and then took the first
+  few named the same notes, in vault order, every session. It now always
+  shuffles (still deterministic per session).
+- Tracery geists all used the bare session seed, so geists with the same
+  number of templates picked the same template index each day; the seed now
+  mixes in the geist id. A Tracery invocation no longer names the same note
+  (or note set) twice: repeats are skipped and redrawn, and the five bundled
+  geists whose pool equalled their `count` draw from larger pools. The `.ed`
+  modifier gives "understood", not "understanded".
+- Built-in `word_count` (and the keys derived from it) counted YAML
+  frontmatter as words.
+- Cluster labels were built from raw note content, so they were named after
+  frontmatter keys and dates ("tags daily notes, 2023, 09"); labels now use
+  the note body without code, and only words of two or more letters.
+- Voice analysis treated code in fences indented under list items, and the
+  "I" of "I/O", as first-person writing.
+- **Geist intent audit.** Every bundled geist was audited against what it
+  claims; suggestion text must now be true of the notes it names. Fixes:
+  - anachronism_detector: reports a recent note only when its best old match
+    beats its best recent match; real elapsed years ("2 years earlier").
+  - antithesis_generator: no longer asserts that a neighbour "seems to
+    challenge" a note or that two notes are "dialectically opposed"; it only
+    invites writing an antithesis.
+  - assumption_challenger: quotes the certain-sounding sentence (whole-word
+    markers; "always"/"must be" no longer count) and pairs it only with a
+    neighbour that hedges about the same terms.
+  - blind_spot_detector: states only the trigger that held ("N days" only past
+    180 days); skips stubs as the "opposite" note.
+  - bridge_builder: each pair once; pairs sharing a linked note are skipped, so
+    "different parts of your vault" is true.
+  - burst_evolution: time span from the first snapshot, silent when no note
+    changed, ignores future burst days, no "-0.00".
+  - claim_harvester, definition_harvester, hypothesis_harvester: whole
+    sentences (decimals and "e.g." no longer split them), no bold field labels
+    (98.6% of definitions were "**Status**:"-style labels), imperatives, table
+    rows, quoted examples or the month "May"; each tries up to 10 notes.
+  - columbo: "both connect to" lists only links the two notes share.
+  - complexity_mismatch: absolute thresholds (expand: >= 5 backlinks and < 100
+    words; simplify: > 1500 words, no links in or out) instead of thresholds
+    divided by vault size.
+  - concept_cluster: no longer calls a cluster "emerging".
+  - convergent_evolution, divergent_evolution: a transient spike or a dip that
+    recovered no longer counts; converging pairs must be similar now; mutual
+    links reported once. cyclical_thinking: hysteresis (0.6/0.8) and sampling.
+  - creation_burst: ignores bulk-import days and days after the session date;
+    no longer asks about "today". creative_collision: only loosely related
+    pairs (0.15-0.35), without the unchecked "different domains" claim.
+  - dialectic_triad: samples a distant note (never reused) and no longer
+    claims the two notes are opposites. drift_velocity_anomaly: reports change
+    across recorded sessions, not "velocity". concept_drift: names no
+    neighbour when the note moved away from all of them.
+  - hidden_hub: counts linked notes, "at least 30" when capped, correct
+    plurals. island_hopper: hub named once; never proposes a note already
+    linked to the cluster.
+  - hub_explorer: only notes with >= 3 backlinks are called "central", rotating
+    among up to five; no "has grown" claim (`$vault.hubs()` gains
+    `min_backlinks`). orphan_connector: rotates among recent orphans.
+  - link_density_analyser: "needs more connections" uses resolved links and
+    backlinks and states the counts; embeds and self-links are not "too many
+    links". metadata_driven_discovery: isolation uses resolved links; drops
+    "You understand them"; samples matches. metadata_outlier_detector:
+    word-count outliers on a log scale (so "unusually brief" can fire),
+    sampled among outliers.
+  - pattern_finder: themes are three-word prose phrases (no code, markdown
+    syntax, headings or tables; whole-token stopwords).
+  - question_generator: no ungrammatical "Why is <title>?" and no doubled
+    `?"?`; titles quoted; date notes skipped. what_if: constraint prompts
+    name the note they mean ("What if you had to draw [[X]]?", not "draw it"). question_harvester and quote_harvester: no table rows,
+    callouts, nested ">" markers, bold labels or stray "**".
+  - scale_shifter: whole-word scale terms; a "broader framework" must be more
+    abstract and moderately similar; pairs deduplicated.
+  - seasonal_patterns: no "consistently" from a single pair, "1 year apart",
+    seasonal tags must beat the season's base rate. seasonal_revisit: samples
+    every eligible note, not the first three. seasonal_topic_analysis: shares
+    the other seasonal geists' seasons, names the anchor note, and describes a
+    thread rather than a seasonal pattern.
+  - self_and_other: an "I" note needs >= 1 first-person pronoun per 100 words;
+    the "no 'we' notes" claim states the true count. voice_absence: counts match
+    their sentences; its duplicate "we" question is removed.
+  - sentence_variance: ignores tables and headings, splits list items, ranks
+    by relative spread. stub_expander: needs >= 1 backlink, ranked by
+    backlinks. surprisal: skips near-empty notes and samples the top five.
+    temporal_drift: "well-connected" means >= 2 backlinks; scans every stale
+    note. todo_harvester: case-sensitive TODO/FIXME/HACK/XXX, no "note:" prose.
+    uncertainty_mapper: needs 5 sentences and 80 words, ranks by hedges per 100
+    words; "May" and "rather" are not hedges (voice analysis).
+  - session_drift no longer points at stored snapshots (none are stored);
+    temporal_clustering no longer claims periods are "separate";
+    structure_diversity_checker never offers a "mixed" note as a style.
+  - perspective_shifter and transformation_suggester: whole sentences;
+    transformation_suggester no longer invents history ("Last year, you built
+    [[X]]") or counts. temporal_contrast keeps only the template that works
+    (the empty future-note pool silenced it every session).
+- metadata_outlier_detector's link-density branch never fired on a default
+  install because `link_density` was not built-in metadata. It now uses the
+  built-in key over notes of at least 50 words, reports counts ("15 links in
+  78 words: 19.2 per 100 words vs median 0.0"), and names the most extreme
+  outlier rather than the first in vault order.
+- metadata_driven_discovery reads vocabulary richness from `root_ttr` instead
+  of raw TTR plus a 100-word floor.
+- Harvesters (question, quote, todo, definition, claim, hypothesis) deleted
+  inline code before extracting, so "flag (`--timeout`, `--count`) wins" was
+  quoted as "flag (, ) wins". Inline code is now kept, with its punctuation
+  masked during extraction so code still cannot fake a question, TODO or quote.
+- Harvesters no longer double quotation marks around text that is already
+  quoted (`""A garden is never finished.""`).
+- Tracery geists written with YAML block scalars (`- |`) produced nothing:
+  the empty-placeholder check treated their trailing newline as an empty
+  symbol.
+- Tracery parsed `$vault` results as grammar, so a note title containing
+  `[key:...]` or `#symbol#` could overwrite saved values or expand symbols.
+  Vault data is now inserted verbatim.
+- method_scrambler's output depended on `PYTHONHASHSEED` (candidates were
+  deduplicated through a set), and so did density_inversion and the graph
+  analysis bridges and components: `VaultContext.graph_neighbours()` returned
+  a set's order. It now lists outgoing targets then backlinks, in first-seen
+  order.
+- assumption_challenger called any of a note's 10 nearest notes
+  "semantically similar"; the hedging note must now score at least
+  `SimilarityLevel.WEAK`.
+- Geist journal session notes leaked into suggestions (as the subject, a
+  neighbour, a cluster member, a bridge, a "past" note or a link) in
+  anachronism_detector, antithesis_generator, assumption_challenger,
+  bridge_builder, bridge_hunter, columbo, complexity_mismatch, concept_cluster,
+  concept_drift, convergent_evolution, creative_collision, density_inversion,
+  dialectic_triad, divergent_evolution, hermeneutic_instability, hidden_hub,
+  island_hopper, method_scrambler, on_this_day, question_generator,
+  scale_shifter, seasonal_revisit, session_drift, structure_diversity_checker,
+  stub_expander and temporal_clustering. `VaultContext.session_embeddings_by_session()`
+  also excludes them, so accumulating session notes no longer manufacture a
+  "higher vocabulary" trend in vocabulary_expansion.
+- Geists that filtered journal notes only after taking the top N (bridge_hunter,
+  recent_focus, temporal_drift) went silent once enough session notes existed;
+  blind_spot_detector went silent when the most contrarian note was a journal
+  note.
+- dialectic_triad rendered links as `[[[[Title]]]]` and stored bracketed
+  titles in `Suggestion.notes`.
+- columbo, concept_cluster and creative_collision emitted duplicate
+  suggestions for the same pair or cluster.
+- pattern_finder counted a phrase once per occurrence rather than once per
+  note, and its clustering depended on `PYTHONHASHSEED`.
+- question_generator linked date-collection entries as `[[2024-01-10]]`
+  instead of `[[Diary#2024-01-10]]`.
+- structure_diversity_checker classified list, code and mixed notes as prose
+  unless the optional example structure metadata module was installed.
+- recent_focus called unrelated notes "semantically similar" (it now requires
+  at least `SimilarityLevel.WEAK`) and could treat a 200-day-old note as recent
+  work (recent now means edited within 60 days).
+- temporal_clustering labelled periods with wrong, colliding quarter names
+  (November 2023 as "Q2-2023"); periods are now labelled by the months they
+  span.
+- seasonal_revisit announced December notes as "last year's winter" in
+  January.
+- `VaultContext.unlinked_pairs()` treated a zero-norm embedding as similar to
+  everything (NaN similarity passed the threshold check).
+- Tracery output with an empty leading or trailing placeholder (for example
+  contradictor on an empty vault) was not suppressed.
+- `geistfabrik stats` temporal drift reported ~0 for notes that had been
+  completely rewritten. It fitted an orthogonal Procrustes rotation between
+  the two snapshots on the same few notes it then measured; with far fewer
+  notes than the model's 384 dimensions, that rotation absorbed the change.
+  Both snapshots come from the same pinned model, so drift is now the plain
+  `1 - cosine` between each note's past and current semantic vectors (the
+  calendar features are still excluded). In small vaults the "smallest
+  changes" list no longer repeats notes already listed as the largest changes.
+- metadata_driven_discovery called any short unlinked note a "complex topic
+  with few connections", and any short old note a "buried gem" of "rich
+  language": the built-in `lexical_diversity` is raw type-token ratio, which
+  is about 1.0 for a few distinct words. The geist now counts it as evidence
+  only for notes of at least 100 words. The `lexical_diversity` metadata key
+  itself is unchanged (still raw TTR, a float in [0, 1]).
+- semantic_neighbours could pair one cluster's seed with another cluster's
+  neighbours, even listing the seed among its own "neighbours" ("around
+  [[Note 1]]: [[Note 0]], [[Note 1]]"): its seed and neighbours each
+  re-expanded `#cluster#`. The Tracery engine now supports Tracery's save
+  actions (`[key:#symbol#]`, `[key:POP]`, `#[key:#symbol#]other#`), and the
+  geist splits one saved cluster. Grammar preflight (shared by loading and
+  `geistfabrik validate`) rejects malformed actions, and `validate` no longer
+  reports saved keys as undefined symbols.
+- note_combinations could pair a note with itself ("combine [[A]] with [[A]]")
+  because note1 and note2 were two independent `sample_notes` draws; it now
+  splits one pair from the new `$vault.note_pairs(count)` function, and
+  abstains on a one-note vault. random_prompts likewise no longer connects a
+  concept with itself ("between emergence and emergence").
+- cluster_evolution_tracker, metadata_outlier_detector and
+  seasonal_topic_analysis put `note.title` into `Suggestion.notes`, so a
+  journal entry was referenced by its bare date, which names every journal's
+  entry for that date; they now use `note.link_text` (`Journal#date`).
+- cluster_evolution_tracker reported every member of a cluster as having
+  "migrated" whenever one note joined it, because it compared c-TF-IDF label
+  strings (which change with membership). It now matches each previous
+  cluster to the current cluster holding most of its members.
+- cyclical_thinking required 6 sessions although two cycles need only 5
+  snapshots, so a note that cycled twice in 5 sessions was never reported.
+- seasonal_topic_analysis looked for winter notes in the coming winter (after
+  the session date) for sessions from March on, and its season windows ended
+  at midnight at the start of their last day. Each season now resolves to its
+  most recent occurrence on or before the session date, through its last day.
+- question_harvester glued a heading (or any unpunctuated line before a blank
+  line) onto the next question, and harvested list-item questions twice.
+- definition_harvester misquoted "X is a Y" and "X is defined as Y"
+  definitions as "X is Y".
+
+### Tests
+- Acceptance criteria AC-5.3 (write session note), AC-5.6 (multi-day
+  sessions), AC-6.6 (Tracery integration with a vault), AC-7.5 (temporal
+  geists) and AC-11.3 (E2E) all ran `tests/integration/test_scenarios.py`,
+  which under the fast marker filter executed only an empty-vault sync, so the
+  gate reported them verified while nothing tested them. New end-to-end
+  scenarios drive `geistfabrik invoke --write` on a real vault and read back
+  the journal; each criterion (and AC-5.4, previously manual) now names its
+  scenario.
+- The test `SentenceTransformer` stub is now a bag-of-words embedding, so
+  fixtures can make different notes similar by sharing vocabulary; new
+  `VaultBuilder` and `tests/fixtures/temporal.py` helpers build pinned-date,
+  in-memory vaults with controlled session histories.
+- Per-geist tests are rebuilt around designed-to-trigger fixtures: exact output
+  caps with more candidates than the cap, threshold boundary pairs, and journal
+  exclusion checked in both directions. Tests that could not fail (assertions
+  inside loops over empty output, `len <= cap` on output below the cap,
+  reimplementations that never imported GeistFabrik, git-history greps) were
+  rewritten or removed. New gates keep it that way: every bundled geist must
+  produce a suggestion somewhere in the unit lane (`--require-geist-firing`),
+  a suite-hygiene scan rejects assertion-free tests, always-true asserts and
+  asserts that only run inside loops over possibly-empty output, and the
+  acceptance-criteria gate rejects criteria whose pytest target selects
+  nothing or is partly deselected.
+
 ## [0.11.0] - 2026-09-13
 
 ### Fixed

@@ -1,5 +1,9 @@
 # GeistFabrik Implementation Phases
 
+> **Status:** historical roadmap. All phases are built; durations and AC
+> counts below are the original estimates. `acceptance_criteria.md` (executed by
+> `scripts/check_phase_completion.py`) is the live record.
+
 This document outlines the implementation roadmap for GeistFabrik. Each phase builds on the previous, delivering working functionality that can be verified programmatically.
 
 **For detailed acceptance criteria**, see [acceptance_criteria.md](acceptance_criteria.md).

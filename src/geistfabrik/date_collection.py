@@ -238,8 +238,10 @@ def split_date_collection_note(
     Args:
         file_path: Original file path (e.g., "Daily Journal.md")
         content: Full file content
-        file_created: File creation timestamp
-        file_modified: File modification timestamp
+        file_created: The file's creation date (declared or estimated; entries
+            use their heading dates instead)
+        file_modified: The file's modified date (frontmatter ``modified:`` /
+            ``updated:``, else mtime), inherited by every entry
 
     Returns:
         List of virtual Note objects, one per date section

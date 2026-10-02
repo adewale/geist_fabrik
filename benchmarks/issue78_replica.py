@@ -41,6 +41,11 @@ from geistfabrik.vault_context import VaultContext
 NOTE_COUNT = 3175  # issue #78's vault size
 SESSION_DATE = datetime(2024, 3, 15)
 
+# The issue's headline geists, kept as-is so runs stay comparable with 3b248e6.
+# Since 2026-10, columbo and blind_spot_detector are retired, island_hopper was
+# merged into bridge_builder and cluster_evolution_tracker into attention_shift
+# (specs/SPEC_STATUS.md, "Geist merges (2026-10)"); on current HEAD they print
+# "(absent)" rather than failing.
 GEISTS = [
     "columbo",
     "hidden_hub",

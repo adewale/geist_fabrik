@@ -1,8 +1,8 @@
 """Definition Harvester geist - extracts terminology definitions from notes.
 
 Demonstrates the power of content_extraction.py abstractions. Uses the
-DefinitionExtractor strategy to find definition patterns like "X is Y",
-"X: Y", "X means Y", and "X refers to Y".
+DefinitionExtractor strategy to find definition patterns like "X is a Y",
+"X means Y", "X refers to Y" and Markdown definition lists ("X" then ": Y").
 
 This geist showcases how the extraction pipeline generalizes the pattern
 from question_harvester to enable new content types with minimal code.
@@ -13,9 +13,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
+# Notes tried per session before abstaining.
+MAX_NOTES_TRIED = 10
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Extract terminology definitions from a randomly selected note.
+
+    Tries up to MAX_NOTES_TRIED random notes and harvests the first that
+    contains a definition.
 
     Returns:
         List of 1-3 suggestions containing definitions found (or empty if none)
@@ -27,15 +33,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ExtractionPipeline,
         LengthFilter,
         PatternFilter,
+        quote_for_display,
     )
 
-    # Pick one random note (deterministic by session seed)
     notes = vault.notes()
     if not notes:
         return []
-
-    note = vault.random_notes(count=1)[0]
-    content = vault.read(note)
 
     # Create extraction pipeline
     pipeline = ExtractionPipeline(
@@ -52,8 +55,14 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ],
     )
 
-    # Extract definitions
-    definitions = pipeline.extract(content)
+    # Genuine definitions are sparse, so try a few random notes (deterministic
+    # by session seed) and harvest the first one that has any.
+    note = notes[0]
+    definitions: list[str] = []
+    for note in vault.sample(notes, MAX_NOTES_TRIED):
+        definitions = pipeline.extract(vault.read(note))
+        if definitions:
+            break
 
     # If no definitions found, return empty (geist abstains)
     if not definitions:
@@ -66,7 +75,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         definition_clean = " ".join(definition.split())
 
         text = (
-            f'From [[{note.link_text}]]: "{definition_clean}" '
+            f"From [[{note.link_text}]]: {quote_for_display(definition_clean)} "
             f"What if you explored this definition further?"
         )
 

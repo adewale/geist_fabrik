@@ -46,7 +46,7 @@ A Python library provides deep understanding of the Obsidian vault through two l
   - Exposes both uniformly as individual notes
 
 - Computes embeddings using sentence-transformers (offline)
-- Stores vectors in SQLite using sqlite-vec extension
+- Stores vectors in SQLite (as BLOBs) and searches them in memory, with the sqlite-vec extension as an option
 
 #### VaultContext (Rich Execution Context)
 
@@ -54,13 +54,13 @@ Geists receive a **VaultContext** - a rich, intelligent wrapper that provides:
 
 - **Embeddings & Semantic Search**:
   - Pre-computed embeddings stored in SQLite
-  - Fast vector similarity using sqlite-vec
-  - Nearest-neighbour queries via SQL
+  - Fast in-memory cosine similarity (sqlite-vec optional)
+  - Nearest-neighbour queries
 
 - **Inferred Metadata**:
   - Creation date, tags, links, backlinks
   - User-extensible metadata (complexity, mood, reading time, etc.)
-  - Stored in SQLite for fast filtering
+  - Computed on demand and cached for the session
 
 - **Convenient Functions**:
   - Sampling utilities (random selection with deterministic seeds)
@@ -73,9 +73,9 @@ Geists receive a **VaultContext** - a rich, intelligent wrapper that provides:
   - All functions exposed to Tracery as `$vault.*`
 
 - **Temporal Embeddings**:
-  - Fresh embeddings computed each session
-  - Tracks how understanding of notes evolves over time
-  - Unlocks geists that detect interpretive drift, temporal patterns, and conceptual evolution
+  - An embedding stored for every note each session (meaning vectors are cached by content, so they change only when a note is edited)
+  - Tracks how notes and their neighbourhoods evolve over time
+  - Unlocks geists that detect drift, temporal patterns, and conceptual evolution
 
 ### Geist System
 
@@ -98,15 +98,22 @@ Each session creates a note: `YYYY-MM-DD.md`
 Example: `geist journal/2025-01-15.md`
 
 ```markdown
-# GeistFabrik Session – 2025-01-15
+# GeistFabrik Session – January 15, 2025
 
 ## connection_finder ^g20250115-001
 [[Project Planning]] × [[Fermentation]] – what if they follow the same cycles?
 
-## columbo ^g20250115-002
-I think you're lying about your claim in [[Democracy Note]] that "direct democracy scales"
-because your [[Scaling Systems]] note argues that coordination costs grow superlinearly...
+## contradictor ^g20250115-002
+[[Democracy Note]] - but what if you're wrong?
 ```
+
+The aspiration behind this format was a Columbo-style geist: "I think you're
+lying about your claim in [[Democracy Note]] that 'direct democracy scales',
+because your [[Scaling Systems]] note argues that coordination costs grow
+superlinearly..." A `columbo` geist was built and then retired (2026-10):
+sentence embeddings measure topic, not stance, so it could not tell when one
+note contradicts another. It is no longer bundled; see
+`specs/research/OPPOSITION_GEISTS_RESEARCH.md` for what a working version needs.
 
 Each suggestion includes:
 - Geist identifier as heading
@@ -115,7 +122,7 @@ Each suggestion includes:
 
 Sessions are linkable: `[[geist journal/2025-01-15]]`
 
-**Duplicate Prevention**: System checks SQLite database to avoid generating suggestions for dates already processed.
+**Duplicate Prevention**: Writing a session refuses to replace an existing note for that date unless `--force` is given; past suggestions are recorded in SQLite so the novelty filter avoids repeating them.
 
 ### Extensibility Dimensions
 
@@ -156,18 +163,18 @@ $ geistfabrik invoke
 ```
 - All geists run
 - Filtering removes duplicates, enforces boundaries, checks novelty
-- Random sample of ~5 suggestions written to journal
+- Deterministic sample of ~5 suggestions, previewed by default and written to the journal with `--write`
 
 **Single geist mode** - Focus on one geist
 ```bash
-$ geistfabrik invoke --geist columbo
+$ geistfabrik invoke --geist what_if
 ```
-- Only Columbo's suggestions (post-filter) appear in journal
+- Only what_if's suggestions (filtered, then sampled; add `--full` for all) appear
 - Useful for testing or focusing on specific pattern
 
 **Subset mode** - Multiple specific geists
 ```bash
-$ geistfabrik invoke --geists columbo,drift,skeptic
+$ geistfabrik invoke --geists what_if,concept_drift,surprisal
 ```
 - Only specified geists' suggestions appear
 
@@ -175,7 +182,7 @@ $ geistfabrik invoke --geists columbo,drift,skeptic
 ```bash
 $ geistfabrik invoke --full
 ```
-- All filtered suggestions written to journal (no sampling)
+- All filtered suggestions (no sampling)
 - "Drinking from the firehose"
 - Could be 50-200 suggestions
 
@@ -267,4 +274,4 @@ The line between user and contributor blurs—GeistFabrik grows through accumula
 
 ### The Vision
 
-Over time, GeistFabrik becomes a system that ships with 20 geists but supports 200+. Each user's extensions reflect their unique way of seeing. Success isn't measured by how many users adopt GeistFabrik, but by how many users extend it—and how many of those extensions prove useful to others.
+Over time, GeistFabrik becomes a system that ships with a small curated set of geists but supports 200+. Each user's extensions reflect their unique way of seeing. Success isn't measured by how many users adopt GeistFabrik, but by how many users extend it—and how many of those extensions prove useful to others.

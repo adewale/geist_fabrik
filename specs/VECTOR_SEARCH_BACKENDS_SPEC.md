@@ -6,6 +6,13 @@
 **Implemented**: October 2025 (Version 0.9.0)
 **Last Updated**: October 2025 (Added testing improvements)
 
+> **Implementation note (2026-10):** both backends index and compare only the
+> 384 semantic dimensions of each stored session vector
+> (`semantic_vectors.meaning_vector`; `SqliteVecBackend(dim=SEMANTIC_DIM)` builds
+> a per-session `temp` vec0 table with `distance_metric=cosine`). Code blocks
+> below that show `float[387]` predate this; the 3 calendar features are stored
+> but never compared.
+
 ---
 
 ## Overview
@@ -693,9 +700,9 @@ def test_geist_execution_with_backend(tmp_vault, backend):
     context = VaultContext(vault, date="2025-01-01")
 
     # Execute a geist that uses semantic search
-    from geistfabrik.default_geists.code import semantic_neighbours
+    from geistfabrik.default_geists.code import concept_cluster  # semantic_neighbours merged into it
 
-    suggestions = semantic_neighbours.suggest(context)
+    suggestions = concept_cluster.suggest(context)
 
     # Should work regardless of backend
     assert isinstance(suggestions, list)

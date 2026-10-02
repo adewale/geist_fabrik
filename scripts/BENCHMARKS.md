@@ -10,6 +10,11 @@ This directory contains benchmarking tools for GeistFabrik performance testing.
 
 Test different sklearn configuration optimisations for large vaults (10k+ notes).
 
+> **Note (2026-10):** `src/geistfabrik` no longer reads the `GEIST_*`
+> variables these scripts set, so all 8 configurations now run the same code.
+> Kept for reproducing the historical study; see
+> [`../docs/BENCHMARKING_GUIDE.md`](../docs/BENCHMARKING_GUIDE.md).
+
 ### Running Benchmarks
 
 ```bash
@@ -99,7 +104,7 @@ while InMemoryVectorBackend shows linear scaling (O(n) cosine similarity).
 - **Large vaults (> 1000 notes)**: Use `sqlite-vec` backend
   - Significantly faster queries (10-20x)
   - Load overhead amortized across many queries
-  - Requires: `uv pip install -e ".[vector-search]"`
+  - Requires: `uv sync --extra vector-search` (source checkout) or `pip install "geistfabrik[vector-search]"`
 
 - **Medium vaults (500-1000 notes)**: Either backend works
   - InMemory: Simpler, no dependencies

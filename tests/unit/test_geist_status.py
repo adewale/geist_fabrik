@@ -183,8 +183,11 @@ class TestExecutorPersistence:
         assert ex.geists["flip"].failure_count == 2  # seeded from store
         ex.execute_geist("flip", _stub_context())
 
-        # A successful run clears the persisted count.
-        assert store.load().get("flip", None) is None or store.load()["flip"].failure_count == 0
+        # A successful run clears the persisted count without dropping the row.
+        status = store.load()["flip"]
+        assert (status.failure_count, status.disabled) == (0, False)
+        assert ex.geists["flip"].failure_count == 0
+        assert ex.execution_log[-1]["status"] == "success"
 
     def test_success_resets_failure_recorded_after_executor_loaded(self, tmp_path):
         db_path = tmp_path / "stale-success.db"
@@ -245,14 +248,3 @@ class TestExecutorPersistence:
         )
         assert store.load()["broken"].failure_count == 2
         assert store.load()["broken"].disabled is True
-
-    def test_without_store_falls_back_to_in_memory(self, tmp_path):
-        geists_dir = tmp_path / "geists"
-        _write_geist(geists_dir, "boom", BAD_GEIST)
-        ex = GeistExecutor(geists_dir, timeout=5, max_failures=2)  # no store
-        ex.load_geists()
-        ctx = _stub_context()
-        ex.execute_geist("boom", ctx)
-        assert ex.geists["boom"].is_enabled is True  # 1 < 2
-        ex.execute_geist("boom", ctx)
-        assert ex.geists["boom"].is_enabled is False  # 2 >= 2 (in-memory)

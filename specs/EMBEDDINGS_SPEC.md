@@ -23,8 +23,13 @@ A session embedding contains 387 coordinates:
 | 385 | Creation-day seasonal sine multiplied by 0.1 |
 | 386 | Session-day seasonal sine multiplied by 0.1 |
 
-The combined vector is not subsequently normalized. Similarity therefore requires
-cosine normalization; a raw dot product is not generally its cosine similarity.
+The combined vector is not subsequently normalized.
+
+**Comparisons use coordinates 0–383 only** (since 2026-10): similarity,
+neighbours, vector-search indexes, clustering, surprisal, churn and drift
+drop coordinates 384–386 when reading a stored vector
+(`src/geistfabrik/semantic_vectors.py`). The calendar coordinates are stored
+for compatibility and future use but do not influence any comparison.
 
 ## Semantic encoding
 
@@ -86,10 +91,10 @@ content in two different note paths does not share one cache row.
 
 During `Session.compute_embeddings()`, cache hits reuse semantic vectors;
 misses are encoded in a batch and upserted. All notes receive recomputed temporal
-features and newly composed session vectors. Sync currently invalidates a note's
-semantic cache row when that source is reprocessed, so an unchanged-content
-filesystem update can still cause re-encoding; reuse requires a surviving,
-matching cache entry.
+features and newly composed session vectors. Sync deletes a note's semantic
+cache row only when its content changed (`model_version` no longer matches), so
+an unchanged-content filesystem update or parser-revision reprocess keeps the
+cached vector; reuse requires a surviving, matching cache entry.
 
 ## Temporal features
 
@@ -140,10 +145,12 @@ These are coordinate scaling factors, not a guarantee that 90% of a cosine
 score comes from semantics. In particular, unbounded age can eventually make
 the temporal contribution large.
 
-The direct `EmbeddingComputer.compute_temporal_embedding()` helper accepts a
-`semantic_weight` argument with the same default. It returns the NumPy
-concatenation without forcing float32; the session persistence boundary performs
-that cast. The CLI session pipeline uses the default weight.
+`embeddings.combine_embedding()` is the single implementation of this
+composition. `Session.compute_embeddings()` calls it with the default weight
+for every note (fresh and semantic-cache hits alike) and casts the result to
+float32 when persisting. The direct `EmbeddingComputer.compute_temporal_embedding()`
+helper delegates to the same function, accepts a `semantic_weight` argument with
+the same default, and returns the NumPy concatenation without forcing float32.
 
 ## Session persistence and ownership
 

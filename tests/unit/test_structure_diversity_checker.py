@@ -1,447 +1,163 @@
-"""Unit tests for structure_diversity_checker geist."""
+"""Unit tests for structure_diversity_checker geist.
 
-import os
-from datetime import datetime, timedelta
+Trigger arithmetic (see the geist source):
+- it looks at the 8 most recently modified non-journal notes and needs >= 5;
+- each note is classified from its own markdown (tasks, list items, code
+  fences, headings), densities per 100 words: task-oriented (> 2 tasks),
+  list-heavy (> 5 list items), code-heavy, prose-heavy (< 2 headings and
+  < 3 list items) or mixed;
+- it fires when the recent notes span <= 2 types and the dominant type
+  covers >= 70% of them (6 of 8, or 4 of 5), naming one older note of a
+  different type as the example;
+- it returns at most one suggestion.
+
+Every fixture pins modification times relative to the session date, so
+"recent" is deterministic.
+"""
+
+from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import structure_diversity_checker
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+GEIST = "structure_diversity_checker"
+LIST_BODY = "\n".join(f"- item {i}" for i in range(10))
+PROSE_BODY = "Flowing narrative about soil and seasons, written as plain sentences."
+TASK_BODY = "- [ ] prune roses\n- [ ] order seeds\n- [ ] rake leaves"
 
 
-@pytest.fixture
-def vault_with_uniform_structure(tmp_path):
-    """Create a vault with uniform recent structure (list-heavy)."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _note(builder: VaultBuilder, title: str, body: str, *, age_days: int) -> None:
+    stamp = SESSION_DATE - timedelta(days=age_days)
+    builder.note(title, body, created=stamp, modified=stamp)
 
-    now = datetime.now()
 
-    # Create 8 recent list-heavy notes (uniform structure)
+def _recent(builder: VaultBuilder, bodies: list[str]) -> None:
+    for i, body in enumerate(bodies):
+        _note(builder, f"Recent {i}", body, age_days=i + 1)
+
+
+def test_uniform_list_writing_points_to_an_older_prose_note(tmp_path: Path) -> None:
+    # Regression: list/code/heading counts came only from an optional example
+    # metadata module, so without it every list note was "prose-heavy" and
+    # this vault had no differing note to suggest.
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * 8)
+    _note(builder, "Old Prose", PROSE_BODY, age_days=100)
+
+    suggestions = structure_diversity_checker.suggest(builder.build())
+
+    assert_valid_suggestions(suggestions, GEIST)
+    assert [s.notes for s in suggestions] == [["Old Prose"]]
+    assert "Your last 8 notes are structurally similar (8 are list-heavy)" in suggestions[0].text
+    assert "[[Old Prose]] has a different structure (prose-heavy)" in suggestions[0].text
+
+
+@pytest.mark.parametrize(("dominant", "fires"), [(5, False), (6, True)])
+def test_dominance_threshold(tmp_path: Path, dominant: int, fires: bool) -> None:
+    # 70% of 8 recent notes is 5.6: six list notes are enough, five are not.
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * dominant + [PROSE_BODY] * (8 - dominant))
+    _note(builder, "Old Prose", PROSE_BODY, age_days=100)
+
+    suggestions = structure_diversity_checker.suggest(builder.build())
+
+    assert (suggestions != []) is fires
+
+
+def test_three_recent_structure_types_count_as_diverse(tmp_path: Path) -> None:
+    # Six list notes dominate, but a third type among the recent notes means
+    # the writing is not in a rut.
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * 6 + [PROSE_BODY, TASK_BODY])
+    _note(builder, "Old Prose", PROSE_BODY, age_days=100)
+
+    assert structure_diversity_checker.suggest(builder.build()) == []
+
+
+@pytest.mark.parametrize(("vault_size", "fires"), [(4, False), (5, True)])
+def test_needs_five_recent_notes(tmp_path: Path, vault_size: int, fires: bool) -> None:
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * (vault_size - 1))
+    _note(builder, "Old Prose", PROSE_BODY, age_days=100)
+
+    suggestions = structure_diversity_checker.suggest(builder.build())
+
+    assert (suggestions != []) is fires
+
+
+def test_journal_sessions_are_not_the_users_recent_writing(tmp_path: Path) -> None:
+    # The engine writes a journal note every session, so journal notes are
+    # always the most recently modified. The user's own recent notes are
+    # prose; the eight newer list-shaped journal notes must not stand in for
+    # them.
+    builder = VaultBuilder(tmp_path)
     for i in range(8):
-        path = vault_path / f"recent_list_{i}.md"
-        content = f"""# Recent List Note {i}
+        _note(builder, f"Prose {i}", PROSE_BODY, age_days=10 + i)
+    _note(builder, "Old List", LIST_BODY, age_days=100)
+    stamp = SESSION_DATE - timedelta(days=1)
+    for i in range(8):
+        builder.journal(f"Session Log {i}", LIST_BODY, created=stamp, modified=stamp)
 
-- Item 1
-- Item 2
-- Item 3
-- Item 4
-- Item 5
-- Item 6
-- Item 7
-- Item 8
-- Item 9
-- Item 10"""
-        path.write_text(content)
-        recent_time = (now - timedelta(days=i)).timestamp()
-        os.utime(path, (recent_time, recent_time))
+    suggestions = structure_diversity_checker.suggest(builder.build())
 
-    # Create older notes with different structures (for contrast)
-    old_time = (now - timedelta(days=100)).timestamp()
-
-    # Prose-heavy note
-    path = vault_path / "old_prose.md"
-    content = """# Old Prose Note
-
-This is a long-form prose note with extended paragraphs.
-No lists or tasks, just flowing narrative text that explores
-ideas in depth. Multiple paragraphs build on each other.
-
-Another paragraph continues the thought."""
-    path.write_text(content)
-    os.utime(path, (old_time, old_time))
-
-    # Task-oriented note
-    path = vault_path / "old_tasks.md"
-    content = """# Old Task Note
-
-- [ ] Task 1
-- [ ] Task 2
-- [x] Task 3
-- [ ] Task 4
-- [ ] Task 5"""
-    path.write_text(content)
-    os.utime(path, (old_time, old_time))
-
-    # Code-heavy note
-    path = vault_path / "old_code.md"
-    content = """# Old Code Note
-
-```python
-def example():
-    pass
-```
-
-```python
-def another():
-    pass
-```"""
-    path.write_text(content)
-    os.utime(path, (old_time, old_time))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+    assert_valid_suggestions(
+        suggestions, GEIST, must_reference=["Old List"], must_not_reference=["Session Log"]
+    )
+    assert "(8 are prose-heavy)" in suggestions[0].text
 
 
-@pytest.fixture
-def vault_with_diverse_structure(tmp_path):
-    """Create a vault with diverse recent structure."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def test_journal_notes_are_never_the_example(tmp_path: Path) -> None:
+    # Prose-shaped journal notes outnumber the one regular prose note that
+    # can legitimately be offered as the differing example.
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * 8)
+    _note(builder, "Old Prose", PROSE_BODY, age_days=100)
+    stamp = SESSION_DATE - timedelta(days=200)
+    for i in range(6):
+        builder.journal(f"Session Log {i}", PROSE_BODY, created=stamp, modified=stamp)
 
-    now = datetime.now()
+    suggestions = structure_diversity_checker.suggest(builder.build())
 
-    # Create 8 recent notes with varied structures
-    structures = [
-        ("list", "- Item 1\n- Item 2\n- Item 3\n- Item 4\n- Item 5\n- Item 6\n- Item 7\n- Item 8"),
-        ("prose", "Long prose paragraph with extended narrative.\nAnother paragraph follows."),
-        ("task", "- [ ] Task 1\n- [ ] Task 2\n- [x] Task 3\n- [ ] Task 4"),
-        (
-            "code",
-            "```python\ndef example():\n    pass\n```\n\n```python\ndef another():\n    pass\n```",
-        ),
-        ("list", "- Item A\n- Item B\n- Item C\n- Item D\n- Item E\n- Item F\n- Item G\n- Item H"),
-        ("prose", "Another prose note with flowing text.\nContinued thought development."),
-        ("mixed", "# Mixed\n\n- Item 1\n- Item 2\n\nSome prose.\n\n- [ ] Task"),
-        ("list", "- Item X\n- Item Y\n- Item Z\n- Item Q\n- Item R\n- Item S\n- Item T\n- Item U"),
-    ]
-
-    for i, (struct_type, content_snippet) in enumerate(structures):
-        path = vault_path / f"recent_{struct_type}_{i}.md"
-        content = f"""# Recent {struct_type.capitalize()} {i}
-
-{content_snippet}"""
-        path.write_text(content)
-        recent_time = (now - timedelta(days=i)).timestamp()
-        os.utime(path, (recent_time, recent_time))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_insufficient_recent_notes(tmp_path):
-    """Create a vault with insufficient recent notes."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 3 notes (below minimum of 5)
-    for i in range(3):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_structure_diversity_checker_returns_suggestions(vault_with_uniform_structure):
-    """Test that structure_diversity_checker returns suggestions with uniform structure.
-
-    Setup:
-        Vault with varying note structures.
-
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_uniform_structure
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions, GEIST, must_reference=["Old Prose"], must_not_reference=["Session Log"]
     )
 
-    suggestions = structure_diversity_checker.suggest(context)
 
-    # Should return list (0-1 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 1
-
-
-def test_structure_diversity_checker_suggestion_structure(vault_with_uniform_structure):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with diverse structures.
-
-    Verifies:
-        - Has required fields
-        - References notes with structure patterns"""
-    vault, session = vault_with_uniform_structure
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = structure_diversity_checker.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "structure_diversity_checker"
-
-        # Should reference 1 note (the different example)
-        assert len(suggestion.notes) == 1
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_structure_diversity_checker_uses_link_text(vault_with_uniform_structure):
-    """Test that structure_diversity_checker uses link_text for note references.
-
-    Setup:
-        Vault with varied structures.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_uniform_structure
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = structure_diversity_checker.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_structure_diversity_checker_empty_vault(tmp_path):
-    """Test that structure_diversity_checker handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = structure_diversity_checker.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_structure_diversity_checker_insufficient_notes(vault_insufficient_recent_notes):
-    """Test that structure_diversity_checker handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 15 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_recent_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = structure_diversity_checker.suggest(context)
-
-    # Should return empty list when < 5 recent notes
-    assert len(suggestions) == 0
-
-
-def test_structure_diversity_checker_diverse_structure(vault_with_diverse_structure):
-    """Test that structure_diversity_checker handles diverse structure gracefully."""
-    vault, session = vault_with_diverse_structure
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = structure_diversity_checker.suggest(context)
-
-    # Should return empty or no suggestions when structure is diverse
-    assert len(suggestions) <= 1
-
-
-def test_structure_diversity_checker_deterministic_with_seed(vault_with_uniform_structure):
-    """Test that structure_diversity_checker returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_uniform_structure
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = structure_diversity_checker.suggest(context1)
-    suggestions2 = structure_diversity_checker.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_structure_diversity_checker_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    now = datetime.now()
-
-    # Create geist journal directory with uniform structure
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
+def test_same_seed_and_date_give_identical_output(tmp_path: Path) -> None:
+    # Several differing notes, so the example is a seeded sample.
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * 8)
     for i in range(5):
-        path = journal_dir / f"2024-03-{15 + i:02d}.md"
-        content = f"""# Session {i}
+        _note(builder, f"Old Prose {i}", PROSE_BODY, age_days=100 + i)
 
-- Item 1
-- Item 2
-- Item 3
-- Item 4
-- Item 5"""
-        path.write_text(content)
+    first = [s.text for s in structure_diversity_checker.suggest(builder.build())]
+    second = [s.text for s in structure_diversity_checker.suggest(builder.build())]
 
-    # Create 8 recent list-heavy notes (uniform structure)
-    for i in range(8):
-        path = vault_path / f"recent_list_{i}.md"
-        content = f"""# Recent List Note {i}
+    assert first
+    assert first == second
 
-- Item 1
-- Item 2
-- Item 3
-- Item 4
-- Item 5
-- Item 6
-- Item 7
-- Item 8"""
-        path.write_text(content)
-        recent_time = (now - timedelta(days=i)).timestamp()
-        os.utime(path, (recent_time, recent_time))
 
-    # Create older note with different structure
-    old_time = (now - timedelta(days=100)).timestamp()
-    path = vault_path / "old_prose.md"
-    content = """# Old Prose Note
+def test_mixed_notes_are_never_offered_as_a_style(tmp_path: Path) -> None:
+    """Contract: the example note has a recognisable structure, never "mixed".
 
-This is a long-form prose note with extended paragraphs.
-No lists or tasks, just flowing narrative text."""
-    path.write_text(content)
-    os.utime(path, (old_time, old_time))
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(now, vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    Regression: a "mixed" note (no dominant structure) could be the example,
+    giving "has a different structure (mixed). What if you tried that style
+    again?" - "mixed" is not a style.
+    """
+    builder = VaultBuilder(tmp_path)
+    _recent(builder, [LIST_BODY] * 8)
+    _note(
+        builder,
+        "Old Mixed",
+        "## Soil\nPlain words about soil.\n## Seasons\nPlain words about seasons.",
+        age_days=100,
     )
+    assert structure_diversity_checker.suggest(builder.build()) == []
 
-    suggestions = structure_diversity_checker.suggest(context)
+    _note(builder, "Old Prose", PROSE_BODY, age_days=120)
+    suggestions = structure_diversity_checker.suggest(builder.build())
 
-    # Verify no suggestions reference geist journal notes
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            assert "geist journal" not in note_ref.lower()
-            assert "session" not in note_ref.lower()
+    assert [s.notes for s in suggestions] == [["Old Prose"]]

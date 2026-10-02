@@ -1,9 +1,10 @@
 # CI Validation Guide: Preventing Failed Builds
 
-> **Historical troubleshooting record.** Commands and guarantees below describe
-> an earlier workflow. Use [TESTING.md](TESTING.md) and `scripts/validate.sh` as
-> the maintained local contract. A local pass is strong evidence, not a promise
-> that platform-specific or service-side CI failures are impossible.
+> **Origin:** written after the PR #30 CI failures (2025-10). The step list and
+> gate descriptions below follow the current `scripts/validate.sh` and
+> `.github/workflows/test.yml`; [TESTING.md](TESTING.md) is the fuller testing
+> contract. A local pass is strong evidence, not a promise that
+> platform-specific or service-side CI failures are impossible.
 
 ## The Problem
 
@@ -40,10 +41,10 @@ mypy src/geistfabrik --ignore-missing-imports
 3. `mypy src/ --strict` - Production type checking with strict mode
 4. `ty check src tests --error-on-warning` - Additive whole-project type checking
 5. `python scripts/detect_unused_tables.py` and Bandit - Data/security checks
-5. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60` - Unit coverage pass
-6. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Appended integration coverage and measured 70% branch gate
-7. `python scripts/check_phase_completion.py` - Acceptance criteria
-8. `./scripts/test_wheel.sh` - Wheel/sdist, installation, entry-point, and real-model smoke
+6. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60 --require-geist-firing` - Unit coverage pass, geist firing gate, suite hygiene
+7. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` and `python scripts/check_branch_coverage.py --minimum 70` - Appended integration coverage and measured 70% branch gate
+8. `python scripts/check_phase_completion.py` - Acceptance criteria, including the evidence gate
+9. `./scripts/test_wheel.sh` - Wheel/sdist, installation, entry-point, and real-model smoke
 
 Fast lanes set `GEISTFABRIK_OFFLINE=1`; their marker-selected fixture replaces
 only the external SentenceTransformer constructor. The final validation step
@@ -116,9 +117,39 @@ git push
 | Linting | `ruff check src/ tests/` | Code style, imports, line length |
 | Type checking | `mypy src/ --strict`; `ty check src tests --error-on-warning` | Strict production checking plus additive whole-project checking |
 | DB/security | `detect_unused_tables.py`; Bandit | Data and security regressions |
-| Unit tests | `pytest tests/unit ... --timeout=60` | First branch-coverage pass |
-| Integration tests | `pytest tests/integration ... --timeout=300` | Appended coverage; measured 70% gate |
-| Acceptance | `check_phase_completion.py` | Executable spec criteria |
+| Unit tests | `pytest tests/unit ... --timeout=60 --require-geist-firing` | First branch-coverage pass; geist firing and suite hygiene gates |
+| Integration tests | `pytest tests/integration ... --timeout=300`; `check_branch_coverage.py --minimum 70` | Appended coverage; measured 70% branch gate |
+| Acceptance | `check_phase_completion.py` | Executable spec criteria; rejects partial or empty evidence |
+| Package smoke | `./scripts/test_wheel.sh` | Wheel/sdist build, install, real-model offline inference |
+
+### Gates That Check the Tests Themselves
+
+Coverage measures execution, not verification. The suite once passed for
+months while it could not fail, so three cheap, deterministic gates check
+the tests:
+
+- **Geist firing** (`--require-geist-firing`, `tests/plugins/geist_firing.py`):
+  the unit lane fails unless every bundled geist built at least one
+  `Suggestion` inside its own `suggest()` (or, for Tracery, a geist loaded
+  from its bundled YAML under its own id). A test that constructs `Suggestion(geist_id=...)` itself does not
+  count. The flag only makes sense on the full unit lane; on a partial run it
+  lists every geist the selection did not exercise.
+- **Suite hygiene** (`tests/unit/test_suite_hygiene.py`): an AST scan rejects
+  tests with no assertion, always-true asserts (`len(x) >= 0`,
+  `assertTrue(True)`), and tests whose checks of output only run where it may
+  be empty: in a loop over it, under `if output:`, as `not any(...)`, or
+  behind a guard that does not prove it non-empty (`isinstance(x, list)`,
+  `len(x) <= N`).
+- **Acceptance evidence** (`scripts/check_phase_completion.py`): every AUTO
+  pytest criterion must select at least one test, and in CI (`CI` set) at
+  least one that runs rather than skips (locally an all-skipped target, such
+  as a permission test run as root, is a warning). A criterion that names a
+  whole file while the canonical marker filter deselects part of it is
+  rejected; name the node IDs instead.
+
+The firing and hygiene gates each have an allowlist of exact ids with written
+reasons (both are currently empty). Entries fail when stale, so the lists can
+only shrink. The acceptance-evidence gate has no allowlist: fix the criterion.
 
 ## Common Type Errors with --strict
 
@@ -126,17 +157,15 @@ git push
 
 ❌ **WRONG** (fails with --strict):
 ```python
-from typing import Dict
-
-def from_dict(cls, data: Dict) -> Config:
+def from_dict(cls, data: dict) -> Config:
     pass
 ```
 
-✅ **CORRECT**:
+✅ **CORRECT** (PEP 585 builtins, as ruff's `UP` rules require):
 ```python
-from typing import Any, Dict
+from typing import Any
 
-def from_dict(cls, data: Dict[str, Any]) -> Config:
+def from_dict(cls, data: dict[str, Any]) -> Config:
     pass
 ```
 
@@ -150,7 +179,7 @@ def get_config():
 
 ✅ **CORRECT**:
 ```python
-def get_config() -> Dict[str, str]:
+def get_config() -> dict[str, str]:
     return {"key": "value"}
 ```
 
@@ -164,7 +193,7 @@ def process(items):  # Implicit Any
 
 ✅ **CORRECT**:
 ```python
-def process(items: List[str]) -> None:
+def process(items: list[str]) -> None:
     pass
 ```
 
@@ -220,5 +249,5 @@ If it passes, the equivalent local checks have passed. If it fails, don't push.
 
 ---
 
-**Last Updated**: 2025-10-23
+**Last Updated**: 2026-10-02
 **Triggered By**: PR #30 CI failures due to mypy --strict type errors

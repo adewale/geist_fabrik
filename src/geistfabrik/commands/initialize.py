@@ -176,11 +176,11 @@ class InitCommand(BaseCommand):
         print(f"\n{TOTAL_GEIST_COUNT} default geists are bundled and ready to use:")
         print(
             f"   - {CODE_GEIST_COUNT} code geists "
-            "(blind_spot_detector, temporal_drift, columbo, creation_burst, etc.)"
+            "(temporal_drift, assumption_challenger, creation_burst, etc.)"
         )
         print(
             f"   - {TRACERY_GEIST_COUNT} Tracery geists "
-            "(contradictor, hub_explorer, transformation_suggester, etc.)"
+            "(contradictor, hub_explorer, what_if, etc.)"
         )
         print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
 

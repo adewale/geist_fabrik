@@ -24,7 +24,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │  2. Execute enabled geists serially (30s timeout each)                    │
 │  3. Apply filtering (boundary/quality/novelty/diversity)                 │
 │  4. Sample ~5 suggestions (deterministic, date-seeded)                   │
-│  5. Optionally write journal/YYYY-MM-DD.md with --write                  │
+│  5. Optionally write geist journal/YYYY-MM-DD.md with --write            │
 │     --explain emits count-only outcomes; it does not expose note text    │
 └───────────────────────┬──────────────────────┬───────────────────────────┘
                         │                      │
@@ -39,8 +39,8 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │ def suggest(vault):  │  │ type: geist-tracery    │  │                  │
 │   # vault is         │  │ tracery:               │  │                  │
 │   # VaultContext     │  │   origin: "#template#" │  │                  │
-│   notes = vault      │  │   hubs: "$vault.hubs() │  │                  │
-│     .neighbours(n)   │  │          .map(title)"  │  │                  │
+│   notes = vault      │  │   hub: "$vault.hubs(5)"│  │                  │
+│     .neighbours(n)   │  │   (bracketed links)    │  │                  │
 │   # notes are        │  │                        │  │                  │
 │   # List[Note]       │  │ Uses FunctionRegistry  │  │                  │
 │   return suggestions │  │ for $vault.* calls     │  │                  │
@@ -60,7 +60,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  ┌─────────────────────────────────────────────────────────────────┐   ┃
 ┃  │ VAULT ACCESS (returns Note objects)                             │   ┃
 ┃  ├─────────────────────────────────────────────────────────────────┤   ┃
-┃  │  • notes() -> List[Note]          All notes in vault            │   ┃
+┃  │  • notes() -> List[Note]          User notes (no geist journal) │   ┃
 ┃  │  • get_note(path) -> Note         Get specific note             │   ┃
 ┃  │  • read(note) -> str              Read note.content             │   ┃
 ┃  │  • resolve_link_target(target)    Resolve [[wikilink]] to Note  │   ┃
@@ -94,7 +94,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  │ METADATA ACCESS (extensible properties)                         │   ┃
 ┃  ├─────────────────────────────────────────────────────────────────┤   ┃
 ┃  │  • metadata(note) -> Dict             All inferred properties   │   ┃
-┃  │    Returns: {word_count, link_count, complexity, sentiment...}  │   ┃
+┃  │    Returns: {word_count, link_count, staleness, root_ttr, ...}  │   ┃
 ┃  │    (Built-in + user-defined metadata modules)                   │   ┃
 ┃  └─────────────────────────────────────────────────────────────────┘   ┃
 ┃                                                                          ┃
@@ -166,8 +166,8 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  │    content: str       # Full markdown text                      │   ┃
 ┃  │    links: List[Link]  # [[wikilinks]] found                     │   ┃
 ┃  │    tags: List[str]    # #tags found                             │   ┃
-┃  │    created: datetime  # File creation (or entry date)           │   ┃
-┃  │    modified: datetime # Last edit                               │   ┃
+┃  │    created: datetime  # Frontmatter, dated name, else file time │   ┃
+┃  │    modified: datetime # Frontmatter modified/updated, else mtime│   ┃
 ┃  │    is_virtual: bool   # True for date-collection entries        │   ┃
 ┃  │    source_file: str   # Source file for virtual entries         │   ┃
 ┃  │    entry_date: date   # Date from heading (virtual entries)     │   ┃
@@ -187,7 +187,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  │  • resolve_link_target(target) -> Note (by path OR title)       │   ┃
 ┃  │                                                                  │   ┃
 ┃  │  Database: <vault>/_geistfabrik/vault.db                        │   ┃
-┃  │    Tables: notes, links, tags, embeddings, sessions             │   ┃
+┃  │    Tables: notes, links, tags, embeddings, sessions, ...        │   ┃
 ┃  └─────────────────────────────────────────────────────────────────┘   ┃
 ┃                                                                          ┃
 ┃  ┌─────────────────────────────────────────────────────────────────┐   ┃
@@ -196,9 +196,10 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 ┃  │  • Model: all-MiniLM-L6-v2 (384 dimensions)                     │   ┃
 ┃  │  • Temporal features (3 dims): note age, creation season,       │   ┃
 ┃  │    session season                                               │   ┃
-┃  │  • Fresh computation each session (temporal drift tracking)     │   ┃
+┃  │    (stored, never compared: similarity uses the 384 dims only)  │   ┃
+┃  │  • Semantic vectors cached by content; a session row per note   │   ┃
 ┃  │  • Stored in SQLite as BLOBs, loaded into memory for search     │   ┃
-┃  │  • Python-based cosine similarity (efficient for 100-1000 notes)│   ┃
+┃  │  • NumPy cosine similarity (optional sqlite-vec backend)        │   ┃
 ┃  └─────────────────────────────────────────────────────────────────┘   ┃
 ┃                                                                          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -231,7 +232,7 @@ This document provides a visual overview of the GeistFabrik architecture, showin
 │  │ # 2025-10-21 Geist Session                                         │ │
 │  │                                                                    │ │
 │  │ What if [[Note A]] and [[Note B]] were connected? They're         │ │
-│  │ semantically similar but in different parts of your vault.        │ │
+│  │ similar but no link joins them, directly or via a neighbour.      │ │
 │  │ ^g20251021-001                                                    │ │
 │  │ *geist: bridge_builder*                                           │ │
 │  │                                                                    │ │
@@ -291,8 +292,9 @@ TRACERY ↔ VAULTCONTEXT BRIDGE:
 PERSISTENCE:
   • Single SQLite file: <vault>/_geistfabrik/vault.db
   • Incremental sync (only changed files reprocessed)
-  • Temporal embeddings (fresh each session for drift tracking)
-  • In-memory vector similarity search (Python cosine similarity)
+  • Temporal embeddings: a stored row per note per session; semantic vectors
+    are cached by content, so drift reflects edits, not re-reading
+  • In-memory vector similarity search (NumPy cosine similarity)
 ```
 
 ## SQLite persistence contract
@@ -344,7 +346,8 @@ discarded only when they match GeistFabrik's exact historical `vec0` schema,
 while unrelated virtual tables and durable `session_embeddings` source rows
 remain intact.
 
-`embedding_metrics` is a derived schema-v9 cache keyed by exact source and
+`embedding_metrics` is a derived cache (digest-keyed since schema v9; the
+current `SCHEMA_VERSION` in `schema.py` is 10) keyed by exact source and
 algorithm digests. The source identity covers ordered paths, embedding dtype,
 shape and bytes, plus the complete title and bounded content prefix actually used
 for labels; the algorithm identity covers configuration, capabilities and
@@ -366,4 +369,4 @@ GeistFabrik uses a two-layer architecture:
 1. **Vault (Layer 1)**: Raw data access - parses Markdown files, creates immutable Note objects, syncs to SQLite, computes embeddings
 2. **VaultContext (Layer 2)**: Rich intelligence layer - provides semantic search, graph operations, metadata access, and sampling utilities
 
-Geists receive a VaultContext instance and work with Note objects to generate creative suggestions. The system maintains strict read-only access to user notes, only writing session outputs to `geist journal/` directory.
+Geists receive a VaultContext instance and work with Note objects to generate creative suggestions. The engine has read-only access to user notes and writes only to `_geistfabrik/` (database, logs) and, with `--write`, to the `geist journal/` directory.

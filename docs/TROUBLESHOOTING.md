@@ -83,4 +83,6 @@ Each session stores one embedding per note. `session_embedding_retention`
 ## Validation / CI
 
 Run `./scripts/validate.sh` before pushing — it mirrors CI (ruff, mypy
-`--strict`, unused-table check, bandit, unit + integration). See CLAUDE.md.
+`--strict`, ty, unused-table check, bandit, unit + integration tests with the
+70% branch-coverage gate, acceptance criteria, and the wheel smoke test). See
+CLAUDE.md.

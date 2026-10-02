@@ -1,246 +1,166 @@
-"""Integration tests for cluster labelling with VaultContext."""
+"""Integration tests for VaultContext.get_clusters and its clustering config.
 
-from datetime import datetime
+This file is the owner of the config plumbing between
+``vault.config.clustering`` and the cluster labelers: ``labeling_method``
+chooses the labeler and ``n_label_terms`` sets the label length. The labelers
+themselves are unit-tested in tests/unit/test_cluster_labeling.py.
+
+The fixture is three topic groups whose notes share vocabulary within a group
+and none across groups. Under the lexical test embedding stub that gives three
+well-separated groups, so HDBSCAN reliably forms one cluster per topic and
+every assertion below runs against real clusters rather than an empty dict.
+"""
+
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 import pytest
 
+from geistfabrik import cluster_labeling
+from geistfabrik.config_loader import ClusterConfig
+from geistfabrik.vault_context import Cluster, VaultContext
+from tests.fixtures.helpers import VaultBuilder
 
-class TestClusterLabelingIntegration:
-    """Test cluster labelling through VaultContext with config."""
-
-    @pytest.fixture
-    def vault_with_config(self, tmp_path):
-        """Create a vault with clustering configuration."""
-        from geistfabrik.config_loader import GeistFabrikConfig
-        from geistfabrik.vault import Vault
-
-        # Create vault directory
-        vault_path = tmp_path / "test_vault"
-        vault_path.mkdir()
-
-        # Create some test notes
-        notes_data = [
-            ("ml1.md", "# Machine Learning\nDeep learning neural networks"),
-            ("ml2.md", "# Neural Networks\nBackpropagation and training"),
-            ("ml3.md", "# AI Models\nModel training and evaluation"),
-            ("ml4.md", "# Deep Learning\nConvolutional neural networks"),
-            ("ml5.md", "# Training\nOptimization and gradient descent"),
-            ("web1.md", "# React\nReact hooks and components"),
-            ("web2.md", "# Frontend\nJavaScript and TypeScript"),
-            ("web3.md", "# Web Dev\nFrontend architecture patterns"),
-            ("web4.md", "# Components\nReact component lifecycle"),
-            ("web5.md", "# State\nState management with hooks"),
-        ]
-
-        for filename, content in notes_data:
-            (vault_path / filename).write_text(content)
-
-        # Create vault with config
-        config = GeistFabrikConfig()
-        vault = Vault(vault_path, config=config)
-        vault.sync()
-
-        return vault
-
-    def test_get_clusters_with_keybert_config(self, vault_with_config):
-        """Test get_clusters uses KeyBERT when configured."""
-
-        from geistfabrik.config_loader import ClusterConfig
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
-
-        vault = vault_with_config
-
-        # Set KeyBERT as labelling method (default)
-        vault.config.clustering = ClusterConfig(labeling_method="keybert", n_label_terms=3)
-
-        # Create session and compute embeddings
-        session = Session(datetime.now(), vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-        # Create context
-        context = VaultContext(vault, session)
-
-        # Get clusters
-        clusters = context.get_clusters(min_size=3)
-
-        # Should have at least one cluster with labels
-        if len(clusters) > 0:
-            for cluster_id, cluster_info in clusters.items():
-                assert isinstance(cluster_info.label, str)
-                assert len(cluster_info.label) > 0
-                assert cluster_info.formatted_label
-
-    def test_get_clusters_with_tfidf_config(self, vault_with_config):
-        """Test get_clusters uses c-TF-IDF when configured."""
-
-        from geistfabrik.config_loader import ClusterConfig
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
-
-        vault = vault_with_config
-
-        # Set TF-IDF as labelling method
-        vault.config.clustering = ClusterConfig(labeling_method="tfidf", n_label_terms=3)
-
-        # Create session and compute embeddings
-        session = Session(datetime.now(), vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-        # Create context
-        context = VaultContext(vault, session)
-
-        # Get clusters
-        clusters = context.get_clusters(min_size=3)
-
-        # Should have at least one cluster with labels
-        if len(clusters) > 0:
-            for cluster_id, cluster_info in clusters.items():
-                assert isinstance(cluster_info.label, str)
-                assert len(cluster_info.label) > 0
-                assert cluster_info.formatted_label
-
-    def test_switching_labeling_methods(self, vault_with_config):
-        """Test that changing config affects labelling method."""
-
-        from geistfabrik.config_loader import ClusterConfig
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
-
-        vault = vault_with_config
-
-        # Create session and compute embeddings once
-        session = Session(datetime.now(), vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-        # Try KeyBERT first
-        vault.config.clustering = ClusterConfig(labeling_method="keybert", n_label_terms=3)
-        context1 = VaultContext(vault, session)
-        clusters_keybert = context1.get_clusters(min_size=3)
-
-        # Clear cache to force recomputation
-        context1._clusters_cache.clear()
-
-        # Switch to TF-IDF
-        vault.config.clustering = ClusterConfig(labeling_method="tfidf", n_label_terms=3)
-        context2 = VaultContext(vault, session)
-        clusters_tfidf = context2.get_clusters(min_size=3)
-
-        # Both should produce clusters
-        if len(clusters_keybert) > 0 and len(clusters_tfidf) > 0:
-            # Should have same cluster IDs (same clustering)
-            assert set(clusters_keybert.keys()) == set(clusters_tfidf.keys())
-
-            # But may have different labels (different labelling methods)
-            # This is hard to assert definitively, but at least verify both produced labels
-            for cluster_id in clusters_keybert:
-                assert len(clusters_keybert[cluster_id].label) > 0
-                assert len(clusters_tfidf[cluster_id].label) > 0
-
-    def test_n_label_terms_config(self, vault_with_config):
-        """Test that n_label_terms config is respected."""
-
-        from geistfabrik.config_loader import ClusterConfig
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
-
-        vault = vault_with_config
-
-        # Set n_label_terms to 2
-        vault.config.clustering = ClusterConfig(labeling_method="tfidf", n_label_terms=2)
-
-        # Create session and compute embeddings
-        session = Session(datetime.now(), vault.db)
-        session.compute_embeddings(vault.all_notes())
-
-        # Create context
-        context = VaultContext(vault, session)
-
-        # Get clusters
-        clusters = context.get_clusters(min_size=3)
-
-        # Verify labels have approximately the right number of terms
-        # (May be fewer if there aren't enough diverse terms)
-        if len(clusters) > 0:
-            for cluster_id, cluster_info in clusters.items():
-                label = cluster_info.label
-                term_count = len(label.split(","))
-                # Should be <= n_label_terms (may be less due to filtering)
-                assert term_count <= 2
+TOPICS = {
+    "Garden": "compost soil seedlings tomatoes watering mulch harvest greenhouse",
+    "Sailing": "keel rudder spinnaker mooring tides harbour anchor regatta",
+    "Baking": "sourdough starter flour oven crust proofing dough loaves",
+}
+NOTES_PER_TOPIC = 6
+METHODS = ("tfidf", "keybert")
 
 
-class TestClusterMirrorGeist:
-    """Test cluster_mirror geist with different config."""
+@pytest.fixture
+def topic_vault(tmp_path: Path) -> VaultContext:
+    """Six notes per topic, each a different rotation of the topic's words."""
+    builder = VaultBuilder(tmp_path)
+    for topic, words in TOPICS.items():
+        vocab = words.split()
+        for i in range(NOTES_PER_TOPIC):
+            body = " ".join(vocab[(i + k) % len(vocab)] for k in range(6))
+            builder.note(f"{topic} {i}", body)
+    return builder.build()
 
-    @pytest.fixture
-    def vault_for_geist(self, tmp_path):
-        """Create a vault suitable for cluster_mirror testing."""
-        from geistfabrik.config_loader import GeistFabrikConfig
-        from geistfabrik.vault import Vault
 
-        vault_path = tmp_path / "test_vault"
-        vault_path.mkdir()
+def _configure(ctx: VaultContext, method: str, n_terms: int) -> None:
+    ctx.vault.config.clustering = ClusterConfig(labeling_method=method, n_label_terms=n_terms)
 
-        # Create enough notes for meaningful clusters
-        ml_notes = [
-            ("ml1.md", "# Machine Learning\nDeep learning neural networks training"),
-            ("ml2.md", "# Neural Nets\nBackpropagation gradient descent optimisation"),
-            ("ml3.md", "# AI Training\nModel validation testing evaluation metrics"),
-            ("ml4.md", "# Deep Learning\nConvolutional networks image recognition"),
-            ("ml5.md", "# Model Optimisation\nHyperparameter tuning learning rate"),
-        ]
 
-        web_notes = [
-            ("web1.md", "# React Hooks\nUseState useEffect custom hooks"),
-            ("web2.md", "# Frontend Dev\nJavaScript TypeScript modern web"),
-            ("web3.md", "# Web Architecture\nComponent patterns state management"),
-            ("web4.md", "# React Components\nComponent lifecycle rendering"),
-            ("web5.md", "# State Management\nRedux context hooks patterns"),
-        ]
+def _terms(cluster: Cluster) -> list[str]:
+    return [term.strip() for term in cluster.label.split(",")]
 
-        for filename, content in ml_notes + web_notes:
-            (vault_path / filename).write_text(content)
 
-        config = GeistFabrikConfig()
-        vault = Vault(vault_path, config=config)
-        vault.sync()
+def _topic_of(cluster: Cluster) -> str:
+    topics = {note.title.split()[0] for note in cluster.notes}
+    assert len(topics) == 1, f"cluster mixes topics: {sorted(n.title for n in cluster.notes)}"
+    return topics.pop()
 
-        return vault
 
-    def test_cluster_mirror_uses_config_method(self, vault_for_geist):
-        """Test that cluster_mirror respects clustering config."""
+@pytest.mark.parametrize("method", METHODS)
+def test_topic_groups_form_clusters_labelled_from_their_own_vocabulary(
+    topic_vault: VaultContext, method: str
+) -> None:
+    """One cluster per topic, labelled with words from that topic only.
 
-        from geistfabrik.config_loader import ClusterConfig
-        from geistfabrik.default_geists.code import cluster_mirror
-        from geistfabrik.embeddings import Session
-        from geistfabrik.vault_context import VaultContext
+    Regression caught: clustering that merges or splits the topics, or labels
+    drawn from the wrong cluster's text (e.g. a label/cluster-id mix-up).
+    """
+    _configure(topic_vault, method, 3)
 
-        vault = vault_for_geist
+    clusters = topic_vault.get_clusters()
 
-        # Test with KeyBERT
-        vault.config.clustering = ClusterConfig(labeling_method="keybert")
+    assert len(clusters) == len(TOPICS)
+    seen_topics = set()
+    for cluster in clusters.values():
+        topic = _topic_of(cluster)
+        seen_topics.add(topic)
+        assert cluster.size == len(cluster.notes) == NOTES_PER_TOPIC
+        allowed = {topic.lower(), *TOPICS[topic].split()}
+        for term in _terms(cluster):
+            assert set(term.split()) <= allowed, (
+                f"{method} label term {term!r} for {topic} uses foreign words"
+            )
+            assert term in cluster.formatted_label
+    assert seen_topics == set(TOPICS)
 
-        session = Session(datetime.now(), vault.db)
-        session.compute_embeddings(vault.all_notes())
-        context = VaultContext(vault, session)
 
-        suggestions_keybert = cluster_mirror.suggest(context)
+@pytest.mark.parametrize("method", METHODS)
+@pytest.mark.parametrize("n_terms", [2, 4])
+def test_n_label_terms_sets_label_length(
+    topic_vault: VaultContext, method: str, n_terms: int
+) -> None:
+    """Each label has exactly the configured number of terms.
 
-        # Should produce suggestions with cluster names
-        if len(suggestions_keybert) > 0:
-            suggestion = suggestions_keybert[0]
-            assert len(suggestion.text) > 0
-            assert len(suggestion.notes) > 0
+    Every topic offers more candidate terms than either setting, so a label
+    shorter or longer than ``n_label_terms`` means the setting was dropped.
+    Regression caught: get_clusters not passing n_label_terms to the labeler
+    (which then uses its own default of 4).
+    """
+    _configure(topic_vault, method, n_terms)
 
-        # Clear cache and test with TF-IDF
-        context._clusters_cache.clear()
-        vault.config.clustering = ClusterConfig(labeling_method="tfidf")
-        context_tfidf = VaultContext(vault, session)
+    clusters = topic_vault.get_clusters()
 
-        suggestions_tfidf = cluster_mirror.suggest(context_tfidf)
+    assert len(clusters) == len(TOPICS)
+    for cluster in clusters.values():
+        assert len(_terms(cluster)) == n_terms, cluster.label
 
-        # Should also produce suggestions
-        if len(suggestions_tfidf) > 0:
-            suggestion = suggestions_tfidf[0]
-            assert len(suggestion.text) > 0
-            assert len(suggestion.notes) > 0
+
+@pytest.mark.parametrize("method", METHODS)
+def test_labeling_method_selects_the_labeler(
+    topic_vault: VaultContext, monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    """``labeling_method`` routes to that labeler, and its labels are used.
+
+    The spies delegate to the real labelers, so they record the choice without
+    supplying the result. Regression caught: get_clusters ignoring the
+    configured method (e.g. always using c-TF-IDF).
+    """
+    calls: dict[str, list[tuple[int, dict[int, str]]]] = {name: [] for name in METHODS}
+
+    def spy(name: str, real: Callable[..., dict[int, str]]) -> Callable[..., dict[int, str]]:
+        def wrapper(*args: Any, **kwargs: Any) -> dict[int, str]:
+            result = real(*args, **kwargs)
+            calls[name].append((kwargs["n_terms"], result))
+            return result
+
+        return wrapper
+
+    monkeypatch.setattr(cluster_labeling, "label_tfidf", spy("tfidf", cluster_labeling.label_tfidf))
+    monkeypatch.setattr(
+        cluster_labeling, "label_keybert", spy("keybert", cluster_labeling.label_keybert)
+    )
+    _configure(topic_vault, method, 3)
+
+    clusters = topic_vault.get_clusters()
+
+    other = next(name for name in METHODS if name != method)
+    assert calls[other] == []
+    assert len(calls[method]) == 1
+    n_terms, labels = calls[method][0]
+    assert n_terms == 3
+    assert {int(cid): c.label for cid, c in clusters.items()} == {
+        int(cid): label for cid, label in labels.items()
+    }
+
+
+def test_changing_config_mid_session_relabels_the_same_clusters(
+    topic_vault: VaultContext,
+) -> None:
+    """Changing labeling settings on a live context yields fresh labels.
+
+    get_clusters caches per session; the cache must be keyed on the labeling
+    settings, not just cluster size. Regression caught: a stale cached label
+    set returned after the config changes.
+    """
+    _configure(topic_vault, "tfidf", 2)
+    short = topic_vault.get_clusters()
+    _configure(topic_vault, "keybert", 4)
+    long = topic_vault.get_clusters()
+
+    def membership(clusters: dict[int, Cluster]) -> set[frozenset[str]]:
+        return {frozenset(n.path for n in c.notes) for c in clusters.values()}
+
+    assert membership(short) == membership(long)
+    assert {len(_terms(c)) for c in short.values()} == {2}
+    assert {len(_terms(c)) for c in long.values()} == {4}

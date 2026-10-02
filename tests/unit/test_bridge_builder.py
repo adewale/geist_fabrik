@@ -1,480 +1,253 @@
-"""Unit tests for bridge_builder geist."""
+"""Unit tests for the bridge_builder geist.
+
+bridge_builder walks the top hubs (most-backlinked notes) and suggests linking
+a hub to any semantic neighbour whose similarity exceeds SimilarityLevel.HIGH
+(0.65), that it is not linked to, and with which it shares no graph neighbour
+(no note links to or from both). Each unordered pair is reported once. It
+returns at most 3 suggestions. The text names up to two of the hub's
+backlinkers as its cluster (merged in from the retired island_hopper); the
+neighbour is linked to none of them, since they are in the hub's graph
+neighbourhood.
+
+Fixtures use the bag-of-words test stub: a note's embedding is its word
+counts (title included), so a hub and a "twin" sharing 8 of their 10 content
+words have cosine ~0.8, and notes with disjoint vocabulary have ~0.
+"""
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import bridge_builder
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from geistfabrik.models import Note
+from geistfabrik.similarity_analysis import SimilarityLevel
+from geistfabrik.vault_context import VaultContext
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+CAP = 3
+CREATED = datetime(2024, 1, 1)
+
+# Four disjoint 8-word topics. Hub i and Twin i share all 8 topic words; their
+# 2-word titles differ, so cosine ~ 8/10 = 0.8 > HIGH (0.65).
+TOPICS = [
+    "orchard pruning grafting apple blossom cider rootstock scion",
+    "glacier moraine crevasse icefall serac firn cirque tarn",
+    "violin bowing rosin fingerboard vibrato luthier spruce bridgework",
+    "bakery sourdough levain crumb proofing banneton flour oven",
+]
+HUBS = ["Orchard Hub", "Glacier Hub", "Violin Hub", "Bakery Hub"]
+TWINS = ["Pomology Twin", "Icefield Twin", "Stringed Twin", "Loaves Twin"]
 
 
-@pytest.fixture
-def vault_with_hubs(tmp_path):
-    """Create a vault with hub notes and potential bridge connections."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _add_hub_with_twin(builder: VaultBuilder, i: int, twin_body: str | None = None) -> None:
+    """Hub i (with one backlink) plus an unlinked twin note."""
+    builder.note(HUBS[i], TOPICS[i], created=CREATED)
+    builder.note(TWINS[i], twin_body or TOPICS[i], created=CREATED)
+    # The linker makes HUBS[i] a hub; it shares only the hub's title words.
+    builder.note(f"Linker {i}", f"See [[{HUBS[i]}]] quokka{i} wombat{i}", created=CREATED)
 
-    # Create hub A (index note) with several links
-    (vault_path / "ai_hub.md").write_text(
-        """# AI Hub
 
-This is a hub for AI topics.
+def _get(ctx: VaultContext, title: str) -> Note:
+    note = ctx.resolve_link_target(title)
+    assert note is not None, title
+    return note
 
-[[neural_networks]]
-[[machine_learning]]
-[[algorithms]]
-"""
+
+def test_bridge_builder_suggests_unlinked_twin_of_hub(tmp_path: Path) -> None:
+    """Contract: a hub and its unlinked near-duplicate are suggested as a bridge.
+
+    Regression caught: the similarity/link filter inverted, or hubs/neighbours
+    wired wrongly, so the planted pair is not suggested.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_hub_with_twin(builder, 0)
+    ctx = builder.build()
+    assert ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0])) > SimilarityLevel.HIGH
+
+    suggestions = bridge_builder.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "bridge_builder", must_reference=[HUBS[0], TWINS[0]])
+    assert [s.notes for s in suggestions] == [[HUBS[0], TWINS[0], "Linker 0"]]
+    assert suggestions[0].text == (
+        f"What if [[{HUBS[0]}]] and [[{TWINS[0]}]] were connected? They're semantically "
+        f"similar but in different parts of your vault: [[Linker 0]] links to "
+        f"[[{HUBS[0]}]], but no link joins [[{TWINS[0]}]] to it or to any note linked "
+        "with it. A link might bridge important concepts."
     )
 
-    # Create notes linked to hub A
-    (vault_path / "neural_networks.md").write_text(
-        "# Neural Networks\n\nDeep learning with neural networks."
-    )
-    (vault_path / "machine_learning.md").write_text("# Machine Learning\n\nLearning from data.")
-    (vault_path / "algorithms.md").write_text("# Algorithms\n\nComputational algorithms.")
 
-    # Create hub B with different links
-    (vault_path / "cognitive_hub.md").write_text(
-        """# Cognitive Hub
+def test_bridge_builder_caps_at_three_distinct_pairs(tmp_path: Path) -> None:
+    """Contract: with 4 qualifying hub/twin pairs, exactly 3 distinct pairs return."""
+    builder = VaultBuilder(tmp_path)
+    for i in range(4):
+        _add_hub_with_twin(builder, i)
+    ctx = builder.build()
 
-This is a hub for cognition topics.
+    suggestions = bridge_builder.suggest(ctx)
 
-[[thinking]]
-[[reasoning]]
-[[mental_models]]
-"""
-    )
-
-    (vault_path / "thinking.md").write_text("# Thinking\n\nCognitive processes.")
-    (vault_path / "reasoning.md").write_text("# Reasoning\n\nLogical reasoning.")
-    (vault_path / "mental_models.md").write_text("# Mental Models\n\nFrameworks for thought.")
-
-    # Create a semantically related note to hub A but not linked
-    (vault_path / "deep_learning.md").write_text(
-        "# Deep Learning\n\nNeural networks, machine learning, and artificial intelligence."
-    )
-
-    # Create a semantically related note to hub B but not linked
-    (vault_path / "cognition.md").write_text(
-        "# Cognition\n\nThinking, reasoning, and mental models."
-    )
-
-    # Add some unrelated notes
-    for i in range(10):
-        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
+    assert_valid_suggestions(suggestions, "bridge_builder", min_count=CAP)
+    assert len(suggestions) == CAP
+    pairs = {tuple(s.notes[:2]) for s in suggestions}
+    assert len(pairs) == CAP
+    assert pairs <= set(zip(HUBS, TWINS))
 
 
-@pytest.fixture
-def vault_insufficient_hubs(tmp_path):
-    """Create a vault with no clear hub structure."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+@pytest.mark.parametrize(
+    ("shared_words", "fires"),
+    [
+        # Twin keeps 6 of the 8 topic words -> cosine ~6/10 = 0.6 <= 0.65.
+        (6, False),
+        # Twin keeps 7 of the 8 topic words -> cosine ~7/10 = 0.7 > 0.65.
+        (7, True),
+    ],
+)
+def test_bridge_builder_similarity_threshold_boundary(
+    tmp_path: Path, shared_words: int, fires: bool
+) -> None:
+    """Contract: only neighbours ABOVE SimilarityLevel.HIGH are bridge candidates."""
+    topic = TOPICS[0].split()
+    replacements = ["kumquat", "tamarind", "persimmon", "loquat"]
+    twin_body = " ".join(topic[:shared_words] + replacements[: len(topic) - shared_words])
+    builder = VaultBuilder(tmp_path)
+    _add_hub_with_twin(builder, 0, twin_body=twin_body)
+    ctx = builder.build()
+    sim = ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0]))
+    if fires:
+        assert SimilarityLevel.HIGH < sim < SimilarityLevel.VERY_HIGH
+        assert_valid_suggestions(bridge_builder.suggest(ctx), "bridge_builder")
+    else:
+        assert SimilarityLevel.MODERATE < sim <= SimilarityLevel.HIGH
+        assert bridge_builder.suggest(ctx) == []
 
-    # Create a few isolated notes without hub structure
-    for i in range(5):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent {i}.")
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
+def test_bridge_builder_skips_already_linked_neighbours(tmp_path: Path) -> None:
+    """Contract: a highly similar neighbour that is already linked is not suggested."""
+    builder = VaultBuilder(tmp_path)
+    builder.note(HUBS[0], TOPICS[0], created=CREATED)
+    # The twin links to the hub, so it is both the backlink and the neighbour.
+    builder.note(TWINS[0], f"{TOPICS[0]} [[{HUBS[0]}]]", created=CREATED)
+    ctx = builder.build()
+    assert ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0])) > SimilarityLevel.HIGH
 
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
+    assert bridge_builder.suggest(ctx) == []
 
 
-def test_bridge_builder_returns_suggestions(vault_with_hubs):
-    """Test that bridge_builder returns suggestions with hub structure.
+def test_bridge_builder_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are never bridge partners or hubs.
 
-    Setup:
-        Vault with hub structure (AI Hub, Cognitive Hub).
+    A journal note that duplicates Hub 0's topic would qualify as its unlinked
+    twin, and a linked-to journal note would qualify as a hub. The regular twin
+    must still be suggested.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_hub_with_twin(builder, 0)
+    builder.journal("Session Echo", TOPICS[0], created=CREATED)
+    # A journal "hub" (backlinked) with its own unlinked regular-looking twin.
+    builder.journal("Session Hub", TOPICS[1], created=CREATED)
+    builder.note("Journal Linker", "See [[Session Hub]] marmot", created=CREATED)
+    builder.note("Session Twin", TOPICS[1], created=CREATED)
+    ctx = builder.build()
 
-    Verifies:
-        - Returns suggestions (max 3)
-        - Involves hub notes"""
-    vault, session = vault_with_hubs
+    suggestions = bridge_builder.suggest(ctx)
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+    assert_valid_suggestions(
+        suggestions,
+        "bridge_builder",
+        must_reference=[HUBS[0], TWINS[0]],
+        must_not_reference=["geist journal", "Session Echo", "Session Hub"],
     )
 
-    suggestions = bridge_builder.suggest(context)
 
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
+def test_bridge_builder_reports_each_pair_once_when_both_are_hubs(tmp_path: Path) -> None:
+    """Contract: an unordered pair is suggested once.
 
-    # BEHAVIORAL: Verify suggestions involve hubs (bridge_builder works with hubs)
-    if len(suggestions) > 0:
-        all_hubs = context.hubs(count=10)
-        hub_links = {h.link_text for h in all_hubs}
+    Regression: when both notes were hubs the pair was emitted twice (A -> B
+    from A's neighbours and B -> A from B's), filling the cap with repeats.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_hub_with_twin(builder, 0)
+    # A second linker makes the twin a hub too.
+    builder.note("Twin Linker", f"See [[{TWINS[0]}]] marmot tapir", created=CREATED)
+    ctx = builder.build()
+    assert {n.title for n in ctx.hubs()} == {HUBS[0], TWINS[0]}
 
-        for suggestion in suggestions:
-            # At least one note in each suggestion should be a hub
-            assert any(note in hub_links for note in suggestion.notes), (
-                f"Bridge builder should suggest connections involving hubs, got {suggestion.notes}"
-            )
+    suggestions = bridge_builder.suggest(ctx)
+
+    assert len(suggestions) == 1
+    assert sorted(suggestions[0].notes[:2]) == sorted([HUBS[0], TWINS[0]])
 
 
-def test_bridge_builder_suggestion_structure(vault_with_hubs):
-    """Test that suggestions have correct structure.
+def test_bridge_builder_skips_pairs_with_a_shared_graph_neighbour(tmp_path: Path) -> None:
+    """Contract: notes two hops apart (a note links both) are not "in different
+    parts of your vault", so they are not suggested.
 
-    Setup:
-        Vault with hubs and potential bridges.
+    Regression: only a direct link was checked, so a hub and a twin that the
+    same note links to were described as being in different parts of the vault.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(HUBS[0], TOPICS[0], created=CREATED)
+    builder.note(TWINS[0], TOPICS[0], created=CREATED)
+    builder.note("Linker", f"See [[{HUBS[0]}]] and [[{TWINS[0]}]] quokka", created=CREATED)
+    ctx = builder.build()
+    assert ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0])) > SimilarityLevel.HIGH
+    assert not ctx.links_between(_get(ctx, HUBS[0]), _get(ctx, TWINS[0]))
 
-    Verifies:
-        - Has required fields
-        - References 2 notes (hub + potential bridge)
-        - Notes have >0.6 similarity
-        - Notes are NOT linked"""
-    vault, session = vault_with_hubs
+    assert bridge_builder.suggest(ctx) == []
 
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
+
+@pytest.mark.parametrize(
+    ("linkers", "phrase"),
+    [
+        (2, "{a} and {b} link to"),
+        (3, "{a}, {b} and 1 other note link to"),
+        (4, "{a}, {b} and 2 other notes link to"),
+    ],
+)
+def test_bridge_builder_names_the_hubs_cluster(tmp_path: Path, linkers: int, phrase: str) -> None:
+    """Contract: the text names two of the notes that link to the hub (its
+    cluster) and how many others do, and lists those two in notes.
+
+    Regression: the hub-cluster context was island_hopper's, a separate
+    geist proposing bridges to the same hubs; bridge_builder named only the
+    pair.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(HUBS[0], TOPICS[0], created=CREATED)
+    builder.note(TWINS[0], TOPICS[0], created=CREATED)
+    cluster = [f"Member {i}" for i in range(linkers)]
+    for i, title in enumerate(cluster):
+        builder.note(title, f"See [[{HUBS[0]}]] quokka{i} wombat{i}", created=CREATED)
+    ctx = builder.build()
+
+    suggestions = bridge_builder.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "bridge_builder")
+    assert len(suggestions) == 1
+    hub, twin, *named = suggestions[0].notes
+    assert (hub, twin) == (HUBS[0], TWINS[0])
+    assert len(named) == 2 and set(named) <= set(cluster)
+    a, b = (f"[[{t}]]" for t in named)
+    assert suggestions[0].text == (
+        f"What if [[{hub}]] and [[{twin}]] were connected? They're semantically "
+        f"similar but in different parts of your vault: {phrase.format(a=a, b=b)} "
+        f"[[{hub}]], but no link joins [[{twin}]] to it or to any note linked with it. "
+        "A link might bridge important concepts."
     )
 
-    suggestions = bridge_builder.suggest(context)
 
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "bridge_builder"
-
-        # Should reference 2 notes (hub and potential bridge)
-        assert len(suggestion.notes) == 2
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-        # BEHAVIORAL: Verify similarity threshold logic (>0.6 from line 38)
-        note1_ref, note2_ref = suggestion.notes[0], suggestion.notes[1]
-
-        note1 = next((n for n in vault.all_notes() if n.link_text == note1_ref), None)
-        note2 = next((n for n in vault.all_notes() if n.link_text == note2_ref), None)
-
-        if note1 and note2:
-            similarity = context.similarity(note1, note2)
-
-            # Bridge builder requires similarity > 0.6 (core threshold)
-            assert similarity > 0.6, (
-                f"Bridge notes must have >0.6 similarity, "
-                f"got {similarity:.2f} for [[{note1_ref}]] and [[{note2_ref}]]"
-            )
-
-            # Verify notes are NOT linked (that's the whole point of a bridge)
-            links = context.links_between(note1, note2)
-            assert len(links) == 0, (
-                f"Bridge suggestions should be unlinked, "
-                f"but [[{note1_ref}]] and [[{note2_ref}]] are linked"
-            )
-
-
-def test_bridge_builder_uses_link_text(vault_with_hubs):
-    """Test that bridge_builder uses link_text for note references.
-
-    Setup:
-        Vault with hub structure.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = bridge_builder.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_bridge_builder_suggests_semantically_related_notes(vault_with_hubs):
-    """Test that bridge_builder detects semantically similar but unlinked notes.
-
-    The fixture includes:
-    - deep_learning.md: Semantically similar to ai_hub but NOT linked
-    - cognition.md: Semantically similar to cognitive_hub but NOT linked
-
-    This test verifies the geist detects these semantic relationships.
-
-
-    Setup:
-        Vault with Deep Learning + Cognition (unlinked but similar).
-
-    Verifies:
-        - Detects semantic pairs from fixture"""
-    vault, session = vault_with_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = bridge_builder.suggest(context)
-
-    # BEHAVIORAL: Verify fixture's semantic pairs are detected
-    if len(suggestions) > 0:
-        # Collect all note pairs from suggestions
-        all_note_pairs = [tuple(sorted(s.notes)) for s in suggestions]
-
-        # Check if semantic pairs appear (fixture setup)
-        # "Deep Learning" should be suggested (semantically similar to AI Hub notes)
-        # "Cognition" should be suggested (semantically similar to Cognitive Hub notes)
-        all_notes_mentioned = [note.lower() for pair in all_note_pairs for note in pair]
-
-        has_deep_learning = any(
-            "deep" in note and "learning" in note for note in all_notes_mentioned
-        )
-        has_cognition = any("cognition" in note for note in all_notes_mentioned)
-
-        # Verify at least one semantic pair was detected
-        assert has_deep_learning or has_cognition, (
-            f"Bridge builder should detect semantic pairs from fixture "
-            f"(Deep Learning or Cognition unlinked but similar notes), "
-            f"got pairs: {all_note_pairs}"
-        )
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_bridge_builder_empty_vault(tmp_path):
-    """Test that bridge_builder handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = bridge_builder.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_bridge_builder_insufficient_hubs(vault_insufficient_hubs):
-    """Test that bridge_builder handles vaults without clear hub structure.
-
-    Setup:
-        Vault without clear hub structure.
-
-    Verifies:
-        - Returns few/no suggestions"""
-    vault, session = vault_insufficient_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = bridge_builder.suggest(context)
-
-    # May return empty list or few suggestions without hub structure
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
-
-
-def test_bridge_builder_max_suggestions(vault_with_hubs):
-    """Test that bridge_builder never returns more than 3 suggestions.
-
-    Setup:
-        Vault with hub structure.
-
-    Verifies:
-        - Returns at most 3"""
-    vault, session = vault_with_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = bridge_builder.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_bridge_builder_deterministic_with_seed(vault_with_hubs):
-    """Test that bridge_builder returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_hubs
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = bridge_builder.suggest(context1)
-    suggestions2 = bridge_builder.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_bridge_builder_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with hub-like structure
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\n[[ai_topic]] [[ml_topic]] [[dl_topic]]"
-        )
-
-    # Create hub A (index note) with several links
-    (vault_path / "ai_hub.md").write_text(
-        """# AI Hub
-
-This is a hub for AI topics.
-
-[[neural_networks]]
-[[machine_learning]]
-[[algorithms]]
-"""
-    )
-
-    # Create notes linked to hub A
-    (vault_path / "neural_networks.md").write_text(
-        "# Neural Networks\n\nDeep learning with neural networks."
-    )
-    (vault_path / "machine_learning.md").write_text("# Machine Learning\n\nLearning from data.")
-    (vault_path / "algorithms.md").write_text("# Algorithms\n\nComputational algorithms.")
-
-    # Create a semantically related note to hub A but not linked
-    (vault_path / "deep_learning.md").write_text(
-        "# Deep Learning\n\nNeural networks, machine learning, and artificial intelligence."
-    )
-
-    # Add some unrelated notes
-    for i in range(10):
-        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = bridge_builder.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    # Build title-to-path mapping to check note paths
-    cursor = vault.db.execute("SELECT title, path FROM notes")
-    title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
-
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            # Look up path by title or use note_ref as path
-            note_path = title_to_path.get(note_ref, note_ref)
-            assert "geist journal" not in note_path.lower(), (
-                f"Geist journal note '{note_path}' was included in suggestions"
-            )
+def test_bridge_builder_skips_a_neighbour_linked_to_the_hubs_cluster(tmp_path: Path) -> None:
+    """Contract: "no link joins [[Twin]] to any note linked with [[Hub]]" holds:
+    a twin that links to one of the hub's backlinkers is not suggested.
+
+    Regression (from island_hopper): a "bridge" already linked to a member of
+    the cluster it was said to bridge to.
+    """
+    builder = VaultBuilder(tmp_path)
+    builder.note(HUBS[0], TOPICS[0], created=CREATED)
+    builder.note("Member", f"See [[{HUBS[0]}]] quokka", created=CREATED)
+    builder.note(TWINS[0], f"{TOPICS[0]} [[Member]]", created=CREATED)
+    ctx = builder.build()
+    assert ctx.similarity(_get(ctx, HUBS[0]), _get(ctx, TWINS[0])) > SimilarityLevel.HIGH
+
+    assert bridge_builder.suggest(ctx) == []

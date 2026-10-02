@@ -370,3 +370,31 @@ def infer(note, vault):
 
         assert "enabled" in loader.modules
         assert "disabled" not in loader.modules
+
+
+def test_analyser_outliers_most_extreme_first_within_a_population(tmp_path: Path) -> None:
+    """outliers() orders by |z| (most extreme first) and honours `notes`.
+
+    Regression: outliers came back in vault order, so a geist taking
+    outliers[0] as "the most extreme" could name a milder one.
+    """
+    from geistfabrik.metadata_system import MetadataAnalyser
+    from tests.fixtures.helpers import VaultBuilder
+
+    builder = VaultBuilder(tmp_path)
+    for i in range(20):
+        builder.note(f"Plain {i:02d}", "w " * 10)
+    # "Aaa" sorts first in vault order but is the milder outlier.
+    builder.note("Aaa Mild", "w " * 400)
+    builder.note("Zzz Extreme", "w " * 600)
+    ctx = builder.build()
+    analyser = MetadataAnalyser(ctx)
+
+    assert [n.title for n in analyser.outliers("word_count", threshold=2.0)] == [
+        "Zzz Extreme",
+        "Aaa Mild",
+    ]
+    # Restricted to the plain notes there is no spread, hence no outliers.
+    plain = [n for n in ctx.notes() if n.title.startswith("Plain")]
+    assert analyser.outliers("word_count", notes=plain) == []
+    assert analyser.distribution("word_count", notes=plain)["p50"] == 13.0

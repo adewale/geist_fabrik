@@ -9,7 +9,7 @@ This guide shows you how to safely test GeistFabrik (v0.11.0 Beta) and provide v
 **Current Status:**
 - ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
-- ✅ 70 default geists bundled (58 code + 12 Tracery)
+- ✅ 44 default geists bundled (41 code + 3 Tracery)
 - ✅ Source notes are never modified; managed state is written under `_geistfabrik/`
 
 **Expect:**
@@ -158,7 +158,8 @@ MyVault/
 
 **Database contents (`vault.db`):**
 - Note titles, full Markdown content, links, tags, and timestamps
-- Embeddings (384-dim vectors, ~30MB for 1000 notes)
+- Embeddings (384 semantic dims plus 3 calendar features per note per session;
+  ~30MB for 1000 notes over 20 sessions, bounded by `session_embedding_retention`)
 - Session history
 - Previous suggestions (for novelty filtering)
 
@@ -177,29 +178,33 @@ personal information present in the vault. Protect backups or copies of
 ### 1. First-Run Warnings
 
 ```
-⚠️  GeistFabrik will:
-   • Read all markdown files in your vault
-   • Create a database at _geistfabrik/vault.db
-   • Compute embeddings for all notes (stored locally)
-   • Create session notes in 'geist journal/' when you invoke with --write
+GeistFabrik will:
+   - Read all markdown files in your vault
+   - Create a database at _geistfabrik/vault.db
+   - Compute embeddings for all notes (stored locally)
+   - Create session notes in 'geist journal/' when you invoke with --write
 
-✅ GeistFabrik's engine will NEVER:
-   • Modify or delete your existing source notes
-   • Upload vault content or analytics
+GeistFabrik's engine will NEVER:
+   - Modify your existing source notes (read-only access)
+   - Upload vault content or analytics
+   - Delete your source notes
 
-⚠️ Trust boundaries:
-   • A missing model may be downloaded from HuggingFace unless offline mode is set
-   • Custom Python plugins are trusted arbitrary code and are not sandboxed
+Network and plugin trust boundaries:
+   - A missing bundled model may be downloaded from HuggingFace
+   - Set GEISTFABRIK_OFFLINE=1 to prohibit network fallback
+   - Installed Python geists/modules are trusted arbitrary code, not sandboxed
 ```
 
 ### 2. Summary Stats After Init
 
 ```
-📊 Vault Summary:
+Vault Summary:
    Notes found: 247
    Database size: 12.34 MB
-   Bundled default geists available: 70 (58 code + 12 Tracery)
 ```
+
+followed by how many default geists are bundled (code and Tracery) and where
+to configure them.
 
 ### 3. Diff Mode
 
@@ -222,8 +227,9 @@ GeistFabrik Configuration Audit
 ============================================================
 Vault: /path/to/vault
 Geists directory: /path/to/vault/_geistfabrik/geists/code
-Total geists found: 29
-  - Enabled: 29
+Loaded geists: <N>
+  - Code geists: <N> (<N> enabled)
+  - Tracery geists: <N> (<N> enabled)
 Filtering: ENABLED (4-stage pipeline)
 Sampling: ENABLED (count=5)
 Mode: Default
@@ -231,14 +237,15 @@ Mode: Default
 ```
 
 This shows:
-- **Total geists found**: All `.py` files in the geists directory
-- **Enabled/Disabled**: Geists can be auto-disabled after 3 failures
+- **Loaded geists**: Bundled defaults plus your custom code and Tracery geists
+- **Auto-disabled / Configured off**: Geists auto-disabled after 3 consecutive
+  failures (`geist_execution.max_failures`), or set to `false` in config
 - **Filtering**: Whether the 4-stage filter pipeline is active
 - **Sampling**: Whether suggestions are sampled down
 - **Mode**: Current invocation mode
 
 If you see fewer geists than expected:
-- Check that geists are in `_geistfabrik/geists/code/`
+- Check that custom geists are in `_geistfabrik/geists/code/` or `_geistfabrik/geists/tracery/`
 - Look for disabled geists (auto-disabled after failures)
 - Check the Execution Summary at the end for errors
 
@@ -250,7 +257,7 @@ If you see fewer geists than expected:
 A: No. GeistFabrik only runs when you invoke it from terminal. Obsidian never sees it.
 
 **Q: What about large vaults?**
-A: Tested on 100+ notes. Initial sync for 1000 notes takes 2-5 minutes. After that, incremental syncs are fast.
+A: Tested up to 10,000 notes. The first run on 1000 notes spends roughly 20 seconds computing embeddings on CPU (about 20 ms per note). After that, incremental syncs are fast.
 
 **Q: Which backend should I use for my vault size?**
 A: GeistFabrik offers two vector search backends with different performance characteristics:
@@ -302,8 +309,8 @@ def suggest(vault):
     for note in vault.notes():
         if interesting_condition(note):
             suggestions.append(Suggestion(
-                text=f"What if you explored [[{note.title}]] further?",
-                notes=[note.title],
+                text=f"What if you explored [[{note.link_text}]] further?",
+                notes=[note.link_text],
                 geist_id="my_geist"
             ))
 
@@ -317,7 +324,7 @@ A: System continues. Geists have:
 - Configurable timeout (30 seconds by default)
 - Error isolation (one failure doesn't stop others)
 - Execution logs
-- Auto-disable after 3 failures
+- Auto-disable after 3 consecutive failures (configurable, persisted across sessions)
 
 **Q: Can I remove example geists?**
 A: Bundled geists are not copied into the vault. Disable an unwanted bundled
@@ -327,8 +334,10 @@ default_geists:
   temporal_drift: false
 ```
 
-Deleting a custom override only reveals the bundled geist again; it does not
-disable that geist.
+A custom geist cannot override a bundled one by reusing its id: while the
+bundled geist is enabled the duplicate id is rejected, and setting the id to
+`false` disables both. To replace a bundled geist, disable it and give your
+version a new id.
 
 ---
 
@@ -407,7 +416,7 @@ cd ~/Documents/MyVault-FullTest
 # Step 2: Backup (extra safety)
 tar -czf ../MyVault-FullTest-backup.tar.gz .
 
-# Step 3: Initialise (70 default geists enabled)
+# Step 3: Initialise (all default geists enabled)
 uv run geistfabrik init ~/Documents/MyVault-FullTest
 
 # Step 4a: Try --full first (filtered but not sampled)
@@ -424,7 +433,7 @@ grep -c "^## " ~/Documents/MyVault-FullTest/"geist journal"/$(date +%Y-%m-%d).md
 
 # Step 7: Analyze which geists are most active
 grep "^## " ~/Documents/MyVault-FullTest/"geist journal"/$(date +%Y-%m-%d).md | \
-  sort | uniq -c | sort -rn
+  awk '{print $2}' | sort | uniq -c | sort -rn
 
 # Step 8: Clean up when done
 rm -rf ~/Documents/MyVault-FullTest
@@ -597,7 +606,7 @@ uv run pytest tests/unit/test_performance_regression.py -v
 
 # Real-world benchmarks (slower, manual)
 uv run pytest tests/unit/test_cluster_performance.py::test_cluster_caching_benchmark -v -s
-uv run pytest tests/unit/test_performance_regression.py::test_stats_vectorized_performance -v -s
+uv run pytest tests/unit/test_phase2_batch_loading.py -m benchmark -v -s
 ```
 
 These tests validate:
@@ -673,47 +682,26 @@ Total time: 0.349s
 
 ---
 
-### Run Phase 2 Optimisation Benchmarks (NEW)
+### Run Phase 2 Optimisation Benchmarks
 
-Validate the latest Phase 2 algorithmic improvements:
+Validate the Phase 2 algorithmic improvements:
 
 ```bash
-# Profile congruence_mirror specifically
-uv run geistfabrik test congruence_mirror ~/my-vault --debug
-```
-
-**Expected results** (3406-note vault):
-```
-======================================================================
-Congruence_Mirror Performance (OP-4: Single-Pass Optimisation)
-======================================================================
-✓ congruence_mirror: 1.930s (4 suggestions)
-
-Performance improvements:
-  Before optimisation: 60.838s
-  After optimisation:  1.930s
-  Speedup:             31.5x (97% reduction)
-
-Optimisation techniques:
-  - Single-pass algorithm (4 separate passes → 1 combined pass)
-  - Cached similarity computations
-  - Batch note loading (OP-6)
-  - Early sampling (process 100 notes instead of all)
-======================================================================
+# Profile geists that use neighbours(return_scores=True)
+uv run geistfabrik test hidden_hub ~/my-vault --debug
+uv run geistfabrik test bridge_hunter ~/my-vault --debug
 ```
 
 **What's tested:**
-1. **OP-4**: Single-pass congruence_mirror (31.5x faster)
-2. **OP-6**: Batch note loading (3 queries instead of 3×N)
-3. **OP-8**: Optimised hubs() SQL query (JOIN-based resolution)
-4. **OP-9**: neighbours() with return_scores (avoids recomputation)
+1. **OP-6**: Batch note loading (3 queries instead of 3×N)
+2. **OP-8**: Optimised hubs() SQL query (JOIN-based resolution)
+3. **OP-9**: neighbours() with return_scores (avoids recomputation)
 
 **Geists optimised with OP-9** (return_scores=True):
 - `hidden_hub` - Avoids recomputing similarity for semantic neighbours
 - `bridge_hunter` - Gets scores when finding semantic paths
-- `columbo` - Detects contradictions without redundant similarity calls
 - `bridge_builder` - Identifies bridge notes efficiently
-- `antithesis_generator` - Finds dialectical pairs faster
+- `assumption_challenger`, `recent_focus`, `scale_shifter` - Reuse neighbour scores
 
 **What to report** (GitHub issue template):
 
@@ -725,15 +713,10 @@ Optimisation techniques:
 - Operating system: macOS / Linux / Windows
 - Python version: 3.11.x
 
-**Congruence_mirror performance:**
-- Execution time: X.XXXs
-- Suggestions generated: X
-- Speedup vs baseline (if known): XX.Xx
-
-**Other Phase 2 geists to test:**
+**Phase 2 geists to test:**
 - `hidden_hub`: X.XXXs
 - `bridge_hunter`: X.XXXs
-- `columbo`: X.XXXs
+- `bridge_builder`: X.XXXs
 
 **Notes:**
 - Did you notice improved performance compared to earlier versions?
@@ -791,20 +774,25 @@ From: `uv run geistfabrik test <geist_name> ~/my-vault --debug`
 
 ### Expected Performance by Vault Size
 
-| Vault Size | First Run | Daily Use | Status |
-|------------|-----------|-----------|--------|
-| 100 notes | 1-2s | <1s | ✅ Excellent |
-| 500 notes | 5-8s | 2-3s | ✅ Good |
-| 1000 notes | 14s | 3-5s | ✅ Acceptable |
-| 3000 notes | 45s | 8-12s | ✅ Tolerable |
-| 5000 notes | 2-3min | 15-20s | 🟡 Marginal |
-| 10000+ notes | 5-10min | 30-60s | 🔴 Consider GPU |
+What has been measured (CPU only):
 
-**Note**: "First run" = initial embedding computation. "Daily use" = cached embeddings.
+- **First run**: embedding costs about 20 ms per note, so roughly 20 seconds
+  for 1,000 notes and a few minutes for 10,000
+  (`docs/10K_VAULT_BENCHMARK.md`).
+- **Daily use**: only changed notes are re-embedded. Running every bundled
+  geist on a synthetic 10,000-note vault took about 74 seconds in the
+  2026-10 scaling benchmark (embeddings already computed). Clustering runs
+  once per session before the cluster geists, on its own 120-second budget,
+  so a large vault does not make them time out.
+
+These are single-machine measurements, not guarantees; there is no
+per-size benchmark table.
+
+"First run" = initial embedding computation. "Daily use" = cached embeddings.
 
 ### Understanding Cold vs Warm Start Performance
 
-The 7-10x performance difference between "First Run" and "Daily Use" reflects GeistFabrik's **cold start** vs **warm start** behaviour:
+The difference between "First Run" and "Daily Use" reflects GeistFabrik's **cold start** vs **warm start** behaviour:
 
 **Cold Start** (First Run):
 - Happens when embeddings need to be computed from scratch
@@ -813,9 +801,9 @@ The 7-10x performance difference between "First Run" and "Daily Use" reflects Ge
   - After deleting `_geistfabrik/vault.db`
   - When vault content has significantly changed
 - Time breakdown for 1000 notes:
-  - Embedding computation: ~2-3 minutes (100-200ms per note)
-  - Geist execution: ~10-20 seconds
-  - **Total: 3-4 minutes**
+  - Embedding computation: ~20 seconds (about 20 ms per note on CPU, measured
+    on a 10,000-note vault in `docs/10K_VAULT_BENCHMARK.md`)
+  - Geist execution: the remainder of the first-run time
 
 **Warm Start** (Daily Use):
 - Happens when embeddings are already cached in database
@@ -826,15 +814,14 @@ The 7-10x performance difference between "First Run" and "Daily Use" reflects Ge
 - Time breakdown for 1000 notes:
   - Loading cached embeddings: <1 second
   - Incremental sync (changed files only): 1-2 seconds
-  - Geist execution: ~10-20 seconds
-  - **Total: 30-40 seconds**
+  - Geist execution: most of the remaining time
 
 **Why the difference?**
-The sentence-transformer model (all-MiniLM-L6-v2) computes semantic embeddings for every note. This happens once per note and results are cached in SQLite. Subsequent runs load embeddings from database (10x faster) rather than recomputing them.
+The sentence-transformer model (all-MiniLM-L6-v2) computes semantic embeddings for every note. This happens once per note and results are cached in SQLite. Subsequent runs load embeddings from the database rather than recomputing them.
 
 **What to expect:**
-- ✅ **Cold start once**: First invocation takes 3-5 minutes on 1000-note vault
-- ✅ **Warm starts after**: Daily usage takes 30-60 seconds
+- ✅ **Cold start once**: First invocation pays the one-time embedding cost (see the table above)
+- ✅ **Warm starts after**: Daily usage skips it
 - ✅ **This is normal**: The one-time investment enables fast semantic search
 - ⚠️ **If every run is slow**: Check that `_geistfabrik/vault.db` isn't being deleted
 
@@ -854,7 +841,7 @@ The sentence-transformer model (all-MiniLM-L6-v2) computes semantic embeddings f
 - 🟡 Simple code geists
 
 **Expensive operations** (>1s):
-- 🔴 Embedding computation (first time: 100-200ms/note, cached: <10ms)
+- 🔴 Embedding computation (first time: ~20 ms/note on CPU, cached: loaded from the database)
 - 🔴 HDBSCAN clustering (now cached per session)
 - 🔴 Large k-NN searches (k>100)
 
@@ -867,8 +854,8 @@ uv run geistfabrik invoke ~/my-vault --timeout 60
 ```
 
 **If first run is slow:**
-- Expected: 100-200ms per note (CPU-only embeddings)
-- For 1000 notes: ~2-3 minutes one-time
+- Expected: ~20 ms per note (CPU-only embeddings)
+- For 1000 notes: ~20 seconds one-time
 - For 5000+ notes: Consider GPU acceleration (future)
 
 **If daily runs are slow:**
@@ -943,4 +930,4 @@ Before reporting slow performance, verify:
 
 ---
 
-*Last updated: 2026-09-13 (v0.11.0)*
+*Last updated: 2026-10-02 (v0.11.0)*

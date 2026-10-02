@@ -4,28 +4,15 @@ Provides unified graph pattern detection for note link structures.
 Supports finding hubs, orphans, bridges, paths, and connected components.
 
 Replaces ad-hoc graph traversal code duplicated across bridge_builder,
-island_hopper, hidden_hub, and other geists.
+hidden_hub, and other geists.
 """
 
 from collections import deque
 from typing import TYPE_CHECKING
 
-from .models import NoteLinkIndex
-
 if TYPE_CHECKING:
     from geistfabrik.models import Note
     from geistfabrik.vault_context import VaultContext
-
-
-def _are_linked(a: "Note", b: "Note", index: NoteLinkIndex) -> bool:
-    """True if either note links directly to the other.
-
-    Pass the complete vault index so duplicate aliases cannot
-    be resolved differently just because only two notes were considered.
-    """
-    return any(index.resolve(link.target, a.path) == b.path for link in a.links) or any(
-        index.resolve(link.target, b.path) == a.path for link in b.links
-    )
 
 
 class GraphPatternFinder:
@@ -113,21 +100,12 @@ class GraphPatternFinder:
         bridges = []
 
         for bridge_candidate in notes:
-            # Get all notes connected to this candidate (both directions)
-            connected = set()
+            # Notes connected to this candidate (both directions), deduplicated
+            # in first-seen order so output order never follows string hashes
+            connected_list = self.vault.graph_neighbours(bridge_candidate)
 
-            # Add outgoing links
-            outgoing = self.vault.outgoing_links(bridge_candidate)
-            connected.update(outgoing)
-
-            # Add backlinks
-            backlinks = self.vault.backlinks(bridge_candidate)
-            connected.update(backlinks)
-
-            if len(connected) < 2:
+            if len(connected_list) < 2:
                 continue  # Need at least 2 connections to bridge
-
-            connected_list = list(connected)
 
             # One vectorised similarity matrix for the whole neighbourhood
             # instead of O(degree^2) individual similarity() calls - for a
@@ -139,7 +117,7 @@ class GraphPatternFinder:
                 for j in range(i + 1, len(connected_list)):
                     note_b = connected_list[j]
                     # Cheap link check first, similarity lookup second
-                    if _are_linked(note_a, note_b, self.vault.link_index()):
+                    if self.vault.has_link(note_a, note_b):
                         continue
                     if float(sim_matrix[i, j]) >= min_similarity:
                         # Found a bridge!
@@ -248,12 +226,9 @@ class GraphPatternFinder:
                 component.append(current)
                 visited.add(current.path)
 
-                # Add both outgoing links and backlinks (undirected)
-                connected = set()
-                connected.update(self.vault.outgoing_links(current))
-                connected.update(self.vault.backlinks(current))
-
-                for next_note in connected:
+                # Both outgoing links and backlinks (undirected), in a
+                # deterministic order
+                for next_note in self.vault.graph_neighbours(current):
                     if next_note.path not in component_visited:
                         component_visited.add(next_note.path)
                         queue.append(next_note)

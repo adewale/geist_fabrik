@@ -3,6 +3,16 @@
 **Date**: 2025-11-07
 **Status**: Research Complete, Implementation Proposed
 
+> **Status (2026-10):** None of the seven proposed geists (or stability_anomaly)
+> was built, and the release targets below lapsed. Two premises have since
+> changed: semantic vectors are cached by note content, so an unchanged note's
+> vector is identical in every session (trajectories show edits, not shifting
+> understanding); and all comparisons use only the 384 semantic dims (the 3
+> calendar features are stored, not compared). Geists must use VaultContext
+> methods, not direct SQL. Temporal geists that do exist are concept_drift,
+> convergent_evolution, divergent_evolution, attention_shift, seasonal_patterns,
+> temporal_clustering and this_time_last_year. See `specs/SPEC_STATUS.md`.
+
 ## Executive Summary
 
 This document presents research-grounded proposals for new geists that leverage GeistFabrik's temporal embeddings infrastructure. Based on academic literature in diachronic embeddings, semantic change detection, and temporal knowledge graphs, we propose 7 new geists that use temporal data to **ask provocative questions**, not report analytics.
@@ -370,6 +380,19 @@ temporal = [
 ```
 
 ### Procrustes Alignment Utility
+
+> **Status note (not built; do not copy into drift code).** Procrustes
+> alignment is for comparing *independently trained* embedding spaces
+> (Hamilton et al. 2016 trained word2vec per period). GeistFabrik embeds every
+> session with one pinned model (`MODEL_NAME`), so snapshots already share a
+> coordinate system and need no alignment. Aligning is also harmful at vault
+> scale: a rotation fitted on n notes in d = 384 dimensions (n << d) can map
+> almost any configuration onto almost any other and absorbs the change being
+> measured (`stats` drift reported ~0 for a fully rewritten note until this
+> was removed). Alignment would only become relevant if sessions were embedded
+> with different models, which is out of scope (`embeddings.model` is
+> NOT-BUILT in SPEC_STATUS.md), and even then only on many more unchanged
+> anchor notes than dimensions.
 
 Create shared utility for multiple geists:
 

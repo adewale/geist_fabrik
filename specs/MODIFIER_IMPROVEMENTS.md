@@ -1,5 +1,10 @@
 # Tracery Modifier Improvements
 
+**Status**: Implemented (design history). The modifiers are built
+(`src/geistfabrik/tracery.py`); some geists used as examples here (e.g.
+`perspective_shifter`) were later merged or moved to `examples/geists/tracery/`;
+see [specs/SPEC_STATUS.md](SPEC_STATUS.md#geist-merges-2026-10).
+
 ## Overview
 
 This document shows how the implementation of Tracery modifiers (`.s`, `.ed`, `.a`, `.capitalize`, `.capitalizeAll`) improves existing geists by enabling grammatically correct, natural-sounding suggestions.

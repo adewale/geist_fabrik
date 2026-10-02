@@ -1,401 +1,192 @@
-"""Unit tests for hidden_hub geist."""
+"""Unit tests for the hidden_hub geist.
 
+hidden_hub needs >= 20 notes. A note is a hidden hub when MORE than 10 of its
+top-30 semantic neighbours have similarity > SimilarityLevel.HIGH (0.65) yet it
+is linked to or from fewer than 5 distinct notes (vault.graph_neighbours). It
+returns at most 3 suggestions.
+
+Fixtures use the bag-of-words test stub: cluster members repeat the same 8
+topic words twice and differ only in a numeric title suffix (ignored by the
+stub), so members have cosine ~0.97 with each other; fillers use disjoint
+vocabulary. In a cluster of N unlinked members each member has N - 1
+high-similarity neighbours.
+"""
+
+from collections.abc import Sequence
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from geistfabrik import Vault, VaultContext
 from geistfabrik.default_geists.code import hidden_hub
-from geistfabrik.embeddings import Session
-from geistfabrik.function_registry import FunctionRegistry
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
-# ============================================================================
-# Test Fixtures
-# ============================================================================
+CAP = 3
+MIN_NOTES = 20
+CREATED = datetime(2024, 1, 1)
+TOPIC = "tidepool anemone barnacle limpet kelp urchin starfish mussel"
+CLUSTER = [f"Tide {i}" for i in range(12)]  # 12 members -> 11 high neighbours each
 
 
-@pytest.fixture
-def vault_with_hidden_hubs(tmp_path):
-    """Create a vault with semantically central notes that lack links."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
+def _add_cluster(builder: VaultBuilder, titles: list[str]) -> None:
+    for title in titles:
+        builder.note(title, f"{TOPIC} {TOPIC}", created=CREATED)
 
-    # Create a semantically central note with few links (hidden hub candidate)
-    (vault_path / "artificial_intelligence.md").write_text(
-        "# Artificial Intelligence\n\nMachine learning, neural networks, deep learning, "
-        "algorithms, cognition, reasoning, and intelligent systems."
+
+def _add_fillers(builder: VaultBuilder, count: int, link_to: Sequence[str] = ()) -> None:
+    links = " ".join(f"[[{t}]]" for t in link_to)
+    for i in range(count):
+        builder.note(f"Filler {i}", f"filler{i} loose{i} idle{i} {links}", created=CREATED)
+
+
+def test_hidden_hub_flags_semantically_central_unlinked_note(tmp_path: Path) -> None:
+    """Contract: an unlinked note with > 10 highly similar neighbours is a hidden hub.
+
+    Trigger: 12 cluster members (11 high-similarity neighbours each > 10, 0
+    links < 5) plus 8 fillers = 20 notes.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, CLUSTER)
+    _add_fillers(builder, MIN_NOTES - len(CLUSTER))
+    ctx = builder.build()
+
+    suggestions = hidden_hub.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "hidden_hub")
+    for s in suggestions:
+        assert set(s.notes) <= set(CLUSTER)
+        assert len(s.notes) == 4  # the hub plus 3 sampled neighbours
+        assert "is semantically related to 11 notes" in s.text
+        assert "but isn't linked to any notes. Hidden hub?" in s.text
+
+
+def test_hidden_hub_caps_at_three_distinct_hubs(tmp_path: Path) -> None:
+    """Contract: 12 qualifying members -> exactly 3 suggestions about distinct hubs."""
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, CLUSTER)
+    _add_fillers(builder, MIN_NOTES - len(CLUSTER))
+    ctx = builder.build()
+
+    suggestions = hidden_hub.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, "hidden_hub", min_count=CAP)
+    assert len(suggestions) == CAP
+    assert len({s.notes[0] for s in suggestions}) == CAP
+
+
+@pytest.mark.parametrize(("cluster_size", "fires"), [(11, False), (12, True)])
+def test_hidden_hub_needs_more_than_ten_similar_neighbours(
+    tmp_path: Path, cluster_size: int, fires: bool
+) -> None:
+    """Contract: 10 high-similarity neighbours -> []; 11 -> hidden hub."""
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, CLUSTER[:cluster_size])
+    _add_fillers(builder, MIN_NOTES - cluster_size)
+    ctx = builder.build()
+
+    suggestions = hidden_hub.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, "hidden_hub")
+    else:
+        assert suggestions == []
+
+
+@pytest.mark.parametrize(("backlinks", "fires"), [(4, True), (5, False)])
+def test_hidden_hub_requires_fewer_than_five_links(
+    tmp_path: Path, backlinks: int, fires: bool
+) -> None:
+    """Contract: 4 links still counts as hidden; 5 links does not.
+
+    The first ``backlinks`` fillers link to every cluster member, giving each
+    member exactly that many incoming links. (Fillers mention "tide" 12 times
+    but nothing else from the cluster, so their similarity stays low.)
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, CLUSTER)
+    _add_fillers(builder, backlinks, link_to=CLUSTER)
+    for i in range(backlinks, MIN_NOTES - len(CLUSTER)):
+        builder.note(f"Filler {i}", f"filler{i} loose{i} idle{i}", created=CREATED)
+    ctx = builder.build()
+
+    suggestions = hidden_hub.suggest(ctx)
+
+    if fires:
+        assert_valid_suggestions(suggestions, "hidden_hub")
+        assert all(f"is linked to only {backlinks} notes." in s.text for s in suggestions)
+    else:
+        assert suggestions == []
+
+
+def test_hidden_hub_excludes_geist_journal(tmp_path: Path) -> None:
+    """Contract: journal notes are neither hidden hubs nor cited neighbours.
+
+    Six journal notes share the cluster's vocabulary: unfiltered they would be
+    hidden hubs themselves and fill the members' neighbour lists.
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, CLUSTER)
+    journal = [f"Session {chr(65 + i)}" for i in range(6)]
+    for title in journal:
+        builder.journal(title, f"{TOPIC} {TOPIC}", created=CREATED)
+    _add_fillers(builder, MIN_NOTES - len(CLUSTER))
+    ctx = builder.build()
+
+    suggestions = hidden_hub.suggest(ctx)
+
+    assert_valid_suggestions(
+        suggestions,
+        "hidden_hub",
+        min_count=CAP,
+        must_not_reference=["geist journal", *journal],
+    )
+    assert all(set(s.notes) <= set(CLUSTER) for s in suggestions)
+    # Only the 11 regular cluster mates count as similar neighbours.
+    assert all("is semantically related to 11 notes" in s.text for s in suggestions)
+
+
+def test_hidden_hub_counts_linked_notes_not_raw_links(tmp_path: Path) -> None:
+    """Contract: connections are distinct linked notes; repeated or unresolved
+    links are not extra connections. One linked note reads "1 note".
+
+    Trigger: five fillers link to Tide 1-11 (5 links each: not hidden). Tide 0
+    links "[[Filler 0]]" three times and the missing "[[Nowhere]]" twice:
+    one connected note.
+    Regression: ``len(note.links)`` counted every raw link, so Tide 0 had
+    "5 links" and was dropped; and one link was reported as "1 links".
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, CLUSTER[1:])
+    links = "[[Filler 0]] " * 3 + "[[Nowhere]] " * 2
+    builder.note(CLUSTER[0], f"{TOPIC} {TOPIC} {links}", created=CREATED)
+    _add_fillers(builder, 5, link_to=CLUSTER[1:])
+    for i in range(5, MIN_NOTES - len(CLUSTER)):
+        builder.note(f"Filler {i}", f"filler{i} loose{i} idle{i}", created=CREATED)
+    ctx = builder.build()
+
+    (suggestion,) = hidden_hub.suggest(ctx)
+
+    assert suggestion.notes[0] == CLUSTER[0]
+    assert suggestion.text.startswith(
+        f"[[{CLUSTER[0]}]] is semantically related to 11 notes (including "
+    )
+    assert suggestion.text.endswith(
+        "but is linked to only 1 note. Hidden hub? Maybe it's a concept that "
+        "connects things implicitly."
     )
 
-    # Create many semantically related notes
-    topics = [
-        "machine_learning",
-        "neural_networks",
-        "deep_learning",
-        "algorithms",
-        "cognition",
-        "reasoning",
-        "intelligent_systems",
-        "pattern_recognition",
-        "data_science",
-        "computational_intelligence",
-        "artificial_neural_networks",
-        "supervised_learning",
-        "unsupervised_learning",
-        "reinforcement_learning",
-        "computer_vision",
-        "natural_language_processing",
-        "expert_systems",
-        "knowledge_representation",
-        "automated_reasoning",
-        "cognitive_computing",
-    ]
 
-    for topic in topics:
-        (vault_path / f"{topic}.md").write_text(
-            f"# {topic.replace('_', ' ').title()}\n\n"
-            f"Content about {topic.replace('_', ' ')} and artificial intelligence."
-        )
+def test_hidden_hub_says_at_least_when_the_neighbour_count_is_capped(tmp_path: Path) -> None:
+    """Contract: only the top 30 neighbours are examined, so 30 similar
+    neighbours is reported as "at least 30".
 
-    # Add some unrelated notes to reach minimum threshold
-    for i in range(10):
-        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content {i}.")
+    Regression: a note with 31 similar notes was "related to 30 notes".
+    """
+    builder = VaultBuilder(tmp_path)
+    _add_cluster(builder, [f"Tide {i}" for i in range(32)])
+    ctx = builder.build()
 
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
+    suggestions = hidden_hub.suggest(ctx)
 
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-@pytest.fixture
-def vault_insufficient_notes(tmp_path):
-    """Create a vault with insufficient notes for hidden hub detection."""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Only create 15 notes (below minimum of 20)
-    for i in range(15):
-        (vault_path / f"note_{i}.md").write_text(f"# Note {i}\n\nContent {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    return vault, session
-
-
-# ============================================================================
-# Core Functionality Tests
-# ============================================================================
-
-
-def test_hidden_hub_returns_suggestions(vault_with_hidden_hubs):
-    """Test that hidden_hub returns suggestions with semantically central notes.
-
-    Setup:
-        Vault with high-degree nodes (hubs).
-
-    Verifies:
-        - Returns suggestions (max 2)"""
-    vault, session = vault_with_hidden_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hidden_hub.suggest(context)
-
-    # Should return list (up to 3 suggestions)
-    assert isinstance(suggestions, list)
-    assert len(suggestions) <= 3
-
-
-def test_hidden_hub_suggestion_structure(vault_with_hidden_hubs):
-    """Test that suggestions have correct structure.
-
-    Setup:
-        Vault with hub nodes.
-
-    Verifies:
-        - Has required fields
-        - References 1 hub note with many links"""
-    vault, session = vault_with_hidden_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hidden_hub.suggest(context)
-
-    # BEHAVIORAL: Verify geist follows output constraints
-    # (This is a basic check - deeper assertions added to high-priority geists in Session 2)
-    for suggestion in suggestions:
-        # Required fields
-        assert hasattr(suggestion, "text")
-        assert hasattr(suggestion, "notes")
-        assert hasattr(suggestion, "geist_id")
-
-        # Correct types and values
-        assert isinstance(suggestion.text, str)
-        assert len(suggestion.text) > 0
-        assert isinstance(suggestion.notes, list)
-        assert suggestion.geist_id == "hidden_hub"
-
-        # Should reference at least 4 notes (hidden hub + 3 sampled neighbours)
-        assert len(suggestion.notes) >= 4
-
-        # Note references should be strings
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-def test_hidden_hub_uses_link_text(vault_with_hidden_hubs):
-    """Test that hidden_hub uses link_text for note references.
-
-    Setup:
-        Vault with hubs.
-
-    Verifies:
-        - Uses [[wiki-link]] format"""
-    vault, session = vault_with_hidden_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hidden_hub.suggest(context)
-
-    for suggestion in suggestions:
-        # Check that text uses [[wiki-link]] format
-        assert "[[" in suggestion.text
-        assert "]]" in suggestion.text
-
-        # Check that notes list contains proper references
-        for note_ref in suggestion.notes:
-            assert isinstance(note_ref, str)
-
-
-# ============================================================================
-# Edge Case Tests
-# ============================================================================
-
-
-def test_hidden_hub_empty_vault(tmp_path):
-    """Test that hidden_hub handles empty vault gracefully.
-
-    Setup:
-        Empty vault.
-
-    Verifies:
-        - Returns empty list"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hidden_hub.suggest(context)
-
-    # Should return empty list, not crash
-    assert isinstance(suggestions, list)
-    assert len(suggestions) == 0
-
-
-def test_hidden_hub_insufficient_notes(vault_insufficient_notes):
-    """Test that hidden_hub handles insufficient notes gracefully.
-
-    Setup:
-        Vault with < 10 notes.
-
-    Verifies:
-        - Returns empty list"""
-    vault, session = vault_insufficient_notes
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hidden_hub.suggest(context)
-
-    # Should return empty list when < 20 notes
-    assert len(suggestions) == 0
-
-
-def test_hidden_hub_max_suggestions(vault_with_hidden_hubs):
-    """Test that hidden_hub never returns more than 3 suggestions.
-
-    Setup:
-        Vault with multiple hubs.
-
-    Verifies:
-        - Returns at most 2"""
-    vault, session = vault_with_hidden_hubs
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hidden_hub.suggest(context)
-
-    # Should never return more than 3
-    assert len(suggestions) <= 3
-
-
-def test_hidden_hub_deterministic_with_seed(vault_with_hidden_hubs):
-    """Test that hidden_hub returns same results with same seed.
-
-    Setup:
-        Vault tested twice with same seed.
-
-    Verifies:
-        - Identical output"""
-    vault, session = vault_with_hidden_hubs
-
-    # Reuse same FunctionRegistry to avoid duplicate registration
-    registry = FunctionRegistry()
-
-    context1 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    context2 = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=registry,
-    )
-
-    suggestions1 = hidden_hub.suggest(context1)
-    suggestions2 = hidden_hub.suggest(context2)
-
-    # Same seed should produce same results
-    assert len(suggestions1) == len(suggestions2)
-
-    if suggestions1:
-        # Compare suggestion texts
-        texts1 = [s.text for s in suggestions1]
-        texts2 = [s.text for s in suggestions2]
-        assert texts1 == texts2
-
-
-def test_hidden_hub_excludes_geist_journal(tmp_path):
-    """Test that geist journal notes are excluded from suggestions.
-
-    Setup:
-        Vault with journal + regular notes.
-
-    Verifies:
-        - No journal in suggestions"""
-    vault_path = tmp_path / "vault"
-    vault_path.mkdir()
-
-    # Create geist journal directory with semantically central content
-    journal_dir = vault_path / "geist journal"
-    journal_dir.mkdir()
-
-    for i in range(5):
-        (journal_dir / f"2024-03-{15 + i:02d}.md").write_text(
-            f"# Session {i}\n\n"
-            "Machine learning, neural networks, deep learning, algorithms, "
-            "cognition, reasoning, and intelligent systems."
-        )
-
-    # Create a semantically central note with few links (hidden hub candidate)
-    (vault_path / "artificial_intelligence.md").write_text(
-        "# Artificial Intelligence\n\nMachine learning, neural networks, deep learning, "
-        "algorithms, cognition, reasoning, and intelligent systems."
-    )
-
-    # Create many semantically related notes
-    topics = [
-        "machine_learning",
-        "neural_networks",
-        "deep_learning",
-        "algorithms",
-        "cognition",
-        "reasoning",
-        "intelligent_systems",
-        "pattern_recognition",
-        "data_science",
-        "computational_intelligence",
-        "artificial_neural_networks",
-        "supervised_learning",
-        "unsupervised_learning",
-        "reinforcement_learning",
-        "computer_vision",
-        "natural_language_processing",
-        "expert_systems",
-        "knowledge_representation",
-        "automated_reasoning",
-        "cognitive_computing",
-    ]
-
-    for topic in topics:
-        (vault_path / f"{topic}.md").write_text(
-            f"# {topic.replace('_', ' ').title()}\n\n"
-            f"Content about {topic.replace('_', ' ')} and artificial intelligence."
-        )
-
-    # Add some unrelated notes to reach minimum threshold
-    for i in range(10):
-        (vault_path / f"random_{i}.md").write_text(f"# Random Note {i}\n\nUnrelated content {i}.")
-
-    vault = Vault(str(vault_path), ":memory:")
-    vault.sync()
-
-    session = Session(datetime.now(), vault.db)
-    session.compute_embeddings(vault.all_notes())
-
-    context = VaultContext(
-        vault=vault,
-        session=session,
-        seed=20240315,
-        function_registry=FunctionRegistry(),
-    )
-
-    suggestions = hidden_hub.suggest(context)
-
-    # Verify no suggestions reference geist journal notes
-    # Build title-to-path mapping to check note paths
-    cursor = vault.db.execute("SELECT title, path FROM notes")
-    title_to_path = {row[0]: row[1] for row in cursor.fetchall()}
-
-    for suggestion in suggestions:
-        for note_ref in suggestion.notes:
-            # Look up path by title or use note_ref as path
-            note_path = title_to_path.get(note_ref, note_ref)
-            assert "geist journal" not in note_path.lower(), (
-                f"Geist journal note '{note_path}' was included in suggestions"
-            )
+    assert_valid_suggestions(suggestions, "hidden_hub", min_count=CAP)
+    assert all("is semantically related to at least 30 notes" in s.text for s in suggestions)

@@ -5,37 +5,66 @@ Tracks semantic trajectories, drift patterns, and temporal relationships
 between notes.
 
 This module extracts the recurring pattern from temporal geists (concept_drift,
-convergent_evolution, divergent_evolution, burst_evolution) into reusable
+convergent_evolution, divergent_evolution, creation_burst) into reusable
 components.
 """
 
+from collections.abc import Iterator, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
-from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-    cosine_similarity as sklearn_cosine,
-)
 
-from .config import SEMANTIC_DIM, TOTAL_DIM
+from .config import SEMANTIC_DIM
+from .semantic_vectors import decode_meaning_vector, meaning_vector
 
 if TYPE_CHECKING:
     from geistfabrik.models import Note
     from geistfabrik.vault_context import VaultContext
 
 
-def semantic_component(embedding: np.ndarray) -> np.ndarray:
-    """Return the semantic dimensions from a stored session embedding.
+# Hysteresis band for find_cycling_notes: similarity to the first snapshot
+# must drop below LOW to leave the first state and rise above HIGH to return.
+CYCLE_HIGH_SIMILARITY = 0.8
+CYCLE_LOW_SIMILARITY = 0.6
 
-    Production session embeddings append calendar-derived dimensions to the
-    semantic model output. Temporal trajectory claims concern content, so those
-    features must not create apparent semantic movement. Smaller vectors remain
-    supported for injected/test embeddings.
+
+# Trajectory claims concern content, so calendar features must not create
+# apparent semantic movement (see semantic_vectors).
+semantic_component = meaning_vector
+
+
+def cosine_to_rows(reference: np.ndarray, rows: Sequence[np.ndarray]) -> np.ndarray:
+    """Cosine similarity of ``reference`` with each of ``rows`` (float64).
+
+    Matches ``sklearn.metrics.pairwise.cosine_similarity`` (zero vectors have
+    similarity 0, non-finite input raises ValueError) without its per-call
+    input validation, which cost ~0.6 ms per snapshot pair and dominated the
+    trajectory helpers on large vaults. One matrix-vector product per
+    trajectory replaces one sklearn call per pair.
     """
-    vector = np.asarray(embedding)
-    if vector.size == TOTAL_DIM:
-        return vector[:SEMANTIC_DIM]
-    return vector
+    if len(rows) == 0:
+        return np.zeros(0, dtype=np.float64)
+    ref = np.asarray(reference, dtype=np.float64).ravel()
+    matrix = np.vstack([np.asarray(row, dtype=np.float64).ravel() for row in rows])
+    if matrix.shape[1] != ref.shape[0]:
+        raise ValueError(
+            f"Incompatible dimension for X and Y matrices: {ref.shape[0]} != {matrix.shape[1]}"
+        )
+    if not (np.isfinite(ref).all() and np.isfinite(matrix).all()):
+        raise ValueError("Input contains NaN or infinity.")
+    ref_norm = float(np.linalg.norm(ref))
+    row_norms = np.linalg.norm(matrix, axis=1)
+    # sklearn's normalize() leaves zero vectors at zero (scale 1), so their
+    # similarity is 0 rather than NaN.
+    ref_unit = ref / (ref_norm if ref_norm != 0.0 else 1.0)
+    row_norms[row_norms == 0.0] = 1.0
+    return np.asarray((matrix / row_norms[:, None]) @ ref_unit, dtype=np.float64)
+
+
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    """Cosine similarity of two vectors (see :func:`cosine_to_rows`)."""
+    return float(cosine_to_rows(a, [b])[0])
 
 
 def get_season(date: datetime) -> str:
@@ -124,7 +153,7 @@ class EmbeddingTrajectoryCalculator:
         for session_id, session_date, raw_embedding in cursor.fetchall():
             if self.sessions is not None and session_id not in self.sessions:
                 continue
-            embedding = np.frombuffer(raw_embedding, dtype=np.float32)
+            embedding = decode_meaning_vector(raw_embedding)
             snapshots.append((datetime.fromisoformat(str(session_date)), embedding))
 
         return snapshots
@@ -142,8 +171,7 @@ class EmbeddingTrajectoryCalculator:
         first_emb = semantic_component(snapshots[0][1])
         last_emb = semantic_component(snapshots[-1][1])
 
-        similarity = sklearn_cosine(first_emb.reshape(1, -1), last_emb.reshape(1, -1))
-        return 1.0 - float(similarity[0, 0])
+        return 1.0 - cosine(first_emb, last_emb)
 
     def drift_direction_vector(self) -> np.ndarray:
         """Compute unit vector of drift direction (last - first, normalized).
@@ -209,10 +237,7 @@ class EmbeddingTrajectoryCalculator:
         for i in range(len(snapshots) - window_size + 1):
             window_start = semantic_component(snapshots[i][1])
             window_end = semantic_component(snapshots[i + window_size - 1][1])
-
-            similarity = sklearn_cosine(window_start.reshape(1, -1), window_end.reshape(1, -1))
-            drift = 1.0 - float(similarity[0, 0])
-            drift_rates.append(drift)
+            drift_rates.append(1.0 - cosine(window_start, window_end))
 
         return drift_rates
 
@@ -232,19 +257,13 @@ class EmbeddingTrajectoryCalculator:
         current_emb = semantic_component(snapshots[-1][1])
         midpoint = len(snapshots) // 2
 
-        # Compute average similarity in early half
-        early_sims = []
-        for _, raw_emb in snapshots[:midpoint]:
-            emb = semantic_component(raw_emb)
-            sim = sklearn_cosine(emb.reshape(1, -1), current_emb.reshape(1, -1))
-            early_sims.append(float(sim[0, 0]))
-
-        # Compute average similarity in late half (excluding current)
-        late_sims = []
-        for _, raw_emb in snapshots[midpoint:-1]:
-            emb = semantic_component(raw_emb)
-            sim = sklearn_cosine(emb.reshape(1, -1), current_emb.reshape(1, -1))
-            late_sims.append(float(sim[0, 0]))
+        # Similarity of every earlier snapshot to the current one, in one
+        # product; early half, then late half (excluding current).
+        sims = cosine_to_rows(
+            current_emb, [semantic_component(raw_emb) for _, raw_emb in snapshots[:-1]]
+        ).tolist()
+        early_sims = sims[:midpoint]
+        late_sims = sims[midpoint:]
 
         early_avg = np.mean(early_sims) if early_sims else 0.0
         late_avg = np.mean(late_sims) if late_sims else 0.0
@@ -291,16 +310,19 @@ class EmbeddingTrajectoryCalculator:
         for date, raw_self_emb in self_snapshots:
             if date in other_by_date:
                 self_emb = semantic_component(raw_self_emb)
-                other_emb = other_by_date[date]
-                sim = sklearn_cosine(self_emb.reshape(1, -1), other_emb.reshape(1, -1))
-                similarities.append(float(sim[0, 0]))
+                similarities.append(cosine(self_emb, other_by_date[date]))
 
         return similarities
 
     def is_converging_with(
         self, other: "EmbeddingTrajectoryCalculator", threshold: float = 0.15
     ) -> bool:
-        """Check if trajectories are converging (recent sim > early sim + threshold).
+        """Check if trajectories are converging.
+
+        Both the trend (mean of the later half of shared sessions over the
+        earlier half) and the net change (latest similarity over the first)
+        must rise by more than ``threshold``, so a transient spike that has
+        since fallen back is not convergence.
 
         Args:
             other: Another trajectory calculator
@@ -317,13 +339,19 @@ class EmbeddingTrajectoryCalculator:
         midpoint = len(similarities) // 2
         early_avg = float(np.mean(similarities[:midpoint]))
         late_avg = float(np.mean(similarities[midpoint:]))
+        net_change = similarities[-1] - similarities[0]
 
-        return bool((late_avg - early_avg) > threshold)
+        return bool((late_avg - early_avg) > threshold and net_change > threshold)
 
     def is_diverging_from(
         self, other: "EmbeddingTrajectoryCalculator", threshold: float = 0.15
     ) -> bool:
-        """Check if trajectories are diverging (early sim > recent sim + threshold).
+        """Check if trajectories are diverging.
+
+        Both the trend (mean of the earlier half of shared sessions over the
+        later half) and the net change (first similarity over the latest)
+        must fall by more than ``threshold``, so a temporary dip that has
+        since recovered is not divergence.
 
         Args:
             other: Another trajectory calculator
@@ -340,8 +368,9 @@ class EmbeddingTrajectoryCalculator:
         midpoint = len(similarities) // 2
         early_avg = float(np.mean(similarities[:midpoint]))
         late_avg = float(np.mean(similarities[midpoint:]))
+        net_change = similarities[0] - similarities[-1]
 
-        return bool((early_avg - late_avg) > threshold)
+        return bool((early_avg - late_avg) > threshold and net_change > threshold)
 
 
 class TemporalPatternFinder:
@@ -365,6 +394,54 @@ class TemporalPatternFinder:
             vault: VaultContext with session history
         """
         self.vault = vault
+
+    def _preloaded_calculators(
+        self, notes: list["Note"]
+    ) -> Iterator[EmbeddingTrajectoryCalculator]:
+        """Yield one calculator per distinct note path with snapshots preloaded.
+
+        One SELECT ordered by note path replaces one query per note. Rows
+        arrive grouped by note, so only one trajectory is held at a time, and
+        each group is ordered exactly as _load_snapshots orders it. Calculators
+        come in path order, not input order; notes without any snapshot get an
+        empty trajectory.
+        """
+        wanted: dict[str, Note] = {}
+        for note in notes:
+            wanted.setdefault(note.path, note)
+
+        cursor = self.vault.db.execute(
+            """
+            SELECT se.note_path, s.date, se.embedding
+            FROM session_embeddings se
+            INNER JOIN sessions s ON s.session_id = se.session_id
+            WHERE s.date <= ?
+            ORDER BY se.note_path ASC, s.date ASC, s.session_id ASC
+            """,
+            (self.vault.session.date.strftime("%Y-%m-%d"),),
+        )
+
+        def preloaded(
+            path: str, snapshots: list[tuple[datetime, np.ndarray]]
+        ) -> EmbeddingTrajectoryCalculator:
+            calc = EmbeddingTrajectoryCalculator(self.vault, wanted.pop(path))
+            calc._snapshots_cache = snapshots
+            return calc
+
+        current: str | None = None
+        snapshots: list[tuple[datetime, np.ndarray]] = []
+        for path, session_date, raw_embedding in cursor:
+            if path != current:
+                if current in wanted:
+                    yield preloaded(current, snapshots)
+                current, snapshots = path, []
+            if path in wanted:
+                embedding = decode_meaning_vector(raw_embedding)
+                snapshots.append((datetime.fromisoformat(str(session_date)), embedding))
+        if current in wanted:
+            yield preloaded(current, snapshots)
+        for path in list(wanted):
+            yield preloaded(path, [])
 
     def find_converging_pairs(
         self,
@@ -428,21 +505,18 @@ class TemporalPatternFinder:
         Returns:
             List of (note, drift_direction_vector) tuples
         """
-        high_drift = []
+        drift_vectors: dict[str, np.ndarray] = {}
 
-        for note in notes:
-            calc = EmbeddingTrajectoryCalculator(self.vault, note)
-
+        for calc in self._preloaded_calculators(notes):
             # Need at least 3 sessions for meaningful drift
             if len(calc.snapshots()) < 3:
                 continue
 
             drift = calc.total_drift()
             if drift >= min_drift:
-                drift_vector = calc.drift_direction_vector()
-                high_drift.append((note, drift_vector))
+                drift_vectors[calc.note.path] = calc.drift_direction_vector()
 
-        return high_drift
+        return [(note, drift_vectors[note.path]) for note in notes if note.path in drift_vectors]
 
     def find_aligned_with_direction(
         self,
@@ -460,26 +534,25 @@ class TemporalPatternFinder:
         Returns:
             List of notes aligned with direction
         """
-        aligned = []
+        aligned: set[str] = set()
 
-        for note in notes:
-            calc = EmbeddingTrajectoryCalculator(self.vault, note)
-
+        for calc in self._preloaded_calculators(notes):
             # Need at least 2 sessions for drift direction
             if len(calc.snapshots()) < 2:
                 continue
 
             alignment = calc.drift_alignment(direction)
             if alignment >= min_alignment:
-                aligned.append(note)
+                aligned.add(calc.note.path)
 
-        return aligned
+        return [note for note in notes if note.path in aligned]
 
     def find_cycling_notes(self, notes: list["Note"], min_cycles: int = 2) -> list["Note"]:
         """Find notes that return to previous semantic states (cyclical thinking).
 
-        A note is considered cyclical if it alternates between being similar and
-        dissimilar to its first state across sessions.
+        A note is considered cyclical if it alternates between being similar
+        (cosine > CYCLE_HIGH_SIMILARITY) and dissimilar (< CYCLE_LOW_SIMILARITY)
+        to its first state across sessions.
 
         Args:
             notes: Notes to analyze
@@ -488,40 +561,40 @@ class TemporalPatternFinder:
         Returns:
             List of cyclical notes
         """
-        cycling = []
+        cycling: set[str] = set()
 
-        for note in notes:
-            calc = EmbeddingTrajectoryCalculator(self.vault, note)
+        for calc in self._preloaded_calculators(notes):
             snapshots = calc.snapshots()
 
             # Need at least 2*min_cycles + 1 sessions
             if len(snapshots) < (2 * min_cycles + 1):
                 continue
 
-            # Check for alternating similarity to first embedding
+            # Check for alternating similarity to first embedding (one
+            # matrix-vector product per trajectory)
             first_emb = semantic_component(snapshots[0][1])
-            similarities = []
+            similarities = cosine_to_rows(
+                first_emb, [semantic_component(raw_emb) for _, raw_emb in snapshots[1:]]
+            ).tolist()
 
-            for _, raw_emb in snapshots[1:]:
-                emb = semantic_component(raw_emb)
-                sim = sklearn_cosine(first_emb.reshape(1, -1), emb.reshape(1, -1))
-                similarities.append(float(sim[0, 0]))
-
-            # Count transitions from high->low->high similarity
+            # Count returns (low -> high) to the first state. The walk starts
+            # "high" (the first snapshot is identical to itself). Hysteresis: a
+            # state changes only on crossing the far edge of the band, so
+            # small edits hovering around one threshold are not cycles.
             cycles = 0
-            state = "high" if similarities[0] > 0.7 else "low"
+            state = "high"
 
-            for sim in similarities[1:]:
-                new_state = "high" if sim > 0.7 else "low"
-                if new_state != state:
-                    if state == "low" and new_state == "high":
-                        cycles += 1
-                    state = new_state
+            for sim in similarities:
+                if state == "high" and sim < CYCLE_LOW_SIMILARITY:
+                    state = "low"
+                elif state == "low" and sim > CYCLE_HIGH_SIMILARITY:
+                    state = "high"
+                    cycles += 1
 
             if cycles >= min_cycles:
-                cycling.append(note)
+                cycling.add(calc.note.path)
 
-        return cycling
+        return [note for note in notes if note.path in cycling]
 
 
 class TemporalSemanticQuery:

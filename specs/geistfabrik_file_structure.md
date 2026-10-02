@@ -16,7 +16,12 @@ This document explains the purpose of each file and folder in the GeistFabrik sy
 
 *Users don't create these files, but can edit/annotate them after generation.
 
-## Proposed Structure
+Bundled default geists ship inside the package (`src/geistfabrik/default_geists/`)
+and are toggled under `default_geists:` in `config.yaml`; the vault's `geists/`
+folders hold custom geists only. `geistfabrik init` creates the `_geistfabrik/`
+tree below; `geistfabrik invoke --write` creates `geist journal/`.
+
+## Structure
 
 ```
 MyVault/
@@ -51,11 +56,12 @@ MyVault/
 **Why it exists:**
 - Stores parsed note data (titles, paths, content, links, tags, dates)
 - Stores graph relationships (links table with source/target)
-- Stores vector embeddings (384-dim semantic + 3-dim temporal via sqlite-vec)
-- Stores computed metadata for each note
-- Stores geist execution history (which suggestions were generated when)
-- Stores block reference mappings
+- Stores vector embeddings as BLOBs: a content-keyed cache of 384-dim semantic
+  vectors, plus per-session 387-dim vectors (384 semantic + 3 calendar
+  features; only the semantic part is ever compared)
+- Stores suggestion history (`session_suggestions`: which suggestions were written when, with block IDs)
 - Stores session data for temporal embedding tracking
+- Stores the `stats` metric cache and per-geist failure status (`geist_status`)
 - Enables fast queries (graph operations, semantic search, metadata filtering)
 
 **Why vault-specific:**
@@ -66,7 +72,7 @@ MyVault/
 **Why SQLite:**
 - Single-file portability
 - Fast indexed queries
-- sqlite-vec extension for vector similarity search
+- In-memory cosine search by default; optional sqlite-vec extension for vector similarity search
 - Incremental updates (only reprocess changed files)
 
 ---
@@ -74,13 +80,16 @@ MyVault/
 ### `config.yaml` (Configuration File)
 
 **Why it exists:**
-- Vault-specific settings (which paths to exclude from processing)
-- Embedding configuration (model, weights between semantic/temporal)
-- Session settings (default suggestions count, novelty window)
-- Quality filtering thresholds (min/max length)
-- Geist execution settings (timeout, max failures before disable)
-- Filter configuration (enable/disable specific filters, thresholds)
-- Module configuration (which metadata/function modules to load)
+- Which default geists are enabled (`default_geists`)
+- Boundary filtering (`filtering.boundary`: enable, paths to exclude from suggestions)
+- Session settings (`session.default_suggestions`)
+- Filter thresholds (`filtering.novelty`, `filtering.diversity`, `filtering.quality` min/max length)
+- Geist execution settings (`geist_execution`: timeout, max failures before disable)
+- Module configuration (`enabled_modules`: which metadata/function modules to load)
+- Date-collection, vector-search, clustering and session-embedding-retention settings
+
+See `docs/CONFIGURATION.md` for the full key list and `specs/SPEC_STATUS.md`
+for which spec keys are built.
 
 **Why vault-specific:**
 - Different vaults may need different exclusion paths
@@ -104,14 +113,13 @@ MyVault/
 
 **Why it exists:**
 - Houses Python files that implement code geists
-- Each geist exports: `suggest(vault: VaultContext) -> List[Suggestion]`
+- Each geist exports: `suggest(vault: VaultContext) -> list[Suggestion]`
 - Code geists have full programmatic access to vault data
 
 **What goes here:**
 - `connection_finder.py` - Find semantically similar unlinked notes
-- `columbo.py` - Detect contradictions between notes
-- `session_drift.py` - Track how note understanding evolves
-- `island_hopper.py` - Find notes that could bridge clusters
+- `citation_patterns.py` - Spot recurring sources in an academic vault
+- `project_pulse.py` - Ask about projects untouched for a season
 - etc.
 
 **Why vault-specific:**
@@ -135,8 +143,8 @@ MyVault/
 
 **What goes here:**
 - `question_challenger.yaml` - Generate questions about existing notes
-- `temporal_mirror.yaml` - Connect old and new notes
-- `scale_shifter.yaml` - Generate scale-shifting prompts
+- `old_and_new.yaml` - Connect old and new notes
+- `zoom_prompts.yaml` - Generate scale-shifting prompts
 - etc.
 
 **Example format:**
@@ -144,7 +152,7 @@ MyVault/
 type: geist-tracery
 id: question_challenger
 tracery:
-  origin: "#prompt# [[#question#]]?"
+  origin: "#prompt# #question#?"
   prompt: ["What assumes the opposite of", "Who benefits from"]
   question: ["$vault.find_questions(1)"]
 ```
@@ -212,18 +220,25 @@ def infer(note: Note, vault: VaultContext) -> Dict:
 - Automatically available in Tracery as `$vault.function_name()`
 
 **What goes here:**
-- Built-in: `sample_notes(k)`, `neighbours(note, k)`, `old_notes(k)`, etc.
-- Custom: `contrarian_to(note)`, `notes_by_mood(mood)`, `complex_notes(threshold)`
+- Custom functions such as `notes_by_mood(mood)` or `complex_notes(threshold)`
+- (Built-ins such as `sample_notes(count)`, `old_notes(count)` and
+  `neighbours(note_title, count)` ship with the package and need no file here.)
+
+Like the built-ins, functions return bracketed links (`"[[Note]]"`) so Tracery
+templates use the result as-is.
 
 **Example:**
 ```python
-@vault_function("contrarian_to")
-def find_contrarian(vault: VaultContext, note_title: str, k=3):
-    """Find notes that might disagree with given note"""
-    note = vault.get_note(note_title)
-    similarities = [(n, vault.similarity(note, n)) for n in vault.notes()]
-    contrarian = sorted(similarities, key=lambda x: x[1])[:k]
-    return [n for n, _ in contrarian]
+@vault_function("example_contrarian_to")
+def find_contrarian(vault: VaultContext, note_title: str, count=3):
+    """Find notes least similar in topic (embeddings measure topic, not stance)"""
+    note = vault.resolve_link_target(note_title)
+    if note is None:
+        return []
+    others = [n for n in vault.notes() if n.path != note.path]
+    similarities = [(n, vault.similarity(note, n)) for n in others]
+    contrarian = sorted(similarities, key=lambda x: x[1])[:count]
+    return [f"[[{n.link_text}]]" for n, _ in contrarian]
 ```
 
 **Why it's the bridge to Tracery:**
@@ -243,25 +258,29 @@ def find_contrarian(vault: VaultContext, note_title: str, k=3):
 **Purpose:** Houses the OUTPUT of GeistFabrik - the generated suggestions
 
 **Why it exists:**
-- Each session creates one note: `YYYY-MM-DD.md`
+- Each session written with `invoke --write` creates one note: `YYYY-MM-DD.md`
 - Contains suggestions from geists for that date
 - These are actual Obsidian notes users can link to, embed, annotate
 
 **What's inside:**
 ```markdown
-# GeistFabrik Session – 2025-01-15
+# GeistFabrik Session – January 15, 2025
 
 ## connection_finder ^g20250115-001
 [[Project Planning]] × [[Fermentation]] – what if they follow the same cycles?
 
-## columbo ^g20250115-002
-I think you're lying about [[Democracy Note]]...
+## contradictor ^g20250115-002
+[[Democracy Note]] - but what if you're wrong?
+
+---
+
+_Generated by GeistFabrik_
 ```
 
 **Why separate folder:**
 - Keeps sessions organised chronologically
 - Can be linked: `[[geist journal/2025-01-15]]`
-- Can be embedded: `![[geist journal/2025-01-15#columbo]]`
+- Can be embedded: `![[geist journal/2025-01-15#contradictor]]`
 
 **Why "journal" not "sessions":**
 - More natural: "the geist journal"
@@ -269,6 +288,7 @@ I think you're lying about [[Democracy Note]]...
 - Singular feels right - it's one journal with multiple entries
 - Won't conflict with user's personal journal
 - Natural archive of GeistFabrik's suggestions over time
+- The engine excludes it from every VaultContext lookup, so geists never treat their own output as the user's writing
 
 **Why in vault root, not inside _geistfabrik/:**
 - These ARE notes - part of user's knowledge graph

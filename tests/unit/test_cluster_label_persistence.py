@@ -1,12 +1,13 @@
 """Regression tests for per-session cluster label persistence (schema v7).
 
-cluster_evolution_tracker compares each note's current cluster against the
-label stored in session_embeddings.cluster_label for a previous session. The
-column historically did not exist and nothing wrote it, so the reader raised
-sqlite3.OperationalError on every run and the geist never worked. These tests
-lock down the schema column, the v6->v7 migration, the writer
-(VaultContext.persist_cluster_labels) and the reader
-(previous_cluster_label_for_note).
+VaultContext keeps an API for comparing each note's current cluster against
+the label stored in session_embeddings.cluster_label for a previous session
+(first used by the since-retired cluster_evolution_tracker geist; the API and
+column stay, as the DB change policy is non-destructive). The column
+historically did not exist and nothing wrote it, so the reader raised
+sqlite3.OperationalError on every run. These tests lock down the schema
+column, the v6->v7 migration, the writer (VaultContext.persist_cluster_labels)
+and the reader (previous_cluster_label_for_note).
 """
 
 import sqlite3
@@ -139,20 +140,6 @@ class TestPersistAndRead:
         ).fetchone()[0]
         clustered_note_count = sum(len(c.notes) for c in clusters.values())
         assert stored == clustered_note_count
-
-    def test_cluster_evolution_tracker_runs_without_error(self, context_with_two_sessions):
-        """End-to-end regression: the geist must not raise with >=2 sessions.
-
-        Before the fix it raised sqlite3.OperationalError whenever it got far
-        enough to query previous labels; with stub embeddings clustering may
-        find nothing (returning []), but it must never crash.
-        """
-        from geistfabrik.default_geists.code import cluster_evolution_tracker
-
-        vault, _session1, session2 = context_with_two_sessions
-        ctx = VaultContext(vault, session2)
-        suggestions = cluster_evolution_tracker.suggest(ctx)
-        assert isinstance(suggestions, list)
 
     def test_embeddings_unaffected_by_label_update(self, context_with_two_sessions):
         """Writing labels must not corrupt the stored embedding blobs."""

@@ -10,7 +10,10 @@ Core insight: Surfacing quotes randomly reveals what you valued at different
 times—a temporal map of intellectual influences.
 """
 
+import re
 from typing import TYPE_CHECKING
+
+from geistfabrik.content_extraction import quote_for_display, strip_code, unmask_code
 
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
@@ -45,7 +48,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         quote_clean = " ".join(quote.split())
 
-        text = f'From [[{note.link_text}]]: "{quote_clean}" What if you reflected on this again?'
+        text = (
+            f"From [[{note.link_text}]]: {quote_for_display(quote_clean)} "
+            "What if you reflected on this again?"
+        )
 
         suggestions.append(
             Suggestion(
@@ -71,40 +77,38 @@ def extract_quotes(content: str) -> list[str]:
     Returns:
         List of quote strings (multi-line quotes joined)
     """
-    import re
 
     # Remove code blocks (those quotes are code examples, not actual quotes)
-    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
-    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
+    content_no_code = strip_code(content)
 
     quotes = []
 
     # Match blockquote blocks (may span multiple lines)
     # Blockquote: lines starting with ">", grouped together
     lines = content_no_code.split("\n")
-    current_quote = []
+    current_quote: list[str] = []
+
+    def end_block() -> None:
+        quote = _quote_from_block(current_quote)
+        if quote:
+            quotes.append(quote)
+        current_quote.clear()
 
     for line in lines:
         stripped = line.strip()
 
         # If line starts with ">", it's part of a quote
         if stripped.startswith(">"):
-            # Remove the ">" prefix and leading whitespace
-            quote_text = stripped[1:].strip()
+            # Remove every ">" marker of a nested quote ("> > reply")
+            quote_text = re.sub(r"^(?:>\s*)+", "", stripped).strip()
             if quote_text:  # Skip empty quote lines
                 current_quote.append(quote_text)
-        else:
+        elif current_quote:
             # End of quote block
-            if current_quote:
-                # Join multi-line quotes
-                full_quote = " ".join(current_quote)
-                quotes.append(full_quote)
-                current_quote = []
+            end_block()
 
     # Handle quote at end of file
-    if current_quote:
-        full_quote = " ".join(current_quote)
-        quotes.append(full_quote)
+    end_block()
 
     # Filter and deduplicate
     filtered_quotes = []
@@ -124,10 +128,34 @@ def extract_quotes(content: str) -> list[str]:
         # Deduplication
         quote_normalized = quote_clean.lower()
         if quote_normalized not in seen:
-            filtered_quotes.append(quote_clean)
+            filtered_quotes.append(unmask_code(quote_clean))
             seen.add(quote_normalized)
 
     return filtered_quotes
+
+
+# Obsidian callout header: "[!warning]", "[!note]- Title", "[!tip]+ Title"
+_CALLOUT = re.compile(r"^\[!([\w-]+)\][+-]?\s*")
+# Callout types that hold a quotation; their body is harvested, the header
+# line (type and optional title) is not.
+_QUOTE_CALLOUTS = frozenset({"quote", "cite"})
+
+
+def _quote_from_block(lines: list[str]) -> str:
+    """Join one blockquote's lines; "" for a callout that is not a quotation.
+
+    "> [!warning] Heads up" is an Obsidian callout - an admonition box, not
+    something the author quoted - so warning/note/tip/... callouts are
+    skipped. A [!quote] or [!cite] callout keeps its body.
+    """
+    if not lines:
+        return ""
+    callout = _CALLOUT.match(lines[0])
+    if callout:
+        if callout.group(1).lower() not in _QUOTE_CALLOUTS:
+            return ""
+        lines = lines[1:]
+    return " ".join(lines)
 
 
 def is_valid_quote(quote: str) -> bool:

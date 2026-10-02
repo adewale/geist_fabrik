@@ -9,7 +9,7 @@ Use the same four-marker exclusion as validation and CI:
 
 ```bash
 MARKERS="not slow and not benchmark and not artifact and not production_model"
-uv run pytest tests/unit -v -m "$MARKERS" --timeout=60
+uv run pytest tests/unit -v -m "$MARKERS" --timeout=60 --require-geist-firing
 uv run pytest tests/integration -v -m "$MARKERS" --timeout=300
 ```
 
@@ -57,10 +57,64 @@ inference from the bundled model. The authoritative pre-push command
 
 ## Fixtures
 
-- `tests/conftest.py`: shared fixtures and marker-driven external constructor stub
+- `tests/conftest.py`: shared fixtures, marker-driven external constructor stub,
+  and registration of the `tests/plugins/` gate options
 - `tests/stubs.py`: deterministic `SentenceTransformerStub`
+- `tests/fixtures/helpers.py`: `VaultBuilder`, `assert_valid_suggestions`, `SESSION_DATE`, `SEED`
+- `tests/fixtures/virtual_notes.py`: `create_journal_file` for date-collection journals
+- `tests/fixtures/temporal.py`: `set_session_text`, `set_history`, `drop_from_session` for controlled session histories
 - `tests/unit/conftest.py`: unit-specific notes, embeddings, and injected models
 - `tests/integration/conftest.py`: integration fixtures
+
+### Designing fixtures that make a geist fire
+
+The stub embedding is lexical (bag of words): each content word of three or
+more characters (minus a few stopwords) adds to a hashed dimension, so notes that
+share words are similar and notes with disjoint vocabulary are near-orthogonal.
+Identical text gives similarity 1.0. Embeddings include the `# Title` line.
+Control similarity by choosing shared or disjoint words, not by hoping.
+
+`VaultBuilder(tmp_path)` writes real notes with pinned `created`/`modified`
+times, then `.build(session_date=..., history=[...], seed=...)` returns a real
+`VaultContext` on an in-memory database with the requested past sessions
+already embedded. `.journal(...)` writes a `geist journal/` note that no geist
+may suggest. Check output with `assert_valid_suggestions`, which fails on empty
+output unless you pass `min_count=0` for a test about abstention.
+
+Every test must be able to fail. Do not loop over output that may be empty or
+bound it by a cap it can never exceed. A regression test for a bug must fail
+on the pre-fix code (a control run: check the old code out from git and run
+the test with `--timeout`) and pass after the fix. Do not use mutation testing,
+automated or hand-made: mutants routinely produce runaway tests. Do not let a
+mock or spy supply the value under test; a spy should delegate to the real
+function.
+
+## Quality Gates
+
+Coverage shows that code ran, not that a test checked it. These gates check
+the tests themselves. They are cheap and deterministic, and `validate.sh` and
+CI run them identically.
+
+| Gate | Where | Fails when |
+|------|-------|------------|
+| Geist firing | `--require-geist-firing` on the unit lane; `tests/plugins/geist_firing.py` | a bundled geist (code or Tracery) never built a `Suggestion` during the lane |
+| Suite hygiene | `tests/unit/test_suite_hygiene.py`; `tests/plugins/hygiene_scan.py` | a test asserts nothing, asserts something always true, or checks output only where it may be empty: inside a loop over it, under `if output:`, as `not any(...)` over it, or behind a guard that does not prove it is non-empty (`isinstance(x, list)`, `len(x) <= N`) |
+| Acceptance evidence | `scripts/check_phase_completion.py`; `tests/plugins/selection_report.py` | an AUTO pytest criterion selects no tests, or names a file the canonical marker filter only partly selects |
+
+How the geist firing gate attributes output: it wraps `Suggestion.__init__`
+for the session and credits the nearest calling frame that lives in
+`default_geists/code/<geist>.py`, or `TraceryGeist.suggest` for a grammar
+loaded from `default_geists/tracery/<geist>.yaml`. This works for direct
+`module.suggest(vault)` calls and for `GeistExecutor`, which loads geists by
+file path. `Suggestion(geist_id="x", ...)` written in a test is not credited.
+Pass the flag only on the full unit lane; on a partial run it lists every
+geist the selection did not exercise.
+
+Each gate has an allowlist with exact ids and written reasons:
+`ALLOWLIST` in `tests/plugins/geist_firing.py` (geist ids) and in
+`tests/unit/test_suite_hygiene.py` (`(test id, rule)` pairs). A stale entry
+fails: one whose geist now fires, or whose test was fixed or removed. To clear
+an entry, fix the test and delete the entry.
 
 ## Focused Development Commands
 
