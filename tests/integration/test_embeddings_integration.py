@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pytest
 
+from geistfabrik.config import SEMANTIC_DIM, TOTAL_DIM
 from geistfabrik.embeddings import (
     EmbeddingComputer,
     Session,
@@ -130,10 +131,14 @@ def test_real_session_embeddings(db_with_notes, sample_notes):
     embeddings = {note.path: backend.get_embedding(note.path) for note in sample_notes}
     assert len(embeddings) == len(sample_notes)
 
-    # Verify embedding quality
+    # The backend serves the meaning vector it compares (the 384 semantic
+    # dims); storage keeps the 3 calendar features too.
     for path, embedding in embeddings.items():
-        assert embedding.shape == (387,)
+        assert embedding.shape == (SEMANTIC_DIM,)
         assert np.any(embedding != 0), f"Embedding for {path} should be non-zero"
+    stored = db_with_notes.execute("SELECT embedding FROM session_embeddings").fetchall()
+    assert len(stored) == len(sample_notes)
+    assert {len(blob) for (blob,) in stored} == {TOTAL_DIM * 4}  # float32
 
 
 def test_real_empty_content_handling(db_with_notes, sample_notes):
