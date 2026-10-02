@@ -7,7 +7,7 @@ opened, and the geists silently produced nothing. The keys are now computed
 in VaultContext.metadata() itself, using the SESSION date as "now" so --date
 replays stay deterministic. These tests pin the key semantics; the geists
 they revived are owned by their own designed-to-trigger tests
-(test_temporal_drift.py, test_task_archaeology.py, test_blind_spot_detector.py).
+(test_temporal_drift.py, test_task_archaeology.py).
 """
 
 from datetime import timedelta

@@ -1,7 +1,10 @@
 # Can the "Opposition" Geists Work? Literature, Prototype and Cost
 
 **Date**: 2026-10-02
-**Status**: Research / proposal (not implemented)
+**Status**: Research / proposal (not implemented). columbo, dialectic_triad,
+antithesis_generator and blind_spot_detector were retired on 2026-10-02
+rather than kept with stopgap wording; contradictor and assumption_challenger
+remain. The per-geist plan below is what rebuilding them would take.
 **Geists concerned**: dialectic_triad, antithesis_generator, contradictor,
 blind_spot_detector, columbo, assumption_challenger
 

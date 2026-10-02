@@ -261,7 +261,12 @@ class FunctionRegistry:
 
         @vault_function("contrarian_to")
         def contrarian_to(vault: "VaultContext", note_title: str, count: int = 3) -> list[str]:
-            """Find notes that are semantically dissimilar to given note.
+            """Find the notes least similar in topic to the given note.
+
+            Embedding similarity measures topic, not stance: the result is the
+            most *distant* notes, never notes that oppose or contradict this
+            one (contradictions are on-topic and score high). See
+            ``specs/research/OPPOSITION_GEISTS_RESEARCH.md``.
 
             Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
 
@@ -271,7 +276,7 @@ class FunctionRegistry:
 
             Args:
                 note_title: Note link (string from Tracery)
-                count: Number of contrarian notes to return
+                count: Number of distant notes to return
 
             Returns:
                 List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])

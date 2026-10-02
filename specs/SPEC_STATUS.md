@@ -110,6 +110,7 @@ the left column describe design history.
 | cluster_evolution_tracker | attention_shift | cluster-label API kept |
 | anachronism_detector | recent_focus | measured "more than anything recent" comparison |
 | temporal_voice, temporal_contrast | (retired) | past/future tense signal invalid on real notes |
+| columbo, dialectic_triad, antithesis_generator, blind_spot_detector | (retired) | embeddings measure topic, not stance; see `specs/research/OPPOSITION_GEISTS_RESEARCH.md` |
 | complexity_mismatch | stub_expander, orphan_connector | orphan_connector is now a code geist |
 | metadata_outlier_detector | link_density_analyser | moved to `examples/geists/code/` (MetadataAnalyser) |
 | island_hopper | bridge_builder | names the hub's cluster |

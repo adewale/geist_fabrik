@@ -49,6 +49,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     bridge_builder (from island_hopper) names the hub's cluster.
   - hub_explorer uses `$vault.hubs(5, 3, 100)`: `hubs()` gains `min_words`,
     so a stub that stub_expander asks to expand is never called a hub to split.
+- **Retired the opposition geists** columbo, dialectic_triad,
+  antithesis_generator and blind_spot_detector. Each needed to know when one
+  note opposes or contradicts another, and sentence embeddings measure topic,
+  not stance (contradictions score *higher* than paraphrases on the bundled
+  model), so "least similar note" stood in for "opposite". A working version
+  needs an opt-in NLI model and a cached tension index
+  (`specs/research/OPPOSITION_GEISTS_RESEARCH.md`). contradictor (a question
+  about one sampled note) and assumption_challenger (quotes unhedged
+  certainty) stay. `contrarian_to` is re-documented as "least similar in
+  topic". Leftover ids in `default_geists:` config are ignored.
 - **Retired** temporal_voice and temporal_contrast: the past/future tense
   signal (an "-ed" heuristic) labelled status tables as "past" and no real
   note as "future". voice_absence no longer claims notes "look backward".
@@ -59,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Retired the `hermeneutic_instability` geist. Semantic vectors are cached by
   note content, so an unchanged note's representation never varies between
   sessions; the geist could only report an old edit as unexplained
-  "interpretive drift". `session_drift` covers notes rewritten since an
+  "interpretive drift". `concept_drift` covers notes rewritten since an
   earlier session. A leftover `hermeneutic_instability:` entry in
   `default_geists` config is ignored.
 - `VaultContext` now excludes geist journal session notes (`geist journal/`)
@@ -108,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A declared date replaces the stored one (so correcting `created:` takes
   effect); a timestamp estimate still never moves later. The parser revision
   bump (v5) reprocesses notes once on the next sync; no rebuild is needed.
+- `Note.modified` likewise comes from a frontmatter `modified:` property, else
+  `updated:`, else the file's mtime, so staleness ("untouched for N days") no
+  longer changes when a vault is cloned or synced. A declared `modified:` also
+  bounds a timestamp-estimated `created`, so a cloned note is never created
+  after its declared last edit. The parser revision bump (v6) reprocesses
+  notes once; no rebuild is needed.
 - Similarity is measured on meaning only. Stored session embeddings append
   three calendar features (note age, creation season, session season) to the
   384 semantic dimensions; `similarity()`, `batch_similarity()`,

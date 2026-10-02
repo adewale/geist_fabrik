@@ -25,7 +25,7 @@ How attribution works (and why it is done this way):
   constructing frame is the real source path regardless of how the module was
   imported. So hooking construction covers direct ``module.suggest(vault)``
   calls, executor runs and CLI runs alike.
-* A test that writes ``Suggestion(geist_id="columbo", ...)`` itself is *not*
+* A test that writes ``Suggestion(geist_id="what_if", ...)`` itself is *not*
   counted: the constructing frame is the test file, not the geist.
 
 The gate is opt-in (``--require-geist-firing``) because it is only meaningful

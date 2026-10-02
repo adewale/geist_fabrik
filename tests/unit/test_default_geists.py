@@ -20,7 +20,7 @@ def test_config_default_values():
     config = GeistFabrikConfig()
 
     # All geists should default to enabled
-    assert config.is_geist_enabled("blind_spot_detector") is True
+    assert config.is_geist_enabled("temporal_drift") is True
     assert config.is_geist_enabled("contradictor") is True
     assert config.is_geist_enabled("unknown_geist") is True  # Unknown defaults to True
 
@@ -29,12 +29,12 @@ def test_config_with_disabled_geists():
     """Test that disabled geists are properly respected."""
     config = GeistFabrikConfig(
         default_geists={
-            "blind_spot_detector": False,
+            "temporal_drift": False,
             "contradictor": True,
         }
     )
 
-    assert config.is_geist_enabled("blind_spot_detector") is False
+    assert config.is_geist_enabled("temporal_drift") is False
     assert config.is_geist_enabled("contradictor") is True
     assert config.is_geist_enabled("on_this_day") is True  # Not specified, defaults to True
 
@@ -44,14 +44,14 @@ def test_config_from_dict():
     data = {
         "enabled_modules": ["test_module"],
         "default_geists": {
-            "blind_spot_detector": False,
+            "temporal_drift": False,
         },
     }
 
     config = GeistFabrikConfig.from_dict(data)
 
     assert config.enabled_modules == ["test_module"]
-    assert config.is_geist_enabled("blind_spot_detector") is False
+    assert config.is_geist_enabled("temporal_drift") is False
     assert config.is_geist_enabled("contradictor") is True
 
 
@@ -59,13 +59,13 @@ def test_config_to_dict():
     """Test converting config to dictionary."""
     config = GeistFabrikConfig(
         enabled_modules=["test_module"],
-        default_geists={"blind_spot_detector": False},
+        default_geists={"temporal_drift": False},
     )
 
     data = config.to_dict()
 
     assert data["enabled_modules"] == ["test_module"]
-    assert data["default_geists"] == {"blind_spot_detector": False}
+    assert data["default_geists"] == {"temporal_drift": False}
 
 
 def test_load_config_nonexistent():
@@ -88,7 +88,7 @@ def test_save_and_load_config():
         original_config = GeistFabrikConfig(
             enabled_modules=["module1", "module2"],
             default_geists={
-                "blind_spot_detector": False,
+                "temporal_drift": False,
                 "contradictor": True,
             },
         )
@@ -98,7 +98,7 @@ def test_save_and_load_config():
         loaded_config = load_config(config_path)
 
         assert loaded_config.enabled_modules == ["module1", "module2"]
-        assert loaded_config.is_geist_enabled("blind_spot_detector") is False
+        assert loaded_config.is_geist_enabled("temporal_drift") is False
         assert loaded_config.is_geist_enabled("contradictor") is True
 
 
@@ -143,10 +143,11 @@ def test_default_geist_directories_load_exactly_the_default_lists(tmp_path: Path
 
 def test_default_geist_lists():
     """Spot-check well-known default geists and the lists' sorted order."""
-    assert "blind_spot_detector" in DEFAULT_CODE_GEISTS
+    assert "assumption_challenger" in DEFAULT_CODE_GEISTS
     assert "temporal_drift" in DEFAULT_CODE_GEISTS
     assert "this_time_last_year" in DEFAULT_CODE_GEISTS
-    assert "columbo" in DEFAULT_CODE_GEISTS
+    for retired in ("antithesis_generator", "blind_spot_detector", "columbo", "dialectic_triad"):
+        assert retired not in DEFAULT_CODE_GEISTS
 
     assert "contradictor" in DEFAULT_TRACERY_GEISTS
     assert "hub_explorer" in DEFAULT_TRACERY_GEISTS

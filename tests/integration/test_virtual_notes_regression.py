@@ -119,7 +119,8 @@ CABIN_DAYS = {
 # near-empty and one-line notes; this fixture's journal entries are both.
 # Retired or merged geists (burst_evolution, cluster_evolution_tracker,
 # seasonal_revisit, seasonal_topic_analysis, temporal_mirror, temporal_voice,
-# metadata_outlier_detector) left with their geists; temporal_clustering,
+# metadata_outlier_detector, and the retired opposition geist dialectic_triad)
+# left with their geists; temporal_clustering,
 # which now names a season's notes, joined.
 EXPECTED_VIRTUAL_REFERENCERS = frozenset(
     {
@@ -128,7 +129,6 @@ EXPECTED_VIRTUAL_REFERENCERS = frozenset(
         "concept_cluster",
         "creation_burst",
         "creative_collision",
-        "dialectic_triad",
         "method_scrambler",
         "pattern_finder",
         "self_and_other",

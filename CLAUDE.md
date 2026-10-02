@@ -17,7 +17,7 @@ Inspired by Gordon Brander's work on tools for thought, it implements "muses, no
 
 This repository contains:
 - **src/geistfabrik/**: Complete implementation of all core modules
-  - **default_geists/**: 48 bundled geists (45 code, 3 Tracery) - automatically available
+  - **default_geists/**: 44 bundled geists (41 code, 3 Tracery) - automatically available
     - _Counts programmatically verified via src/geistfabrik/default_geists/__init__.py_
 - **tests/**: Comprehensive test suite (all passing)
 - **examples/**: Learning materials demonstrating extension patterns (NOT for installation)
@@ -32,7 +32,7 @@ promises remain explicitly tracked in `specs/SPEC_STATUS.md`.
 ### Default Geists vs Examples
 
 **Important distinction:**
-- **Default geists** (src/geistfabrik/default_geists/): 48 bundled geists that work automatically
+- **Default geists** (src/geistfabrik/default_geists/): 44 bundled geists that work automatically
   - Users can enable/disable via config.yaml
   - No installation needed - they're part of the package
 - **Examples** (examples/): Learning materials showing extension patterns
@@ -170,7 +170,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 **Current Performance Status** (post-rollback):
 - ✅ pattern_finder: 76s on 10k vault, full coverage, quality suggestions
 - ✅ scale_shifter: Cache-aware, benefits from warm cache
-- ✅ All 48 default geists: Pass timeout thresholds on production vaults
+- ✅ All 44 default geists: Pass timeout thresholds on production vaults
 
 **Implementation Guidance**:
 
@@ -488,7 +488,7 @@ class Note:
     links: List[Link]            # Outgoing [[links]]
     tags: List[str]              # #tags found in note
     created: datetime            # Frontmatter `created:`, else dated file name, else file timestamps (entry date for virtual notes)
-    modified: datetime           # File modification time
+    modified: datetime           # Frontmatter `modified:`, else `updated:`, else file mtime
     # Virtual entry fields (for date-collection notes)
     is_virtual: bool = False     # True for journal entries
     source_file: str | None = None  # Source file for virtual entries
