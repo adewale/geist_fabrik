@@ -2,6 +2,18 @@
 
 **A deep analysis of reusable computational and conceptual patterns across all GeistFabrik geists**
 
+> **Status (2026-10):** The geists used as examples below are a 2025 snapshot.
+> Several were since merged or retired: session_drift and drift_velocity_anomaly
+> → concept_drift; burst_evolution → creation_burst; temporal_mirror →
+> creative_collision; island_hopper → bridge_builder; cluster_evolution_tracker →
+> attention_shift; complexity_mismatch → stub_expander/orphan_connector;
+> metadata_outlier_detector → an example in `examples/geists/code/`; columbo,
+> blind_spot_detector and antithesis_generator were retired (embeddings measure
+> topic, not stance; see `OPPOSITION_GEISTS_RESEARCH.md`). The patterns themselves
+> stand; "Proposed" geists (sentiment and others) were not built. DRIFT examples
+> only see edits, since semantic vectors are cached by content. See
+> `specs/SPEC_STATUS.md` ("Geist merges (2026-10)").
+
 This taxonomy identifies the fundamental patterns that geists follow, going beyond surface naming to discover underlying computational/conceptual architectures. Each pattern is transferable across different data types (emotions, concepts, topics, relationships).
 
 ---

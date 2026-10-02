@@ -152,7 +152,7 @@ For a single note's current neighbourhood, use
 `vault.neighbours(note, count=3, return_scores=True)`. Sampling likewise uses
 `count=`; neither API uses the old `k=` keyword.
 
-See the shipped [session-drift geist](../src/geistfabrik/default_geists/code/session_drift.py)
+See the shipped [concept-drift geist](../src/geistfabrik/default_geists/code/concept_drift.py)
 and [convergent-evolution geist](../src/geistfabrik/default_geists/code/convergent_evolution.py)
 for actual implementations.
 
@@ -189,9 +189,12 @@ The in-memory and optional sqlite-vec backends serve current-session similarity
 queries; temporal analyses read retained snapshots.
 
 Geist suggestions are questions grounded in these measurements. The shipped
-session-drift and instability geists describe representation changes and ask
-the user to review them; they do not claim to measure “understanding,”
-“interpretation,” or a cause from embedding movement alone.
+concept_drift geist words a moved vector as what it is, an edit ("You've
+rewritten [[Note]] since your session on ..."), and asks the user to review
+it; it does not claim to measure “understanding,” “interpretation,” or a cause
+from embedding movement alone. (The former session_drift, drift_velocity_anomaly
+and hermeneutic_instability geists were merged into concept_drift or retired;
+see `specs/SPEC_STATUS.md`.)
 
 Further references: [configuration](CONFIGURATION.md),
 [architecture](ARCHITECTURE.md), and

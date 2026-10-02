@@ -2,9 +2,20 @@
 
 Insights from ranking v1.0 geists against Gordon Brander's philosophy of "muses not oracles."
 
+> **Historical ranking (2025-11).** The tiers below rank an earlier geist set.
+> Many geists named here were since merged or retired (2026-10), including
+> columbo, antithesis_generator, dialectic_triad and blind_spot_detector
+> (embeddings measure topic, not stance: see
+> `specs/research/OPPOSITION_GEISTS_RESEARCH.md`), anachronism_detector,
+> on_this_day, seasonal_revisit, island_hopper, temporal_mirror,
+> random_prompts and note_combinations. See
+> [`specs/SPEC_STATUS.md`](../specs/SPEC_STATUS.md) ("Geist merges (2026-10)")
+> for where each went. A "contrarian" function can only return notes distant
+> in topic, never notes that oppose a seed.
+
 ## Core Finding: The Divergence Gradient
 
-Our 45 geists form a clear spectrum from **pure provocation** to **vault maintenance**:
+The v1.0 geists form a clear spectrum from **pure provocation** to **vault maintenance**:
 
 ```
 Divergent                                            Convergent
@@ -454,7 +465,7 @@ User reaction should be:
 
 ### Tracery-Safe Cluster Functions
 
-**Context**: The `semantic_neighbours` geist revealed a limitation in Tracery's preprocessing model—vault functions that take note titles as parameters (like `neighbours(title, k)` and `contrarian_to(title, k)`) cannot work in Tracery because symbol expansion happens after preprocessing.
+**Context**: The `semantic_neighbours` geist (now an extension example in `examples/geists/tracery/`) revealed a limitation in Tracery's preprocessing model—vault functions that take note titles as parameters (like `neighbours(title, k)` and `contrarian_to(title, k)`) cannot work in Tracery because symbol expansion happens after preprocessing.
 
 **Solution Pattern**: "Cluster" functions that bundle related data using delimiters:
 

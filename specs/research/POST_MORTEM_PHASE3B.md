@@ -6,6 +6,12 @@
 
 > **UPDATE (2025-01-13)**: The recommendation to "Add Caching to batch_similarity()" (Option 1, documented at line 403) has been **implemented** as of commit 8ce5c8c. The `batch_similarity()` method now integrates with the session-scoped cache, providing best of both worlds: batch efficiency + cache benefits. This eliminates the cache bypass issue that motivated the scale_shifter rollback. See vault_context.py:339-447 for implementation details.
 
+> **Status (2026-10):** Geists named below that are no longer bundled:
+> congruence_mirror was removed for scalability (see CHANGELOG.md), and
+> antithesis_generator was retired on 2026-10-02 (see `OPPOSITION_GEISTS_RESEARCH.md`).
+> The figures are historical. pattern_finder, scale_shifter, assumption_challenger
+> and hidden_hub remain bundled.
+
 ## Executive Summary
 
 Phase 3B geist optimisations introduced a **21% regression** in 10k vault success rates (95% → 74%). A surgical rollback of two specific optimisations restored performance while keeping beneficial changes:

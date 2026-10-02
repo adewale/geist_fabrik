@@ -17,6 +17,12 @@ job duplicated another's were merged into the one truest to the vision
 (2026-10); a few retired geists now live in `examples/geists/` as extension
 examples.
 
+**Retired**: columbo, dialectic_triad, antithesis_generator and
+blind_spot_detector (the opposition geists) were retired because embeddings
+measure topic, not stance (`specs/research/OPPOSITION_GEISTS_RESEARCH.md`).
+The full map of merged and retired geists is in
+[`specs/SPEC_STATUS.md`](../specs/SPEC_STATUS.md) ("Geist merges (2026-10)").
+
 **Quality**: 100% pass rate on validation spec audit (see Quality Standards below)
 
 ---
@@ -34,12 +40,12 @@ These geists pick a random note, extract specific content types using regex, and
 | **question_harvester** | Questions (`?`), preferring question-dense notes | "What if you revisited this question now?" / "Which one keeps you up at night?" |
 | **todo_harvester** | TODO/FIXME/HACK/XXX markers | "What if you tackled this now?" |
 | **quote_harvester** | Blockquotes (`>`) | "What if you reflected on this again?" |
-| **claim_harvester** | Strong claims | "What if you tested this claim?" |
-| **hypothesis_harvester** | Hypotheses / maybe-statements | "What would prove or disprove this?" |
+| **claim_harvester** | Strong claims | "Is that still true - and what would change your mind?" |
+| **hypothesis_harvester** | Hypotheses / maybe-statements | "What is the smallest experiment that would tell you if it holds?" |
 | **definition_harvester** | "X is a Y" definitions, definition lists | "What if you explored this definition further?" |
 
 **Characteristics**:
-- ✅ O(1) per session (single note read)
+- ✅ Reads one or a few sampled notes per session (question_harvester first checks voice statistics to prefer question-dense notes)
 - ✅ Fast regex extraction
 - ✅ Silent abstention when content not found
 - ✅ Deterministic by session date
@@ -60,9 +66,10 @@ themselves establish a change in meaning, interpretation, or mental state.
 | **temporal_drift** | Old vs recent notes | Stale but important notes |
 | **concept_drift** | A note's vector across sessions | Notes you rewrote, since which session, and toward which neighbour |
 | **temporal_clustering** | Notes within a season | A season's thread (anchor + 2 closest); cross-season only when measured |
-| **seasonal_patterns** | Notes by creation season | Dated topic distributions |
-| **convergent_evolution** | Stored vectors becoming similar | Increased measured similarity |
-| **divergent_evolution** | Stored vectors becoming different | Decreased measured similarity |
+| **seasonal_patterns** | Notes by creation month and season | Month themes recurring across years; tags concentrated in one season |
+| **convergent_evolution** | Unlinked pairs' stored vectors across sessions | Increased measured similarity |
+| **divergent_evolution** | Linked pairs' stored vectors across sessions | Decreased measured similarity (does the link still hold?) |
+| **cyclical_thinking** | A note's vector across sessions | Notes whose text returned to an earlier semantic state |
 | **creation_burst** | Days with 3+ notes created | Burst days, and which of their notes you have rewritten since |
 
 **Characteristics**:
@@ -101,17 +108,15 @@ These geists examine the vault's link graph (nodes = notes, edges = links) to fi
 
 | Geist | Analyzes | Finds |
 |-------|----------|-------|
-| **columbo** | Claims vs linked evidence | Contradictions and inconsistencies |
 | **link_density_analyser** | Links per 100 words vs the vault median | Dense or sparse notes; groups isolated ones |
 | **hidden_hub** | Many semantic neighbours, few linked notes | Implicit hubs worth linking |
 | **orphan_connector** | Notes with no links in or out | Where it belongs: its nearest notes; long orphans: split or link? |
 | **density_inversion** | Linked neighbours vs semantic similarity (uses embeddings) | Structure/meaning mismatches |
-| **blind_spot_detector** | Recent note neighborhoods | Gaps in current thinking |
 
 **Characteristics**:
 - 🕸️ Uses graph metrics (degree, betweenness, etc.)
 - 🔍 Reveals structural properties
-- ⚡ Fast (database queries, no embeddings needed)
+- ⚡ Mostly database queries; hidden_hub, orphan_connector and density_inversion also use embeddings
 - 🎯 Actionable (suggests specific links)
 
 ---
@@ -152,7 +157,7 @@ These geists examine note metadata (word count, links, tasks, etc.) to identify 
 
 **Characteristics**:
 - 📏 Uses simple metrics (counts, ratios)
-- ⚡ Very fast (no embeddings)
+- ⚡ Very fast (no embeddings, except vocabulary_expansion)
 - 🎯 Actionable suggestions
 - 📊 Can be metadata-inference powered
 
@@ -166,17 +171,16 @@ These geists take a skeptical stance, questioning assumptions and generating alt
 
 | Geist | Challenges | Generates |
 |-------|-----------|-----------|
-| **assumption_challenger** | Confident claims | Questions about assumptions |
-| **antithesis_generator** | Thesis statements | Opposing viewpoints |
-| **columbo** | Consistency between notes | "I think you're lying about..." |
-| **dialectic_triad** | Thesis + antithesis | Synthesis opportunities |
+| **assumption_challenger** | Confident claims (contrasted with a similar note that hedges) and causal claims with few links | Questions about what the claim rests on |
 
 **Tracery geists**:
 - **contradictor** - Challenges existing notes with opposite perspectives
 
+columbo, dialectic_triad and antithesis_generator, which claimed to find a
+note's opposite or contradiction by embedding, were retired (see Summary).
+
 **Characteristics**:
 - 🤔 Provocative and questioning tone
-- 🎭 Often adopts personas (Columbo detective)
 - 💭 Encourages critical thinking
 - ⚖️ Seeks balance and nuance
 
@@ -190,7 +194,7 @@ These geists apply creative transformations (SCAMPER, scale shifts, etc.) to gen
 
 | Geist | Transformation | Example |
 |-------|----------------|---------|
-| **method_scrambler** | SCAMPER operations | "What if you reversed [[A]] and [[B]]?" |
+| **method_scrambler** | SCAMPER operations | "What if you reversed the relationship between [[A]] and [[B]]?" |
 | **scale_shifter** | Scale (micro ↔ macro) | Connect different abstraction levels |
 | **question_generator** | Statements → Questions | Reframe declarative as inquiry |
 
@@ -214,7 +218,6 @@ These geists analyze what you've been working on recently to reveal patterns in 
 | Geist | Examines | Reveals |
 |-------|----------|---------|
 | **recent_focus** | Recent notes vs older notes | An old idea your recent work resembles most |
-| **blind_spot_detector** | Recent semantic neighborhoods | Gaps in current thinking |
 
 **Characteristics**:
 - 📅 Uses modification timestamps
@@ -284,10 +287,10 @@ modifier), `code/metadata_outlier_detector.py` (the MetadataAnalyser API).
 | Requires | Geists |
 |----------|--------|
 | **Content only** | Harvesters, pattern_finder |
-| **Metadata only** | stub_expander, task_archaeology, recent_focus |
+| **Metadata only** | stub_expander, task_archaeology |
 | **Links only** | link_density_analyser |
-| **Embeddings** | All semantic similarity + temporal drift geists |
-| **Multiple sessions** | concept_drift, attention_shift, convergent/divergent_evolution, cyclical_thinking |
+| **Embeddings** | All semantic similarity + temporal drift geists, recent_focus |
+| **Multiple sessions** | concept_drift, attention_shift, convergent/divergent_evolution, cyclical_thinking, vocabulary_expansion |
 
 ---
 
@@ -421,7 +424,7 @@ All geists have comprehensive tests that:
 ### "Muses, Not Oracles"
 **Strong examples**:
 - Harvesters: Surface questions without answering
-- Columbo: Challenge without prescribing
+- Assumption challenger: Challenge without prescribing
 - Pattern finders: Show patterns without interpreting
 
 **Anti-pattern**: Geists that tell you what to do instead of asking what if
@@ -430,7 +433,7 @@ All geists have comprehensive tests that:
 **Strong examples**:
 - Creative collision: Random sampling, no ranking
 - Harvesters: 1-3 items sampled, not all matches
-- Temporal mirror: Sample from periods, don't rank
+- This time last year: Sample one note from the anniversary window, don't rank
 
 **Anti-pattern**: Geists that return "top 10" ranked lists
 
@@ -484,6 +487,5 @@ The catalogue reveals clear patterns that can be identified, extended, and combi
 
 ---
 
-**Version**: 2.0
-**Date**: 2026-06-12
-**Geists Catalogued**: 70 (58 code + 12 Tracery)
+**Version**: 2.1
+**Date**: 2026-10-02

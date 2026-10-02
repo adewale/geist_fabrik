@@ -1,5 +1,12 @@
 # GeistFabrik 10,000 Note Vault Benchmark Results
 
+> **Historical (2025-11).** Results describe v0.9.0 on the stated date. Several
+> geists named here were since merged or retired, including columbo and
+> antithesis_generator, whose "contradiction" and "opposing idea" findings
+> embeddings cannot support (they measure topic, not stance; see
+> `specs/research/OPPOSITION_GEISTS_RESEARCH.md`). See
+> [`specs/SPEC_STATUS.md`](../specs/SPEC_STATUS.md) ("Geist merges (2026-10)").
+
 **Date**: 2025-11-04
 **Test Vault**: https://github.com/Zettelkasten-Method/10000-markdown-files
 **GeistFabrik Version**: 0.9.0

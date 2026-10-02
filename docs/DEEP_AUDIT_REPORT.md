@@ -1,5 +1,9 @@
 # GeistFabrik Deep Project Audit Report
 
+> **Historical (2026-03).** Findings describe v0.9.0 on the stated date; many
+> were since fixed, and several geists named here were merged or retired. See
+> [`specs/SPEC_STATUS.md`](../specs/SPEC_STATUS.md) ("Geist merges (2026-10)").
+
 **Date**: 2026-03-12
 **Version Audited**: 0.9.0 (Beta)
 **Auditor**: Claude Opus 4.6 (8 parallel sub-agents)

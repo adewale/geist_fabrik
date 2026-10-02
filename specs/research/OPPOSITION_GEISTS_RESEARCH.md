@@ -191,6 +191,12 @@ of mutual entailments, an "echo chamber"), the only honest form of "blind spot".
 
 ## Per-geist plan
 
+> Since this plan was written (2026-10-02), columbo, dialectic_triad,
+> antithesis_generator and blind_spot_detector were retired, so their bullets
+> describe what a rebuild would take, not current geists. contradictor stays
+> bundled as the generation prompt (folding it into antithesis_generator is moot);
+> `contrarian_to` was re-documented as "least similar in topic" without a rename.
+
 - **columbo**: rebuild on `tension_pairs(min_contra=0.95, both_directions)`;
   quote both sentences; drop "I think you're lying" (~50% precision cannot
   support an accusation).
@@ -205,7 +211,9 @@ of mutual entailments, an "echo chamber"), the only honest form of "blind spot".
 - **`contrarian_to`**: re-document or rename (`most_distant`, keeping an alias)
   so no geist reads it as "opposite".
 - Until the model ships, rebuilt geists return `[]` rather than falling back
-  to embeddings or keywords; the current honest wording stays.
+  to embeddings or keywords; the current honest wording stays. (With the four
+  retired instead, they stay absent until the model ships; "current wording"
+  now applies only to contradictor and assumption_challenger.)
 
 ## Risks
 

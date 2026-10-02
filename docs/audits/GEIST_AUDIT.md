@@ -1,5 +1,9 @@
 # GeistFabrik Geist Audit Report
 
+> **Historical.** This audit describes the geists as of its date; many were
+> since merged or retired. See [`specs/SPEC_STATUS.md`](../../specs/SPEC_STATUS.md)
+> ("Geist merges (2026-10)").
+
 **Date**: 2024-10-22
 **Auditor**: Claude Code
 **Scope**: All 33 example geists (10 original + 23 new ambitious geists)

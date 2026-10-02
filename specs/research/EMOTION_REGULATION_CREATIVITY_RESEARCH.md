@@ -5,6 +5,12 @@
 
 **Date**: 2025-11-16
 
+> **Status (2026-10):** This review fed `specs/sentiment_geists_spec.md`, which was
+> withdrawn in June 2026; no sentiment or emotion geists were built. The adopted
+> approach is `specs/reflective_lenses_spec.md` (observable linguistic signals,
+> not emotion classification). Treat the question templates below as research,
+> not a description of any current geist.
+
 ---
 
 ## Table of Contents

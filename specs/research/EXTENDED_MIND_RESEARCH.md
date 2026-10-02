@@ -2,6 +2,14 @@
 
 *Research compiled: November 16, 2025*
 
+> **Status (2026-10):** Claims below that embeddings are "recomputed each
+> session" and detect "interpretive drift even when content doesn't change" no
+> longer describe the system: semantic vectors are cached by note content, so an
+> unchanged note's vector is identical in every session and drift reflects edits.
+> Comparisons use only the 384 semantic dims. The `columbo` geist used as an
+> example in 6.4 was retired on 2026-10-02 (embeddings measure topic, not stance;
+> see `OPPOSITION_GEISTS_RESEARCH.md`). The philosophical analysis stands.
+
 ## Executive Summary
 
 This document explores how the Extended Mind Thesis (EMT) applies to GeistFabrik, a divergence engine for Obsidian vaults. We examine whether GeistFabrik extends cognition, scaffolds it, or creates something entirely new—a distributed cognitive system that thinks alongside you rather than merely storing your thoughts.

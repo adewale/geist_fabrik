@@ -74,18 +74,30 @@ for i, file_path in enumerate(files):
 
 ```
 tests/
-├── unit/                   # Fast unit tests (~3s)
-│   ├── test_tracery_geists.py   # 50 tests for Tracery geists
+├── unit/                   # Unit tests (--timeout=60 per test)
+│   ├── test_tracery_geists.py   # Bundled Tracery geists
 │   ├── test_vault_context.py    # VaultContext functionality
+│   ├── test_suite_hygiene.py    # Rejects tests that cannot fail
 │   └── ...
-├── integration/            # Integration tests
+├── integration/            # Integration tests (--timeout=300 per test)
 │   ├── test_example_geists.py   # All example geists
 │   ├── test_kepano_vault.py     # Real vault parsing
 │   └── ...
 ├── artifact/               # Built wheel/sdist structure contracts
+├── plugins/                # pytest plugins (geist firing gate, hygiene scan)
+├── fixtures/               # Shared test fixtures
 ├── stubs.py                # External SentenceTransformer test double
 └── conftest.py             # Marker-selected constructor fixture
 ```
+
+### Geist firing gate
+
+The unit lane runs with `--require-geist-firing`
+(`tests/plugins/geist_firing.py`): it fails unless every bundled geist
+produced a `Suggestion` from its own `suggest` entry point somewhere in the
+lane. A test that builds `Suggestion(geist_id=...)` itself gets no credit. The
+gate is only meaningful on the whole unit lane, so a partial run with the flag
+reports every geist the selected tests did not exercise.
 
 ## Running Tests
 
@@ -123,7 +135,8 @@ The CI runs these steps on every push to `main` and every pull request:
 2. **Fast tests**: split unit (`--timeout=60`) and integration
    (`--timeout=300`) runs excluding `slow`, `benchmark`, `artifact`, and
    `production_model`, with explicit appended branch coverage and a measured 70% gate
-3. **Static checks**: Ruff, strict Mypy, ty warnings-as-errors, unused tables, Bandit, acceptance gate
+3. **Static checks**: Ruff, strict Mypy, ty warnings-as-errors, unused tables, Bandit, and the
+   acceptance gate (the last on Ubuntu/Python 3.11 only)
 4. **Package smoke**: LFS checkout, wheel+sdist and size/metadata/content checks,
    clean wheel install outside the checkout, both console scripts, and real
    384-dimensional inference with empty caches and offline flags
@@ -172,10 +185,8 @@ print(f"Debug: RNG seed = {context.rng.getstate()}")
 
 ## Test Performance
 
-Target performance (on modern MacBook):
-- Unit tests: < 5 seconds
-- Integration tests: < 3 seconds
-- Full suite: < 10 seconds
+Per-test timeouts are enforced by the validation commands: `--timeout=60` for
+unit tests and `--timeout=300` for integration tests.
 
 `slow` describes duration, `benchmark` performance-only work,
 `production_model` real weights, and `artifact` release builds. The fast lane

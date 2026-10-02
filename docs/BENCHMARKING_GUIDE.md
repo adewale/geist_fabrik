@@ -166,6 +166,11 @@ uv run geistfabrik test pattern_finder /tmp/10k-vault --timeout 120 --debug
 
 Test different optimisation configurations:
 
+> **Note (2026-10):** `src/geistfabrik` no longer reads the
+> `GEIST_ASSUME_FINITE`, `GEIST_FAST_PATH` or `GEIST_VECTORIZE` variables, so
+> every configuration in this matrix now runs the same code. The script is kept
+> for reproducing the historical study (see `scripts/benchmark_config.py`).
+
 ```bash
 # Run comprehensive sklearn optimisation benchmark
 python scripts/benchmark_optimizations.py \
@@ -311,12 +316,16 @@ Benchmark documents follow this structure:
 
 **Target**: sklearn validation overhead in large vaults
 
-**Optimisations**:
+**Optimisations** (historical):
 - `assume_finite=True`: Skip NaN/inf checks (21% speedup)
 - `force_all_finite=False`: Relax validation
 - NumPy array optimisations
 
 **Impact**: 21% speedup on 10k vault, preserves correctness
+
+**Status (2026-10)**: removed. The global `assume_finite` configuration
+changed the host process's scikit-learn behaviour on import, so it was taken
+out; the measurements are kept as historical evidence only.
 
 **See**: [`SKLEARN_OPTIMIZATION_BENCHMARK.md`](SKLEARN_OPTIMIZATION_BENCHMARK.md)
 

@@ -5,6 +5,19 @@
 **Date**: 2025-11-06
 **Purpose**: Explain temporal embeddings approach with academic grounding
 
+> **Status (2026-10):** Several claims below no longer describe the system.
+> Semantic vectors are cached by note content, so an unchanged note's vector is
+> identical in every session: drift reflects edits (and new neighbours), never a
+> shifting "reading" of unchanged text. The 3 calendar features are stored but
+> never compared; all similarity, drift and clustering use only the 384 semantic
+> dims (`src/geistfabrik/semantic_vectors.py`), so the "99.2% / 0.8%" weighting
+> no longer applies. Geists: session_drift (and drift_velocity_anomaly, the
+> "Velocity Tracker") were merged into concept_drift, worded as edits;
+> hermeneutic_instability was retired; anachronism_detector was built, then
+> merged into recent_focus; convergent_evolution, divergent_evolution,
+> seasonal_patterns and temporal_clustering are bundled. File and line
+> references are historical. See `specs/SPEC_STATUS.md` ("Geist merges (2026-10)").
+
 ---
 
 ## Core Approach

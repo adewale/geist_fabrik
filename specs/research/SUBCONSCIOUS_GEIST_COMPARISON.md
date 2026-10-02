@@ -4,6 +4,16 @@
 **Source**: https://github.com/subconsciousnetwork/subconscious/wiki/Geist-ideas
 **Status**: Analysis of which geist ideas from Subconscious are possible in GeistFabrik
 
+> **Status (2026-10):** The `examples/geists/code/*.py` paths below predate the move of
+> bundled geists to `src/geistfabrik/default_geists/` (bridge_builder, recent_focus,
+> creative_collision, question_generator, concept_cluster, link_density_analyser and the
+> Tracery hub_explorer are bundled there). temporal_mirror was merged into
+> creative_collision, and "Time Capsule" is now covered by this_time_last_year;
+> note_combinations and semantic_neighbours are now extension examples in
+> `examples/geists/tracery/`, not bundled geists. Question parsing is question_harvester;
+> Sage is partly covered by quote_harvester. The code geist timeout is 30 seconds, not 5.
+> See `specs/SPEC_STATUS.md` ("Geist merges (2026-10)").
+
 ## Summary
 
 **17 out of 17 geist ideas are possible in GeistFabrik** 🎉
