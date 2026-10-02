@@ -4,6 +4,11 @@
 This script tests different optimization combinations to find the best configuration
 for large vault performance. It tests 8 configurations × 9 geists = 72 runs.
 
+Note (2026-10): src/geistfabrik no longer reads the GEIST_* variables this
+script sets (the study concluded and its winner is built in), so every
+configuration now runs the same code. Kept for reproducing the historical
+study and as a per-geist timing harness.
+
 Usage:
     python scripts/benchmark_optimizations.py --vault /path/to/vault --output results.json
 """

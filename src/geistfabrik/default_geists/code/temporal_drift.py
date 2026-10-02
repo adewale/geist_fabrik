@@ -1,4 +1,4 @@
-"""Temporal drift geist - finds notes whose content/meaning may have drifted over time.
+"""Temporal drift geist - finds stale notes that other notes still link to.
 
 Suggests revisiting notes that you haven't modified in a while but that other
 notes still depend on, to see if they still represent your current thinking.

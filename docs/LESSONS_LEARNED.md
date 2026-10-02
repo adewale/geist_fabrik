@@ -410,7 +410,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 **What Worked**:
 - `tests/README.md`: Explains unit vs integration, how to run, how to add tests
-- `docs/TEST_AUDIT.md`: Comprehensive audit of test structure
+- `docs/audits/TEST_AUDIT.md`: Comprehensive audit of test structure
 - `specs/`: Vision, spec, architecture, acceptance criteria
 - `models/README.md`: Model bundling documentation
 
@@ -883,7 +883,7 @@ def temp_vault(tmp_path):
 - `specs/geistfabrik_spec.md` - Main technical specification
 - `specs/python_audit_heuristics.md` - LLM audit heuristics
 - `tests/README.md` - Test structure documentation
-- `docs/TEST_AUDIT.md` - Comprehensive test audit
+- `docs/audits/TEST_AUDIT.md` - Comprehensive test audit
 - `README.md` - User-facing documentation
 
 ---

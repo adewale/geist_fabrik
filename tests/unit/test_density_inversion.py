@@ -87,7 +87,7 @@ def test_density_inversion_flags_similar_but_unlinked_neighbours(tmp_path: Path)
     assert len(suggestions) == 1
     assert suggestions[0].notes[0] == "Hub Index"
     assert set(suggestions[0].notes[1:]) <= set(spokes)
-    assert "semantically similar but aren't linked to each other" in suggestions[0].text
+    assert "semantically similar but few of them link to each other" in suggestions[0].text
 
 
 def test_density_inversion_caps_at_two_distinct_notes(tmp_path: Path) -> None:

@@ -1,9 +1,10 @@
 # CI Validation Guide: Preventing Failed Builds
 
-> **Historical troubleshooting record.** Commands and guarantees below describe
-> an earlier workflow. Use [TESTING.md](TESTING.md) and `scripts/validate.sh` as
-> the maintained local contract. A local pass is strong evidence, not a promise
-> that platform-specific or service-side CI failures are impossible.
+> **Origin:** written after the PR #30 CI failures (2025-10). The step list and
+> gate descriptions below follow the current `scripts/validate.sh` and
+> `.github/workflows/test.yml`; [TESTING.md](TESTING.md) is the fuller testing
+> contract. A local pass is strong evidence, not a promise that
+> platform-specific or service-side CI failures are impossible.
 
 ## The Problem
 
@@ -41,7 +42,7 @@ mypy src/geistfabrik --ignore-missing-imports
 4. `ty check src tests --error-on-warning` - Additive whole-project type checking
 5. `python scripts/detect_unused_tables.py` and Bandit - Data/security checks
 6. `pytest tests/unit -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=60 --require-geist-firing` - Unit coverage pass, geist firing gate, suite hygiene
-7. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` - Appended integration coverage and measured 70% branch gate
+7. `pytest tests/integration -v -m "not slow and not benchmark and not artifact and not production_model" --timeout=300` and `python scripts/check_branch_coverage.py --minimum 70` - Appended integration coverage and measured 70% branch gate
 8. `python scripts/check_phase_completion.py` - Acceptance criteria, including the evidence gate
 9. `./scripts/test_wheel.sh` - Wheel/sdist, installation, entry-point, and real-model smoke
 
@@ -117,8 +118,9 @@ git push
 | Type checking | `mypy src/ --strict`; `ty check src tests --error-on-warning` | Strict production checking plus additive whole-project checking |
 | DB/security | `detect_unused_tables.py`; Bandit | Data and security regressions |
 | Unit tests | `pytest tests/unit ... --timeout=60 --require-geist-firing` | First branch-coverage pass; geist firing and suite hygiene gates |
-| Integration tests | `pytest tests/integration ... --timeout=300` | Appended coverage; measured 70% gate |
+| Integration tests | `pytest tests/integration ... --timeout=300`; `check_branch_coverage.py --minimum 70` | Appended coverage; measured 70% branch gate |
 | Acceptance | `check_phase_completion.py` | Executable spec criteria; rejects partial or empty evidence |
+| Package smoke | `./scripts/test_wheel.sh` | Wheel/sdist build, install, real-model offline inference |
 
 ### Gates That Check the Tests Themselves
 
@@ -155,17 +157,15 @@ only shrink. The acceptance-evidence gate has no allowlist: fix the criterion.
 
 ❌ **WRONG** (fails with --strict):
 ```python
-from typing import Dict
-
-def from_dict(cls, data: Dict) -> Config:
+def from_dict(cls, data: dict) -> Config:
     pass
 ```
 
-✅ **CORRECT**:
+✅ **CORRECT** (PEP 585 builtins, as ruff's `UP` rules require):
 ```python
-from typing import Any, Dict
+from typing import Any
 
-def from_dict(cls, data: Dict[str, Any]) -> Config:
+def from_dict(cls, data: dict[str, Any]) -> Config:
     pass
 ```
 
@@ -179,7 +179,7 @@ def get_config():
 
 ✅ **CORRECT**:
 ```python
-def get_config() -> Dict[str, str]:
+def get_config() -> dict[str, str]:
     return {"key": "value"}
 ```
 
@@ -193,7 +193,7 @@ def process(items):  # Implicit Any
 
 ✅ **CORRECT**:
 ```python
-def process(items: List[str]) -> None:
+def process(items: list[str]) -> None:
     pass
 ```
 
@@ -249,5 +249,5 @@ If it passes, the equivalent local checks have passed. If it fails, don't push.
 
 ---
 
-**Last Updated**: 2025-10-23
+**Last Updated**: 2026-10-02
 **Triggered By**: PR #30 CI failures due to mypy --strict type errors

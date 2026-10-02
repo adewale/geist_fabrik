@@ -486,13 +486,15 @@ class VaultContext:
     def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
         """Resolve a wiki-link target to a Note.
 
-        Tries multiple resolution strategies:
-        1. Exact path match
-        2. Path with .md extension
-        3. Lookup by note title
+        Resolution follows NoteLinkIndex: exact path, path plus ``.md``, then
+        title/basename aliases (a bare date in a journal prefers that
+        journal's entry; ambiguous names stay unresolved). The user's notes
+        are tried first; a session journal note resolves only when no user
+        note matches.
 
         Args:
             target: Link target (path or title)
+            source_path: Path of the linking note, for source-local resolution
 
         Returns:
             Note or None if not found
@@ -548,7 +550,7 @@ class VaultContext:
 
         Args:
             note: Query note
-            k: Number of neighbours to return
+            count: Number of neighbours to return
             return_scores: If True, return (Note, score) tuples; if False, just Notes
 
         Returns:
@@ -843,7 +845,7 @@ class VaultContext:
         every note, and the composite index added for it went unused.)
 
         Args:
-            k: Maximum number to return. If None, return all.
+            count: Maximum number to return. If None, return all.
 
         Returns:
             List of orphan notes, most recently modified first
@@ -872,10 +874,11 @@ class VaultContext:
         """Find most-linked-to notes using the canonical resolved link graph.
 
         Args:
-            k: Number of hubs to return
+            count: Number of hubs to return
 
         Returns:
-            List of hub notes, sorted by link count descending
+            Notes with at least one backlink, sorted by backlink count
+            descending
         """
         self._ensure_link_graph()
         linked = [note for note in self.notes() if self._backlinks_cache[note.path]]
@@ -1089,7 +1092,7 @@ class VaultContext:
         """Get the most recent session IDs.
 
         Args:
-            limit: Maximum number of session IDs to return
+            count: Maximum number of session IDs to return
 
         Returns:
             List of session IDs ordered by date descending
@@ -1135,9 +1138,9 @@ class VaultContext:
     def get_clusters(self, min_size: int | None = None) -> dict[int, Cluster]:
         """Get cluster assignments and labels for current session.
 
-        Uses HDBSCAN clustering on embeddings, then generates labels via
-        c-TF-IDF with MMR diversity filtering. Returns cluster information
-        including formatted labels and member notes.
+        Uses HDBSCAN clustering on the session's meaning vectors, then labels
+        each cluster with the configured method (``clustering.labeling_method``:
+        KeyBERT by default, or c-TF-IDF with MMR diversity filtering).
 
         Results are cached by size and labeling settings. Only the configured
         cluster size writes canonical history; alternate sizes are exploratory.
@@ -1146,16 +1149,10 @@ class VaultContext:
             min_size: Minimum notes required to form a cluster; defaults to config
 
         Returns:
-            Dictionary mapping cluster_id to cluster info:
-            {
-                cluster_id: {
-                    "label": "keyword, list, here",
-                    "formatted_label": "Notes about keyword, list, and here",
-                    "notes": [Note, ...],
-                    "size": int,
-                    "centroid": np.ndarray,
-                }
-            }
+            Dictionary mapping cluster_id to a Cluster with fields
+            ``cluster_id``, ``label`` ("keyword, list, here"),
+            ``formatted_label``, ``notes`` (list[Note]), ``size`` and
+            ``centroid`` (np.ndarray)
         """
         config = self.vault.config.clustering
         min_size = config.min_cluster_size if min_size is None else min_size
@@ -1307,13 +1304,13 @@ class VaultContext:
 
         Args:
             cluster_id: Cluster ID from get_clusters()
-            k: Number of representative notes to return
+            count: Number of representative notes to return
             clusters: Optional pre-computed clusters dict from get_clusters().
                      If not provided, will call get_clusters() internally.
                      Passing this avoids redundant clustering.
 
         Returns:
-            List of k notes closest to cluster centroid
+            Up to count notes closest to cluster centroid
         """
         if clusters is None:
             clusters = self.get_clusters()
@@ -1348,11 +1345,12 @@ class VaultContext:
         faster than the loop-based approach, especially for large vaults.
 
         Args:
-            k: Number of pairs to return
+            count: Number of pairs to return
             candidate_limit: Maximum number of notes to consider (to avoid O(n²) on large vaults)
 
         Returns:
-            List of (note_a, note_b) tuples sorted by similarity
+            List of (note_a, note_b) tuples with similarity above 0.5,
+            sorted by similarity descending
         """
         all_notes = self.notes()
 
@@ -1477,7 +1475,7 @@ class VaultContext:
         """Find least recently modified notes.
 
         Args:
-            k: Number of notes to return
+            count: Number of notes to return
 
         Returns:
             List of old notes, sorted by modification time ascending
@@ -1499,7 +1497,7 @@ class VaultContext:
         """Find most recently modified notes.
 
         Args:
-            k: Number of notes to return
+            count: Number of notes to return
 
         Returns:
             List of recent notes, sorted by modification time descending
@@ -1749,7 +1747,7 @@ class VaultContext:
         # Merge in linguistic voice metadata, from the same session cache as
         # voice(), so voice analysis runs once per note per session. Built-in
         # keys take precedence: both layers compute a lexical_diversity, and
-        # metadata_driven_discovery's thresholds are tuned to the built-in.
+        # metadata()["lexical_diversity"] is documented as the built-in raw TTR.
         for key, value in asdict(self.voice(note)).items():
             metadata.setdefault(key, value)
 
@@ -1799,14 +1797,14 @@ class VaultContext:
     # Deterministic sampling
 
     def sample(self, items: Sequence[T], count: int) -> list[T]:
-        """Deterministically sample k items.
+        """Deterministically sample count items.
 
         Args:
             items: List to sample from
-            k: Number of items to sample
+            count: Number of items to sample
 
         Returns:
-            Sample of k items (or fewer if list is smaller), in random order.
+            Sample of count items (or fewer if list is smaller), in random order.
             Asking for all items still shuffles them: returning the input
             order made geists that sample and then take the first few name the
             same notes, in vault order, every session.
@@ -1814,10 +1812,10 @@ class VaultContext:
         return self.rng.sample(items, min(max(count, 0), len(items)))
 
     def random_notes(self, count: int = 1) -> list[Note]:
-        """Sample k random notes.
+        """Sample count random notes (session journal notes excluded).
 
         Args:
-            k: Number of notes to sample
+            count: Number of notes to sample
 
         Returns:
             Random sample of notes
@@ -1852,6 +1850,7 @@ class VaultContext:
 
         Raises:
             KeyError: If function not found
+            FunctionRegistryError: If a registry function raises
         """
         # Try function registry first
         if self._function_registry is not None:

@@ -1,7 +1,9 @@
-"""Bridge Hunter geist - finds semantic paths through graph deserts.
+"""Bridge Hunter geist - finds semantic stepping stones between unlinked notes.
 
-Discovers semantic stepping-stone paths between unlinked notes, showing how
-ideas could connect even when direct graph paths don't exist.
+Takes similar note pairs with no direct link between them
+(``VaultContext.unlinked_pairs``) and finds a two- or three-step path of
+semantically similar notes joining them. Only the direct link is checked: the
+two notes may still be connected through other notes in the link graph.
 """
 
 from typing import TYPE_CHECKING
@@ -11,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Find semantic paths where no graph path exists.
+    """Find semantic paths between notes that are not directly linked.
 
     Returns:
         List of suggestions showing semantic bridge paths

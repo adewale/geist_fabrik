@@ -64,15 +64,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         linkers = "1 note links" if backlink_count == 1 else f"{backlink_count} notes link"
         word_label = "word" if word_count == 1 else "words"
         closer = (
-            "Might it deserve more depth?"
+            "Is its brevity intentional, a hinge that works because it is short, "
+            "or a placeholder waiting to grow?"
             if backlink_count >= MIN_WELL_LINKED_BACKLINKS
-            else "This stub might be worth developing."
+            else "Is it a seed waiting to grow, or finished as it is?"
         )
         suggestions.append(
             Suggestion(
                 text=(
-                    f"What if you expanded [[{note.link_text}]]? "
-                    f"It's only {word_count} {word_label}, but {linkers} to it. {closer}"
+                    f"[[{note.link_text}]] has only {word_count} {word_label}, "
+                    f"but {linkers} to it. {closer}"
                 ),
                 notes=[note.link_text],
                 geist_id="stub_expander",

@@ -1,4 +1,4 @@
-"""Tests for the eight reflective-lens vault functions.
+"""Tests for the six reflective-lens vault functions.
 
 Contract: every function returns a list of bracketed Obsidian links
 ([[Note]]), returns [] gracefully when no candidates exist, and is
@@ -19,8 +19,6 @@ pytestmark = pytest.mark.timeout(60)
 BRACKETED_LINK_RE = re.compile(r"^\[\[.+\]\]$")
 
 REFLECTIVE_FUNCTIONS = [
-    "past_focused_notes",
-    "future_focused_notes",
     "self_focused_notes",
     "we_notes",
     "uncertain_notes",
@@ -32,8 +30,6 @@ REFLECTIVE_FUNCTIONS = [
 # Voice-metadata functions: (notes designed to qualify, notes of an opposite
 # voice that must not). Voice scoring itself is owned by test_voice_analysis.py.
 VOICE_CASES = {
-    "past_focused_notes": ({"Past A", "Past B"}, {"Future A", "Future B", "Question A"}),
-    "future_focused_notes": ({"Future A", "Future B"}, {"Past A", "Past B", "We A"}),
     "self_focused_notes": ({"Self A", "Self B"}, {"We A", "We B", "Question A"}),
     "we_notes": ({"We A", "We B"}, {"Self A", "Self B", "Past A"}),
     "uncertain_notes": ({"Hedgy A", "Hedgy B"}, {"Past A", "Future A", "Question A"}),
@@ -181,7 +177,7 @@ def test_attention_shifted_notes_with_history(tmp_path) -> None:
 
 
 def test_all_functions_empty_vault(empty_vault) -> None:
-    """All eight functions return [] on an empty vault, without raising."""
+    """All six functions return [] on an empty vault, without raising."""
     vault, session = empty_vault
     registry = FunctionRegistry()
     context = _context(vault, session, registry)

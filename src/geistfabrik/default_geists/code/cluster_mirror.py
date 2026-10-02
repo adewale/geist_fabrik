@@ -16,8 +16,9 @@ if TYPE_CHECKING:
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Show named clusters and ask what they remind you of.
 
-    Uses HDBSCAN clustering with c-TF-IDF labelling (+ MMR diversity filtering)
-    to reveal the natural semantic structure of the vault. Shows 2-3 clusters
+    Uses VaultContext.get_clusters() (HDBSCAN, labelled by the configured
+    method: KeyBERT by default, or c-TF-IDF with MMR diversity filtering)
+    to reveal the semantic structure of the vault. Shows 2-3 clusters
     with representative note examples, then asks a direct question without
     interpretation.
 

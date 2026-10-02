@@ -62,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Retired** temporal_voice and temporal_contrast: the past/future tense
   signal (an "-ed" heuristic) labelled status tables as "past" and no real
   note as "future". voice_absence no longer claims notes "look backward".
-  The `past_focused_notes` / `future_focused_notes` vault functions remain.
+  The `past_focused_notes` / `future_focused_notes` vault functions, which
+  selected notes by the same heuristic, are removed.
 - **Moved to `examples/geists/`** as extension examples (not bundled):
   note_combinations, semantic_neighbours and transformation_suggester
   (Tracery), metadata_outlier_detector (code).

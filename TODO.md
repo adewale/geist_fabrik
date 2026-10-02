@@ -10,13 +10,18 @@ or commit messages.
 
 `VaultContext.get_clusters()` and `ClusterAnalyser` (and
 `embedding_metrics`) run `sklearn.cluster.HDBSCAN` with its **default
-Euclidean metric** over the raw 387-dim session embeddings. Those vectors are
-**not unit-norm** (measured norms ≈ 0.90–1.04), so Euclidean distance is not a
-monotone function of cosine distance — meaning cluster boundaries are partly
+Euclidean metric**. When this item was written they clustered the raw 387-dim
+session embeddings, whose norms vary (≈ 0.90–1.04), so Euclidean distance was
+not a monotone function of cosine distance and cluster boundaries were partly
 *magnitude*-shaped, while every other part of the engine (`neighbours`,
-`similarity`, `find_similar`) defines "semantic closeness" as **cosine**. Two
-notes the rest of the system treats as near can therefore land in different
-clusters.
+`similarity`, `find_similar`) defines "semantic closeness" as **cosine**.
+
+**Status update:** clustering now uses only the 384 meaning dimensions
+(`semantic_vectors.py`). The bundled model ends in a `Normalize` module
+(`models/all-MiniLM-L6-v2/modules.json`), so every meaning vector is a unit
+vector scaled by the 0.9 semantic weight; with equal norms, Euclidean distance
+is monotone in cosine. The concern now applies only to injected or
+non-normalising embeddings. Re-check before acting on the fix below.
 
 - **Fix is one line** — either `HDBSCAN(..., metric="cosine")` (newer sklearn)
   or L2-normalise the matrix before `fit_predict` (Euclidean on unit vectors
@@ -55,16 +60,17 @@ clusters.
   re-introducing global env mutation.
 - **All-geists contract suite + vault builder** — one parametrised test over
   the geist registry (list-of-Suggestion, correct `geist_id`, no journal
-  refs, same-seed determinism) so every new geist is auto-covered; plus a
-  `make_vault_context()` builder to replace per-file vault plumbing.
+  refs, same-seed determinism) so every new geist is auto-covered. The vault
+  builder now exists (`tests/fixtures/helpers.py::VaultBuilder`). Mutation
+  testing was considered and rejected ("Prove a Test Can Fail, Without
+  Mutation Testing" in LESSONS_LEARNED.md); the firing and hygiene gates
+  cover "code runs, assertions absent" instead.
 - **Lift `Suggestion` invariants into `__post_init__`** (non-empty text,
   `notes: list[str]`, non-empty `geist_id`) and delete the per-file
   `isinstance`/`hasattr` assertion blocks.
 - **`datetime.now()` test sweep** — remaining fixtures should pin the session
-  date (session-season is an embedding feature; wall-clock fixtures drift).
-- **Nightly mutation testing** (`mutmut`) on `filtering.py`, `vault_context.py`,
-  `tracery.py`, and a sample of geists — the tool that mechanically detects
-  "code runs, assertions absent" (how the dead geists shipped green).
+  date (session season is a stored calendar feature, and age-, anniversary- and
+  season-based geists read the date; wall-clock fixtures drift).
 - **Property tests** for the markdown/Tracery/filtering trust boundaries.
 
 

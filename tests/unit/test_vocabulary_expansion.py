@@ -4,7 +4,8 @@ Trigger: >= 3 of the latest 5 sessions (up to the session date) each hold
 >= 10 note vectors. Per session, coverage = mean Euclidean distance of the
 SEMANTIC vectors from their centroid. Comparing the mean of the last two
 sessions with the mean of the first two: < 0.8x -> "lower", > 1.2x ->
-"higher". At most one suggestion, with no note references.
+"higher". At most one suggestion, naming two of the five current notes nearest
+the centroid ("lower") or farthest from it ("higher").
 
 "Card i" notes share only the title word "card" (digits are ignored by the
 stub), so ten cards with the SAME body have identical vectors (coverage 0)
@@ -15,11 +16,13 @@ from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import MagicMock
 
 import numpy as np
 
 from geistfabrik.config import SEMANTIC_DIM, TOTAL_DIM
 from geistfabrik.default_geists.code import vocabulary_expansion
+from geistfabrik.filtering import SuggestionFilter
 from geistfabrik.vault_context import VaultContext
 from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 from tests.fixtures.temporal import drop_from_session, set_session_text
@@ -67,11 +70,16 @@ def test_vocabulary_expansion_reports_spreading_notes(tmp_path):
     suggestions = vocabulary_expansion.suggest(ctx)
 
     assert_valid_suggestions(suggestions, "vocabulary_expansion")
+    first, second = suggestions[0].notes
+    assert {first, second} <= {f"Card {i}" for i in range(10)}
     assert suggestions[0].text == (
         f"{HIGHER} in recent snapshots (through 2024-03-15) than in earlier ones "
-        "(around 2023-10-01). Do the source notes show a useful change in topic mix?"
+        f"(around 2023-10-01). [[{first}]] and [[{second}]] sit farthest from the "
+        "centre now. Is this where your range is widening?"
     )
-    assert suggestions[0].notes == []
+    # Regression: the suggestion named no note, so the quality filter always
+    # dropped it and the geist never reached a journal.
+    assert SuggestionFilter(ctx.db, MagicMock()).filter_quality(suggestions) == suggestions
 
 
 def test_vocabulary_expansion_reports_converging_notes(tmp_path):
@@ -82,6 +90,10 @@ def test_vocabulary_expansion_reports_converging_notes(tmp_path):
 
     assert_valid_suggestions(suggestions, "vocabulary_expansion")
     assert suggestions[0].text.startswith(LOWER)
+    assert len(suggestions[0].notes) == 2
+    assert "sit nearest the centre now. Is the vault gathering around them?" in (
+        suggestions[0].text
+    )
 
 
 def test_vocabulary_expansion_is_silent_without_a_change(tmp_path):
@@ -162,9 +174,12 @@ def _synthetic_sessions(semantic_spread: bool) -> Any:
             vector[SEMANTIC_DIM:] = session_index * note_index
             embeddings.append(vector)
         sessions.append((session_index, f"2025-01-0{session_index + 1}", embeddings))
+    current = {f"Note {i}.md": vector[:SEMANTIC_DIM] for i, vector in enumerate(embeddings)}
     return SimpleNamespace(
         session_embeddings_by_session=lambda: sessions,
         sample=lambda values, count: values[:count],
+        get_all_embeddings=lambda: current,
+        get_note=lambda path: SimpleNamespace(link_text=path.removesuffix(".md")),
     )
 
 

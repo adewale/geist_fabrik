@@ -301,7 +301,7 @@ GeistFabrik's configuration file controls which geists run and in what order:
 **Execution Order**: Geists execute in the order they appear in `config.yaml`.
 The shared `VaultContext` RNG is seeded from the calendar date, so code geists
 that draw from it observe that order. Each Tracery geist owns a separate engine
-seeded from the same date. Reproducibility therefore requires the same date,
+seeded from the same date mixed with its geist id. Reproducibility therefore requires the same date,
 ordered configuration, vault snapshot, retained history, and model artifact;
 preview and write use the same generation path.
 
@@ -479,8 +479,8 @@ def suggest(vault):
         age_days = metadata.get("age_days", 0)
 
         suggestions.append(Suggestion(
-            text=f"Consider revisiting [[{note.title}]] ({backlink_count} backlinks, {age_days} days old)",
-            notes=[note.title],
+            text=f"Consider revisiting [[{note.link_text}]] ({backlink_count} backlinks, {age_days} days old)",
+            notes=[note.link_text],
             geist_id="temporal_drift"
         ))
 
@@ -550,7 +550,8 @@ Vault Files → Vault.sync() → SQLite Database
 ### Technologies
 
 **Core Dependencies**:
-- `sentence-transformers` (≥2.2.0) - Local embedding computation with all-MiniLM-L6-v2 model
+- `sentence-transformers` (≥3.0.0) - Local embedding computation with all-MiniLM-L6-v2 model
+- `scikit-learn`, `scipy`, `threadpoolctl` - Clustering, similarity and thread limits
 - `pyyaml` (≥6.0) - YAML parsing for configuration and Tracery geists
 - Python 3.11 or 3.12 standard library (SQLite, pathlib, etc.)
 
@@ -565,21 +566,28 @@ Vault Files → Vault.sync() → SQLite Database
 
 ## Examples
 
-The examples/ directory contains 8 learning materials demonstrating extension patterns.
+The examples/ directory contains learning materials demonstrating extension patterns.
 The metadata and vault-function examples can be copied into a vault to try them;
-the code-geist examples are reference implementations of the graph extension API.
+the geist examples are reference implementations (not bundled) of the graph
+extension API, the `MetadataAnalyser` API and Tracery save actions.
 
-### Metadata Inference Modules (3)
+### Metadata Inference Modules
 - **complexity.py** - Add complexity metrics to notes
 - **structure.py** - Analyze note structure patterns
 - **temporal.py** - Compute temporal metadata properties
 
-### Code Geist Examples (3)
+### Code Geist Examples
 - **load_bearing_bridge.py** - Find notes that carry important bridge roles
+- **metadata_outlier_detector.py** - Demonstrate the `MetadataAnalyser` API
 - **path_length_anomaly.py** - Surface unexpectedly distant graph paths
 - **structural_hole_detector.py** - Demonstrate structural-hole graph analysis
 
-### Vault Functions (2)
+### Tracery Geist Examples
+- **note_combinations.yaml** - `$vault.note_pairs()` split from one saved pair
+- **semantic_neighbours.yaml** - The cluster pattern (`$vault.semantic_clusters()`)
+- **transformation_suggester.yaml** - Every Tracery modifier
+
+### Vault Functions
 - **contrarian.py** - Find contrarian perspectives without shadowing the bundled function
 - **questions.py** - Find notes containing questions
 
@@ -679,6 +687,7 @@ uv run pre-commit install
 # This installs hooks that run before each commit:
 # - Ruff linting (catches style issues like line length)
 # - Ruff formatting (auto-formats code)
+# - ty type checking
 # - Trailing whitespace removal
 # - YAML validation
 # - Large file detection
@@ -723,7 +732,7 @@ uv run mypy src/ --strict
 
 ```
 geist_fabrik/
-├── src/geistfabrik/          # Core library (32 modules)
+├── src/geistfabrik/          # Core library
 │   ├── models.py             # Data structures (Note, Suggestion, Link)
 │   ├── schema.py             # SQLite database schema
 │   ├── vault.py              # Vault management and sync
@@ -740,7 +749,7 @@ geist_fabrik/
 │   ├── cli.py                # Command-line interface
 │   └── __init__.py           # Package exports
 ├── tests/                    # Test suite (see STATUS.md for details)
-├── examples/                 # Extension examples (3 metadata + 2 vault functions)
+├── examples/                 # Extension examples (geists, metadata modules, vault functions)
 ├── testdata/                 # Sample vault for testing
 └── specs/                    # Design specifications
 ```

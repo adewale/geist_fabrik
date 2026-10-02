@@ -150,6 +150,13 @@ def test_minimum_vault_size_boundary(tmp_path: Path, total_notes: int, fires: bo
     [
         ("Growth happens because of soil, therefore roots spread.", False),
         (CAUSAL_BODY, True),
+        # Regression: markers matched inside other words ("enthusiasm" has
+        # "thus", "residue to" has "due to", "henceforth" has "hence").
+        (
+            "Growth happens because of soil. Enthusiasm grows. The residue "
+            "tonight stays. Henceforth roots spread.",
+            False,
+        ),
     ],
 )
 def test_causal_marker_count_boundary(tmp_path: Path, causal_body: str, fires: bool) -> None:

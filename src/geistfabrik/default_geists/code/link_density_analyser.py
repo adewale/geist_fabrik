@@ -97,11 +97,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         density = written * 100 / word_count
         if density > DENSE_THRESHOLD and density >= median_written:
             text = (
-                f"What if [[{note.link_text}]] has too many links? "
-                f"With {written} links in {word_count} words ({density:.1f} per 100 "
-                f"words; the median among your notes of {MIN_WORDS}+ words is "
-                f"{median_written:.1f}), it might be overwhelming. "
-                f"Consider focusing on key connections."
+                f"[[{note.link_text}]] has {written} links in {word_count} words "
+                f"({density:.1f} per 100 words; the median among your notes of "
+                f"{MIN_WORDS}+ words is {median_written:.1f}). Is it a hub spreading "
+                f"through your vault, or is the density hiding which links matter?"
             )
             individual.append(
                 Suggestion(text=text, notes=[note.link_text], geist_id="link_density_analyser")

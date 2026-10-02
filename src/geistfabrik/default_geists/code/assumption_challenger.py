@@ -25,6 +25,19 @@ _HEDGE = re.compile(
     r"questionable|depends|varies|sometimes)\b",
     re.IGNORECASE,
 )
+_CAUSAL = tuple(
+    rf"\b{phrase}\b"
+    for phrase in (
+        "because",
+        "therefore",
+        "thus",
+        "hence",
+        "leads to",
+        "results in",
+        "causes",
+        "due to",
+    )
+)
 _FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _LINE_PREFIX = re.compile(r"^\s*(?:[-*+>]\s+|\d+[.)]\s+)*")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
@@ -87,7 +100,6 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if suggestion_count >= max_suggestions_contrast:
             break
         raw = vault.read(note)
-        content = raw.lower()
 
         # A note qualifies with >= 2 distinct assumption phrases; the
         # suggestion quotes the first sentence that uses one, so "you wrote"
@@ -129,19 +141,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             suggestions.append(Suggestion(text=text, notes=refs, geist_id="assumption_challenger"))
             suggestion_count += 1
 
-        # Also look for causal claims without evidence
-        causal_patterns = [
-            "because",
-            "therefore",
-            "thus",
-            "hence",
-            "leads to",
-            "results in",
-            "causes",
-            "due to",
-        ]
-
-        causal_count = sum(1 for pattern in causal_patterns if pattern in content)
+        # Also look for causal claims without evidence: distinct causal
+        # markers in the note's prose, as whole words ("thus" must not match
+        # "enthusiasm", nor "due to" "residue to"; code and frontmatter are
+        # not claims).
+        prose = " ".join(sentences).lower()
+        causal_count = sum(1 for marker in _CAUSAL if re.search(marker, prose))
 
         if causal_count >= 3 and len(note.links) < 2:
             # Makes causal claims but doesn't link to supporting evidence

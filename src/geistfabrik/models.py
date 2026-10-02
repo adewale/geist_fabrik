@@ -230,8 +230,12 @@ class Note:
     content: str  # Full markdown content
     links: list[Link]  # Outgoing [[links]]
     tags: list[str]  # #tags found in note
-    created: datetime  # File creation time (or entry date for virtuals)
-    modified: datetime  # Last modification time
+    # Frontmatter `created:`, else a dated file name, else the earliest file
+    # timestamp (the heading's entry date for virtual entries)
+    created: datetime
+    # Frontmatter `modified:`, else `updated:`, else file mtime (virtual
+    # entries inherit their source file's value)
+    modified: datetime
 
     # Virtual entry fields (for date-collection notes)
     is_virtual: bool = False  # True for entries split from journal files
@@ -274,14 +278,17 @@ class Note:
         """Return the link text for this note (WITHOUT [[...]] brackets).
 
         Returns the text that should be placed inside Obsidian wikilink brackets.
-        For regular notes, this is the title. For virtual notes (journal entries),
-        this is a deeplink in the format "filename#heading".
+        For regular notes, this is the file name (without ``.md``), or
+        "file name|Title" when the note's title differs from its file name.
+        For virtual notes (journal entries), this is a deeplink in the format
+        "filename#heading".
 
         This allows geists to use note.link_text without needing to know
         whether the note is virtual or not.
 
         Examples:
             Regular note: "Project Ideas" (use as [[Project Ideas]])
+            Titled note: "EMBEDDINGS_SPEC|Embeddings Spec"
             Virtual note: "Journal#2025-01-15" (use as [[Journal#2025-01-15]])
 
         Note:
@@ -311,6 +318,6 @@ class Suggestion:
     """
 
     text: str  # 1-2 sentence suggestion
-    notes: list[str]  # Referenced note titles
+    notes: list[str]  # Referenced notes' link_text (must be non-empty to pass filtering)
     geist_id: str  # Identifier of creating geist
     title: str | None = None  # Optional suggested note title

@@ -72,9 +72,9 @@ def test_dense_and_sparse_notes_are_both_flagged(tmp_path: Path) -> None:
     assert_valid_suggestions(suggestions, GEIST, min_count=2)
     assert {s.notes[0]: s.text for s in suggestions} == {
         "Dense": (
-            "What if [[Dense]] has too many links? With 6 links in 60 words (10.0 per "
-            "100 words; the median among your notes of 50+ words is 1.0), it might be "
-            "overwhelming. Consider focusing on key connections."
+            "[[Dense]] has 6 links in 60 words (10.0 per 100 words; the median among "
+            "your notes of 50+ words is 1.0). Is it a hub spreading through your "
+            "vault, or is the density hiding which links matter?"
         ),
         "Sparse": (
             "What if [[Sparse]] needs more connections? Its 300 words link to 0 other "
@@ -259,9 +259,9 @@ def test_note_below_the_median_is_not_called_dense(tmp_path: Path) -> None:
 
     assert sorted(s.notes[0] for s in suggestions) == ["IndexA", "IndexB"]
     assert {s.text for s in suggestions} == {
-        f"What if [[{title}]] has too many links? With 12 links in 60 words (20.0 per "
-        "100 words; the median among your notes of 50+ words is 20.0), it might be "
-        "overwhelming. Consider focusing on key connections."
+        f"[[{title}]] has 12 links in 60 words (20.0 per 100 words; the median among "
+        "your notes of 50+ words is 20.0). Is it a hub spreading through your "
+        "vault, or is the density hiding which links matter?"
         for title in ("IndexA", "IndexB")
     }
 

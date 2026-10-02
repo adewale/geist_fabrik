@@ -108,7 +108,9 @@ class MetadataLoader:
 
         Raises:
             MetadataInferenceError: If module is invalid
-            MetadataConflictError: If module keys conflict with existing modules
+
+        Key conflicts between modules are detected when inference runs
+        (MetadataConflictError), not at load time.
         """
         if self.module_dir is None:
             raise MetadataInferenceError("Metadata module directory is not configured")
@@ -153,9 +155,7 @@ class MetadataLoader:
             raise
         infer_func = cast(MetadataInfer, infer_export)
 
-        # Detect key conflicts by doing a dry run with a dummy note
-        # (This is optional but helps catch conflicts early)
-        # For now, we'll detect conflicts during actual inference
+        # Key conflicts are detected during inference, when real keys exist.
 
         self.modules[module_name] = infer_func
         logger.debug(f"Loaded metadata module: {module_name}")

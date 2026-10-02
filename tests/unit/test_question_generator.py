@@ -41,8 +41,7 @@ def test_developed_note_is_reframed_as_a_question(tmp_path: Path) -> None:
     question = suggestions[0].title
     assert question is not None and question.endswith("?") and "Compost" in question
     assert suggestions[0].text == (
-        f'What if you reframed [[Compost]] as a question, such as "{question}" '
-        "Questions invite exploration where statements invite acceptance."
+        f'What if you reframed [[Compost]] as a question: "{question}"'
     )
     # Regression: the template closed the quoted question with a second
     # "?", printing '..."How does “Compost” work?"? Questions...'.

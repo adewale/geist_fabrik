@@ -9,10 +9,14 @@ This directory contains example implementations for extending GeistFabrik throug
 This `examples/` directory focuses on:
 - **Metadata inference modules** - Adding custom properties to notes
 - **Vault functions** - Creating reusable functions for Tracery geists
-- **Example geists** (`geists/code/`) - Learning materials showing the
-  GraphPatternFinder extension API (`geistfabrik.graph_analysis`); these are
-  the graph-structural geists the reuse-abstractions spec proposed
-  (structural holes, path-length anomalies, bridge redundancy)
+- **Example geists** - Learning materials, not installed by default:
+  - `geists/code/` - the GraphPatternFinder extension API
+    (`geistfabrik.graph_analysis`), used by the graph-structural geists the
+    reuse-abstractions spec proposed (structural holes, path-length
+    anomalies, bridge redundancy), plus the `MetadataAnalyser` API
+    (`metadata_outlier_detector.py`)
+  - `geists/tracery/` - Tracery patterns retired from the bundled set
+    (save actions, the cluster pattern, every modifier)
 
 To create custom geists, refer to the bundled source code in `src/geistfabrik/default_geists/` and to `examples/geists/code/`.
 
@@ -20,13 +24,17 @@ To create custom geists, refer to the bundled source code in `src/geistfabrik/de
 
 ```
 examples/
+├── geists/
+│   ├── code/               # Example code geists (graph and metadata APIs)
+│   └── tracery/            # Example Tracery geists (save actions, modifiers)
+│
 ├── metadata_inference/     # Custom metadata modules
 │   ├── complexity.py       # Text complexity metrics
 │   ├── temporal.py         # Temporal/staleness metrics
 │   └── structure.py        # Document structure analysis
 │
 └── vault_functions/        # Custom vault functions
-    ├── contrarian.py       # Example dissimilar-note query (distinct from the builtin)
+    ├── contrarian.py       # Least-similar-in-topic query (distinct from the builtin)
     └── questions.py        # Find question notes
 ```
 
@@ -80,7 +88,8 @@ Vault functions can be called from Python geists or Tracery geists:
 def suggest(vault):
     # Call vault functions directly
     questions = vault.call_function('find_questions', count=5)
-    contrarian = vault.call_function('example_contrarian_to', 'My Note', count=3)
+    # Least similar in topic (not opposing: embeddings measure topic, not stance)
+    distant = vault.call_function('example_contrarian_to', 'My Note', count=3)
 ```
 
 ```yaml
@@ -88,7 +97,7 @@ def suggest(vault):
 tracery:
   origin:
     - "Consider these questions: #questions#"
-    - "Contrarian view to #note#: #contrarian#"
+    - "Far from #note# in topic: #distant#"
 
   questions:
     - "$vault.find_questions(3)"
@@ -96,7 +105,9 @@ tracery:
   note:
     - "[[My Note]]"
 
-  contrarian:
+  # A literal note name only: a #symbol# argument is rejected, because vault
+  # functions run before symbols expand
+  distant:
     - "$vault.example_contrarian_to('My Note', 2)"
 ```
 
@@ -129,7 +140,8 @@ def my_function(vault, arg1, count=5):
     for note in vault.notes():
         if condition(note, arg1):
             results.append(note)
-    return vault.sample(results, count)
+    # Like every vault function, return bracketed [[links]]
+    return [f"[[{note.link_text}]]" for note in vault.sample(results, count)]
 ```
 
 ### 3. Creating Custom Geists
@@ -165,12 +177,14 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
         outgoing = vault.outgoing_links(note)  # Notes this note links to
         incoming = vault.backlinks(note)        # Notes linking to this note
 
+        # Link with note.link_text (the file name, or "file|Title" when the
+        # title differs), never note.title, which may not resolve
         if len(incoming) > 5 and len(outgoing) < 2:
             suggestions.append(
                 Suggestion(
-                    text=f"[[{note.title}]] is a hub (5+ incoming) but links out rarely. "
-                         "What connections could it make?",
-                    notes=[note.title],
+                    text=f"[[{note.link_text}]] is a hub (more than 5 incoming) but "
+                         "links out rarely. What connections could it make?",
+                    notes=[note.link_text],
                     geist_id="my_geist"
                 )
             )
@@ -181,9 +195,9 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
             if not vault.has_link(note, candidate):  # Check if linked (bidirectional)
                 suggestions.append(
                     Suggestion(
-                        text=f"[[{note.title}]] and [[{candidate.title}]] are semantically "
-                             "similar but not linked. Missing connection?",
-                        notes=[note.title, candidate.title],
+                        text=f"[[{note.link_text}]] and [[{candidate.link_text}]] are "
+                             "semantically similar but not linked. Missing connection?",
+                        notes=[note.link_text, candidate.link_text],
                         geist_id="my_geist"
                     )
                 )
@@ -201,10 +215,10 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
             if interconnections < len(neighbours):
                 suggestions.append(
                     Suggestion(
-                        text=f"[[{note.title}]] has {len(neighbours)} neighbours, "
+                        text=f"[[{note.link_text}]] has {len(neighbours)} neighbours, "
                              "but they're not well connected to each other. "
                              "Is there a central theme?",
-                        notes=[note.title],
+                        notes=[note.link_text],
                         geist_id="my_geist"
                     )
                 )
@@ -243,7 +257,7 @@ GeistFabrik includes bundled default geists that work immediately:
 **Code geists include:**
 - temporal_drift, creative_collision, bridge_builder, orphan_connector
 - question_generator, link_density_analyser, task_archaeology, concept_cluster
-- stub_expander, recent_focus, columbo, concept_drift
+- stub_expander, recent_focus, surprisal, concept_drift
 - and more (see `docs/GEIST_CATALOG.md`)
 
 **Tracery geists:** contradictor, hub_explorer, what_if
@@ -257,7 +271,7 @@ GeistFabrik includes bundled default geists that work immediately:
 - `geists/tracery/transformation_suggester.yaml` - every Tracery modifier
 - `geists/code/metadata_outlier_detector.py` - the `MetadataAnalyser` API
 
-View their source code in `src/geistfabrik/default_geists/` to learn patterns.
+View the bundled geists' source code in `src/geistfabrik/default_geists/` to learn patterns.
 
 Enable/disable defaults in `_geistfabrik/config.yaml`:
 

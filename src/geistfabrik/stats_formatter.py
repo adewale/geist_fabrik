@@ -42,7 +42,7 @@ class StatsFormatter:
         vault = self.stats["vault"]
         lines.append(f"Vault: {vault['path']}")
         lines.append(f"Database: {vault['database_size_mb']:.2f} MB")
-        lines.append(f"Last sync: {vault['last_sync']}")
+        lines.append(f"Latest note change: {vault['last_sync']}")
         lines.append("")
 
         # Note statistics

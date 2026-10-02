@@ -9,6 +9,7 @@ variance). Empty-vault behaviour is owned by test_code_geists_empty_data.py.
 """
 
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,6 +24,7 @@ from geistfabrik.default_geists.code import (
     voice_absence,
 )
 from geistfabrik.embeddings import Session
+from geistfabrik.filtering import SuggestionFilter
 from geistfabrik.function_registry import _GLOBAL_REGISTRY, FunctionRegistry
 from geistfabrik.models import Suggestion
 from geistfabrik.voice_analysis import count_hedges, strip_for_analysis, tokenize
@@ -876,13 +878,40 @@ def test_voice_absence_fires_on_missing_future_voice(tmp_path):
 
     suggestions = voice_absence.suggest(context)
 
+    # No note uses the future voice, so the suggestion starts from one
+    # recently changed note (the quality filter drops a suggestion that
+    # names no note, which is how this geist used to vanish from journals).
+    assert len(suggestions) == 1
+    (named,) = suggestions[0].notes
+    assert named in {note.link_text for note in context.recent_notes(count=5)}
+    assert suggestions[0].text == (
+        "None of your 20 notes use the future tense ('will', 'going to'). "
+        f"What is [[{named}]] anticipating that it doesn't say?"
+    )
+    assert SuggestionFilter(context.db, MagicMock()).filter_quality(suggestions) == suggestions
+
+
+def test_voice_absence_names_the_few_notes_that_use_the_voice(tmp_path):
+    """Contract: when only a few notes use the voice, the suggestion names
+    them; regression: it named no note, so filtering always dropped it."""
+    future_once = {"Plan": _long_prose("The gardener will rest after noon.")}
+    vault, session = _build_vault(
+        tmp_path / "vault",
+        [future_once, PAST_NOTES, WE_NOTES, QUESTION_NOTES, FILLER_NOTES],
+    )
+    context = _make_context(vault, session)
+    assert len(context.notes()) == 21  # 1 of 21 is under the 5% threshold
+
+    suggestions = voice_absence.suggest(context)
+
     assert [(s.text, s.notes) for s in suggestions] == [
         (
-            "Only 0 of your 20 notes use the future tense ('will', 'going to'). "
-            "What are you anticipating that you haven't written about?",
-            [],
+            "Only 1 of your 21 notes uses the future tense ('will', 'going to'), "
+            "among them [[Plan]]. What are you anticipating that you haven't written about?",
+            ["Plan"],
         )
     ]
+    assert SuggestionFilter(context.db, MagicMock()).filter_quality(suggestions) == suggestions
 
 
 def test_voice_absence_counts_notes_that_use_each_voice_at_all(tmp_path):
@@ -942,5 +971,5 @@ def test_voice_absence_names_exactly_one_of_several_absences(tmp_path):
 
     assert_valid_suggestions(suggestions, "voice_absence")
     assert len(suggestions) == 1
-    assert suggestions[0].notes == []
-    assert suggestions[0].text.startswith("Only 0 of your 20 notes")
+    assert len(suggestions[0].notes) == 1
+    assert suggestions[0].text.startswith("None of your 20 notes")

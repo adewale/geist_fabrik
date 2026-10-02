@@ -25,20 +25,17 @@
 
 default_geists:
   # ============================================================================
-  # Default Code Geists (58 total)
+  # Default Code Geists
   # ============================================================================
   # These are bundled with GeistFabrik and execute in the order shown below.
   # Set to 'false' to disable a geist. Set to 'true' to enable it.
 
-  antithesis_generator: true      # Suggests opposite perspectives on note content
   assumption_challenger: true     # Questions assumptions in notes
   attention_shift: true           # Finds notes whose semantic neighbourhood shifted
-  blind_spot_detector: true       # Identifies potentially overlooked connections
   bridge_builder: true            # Unlinked twins of hubs, outside the hub's cluster
   bridge_hunter: true             # Finds notes that bridge different clusters
   claim_harvester: true           # Surfaces strong claims buried in notes
   cluster_mirror: true            # Reveals hidden groupings via semantic clustering
-  columbo: true                   # Asks probing "just one more thing" questions
   concept_cluster: true           # Tight semantic clusters with a theme to name
   concept_drift: true             # Notices notes you rewrote, since when, and toward which neighbour
   convergent_evolution: true      # Finds note vectors whose similarity increased
@@ -47,7 +44,6 @@ default_geists:
   cyclical_thinking: true         # Detects notes cycling through semantic states
   definition_harvester: true      # Harvests definitions from notes
   density_inversion: true         # Pairs hub notes with isolated notes
-  dialectic_triad: true           # Creates thesis-antithesis-synthesis triads
   divergent_evolution: true       # Finds note vectors whose similarity decreased
   hidden_hub: true                # Discovers implicit hubs (semantically central)
   hypothesis_harvester: true      # Surfaces hypotheses worth testing
@@ -77,7 +73,7 @@ default_geists:
   voice_absence: true             # Notices missing future-tense or question voices
 
   # ============================================================================
-  # Default Tracery Geists (12 total)
+  # Default Tracery Geists
   # ============================================================================
   # These use Tracery grammars for declarative suggestion generation.
 

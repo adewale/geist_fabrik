@@ -55,9 +55,12 @@ trigger fixtures, deterministic time).
    SEED = 20240315
    ```
 
-   Never `datetime.now()` in fixtures: session embeddings include a
-   session-season feature, so wall-clock fixtures literally compute
-   different embeddings depending on the calendar day the tests run.
+   Never `datetime.now()` in fixtures: built-in metadata (`age_days`,
+   `days_since_modified`, `staleness`) is measured from the session date, so
+   notes dated from the wall clock land on different sides of a geist's
+   thresholds depending on the day the tests run. (Stored session embeddings
+   also carry calendar features; they are never compared, but they change
+   the stored bytes.)
    Backdate notes with `VaultBuilder.note(..., created=..., modified=...)`
    (`tests/fixtures/helpers.py`), relative to `SESSION_DATE`; session history
    comes from `.build(history=[...])` and `tests/fixtures/temporal.py`.
@@ -93,11 +96,14 @@ deterministic bag-of-words embedding. Similarity tracks shared vocabulary:
 
 ## Backdating notes
 
-`Note.created` is the earliest of the file's mtime, ctime and (where the
-platform records it) birth time, so `os.utime(path, (t, t))` before
-`vault.sync()` backdates both `created` and `modified`. For dates relative to
-the session, or to set `created` and `modified` independently, update the
-database after syncing (see rule 5).
+`Note.created` is the note's frontmatter `created:`, else a date at the start
+of its file name (`2023-09-12.md`), else the earliest of the file's mtime,
+ctime and (where the platform records it) birth time. `Note.modified` is
+frontmatter `modified:`, else `updated:`, else the mtime. So for an undated
+note, `os.utime(path, (t, t))` before `vault.sync()` backdates both `created`
+and `modified`; a declared date wins over file timestamps. `VaultBuilder`
+does this for you, and when given both `created` and `modified` it also
+writes them into the database after syncing, so they can differ (see rule 5).
 
 ## Minimum viable test file (~40 lines of intent)
 

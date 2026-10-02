@@ -334,16 +334,17 @@ def test_neighbours_resolves_by_title():
     """Test that neighbours vault function works as adapter layer.
 
     This verifies that the neighbours() vault function (adapter layer):
-    - Accepts string (title) from Tracery
+    - Accepts a string (title or path), e.g. a literal name in a Tracery rule
     - Resolves string → Note internally
-    - Returns strings (titles) back to Tracery
+    - Returns strings (bracketed links) rather than Note objects
 
-    Real-world scenario: semantic_neighbours.yaml does:
-        seed: $vault.sample_notes(1)      # Returns strings (titles)
-        neighbours: $vault.neighbours(#seed#, 3)  # Receives string, returns strings
+    A Tracery rule cannot pass a symbol (``$vault.neighbours(#seed#, 3)``):
+    the validator rejects it because vault functions run before symbols
+    expand. The seed-plus-neighbours pattern uses semantic_clusters (see
+    examples/geists/tracery/semantic_neighbours.yaml).
 
     NOTE: This test only verifies the adapter layer logic, not actual semantic
-    similarity (which requires embeddings and network access to download models).
+    similarity (no session embeddings are computed here).
     """
     with TemporaryDirectory() as tmpdir:
         vault_path = Path(tmpdir)
@@ -381,7 +382,7 @@ def test_neighbours_resolves_by_title():
         # (no embeddings computed, so will return empty list, but shouldn't error)
         result = registry.call("neighbours", ctx, "Artificial Intelligence", 3)
 
-        # Adapter layer should return strings (titles), not Note objects
+        # Adapter layer should return strings (bracketed links), not Note objects
         assert isinstance(result, list), "Should return list"
         assert all(isinstance(item, str) for item in result), "Should return strings, not Notes"
 

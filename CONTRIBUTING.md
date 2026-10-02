@@ -146,7 +146,7 @@ Break long lines into multiple lines:
 
 ```python
 # Bad
-geist_path = Path(__file__).parent.parent.parent / "examples" / "geists" / "tracery" / "random_prompts.yaml"
+geist_path = Path(__file__).parent.parent.parent / "examples" / "geists" / "tracery" / "transformation_suggester.yaml"
 
 # Good
 geist_path = (
@@ -154,7 +154,7 @@ geist_path = (
     / "examples"
     / "geists"
     / "tracery"
-    / "random_prompts.yaml"
+    / "transformation_suggester.yaml"
 )
 ```
 
@@ -266,10 +266,12 @@ uv run pytest tests/unit/test_vault.py::test_sync_no_changes -v
 
 ### Ruff Rules
 
-We use ruff's default rules plus:
-- `E501`: Line too long (100 chars)
-- `F401`: Imported but unused
-- `F841`: Local variable assigned but unused
+`pyproject.toml` selects these rule families (line length 100):
+- `E`/`W`: pycodestyle errors and warnings (e.g. `E501` line too long)
+- `F`: pyflakes (e.g. `F401` imported but unused, `F841` unused local)
+- `I`: import sorting
+- `N`: pep8 naming
+- `UP`: pyupgrade (modern syntax such as `list[x]` and `X | None`)
 
 **Auto-format:**
 ```bash
@@ -344,7 +346,7 @@ docs/update-readme
 Use conventional commits:
 
 ```
-feat: Add temporal_mirror geist
+feat: Add tag_drift geist
 fix: Resolve linting errors in test file
 docs: Update contributing guide
 test: Add integration tests for geists

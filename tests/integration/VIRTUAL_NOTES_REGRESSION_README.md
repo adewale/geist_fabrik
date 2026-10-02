@@ -33,12 +33,15 @@ The `Note.link_text` property handles this complexity:
 def link_text(self) -> str:
     if self.is_virtual and self.source_file:
         # Returns deeplink: "Work Journal#2024-03-15"
-        filename = self.source_file.replace(".md", "")
+        filename = self.source_file.removesuffix(".md")
         return f"{filename}#{self.title}"
-    else:
-        # Returns regular title: "Project Ideas"
-        return self.title
+    # Returns the file name, "Project Ideas", or "file|Title" when the
+    # note's title differs from its file name (Obsidian links by file name)
+    stem = PurePosixPath(self.path).name.removesuffix(".md")
+    return self.title if stem == self.title else f"{stem}|{self.title}"
 ```
+
+(Simplified from `src/geistfabrik/models.py`.)
 
 ### The Bug Pattern: Abstraction Layer Bypass
 
@@ -89,7 +92,8 @@ which asserts that three same-date journal entries appear as distinct
 `Journal#date` deeplinks in both the suggestion text and `suggestion.notes`.
 
 The same bug survived in `cluster_evolution_tracker`, `metadata_outlier_detector`
-and `seasonal_topic_analysis`, which put `note.title` into `Suggestion.notes`.
+and `seasonal_topic_analysis` (all since retired from the bundled set), which put
+`note.title` into `Suggestion.notes`.
 The previous version of this test checked each geist only inside a loop over its
 output, and none of those three produced output on its fixture, so it passed.
 

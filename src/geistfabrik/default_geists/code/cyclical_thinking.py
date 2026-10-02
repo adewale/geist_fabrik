@@ -1,11 +1,9 @@
-"""Cyclical Thinking geist - detects notes that cycle through semantic states.
+"""Cyclical Thinking geist - notes edited away from a version and back.
 
-Demonstrates the power of temporal_analysis.py abstractions. Uses
-TemporalPatternFinder to detect notes that return to previous semantic
-states over time, revealing cyclical thought patterns and recurring themes.
-
-This geist showcases how pattern finding enables sophisticated temporal
-analysis with just a few lines of code.
+Uses TemporalPatternFinder to find notes whose stored vector moved away from
+its first recorded state and returned to it at least twice. Vectors are
+cached by content, so each move is an edit: the suggestion says so rather
+than claiming a shift in how the note is read.
 """
 
 from typing import TYPE_CHECKING
@@ -48,9 +46,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         last_date = session_dates[-1][:7]
 
         text = (
-            f"[[{note.link_text}]] shows cyclical thinking—"
-            f"returning to similar semantic states across sessions "
-            f"({first_date} to {last_date}). "
+            f"Your edits to [[{note.link_text}]] have moved it away from its first "
+            f"recorded version and back again more than once ({first_date} to {last_date}). "
             f"What recurring theme keeps drawing you back?"
         )
 
@@ -62,5 +59,5 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             )
         )
 
-    # Return top 2 cyclical patterns
+    # Sample up to 2 of them (sample, don't rank)
     return vault.sample(suggestions, count=min(2, len(suggestions)))

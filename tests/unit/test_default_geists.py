@@ -36,7 +36,8 @@ def test_config_with_disabled_geists():
 
     assert config.is_geist_enabled("temporal_drift") is False
     assert config.is_geist_enabled("contradictor") is True
-    assert config.is_geist_enabled("on_this_day") is True  # Not specified, defaults to True
+    # Any unlisted id (here a since-merged geist) defaults to True
+    assert config.is_geist_enabled("on_this_day") is True
 
 
 def test_config_from_dict():

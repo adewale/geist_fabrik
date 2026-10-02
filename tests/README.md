@@ -62,6 +62,7 @@ inference from the bundled model. The authoritative pre-push command
 - `tests/stubs.py`: deterministic `SentenceTransformerStub`
 - `tests/fixtures/helpers.py`: `VaultBuilder`, `assert_valid_suggestions`, `SESSION_DATE`, `SEED`
 - `tests/fixtures/virtual_notes.py`: `create_journal_file` for date-collection journals
+- `tests/fixtures/temporal.py`: `set_session_text`, `set_history`, `drop_from_session` for controlled session histories
 - `tests/unit/conftest.py`: unit-specific notes, embeddings, and injected models
 - `tests/integration/conftest.py`: integration fixtures
 

@@ -18,6 +18,7 @@ sentence says.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from geistfabrik.models import Note
     from geistfabrik.vault_context import VaultContext
 
 from geistfabrik.models import Suggestion
@@ -28,6 +29,11 @@ def _verb(count: int, verb: str) -> str:
     return f"{verb}s" if count == 1 else verb
 
 
+def _named(notes: list["Note"]) -> str:
+    """Wikilinks for up to two notes, joined with "and"."""
+    return " and ".join(f"[[{note.link_text}]]" for note in notes)
+
+
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Identify missing linguistic patterns in the vault.
 
@@ -35,14 +41,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     Several absences may apply; one is picked deterministically so the
     session is reproducible.
 
+    Every suggestion names notes, because the quality filter drops a
+    suggestion that names none: the few notes that do use the voice, or,
+    when none does, one recently changed note to start from.
+
     Args:
         vault: The vault context providing access to notes and utilities
 
     Returns:
-        At most one suggestion naming an absent voice (with notes=[])
+        At most one suggestion naming an absent voice
     """
-    has_future = 0
-    has_questions = 0
+    future_notes: list[Note] = []
+    question_notes: list[Note] = []
     total = 0
 
     for note in vault.notes():
@@ -54,43 +64,69 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # almost no real note reaches, so counting it made "look forward"
         # fire on nearly every vault.
         if voice.future_tense_ratio > 0:
-            has_future += 1
+            future_notes.append(note)
 
         if voice.question_density > 0:
-            has_questions += 1
+            question_notes.append(note)
 
     if total < 20:
         return []
 
+    recent = vault.recent_notes(count=5)
     suggestions = []
 
     # Check for a missing future tense
-    if has_future < total * 0.05:
-        suggestions.append(
-            Suggestion(
-                text=(
-                    f"Only {has_future} of your {total} notes {_verb(has_future, 'use')} "
-                    f"the future tense ('will', 'going to'). "
-                    f"What are you anticipating that you haven't written about?"
-                ),
-                notes=[],
-                geist_id="voice_absence",
+    if len(future_notes) < total * 0.05:
+        count = len(future_notes)
+        if future_notes:
+            named = vault.sample(future_notes, min(2, count))
+            text = (
+                f"Only {count} of your {total} notes {_verb(count, 'use')} the future "
+                f"tense ('will', 'going to'), among them {_named(named)}. "
+                f"What are you anticipating that you haven't written about?"
             )
-        )
+        elif recent:
+            named = vault.sample(recent, 1)
+            text = (
+                f"None of your {total} notes use the future tense ('will', 'going to'). "
+                f"What is {_named(named)} anticipating that it doesn't say?"
+            )
+        else:
+            named = []
+        if named:
+            suggestions.append(
+                Suggestion(
+                    text=text,
+                    notes=[note.link_text for note in named],
+                    geist_id="voice_absence",
+                )
+            )
 
     # Check for missing questions
-    if has_questions < total * 0.1:
-        suggestions.append(
-            Suggestion(
-                text=(
-                    f"Only {has_questions} of your {total} notes "
-                    f"{_verb(has_questions, 'contain')} questions. "
-                    f"What aren't you asking?"
-                ),
-                notes=[],
-                geist_id="voice_absence",
+    if len(question_notes) < total * 0.1:
+        count = len(question_notes)
+        if question_notes:
+            named = vault.sample(question_notes, min(2, count))
+            text = (
+                f"Only {count} of your {total} notes {_verb(count, 'contain')} "
+                f"questions, among them {_named(named)}. What aren't you asking?"
             )
-        )
+        elif recent:
+            named = vault.sample(recent, 1)
+            text = (
+                f"None of your {total} notes contain questions. "
+                f"What question is {_named(named)} answering?"
+            )
+        else:
+            named = []
+        if named:
+            suggestions.append(
+                Suggestion(
+                    text=text,
+                    notes=[note.link_text for note in named],
+                    geist_id="voice_absence",
+                )
+            )
 
     if not suggestions:
         return []

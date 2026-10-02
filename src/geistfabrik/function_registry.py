@@ -60,9 +60,10 @@ def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
 
     Example:
         @vault_function("find_questions")
-        def find_question_notes(vault: VaultContext, count: int = 5):
+        def find_question_notes(vault: VaultContext, count: int = 5) -> list[str]:
             questions = [n for n in vault.notes() if "?" in n.title]
-            return vault.sample(questions, count)
+            # Like every vault function, return bracketed [[links]]
+            return [f"[[{n.link_text}]]" for n in vault.sample(questions, count)]
     """
 
     registry = _IMPORT_REGISTRY.get()
@@ -239,10 +240,14 @@ class FunctionRegistry:
         def neighbours(vault: "VaultContext", note_title: str, count: int = 5) -> list[str]:
             """Get count semantically similar notes to given note.
 
-            Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
+            In Tracery it accepts only a literal note name: a ``#symbol#``
+            argument is rejected by the grammar validator, because vault
+            functions run before symbols expand. For "a note and its
+            neighbours", use ``semantic_clusters`` with ``.split_seed`` /
+            ``.split_neighbours``.
 
             Args:
-                note_title: Note link (string from Tracery)
+                note_title: Note title, path or link target to resolve
                 count: Number of neighbours to return
 
             Returns:
@@ -268,14 +273,15 @@ class FunctionRegistry:
             one (contradictions are on-topic and score high). See
             ``specs/research/OPPOSITION_GEISTS_RESEARCH.md``.
 
-            Note: This is a CODE-ONLY function (cannot be used in Tracery geists).
+            Like ``neighbours``, in Tracery it accepts only a literal note
+            name, never a ``#symbol#`` argument.
 
             Performance optimised: Uses vectorised numpy operations to compute all
             similarities at once via matrix multiplication, rather than looping.
             This is 10-100x faster than the loop-based approach.
 
             Args:
-                note_title: Note link (string from Tracery)
+                note_title: Note title, path or link target to resolve
                 count: Number of distant notes to return
 
             Returns:
@@ -343,8 +349,10 @@ class FunctionRegistry:
                 neighbour_count: Number of neighbours per seed
 
             Returns:
-                List of formatted strings: "SEED|||NEIGHBOUR1, NEIGHBOUR2, ..."
-                The ||| delimiter allows splitting in Tracery templates
+                List of strings "[[Seed]]|||NEIGHBOURS", where NEIGHBOURS is
+                "[[N1]]", "[[N1]] and [[N2]]" or "[[N1]], [[N2]], and [[N3]]"
+                (empty when the seed has no neighbours). The ||| delimiter is
+                split by the .split_seed and .split_neighbours modifiers
             """
             import hashlib
             import random
@@ -413,27 +421,9 @@ class FunctionRegistry:
 
         # --- Reflective lens functions (voice metadata + embedding drift) ---
 
-        @vault_function("past_focused_notes")
-        def past_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
-            """Sample count notes with past-tense temporal orientation.
-
-            Returns:
-                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
-            """
-            candidates = [n for n in vault.notes() if vault.voice(n).temporal_orientation == "past"]
-            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
-
-        @vault_function("future_focused_notes")
-        def future_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:
-            """Sample count notes with future-tense temporal orientation.
-
-            Returns:
-                List of bracketed Obsidian links (e.g. ["[[Note A]]", "[[Note B]]"])
-            """
-            candidates = [
-                n for n in vault.notes() if vault.voice(n).temporal_orientation == "future"
-            ]
-            return [f"[[{note.link_text}]]" for note in vault.sample(candidates, count)]
+        # No past_focused_notes / future_focused_notes: the tense heuristic
+        # they selected on labels status tables as "past" and almost no real
+        # note as "future" (see specs/SPEC_STATUS.md, temporal_voice).
 
         @vault_function("self_focused_notes")
         def self_focused_notes(vault: "VaultContext", count: int = 5) -> list[str]:

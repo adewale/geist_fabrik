@@ -50,8 +50,8 @@ def test_short_linked_to_note_is_flagged(tmp_path: Path) -> None:
     assert_valid_suggestions(suggestions, GEIST)
     assert [(s.text, s.notes) for s in suggestions] == [
         (
-            "What if you expanded [[Stub]]? It's only 5 words, but 1 note links to it. "
-            "This stub might be worth developing.",
+            "[[Stub]] has only 5 words, but 1 note links to it. "
+            "Is it a seed waiting to grow, or finished as it is?",
             ["Stub"],
         )
     ]
@@ -203,8 +203,9 @@ def test_well_linked_note_under_100_words_is_a_stub(
 
     expected = [
         (
-            "What if you expanded [[Pillar]]? It's only 70 words, but 5 notes link to it. "
-            "Might it deserve more depth?",
+            "[[Pillar]] has only 70 words, but 5 notes link to it. Is its brevity "
+            "intentional, a hinge that works because it is short, or a placeholder "
+            "waiting to grow?",
             ["Pillar"],
         )
     ]

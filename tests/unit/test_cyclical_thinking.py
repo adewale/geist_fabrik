@@ -58,8 +58,8 @@ def test_cyclical_thinking_reports_a_note_that_returned_twice(tmp_path):
     assert_valid_suggestions(suggestions, "cyclical_thinking", must_reference=["Cycler"])
     assert [s.notes for s in suggestions] == [["Cycler"]]
     assert suggestions[0].text.startswith(
-        "[[Cycler]] shows cyclical thinking—returning to similar semantic states "
-        "across sessions (2023-09 to 2024-03)."
+        "Your edits to [[Cycler]] have moved it away from its first recorded version "
+        "and back again more than once (2023-09 to 2024-03)."
     )
 
 

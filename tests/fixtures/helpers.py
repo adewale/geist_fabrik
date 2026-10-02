@@ -109,8 +109,8 @@ class VaultBuilder:
         path = self.root / rel_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"# {title}\n\n{body}")
-        # Undated notes get a fixed date, never the wall clock: the
-        # creation-season feature is part of every embedding.
+        # Undated notes get a fixed date, never the wall clock: age and
+        # staleness metadata are measured from the (fixed) session date.
         stamp = created or modified or DEFAULT_NOTE_DATE
         os.utime(path, (stamp.timestamp(), stamp.timestamp()))
         self._times[rel_path] = (created, modified)

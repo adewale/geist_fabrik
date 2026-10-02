@@ -960,8 +960,8 @@ class TraceryGeist:
         # Each expansion draws with replacement from the same pools, so the
         # same note (or pair) can come up twice in one session. Skip a
         # suggestion about a note set already used, allowing a few extra draws
-        # to fill `count`. (Suggestions naming no note are left to the
-        # session's novelty and diversity filters.)
+        # to fill `count`. (Suggestions naming no note are kept here; the
+        # session's quality filter drops them.)
         seen: set[frozenset[str]] = set()
         costliest = 0
         for attempt in range(self.count * DRAWS_PER_SUGGESTION):

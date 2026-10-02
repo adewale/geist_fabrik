@@ -941,11 +941,16 @@ suggestions.append(
 
 ```python
 Suggestion(
-    text="Mean note-vector distance from the session centroid decreased...",
-    notes=[],  # No specific notes - vault-level observation
+    text="Mean note-vector distance from the session centroid is lower... "
+    "[[A]] and [[B]] sit nearest the centre now. Is the vault gathering around them?",
+    notes=["A", "B"],  # Name a few notes the observation is visible in
     geist_id="vocabulary_expansion",
 )
 ```
+
+Even a vault-wide observation names notes: the quality filter drops any
+suggestion whose `notes` is empty, so a `notes=[]` suggestion never reaches
+the journal. Name the notes where the pattern shows, or a note to start from.
 
 ### Pattern 5: Contextual Reasoning
 

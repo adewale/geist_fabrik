@@ -107,7 +107,11 @@ class StatsCollector:
         self.stats["geists"] = self._collect_geist_stats()
 
     def _get_last_sync(self) -> str:
-        """Get timestamp of last vault sync."""
+        """Latest file mtime among synced notes (a proxy for the last sync).
+
+        The database records no sync time, so this is when the most recently
+        edited synced file changed on disk, not when the sync ran.
+        """
         cursor = self.db.execute("SELECT MAX(file_mtime) FROM notes")
         row = cursor.fetchone()
         if row and row[0]:

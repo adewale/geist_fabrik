@@ -6,7 +6,10 @@ This module implements the four-stage filtering pipeline:
 3. Novelty: Avoid suggestions similar to recent history
 4. Diversity: Remove near-duplicate suggestions from current batch
 
-Each filter can be enabled/disabled via configuration.
+Each filter can be enabled/disabled in the SuggestionFilter config dict
+(config.yaml exposes only ``filtering.boundary.enabled``; ``--no-filter``
+skips the whole pipeline). The quality stage drops any suggestion that names
+no note.
 """
 
 import sqlite3

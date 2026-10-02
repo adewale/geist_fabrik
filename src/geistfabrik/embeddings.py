@@ -143,7 +143,7 @@ def is_offline_mode() -> bool:
 #   - fast_path: Uses np.dot() for L2-normalised vectors
 #
 # Performance improvement: 21.5% speedup on large vaults (10k+ notes)
-# Key improvements:
+# Key improvements (historical; antithesis_generator and columbo since retired):
 #   - hidden_hub: 43.52s → 32.77s (32.8% faster)
 #   - antithesis_generator: 7.74s → 5.95s (30% faster)
 #   - method_scrambler: 27.76s → 21.70s (22% faster)
@@ -306,8 +306,8 @@ class EmbeddingComputer:
         Returns:
             3-dimensional temporal features:
             - note_age: days since note creation
-            - creation_season: sin/cos encoding of creation day-of-year
-            - session_season: sin/cos encoding of session day-of-year
+            - creation_season: sine of creation day-of-year
+            - session_season: sine of session day-of-year
         """
         # Sessions are calendar-day identities.  Compare calendar dates rather
         # than elapsed 24-hour periods so time-of-day cannot move a note across
@@ -834,11 +834,12 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
     # Fast path: for unit-norm vectors, cosine similarity is just the dot
     # product. NOTE: production embeddings do NOT take this path - encode()
-    # is called without normalize_embeddings=True, and the stored 387-dim
+    # is called without normalize_embeddings=True, the stored 387-dim
     # temporal embeddings (semantic*0.9 concatenated with temporal*0.1) have
-    # norms around 0.90-1.04. The branch only fires for vectors that happen
-    # to be unit-norm (e.g. the normalised test stubs). Do not rely on a
-    # unit-norm invariant anywhere in this codebase.
+    # norms around 0.90-1.04, and the 384-dim meaning vectors that are
+    # actually compared (semantic*0.9) have norms near 0.9. The branch only
+    # fires for vectors that happen to be unit-norm (e.g. the normalised test
+    # stubs). Do not rely on a unit-norm invariant anywhere in this codebase.
     if SKLEARN_OPTIMIZATIONS["fast_path"]:
         # Check if both vectors are approximately normalised (norm ≈ 1.0)
         if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
@@ -888,7 +889,7 @@ def find_similar_notes(
     Args:
         query_embedding: Query embedding
         embeddings: Dictionary of note paths to embeddings
-        k: Number of similar notes to return
+        count: Number of similar notes to return
         exclude_paths: Set of paths to exclude from results
 
     Returns:

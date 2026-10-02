@@ -36,6 +36,10 @@ suggestion:
   - "What contradicts [[#note#]]?"
 ```
 
+(This is the pre-v0.9.1 syntax. Vault functions now return bracketed links, so
+today's `contradictor.yaml` writes `#note#`; `[[#note#]]` would produce
+`[[[[Note]]]]`. See "API Consistency Over Avoiding Breaking Changes" below.)
+
 **Success rate:** 100% (works for ANY note)
 
 ### Why Questions Win

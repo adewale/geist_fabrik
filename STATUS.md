@@ -1,6 +1,6 @@
 # GeistFabrik Implementation Status
 
-**Last Updated**: 2026-09-12
+**Last Updated**: 2026-10-02
 **Version**: 0.11.0 (Beta, Schema v10)
 **Overall Progress**: Release-candidate hardening
 
@@ -15,8 +15,8 @@
 | **Type Checking** | Mypy strict |
 | **Linting** | Ruff |
 | **Database Schema** | v10 (exact source fingerprints) |
-| **Default Geists** | 70 (58 code + 12 Tracery) - bundled |
-| **Example Modules** | 8 (3 code geists + 3 metadata + 2 vault functions) - examples/ |
+| **Default Geists** | Bundled in `src/geistfabrik/default_geists/`; counts come from `geistfabrik.default_geists` |
+| **Example Modules** | Code and Tracery geists, metadata modules and vault functions - examples/ |
 
 ---
 
@@ -73,8 +73,8 @@ geist_fabrik/
 │   ├── date_collection.py     # Journal file handling
 │   ├── cluster_labeling.py    # Cluster label generation
 │   ├── clustering_analysis.py # Cluster analysis
-│   ├── commands/              # CLI command modules (7 files)
-│   └── default_geists/        # 70 bundled geists
+│   ├── commands/              # CLI command modules
+│   └── default_geists/        # Bundled code and Tracery geists
 │
 ├── tests/                     # Unit, integration, property, and artifact tests
 │   ├── unit/
@@ -95,6 +95,7 @@ geist_fabrik/
 - `notes` - Note content, metadata, timestamps
 - `links` - Wikilinks between notes (with composite index)
 - `tags` - Tag assignments
+- `embeddings` - Semantic vectors cached by note content
 - `sessions` - Session dates and vault state
 - `session_embeddings` - Per-session note embeddings, including cluster labels
 - `session_suggestions` - Session history for novelty filtering
@@ -116,16 +117,19 @@ uv sync
 ### CLI Usage
 
 ```bash
-# Run in vault (auto-detects Obsidian vault)
+# Preview a session (vault path optional: auto-detected from the current directory)
 uv run geistfabrik invoke ~/my-vault
 
+# Write the session to <vault>/geist journal/YYYY-MM-DD.md
+uv run geistfabrik invoke ~/my-vault --write
+
 # Single geist
-uv run geistfabrik invoke ~/my-vault --geist columbo
+uv run geistfabrik invoke ~/my-vault --geist temporal_drift
 
 # Multiple geists
-uv run geistfabrik invoke ~/my-vault --geists columbo,drift,skeptic
+uv run geistfabrik invoke ~/my-vault --geists what_if,concept_drift,surprisal
 
-# Full firehose (all suggestions)
+# Full mode (all filtered suggestions, no sampling)
 uv run geistfabrik invoke ~/my-vault --full
 
 # Replay session
@@ -173,4 +177,4 @@ The fast lanes use a marker-driven autouse fixture that stubs only the external
 
 ---
 
-**Last Updated**: 2026-09-12
+**Last Updated**: 2026-10-02

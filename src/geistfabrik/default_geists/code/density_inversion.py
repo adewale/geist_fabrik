@@ -115,7 +115,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
 
             text = (
                 f"[[{note.link_text}]]'s neighbours ({neighbour_names}) are "
-                f"semantically similar but aren't linked to each other. "
+                f"semantically similar but few of them link to each other. "
                 f"Missing connections in a coherent cluster?"
             )
 
