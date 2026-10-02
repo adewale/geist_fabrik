@@ -24,6 +24,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ClaimExtractor,
         ExtractionPipeline,
         LengthFilter,
+        quote_for_display,
     )
 
     notes = vault.notes()
@@ -45,7 +46,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for claim in claims:
         claim_clean = " ".join(claim.split())
         text = (
-            f'In [[{note.link_text}]] you claimed: "{claim_clean}" '
+            f"In [[{note.link_text}]] you claimed: {quote_for_display(claim_clean)} "
             f"Is that still true - and what would change your mind?"
         )
         suggestions.append(

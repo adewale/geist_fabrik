@@ -1557,9 +1557,13 @@ class VaultContext:
         days_since_modified = max(0, (session_now.date() - note.modified.date()).days)
         task_count = len(_TASK_PATTERN.findall(note.content))
         completed_task_count = len(_COMPLETED_TASK_PATTERN.findall(note.content))
+        unique_word_count = len({w.lower() for w in words})
         metadata = {
             "word_count": word_count,
             "link_count": len(note.links),
+            # Outgoing links per word, as defined in the spec
+            # (len(note.links) / max(1, word_count)); x100 = links per 100 words.
+            "link_density": round(len(note.links) / max(1, word_count), 6),
             "tag_count": len(note.tags),
             "age_days": max(0, (session_now.date() - note.created.date()).days),
             "days_since_modified": days_since_modified,
@@ -1570,9 +1574,13 @@ class VaultContext:
             "has_tasks": task_count > 0,
             "task_count": task_count,
             "completed_task_count": completed_task_count,
-            "lexical_diversity": (
-                round(len({w.lower() for w in words}) / word_count, 3) if word_count else 0.0
-            ),
+            # Raw type-token ratio in [0, 1]. Length-biased: it falls as a
+            # note grows, so any short stub scores ~1.0.
+            "lexical_diversity": (round(unique_word_count / word_count, 3) if word_count else 0.0),
+            # Root TTR (Guiraud's index): unique / sqrt(total). It cannot
+            # exceed sqrt(word_count), so stubs score low, but it rises with
+            # length on real prose - compare notes of broadly similar length.
+            "root_ttr": (round(unique_word_count / word_count**0.5, 3) if word_count else 0.0),
             "reading_time": round(word_count / 200.0, 2),  # minutes at ~200 wpm
         }
 

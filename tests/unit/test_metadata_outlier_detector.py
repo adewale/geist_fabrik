@@ -1,9 +1,10 @@
 """Tests for the metadata_outlier_detector geist.
 
-Trigger: >= 10 user notes and a note whose ``word_count`` (built-in metadata)
-or ``link_density`` (supplied by a user metadata module, as in the spec's
-metadata-inference example) is more than 2.0 population standard deviations
-from the vault mean. At most one suggestion per metric: 2 in total.
+Trigger: >= 10 user notes and a note whose ``word_count`` or ``link_density``
+(both built-in metadata; link_density = links / words) is more than 2.0
+population standard deviations from the mean. Link density is analysed only
+over notes of at least MIN_WORDS_FOR_DENSITY words. At most one suggestion
+per metric: 2 in total.
 
 Z-score arithmetic: if k of n notes share one value and the rest share
 another, each of the k notes has |z| = sqrt((n - k) / k). One long note among
@@ -11,7 +12,8 @@ another, each of the k notes has |z| = sqrt((n - k) / k). One long note among
 12 give sqrt(3) = 1.73 < 2, whatever the word counts are.
 
 Every title has two words, so the "# <title>" heading adds the same three
-words to each count: a SHORT note has 13 words, a LONG one 203.
+words to each count: a SHORT note has 13 words, a LONG one 203, and a
+PROSE note (with either 15 links or 15 filler words) 78.
 """
 
 from pathlib import Path
@@ -19,18 +21,14 @@ from pathlib import Path
 import pytest
 
 from geistfabrik.default_geists.code import metadata_outlier_detector
-from geistfabrik.metadata_system import MetadataLoader
 from geistfabrik.vault_context import VaultContext
-from tests.fixtures.helpers import SEED, VaultBuilder, assert_valid_suggestions
+from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
 SHORT = "plain words about ordinary things here and there again today"  # 10 words
 LONG = " ".join(f"word{i}" for i in range(200))
-LINKS = " ".join(f"[[Target {i}]]" for i in range(5))  # 10 words, 5 links
-
-LINK_DENSITY_MODULE = """
-def infer(note, vault):
-    return {"link_density": len(note.links) / max(1, len(note.content.split()))}
-"""
+PROSE = " ".join(f"prose{i}" for i in range(60))
+LINKED = PROSE + " " + " ".join(f"[[T{i}]]" for i in range(15))  # 75 words, 15 links
+UNLINKED = PROSE + " " + " ".join(f"filler{i}" for i in range(15))  # 75 words, 0 links
 
 
 def _vault(
@@ -38,22 +36,13 @@ def _vault(
     bodies: dict[str, str],
     *,
     journal: dict[str, str] | None = None,
-    link_density_module: bool = False,
 ) -> VaultContext:
     builder = VaultBuilder(root / "vault")
     for title, body in bodies.items():
         builder.note(title, body)
     for title, body in (journal or {}).items():
         builder.journal(title, body)
-    ctx = builder.build()
-    if not link_density_module:
-        return ctx
-    module_dir = root / "metadata_inference"
-    module_dir.mkdir()
-    (module_dir / "link_density.py").write_text(LINK_DENSITY_MODULE)
-    loader = MetadataLoader(module_dir)
-    loader.load_modules()
-    return VaultContext(ctx.vault, ctx.session, seed=SEED, metadata_loader=loader)
+    return builder.build()
 
 
 def _plain(count: int, body: str = SHORT) -> dict[str, str]:
@@ -118,28 +107,52 @@ def test_metadata_outlier_detector_needs_ten_notes(tmp_path):
 @pytest.mark.parametrize(
     ("bodies", "outlier", "text"),
     [
-        ({**_plain(11), "Busy Hub": LINKS}, "Busy Hub", "exceptionally high link density (0.38)"),
         (
-            {**_plain(11, LINKS), "Lone Island": SHORT},
+            {**_plain(11, UNLINKED), "Busy Hub": LINKED},
+            "Busy Hub",
+            "[[Busy Hub]] is unusually dense with links "
+            "(15 links in 78 words: 19.2 per 100 words vs median 0.0). "
+            "Is this a hub or an over-connected note?",
+        ),
+        (
+            {**_plain(11, LINKED), "Lone Island": UNLINKED},
             "Lone Island",
-            "exceptionally low link density (0.00)",
+            "[[Lone Island]] is unusually sparse in links "
+            "(0 links in 78 words: 0.0 per 100 words vs median 19.2). "
+            "Could this isolated note connect to others?",
         ),
     ],
     ids=["high", "low"],
 )
-def test_metadata_outlier_detector_link_density_from_a_metadata_module(
-    tmp_path, bodies, outlier, text
-):
-    """link_density is not built-in metadata; a user module supplies it
-    (5 links / 13 words = 0.38). All word counts are equal (13), so only the
-    link-density branch can fire."""
-    ctx = _vault(tmp_path, bodies, link_density_module=True)
+def test_metadata_outlier_detector_link_density_is_built_in(tmp_path, bodies, outlier, text):
+    """Contract: the link-density branch fires on a default install.
+
+    Regression: link_density was not built-in metadata, so without a user
+    metadata module this branch could never fire. All word counts are equal
+    (78), so only the link-density branch can fire.
+    """
+    ctx = _vault(tmp_path, bodies)
 
     suggestions = metadata_outlier_detector.suggest(ctx)
 
     assert_valid_suggestions(suggestions, "metadata_outlier_detector", must_reference=[outlier])
-    assert [s.notes for s in suggestions] == [[outlier]]
-    assert text in suggestions[0].text
+    assert [s.text for s in suggestions] == [text]
+
+
+def test_metadata_outlier_detector_ignores_link_density_of_short_notes(tmp_path):
+    """Contract: density is only compared across notes with some prose.
+
+    One link in a 4-word note is a density of 25 per 100 words; counted, it
+    would be the outlier. The positive side is the 78-word hub.
+    """
+    word_floor = metadata_outlier_detector.MIN_WORDS_FOR_DENSITY
+    short = _vault(tmp_path / "short", {**_plain(11, UNLINKED), "Tiny Link": "[[T0]]"})
+    hub = _vault(tmp_path / "hub", {**_plain(11, UNLINKED), "Busy Hub": LINKED})
+    tiny = next(n for n in short.notes() if n.title == "Tiny Link")
+    assert short.metadata(tiny)["word_count"] < word_floor
+
+    assert all("link" not in s.text for s in metadata_outlier_detector.suggest(short))
+    assert [s.notes for s in metadata_outlier_detector.suggest(hub)] == [["Busy Hub"]]
 
 
 def test_metadata_outlier_detector_caps_at_two(tmp_path):
@@ -147,8 +160,7 @@ def test_metadata_outlier_detector_caps_at_two(tmp_path):
     candidates) yield exactly two suggestions, one per metric."""
     ctx = _vault(
         tmp_path,
-        {**_plain(10), "Long 1": LONG, "Long 2": LONG, "Busy Hub": LINKS},
-        link_density_module=True,
+        {**_plain(10, UNLINKED), "Long 1": LONG, "Long 2": LONG, "Busy Hub": LINKED},
     )
 
     suggestions = metadata_outlier_detector.suggest(ctx)

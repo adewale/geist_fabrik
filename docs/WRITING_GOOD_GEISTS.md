@@ -709,6 +709,8 @@ metadata = vault.metadata(note)
 # Available properties
 word_count = metadata.get("word_count", 0)
 lexical_diversity = metadata.get("lexical_diversity", 0.0)  # raw TTR: ~1.0 for short notes
+root_ttr = metadata.get("root_ttr", 0.0)  # unique / sqrt(words): <= sqrt(word_count), rises with length
+link_density = metadata.get("link_density", 0.0)  # links per word (x100 = per 100 words)
 staleness = metadata.get("staleness", 0)
 days_since_modified = metadata.get("days_since_modified", 0)
 task_count = metadata.get("task_count", 0)
@@ -1593,7 +1595,10 @@ from geistfabrik.metadata_system import MetadataAnalyser
 
 def suggest(vault):
     analyser = MetadataAnalyser(vault)
-    outliers = analyser.outliers("word_count", threshold=2.0)  # Z-score based
+    outliers = analyser.outliers("word_count", threshold=2.0)  # Z-score, most extreme first
+    # Restrict the population when a metric is meaningless for some notes:
+    prose = [n for n in vault.notes() if vault.metadata(n)["word_count"] >= 50]
+    dense = analyser.outliers("link_density", notes=prose)
     profile = analyser.profile(note)  # {'word_count': 'high', 'link_density': 'low'}
 ```
 

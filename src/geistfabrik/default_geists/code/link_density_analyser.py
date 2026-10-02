@@ -31,8 +31,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if word_count < 50:
             continue  # Too short to analyse
 
-        # Calculate links per 100 words
-        link_density = (link_count / word_count) * 100 if word_count > 0 else 0
+        # Built-in link_density is links per word; report per 100 words
+        link_density = float(metadata.get("link_density", 0.0)) * 100
 
         # Case 1: Too many links (> 5 per 100 words)
         if link_density > 5:

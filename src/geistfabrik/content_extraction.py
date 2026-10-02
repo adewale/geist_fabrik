@@ -17,6 +17,53 @@ This module generalizes the pattern from question_harvester.py to enable
 import re
 from typing import Protocol
 
+# Punctuation that extraction patterns key on (sentence ends, "TODO:",
+# blockquote ">", list bullets, quotes). Inside inline code spans these are
+# swapped for private-use code points so code cannot start, end or fake an
+# extraction, while the span's text survives; unmask_code() swaps them back.
+_CODE_PUNCTUATION = ".?!:;#>*+-[]()\"'"
+_MASK = str.maketrans({c: chr(0xE000 + i) for i, c in enumerate(_CODE_PUNCTUATION)})
+_UNMASK = str.maketrans({chr(0xE000 + i): c for i, c in enumerate(_CODE_PUNCTUATION)})
+
+
+def strip_code(content: str) -> str:
+    """Drop fenced code blocks and neutralise inline code spans.
+
+    Fenced blocks are code samples and are removed. Inline spans are usually
+    part of a sentence ("set `--timeout` to 30"), so deleting them leaves
+    gaps like "set  to 30" or "(, )"; instead they are kept, backticks and
+    all, with their pattern-significant punctuation masked. Pass extracted
+    text through unmask_code() before showing it.
+    """
+    no_fences = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
+    return re.sub(r"`[^`\n]+`", lambda m: m.group(0).translate(_MASK), no_fences)
+
+
+def unmask_code(text: str) -> str:
+    """Restore punctuation masked inside inline code by strip_code()."""
+    return text.translate(_UNMASK)
+
+
+_QUOTE_PAIRS = {'"': '"', "\u201c": "\u201d", "'": "'", "\u2018": "\u2019"}
+
+
+def quote_for_display(text: str) -> str:
+    """Wrap harvested text in quotation marks without doubling them.
+
+    Text already wrapped in a matching pair is unwrapped first. If the text
+    still contains straight double quotes (e.g. '"To be..." - Hamlet'), curly
+    outer quotes keep the two levels distinguishable.
+    """
+    inner = text.strip()
+    if len(inner) >= 2 and _QUOTE_PAIRS.get(inner[0]) == inner[-1]:
+        candidate = inner[1:-1].strip()
+        # Only unwrap a single quoted span, not '"a" and "b"'.
+        if inner[0] not in candidate:
+            inner = candidate
+    if '"' in inner:
+        return f"\u201c{inner}\u201d"
+    return f'"{inner}"'
+
 
 class ExtractionStrategy(Protocol):
     """Protocol for extraction strategies.
@@ -95,7 +142,7 @@ class ExtractionPipeline:
             Extracted and filtered items (deduplicated)
         """
         # Step 1: Remove code blocks to avoid false positives
-        content_no_code = self._remove_code_blocks(content)
+        content_no_code = strip_code(content)
 
         # Step 2: Apply all extraction strategies
         all_items = []
@@ -110,7 +157,7 @@ class ExtractionPipeline:
 
             # Apply all filters
             if all(f.is_valid(item_clean) for f in self.filters):
-                filtered_items.append(item_clean)
+                filtered_items.append(unmask_code(item_clean))
 
         # Step 4: Deduplicate (case-insensitive)
         seen = set()
@@ -122,25 +169,6 @@ class ExtractionPipeline:
                 seen.add(item_normalized)
 
         return deduplicated
-
-    @staticmethod
-    def _remove_code_blocks(content: str) -> str:
-        """Remove code blocks from markdown content.
-
-        Removes both fenced code blocks (```...```) and inline code (`...`)
-        to prevent false positives from code samples.
-
-        Args:
-            content: Raw markdown content
-
-        Returns:
-            Content with code blocks removed
-        """
-        # Remove fenced code blocks
-        content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
-        # Remove inline code
-        content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
-        return content_no_code
 
 
 # ============================================================================

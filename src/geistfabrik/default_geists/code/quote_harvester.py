@@ -12,6 +12,8 @@ times—a temporal map of intellectual influences.
 
 from typing import TYPE_CHECKING
 
+from geistfabrik.content_extraction import quote_for_display, strip_code, unmask_code
+
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
@@ -45,7 +47,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         quote_clean = " ".join(quote.split())
 
-        text = f'From [[{note.link_text}]]: "{quote_clean}" What if you reflected on this again?'
+        text = (
+            f"From [[{note.link_text}]]: {quote_for_display(quote_clean)} "
+            "What if you reflected on this again?"
+        )
 
         suggestions.append(
             Suggestion(
@@ -71,11 +76,9 @@ def extract_quotes(content: str) -> list[str]:
     Returns:
         List of quote strings (multi-line quotes joined)
     """
-    import re
 
     # Remove code blocks (those quotes are code examples, not actual quotes)
-    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
-    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
+    content_no_code = strip_code(content)
 
     quotes = []
 
@@ -124,7 +127,7 @@ def extract_quotes(content: str) -> list[str]:
         # Deduplication
         quote_normalized = quote_clean.lower()
         if quote_normalized not in seen:
-            filtered_quotes.append(quote_clean)
+            filtered_quotes.append(unmask_code(quote_clean))
             seen.add(quote_normalized)
 
     return filtered_quotes

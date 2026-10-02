@@ -19,13 +19,15 @@ from geistfabrik import Suggestion
 # sample is date-seeded it surfaces different notes across sessions.
 MAX_CANDIDATES = 300
 
-# The built-in lexical_diversity is raw type-token ratio (unique words / total
-# words). TTR falls as a text grows, so it is only comparable between texts of
-# similar, sufficient length: any handful of distinct words scores ~1.0. Below
-# this many words it says nothing about vocabulary richness, and a stub must
-# not be read as a "complex topic" or "rich language". 100 tokens is the usual
-# minimum for TTR-family measures (and the MSTTR segment length).
-MIN_WORDS_FOR_DIVERSITY = 100
+# Vocabulary richness is read from the built-in root_ttr (unique words /
+# sqrt(total words)), not raw lexical_diversity: raw TTR falls as a text grows,
+# so any stub of distinct words scores ~1.0 and would read as "complex".
+# Root TTR cannot exceed sqrt(word_count), so these thresholds also imply a
+# minimum length (12 needs >= 144 words, 15 needs >= 225). On real prose it
+# still rises with length (a few hundred words: ~10-15; several thousand:
+# ~25), so a long note clears them more easily than a short one.
+COMPLEX_ROOT_TTR = 12.0
+BURIED_GEM_ROOT_TTR = 15.0
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -110,16 +112,12 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     return vault.sample(suggestions, min(2, len(suggestions)))
 
 
-def _meaningful_lexical_diversity(metadata: dict[str, Any]) -> float:
-    """Lexical diversity, or 0.0 when the note is too short for TTR to mean anything.
-
-    A missing or non-numeric value (e.g. None from a custom metadata module)
-    also reads as 0.0, i.e. "no evidence of rich vocabulary".
-    """
-    if metadata.get("word_count", 0) < MIN_WORDS_FOR_DIVERSITY:
+def _root_ttr(metadata: dict[str, Any]) -> float:
+    """Root TTR, or 0.0 when missing or non-numeric (e.g. None from a plugin)."""
+    value = metadata.get("root_ttr")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return 0.0
-    value = metadata.get("lexical_diversity")
-    return float(value) if isinstance(value, (int, float)) else 0.0
+    return float(value)
 
 
 def _find_complex_but_isolated(vault: "VaultContext", notes: list["Note"]) -> list["Note"]:
@@ -130,14 +128,14 @@ def _find_complex_but_isolated(vault: "VaultContext", notes: list["Note"]) -> li
         metadata = vault.metadata(note)
 
         # High complexity (rich vocabulary or long reading time)
-        lexical_diversity = _meaningful_lexical_diversity(metadata)
+        root_ttr = _root_ttr(metadata)
         reading_time = metadata.get("reading_time", 0)
 
         # Low connectivity
         backlink_count = len(vault.backlinks(note))
         link_count = len(note.links)
 
-        if (lexical_diversity > 0.5 or reading_time > 3) and (backlink_count + link_count < 2):
+        if (root_ttr > COMPLEX_ROOT_TTR or reading_time > 3) and (backlink_count + link_count < 2):
             complex_isolated.append(note)
 
     return complex_isolated
@@ -150,11 +148,11 @@ def _find_buried_gems(vault: "VaultContext", notes: list["Note"]) -> list["Note"
     for note in notes:
         metadata = vault.metadata(note)
 
-        lexical_diversity = _meaningful_lexical_diversity(metadata)
+        root_ttr = _root_ttr(metadata)
         days_since_modified = metadata.get("days_since_modified", 0)
 
         # High diversity + old = buried gem
-        if lexical_diversity > 0.6 and days_since_modified > 90:
+        if root_ttr > BURIED_GEM_ROOT_TTR and days_since_modified > 90:
             gems.append(note)
 
     return gems

@@ -12,6 +12,8 @@ the implicit structure of inquiry.
 import re
 from typing import TYPE_CHECKING
 
+from geistfabrik.content_extraction import quote_for_display, strip_code, unmask_code
+
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
@@ -46,7 +48,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         question_clean = " ".join(question.split())
 
         text = (
-            f'From [[{note.link_text}]]: "{question_clean}" '
+            f"From [[{note.link_text}]]: {quote_for_display(question_clean)} "
             f"What if you revisited this question now?"
         )
 
@@ -78,8 +80,7 @@ def extract_questions(content: str) -> list[str]:
         List of question strings (deduplicated, filtered)
     """
     # Strategy 1: Remove code blocks to avoid false positives
-    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
-    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
+    content_no_code = strip_code(content)
 
     questions = []
 
@@ -112,7 +113,7 @@ def extract_questions(content: str) -> list[str]:
 
         # Strategy 5: Deduplication (case-insensitive)
         if q_normalized not in seen:
-            questions.append(q_clean)
+            questions.append(unmask_code(q_clean))
             seen.add(q_normalized)
 
     return questions

@@ -582,3 +582,60 @@ def test_harvester_excludes_geist_journal(tmp_path, geist, items, render, prompt
         must_reference=[items[0]],
         must_not_reference=["geist journal", "2024-03-0", *items[1:]],
     )
+
+
+INLINE_CODE_ITEMS = [
+    pytest.param(question_harvester, "Should `--timeout` beat the config value?", id="question"),
+    pytest.param(quote_harvester, "> Pass `--count` (or `-c`) before planting.", id="quote"),
+    pytest.param(todo_harvester, "TODO: rename the `--count` flag to `--limit`", id="todo"),
+    pytest.param(
+        definition_harvester,
+        "Tilth is a measure of `soil_crumb` (or `crumb`) form.",
+        id="definition",
+    ),
+]
+
+
+@pytest.mark.parametrize(("geist", "line"), INLINE_CODE_ITEMS)
+def test_harvester_keeps_inline_code_in_the_quoted_text(tmp_path, geist, line) -> None:
+    """Contract: inline code inside a harvested sentence is quoted intact.
+
+    Regression: inline code spans were deleted before extraction, so
+    "explicit CLI flag (`--timeout`, `--count`) wins" was quoted as
+    "explicit CLI flag (, ) wins".
+    """
+    ctx = _harvest_vault(tmp_path, line)
+
+    suggestions = geist.suggest(ctx)
+
+    assert_valid_suggestions(suggestions, _geist_id(geist), must_reference=[HARVEST_NOTE])
+    (suggestion,) = suggestions
+    expected = line.removeprefix("> ")
+    assert f'"{expected}"' in suggestion.text
+
+
+@pytest.mark.parametrize(
+    ("quote", "shown"),
+    [
+        ('"A garden is never finished."', '"A garden is never finished."'),
+        ("“A garden is never finished.”", '"A garden is never finished."'),
+        (
+            '"A garden is never finished." - Karel Capek',
+            '“"A garden is never finished." - Karel Capek”',
+        ),
+    ],
+    ids=["straight", "curly", "attributed"],
+)
+def test_quote_harvester_does_not_double_quotation_marks(tmp_path, quote, shown) -> None:
+    """Contract: a blockquote that is already in quotation marks is shown once.
+
+    Regression: the suggestion wrapped every quote in straight quotes, so a
+    quoted blockquote came out as ""A garden is never finished."".
+    """
+    ctx = _harvest_vault(tmp_path, f"> {quote}")
+
+    (suggestion,) = quote_harvester.suggest(ctx)
+
+    assert suggestion.text == (
+        f"From [[{HARVEST_NOTE}]]: {shown} What if you reflected on this again?"
+    )

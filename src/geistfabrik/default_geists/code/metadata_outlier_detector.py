@@ -12,6 +12,10 @@ from geistfabrik.models import Suggestion
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
+# Notes shorter than this are left out of the link-density distribution
+# (same floor as link_density_analyser).
+MIN_WORDS_FOR_DENSITY = 50
+
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find notes with outlier metadata values.
@@ -32,7 +36,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     word_count_outliers = analyser.outliers("word_count", threshold=2.0)
 
     if word_count_outliers:
-        # Get the most extreme outlier
+        # outliers() returns the most extreme first
         note = word_count_outliers[0]
         metadata = vault.metadata(note)
         wc = metadata.get("word_count", 0)
@@ -64,36 +68,44 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 )
             )
 
-    # Check for link_density outliers (unusually connected/isolated)
+    # Check for link_density outliers (unusually connected/isolated). Density
+    # is only meaningful once a note has some prose: a three-word note with
+    # one link would otherwise dominate the distribution.
     if len(suggestions) < 2:
-        link_density_outliers = analyser.outliers("link_density", threshold=2.0)
+        prose_notes = [
+            n for n in notes if vault.metadata(n).get("word_count", 0) >= MIN_WORDS_FOR_DENSITY
+        ]
+        link_density_outliers = analyser.outliers("link_density", threshold=2.0, notes=prose_notes)
 
         if link_density_outliers:
             note = link_density_outliers[0]
             metadata = vault.metadata(note)
-            density = metadata.get("link_density", 0.0)
-            profile = analyser.profile(note)
-            link_profile = profile.get("link_density", "moderate")
+            per_100 = float(metadata.get("link_density", 0.0)) * 100
+            dist = analyser.distribution("link_density", notes=prose_notes)
+            median_per_100 = dist["p50"] * 100
+            counts = (
+                f"{int(metadata.get('link_count', 0))} links in {int(metadata['word_count'])} words"
+            )
 
-            if link_profile == "high":
+            if per_100 > median_per_100:
                 suggestions.append(
                     Suggestion(
                         text=(
-                            f"[[{note.link_text}]] has exceptionally high "
-                            f"link density ({density:.2f}). "
-                            f"Is this a hub or an over-connected note?"
+                            f"[[{note.link_text}]] is unusually dense with links "
+                            f"({counts}: {per_100:.1f} per 100 words vs median "
+                            f"{median_per_100:.1f}). Is this a hub or an over-connected note?"
                         ),
                         notes=[note.link_text],
                         geist_id="metadata_outlier_detector",
                     )
                 )
-            elif link_profile == "low":
+            else:
                 suggestions.append(
                     Suggestion(
                         text=(
-                            f"[[{note.link_text}]] has exceptionally low "
-                            f"link density ({density:.2f}). "
-                            f"Could this isolated note connect to others?"
+                            f"[[{note.link_text}]] is unusually sparse in links "
+                            f"({counts}: {per_100:.1f} per 100 words vs median "
+                            f"{median_per_100:.1f}). Could this isolated note connect to others?"
                         ),
                         notes=[note.link_text],
                         geist_id="metadata_outlier_detector",

@@ -103,6 +103,38 @@ def test_lexical_diversity_is_raw_case_insensitive_ttr(tmp_path: Path) -> None:
     assert all(isinstance(v, float) for v in by_path.values())
 
 
+def test_root_ttr_known_values(tmp_path: Path) -> None:
+    """root_ttr = unique / sqrt(total), case-insensitive, 0.0 for no words.
+
+    Known answers: "# K alpha beta Alpha BETA" has 4 types in 6 tokens, so
+    4 / sqrt(6) = 1.633. A stub cannot exceed sqrt(word_count), unlike raw
+    TTR, which is 1.0 for any handful of distinct words.
+    """
+    ctx = _build_context(
+        tmp_path,
+        {"K": "alpha beta Alpha BETA", "S": "quartz lichen harbour"},
+        backdate_days=10,
+    )
+    by_path = {n.path: ctx.metadata(n) for n in ctx.notes()}
+    assert by_path["K.md"]["root_ttr"] == pytest.approx(4 / 6**0.5, abs=1e-3)
+    # "# S quartz lichen harbour": 5 distinct tokens.
+    assert by_path["S.md"]["lexical_diversity"] == 1.0
+    assert by_path["S.md"]["root_ttr"] == pytest.approx(5**0.5, abs=1e-3)
+
+
+def test_link_density_is_links_per_word(tmp_path: Path) -> None:
+    """link_density = len(note.links) / max(1, word_count), as in the spec."""
+    ctx = _build_context(
+        tmp_path,
+        # "# L see [[A]] and [[B]] here": 2 links in 7 tokens.
+        {"L": "see [[A]] and [[B]] here", "N": "no links at all"},
+        backdate_days=10,
+    )
+    by_path = {n.path: ctx.metadata(n) for n in ctx.notes()}
+    assert by_path["L.md"]["link_density"] == pytest.approx(2 / 7, abs=1e-6)
+    assert by_path["N.md"]["link_density"] == 0.0
+
+
 def test_user_modules_can_still_override(tmp_path: Path) -> None:
     """A user inference module runs after the builtins, so its keys win."""
     modules = tmp_path / "metadata_inference"

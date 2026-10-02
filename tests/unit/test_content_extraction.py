@@ -15,6 +15,9 @@ from geistfabrik.content_extraction import (
     LengthFilter,
     PatternFilter,
     QuestionExtractor,
+    quote_for_display,
+    strip_code,
+    unmask_code,
 )
 
 
@@ -148,3 +151,31 @@ class TestExtractionPipeline:
     def test_empty_content_returns_empty(self):
         pipeline = ExtractionPipeline(strategies=[QuestionExtractor()])
         assert pipeline.extract("") == []
+
+
+class TestCodeMasking:
+    def test_fenced_blocks_are_removed_and_inline_text_survives(self):
+        content = "```\nprint('x?')\n```\nSet `a.b?` now."
+        masked = strip_code(content)
+        assert "print" not in masked
+        # The span stays (with backticks) but its punctuation cannot end a
+        # sentence or form a question...
+        assert "?" not in masked and "a.b" not in masked
+        # ...and unmasking restores it exactly.
+        assert unmask_code(masked) == "\nSet `a.b?` now."
+
+    def test_inline_todo_marker_is_not_a_marker(self):
+        assert "TODO:" not in strip_code("Write `TODO: x` markers like this.")
+
+
+class TestQuoteForDisplay:
+    def test_plain_text_gets_straight_quotes(self):
+        assert quote_for_display("plain words") == '"plain words"'
+
+    def test_wrapping_pair_is_not_doubled(self):
+        assert quote_for_display('"wrapped"') == '"wrapped"'
+        assert quote_for_display("\u2018wrapped\u2019") == '"wrapped"'
+
+    def test_two_quoted_spans_are_not_unwrapped(self):
+        # '"a" and "b"' starts and ends with a quote but is not one span.
+        assert quote_for_display('"a" and "b"') == '\u201c"a" and "b"\u201d'

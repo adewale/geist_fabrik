@@ -2,13 +2,13 @@
 
 Trigger arithmetic (see the geist source; metadata is VaultContext's
 built-in set, with "now" = the session date):
-- lexical_diversity is raw type-token ratio (TTR) over whitespace tokens,
-  so it only counts as evidence of rich vocabulary once a note has at least
-  MIN_WORDS_FOR_DIVERSITY words; below that every short note scores ~1.0;
-- complex-but-isolated: (rich vocabulary or reading_time > 3) and
+- vocabulary richness is the built-in root_ttr (unique / sqrt(total) over
+  whitespace tokens, case-insensitive). It cannot exceed sqrt(word_count), so
+  a stub can never look rich, which raw lexical_diversity (TTR ~1.0 for any
+  short note) got wrong;
+- complex-but-isolated: (root_ttr > COMPLEX_ROOT_TTR or reading_time > 3) and
   links + backlinks < 2; the pattern needs >= 3 such notes;
-- buried gems: lexical_diversity > 0.6 (with enough words) and
-  days_since_modified > 90; >= 2;
+- buried gems: root_ttr > BURIED_GEM_ROOT_TTR and days_since_modified > 90; >= 2;
 - abandoned tasks: an open "- [ ]" task and days_since_modified > 60; >= 2;
 - each pattern yields at most one suggestion and output is capped at 2.
 
@@ -28,12 +28,30 @@ from tests.fixtures.helpers import SESSION_DATE, VaultBuilder, assert_valid_sugg
 
 GEIST = "metadata_driven_discovery"
 CAP = 2
-MIN_WORDS = metadata_driven_discovery.MIN_WORDS_FOR_DIVERSITY
+COMPLEX_TTR = metadata_driven_discovery.COMPLEX_ROOT_TTR
+GEM_TTR = metadata_driven_discovery.BURIED_GEM_ROOT_TTR
 # A stub: a handful of distinct words, so its raw TTR is 1.0.
 STUB = "quartz lichen harbour violin saffron"
 LINKS = "[[Anchor A]] [[Anchor B]]"
 LINKED_BACKGROUND = f"echo echo echo echo echo echo echo echo echo echo {LINKS}"
 OPEN_TASKS = f"- [ ] echo\n- [ ] echo\n- [x] echo\n{LINKS}"
+
+
+def _words_to_clear(threshold: float, repeated: int = 0) -> int:
+    """Smallest note length whose root TTR exceeds threshold.
+
+    The note is all distinct words except `repeated` duplicate tokens (the
+    LINKS suffix repeats "[[Anchor"), so root TTR = (n - repeated) / sqrt(n),
+    rounded to 3 places as the built-in metadata stores it.
+    """
+    n = 1
+    while round((n - repeated) / n**0.5, 3) <= threshold:
+        n += 1
+    return n
+
+
+COMPLEX_WORDS = _words_to_clear(COMPLEX_TTR)
+GEM_WORDS = _words_to_clear(GEM_TTR, repeated=1)
 
 
 def _diverse_body(title: str, total_words: int, suffix: str = "") -> str:
@@ -53,8 +71,8 @@ def _note(builder: VaultBuilder, title: str, body: str, *, age_days: int = 0) ->
 
 
 def _complex(builder: VaultBuilder, title: str, *, suffix: str = "", age_days: int = 0) -> None:
-    """A long note of distinct words: raw TTR ~1.0 with enough words to mean it."""
-    _note(builder, title, _diverse_body(title, MIN_WORDS + 20, suffix), age_days=age_days)
+    """A note of distinct words, long enough to clear both root-TTR thresholds."""
+    _note(builder, title, _diverse_body(title, GEM_WORDS + 20, suffix), age_days=age_days)
 
 
 def _background(builder: VaultBuilder, count: int = 4) -> None:
@@ -66,6 +84,10 @@ def _background(builder: VaultBuilder, count: int = 4) -> None:
 
 def _word_counts(ctx: VaultContext, prefix: str) -> set[int]:
     return {ctx.metadata(n)["word_count"] for n in ctx.notes() if n.title.startswith(prefix)}
+
+
+def _root_ttrs(ctx: VaultContext, prefix: str) -> set[float]:
+    return {ctx.metadata(n)["root_ttr"] for n in ctx.notes() if n.title.startswith(prefix)}
 
 
 @pytest.mark.parametrize(("planted", "fires"), [(2, False), (3, True)])
@@ -91,31 +113,31 @@ def test_complex_isolated_pattern_needs_three_notes(
 def test_short_unlinked_stubs_are_not_complex(tmp_path: Path) -> None:
     """Contract: a few-word stub is not a "complex topic".
 
-    Regression: raw TTR is 1.0 for any handful of distinct words, so the
-    pre-fix geist reported three 8-word unlinked stubs as complex, isolated
-    ideas. Three stubs would complete the pattern if TTR alone counted.
+    Regression: raw TTR is 1.0 for any handful of distinct words, so a geist
+    reading lexical_diversity reported three 8-word unlinked stubs as complex,
+    isolated ideas. Their root TTR is below sqrt(8) < 3.
     """
     builder = VaultBuilder(tmp_path)
     for i in range(3):
         _note(builder, f"Stub {i}", STUB)
     _background(builder)
     ctx = builder.build()
-    assert all(
-        ctx.metadata(n)["lexical_diversity"] == 1.0 for n in ctx.notes() if "Stub" in n.title
-    )
+    stubs = [ctx.metadata(n) for n in ctx.notes() if "Stub" in n.title]
+    assert all(md["lexical_diversity"] == 1.0 for md in stubs)
+    assert all(md["root_ttr"] < 3 for md in stubs)
 
     assert metadata_driven_discovery.suggest(ctx) == []
 
 
 def test_long_repetitive_unlinked_notes_are_not_complex(tmp_path: Path) -> None:
-    """Contract: above the word floor the TTR threshold still decides.
+    """Contract: length alone is not rich vocabulary.
 
-    Regression: treating any note past the floor as rich vocabulary.
-    Reading time stays under 3 minutes, so only TTR could qualify them.
+    Regression: treating any note long enough to clear the threshold as rich.
+    Reading time stays under 3 minutes, so only root TTR could qualify them.
     """
     builder = VaultBuilder(tmp_path)
     for i in range(3):
-        _note(builder, f"Loop {i}", " ".join(["echo"] * (MIN_WORDS + 20)))
+        _note(builder, f"Loop {i}", " ".join(["echo"] * (GEM_WORDS + 20)))
     _background(builder)
 
     assert metadata_driven_discovery.suggest(builder.build()) == []
@@ -145,18 +167,21 @@ def test_complex_isolated_notes_are_reported_and_stubs_are_not(tmp_path: Path) -
 
 
 @pytest.mark.parametrize(("offset", "fires"), [(-1, False), (0, True)])
-def test_complex_isolated_word_count_boundary(tmp_path: Path, offset: int, fires: bool) -> None:
-    """Contract: TTR counts as evidence from exactly MIN_WORDS words upward.
+def test_complex_isolated_root_ttr_boundary(tmp_path: Path, offset: int, fires: bool) -> None:
+    """Contract: root TTR must exceed COMPLEX_ROOT_TTR (strictly).
 
-    Regression: an off-by-one (> instead of >=) or dropping the floor.
+    Regression: an off-by-one (>= instead of >), or reading raw TTR, which is
+    1.0 for both notes and cannot tell them apart.
     """
     builder = VaultBuilder(tmp_path)
     titles = [f"Edge {i}" for i in range(3)]
     for title in titles:
-        _note(builder, title, _diverse_body(title, MIN_WORDS + offset))
+        _note(builder, title, _diverse_body(title, COMPLEX_WORDS + offset))
     _background(builder)
     ctx = builder.build()
-    assert _word_counts(ctx, "Edge") == {MIN_WORDS + offset}
+    assert _word_counts(ctx, "Edge") == {COMPLEX_WORDS + offset}
+    (ttr,) = _root_ttrs(ctx, "Edge")
+    assert (ttr > COMPLEX_TTR) is fires
 
     suggestions = metadata_driven_discovery.suggest(ctx)
 
@@ -187,19 +212,21 @@ def test_buried_gems_need_more_than_ninety_days(tmp_path: Path, age_days: int, f
 
 
 @pytest.mark.parametrize(("offset", "fires"), [(-1, False), (0, True)])
-def test_buried_gems_word_count_boundary(tmp_path: Path, offset: int, fires: bool) -> None:
-    """Contract: an old stub is not a buried gem of "rich language".
+def test_buried_gems_root_ttr_boundary(tmp_path: Path, offset: int, fires: bool) -> None:
+    """Contract: an old note is a "rich language" gem only above BURIED_GEM_ROOT_TTR.
 
     Regression: pre-fix any two old, linked notes of a few distinct words
-    (TTR 1.0) were reported; the MIN_WORDS - 1 case fails on that code.
+    (raw TTR ~1.0) were reported.
     """
     builder = VaultBuilder(tmp_path)
     gems = ["Gem 1", "Gem 2"]
     for title in gems:
-        _note(builder, title, _diverse_body(title, MIN_WORDS + offset, LINKS), age_days=200)
+        _note(builder, title, _diverse_body(title, GEM_WORDS + offset, LINKS), age_days=200)
     _background(builder)
     ctx = builder.build()
-    assert _word_counts(ctx, "Gem") == {MIN_WORDS + offset}
+    assert _word_counts(ctx, "Gem") == {GEM_WORDS + offset}
+    (ttr,) = _root_ttrs(ctx, "Gem")
+    assert (ttr > GEM_TTR) is fires
 
     suggestions = metadata_driven_discovery.suggest(ctx)
 
@@ -267,7 +294,7 @@ def test_geist_journal_notes_never_complete_a_pattern(tmp_path: Path) -> None:
     for i in range(3):
         title = f"Session Log {i}"
         stamp = SESSION_DATE - timedelta(days=1)
-        body = _diverse_body(title, MIN_WORDS + 20)
+        body = _diverse_body(title, GEM_WORDS + 20)
         builder.journal(title, body, created=stamp, modified=stamp)
     _background(builder)
 

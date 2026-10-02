@@ -33,6 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"[[A]]|||[[B]]"`, for use with save actions and `.split_seed` /
   `.split_neighbours`.
 - `VaultContext.journal_notes()`: the explicit accessor for session notes.
+- Built-in metadata keys `root_ttr` (unique words / sqrt(total words), a
+  length-corrected lexical diversity that cannot exceed sqrt(word_count), so
+  stubs no longer look rich; on real prose it still rises with length) and
+  `link_density` (links per word, as in the spec). `lexical_diversity` keeps
+  its raw-TTR meaning for existing plugins. A user metadata module that
+  defines either key still overrides it.
+- `MetadataAnalyser.outliers()` and `distribution()` take an optional `notes`
+  population, and `outliers()` returns the most extreme note first.
 - Test-suite quality gates in `validate.sh` and CI: a geist firing gate
   (`--require-geist-firing`), a suite-hygiene scan, and an acceptance-criteria
   evidence check (see the Tests section).
@@ -60,6 +68,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugin uses pluggy's `wrapper=True` hooks, which pytest 7 cannot provide.
 
 ### Fixed
+- metadata_outlier_detector's link-density branch never fired on a default
+  install because `link_density` was not built-in metadata. It now uses the
+  built-in key over notes of at least 50 words, reports counts ("15 links in
+  78 words: 19.2 per 100 words vs median 0.0"), and names the most extreme
+  outlier rather than the first in vault order.
+- metadata_driven_discovery reads vocabulary richness from `root_ttr` instead
+  of raw TTR plus a 100-word floor.
+- Harvesters (question, quote, todo, definition, claim, hypothesis) deleted
+  inline code before extracting, so "flag (`--timeout`, `--count`) wins" was
+  quoted as "flag (, ) wins". Inline code is now kept, with its punctuation
+  masked during extraction so code still cannot fake a question, TODO or quote.
+- Harvesters no longer double quotation marks around text that is already
+  quoted (`""A garden is never finished.""`).
 - Tracery geists written with YAML block scalars (`- |`) produced nothing:
   the empty-placeholder check treated their trailing newline as an empty
   symbol.

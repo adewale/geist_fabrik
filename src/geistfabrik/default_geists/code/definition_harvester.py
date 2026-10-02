@@ -27,6 +27,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ExtractionPipeline,
         LengthFilter,
         PatternFilter,
+        quote_for_display,
     )
 
     # Pick one random note (deterministic by session seed)
@@ -66,7 +67,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         definition_clean = " ".join(definition.split())
 
         text = (
-            f'From [[{note.link_text}]]: "{definition_clean}" '
+            f"From [[{note.link_text}]]: {quote_for_display(definition_clean)} "
             f"What if you explored this definition further?"
         )
 

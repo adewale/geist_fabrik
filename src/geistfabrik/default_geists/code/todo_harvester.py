@@ -12,6 +12,8 @@ intentions we meant to pursue but forgot about.
 import re
 from typing import TYPE_CHECKING
 
+from geistfabrik.content_extraction import quote_for_display, strip_code, unmask_code
+
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 
@@ -45,7 +47,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Clean up whitespace
         todo_clean = " ".join(todo.split())
 
-        text = f'From [[{note.link_text}]]: "{todo_clean}" What if you tackled this now?'
+        text = (
+            f"From [[{note.link_text}]]: {quote_for_display(todo_clean)} "
+            "What if you tackled this now?"
+        )
 
         suggestions.append(
             Suggestion(
@@ -71,8 +76,7 @@ def extract_todos(content: str) -> list[str]:
         List of TODO strings (formatted as "MARKER: text")
     """
     # Remove code blocks (those TODOs are for code, not notes)
-    content_no_code = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
-    content_no_code = re.sub(r"`[^`]+`", "", content_no_code)
+    content_no_code = strip_code(content)
 
     todos = []
 
@@ -94,7 +98,7 @@ def extract_todos(content: str) -> list[str]:
         if todo_normalized not in seen:
             # Format: "TODO: investigate this"
             formatted = f"{marker.upper()}: {todo_text}"
-            todos.append(formatted)
+            todos.append(unmask_code(formatted))
             seen.add(todo_normalized)
 
     return todos

@@ -24,6 +24,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         ExtractionPipeline,
         HypothesisExtractor,
         LengthFilter,
+        quote_for_display,
     )
 
     notes = vault.notes()
@@ -45,7 +46,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for hypothesis in hypotheses:
         hyp_clean = " ".join(hypothesis.split())
         text = (
-            f'[[{note.link_text}]] speculates: "{hyp_clean}" '
+            f"[[{note.link_text}]] speculates: {quote_for_display(hyp_clean)} "
             f"What is the smallest experiment that would tell you if it holds?"
         )
         suggestions.append(
