@@ -803,6 +803,86 @@ replaced by oracle and property tests of the real functions.
 
 ---
 
+## A Green Suite Tests the Code Against Itself, Not Against Its Claims
+
+**Date:** 2026-10-02
+**Context:** Auditing every bundled geist against what its suggestion text says
+
+**The Problem:** After the test suite was made able to fail, every geist
+fired and every test passed, yet a real-model run on a 77-note vault showed
+suggestion text that was false about the notes it named. "Central to your
+vault" named notes whose only backlink was themselves. "Different domains"
+was any pair with similarity 0.15-0.5 (70% of all pairs). The definition
+harvester's output was 98.6% bold field labels. "Look forward" required a
+future-tense ratio no note in the vault reached. Tests asserted what the code
+computed, so they could not notice that the computation did not measure the
+claim. The commonest causes were shared, not per-geist: links parsed from
+inside code, self-links counted as backlinks, `sample()` returning input
+order, and every Tracery geist sharing one seed.
+
+**The Insight:** Test audits check that tests can fail. They do not check that
+the product's words are true. A geist's output text is a claim, and words like
+"recent", "similar", "central" and "opposite" each need a check in code.
+
+**The Principle:** For every adjective or count in output text, find the line
+that verifies it; if there is none, measure it or delete the word. Audit
+against real data as well as fixtures, and look for the shared cause before
+fixing a symptom in every geist.
+
+**Impact:** Five shared causes were fixed once (parser, link graph, sampling,
+Tracery seeding and dedupe, frontmatter word counts). Over fifty geists had
+overclaiming text removed or a missing check added, each proven by a control
+run. Retire-or-redesign decisions went to the maintainer.
+
+---
+
+## Be Consistent With the Host App, Not Just With Yourself
+
+**Date:** 2026-10-02
+**Context:** Journal links that resolved inside GeistFabrik but not in Obsidian
+
+**The Problem:** `Note.link_text` used a note's H1 or frontmatter title.
+GeistFabrik's link resolver accepts titles as aliases, so every internal
+round trip worked and every test passed. Obsidian resolves `[[...]]` by file
+name or alias only, so for any note whose title differed from its file name,
+each journal link was dead, and clicking it created an empty note.
+
+**The Insight:** A system whose producer and consumer share one definition is
+internally consistent by construction. Tests that check round trips through
+our own resolver cannot find a mismatch with the external application that
+actually reads the output.
+
+**The Principle:** When output is consumed by another program, test it
+against that program's rules (here: link by file name, show the title with
+`[[file|Title]]`), not against our own parser.
+
+**Impact:** `link_text` targets the file name and shows the title when they
+differ; resolution and privacy boundaries accept the alias form.
+
+---
+
+## Hostile-Input Regexes Need an Anchor
+
+**Date:** 2026-10-02
+**Context:** macOS CI timed out on a 50,000-character input
+
+**The Problem:** A new pattern, `\w+(?:/\w+)+` (to drop "I/O" from voice
+analysis), retried from every offset of a long run of letters with no slash,
+which is quadratic. Locally the hostile-input test finished just inside its
+30-second timeout; the slower macOS runner did not.
+
+**The Insight:** A test that passes close to its timeout is not passing.
+Unanchored `\w+` followed by a required separator is a classic quadratic
+pattern.
+
+**The Principle:** Anchor such patterns (`\b`, a lookbehind, or possessive
+quantifiers), and time new regexes on the hostile corpus before pushing.
+
+**Impact:** The pattern is anchored (3 ms on 50k characters), and a
+linear-time test guards it.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_

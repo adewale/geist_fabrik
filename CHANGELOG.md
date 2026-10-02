@@ -155,8 +155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     sampled among outliers.
   - pattern_finder: themes are three-word prose phrases (no code, markdown
     syntax, headings or tables; whole-token stopwords).
-  - question_generator: no ungrammatical "Why is <title>?"; titles quoted;
-    date notes skipped. question_harvester and quote_harvester: no table rows,
+  - question_generator: no ungrammatical "Why is <title>?" and no doubled
+    `?"?`; titles quoted; date notes skipped. what_if: constraint prompts
+    name the note they mean ("What if you had to draw [[X]]?", not "draw it"). question_harvester and quote_harvester: no table rows,
     callouts, nested ">" markers, bold labels or stray "**".
   - scale_shifter: whole-word scale terms; a "broader framework" must be more
     abstract and moderately similar; pairs deduplicated.

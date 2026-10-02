@@ -77,11 +77,13 @@ tracery:
     - "expert"
     - "skeptic"
 
+  # Each constraint names the note it applies to: an "it" with nothing to
+  # refer to ("What if you had to draw it?") left the reader guessing.
   constraint:
-    - "you could only use one note"
-    - "you had to explain it to #audience.a#"
-    - "you had to draw it"
-    - "you #write_verb.ed# it as #format.a#"
+    - "you could keep only one idea from #note#"
+    - "you had to explain #note# to #audience.a#"
+    - "you had to draw #note#"
+    - "you #write_verb.ed# #note# as #format.a#"
 
   audience:
     - "child"

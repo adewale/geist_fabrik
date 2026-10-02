@@ -72,7 +72,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             # link_text, not title: a date-collection entry's title is its
             # heading, which is not a linkable note name on its own.
             text = (
-                f'What if you reframed [[{note.link_text}]] as a question: "{question}"? '
+                f'What if you reframed [[{note.link_text}]] as a question, such as "{question}" '
                 f"Questions invite exploration where statements invite acceptance."
             )
 

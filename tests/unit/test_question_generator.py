@@ -40,7 +40,13 @@ def test_developed_note_is_reframed_as_a_question(tmp_path: Path) -> None:
     assert [s.notes for s in suggestions] == [["Compost"]]
     question = suggestions[0].title
     assert question is not None and question.endswith("?") and "Compost" in question
-    assert f'reframed [[Compost]] as a question: "{question}"' in suggestions[0].text
+    assert suggestions[0].text == (
+        f'What if you reframed [[Compost]] as a question, such as "{question}" '
+        "Questions invite exploration where statements invite acceptance."
+    )
+    # Regression: the template closed the quoted question with a second
+    # "?", printing '..."How does “Compost” work?"? Questions...'.
+    assert '?"?' not in suggestions[0].text
 
 
 @pytest.mark.parametrize(("total_words", "fires"), [(50, False), (51, True)])

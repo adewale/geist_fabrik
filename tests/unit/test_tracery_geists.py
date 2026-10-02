@@ -457,3 +457,20 @@ def test_semantic_clusters_link_virtual_notes_by_deeplink(tmp_path: Path) -> Non
         neighbour_links = _WIKILINK.findall(neighbours)
         assert len(neighbour_links) == 2, result
         assert set(neighbour_links) <= deeplinks - {seed[2:-2]}, result
+
+
+def test_what_if_constraints_name_the_note_they_mean(populated: VaultContext) -> None:
+    """Contract: a constraint prompt says which note it is about.
+
+    Regression: "What if you had to draw it?" and "What if you had to explain
+    it to a child?" named no note, so "it" had nothing to refer to.
+    """
+    constraint_words = ("explain", "draw", "keep only one idea", " as a ")
+    seen = 0
+    for seed in range(40):
+        for suggestion in TraceryGeist.from_yaml(_yaml("what_if"), seed=seed).suggest(populated):
+            if any(word in suggestion.text for word in constraint_words):
+                seen += 1
+                assert suggestion.notes, suggestion.text
+                assert " it to " not in suggestion.text and "draw it" not in suggestion.text
+    assert seen >= 5
