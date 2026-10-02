@@ -598,3 +598,43 @@ def test_label_keybert_reencodes_only_changed_label_texts(mock_db) -> None:
     changed = _label_text("Neural Networks", "Gradient clipping and learning rates")
     assert [text for text in computer.encoded if text in note_texts | {changed}] == [changed]
     assert warm == label_keybert(paths, labels, mock_db, computer=_RecordingComputer())
+
+
+def test_label_keybert_takes_centroids_from_given_meaning_vectors() -> None:
+    """Contract: with the session's meaning vectors, only candidate phrases
+    are encoded; note label texts are not re-encoded.
+
+    Regression: every clustered note's title and opening were re-encoded with
+    the model each session, which dominated clustering time with the real
+    model (~50 s at 4,000 notes).
+    """
+    from geistfabrik.cluster_labeling import label_keybert
+    from geistfabrik.schema import init_db
+
+    db = init_db()
+    texts = {
+        f"n{i}.md": ("compost soil worms garden" if i < 3 else "violin bow concerto")
+        for i in range(6)
+    }
+    for path, body in texts.items():
+        db.execute(
+            "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+            "VALUES (?, ?, ?, '2024-01-01', '2024-01-01', 0)",
+            (path, path, body),
+        )
+    encoded: list[list[str]] = []
+
+    class Recorder:
+        def compute_batch_semantic(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
+            encoded.append(list(texts))
+            return np.ones((len(texts), 3), dtype=np.float32)
+
+    vectors = {path: np.ones(3, dtype=np.float32) for path in texts}
+    labels = label_keybert(
+        list(texts), np.array([0, 0, 0, 1, 1, 1]), db, computer=Recorder(), note_vectors=vectors
+    )
+
+    assert set(labels) == {0, 1}
+    note_texts = {path for path in texts}
+    assert encoded and all(not any(p in t for p in note_texts for t in batch) for batch in encoded)
+    assert all(len(batch) <= 16 for batch in encoded)  # candidate phrases only

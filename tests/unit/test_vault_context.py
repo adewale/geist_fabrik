@@ -1225,7 +1225,8 @@ def test_get_clusters_labels_with_the_session_embedding_computer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Regression: KeyBERT labelling constructed a fresh EmbeddingComputer
-    (reloading the model) every session; it now gets the session's."""
+    (reloading the model) every session and re-encoded every clustered note's
+    label text; it now gets the session's computer and meaning vectors."""
     import geistfabrik.cluster_labeling as cluster_labeling
 
     builder = VaultBuilder(tmp_path)
@@ -1236,8 +1237,11 @@ def test_get_clusters_labels_with_the_session_embedding_computer(
     assert ctx.vault.config.clustering.labeling_method == "keybert"
     seen: list[object] = []
 
-    def spy(paths, labels, db, n_terms=4, computer=None):  # type: ignore[no-untyped-def]
+    vectors: list[object] = []
+
+    def spy(paths, labels, db, n_terms=4, computer=None, note_vectors=None):  # type: ignore[no-untyped-def]
         seen.append(computer)
+        vectors.append(note_vectors)
         return {}
 
     monkeypatch.setattr(cluster_labeling, "label_keybert", spy)
@@ -1245,3 +1249,4 @@ def test_get_clusters_labels_with_the_session_embedding_computer(
     ctx.get_clusters()
 
     assert seen == [ctx.session.computer]
+    assert vectors == [ctx.get_all_embeddings()]

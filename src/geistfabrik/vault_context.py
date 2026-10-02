@@ -1245,6 +1245,7 @@ class VaultContext:
                 self.db,
                 n_terms=n_terms,
                 computer=getattr(self.session, "computer", None),
+                note_vectors=self._user_embeddings,
             )
         else:  # Default to tfidf
             cluster_labels_raw = cluster_labeling.label_tfidf(

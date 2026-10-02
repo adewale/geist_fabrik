@@ -160,7 +160,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     8x faster than the kd-tree in 384 dimensions; distance ties can reassign
     up to ~0.1% of notes to a different cluster, a one-time change). Cluster
     labelling reuses the session's embedding model and caches label-text
-    embeddings in-process. Clusters are computed once per session before
+    embeddings in-process; KeyBERT cluster centroids now come from the
+    session's whole-note meaning vectors instead of re-encoding truncated
+    note text, so labels may shift slightly (cluster_mirror on 4,000 notes
+    with the real model: 53 s to 2 s). Clusters are computed once per session before
     cluster geists run, under their own 120 s budget, so a large vault no
     longer makes cluster_mirror time out every session.
 - Journal links to a note whose title (H1 or frontmatter `title`) differs

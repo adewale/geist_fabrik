@@ -13,6 +13,7 @@ import logging
 import re
 import sqlite3
 import weakref
+from collections.abc import Mapping
 from datetime import date
 from typing import Protocol
 
@@ -410,6 +411,7 @@ def label_keybert(
     db: sqlite3.Connection,
     n_terms: int = 4,
     computer: TextEncoder | None = None,
+    note_vectors: Mapping[str, np.ndarray] | None = None,
 ) -> dict[int, str]:
     """Generate cluster labels using KeyBERT approach with semantic embeddings.
 
@@ -426,6 +428,10 @@ def label_keybert(
         computer: Embedding computer to reuse (the session's, whose model is
             usually loaded already). None creates one, loading the model.
             Label-text embeddings are cached per computer by content hash.
+        note_vectors: The session's meaning vectors by note path. When given,
+            each cluster's centroid is the mean of its notes' vectors, so only
+            the candidate phrases are encoded (re-encoding every clustered
+            note's label text dominated clustering time with the real model).
 
     Returns:
         Dictionary mapping cluster_id to label string (comma-separated keywords)
@@ -436,11 +442,14 @@ def label_keybert(
 
     # Load note titles/content for each cluster
     clusters: dict[int, list[str]] = {}
+    member_paths: dict[int, list[str]] = {}
     for i, label in enumerate(labels):
         if label == -1:
             continue
         if label not in clusters:
             clusters[label] = []
+            member_paths[label] = []
+        member_paths[label].append(paths[i])
 
         # Get note title and content
         path = paths[i]
@@ -475,6 +484,14 @@ def label_keybert(
     # Get cluster embeddings to compute centroids
     cluster_embeddings: dict[int, list[np.ndarray]] = {}
     for cluster_id, texts in clusters.items():
+        known = (
+            [note_vectors[path] for path in member_paths[cluster_id] if path in note_vectors]
+            if note_vectors is not None
+            else []
+        )
+        if known:
+            cluster_embeddings[cluster_id] = known
+            continue
         try:
             # Embed all texts in this cluster (cached ones are not re-encoded)
             cluster_embeddings[cluster_id] = _embed_label_texts(computer, texts, text_cache)
