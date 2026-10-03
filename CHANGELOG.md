@@ -164,6 +164,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `benchmarks/perf_before_after.py` cover before/after measurement.
 
 ### Fixed
+- A block-reference link written with a space before an empty heading marker
+  (`[[Note #^id]]`) no longer yields the target `"Note "` with a trailing space;
+  re-parsing a rendered link now returns the same link.
 - vocabulary_expansion and voice_absence never reached a journal: their
   suggestions named no note, and the quality filter drops those. They now
   name notes: vocabulary_expansion two of the notes nearest the centre (when
@@ -437,6 +440,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   definitions as "X is Y".
 
 ### Tests
+- Real-model, slow and benchmark tests run weekly in `scheduled-tiers.yml`.
+  Its first local run caught `test_real_session_embeddings`, which no CI job
+  ran and which still expected 387-dimension vectors from the backend.
+- Workflows are linted with pinned actionlint, and the release path is checked
+  by a dry run of the workflow's own steps instead of literal-line assertions.
+- The acceptance verifier fails if the MANUAL criteria count rises (ratchet).
 - Acceptance criteria AC-5.3 (write session note), AC-5.6 (multi-day
   sessions), AC-6.6 (Tracery integration with a vault), AC-7.5 (temporal
   geists) and AC-11.3 (E2E) all ran `tests/integration/test_scenarios.py`,

@@ -1,0 +1,124 @@
+name: Scheduled tiers
+
+# The push/PR workflow (test.yml) deselects three tiers to stay fast and
+# deterministic: the real bundled model (production_model), slow tests and
+# performance benchmarks. Before this workflow they ran nowhere: benchmarks
+# left CI on 2025-11-06 (affce86) and issue #78's timeout cliff was found by a
+# hand-run benchmark. This runs them weekly and on demand.
+#
+# It is schedule/dispatch only, so a red run never blocks a PR; each job still
+# fails on a failing test, so the weekly result is visible in the Actions tab.
+
+on:
+  schedule:
+    - cron: "23 5 * * 1" # Mondays 05:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UV_PYTHON: "3.11"
+  GEISTFABRIK_OFFLINE: "1"
+  OMP_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  NUMEXPR_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  VECLIB_MAXIMUM_THREADS: "1"
+  TOKENIZERS_PARALLELISM: "false"
+
+jobs:
+  production-model:
+    name: Real-model tests (production_model)
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+
+      # Without the weights these tests fail (offline mode refuses to download),
+      # but fail fast with a clear reason instead.
+      - name: Require materialized Git LFS model
+        run: |
+          git lfs pull
+          test "$(wc -c < models/all-MiniLM-L6-v2/model.safetensors)" -gt 1000
+          ! head -c 64 models/all-MiniLM-L6-v2/model.safetensors | grep -q 'git-lfs.github.com'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.UV_PYTHON }}
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra vector-search
+
+      # Selecting any production_model item makes tests/conftest.py leave the
+      # whole session on the real SentenceTransformer (no stub).
+      - name: Run real-model tests
+        run: >-
+          uv run pytest tests -v -m "production_model"
+          --timeout=300 --durations=0
+          --junitxml=reports/production-model.xml
+
+      - name: Summarise results
+        if: always()
+        run: >-
+          uv run python scripts/junit_summary.py reports/production-model.xml
+          --title "Real-model tests" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-model-results
+          path: reports/
+          retention-days: 90
+
+  slow-and-benchmarks:
+    name: Slow and benchmark tests (stubbed model)
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.UV_PYTHON }}
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra vector-search
+
+      # Benchmarks assert on timings, so a shared runner can make them red;
+      # that is the weekly trend signal, not a merge gate. The junit reports
+      # (kept 90 days) carry per-test durations for comparison across runs.
+      - name: Run slow and benchmark tests
+        run: >-
+          uv run pytest tests -v -m "(slow or benchmark) and not production_model"
+          --timeout=300 --durations=0
+          --junitxml=reports/slow-and-benchmarks.xml
+
+      - name: Summarise results
+        if: always()
+        run: >-
+          uv run python scripts/junit_summary.py reports/slow-and-benchmarks.xml
+          --title "Slow and benchmark tests" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: slow-and-benchmark-results
+          path: reports/
+          retention-days: 90

@@ -41,6 +41,9 @@ This version is **verify, never trust**:
 * Only commands of the exact form ``uv run pytest <targets> [-v|-q|-s]`` share
   the one batched run. Any other option (``-k``, ``-m``, ``--deselect``, …)
   would be silently dropped by the batch, so such a command runs on its own.
+* The MANUAL count is a ratchet (``MANUAL_CEILING``): it may only go down.
+  MANUAL rows are never run, so rewording a failing command as prose must not
+  be a way to turn the gate green.
 
 Usage:
     python scripts/check_phase_completion.py            # gate (CI/validate.sh)
@@ -64,6 +67,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 AC_FILE = REPO_ROOT / "specs" / "acceptance_criteria.md"
+
+# Ratchet for MANUAL (never-run) criteria: 84 of 231 on 2026-09-26, up from 83
+# on 2026-06-12. The gate fails if the count rises above this, and also if it
+# falls below it until this number is lowered to match, so it only goes down.
+MANUAL_CEILING = 83
 
 # Per-command wall-clock budget. The batched pytest run is the slow case; it
 # completes in seconds with the stub, so this is generous headroom.
@@ -338,6 +346,22 @@ def parse_criteria(text: str) -> tuple[list[Criterion], list[str]]:
 _run_cache: dict[str, tuple[bool, str]] = {}
 
 
+def manual_ratchet_errors(manual_count: int, ceiling: int = MANUAL_CEILING) -> list[str]:
+    """Violations of the MANUAL-count ratchet (empty when the count equals the ceiling)."""
+    if manual_count > ceiling:
+        return [
+            f"MANUAL criteria rose to {manual_count} (ceiling {ceiling}): give the "
+            "criterion a backtick-wrapped command instead of prose"
+        ]
+    if manual_count < ceiling:
+        return [
+            f"MANUAL criteria fell to {manual_count}: lower MANUAL_CEILING in "
+            f"scripts/check_phase_completion.py from {ceiling} to {manual_count} "
+            "so the count cannot rise again"
+        ]
+    return []
+
+
 def run_command(cmd: str) -> tuple[bool, str]:
     """Run a verification command; return (passed, short_detail).
 
@@ -404,6 +428,7 @@ def main() -> int:
 
     auto = [c for c in criteria if c.is_auto]
     manual = [c for c in criteria if not c.is_auto]
+    ratchet = manual_ratchet_errors(len(manual))
 
     print("GeistFabrik Acceptance-Criteria Verifier")
     print("=" * 80)
@@ -412,6 +437,8 @@ def main() -> int:
         print(f"{len(errors)} PARSE ERROR(S) — these fail the gate:")
         for err in errors:
             print(f"  ✗ {err}")
+    for err in ratchet:
+        print(f"  ✗ {err}")
     print()
 
     if args.list:
@@ -421,7 +448,7 @@ def main() -> int:
             else:
                 kind = f"MANUAL  ({c.manual_reason})"
             print(f"  {c.ac_id:<10} {kind}")
-        return 0 if not errors else 1
+        return 0 if not errors and not ratchet else 1
 
     failures: list[tuple[Criterion, str]] = []
 
@@ -521,7 +548,7 @@ def main() -> int:
         f"PARSE ERRORS: {len(errors)}   EVIDENCE PROBLEMS: {len(evidence)}"
     )
 
-    if failures or errors or evidence:
+    if failures or errors or evidence or ratchet:
         print()
         if failures:
             print(f"✗ {len(failures)} AUTO criteria FAILED:")
@@ -533,12 +560,14 @@ def main() -> int:
             print(f"✗ {len(evidence)} partial or empty evidence problem(s):")
             for c, problem in evidence:
                 print(f"    {c.ac_id}: {problem}")
+        for err in ratchet:
+            print(f"✗ {err}")
         print()
-        print("Gate FAILED. Fix the criterion or its verification command, or — if the")
-        print("criterion is genuinely not machine-verifiable — reword its Verification")
-        print("cell as prose (it will be reported as MANUAL). For partial evidence, name")
-        print("the node IDs that carry the criterion (a {a,b} brace list is fine). For an")
-        print("all-skipped target, make its test run in CI or name a test that does.")
+        print("Gate FAILED. Fix the criterion or its verification command. Rewording a")
+        print("Verification cell as prose makes it MANUAL, which the MANUAL_CEILING")
+        print("ratchet rejects. For partial evidence, name the node IDs that carry the")
+        print("criterion (a {a,b} brace list is fine). For an all-skipped target, make")
+        print("its test run in CI or name a test that does.")
         return 1
 
     print(f"✓ All {len(auto)} AUTO criteria pass. {len(manual)} criteria are MANUAL.")

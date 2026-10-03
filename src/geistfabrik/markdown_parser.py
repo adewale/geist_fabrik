@@ -15,6 +15,9 @@ from .models import Link
 # Handles: [[link]], [[link|text]], ![[embed]], [[note#heading]], [[note^block]]
 WIKILINK_PATTERN = re.compile(r"(!?)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 
+# Trailing empty heading markers and whitespace before a block reference.
+BLOCK_REF_TARGET_TAIL = re.compile(r"[#\s]+\Z")
+
 # Pattern for inline tags: #tag, including nested tags like #parent/child.
 # As in Obsidian, the # must start the text or follow whitespace, so URL
 # fragments (page#section), markdown anchors ([toc](#section)) and "C#" are
@@ -210,8 +213,11 @@ def extract_links(content: str) -> list[Link]:
         # Preserve heading anchors: a journal heading identifies a distinct
         # virtual note. Resolution (with the source context) owns stripping a
         # regular note's section anchor, not this lossless parsing step.
+        # For a block reference, drop an empty heading marker ("Note#^id") and
+        # any whitespace around it ("Note #^id"), so the target is canonical
+        # and re-parsing a rendered link yields the same link.
         if block_ref is not None:
-            target = target.rstrip("#")
+            target = BLOCK_REF_TARGET_TAIL.sub("", target)
 
         # Skip empty targets
         if not target:

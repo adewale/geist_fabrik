@@ -150,11 +150,8 @@ def test_hub_explorer_tracery_geist(vault_context: VaultContext):
         for h in vault_context.hubs(5)
         if len(vault_context.backlinks(h)) >= 3 and vault_context.metadata(h)["word_count"] >= 100
     }
-    assert len(suggestions) == min(2, len(central))
-    assert all(len(s.notes) == 1 and s.notes[0] != "Obsidian" for s in suggestions)
-    for suggestion in suggestions:
-        assert suggestion.geist_id == "hub_explorer"
-        assert len(suggestion.notes) == 1 and suggestion.notes[0] in central
+    assert central == set()
+    assert suggestions == []
 
 
 # ============================================================================
@@ -206,10 +203,9 @@ def test_geist_determinism(vault_context: VaultContext):
     suggestions1 = geist1.suggest(vault_context)
     suggestions2 = geist2.suggest(vault_context)
 
-    # Same seed should produce same suggestions
-    assert len(suggestions1) == len(suggestions2)
-    for s1, s2 in zip(suggestions1, suggestions2):
-        assert s1.text == s2.text
+    # Same seed should produce same suggestions (and some, or this is vacuous)
+    assert suggestions1
+    assert [s.text for s in suggestions1] == [s.text for s in suggestions2]
 
 
 # ============================================================================
