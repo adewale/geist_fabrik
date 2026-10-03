@@ -32,6 +32,9 @@ def _computer(kind: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Emb
         return EmbeddingComputer(model=stub)
     monkeypatch.setenv("GEISTFABRIK_OFFLINE", "1")
     computer = EmbeddingComputer()
+    # CPU, so batch/single agreement and determinism are exact. On MPS or CUDA
+    # padding and kernels can differ in the last bits.
+    computer.device = "cpu"
     # Guard against a vacuous pass: the autouse fixture must have left this
     # session on the real constructor.
     assert embeddings.SentenceTransformer is not SentenceTransformerStub
@@ -41,7 +44,13 @@ def _computer(kind: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Emb
 
 @pytest.mark.parametrize(
     "kind",
-    ["stub", pytest.param("real", marks=[pytest.mark.production_model, pytest.mark.slow])],
+    [
+        "stub",
+        pytest.param(
+            "real",
+            marks=[pytest.mark.production_model, pytest.mark.slow, pytest.mark.timeout(60)],
+        ),
+    ],
 )
 def test_encode_contract_matches_the_real_model(
     kind: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
