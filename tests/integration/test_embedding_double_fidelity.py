@@ -68,8 +68,10 @@ def test_encode_contract_matches_the_real_model(
     # Deterministic: the same text always gets the same vector.
     np.testing.assert_array_equal(computer.compute_semantic(BREAD), single)
 
-    # Known answer: two notes about sourdough are closer than either is to a
-    # note about orbits. Fixtures throughout the suite build on this.
+    # Known answer: two notes about sourdough are similar and a note about
+    # orbits is not. Fixtures throughout the suite build on this. (Real model:
+    # 0.72 and 0.09; stub: 0.50 and 0.00. A relative margin alone passed when
+    # the stub ignored words and fell back to hashing the whole text.)
     same_topic = float(batch[0] @ batch[1])
     unrelated = float(batch[0] @ batch[2])
-    assert same_topic > unrelated + 0.1, (same_topic, unrelated)
+    assert same_topic > 0.4 > unrelated, (same_topic, unrelated)
