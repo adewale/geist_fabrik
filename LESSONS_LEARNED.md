@@ -894,6 +894,30 @@ eventually draw the bad one.
 
 ---
 
+## A Test Double Needs One Test Against What It Replaces
+
+**Date:** 2026-10-03
+**Context:** Every fast test embeds text with the bag-of-words
+`SentenceTransformerStub`, and fixtures are designed around its behaviour
+("notes that share words are similar"). Nothing compared it with the bundled
+model it stands in for.
+
+**The Insight:** A double's behaviour is an unchecked claim about the real
+system. Planting drift in the stub showed the fast suite missed it: a stub
+that stopped normalising, or a `compute_semantic` that returned float64,
+passed every existing fast test. A topic-ordering check written as a relative
+margin also passed when the stub degraded to hashing whole texts; an absolute
+bound with headroom on both sides caught it.
+
+**The Principle:** Write the double's contract once as a test parametrised over
+the double and the real runtime, and run the real case on a schedule.
+
+**Impact:** `tests/integration/test_embedding_double_fidelity.py` checks the
+stub in the fast lane and the real model in the weekly `production_model`
+tier, through `EmbeddingComputer`'s two production paths.
+
+---
+
 ## Future Lessons
 
 _(Add new insights here as they emerge)_
