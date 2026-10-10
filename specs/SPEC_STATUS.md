@@ -67,6 +67,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 
 | item | spec | status |
 |---|---|---|
+| Shared topic evidence index and experimental `forming_connection` | [TOPIC_EVIDENCE_SPEC.md](TOPIC_EVIDENCE_SPEC.md) | NOT-BUILT — proposal; implementation and evaluation pending; later mechanisms are candidates, not bundled-geist commitments |
 | `geist_status` failure-persistence table | geistfabrik_spec.md (Database Schema; `increment_failure_count`) | BUILT (schema v8) |
 | `session_embeddings.cluster_label` | (cluster_evolution_tracker, retired 2026-10) | BUILT (schema v7); API kept for comparing cluster membership across sessions |
 | GraphPatternFinder showcase geists (structural holes / path length / bridges) | reuse_abstractions_spec.md:1120 | BUILT (examples/geists/code/) |
