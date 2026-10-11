@@ -6,6 +6,21 @@ a substitute for the implementation, raw benchmark artifacts, or test logs.
 The results below were reported from earlier executions and have not been
 rechecked during this recovery step.
 
+## Recovery progress, 2026-10-10
+
+The full original 44,948-character research/specification was recovered from
+the saved Page and committed as
+[WORD_BURST_ORIGINAL_SPEC.md](WORD_BURST_ORIGINAL_SPEC.md), commit
+185d9392b49540ae19ec3449317c9070d9525c42. A read-back confirmed exact equality
+with the uploaded archive (including its clearly separated recovery notice).
+This preserves the original proposal and literature, not the later local
+implementation specification.
+
+Execution remains disconnected. No implementation source, raw production
+benchmark JSON, test logs or synthetic corpus have been recovered remotely
+during this step. Their survival on the workspace has not been inspected.
+Do not reconstruct those artifacts from prose and call them recovered files.
+
 ## User-authorized work
 
 - Research and specify a Kleinberg word-burst geist for GeistFabrik: historical
