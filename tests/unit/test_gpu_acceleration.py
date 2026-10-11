@@ -35,16 +35,13 @@ class TestDeviceDetection:
             assert device == "mps"
 
     def test_detect_device_cpu_fallback_no_torch(self):
-        """Test CPU fallback when torch.cuda.is_available raises ImportError."""
-        # Can't easily test torch module not being available since it's already imported
-        # But we can test the fallback path when GPU checks fail
+        """Without an importable torch, detection falls back to CPU."""
         computer = EmbeddingComputer()
 
-        # Mock both cuda and mps to be unavailable to force CPU fallback
-        with patch("torch.cuda.is_available", return_value=False):
-            with patch("torch.backends.mps.is_available", return_value=False):
-                device = computer._detect_device()
-                assert device == "cpu"
+        # A None entry in sys.modules makes `import torch` raise ImportError,
+        # even though torch is already imported in this process.
+        with patch.dict("sys.modules", {"torch": None}):
+            assert computer._detect_device() == "cpu"
 
     def test_detect_device_cpu_fallback_no_gpu(self):
         """Test CPU fallback when no GPU available."""

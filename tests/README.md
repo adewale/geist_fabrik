@@ -59,7 +59,9 @@ inference from the bundled model. The authoritative pre-push command
 
 - `tests/conftest.py`: shared fixtures, marker-driven external constructor stub,
   and registration of the `tests/plugins/` gate options
-- `tests/stubs.py`: deterministic `SentenceTransformerStub`
+- `tests/stubs.py`: deterministic `SentenceTransformerStub`; if you change it,
+  `tests/integration/test_embedding_double_fidelity.py` checks it still keeps the
+  real model's encode contract (its real-model case runs with `-m production_model`)
 - `tests/fixtures/helpers.py`: `VaultBuilder`, `assert_valid_suggestions`, `SESSION_DATE`, `SEED`
 - `tests/fixtures/virtual_notes.py`: `create_journal_file` for date-collection journals
 - `tests/fixtures/temporal.py`: `set_session_text`, `set_history`, `drop_from_session` for controlled session histories
