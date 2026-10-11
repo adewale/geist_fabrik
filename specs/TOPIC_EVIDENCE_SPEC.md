@@ -1,51 +1,41 @@
-# GeistFabrik topic evidence specification
+# Automatic topics for GeistFabrik
 
 **Status**: Proposed; NOT-BUILT. Implementation and evaluation are pending.
 
-Add shared local analysis of phrases, their source passages, relationships, and dated coverage. Use it to generate specific questions that open possibilities, following the [GeistFabrik vision](geistfabrik_vision.md).
+Automatically extract useful topics from notes and assign derived topic tags, following the [GeistFabrik vision](geistfabrik_vision.md). The first deliverable is a usable local topic index. Existing and future geists can consume it; new geists are not required to establish its value.
 
-Implement and evaluate `forming_connection` first. Undercurrents, framing shifts, and question-backed subject trails are follow-on candidates; reuse existing geists where their purposes overlap.
+## First delivery
+
+1. **Extract topics automatically.** Process eligible note prose and dated entries during normal vault sync/invocation. Use local YAKE-family extraction to propose labels, then reject malformed phrases, markup artifacts, and boilerplate. Calibrate for personal notes, including short notes.
+
+2. **Assign derived tags.** Maintain a conservative canonical topic vocabulary and note-to-topic memberships in the existing SQLite database. Preserve display wording, matched source text, location, and extraction provenance. A useful topic may belong to just one note. Keep inferred topic tags distinct from author-written tags.
+
+3. **Make the index usable.** Expose a note’s topics and a topic’s source notes through `VaultContext`, with suitable registered functions for Tracery. Provide a CLI inspection view with source links so users can inspect labels and find notes by topic without installing a new interface.
+
+4. **Keep it current.** Incrementally update memberships after edits and deletions. Version extraction by source content, parser, extractor, and configuration; make the index rebuildable. Mark incomplete extraction explicitly rather than treating it as absence.
 
 ## Guiding principles and mandatory constraints
 
-- **Muses, not oracles.** State a supported observation, then ask an open question. Topic overlap cannot establish an argument, contradiction, belief change, emotion, or intention. Preserve the lesson from the [retired opposition geists](research/OPPOSITION_GEISTS_RESEARCH.md).
+- **Borrow the capability, calibrate the policy.** Adopt Flux Search and Bobbin’s automatic extraction, topic identities, and source memberships. Do not transplant newsletter segmentation, domain-specific stopwords, public-topic promotion thresholds, aggressive merging, cloud queues, or editorial ranking. Singleton topics must remain possible in personal vaults.
 
-- **Sample, don’t rank.** Scores may qualify evidence; deterministically sample qualifying candidates. Preserve bounded, filtered output, preview by default, and journal writes through the existing `--write` flow. Statistical unusualness is not importance.
+- **Preserve source notes.** Topic tags are derived local metadata. Do not rewrite Markdown, frontmatter, or authored tags. Use the existing portable database and additive, versioned migrations.
 
-- **Local, deliberate, additive.** Run during existing invocation. Keep derived data rebuildable in the existing portable SQLite database, with additive, versioned migrations. Preserve source notes. Introduce no cloud dependency, external LLM requirement, continuous monitoring, or topic dashboard.
+- **Local and deliberate.** Introduce no network or external LLM requirement, background monitoring, or topic dashboard. Keep routine use automatic and configuration light.
 
-- **Shared intelligence, small geists.** Put reusable extraction and queries behind `VaultContext`, with registry access for Tracery. Geists must not query storage directly or rebuild the corpus separately.
+- **Shared intelligence.** Extraction and topic queries belong behind `VaultContext`; geists must not query storage directly or repeat corpus processing.
 
-- **Evidence must remain inspectable.** Preserve matched wording, exact excerpts, source locations, conservative topic identities, and independent support. `forming_connection` requires same-passage co-occurrence across at least two distinct notes or dated entries; repetition inside one note is insufficient.
+- **Respect boundaries.** Exclude the geist journal and configured excluded paths before extraction and aggregation. Keep atomic notes and dated entries independently addressable.
 
-- **Chronology must be earned.** Record date provenance and bound comparisons by the session date. Dated entries support comparisons across writing. Changes within mutable notes require retained textual observations; creation dates, modification times, and embeddings cannot reconstruct earlier wording.
+- **Score labels; sample provocations.** Extractor scores may select useful topic labels. Geist suggestions must retain deterministic sampling, bounded filtered output, preview by default, and the existing `--write` flow.
 
-- **Respect boundaries before analysis.** Exclude the geist journal and configured excluded paths before extraction, candidate selection, and aggregate calculations.
-
-- **Borrow selectively.** From Flux Search and Bobbin, borrow source membership, co-occurrence, contextual vocabulary, and corpus comparisons. Do not copy newsletter segmentation assumptions, editorial topic-promotion thresholds, aggressive topic merging, or popularity-based selection. Each geist owns its evidence requirements.
-
-## Functional requirements
-
-- **Forming connections:** identify supported recent pairings with little historical overlap and ask what the connection could become.
-
-- **Undercurrents:** compare supported topic coverage against an explicit, size-normalized baseline.
-
-- **Framing shifts:** compare grounded contexts across sufficiently supported, reliably dated groups.
-
-- **Subject trails:** connect related sources across time; quote an actual earlier question rather than declaring an inquiry unfinished.
-
-Version derived data by source content, parser, extractor, and configuration. Handle edits and deletions. Incomplete indexing or omitted extraction candidates must never establish absence. Abstain when evidence is insufficient.
+- **Muses, not oracles.** Topic membership describes observed text; it does not establish stance, contradiction, emotion, or intention. Preserve the lesson from the [retired opposition geists](research/OPPOSITION_GEISTS_RESEARCH.md). Any later temporal feature must use reliable dates and observed text, not reconstruct history from timestamps or vectors.
 
 ## Verification and delivery gates
 
-1. **Controlled fixtures:** demonstrate each enabled mechanism with exact expected support, baseline, source passages, and bounded output.
+1. **Topic quality:** use a frozen, manually labelled sample of representative notes. Report precision and recall at the chosen label limit against a simple extraction baseline. Inspect missed topics and noisy labels, including short notes, rare topics, phrase variants, boilerplate, and Markdown artifacts. Set acceptance thresholds before tuning.
 
-2. **Negative fixtures:** cover unrelated passages in one note, repeated boilerplate, overlapping labels, sparse support, excluded sources, uncertain dates, future evidence, and incomplete indexing. Require abstention or appropriately narrowed observations.
+2. **Correctness:** known-answer fixtures must verify topic memberships, conservative normalization, source evidence, exclusions, and empty/incomplete results. Identical inputs must reproduce labels; incremental updates must match a clean rebuild after edits, deletions, and extractor changes.
 
-3. **Reproducibility and maintenance:** identical inputs reproduce evidence and suggestions; incremental updates match a clean rebuild after edits, deletions, and extractor changes.
+3. **Operation:** run `./scripts/validate.sh`, verify offline packaged extraction, confirm source files remain unchanged, and measure cold/warm indexing cost and topic-query latency on representative vault sizes.
 
-4. **Operational checks:** run canonical repository validation, verify offline packaged operation, confirm source files remain unchanged, and measure cold/warm invocation cost on representative vault sizes.
-
-5. **Utility gate:** compare repeated sessions against existing geists or a simple random-pair baseline on frozen, representative vaults. Record evidence accuracy, surprise, specificity, repetition, and whether questions opened useful possibilities—including empty sessions.
-
-Keep new geists experimental and opt-in until correctness, performance, and utility evidence justify broader inclusion.
+Ship the topic index only after these gates pass. Evaluate additional generative uses separately, reusing existing geists where their purposes overlap.
