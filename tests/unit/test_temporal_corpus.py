@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -134,3 +135,19 @@ def test_runner_retains_completed_evidence_on_pipeline_failure(tmp_path):
     assert report["errors"][-1]["index"] == 1
     assert report["errors"][-1]["stage"] == "apply_snapshot"
     assert "corrupt corpus object" in report["errors"][-1]["error"]
+
+
+def test_semantic_replay_context_uses_completed_embedding_snapshot(tmp_path, monkeypatch):
+    """Fast lane stubs only inference; real session/backend/executor lifecycles run."""
+    script = Path(__file__).resolve().parents[2] / "scripts/benchmark_temporal_geists.py"
+    monkeypatch.syspath_prepend(str(script.parent))
+    runner = runpy.run_path(str(script), run_name="temporal_benchmark_under_test")
+    corpus = tmp_path / "corpus"
+    generate_corpus(corpus, notes=64, snapshots=2)
+    report = runner["replay"](corpus, tmp_path / "vault", real_embeddings=True)
+    assert len(report["snapshots"]) == 2
+    assert report["errors"] == []
+    assert report["stable_meaning_changes"] == []
+    for snapshot in report["snapshots"]:
+        assert len(snapshot["geists"]) == 8
+        assert all(result["status"] == "success" for result in snapshot["geists"].values())

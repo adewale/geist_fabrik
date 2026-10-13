@@ -122,6 +122,11 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                 row["lexical"] = {}
                 row["geists"] = {}
                 with Session(observed.replace(tzinfo=None), vault.db, computer=computer) as session:
+                    if computer is not None:
+                        stage = "embeddings"
+                        started = time.perf_counter()
+                        session.compute_embeddings(vault.all_notes())
+                        row["embedding_seconds"] = time.perf_counter() - started
                     context = VaultContext(vault, session)
                     for mode in ("dated_cohorts", "observed_additions"):
                         stage = "analysis:" + mode
@@ -143,10 +148,6 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                     vault.config.word_burst.history_mode = "dated_cohorts"
                     row["geists"]["word_burst"] = row["lexical"]["dated_cohorts"]["executor"]
                     if computer is not None:
-                        stage = "embeddings"
-                        started = time.perf_counter()
-                        session.compute_embeddings(vault.all_notes())
-                        row["embedding_seconds"] = time.perf_counter() - started
                         stage = "stable_vectors"
                         for path in manifest["stable_paths"]:
                             blob = vault.db.execute(
