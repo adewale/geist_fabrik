@@ -198,8 +198,7 @@ class LexicalIndex:
         now = self.observed_at.astimezone(UTC).isoformat()
         self.db.execute(
             "INSERT INTO lexical_meta SELECT 'last_sync_at', ? WHERE NOT EXISTS "
-            "(SELECT fingerprint FROM _lexical_changed_sources EXCEPT "
-            "SELECT source_fingerprint FROM notes) ON CONFLICT(key) "
+            "(SELECT 1 FROM _lexical_unconfirmed_sources) ON CONFLICT(key) "
             "DO UPDATE SET value = max(value, excluded.value)",
             (now,),
         )

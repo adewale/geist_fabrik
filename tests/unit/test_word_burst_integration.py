@@ -146,6 +146,33 @@ def test_skipped_source_does_not_tighten_observation_bound(tmp_path, monkeypatch
         assert previous.startswith("2026-01-05") and observed.startswith("2026-01-07")
 
 
+def test_hardlinked_skipped_journal_cannot_borrow_another_sources_confirmation(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "A.md"
+    source.write_text("## 2026-01-05\nsoil\n## 2026-01-12\nhabitat", encoding="utf-8")
+    (tmp_path / "B.md").hardlink_to(source)
+    config = GeistFabrikConfig()
+    config.date_collection.exclude_files = ["A.md"]
+    with closing(Vault(tmp_path, config=config)) as vault:
+        freeze(monkeypatch, 5)
+        vault.sync()
+        first = vault.db.execute(
+            "SELECT value FROM lexical_meta WHERE key='last_sync_at'"
+        ).fetchone()
+        source.write_text("## 2026-01-05\nnovel\n" * 10001, encoding="utf-8")
+        freeze(monkeypatch, 6)
+        vault.sync()
+        assert (
+            vault.db.execute("SELECT value FROM lexical_meta WHERE key='last_sync_at'").fetchone()
+            == first
+        )
+        ordinary = vault.get_note("A.md")
+        skipped = vault.get_note("B.md/2026-01-05")
+        assert ordinary is not None and ordinary.content.startswith("## 2026-01-05\nnovel")
+        assert skipped is not None and skipped.content == "soil"
+
+
 def test_cache_invalidates_on_exposure_and_obeys_exact_cutoffs(tmp_path):
     with closing(planted_vault(tmp_path)) as vault:
         old = analyze_word_bursts(vault, end_day=date(2026, 3, 29))

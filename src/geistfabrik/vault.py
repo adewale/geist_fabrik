@@ -226,6 +226,10 @@ class Vault:
             "(fingerprint TEXT PRIMARY KEY)"
         )
         self.db.execute("DELETE FROM _lexical_changed_sources")
+        self.db.execute(
+            "CREATE TEMP TABLE IF NOT EXISTS _lexical_unconfirmed_sources (path TEXT PRIMARY KEY)"
+        )
+        self.db.execute("DELETE FROM _lexical_unconfirmed_sources")
         for md_file, resolved_file, initial_stat in md_files:
             rel_path = str(md_file.relative_to(self.vault_path))
             file_mtime = initial_stat.st_mtime
@@ -248,6 +252,7 @@ class Vault:
             self.db.execute(
                 "INSERT OR IGNORE INTO _lexical_changed_sources VALUES (?)", (source_fingerprint,)
             )
+            self.db.execute("INSERT INTO _lexical_unconfirmed_sources VALUES (?)", (rel_path,))
             try:
                 with resolved_file.open("rb") as handle:
                     raw_content = handle.read(MAX_NOTE_BYTES + 1)
@@ -345,6 +350,10 @@ class Vault:
                 )
 
                 processed_count += 1
+
+            # Confirmation belongs to this source identity, not just its stat
+            # fingerprint: hardlinks may share a fingerprint but parse differently.
+            self.db.execute("DELETE FROM _lexical_unconfirmed_sources WHERE path=?", (rel_path,))
 
         return processed_count
 
