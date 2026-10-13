@@ -6,6 +6,50 @@ a substitute for the implementation, raw benchmark artifacts, or test logs.
 The results below were reported from earlier executions and have not been
 rechecked during this recovery step.
 
+## Salvage inspection, 2026-10-13
+
+The execution environment connected successfully. Inspection found no previous
+checkout at /workspace/geist_fabrik and none of the recorded specification,
+verification-tools, benchmark-corpora or temporal-corpus directories.
+The accessible shared/downloads, scratch and library-files directories contained
+no files. This establishes absence from the current workspace, not destruction
+of every possible external backup.
+
+Cloned codex/word-burst-context into /workspace/geist_fabrik and checked it out
+with LFS smudging disabled. The working tree was clean. Its 395 tracked paths
+are the 393-file source baseline plus the two recovery documents. Its last
+implementation ancestor remains main commit
+37c0fce23b8df0a02924361f456d0c67ac2e3479; the three subsequent commits before
+this update contain only recovery documentation. The tree contains no new
+word_burst source, word-burst tests, temporal generator or replay runner.
+
+Recoverable exactly:
+- Original repository source baseline and existing tests from Git.
+- Original research/specification archive and recovery ledger from Git.
+- Public literature, testing guidance, benchmark corpus source and pinned refs.
+
+Recoverable as recorded knowledge, without original raw evidence:
+- Reported production benchmark summary and optimization lessons.
+- Historical provenance decisions, configuration defaults, module inventory,
+  audit/oracle strategy and explicitly deferred scope.
+
+Not found in the current workspace or this branch:
+- Uncommitted word-burst implementation, migrations and its new tests.
+- Raw benchmark JSON, profiler data, complete validation/audit logs and local
+  prototype scripts.
+- Synthetic temporal corpus generator, generated corpus and replay results;
+  their earlier completion was never verified.
+
+Reconstructing code is new implementation, not recovery of the exact lost
+source. Rerun measurements and tests rather than treating retained summaries
+as verification of a rebuilt implementation. The old large corpus is
+re-downloadable at its pinned commit. Synthetic corpora can be regenerated
+once a deterministic generator is rebuilt.
+
+No new implementation or performance result is claimed by this inspection.
+The local checkout currently has model LFS pointers, not hydrated model weights,
+and its execution dependencies have not been restored.
+
 ## Recovery progress, 2026-10-10
 
 The full original 44,948-character research/specification was recovered from
