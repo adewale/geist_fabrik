@@ -279,19 +279,6 @@ class VaultContext:
         """Lexical episodes up to this session's date, with explicit provenance."""
         return analyze_word_bursts(self.vault, end_day=self.session.date.date())
 
-    def references_allowed(self, targets: list[str]) -> bool:
-        """Check complete evidence before a geist bounds its rendered references."""
-        boundary = self.vault.config.filtering
-        if not boundary.boundary_enabled:
-            return True
-        if self._full_link_index is None:
-            self._full_link_index = NoteLinkIndex(
-                self.db.execute("SELECT path,title,is_virtual,source_file,entry_date FROM notes")
-            )
-        return self._full_link_index.references_allowed(
-            targets, tuple(_normalise_vault_path(path) for path in boundary.exclude_paths)
-        )
-
     def __init__(
         self,
         vault: Vault,
@@ -401,6 +388,19 @@ class VaultContext:
         }
 
     # Direct vault access (delegated)
+
+    def references_allowed(self, targets: list[str]) -> bool:
+        """Check complete evidence before a geist bounds its rendered references."""
+        boundary = self.vault.config.filtering
+        if not boundary.boundary_enabled:
+            return True
+        if self._full_link_index is None:
+            self._full_link_index = NoteLinkIndex(
+                self.db.execute("SELECT path,title,is_virtual,source_file,entry_date FROM notes")
+            )
+        return self._full_link_index.references_allowed(
+            targets, tuple(_normalise_vault_path(path) for path in boundary.exclude_paths)
+        )
 
     def _all_notes(self) -> list[Note]:
         """Every synced note, including session journal notes (cached).
