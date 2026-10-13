@@ -15,8 +15,10 @@ Declared modification dates and two backlinks per initial note support age and
 recent-focus geists. A changing dated-entry journal exercises virtual identities.
 
 Generation stores content-addressed SHA-256 objects and manifests/deltas rather
-than duplicating unchanged notes. Replay validates object hashes and contained
-paths before applying a snapshot. It refuses occupied unmarked vaults, changed
+than duplicating unchanged notes. Replay validates hashes of changed objects and contained
+paths before applying a snapshot. Unchanged objects are not reread; previously
+materialized files are retained. The replay marker binds to the exact manifest
+SHA-256 and refuses symlinks. It refuses occupied unmarked vaults, changed
 corpus identity and out-of-order snapshots. Replay directories must be outside
 the corpus. Use only a dedicated benchmark destination; replay is sequential,
 not a crash-atomic replacement of the filesystem.

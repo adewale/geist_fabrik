@@ -6,6 +6,23 @@ a substitute for the implementation, raw benchmark artifacts, or test logs.
 The results below were reported from earlier executions and have not been
 rechecked during this recovery step.
 
+## Rebuilt implementation, 2026-10-13
+
+The feature was rebuilt from the preserved specification, not recovered byte for
+byte. [Draft PR #97](https://github.com/adewale/geist_fabrik/pull/97) tracks the
+implementation on `codex/word-burst-context`. Source, schema-v11 migration,
+property/integration tests, deterministic temporal generator and benchmark runners
+are committed. The original corpus was fetched at its pinned revision and the
+bundled model hydrated. New measurements and lossless raw replay archives live
+in `benchmarks/results/`; see [WORD_BURST_PERFORMANCE.md](WORD_BURST_PERFORMANCE.md).
+These measurements supersede the unverified historical timings below.
+
+Repository-wide validation passed after rebuilding. The Openclaw canonical
+shared autoreview could not authenticate and produced no report; the PR remains
+draft pending that review. See [WORD_BURST_TEST_AUDIT.md](WORD_BURST_TEST_AUDIT.md)
+for current verification evidence and failure classification. Earlier inspection
+statements below describe their dated checkpoints, not the current branch.
+
 ## Salvage inspection, 2026-10-13
 
 The execution environment connected successfully. Inspection found no previous

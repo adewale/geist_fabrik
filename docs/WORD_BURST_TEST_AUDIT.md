@@ -55,6 +55,10 @@ Observed failures were classified and fixed:
 - **Product:** equal-timestamp observations discarded positive edits. The real
   sync regression failed with a missing event, then passed after capture accepted
   nonregressing equal timestamps.
+- **Product:** a source edit during lexical capture escaped the earlier snapshot
+  validation, and the observation clock was read before source discovery. Two
+  regressions were observed red (0.28 s). Validation now follows capture before
+  commit, and timestamps follow source reads; retries roll back all lexical work.
 - **Test:** initial fixtures assumed Vault was a context manager. Vault has
   `close`; fixtures now use `contextlib.closing`. No production wrapper was added.
 - **Harness:** temporal replay created its DB before applying snapshot zero,
@@ -63,6 +67,16 @@ Observed failures were classified and fixed:
 - **Checks:** ty found optional-note/dictionary inference and cache reconstruction
   issues; explicit narrowing/types/field reconstruction repaired them. Formatter
   and line-length failures were corrected without weakening checks.
+- **Documentation:** canonical checks found two unresolved performance links and
+  stale schema-v10 status. The performance report and schema-v11 status repaired
+  them; five documentation contracts passed in 0.28 s afterward.
+- **Existing test:** AC-11.1 failed a 100-note, approximately 1 ms timing ratio
+  (1.14x versus an arbitrary 1.3x threshold). Auditing the full owner, callers,
+  performance spec and history showed the durable contract is at most three
+  batch payload queries. The benchmark retains its timings, but gates real SQLite
+  trace counts and independently known source contents. One duplicate ten-note
+  timer comparison was removed; getter correctness and neighbour/backlink/hub
+  query-budget owners remain. No production batch-loading seam was added.
 
 The initial five adversarial regressions were observed red together (0.27 s).
 The equal-clock regression was separately observed red (0.22 s), then green
@@ -75,3 +89,34 @@ expanded sync/analysis module 26 passed in 8.21 s. The exhaustive objective and
 filesystem lifecycle properties justify their cost; full-model work stays in the
 separate benchmark/package lanes. Exact counts from canonical validation and the
 canonical shared autoreview outcome will be recorded after the final run.
+
+The final capture-order and batch owner run passed 40 tests in 5.59 s. The
+objective oracle now disables pytest's default relative tolerance and retains
+the original 2e-12 absolute allowance for independent floating-log evaluation.
+
+Canonical shared autoreview was attempted against committed source candidate
+`aea57856c52253bd31e8d8ed41986d891b5df1cf`, using the unchanged installation from
+`openclaw/agent-skills`. The Codex CLI failed authentication (401); status was
+`reviewer_unavailable`, one attempt, `report_produced: false`. This is not a clean
+review, and the Hegel adversarial review is not presented as its substitute.
+The PR remains draft pending authenticated canonical review. Repository-wide
+validation must pass before the rebuilt code is pushed.
+
+
+The follow-up independent review found two confirmed replay defects: redirected
+state files and accepting a changed manifest at the same path. Both regressions
+failed before the fix (2 failures in 0.34 s); marker validation/atomic replacement
+and manifest SHA-256 binding now reject before any file changes. Changed objects
+are hash-verified incrementally; unchanged corpus objects are not reread. This
+scope is explicit in the corpus contract rather than claimed as full integrity
+validation on every step.
+
+A corrupt object in the second snapshot also revealed that pipeline exceptions
+lost the first snapshot's completed evidence. The CLI regression failed before
+the fix (6.97 s); it now writes the completed rows, failing stage/index/error,
+returns failure, and closes an initialized model even after startup errors.
+
+After the final capture-order repair, a fresh 32-snapshot lexical replay matched
+all findings in both modes against the archived real-model smoke replay (64
+exact comparisons). Both lossless archives independently match their recorded
+SHA-256 after decompression.
