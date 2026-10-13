@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Breaking Changes
+- **Lexical schema v11:** automatic additive migration preserves existing notes
+  and embeddings. No rebuild is required. The new word-burst geist indexes prose
+  incrementally and supports reconstructed dated cohorts and prospective observed
+  additions. Extraction-policy changes deliberately reset lexical history.
 - **Duplicate geists merged.** Geists whose job duplicated another's were
   merged into the one truest to the vision (claims that are true of the named
   notes, grounded in the user's notes, sampling rather than ranking). The full

@@ -117,3 +117,17 @@ def test_constant_prevalence_is_never_a_burst(r, n, s):
 def test_huge_invalid_integer_parameters_are_rejected():
     with pytest.raises(ValueError):
         detect_bursts([1], [3], s=10**1000)
+
+
+@given(
+    st.integers(1, 2**40),
+    st.lists(st.integers(0, 8192), max_size=20),
+    st.floats(1.0000000000000002, 1_000_000),
+    st.integers(1, 16),
+)
+@settings(max_examples=1000, deadline=None)
+def test_constant_proportions_abstain_across_gaps_and_state_limits(unit, multipliers, s, maximum):
+    exposure = [unit * m for m in multipliers]
+    counts = [(unit // 2) * m for m in multipliers]
+    result = detect_bursts(counts, exposure, s=s, gamma=0, max_states=maximum)
+    assert result.states == tuple(0 if n else None for n in exposure)

@@ -140,6 +140,7 @@ class LexicalIndex:
             max(str(old[2]), str(watermark[0]) if watermark else str(old[2])) if old else now
         )
         # Clock regressions must not create backdated events or move the baseline backwards.
+        clock_regressed = old is not None and now < previous_at
         if old:
             now = max(now, previous_at)
         additions = counts - Counter(json.loads(old[1])) if old else Counter()
@@ -152,7 +153,7 @@ class LexicalIndex:
             (note.path, raw_hash, body_hash, cohort, provenance, encoded, now),
         )
         self.changed += bool(not old or old[1] != encoded)
-        if old and self.options.capture_observed and now > previous_at and additions:
+        if old and self.options.capture_observed and not clock_regressed and additions:
             bin_start = week_start(datetime.fromisoformat(now).date()).isoformat()
             event = self.db.execute(
                 "SELECT terms_json, revisions_json, previous_at FROM lexical_events "

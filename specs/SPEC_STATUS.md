@@ -18,6 +18,14 @@ Status vocabulary:
 
 ## config.yaml keys (geistfabrik_spec.md ~880-960)
 
+The word-burst rebuild adds `lexical_analysis` and `word_burst` configuration
+sections, both **BUILT**. Exact binomial detection, atomic incremental lexical
+capture, declared-date cohorts, observed additions, persistent caching and the
+linked-question geist are **BUILT**; see `docs/WORD_BURST.md`. Git/backup imports,
+retained historical prose, exact old-text replay and alternative rolling baselines
+are **DEFERRED**. `docs/WORD_BURST_ORIGINAL_SPEC.md` is an archival proposal whose
+different data structures/defaults are not current promises.
+
 | key | status | note |
 |---|---|---|
 | `vault.path` | BUILT-DIFFERENTLY | CLI vault argument / auto-detect, not config |
