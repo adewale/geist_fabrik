@@ -14,6 +14,8 @@ from hypothesis import strategies as st
 from geistfabrik.config_loader import ConfigError, GeistFabrikConfig
 from geistfabrik.default_geists.code.word_burst import suggest
 from geistfabrik.embeddings import Session
+from geistfabrik.geist_executor import GeistExecutor
+from geistfabrik.geist_status import GeistStatusStore
 from geistfabrik.lexical_index import LexicalIndex, extract_terms
 from geistfabrik.schema import migrate_schema
 from geistfabrik.vault import Vault
@@ -49,6 +51,99 @@ def test_geist_fires_with_all_supporting_links_and_honest_population(tmp_path):
         assert len(aurora[0].notes) == 12
         assert "current text grouped by declared dates" in aurora[0].text
         assert "60%" in aurora[0].text
+
+
+@pytest.mark.parametrize("private_tail", [False, True])
+def test_large_episode_passes_executor_and_checks_evidence_beyond_output_limit(
+    tmp_path, private_tail
+):
+    with closing(planted_vault(tmp_path)) as vault:
+        original = (tmp_path / "note-8-0.md").read_bytes()
+        for i in range(110):
+            (tmp_path / f"copy-{i:03d}.md").write_bytes(original)
+        if private_tail:
+            (tmp_path / "z-private").mkdir()
+            (tmp_path / "z-private/hidden.md").write_bytes(original)
+            vault.config.filtering.exclude_paths = ["z-private/"]
+        vault.sync()
+        evidence = next(
+            f for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29)) if f.term == "aurora"
+        )
+        assert len(evidence.support_paths) > 100
+        if private_tail:
+            assert evidence.support_paths.index("z-private/hidden.md") >= 100
+        status_store = GeistStatusStore(vault.db)
+        executor = GeistExecutor(tmp_path / "geists", status_store=status_store)
+        executor.register_geist("word_burst", Path(suggest.__code__.co_filename), suggest)
+        with Session(datetime(2026, 3, 29), vault.db) as session:
+            for _ in range(3):
+                output = executor.execute_geist("word_burst", VaultContext(vault, session))
+                assert bool(output) is not private_tail
+                assert all(len(item.notes) <= 100 for item in output)
+                assert executor.execution_log[-1]["status"] == "success"
+        assert status_store.load() == {}
+
+
+def test_file_exclusion_survives_journal_reclassification(tmp_path):
+    source = tmp_path / "private-journal.md"
+    source.write_text("---\ncreated: 2026-01-05\n---\nsecret aurora", encoding="utf-8")
+    config = GeistFabrikConfig()
+    config.lexical_analysis.exclude_paths = ["private*.md"]
+    with closing(Vault(tmp_path, config=config)) as vault:
+        vault.sync()
+        assert vault.db.execute("SELECT counts_json FROM lexical_notes").fetchone()[0] == "{}"
+        source.write_text(
+            "## 2026-01-05\nsecret aurora\n## 2026-01-12\nsecret nebula", encoding="utf-8"
+        )
+        vault.sync()
+        rows = vault.db.execute("SELECT path, counts_json FROM lexical_notes").fetchall()
+        assert len(rows) == 2 and all(vector == "{}" for _, vector in rows)
+        assert vault.db.execute("SELECT count(*) FROM lexical_terms").fetchone()[0] == 0
+        source.write_text(source.read_text() + " comet", encoding="utf-8")
+        vault.sync()
+        assert vault.db.execute("SELECT count(*) FROM lexical_events").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize(
+    "relative", [r"Templates\example.md", r"_geistfabrik\output.md", r"geist journal\2026-01-05.md"]
+)
+def test_windows_source_paths_obey_lexical_exclusions(tmp_path, relative):
+    (tmp_path / "note.md").write_text("excludedsecret", encoding="utf-8")
+    # Persist the native Windows spelling in the same DB input used by capture.
+    with closing(Vault(tmp_path)) as vault:
+        vault.sync()
+        vault.db.execute("DELETE FROM lexical_notes")
+        vault.db.execute("UPDATE notes SET path=?", (relative,))
+        vault.db.commit()
+        # Run capture inside its existing production ownership boundary.
+        from geistfabrik.sqlite_transaction import owned_transaction
+
+        with owned_transaction(vault.db, "Windows path capture"):
+            index = LexicalIndex(vault.db, vault.config.lexical_analysis, datetime.now(UTC))
+            row = vault.db.execute(
+                "SELECT path,title,content,created,modified,is_virtual,source_file,entry_date "
+                "FROM notes"
+            ).fetchone()
+            index.sync_note(vault._build_note_from_row(row, [], []))
+        assert vault.db.execute("SELECT counts_json FROM lexical_notes").fetchone()[0] == "{}"
+
+
+def test_skipped_source_does_not_tighten_observation_bound(tmp_path, monkeypatch):
+    path = tmp_path / "note.md"
+    path.write_text("soil", encoding="utf-8")
+    with closing(Vault(tmp_path)) as vault:
+        freeze(monkeypatch, 5)
+        vault.sync()
+        freeze(monkeypatch, 6)
+        path.write_bytes(b"soil aurora\xff")
+        assert vault.sync() == 0
+        freeze(monkeypatch, 7)
+        path.write_text("soil aurora", encoding="utf-8")
+        vault.sync()
+        previous, observed = vault.db.execute(
+            "SELECT previous_at, observed_at FROM lexical_events"
+        ).fetchone()
+        assert previous.startswith("2026-01-05") and observed.startswith("2026-01-07")
 
 
 def test_cache_invalidates_on_exposure_and_obeys_exact_cutoffs(tmp_path):

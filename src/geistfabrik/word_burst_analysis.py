@@ -15,7 +15,7 @@ from .word_burst import BurstInterval, detect_bursts, sparse_gain_cannot_burst
 if TYPE_CHECKING:
     from .vault import Vault
 
-ANALYSIS_VERSION = 1
+ANALYSIS_VERSION = 2
 
 
 @dataclass(frozen=True)

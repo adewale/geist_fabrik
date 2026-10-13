@@ -12,9 +12,9 @@ from datetime import UTC, date, datetime, timedelta
 
 from .config_loader import LexicalAnalysisConfig
 from .markdown_parser import declared_creation_date, markdown_prose_lines, parse_frontmatter
-from .models import Note
+from .models import Note, _normalise_vault_path
 
-EXTRACTION_VERSION = 1
+EXTRACTION_VERSION = 2
 _WORDS = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*", re.UNICODE)
 _REMOVED = re.compile(r"https?://[^\s)\]>]+")
 _INLINE_CODE = re.compile(r"(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)", re.DOTALL)
@@ -112,9 +112,17 @@ class LexicalIndex:
         raw_hash = _digest(note.content)
         if old and old[0] == raw_hash:
             return
-        excluded = note.path.startswith(("_geistfabrik/", "geist journal/")) or any(
-            note.path.startswith(pattern) or fnmatch.fnmatchcase(note.path, pattern)
-            for pattern in self.options.exclude_paths
+        paths = {_normalise_vault_path(note.path)}
+        if note.source_file:
+            paths.add(_normalise_vault_path(note.source_file))
+        patterns = [_normalise_vault_path(pattern) for pattern in self.options.exclude_paths]
+        excluded = any(
+            path.startswith(("_geistfabrik/", "geist journal/"))
+            or any(
+                path.startswith(pattern) or fnmatch.fnmatchcase(path, pattern)
+                for pattern in patterns
+            )
+            for path in paths
         )
         counts = (
             Counter()
@@ -182,10 +190,16 @@ class LexicalIndex:
             )
 
     def finish(self) -> None:
-        """Tighten observation bounds with one metadata write even on an unchanged sync."""
+        """Tighten bounds only when every changed source was successfully mirrored.
+
+        A skipped/unreadable source cannot confirm its old content. Keeping the
+        global bound conservative avoids rewriting every unchanged lexical row.
+        """
         now = self.observed_at.astimezone(UTC).isoformat()
         self.db.execute(
-            "INSERT INTO lexical_meta VALUES ('last_sync_at', ?) ON CONFLICT(key) "
+            "INSERT INTO lexical_meta SELECT 'last_sync_at', ? WHERE NOT EXISTS "
+            "(SELECT fingerprint FROM _lexical_changed_sources EXCEPT "
+            "SELECT source_fingerprint FROM notes) ON CONFLICT(key) "
             "DO UPDATE SET value = max(value, excluded.value)",
             (now,),
         )

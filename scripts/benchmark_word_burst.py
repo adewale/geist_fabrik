@@ -17,10 +17,13 @@ import tempfile
 import time
 from contextlib import closing
 from dataclasses import asdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from geistfabrik import GeistFabrikConfig, Vault
+from geistfabrik import GeistFabrikConfig, Session, Vault, VaultContext
+from geistfabrik.default_geists.code.word_burst import suggest
+from geistfabrik.geist_executor import GeistExecutor
+from geistfabrik.geist_status import GeistStatusStore
 from geistfabrik.lexical_index import week_start
 from geistfabrik.sqlite_transaction import owned_transaction
 from geistfabrik.word_burst_analysis import WordBurstDiagnostics, analyze_word_bursts
@@ -97,6 +100,19 @@ def benchmark(source: Path, *, trials: int = 3, ngram_max: int = 1) -> dict:
                 row["result_sha256"] = hashlib.sha256(
                     json.dumps([asdict(f) for f in findings], sort_keys=True).encode()
                 ).hexdigest()
+                executor = GeistExecutor(root / "geists", status_store=GeistStatusStore(vault.db))
+                executor.register_geist("word_burst", Path(suggest.__code__.co_filename), suggest)
+                with Session(datetime.combine(end, datetime.min.time()), vault.db) as session:
+                    started = time.perf_counter()
+                    suggestions = executor.execute_geist("word_burst", VaultContext(vault, session))
+                    row["executor_seconds"] = time.perf_counter() - started
+                    row["executor_status"] = executor.execution_log[-1]["status"]
+                    row["suggestions"] = [asdict(item) for item in suggestions]
+                    row["largest_episode_support"] = max(
+                        (len(f.support_paths) for f in findings), default=0
+                    )
+                    if row["executor_status"] != "success":
+                        raise RuntimeError(executor.execution_log[-1])
                 for path in list(before)[:100]:
                     target = root / path
                     target.write_text(

@@ -25,6 +25,24 @@ def summarize(source: Path, output: Path) -> dict:
                 "seconds": analysis["seconds"],
                 "diagnostics": analysis["diagnostics"],
                 "finding_count": len(analysis["findings"]),
+                **(
+                    {
+                        "executor": {
+                            "seconds": analysis["executor"]["seconds"],
+                            "status": analysis["executor"]["status"],
+                            "suggestion_count": len(analysis["executor"]["suggestions"]),
+                            "max_notes": max(
+                                (
+                                    len(item["notes"])
+                                    for item in analysis["executor"]["suggestions"]
+                                ),
+                                default=0,
+                            ),
+                        }
+                    }
+                    if "executor" in analysis
+                    else {}
+                ),
                 "planted_findings": [
                     {
                         **{k: v for k, v in f.items() if k != "support_paths"},

@@ -69,7 +69,11 @@ def _probabilities(base: float, s: float, maximum: int) -> list[float]:
 
 
 def _emission(r: int, n: int, p: float, base: float) -> float:
-    return r * math.log(base / p) + (n - r) * (math.log1p(-base) - math.log1p(-p))
+    delta = p - base
+    # Ratios near one lose their sign if rounded before taking a logarithm.
+    # Far-apart probabilities use log directly to avoid log1p rounding to -1.
+    positive = math.log1p(-delta / p) if p < 2 * base else math.log(base / p)
+    return r * positive + (n - r) * math.log1p(delta / (1 - p))
 
 
 def sparse_gain_cannot_burst(

@@ -2,6 +2,7 @@
 
 import itertools
 import math
+from decimal import Decimal, localcontext
 
 import pytest
 from hypothesis import given, settings
@@ -48,6 +49,46 @@ def test_decoder_matches_global_exhaustive_objective(data, s, gamma, maximum):
     assert result.objective == pytest.approx(
         oracle(counts, exposure, s, gamma, maximum), abs=2e-12, rel=0
     )
+    if sum(counts) not in (0, sum(exposure)):
+        base = sum(counts) / sum(exposure)
+        previous = 0
+        costs = []
+        for r, n, state in zip(counts, exposure, result.states, strict=True):
+            if not n:
+                assert state is None
+                continue
+            assert state is not None
+            p = base * s**state
+            costs.append(-r * math.log(p) - (n - r) * math.log(1 - p))
+            costs.append(r * math.log(base) + (n - r) * math.log(1 - base))
+            costs.append(max(0, state - previous) * gamma * math.log(sum(n > 0 for n in exposure)))
+            previous = state
+        assert math.fsum(costs) == pytest.approx(result.objective, abs=2e-12, rel=0)
+    covered = {i for interval in result.intervals for i in range(interval.start, interval.end + 1)}
+    assert {i for i, state in enumerate(result.states) if state} == {
+        i for i in covered if exposure[i]
+    }
+
+
+def test_near_one_nonconstant_series_matches_high_precision_bin_costs():
+    counts, exposure = [2] * 4 + [3] * 4, [9] * 8
+    s = 1.0000000000000002
+    with localcontext() as context:
+        context.prec = 80
+        base = Decimal.from_float(sum(counts) / sum(exposure))
+        elevated = Decimal.from_float(float(base) * s)
+        costs = [
+            r * (base / elevated).ln() + (n - r) * ((1 - base) / (1 - elevated)).ln()
+            for r, n in zip(counts, exposure, strict=True)
+        ]
+        expected_states = tuple(int(cost < 0) for cost in costs)
+        expected_objective = float(sum(min(Decimal(0), cost) for cost in costs))
+    result = detect_bursts(counts, exposure, s=s, gamma=0)
+    assert result.states == expected_states == (0, 0, 0, 0, 1, 1, 1, 1)
+    assert result.objective == pytest.approx(expected_objective, rel=1e-12, abs=0)
+    assert [
+        (interval.start, interval.end, interval.left_censored) for interval in result.intervals
+    ] == [(4, 7, False)]
 
 
 @given(

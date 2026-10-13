@@ -20,6 +20,8 @@ from unittest.mock import patch
 from generate_temporal_corpus import apply_snapshot
 
 from geistfabrik import EmbeddingComputer, Session, Vault, VaultContext
+from geistfabrik.geist_executor import GeistExecutor
+from geistfabrik.geist_status import GeistStatusStore
 from geistfabrik.word_burst_analysis import WordBurstDiagnostics, analyze_word_bursts
 
 GEISTS = (
@@ -34,6 +36,23 @@ GEISTS = (
 )
 
 
+def execute(executor, name, context, index, report):
+    """Retain the production executor outcome, including swallowed failures."""
+    started = time.perf_counter()
+    suggestions = executor.execute_geist(name, context)
+    event = executor.execution_log[-1]
+    result = {
+        "seconds": time.perf_counter() - started,
+        "status": event["status"],
+        "suggestions": [asdict(item) for item in suggestions],
+    }
+    if event["status"] != "success":
+        failure = {"index": index, "geist": name, "error": event.get("error", event.get("reason"))}
+        report["errors"].append(failure)
+        result["error"] = failure["error"]
+    return result
+
+
 def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> dict:
     """Sequential replay with timings, raw findings/suggestions, and stable-vector checks."""
     manifest = json.loads((corpus / "manifest.json").read_text())
@@ -42,6 +61,7 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
     vault_path.mkdir(parents=True, exist_ok=True)
     report = {
         "synthetic": True,
+        "execution_path": "GeistExecutor",
         "python": platform.python_version(),
         "initial_notes": manifest["initial_notes"],
         "real_embeddings": real_embeddings,
@@ -68,6 +88,12 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
             report["model_startup_seconds"] = time.perf_counter() - started
         stage = "open_vault"
         with closing(Vault(vault_path, db_path=vault_path / "_geistfabrik/vault.db")) as vault:
+            executor = GeistExecutor(
+                vault_path / "_geistfabrik/geists/code", status_store=GeistStatusStore(vault.db)
+            )
+            for name in GEISTS if real_embeddings else ("word_burst",):
+                module = importlib.import_module("geistfabrik.default_geists.code." + name)
+                executor.register_geist(name, Path(module.__file__), module.suggest)
             for index, snapshot in enumerate(manifest["snapshots"]):
                 stage = "apply_snapshot"
                 started = time.perf_counter()
@@ -94,29 +120,33 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                 row["sync_seconds"] = time.perf_counter() - started
                 row["lexical_sync"] = vault.last_lexical_stats
                 row["lexical"] = {}
-                for mode in ("dated_cohorts", "observed_additions"):
-                    stage = "analysis:" + mode
-                    vault.config.word_burst.history_mode = mode
-                    stats = WordBurstDiagnostics()
-                    started = time.perf_counter()
-                    findings = analyze_word_bursts(
-                        vault, end_day=date.fromisoformat(snapshot["date"]), diagnostics=stats
-                    )
-                    row["lexical"][mode] = {
-                        "seconds": time.perf_counter() - started,
-                        "diagnostics": asdict(stats),
-                        "findings": [asdict(f) for f in findings],
-                    }
-                vault.config.word_burst.history_mode = "dated_cohorts"
-                if computer is not None:
-                    stage = "embeddings"
-                    with Session(
-                        observed.replace(tzinfo=None), vault.db, computer=computer
-                    ) as session:
+                row["geists"] = {}
+                with Session(observed.replace(tzinfo=None), vault.db, computer=computer) as session:
+                    context = VaultContext(vault, session)
+                    for mode in ("dated_cohorts", "observed_additions"):
+                        stage = "analysis:" + mode
+                        vault.config.word_burst.history_mode = mode
+                        stats = WordBurstDiagnostics()
+                        started = time.perf_counter()
+                        findings = analyze_word_bursts(
+                            vault, end_day=date.fromisoformat(snapshot["date"]), diagnostics=stats
+                        )
+                        row["lexical"][mode] = {
+                            "seconds": time.perf_counter() - started,
+                            "diagnostics": asdict(stats),
+                            "findings": [asdict(f) for f in findings],
+                        }
+                        stage = "executor:" + mode
+                        row["lexical"][mode]["executor"] = execute(
+                            executor, "word_burst", context, index, report
+                        )
+                    vault.config.word_burst.history_mode = "dated_cohorts"
+                    row["geists"]["word_burst"] = row["lexical"]["dated_cohorts"]["executor"]
+                    if computer is not None:
+                        stage = "embeddings"
                         started = time.perf_counter()
                         session.compute_embeddings(vault.all_notes())
                         row["embedding_seconds"] = time.perf_counter() - started
-                        context = VaultContext(vault, session)
                         stage = "stable_vectors"
                         for path in manifest["stable_paths"]:
                             blob = vault.db.execute(
@@ -129,26 +159,9 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                                     {"index": index, "path": path}
                                 )
                             stable_vectors.setdefault(path, blob)
-                        row["geists"] = {}
-                        stage = "geists"
-                        for name in GEISTS:
-                            started = time.perf_counter()
-                            try:
-                                module = importlib.import_module(
-                                    "geistfabrik.default_geists.code." + name
-                                )
-                                suggestions = module.suggest(context)
-                                row["geists"][name] = {
-                                    "seconds": time.perf_counter() - started,
-                                    "suggestions": [asdict(s) for s in suggestions],
-                                }
-                            except Exception as exc:
-                                failure = {"index": index, "geist": name, "error": repr(exc)}
-                                report["errors"].append(failure)
-                                row["geists"][name] = {
-                                    "seconds": time.perf_counter() - started,
-                                    "error": repr(exc),
-                                }
+                        for name in GEISTS[1:]:
+                            stage = "executor:" + name
+                            row["geists"][name] = execute(executor, name, context, index, report)
                 report["snapshots"].append(row)
                 print(
                     f"snapshot {index + 1}/{len(manifest['snapshots'])}: {row['date']}", flush=True

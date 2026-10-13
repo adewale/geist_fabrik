@@ -188,11 +188,7 @@ class SuggestionFilter:
             # path precedence is unsafe here: a private note title can collide
             # with a public filename alias. Boundaries therefore fail closed if
             # any matching identity is excluded.
-            matches = [index.matching_paths(note_ref) for note_ref in suggestion.notes]
-            if all(
-                paths and not any(index.sources[path].startswith(exclude_paths) for path in paths)
-                for paths in matches
-            ):
+            if index.references_allowed(suggestion.notes, exclude_paths):
                 filtered.append(suggestion)
 
         return filtered
