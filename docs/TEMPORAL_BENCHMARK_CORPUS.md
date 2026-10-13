@@ -32,7 +32,9 @@ GEISTFABRIK_OFFLINE=1 uv run python scripts/benchmark_temporal_geists.py \
 
 Omitting `--real-embeddings` runs both lexical modes and explicitly skips semantic
 work. With it, replay uses the real bundled model on CPU, real sessions and eight
-bundled geists. The benchmark harness simulates observation clocks; the production
+bundled geists through `GeistExecutor`, including runtime limits and persistent
+failure tracking. Lexical-only runs exercise `word_burst` through that executor in
+both history modes; semantic work remains skipped. The benchmark harness simulates observation clocks; the production
 feature has no backdating flag. Exceptions are recorded and fail the runner.
 Raw suggestions, findings, timings and unchanged-control meaning-vector checks
 are retained. Identical text must have identical 384-dimensional meaning bytes;

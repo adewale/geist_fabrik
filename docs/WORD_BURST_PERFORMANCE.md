@@ -117,3 +117,57 @@ evidence exits cheaply. Whole-vault sync still scans the filesystem and checks
 source fingerprints, so cached analysis does not make the whole invocation O(1).
 The first cold index has material startup cost. Phrase vocabularies dominate cold
 cost and require deliberate budgeting. None of these timings is a portable SLA.
+
+
+## Post-review verification, 2026-10-14
+
+The review repairs add stable near-one emissions, source-aware/native-path
+exclusions, conservative lower observation bounds, and complete-evidence boundary
+checks before the suggestion-reference cap. Execution benchmarks now use the
+actual `GeistExecutor`; the earlier direct-call benchmarks did not exercise
+runtime validation. Old measurements above remain dated evidence.
+
+The final original-corpus trial measured cold sync 23.657 s, unchanged sync
+3.672 s, editing 100 notes 3.231 s, fresh analysis 3.458 s, cached analysis
+2.306 ms and cached executor rendering 72.043 ms. It decoded 1,870 candidates
+and safely pruned 5,552, producing 204 findings on the explicitly synthetic
+chronology. Warm sync extracted zero notes and edits extracted exactly 100.
+Fresh/cache results matched, the executor succeeded, and source hashes stayed
+unchanged. This is one final trial; an earlier three-trial repair run is retained
+separately. Neither is a controlled cross-machine speedup comparison. The later
+boundary lookup relocation preserves the detector/index code; final corpus replay
+and architectural owners separately verify that rich-context delegation.
+
+[Final original-corpus trial](../benchmarks/results/word_burst_large_corpus_verified.json)
+and [initial three repair trials](../benchmarks/results/word_burst_large_corpus_post_review.json)
+retain raw measurements. Phrase performance was not rebenchmarked in this repair;
+the expensive opt-in limitation above remains applicable.
+
+The ten-note Kepano fixture was copied without prior managed artifacts and tested
+through real `init` and `invoke --geist word_burst --date 2023-09-30`. Both commands
+succeeded; four eligible dated observations were insufficient, so the geist
+returned a healthy empty result. Original Markdown hashes stayed unchanged.
+[CLI evidence](../benchmarks/results/word_burst_kepano_verified.json).
+
+The synthetic replays cover all 32 snapshots at 128, 1,000 and 10,000 initial
+notes. Smoke and standard include real CPU embeddings and the eight selected
+geists; large runs both lexical modes and the production executor. Final results
+are recorded after the architectural repair. Corpus replays overlap validation
+work and establish behavior, rather than isolated timing comparisons.
+
+
+Final [corpus matrix](../benchmarks/results/word_burst_corpus_matrix.json): 96
+snapshots and 192 word-burst executor calls, all successful. Smoke and standard
+real-model replay preserved all stable meaning vectors. Dated-cohort questions
+appeared in 31 snapshots per profile; observed-addition questions in 23. The
+largest full episode had 3,200 supports, with at most 100 rendered references.
+Aurora/quasar were detected in every profile. Standard replay also exercised all
+eight selected geists, including seasonal patterns (seven nonempty snapshots).
+All lossless archives were independently decompressed and SHA-256 verified.
+
+A [positive real CLI check](../benchmarks/results/word_burst_cli_positive_verified.json)
+with offline inference and all four filters retained one of three raw word-burst
+questions. Its term was the synthetic marker `specimenbb`. This demonstrates the
+runtime/pipeline path and also a relevance limitation: statistically elevated
+fixture scaffolding can be less interesting than a conceptual term. The corpus
+is not hand-filtered to hide that outcome; reader usefulness remains unproven.

@@ -136,3 +136,69 @@ anchors a lossless compressed log with SHA-256. The validation record identifies
 the tested commit; subsequent changes only preserve this evidence and clarify
 this audit. Documentation contracts are rerun after those edits. CI platform
 coverage is separate from this successful local run.
+
+
+## Review fixes and corpus verification, 2026-10-14
+
+The requested four-agent review found the 100-reference executor limit, excluded
+virtual source globs, Windows separator exclusions, near-one nonconstant emission
+cancellation, and incorrect lower bounds after skipped reads. New regressions
+were observed failing before fixes. The original Windows fixture initially failed
+on foreign-key update ordering; after correcting that fixture, all three variants
+failed on the actual exclusion contract. A successful executor leaves no failure
+row, and virtual bodies strip trailing whitespace; those fixture expectations
+were corrected after the production contracts passed.
+
+Findings retain complete support paths; the geist checks every reference with the
+same `NoteLinkIndex.references_allowed` policy used by the filter, then bounds its
+returned references at 100. Tests place a private support beyond that limit and
+run the real executor three times: public episodes succeed and remain enabled;
+private-supported episodes abstain successfully. Extraction version 2 forces
+incompatible old lexical baselines to rebuild, retaining core notes/embeddings.
+
+The exhaustive property now independently recomputes the returned path objective
+and checks interval coverage. An 80-digit Decimal oracle covers the smallest
+supported `s` with zero gamma; stable log ratios restore the correct four-week
+interval. Source/read failures keep the watermark conservative. The follow-up
+Hegel-required reviewer read production/contracts without tests and found a
+hardlink collision in the first fingerprint-only repair. Its natural probe and
+an observed-red regression led to source-path confirmation tracking; recovery
+now retains the correct lower bound. The reviewer rechecked and reported no
+remaining P1/P2 findings in the requested repairs.
+
+Focused owners passed: detector, history, filtering and journal identity 84 tests
+in 13.08 s; generator/replay 8 tests in 6.88 s. New hardlink/observation owner checks
+passed after the source-identity repair. Corpus runners now execute geists through
+`GeistExecutor`; their errors include swallowed executor failures rather than
+claiming success from direct calls to `suggest`.
+
+Canonical shared autoreview was retried once against the committed repairs
+through `e242dba`, with the previous PR head as its base. Preparation succeeded;
+the Codex engine again failed authentication. Status is `reviewer_unavailable`,
+one attempt, no report. This is still not a clean canonical autoreview. The PR
+remains draft; independent review and repository validation are separate evidence.
+
+
+The first executor-based real-model replay exposed a harness lifecycle mistake:
+constructing `VaultContext` before embeddings held a closed backend after session
+computation. The complete failed replay is preserved in
+`word_burst_temporal_harness_failure.json` and its lossless archive. Embeddings now
+precede context construction, and a fast two-snapshot lifecycle regression runs
+real sessions/backends/executors with only inference stubbed. Corrected standalone
+smoke and standard runs use the real bundled model, with no test stubs.
+
+Full validation then caught direct SQL in the geist's new boundary preflight.
+That lookup moved into `VaultContext.references_allowed`; the geist uses the rich
+context API, and the shared identity policy remains in `NoteLinkIndex`. Architecture,
+word history, filtering and journal identity owners passed 66 tests in 5.96 s.
+All corpus profiles are replayed again against this final architectural repair.
+
+
+The rich-context helper initially preceded its instance-state declaration, which
+mypy rejected even though runtime checks passed. Moving the unchanged method
+body below `__init__` repaired both strict type-check criteria; no gate was
+weakened. Final standalone replay covers 96 snapshots and 192 word-burst executor
+calls across all profiles. Complete episode evidence reaches 3,200 paths; returned
+references remain within 100. Both semantic profiles preserve stable meaning
+bytes. Real CLI checks verify a healthy sparse-vault abstention and a positive
+question surviving the four-stage pipeline with offline inference required.

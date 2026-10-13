@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-14",
+  "source_revision": "e592d64",
+  "executor": "GeistExecutor",
+  "profiles": {
+    "smoke": {
+      "initial_notes": 128,
+      "snapshots": 32,
+      "real_embeddings": true,
+      "errors": 0,
+      "stable_meaning_changes": 0,
+      "history_modes": {
+        "dated_cohorts": {
+          "executor_successes": 32,
+          "snapshots_with_suggestions": 31,
+          "maximum_returned_notes": 86,
+          "maximum_full_episode_support": 86,
+          "first_planted_detection": {
+            "aurora": 8,
+            "quasar": 22
+          }
+        },
+        "observed_additions": {
+          "executor_successes": 32,
+          "snapshots_with_suggestions": 23,
+          "maximum_returned_notes": 13,
+          "maximum_full_episode_support": 13,
+          "first_planted_detection": {
+            "aurora": 9,
+            "quasar": 23
+          }
+        }
+      },
+      "geist_firing": {
+        "word_burst": 31,
+        "concept_drift": 28,
+        "attention_shift": 27,
+        "temporal_drift": 32,
+        "recent_focus": 32,
+        "seasonal_patterns": 0,
+        "temporal_clustering": 28,
+        "this_time_last_year": 11
+      },
+      "summary": "word_burst_temporal_smoke_verified.json"
+    },
+    "standard": {
+      "initial_notes": 1000,
+      "snapshots": 32,
+      "real_embeddings": true,
+      "errors": 0,
+      "stable_meaning_changes": 0,
+      "history_modes": {
+        "dated_cohorts": {
+          "executor_successes": 32,
+          "snapshots_with_suggestions": 31,
+          "maximum_returned_notes": 100,
+          "maximum_full_episode_support": 320,
+          "first_planted_detection": {
+            "aurora": 8,
+            "quasar": 22
+          }
+        },
+        "observed_additions": {
+          "executor_successes": 32,
+          "snapshots_with_suggestions": 23,
+          "maximum_returned_notes": 100,
+          "maximum_full_episode_support": 100,
+          "first_planted_detection": {
+            "aurora": 9,
+            "quasar": 23
+          }
+        }
+      },
+      "geist_firing": {
+        "word_burst": 31,
+        "concept_drift": 29,
+        "attention_shift": 27,
+        "temporal_drift": 32,
+        "recent_focus": 31,
+        "seasonal_patterns": 7,
+        "temporal_clustering": 32,
+        "this_time_last_year": 32
+      },
+      "summary": "word_burst_temporal_standard_verified.json"
+    },
+    "large": {
+      "initial_notes": 10000,
+      "snapshots": 32,
+      "real_embeddings": false,
+      "errors": 0,
+      "stable_meaning_changes": 0,
+      "history_modes": {
+        "dated_cohorts": {
+          "executor_successes": 32,
+          "snapshots_with_suggestions": 31,
+          "maximum_returned_notes": 100,
+          "maximum_full_episode_support": 3200,
+          "first_planted_detection": {
+            "aurora": 9,
+            "quasar": 23
+          }
+        },
+        "observed_additions": {
+          "executor_successes": 32,
+          "snapshots_with_suggestions": 23,
+          "maximum_returned_notes": 100,
+          "maximum_full_episode_support": 1000,
+          "first_planted_detection": {
+            "aurora": 9,
+            "quasar": 23
+          }
+        }
+      },
+      "geist_firing": {
+        "word_burst": 31
+      },
+      "summary": "word_burst_temporal_large_verified.json"
+    }
+  },
+  "total_snapshots": 96,
+  "total_word_burst_executions": 192,
+  "real_small_corpus": "word_burst_kepano_verified.json",
+  "original_large_corpus": "word_burst_large_corpus_verified.json",
+  "filtered_positive_cli": "word_burst_cli_positive_verified.json"
+}

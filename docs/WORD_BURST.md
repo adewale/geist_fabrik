@@ -27,14 +27,19 @@ UTC synchronization times, independently of the CLI replay date. Repeated
 additions in a note/week coalesce into one observation with unioned terms,
 revision evidence, and observation bounds. Removing a word later does not erase
 its previously observed addition. Identical timestamps still capture changes;
-regressing clocks refresh the current baseline without backdating events.
+regressing clocks refresh the current baseline without backdating events. A sync
+that skips a changed source cannot tighten the global lower observation bound;
+confirmation is tracked by source identity, including hardlinked files.
 Same-path edits preserve note identity; deleting a note purges its logical
 lexical history. This is not a secure physical erasure guarantee.
 
 A coalesced row whose final addition was observed after a replay cutoff is
 omitted in full. Historical quoting, exact old-text replay and Git/backup import
 are deferred. Changing extraction policy clears incompatible observations and
-establishes a fresh baseline. A replay against changed, unsynchronized extraction
+establishes a fresh baseline. Extraction version 2 repairs source-file and native
+path exclusions; upgrading an earlier PR build rebuilds lexical baselines and
+clears incompatible captured observations. Core notes and embeddings are retained.
+A replay against changed, unsynchronized extraction
 settings abstains until sync rebuilds the index.
 
 ## Configuration
@@ -71,8 +76,10 @@ deduplicated. The same body in another week remains a separate observation.
 Episode support requires at least `min_support` distinct body/evidence hashes
 across the episode, and `min_support_bins` supporting weeks. This conservative
 rule prevents repeated copies of one body from supplying independent support.
-All supporting note paths are retained, including duplicates, so boundary
-filtering checks every referenced note even when the question displays three.
+All supporting paths remain in analysis findings, including duplicates. The geist
+checks every supporting reference against the same boundary policy as the pipeline
+before capping rendered references at the runtime limit of 100. Questions display
+three links. An excluded support beyond that cap still suppresses the question.
 
 Empty-exposure weeks are unobserved. Results expose interior gaps, open intervals,
 left censoring and partial final weeks. Calendar dates at Python's boundaries
@@ -108,3 +115,36 @@ The [original research archive](WORD_BURST_ORIGINAL_SPEC.md) preserves the paper
 review and initial proposal. This document describes the rebuilt implementation;
 archive defaults, prototype measurements and deferred promises are not current
 implementation guarantees.
+
+
+## Fit with the vision
+
+The geist is a retrospective muse: it notices a change in language, names the
+measured population, links actual notes, and asks the reader to explore a question.
+That fits the [vision](../specs/geistfabrik_vision.md)'s reflection, surprise and
+divergence goals. It contributes lexical evidence alongside semantic drift;
+shared vocabulary is a different signal from proximity in embedding space.
+
+Its best use is to revisit a period of changing vocabulary and connect notes that
+use the same emerging language. Current-text cohorts are explicitly reconstructed;
+captured additions provide firmer observation evidence once enough sync history
+accumulates. Sparse or undated vaults abstain rather than invent chronology.
+
+Engineering choices follow the repository's practices: local SQLite ownership,
+atomic sync, no vocabulary sampling, exact safe pruning, policy/versioned caching,
+strict resource limits, complete-evidence boundary checks, independent property
+oracles and benchmarks that use the actual executor. Single words remain the
+practical default; phrases can outgrow the default timeout.
+
+A word spike does not establish importance, intent or a change in beliefs. Common
+scaffolding words can produce less interesting questions, and completed episodes
+can recur on later sessions; normal novelty/diversity filtering is still needed.
+The corpus checks establish signal detection, exclusion and runtime reliability.
+They do not establish reader surprise or usefulness. Real-vault qualitative
+review should judge those qualities before presenting the geist as broadly proven.
+
+The positive synthetic CLI check selected a fixture marker (`specimenbb`),
+showing why elevated prevalence alone is not a relevance judgment. Captured
+additions are the stronger choice for observed change; dated cohorts are a
+browsing lens over current text. Both need reader interpretation and ordinary
+novelty/diversity filtering.

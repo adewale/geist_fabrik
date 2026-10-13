@@ -6,6 +6,17 @@ a substitute for the implementation, raw benchmark artifacts, or test logs.
 The results below were reported from earlier executions and have not been
 rechecked during this recovery step.
 
+## Review follow-up, 2026-10-14
+
+PR #97 now includes the five independent review repairs and the follow-up hardlink
+case. Full episode evidence remains available; rich-context boundary checks precede
+bounded suggestion references. Source/native-path exclusions and near-one numeric
+costs are repaired. Skipped sources cannot tighten observation bounds. The
+executor-based corpus matrix covers all three changing profiles, alongside real
+CLI checks on the small fixture and the original large corpus. New raw archives,
+failed-harness evidence and the vision assessment are preserved on this branch.
+See the current performance and test-audit documents for exact scope and outcomes.
+
 ## Rebuilt implementation, 2026-10-13
 
 The feature was rebuilt from the preserved specification, not recovered byte for
