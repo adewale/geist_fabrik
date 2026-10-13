@@ -6,7 +6,8 @@ its authoring gate, boundary/cost guide and audit references, plus
 [Hegel guidance](https://github.com/hegeldev/hegel-skill/blob/main/skills/hegel/SKILL.md)
 and the [Hegel review checklist](https://github.com/hegeldev/hegel-skill/blob/main/skills/hegel-review/SKILL.md).
 Python uses the existing Hypothesis dependency; no Hegel language migration is needed.
-No existing test was deleted to increase apparent coverage or lower runtime.
+A duplicate timer-only benchmark was retired after auditing its stronger
+query-count and correctness owners; this was not a coverage/runtime shortcut.
 
 ## Contract owners and independent evidence
 
@@ -87,8 +88,8 @@ record are not claimed as mutation evidence for this rebuilt code.
 Recent focused runs: detector/corpus property modules 26 passed in 10.92 s;
 expanded sync/analysis module 26 passed in 8.21 s. The exhaustive objective and
 filesystem lifecycle properties justify their cost; full-model work stays in the
-separate benchmark/package lanes. Exact counts from canonical validation and the
-canonical shared autoreview outcome will be recorded after the final run.
+separate benchmark/package lanes. The completed canonical validation and separate shared autoreview outcome are
+recorded below.
 
 The final capture-order and batch owner run passed 40 tests in 5.59 s. The
 objective oracle now disables pytest's default relative tolerance and retains
@@ -100,7 +101,7 @@ Canonical shared autoreview was attempted against committed source candidate
 `reviewer_unavailable`, one attempt, `report_produced: false`. This is not a clean
 review, and the Hegel adversarial review is not presented as its substitute.
 The PR remains draft pending authenticated canonical review. Repository-wide
-validation must pass before the rebuilt code is pushed.
+validation passed before publishing the rebuilt code.
 
 
 The follow-up independent review found two confirmed replay defects: redirected
@@ -120,3 +121,18 @@ After the final capture-order repair, a fresh 32-snapshot lexical replay matched
 all findings in both modes against the archived real-model smoke replay (64
 exact comparisons). Both lossless archives independently match their recorded
 SHA-256 after decompression.
+
+
+Final `scripts/validate.sh` exited zero: 1,661 unit tests passed (one skipped,
+eight deselected); 81 integration tests passed (eight deselected); all 152 AUTO
+acceptance criteria passed (83 MANUAL criteria remain unverified); branch coverage
+was 2,893/3,570 (81.04%, gate 70%). Ruff, mypy, ty, unused-table detection,
+Bandit, actionlint and package checks passed. All 45 bundled geists fired in the
+required lane. The installed wheel performed real offline model inference with
+384-dimensional outputs and expected related/unrelated similarity ordering.
+
+[Machine-readable validation evidence](../benchmarks/results/word_burst_validation.json)
+anchors a lossless compressed log with SHA-256. The validation record identifies
+the tested commit; subsequent changes only preserve this evidence and clarify
+this audit. Documentation contracts are rerun after those edits. CI platform
+coverage is separate from this successful local run.
