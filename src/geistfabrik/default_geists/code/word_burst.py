@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from geistfabrik.config import MAX_SUGGESTION_NOTES
-from geistfabrik.models import NoteLinkIndex, Suggestion, _normalise_vault_path
+from geistfabrik.models import Suggestion
 
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
@@ -14,11 +14,6 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
     findings = vault.word_bursts()
     if not findings:
         return []
-    boundary = vault.vault.config.filtering
-    index = NoteLinkIndex(
-        vault.vault.db.execute("SELECT path,title,is_virtual,source_file,entry_date FROM notes")
-    )
-    exclusions = tuple(_normalise_vault_path(path) for path in boundary.exclude_paths)
     suggestions = []
     for finding in vault.sample(findings, count=vault.vault.config.word_burst.max_suggestions):
         notes = [vault.get_note(path) for path in finding.support_paths]
@@ -28,7 +23,7 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
         # Full evidence stays in WordBurstFinding. Check all its references
         # before bounding the rendered payload so hidden supports cannot escape
         # the same fail-closed boundary used by the downstream filter.
-        if boundary.boundary_enabled and not index.references_allowed(links, exclusions):
+        if not vault.references_allowed(links):
             continue
         population = (
             "current text grouped by declared dates"

@@ -22,7 +22,7 @@ from .clustering_analysis import Cluster, format_cluster_label
 from .config import GEIST_JOURNAL_DIR, SEMANTIC_DIM
 from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
 from .markdown_parser import parse_frontmatter
-from .models import Link, Note, NoteLinkIndex
+from .models import Link, Note, NoteLinkIndex, _normalise_vault_path
 from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
@@ -278,6 +278,19 @@ class VaultContext:
     def word_bursts(self) -> list[WordBurstFinding]:
         """Lexical episodes up to this session's date, with explicit provenance."""
         return analyze_word_bursts(self.vault, end_day=self.session.date.date())
+
+    def references_allowed(self, targets: list[str]) -> bool:
+        """Check complete evidence before a geist bounds its rendered references."""
+        boundary = self.vault.config.filtering
+        if not boundary.boundary_enabled:
+            return True
+        if self._full_link_index is None:
+            self._full_link_index = NoteLinkIndex(
+                self.db.execute("SELECT path,title,is_virtual,source_file,entry_date FROM notes")
+            )
+        return self._full_link_index.references_allowed(
+            targets, tuple(_normalise_vault_path(path) for path in boundary.exclude_paths)
+        )
 
     def __init__(
         self,
