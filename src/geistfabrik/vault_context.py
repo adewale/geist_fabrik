@@ -28,6 +28,7 @@ from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
 from .voice_analysis import VoiceMetadata, compute_voice
+from .word_burst_analysis import WordBurstFinding, analyze_word_bursts
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +274,10 @@ class VaultContext:
     semantic search, graph operations, metadata access, and deterministic
     randomness. This is what geists actually receive.
     """
+
+    def word_bursts(self) -> list[WordBurstFinding]:
+        """Lexical episodes up to this session's date, with explicit provenance."""
+        return analyze_word_bursts(self.vault, end_day=self.session.date.date())
 
     def __init__(
         self,

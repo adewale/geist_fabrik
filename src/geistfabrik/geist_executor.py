@@ -266,6 +266,7 @@ class GeistExecutor:
         module = importlib.util.module_from_spec(spec)
         previous_module = sys.modules.get(module_key)
         sys.modules[module_key] = module
+
         def restore_module() -> None:
             if previous_module is None:
                 sys.modules.pop(module_key, None)

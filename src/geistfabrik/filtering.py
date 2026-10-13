@@ -190,8 +190,7 @@ class SuggestionFilter:
             # any matching identity is excluded.
             matches = [index.matching_paths(note_ref) for note_ref in suggestion.notes]
             if all(
-                paths
-                and not any(index.sources[path].startswith(exclude_paths) for path in paths)
+                paths and not any(index.sources[path].startswith(exclude_paths) for path in paths)
                 for paths in matches
             ):
                 filtered.append(suggestion)

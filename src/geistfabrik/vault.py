@@ -5,13 +5,14 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .config import MAX_NOTE_BYTES, semantic_cache_key
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
+from .lexical_index import LexicalIndex
 from .markdown_parser import (
     MarkdownLimitError,
     declared_creation_date,
@@ -108,11 +109,36 @@ class Vault:
         for attempt in range(_SYNC_SNAPSHOT_ATTEMPTS):
             try:
                 with owned_transaction(self.db, "Vault.sync"):
+                    lexical = LexicalIndex(self.db, self.config.lexical_analysis, datetime.now(UTC))
+                    rebuild_lexical = lexical.prepare()
                     md_files = self._discover_markdown_files()
                     processed_count = self._sync_discovered_files(md_files)
                     if not self._snapshot_is_current(md_files):
                         raise _VaultSnapshotChangedError
                     self._delete_missing_notes(md_files)
+                    # Process only source rows changed by this sync. A policy upgrade
+                    # reads existing prose once; an unchanged sync reads none.
+                    if self.config.lexical_analysis.enabled:
+                        if rebuild_lexical:
+                            rows = self.db.execute(
+                                "SELECT path, title, content, created, modified, "
+                                "is_virtual, source_file, entry_date FROM notes"
+                            )
+                        else:
+                            rows = self.db.execute(
+                                "SELECT n.path, n.title, n.content, n.created, n.modified, "
+                                "n.is_virtual, n.source_file, n.entry_date FROM notes n "
+                                "LEFT JOIN lexical_notes l ON l.path = n.path "
+                                "WHERE l.path IS NULL OR n.source_fingerprint IN "
+                                "(SELECT fingerprint FROM _lexical_changed_sources)"
+                            )
+                        for row in rows:
+                            lexical.sync_note(self._build_note_from_row(row, [], []))
+                    lexical.finish()
+                    self.last_lexical_stats = {
+                        "extracted": lexical.extracted,
+                        "changed": lexical.changed,
+                    }
                     return processed_count
             except _VaultSnapshotChangedError:
                 if attempt + 1 == _SYNC_SNAPSHOT_ATTEMPTS:
@@ -190,6 +216,11 @@ class Vault:
     def _sync_discovered_files(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> int:
         """Reconcile already-resolved sources inside the owned transaction."""
         processed_count = 0
+        self.db.execute(
+            "CREATE TEMP TABLE IF NOT EXISTS _lexical_changed_sources "
+            "(fingerprint TEXT PRIMARY KEY)"
+        )
+        self.db.execute("DELETE FROM _lexical_changed_sources")
         for md_file, resolved_file, initial_stat in md_files:
             rel_path = str(md_file.relative_to(self.vault_path))
             file_mtime = initial_stat.st_mtime
@@ -209,6 +240,9 @@ class Vault:
                 continue
 
             # File is new or modified, process it
+            self.db.execute(
+                "INSERT OR IGNORE INTO _lexical_changed_sources VALUES (?)", (source_fingerprint,)
+            )
             try:
                 with resolved_file.open("rb") as handle:
                     raw_content = handle.read(MAX_NOTE_BYTES + 1)

@@ -400,6 +400,83 @@ class SessionConfig:
 
 
 @dataclass
+class LexicalAnalysisConfig:
+    """Versioned extraction policy; changing it resets the observation baseline."""
+
+    enabled: bool = True
+    ngram_max: int = 1
+    include_quotes: bool = False
+    capture_observed: bool = True
+    exclude_paths: list[str] = field(default_factory=lambda: ["Templates/"])
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "LexicalAnalysisConfig":
+        _reject_unknown(data, set(cls().to_dict()), "lexical_analysis")
+        return cls(
+            enabled=_strict_bool(data, "lexical_analysis.enabled", True),
+            ngram_max=_bounded_int(data, "lexical_analysis.ngram_max", 1, 1, 3),
+            include_quotes=_strict_bool(data, "lexical_analysis.include_quotes", False),
+            capture_observed=_strict_bool(data, "lexical_analysis.capture_observed", True),
+            exclude_paths=_string_list(
+                {"exclude_paths": data.get("exclude_paths", ["Templates/"])},
+                "lexical_analysis.exclude_paths",
+            ),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "ngram_max": self.ngram_max,
+            "include_quotes": self.include_quotes,
+            "capture_observed": self.capture_observed,
+            "exclude_paths": self.exclude_paths,
+        }
+
+
+@dataclass
+class WordBurstConfig:
+    """Exposure and support requirements for a lexical evidence provider."""
+
+    history_mode: str = "dated_cohorts"
+    window_weeks: int = 104
+    min_documents: int = 50
+    min_populated_bins: int = 8
+    min_support: int = 3
+    min_support_bins: int = 2
+    s: float = 2.0
+    gamma: float = 1.0
+    max_states: int = 2
+    max_suggestions: int = 3
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "WordBurstConfig":
+        _reject_unknown(data, set(cls().to_dict()), "word_burst")
+        s = _bounded_float(data, "word_burst.s", 2.0, 1.0, 1_000_000.0)
+        if s <= 1:
+            raise ConfigError("word_burst.s must be greater than one")
+        return cls(
+            history_mode=_enum_string(
+                data,
+                "word_burst.history_mode",
+                "dated_cohorts",
+                {"dated_cohorts", "observed_additions"},
+            ),
+            window_weeks=_bounded_int(data, "word_burst.window_weeks", 104, 1, 5200),
+            min_documents=_bounded_int(data, "word_burst.min_documents", 50, 1, 1_000_000),
+            min_populated_bins=_bounded_int(data, "word_burst.min_populated_bins", 8, 1, 5200),
+            min_support=_bounded_int(data, "word_burst.min_support", 3, 1, 1_000_000),
+            min_support_bins=_bounded_int(data, "word_burst.min_support_bins", 2, 1, 5200),
+            s=s,
+            gamma=_bounded_float(data, "word_burst.gamma", 1.0, 0.0, 1_000_000.0),
+            max_states=_bounded_int(data, "word_burst.max_states", 2, 1, 16),
+            max_suggestions=_bounded_int(data, "word_burst.max_suggestions", 3, 1, 100),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(vars(self))
+
+
+@dataclass
 class GeistFabrikConfig:
     """GeistFabrik configuration."""
 
@@ -412,6 +489,8 @@ class GeistFabrikConfig:
     geist_execution: GeistExecutionConfig = field(default_factory=GeistExecutionConfig)
     filtering: FilteringConfig = field(default_factory=FilteringConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
+    lexical_analysis: LexicalAnalysisConfig = field(default_factory=LexicalAnalysisConfig)
+    word_burst: WordBurstConfig = field(default_factory=WordBurstConfig)
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.
@@ -464,6 +543,12 @@ class GeistFabrikConfig:
             geist_execution=GeistExecutionConfig.from_dict(geist_execution_data),
             filtering=FilteringConfig.from_dict(filtering_data),
             session=SessionConfig.from_dict(session_data),
+            lexical_analysis=LexicalAnalysisConfig.from_dict(
+                _mapping(data.get("lexical_analysis", {}), "lexical_analysis")
+            ),
+            word_burst=WordBurstConfig.from_dict(
+                _mapping(data.get("word_burst", {}), "word_burst")
+            ),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -482,6 +567,8 @@ class GeistFabrikConfig:
             "geist_execution": self.geist_execution.to_dict(),
             "filtering": self.filtering.to_dict(),
             "session": self.session.to_dict(),
+            "lexical_analysis": self.lexical_analysis.to_dict(),
+            "word_burst": self.word_burst.to_dict(),
         }
 
 
@@ -499,6 +586,8 @@ KNOWN_CONFIG_KEYS = frozenset(
         "geist_execution",
         "filtering",
         "session",
+        "lexical_analysis",
+        "word_burst",
     }
 )
 
@@ -614,4 +703,14 @@ def generate_default_config() -> str:
     )
     lines.append("")
 
+    lines.append("# Lexical history (policy changes reset the observed-addition baseline)")
+    lines.extend(
+        yaml.safe_dump(
+            {
+                "lexical_analysis": LexicalAnalysisConfig().to_dict(),
+                "word_burst": WordBurstConfig().to_dict(),
+            },
+            sort_keys=False,
+        ).splitlines()
+    )
     return "\n".join(lines)

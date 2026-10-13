@@ -12,7 +12,7 @@ from pathlib import Path
 # Version 8: Added geist_status table (persistent per-geist failure tracking)
 # Version 9: Version embedding metric caches by exact source and algorithm inputs
 # Version 10: Persist exact filesystem fingerprints for incremental vault sync
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
@@ -134,6 +134,79 @@ CREATE TABLE IF NOT EXISTS geist_status (
     last_error TEXT,
     updated TEXT
 );
+
+-- Exact current lexical vectors and prospective observation evidence.
+CREATE TABLE IF NOT EXISTS lexical_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+INSERT OR IGNORE INTO lexical_meta VALUES ('generation', '0');
+CREATE TABLE IF NOT EXISTS lexical_terms (
+    term TEXT PRIMARY KEY,
+    documents INTEGER NOT NULL DEFAULT 0 CHECK(documents >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_lexical_terms_documents ON lexical_terms(documents);
+CREATE TABLE IF NOT EXISTS lexical_notes (
+    path TEXT PRIMARY KEY REFERENCES notes(path) ON DELETE CASCADE,
+    raw_hash TEXT NOT NULL,
+    body_hash TEXT NOT NULL,
+    cohort_day TEXT,
+    provenance TEXT NOT NULL,
+    counts_json TEXT NOT NULL,
+    observed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lexical_cohort ON lexical_notes(cohort_day);
+CREATE TABLE IF NOT EXISTS lexical_events (
+    path TEXT NOT NULL REFERENCES lexical_notes(path) ON DELETE CASCADE,
+    bin_start TEXT NOT NULL,
+    previous_at TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    terms_json TEXT NOT NULL,
+    revisions_json TEXT NOT NULL,
+    evidence_hash TEXT NOT NULL,
+    PRIMARY KEY(path, bin_start)
+);
+CREATE INDEX IF NOT EXISTS idx_lexical_events_bin ON lexical_events(bin_start);
+CREATE TABLE IF NOT EXISTS word_burst_cache (
+    cache_key TEXT PRIMARY KEY,
+    result_json TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS lexical_note_insert AFTER INSERT ON lexical_notes BEGIN
+    INSERT INTO lexical_terms(term, documents)
+        SELECT key, 1 FROM json_each(NEW.counts_json) WHERE true
+        ON CONFLICT(term) DO UPDATE SET documents = documents + 1;
+    UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
+    DELETE FROM word_burst_cache;
+END;
+CREATE TRIGGER IF NOT EXISTS lexical_note_delete AFTER DELETE ON lexical_notes BEGIN
+    UPDATE lexical_terms SET documents = documents - 1
+        WHERE term IN (SELECT key FROM json_each(OLD.counts_json));
+    UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
+    DELETE FROM word_burst_cache;
+END;
+CREATE TRIGGER IF NOT EXISTS lexical_note_update AFTER UPDATE ON lexical_notes
+WHEN OLD.body_hash != NEW.body_hash OR OLD.cohort_day IS NOT NEW.cohort_day
+    OR OLD.provenance != NEW.provenance OR OLD.counts_json != NEW.counts_json BEGIN
+    UPDATE lexical_terms SET documents = documents - 1
+        WHERE term IN (SELECT key FROM json_each(OLD.counts_json));
+    INSERT INTO lexical_terms(term, documents)
+        SELECT key, 1 FROM json_each(NEW.counts_json) WHERE true
+        ON CONFLICT(term) DO UPDATE SET documents = documents + 1;
+    UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
+    DELETE FROM word_burst_cache;
+END;
+CREATE TRIGGER IF NOT EXISTS lexical_event_insert AFTER INSERT ON lexical_events BEGIN
+    UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
+    DELETE FROM word_burst_cache;
+END;
+CREATE TRIGGER IF NOT EXISTS lexical_event_update AFTER UPDATE ON lexical_events BEGIN
+    UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
+    DELETE FROM word_burst_cache;
+END;
+CREATE TRIGGER IF NOT EXISTS lexical_event_delete AFTER DELETE ON lexical_events BEGIN
+    UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
+    DELETE FROM word_burst_cache;
+END;
 """
 
 
@@ -179,9 +252,7 @@ def _execute_schema_sql(conn: sqlite3.Connection) -> None:
         raise RuntimeError("Incomplete statement in SCHEMA_SQL")
 
 
-def _upgrade_and_reconcile(
-    conn: sqlite3.Connection, *, allow_empty_unversioned: bool
-) -> None:
+def _upgrade_and_reconcile(conn: sqlite3.Connection, *, allow_empty_unversioned: bool) -> None:
     """Validate, migrate, and reconcile while holding the schema writer lock."""
     if conn.in_transaction:
         raise RuntimeError("Schema migration requires ownership of the SQLite transaction")

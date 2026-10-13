@@ -91,6 +91,29 @@ full_config_dicts = st.fixed_dictionaries(
         "session": st.fixed_dictionaries(
             {"default_suggestions": st.integers(min_value=1, max_value=1000)}
         ),
+        "lexical_analysis": st.fixed_dictionaries(
+            {
+                "enabled": st.booleans(),
+                "ngram_max": st.integers(1, 3),
+                "include_quotes": st.booleans(),
+                "capture_observed": st.booleans(),
+                "exclude_paths": st.lists(st.text(), max_size=5),
+            }
+        ),
+        "word_burst": st.fixed_dictionaries(
+            {
+                "history_mode": st.sampled_from(["dated_cohorts", "observed_additions"]),
+                "window_weeks": st.integers(1, 5200),
+                "min_documents": st.integers(1, 1_000_000),
+                "min_populated_bins": st.integers(1, 5200),
+                "min_support": st.integers(1, 1_000_000),
+                "min_support_bins": st.integers(1, 5200),
+                "s": st.floats(min_value=1.0000000000000002, max_value=1_000_000),
+                "gamma": st.floats(min_value=0, max_value=1_000_000),
+                "max_states": st.integers(1, 16),
+                "max_suggestions": st.integers(1, 100),
+            }
+        ),
     }
 )
 
@@ -184,18 +207,14 @@ def test_empty_dict_uses_all_defaults() -> None:
 
 
 @given(
-    invalid_number=st.sampled_from(
-        [10**400, -(10**400), float("nan"), float("inf"), float("-inf")]
-    )
+    invalid_number=st.sampled_from([10**400, -(10**400), float("nan"), float("inf"), float("-inf")])
 )
 def test_nonfinite_or_unrepresentable_thresholds_raise_config_error(
     invalid_number: int | float,
 ) -> None:
     """All invalid numeric YAML values follow the public ConfigError contract."""
     with pytest.raises(ConfigError):
-        GeistFabrikConfig.from_dict(
-            {"filtering": {"novelty": {"threshold": invalid_number}}}
-        )
+        GeistFabrikConfig.from_dict({"filtering": {"novelty": {"threshold": invalid_number}}})
 
 
 @given(st.text(min_size=1, max_size=50))

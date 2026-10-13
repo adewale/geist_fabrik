@@ -62,9 +62,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if len(embeddings) < 10:
                 continue
 
-            embeddings_array = np.array(
-                [semantic_component(embedding) for embedding in embeddings]
-            )
+            embeddings_array = np.array([semantic_component(embedding) for embedding in embeddings])
             centroid = np.mean(embeddings_array, axis=0)
 
             # Use scipy for Euclidean distance calculation

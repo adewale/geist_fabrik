@@ -648,9 +648,7 @@ class JournalWriter:
             else False
         )
 
-    def get_recent_suggestions(
-        self, days: int = 60, *, as_of: datetime | None = None
-    ) -> list[str]:
+    def get_recent_suggestions(self, days: int = 60, *, as_of: datetime | None = None) -> list[str]:
         """Return suggestions before the reference session within ``days``.
 
         ``as_of`` makes replay and diff output independent of the current wall

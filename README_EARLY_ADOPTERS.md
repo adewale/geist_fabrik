@@ -9,7 +9,7 @@ This guide shows you how to safely test GeistFabrik (v0.11.0 Beta) and provide v
 **Current Status:**
 - ✅ All tests passing (beta quality - see STATUS.md for details)
 - ✅ All core features implemented
-- ✅ 44 default geists bundled (41 code + 3 Tracery)
+- ✅ 45 default geists bundled (42 code + 3 Tracery)
 - ✅ Source notes are never modified; managed state is written under `_geistfabrik/`
 
 **Expect:**
