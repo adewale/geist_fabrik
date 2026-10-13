@@ -11,6 +11,7 @@ import hashlib
 import json
 from datetime import date, timedelta
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 VERSION = 1
 PROFILES = {"smoke": 128, "standard": 1000, "large": 10_000}
@@ -153,12 +154,14 @@ def _store(objects: Path, text: str) -> str:
 
 
 def apply_snapshot(corpus: Path, vault: Path, index: int) -> dict:
-    """Apply one sequential snapshot, verifying paths and object hashes before writing.
+    """Apply a sequential snapshot, verifying changed objects before writing.
 
     The marker distinguishes this dedicated replay vault from user notes. Source
     corpora are immutable. Persisted engine outputs are outside the source snapshot.
     """
-    manifest = json.loads((corpus / "manifest.json").read_text(encoding="utf-8"))
+    manifest_bytes = (corpus / "manifest.json").read_bytes()
+    manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+    manifest = json.loads(manifest_bytes)
     if (
         isinstance(index, bool)
         or not isinstance(index, int)
@@ -169,6 +172,8 @@ def apply_snapshot(corpus: Path, vault: Path, index: int) -> dict:
         raise ValueError("replay vault must be outside the immutable corpus")
     vault.mkdir(parents=True, exist_ok=True)
     marker = vault / ".temporal-replay.json"
+    if marker.is_symlink() or (marker.exists() and not marker.is_file()):
+        raise ValueError("replay marker must be a regular file")
     state = json.loads(marker.read_text()) if marker.exists() else None
     if state is None and (index != 0 or any(vault.iterdir())):
         raise ValueError("first snapshot requires an empty dedicated vault")
@@ -176,6 +181,8 @@ def apply_snapshot(corpus: Path, vault: Path, index: int) -> dict:
         raise ValueError("snapshots must be applied sequentially")
     if state is not None and state["corpus"] != str(corpus.resolve()):
         raise ValueError("replay belongs to a different corpus")
+    if state is not None and state.get("manifest_sha256") != manifest_digest:
+        raise ValueError("replay manifest has changed")
     record = manifest["snapshots"][index]
     payloads = {}
     for relative in record["changed_paths"] + record["deleted_paths"]:
@@ -199,7 +206,22 @@ def apply_snapshot(corpus: Path, vault: Path, index: int) -> dict:
         destination = vault / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(data)
-    marker.write_text(json.dumps({"index": index, "corpus": str(corpus.resolve())}) + "\n")
+    with NamedTemporaryFile(mode="w", encoding="utf-8", dir=vault, delete=False) as temporary:
+        temporary.write(
+            json.dumps(
+                {
+                    "index": index,
+                    "corpus": str(corpus.resolve()),
+                    "manifest_sha256": manifest_digest,
+                }
+            )
+            + "\n"
+        )
+    temporary_path = Path(temporary.name)
+    try:
+        temporary_path.replace(marker)
+    finally:
+        temporary_path.unlink(missing_ok=True)
     return record
 
 

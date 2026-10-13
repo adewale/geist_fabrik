@@ -40,9 +40,6 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
     if vault_path.exists() and any(vault_path.iterdir()):
         raise ValueError("benchmark requires a fresh replay vault")
     vault_path.mkdir(parents=True, exist_ok=True)
-    started = time.perf_counter()
-    apply_snapshot(corpus, vault_path, 0)
-    first_apply_seconds = time.perf_counter() - started
     report = {
         "synthetic": True,
         "python": platform.python_version(),
@@ -54,17 +51,25 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
         "semantic_work_skipped": not real_embeddings,
     }
     computer = None
-    if real_embeddings:
-        started = time.perf_counter()
-        os.environ["GEISTFABRIK_OFFLINE"] = "1"
-        computer = EmbeddingComputer()
-        computer.device = "cpu"
-        _ = computer.model
-        report["model_startup_seconds"] = time.perf_counter() - started
     stable_vectors = {}
+    index = 0
+    stage = "apply_snapshot"
     try:
+        started = time.perf_counter()
+        apply_snapshot(corpus, vault_path, 0)
+        first_apply_seconds = time.perf_counter() - started
+        if real_embeddings:
+            stage = "model_startup"
+            started = time.perf_counter()
+            os.environ["GEISTFABRIK_OFFLINE"] = "1"
+            computer = EmbeddingComputer()
+            computer.device = "cpu"
+            _ = computer.model
+            report["model_startup_seconds"] = time.perf_counter() - started
+        stage = "open_vault"
         with closing(Vault(vault_path, db_path=vault_path / "_geistfabrik/vault.db")) as vault:
             for index, snapshot in enumerate(manifest["snapshots"]):
+                stage = "apply_snapshot"
                 started = time.perf_counter()
                 if index:
                     apply_snapshot(corpus, vault_path, index)
@@ -83,12 +88,14 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                         return observed.astimezone(tz or UTC)
 
                 started = time.perf_counter()
+                stage = "sync"
                 with patch("geistfabrik.vault.datetime", Clock):
                     row["processed"] = vault.sync()
                 row["sync_seconds"] = time.perf_counter() - started
                 row["lexical_sync"] = vault.last_lexical_stats
                 row["lexical"] = {}
                 for mode in ("dated_cohorts", "observed_additions"):
+                    stage = "analysis:" + mode
                     vault.config.word_burst.history_mode = mode
                     stats = WordBurstDiagnostics()
                     started = time.perf_counter()
@@ -102,6 +109,7 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                     }
                 vault.config.word_burst.history_mode = "dated_cohorts"
                 if computer is not None:
+                    stage = "embeddings"
                     with Session(
                         observed.replace(tzinfo=None), vault.db, computer=computer
                     ) as session:
@@ -109,6 +117,7 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                         session.compute_embeddings(vault.all_notes())
                         row["embedding_seconds"] = time.perf_counter() - started
                         context = VaultContext(vault, session)
+                        stage = "stable_vectors"
                         for path in manifest["stable_paths"]:
                             blob = vault.db.execute(
                                 "SELECT embedding FROM session_embeddings WHERE session_id=? "
@@ -121,6 +130,7 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                                 )
                             stable_vectors.setdefault(path, blob)
                         row["geists"] = {}
+                        stage = "geists"
                         for name in GEISTS:
                             started = time.perf_counter()
                             try:
@@ -143,9 +153,16 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
                 print(
                     f"snapshot {index + 1}/{len(manifest['snapshots'])}: {row['date']}", flush=True
                 )
+    except Exception as exc:
+        report["errors"].append({"index": index, "stage": stage, "error": repr(exc)})
     finally:
         if computer is not None:
-            computer.close()
+            try:
+                computer.close()
+            except Exception as exc:
+                report["errors"].append(
+                    {"index": index, "stage": "close_model", "error": repr(exc)}
+                )
     return report
 
 

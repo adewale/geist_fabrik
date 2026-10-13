@@ -45,7 +45,9 @@ def test_decoder_matches_global_exhaustive_objective(data, s, gamma, maximum):
     """A greedy/local transition bug changes the globally optimal objective."""
     counts, exposure = data
     result = detect_bursts(counts, exposure, s=s, gamma=gamma, max_states=maximum)
-    assert result.objective == pytest.approx(oracle(counts, exposure, s, gamma, maximum), abs=2e-12)
+    assert result.objective == pytest.approx(
+        oracle(counts, exposure, s, gamma, maximum), abs=2e-12, rel=0
+    )
 
 
 @given(

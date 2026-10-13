@@ -98,38 +98,6 @@ class TestBatchLoading:
 
         assert list(notes_map.keys()) == paths
 
-    @pytest.mark.benchmark
-    def test_get_notes_batch_performance_vs_individual(self, vault_with_notes: Vault):
-        """Test that batch loading is more efficient than individual loading."""
-        import time
-
-        paths = [f"note_{i}.md" for i in range(10)]
-
-        # Measure individual loading (N × 3 queries)
-        start_individual = time.perf_counter()
-        individual_notes = []
-        for path in paths:
-            note = vault_with_notes.get_note(path)
-            if note:
-                individual_notes.append(note)
-        time_individual = time.perf_counter() - start_individual
-
-        # Measure batch loading (3 queries total)
-        start_batch = time.perf_counter()
-        notes_map = vault_with_notes.get_notes_batch(paths)
-        batch_notes = [n for n in notes_map.values() if n is not None]
-        time_batch = time.perf_counter() - start_batch
-
-        # Batch should be faster (or at least not significantly slower)
-        # Allow some variance due to test environment
-        assert time_batch <= time_individual * 1.5, (
-            f"Batch loading ({time_batch:.4f}s) should be faster than "
-            f"individual loading ({time_individual:.4f}s)"
-        )
-
-        # Verify same results
-        assert len(batch_notes) == len(individual_notes)
-
 
 def _sql_during(ctx: VaultContext, action: Callable[[], object]) -> list[str]:
     """SQL statements the context's connection executes while ``action`` runs."""
@@ -298,5 +266,15 @@ class TestBatchLoadingBenchmark:
         print(f"Speedup:            {speedup:.2f}x")
         print("=" * 70)
 
-        # Batch should be at least 1.3x faster (conservative estimate allowing for test variance)
-        assert speedup >= 1.3, f"Batch loading should be faster (got {speedup:.2f}x)"
+        # Millisecond ratios vary by host and are measurements, not a portable
+        # guarantee. Gate the documented payload-query budget and source values.
+        statements: list[str] = []
+        vault_with_notes.db.set_trace_callback(statements.append)
+        try:
+            loaded = vault_with_notes.get_notes_batch(paths)
+        finally:
+            vault_with_notes.db.set_trace_callback(None)
+        assert len(statements) <= 3, statements
+        assert {
+            path: note.content if note is not None else None for path, note in loaded.items()
+        } == {path: (vault_with_notes.vault_path / path).read_text() for path in paths}

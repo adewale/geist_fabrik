@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import subprocess
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -77,3 +79,58 @@ def test_snapshot_paths_cannot_escape_vault(tmp_path):
     with pytest.raises(ValueError, match="unsafe"):
         apply_snapshot(corpus, vault, 0)
     assert not (tmp_path / "outside.md").exists()
+
+
+@pytest.mark.parametrize("mutation", ["marker_symlink", "manifest_change"])
+def test_replay_rejects_redirected_marker_or_changed_manifest_before_mutation(tmp_path, mutation):
+    corpus, vault = tmp_path / "corpus", tmp_path / "vault"
+    generate_corpus(corpus, notes=64, snapshots=2)
+    apply_snapshot(corpus, vault, 0)
+    marker = vault / ".temporal-replay.json"
+    external = tmp_path / "external.json"
+    external.write_bytes(marker.read_bytes())
+    if mutation == "marker_symlink":
+        marker.unlink()
+        marker.symlink_to(external)
+    else:
+        manifest = corpus / "manifest.json"
+        manifest.write_bytes(manifest.read_bytes() + b"\n")
+    before = {str(p.relative_to(vault)): p.read_bytes() for p in vault.rglob("*") if p.is_file()}
+    external_before = external.read_bytes()
+    with pytest.raises(ValueError, match="marker|manifest"):
+        apply_snapshot(corpus, vault, 1)
+    assert {
+        str(p.relative_to(vault)): p.read_bytes() for p in vault.rglob("*") if p.is_file()
+    } == before
+    assert external.read_bytes() == external_before
+
+
+def test_runner_retains_completed_evidence_on_pipeline_failure(tmp_path):
+    corpus, vault = tmp_path / "corpus", tmp_path / "vault"
+    manifest = generate_corpus(corpus, notes=64, snapshots=2)
+    second = manifest["snapshots"][1]
+    digest = second["files"][second["changed_paths"][-1]]
+    (corpus / "objects" / (digest + ".md")).write_text("corrupt")
+    output = tmp_path / "report.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/benchmark_temporal_geists.py",
+            str(corpus),
+            str(vault),
+            "--output",
+            str(output),
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 1
+    assert output.exists(), result.stderr
+    report = json.loads(output.read_text())
+    assert report["snapshots"][0]["index"] == 0
+    assert set(report["snapshots"][0]["lexical"]) == {"dated_cohorts", "observed_additions"}
+    assert report["errors"][-1]["index"] == 1
+    assert report["errors"][-1]["stage"] == "apply_snapshot"
+    assert "corrupt corpus object" in report["errors"][-1]["error"]

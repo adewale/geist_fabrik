@@ -14,7 +14,7 @@ from hypothesis import strategies as st
 from geistfabrik.config_loader import ConfigError, GeistFabrikConfig
 from geistfabrik.default_geists.code.word_burst import suggest
 from geistfabrik.embeddings import Session
-from geistfabrik.lexical_index import extract_terms
+from geistfabrik.lexical_index import LexicalIndex, extract_terms
 from geistfabrik.schema import migrate_schema
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
@@ -142,6 +142,54 @@ def test_same_timestamp_observations_still_capture_positive_changes(tmp_path, mo
         vault.sync()
         row = vault.db.execute("SELECT terms_json FROM lexical_events").fetchone()
         assert row is not None and json.loads(row[0]) == ["aurora"]
+
+
+def test_edit_during_lexical_capture_is_retried_before_commit(tmp_path, monkeypatch):
+    path = tmp_path / "note.md"
+    path.write_text("soil", encoding="utf-8")
+    original = LexicalIndex.finish
+    changed = False
+
+    def finish(index):
+        nonlocal changed
+        original(index)
+        if not changed:
+            path.write_text("aurora", encoding="utf-8")
+            changed = True
+
+    monkeypatch.setattr(LexicalIndex, "finish", finish)
+    with closing(Vault(tmp_path)) as vault:
+        vault.sync()
+        note = vault.get_note("note.md")
+        assert note is not None and note.content == "aurora"
+        assert dict(vault.db.execute("SELECT term,documents FROM lexical_terms")) == {"aurora": 1}
+
+
+def test_observation_timestamp_follows_source_reads(tmp_path, monkeypatch):
+    (tmp_path / "note.md").write_text("soil", encoding="utf-8")
+
+    class Clock(datetime):
+        day = 11
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 1, cls.day, 12, tzinfo=UTC).astimezone(tz)
+
+    monkeypatch.setattr("geistfabrik.vault.datetime", Clock)
+    original = Vault._sync_discovered_files
+
+    def sync_sources(vault, files):
+        Clock.day = 12
+        return original(vault, files)
+
+    monkeypatch.setattr(Vault, "_sync_discovered_files", sync_sources)
+    with closing(Vault(tmp_path)) as vault:
+        vault.sync()
+        assert (
+            vault.db.execute("SELECT observed_at FROM lexical_notes")
+            .fetchone()[0]
+            .startswith("2026-01-12")
+        )
 
 
 def test_failed_sync_rolls_back_lexical_capture_and_dictionary(tmp_path, monkeypatch):

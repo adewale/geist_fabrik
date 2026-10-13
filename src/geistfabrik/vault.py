@@ -113,9 +113,10 @@ class Vault:
                     rebuild_lexical = lexical.prepare()
                     md_files = self._discover_markdown_files()
                     processed_count = self._sync_discovered_files(md_files)
-                    if not self._snapshot_is_current(md_files):
-                        raise _VaultSnapshotChangedError
                     self._delete_missing_notes(md_files)
+                    # Timestamp evidence after reading sources, rather than before
+                    # discovery (which could straddle an observation-week boundary).
+                    lexical.observed_at = datetime.now(UTC)
                     # Process only source rows changed by this sync. A policy upgrade
                     # reads existing prose once; an unchanged sync reads none.
                     if self.config.lexical_analysis.enabled:
@@ -135,6 +136,10 @@ class Vault:
                         for row in rows:
                             lexical.sync_note(self._build_note_from_row(row, [], []))
                     lexical.finish()
+                    # Lexical capture can be expensive. Validate immediately before
+                    # commit so edits during that work roll back and retry everything.
+                    if not self._snapshot_is_current(md_files):
+                        raise _VaultSnapshotChangedError
                     self.last_lexical_stats = {
                         "extracted": lexical.extracted,
                         "changed": lexical.changed,
