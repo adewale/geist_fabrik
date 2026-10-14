@@ -202,3 +202,27 @@ calls across all profiles. Complete episode evidence reaches 3,200 paths; return
 references remain within 100. Both semantic profiles preserve stable meaning
 bytes. Real CLI checks verify a healthy sparse-vault abstention and a positive
 question surviving the four-stage pipeline with offline inference required.
+
+
+Final acceptance exposed another pre-existing millisecond ratio gate: the OP-9
+neighbour-score benchmark measured 1.16x against an arbitrary 1.2x threshold
+(0.507 ms versus 0.436 ms). Auditing the complete owner, OP-9 specification,
+production caller and history showed the durable contract is avoiding redundant
+pairwise similarity computation while preserving scores. Timings remain printed;
+the gate now counts four actual pairwise backend calls in the old usage and zero
+in scored retrieval, and checks scores against a scalar cosine oracle over stored
+semantic vectors. The fast owner also replaces a vacuous `cache_after >= before`
+assertion with nonempty results, no pairwise calls and independent score values.
+The requested count is five but this fixture has only four neighbours; diagnostics
+now report the actual four calls. No production optimization or test-only seam was
+added. All nine owner tests passed in 0.36 s; mypy and ty passed afterward.
+
+
+Final required validation passed after all repairs: 1,671 unit tests (one skipped,
+eight deselected), 81 integration tests (eight deselected), 152/152 AUTO acceptance
+criteria, 81.25% branch coverage, lint/security/unused-table checks, strict mypy/ty,
+actionlint, and installed-wheel real offline inference. All 45 geists passed the
+firing gate. The [validation record](../benchmarks/results/word_burst_review_fixes_validation.json)
+identifies the tested source commit and anchors the lossless full log with SHA-256.
+Only this verification evidence is added afterward. Canonical autoreview remains
+unavailable because of authentication; the PR remains draft.
