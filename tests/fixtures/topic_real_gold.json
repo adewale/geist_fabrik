@@ -1,0 +1,87 @@
+{
+  "description": "Frozen source-first model annotations for all ten checked-in kepano Obsidian sample notes. This small model-labelled development sample is not human-reviewed annotation and does not establish general personal-vault quality.",
+  "provenance": {
+    "annotation_author": "OpenAI model",
+    "human_reviewed": false,
+    "source_kind": "Checked-in testdata/kepano-obsidian-main/*.md files",
+    "method": "Read every raw Markdown source and the topic specification before inspecting extractor implementation or output. Annotate useful observed subjects from eligible note bodies, freeze the labels and thresholds, and bind each note to its exact raw-byte SHA-256.",
+    "extractor_implementation_inspected": false,
+    "extractor_output_inspected": false,
+    "annotation_policy": "Each expected group represents one required central subject; alternatives must be useful wording observed in the eligible source. Acceptable labels include central subjects and useful secondary labels. File names alone are not evidence. Exclude frontmatter, code, embedded views, link destinations, generic headings, boilerplate, and verb-led sentences. Metadata-only and daily stub sources require abstention."
+  },
+  "limit": 5,
+  "minimum_precision": 0.5,
+  "minimum_recall": 0.6,
+  "notes": [
+    {
+      "id": "japan-trip-metadata-only",
+      "source_path": "testdata/kepano-obsidian-main/2023 Japan Trip.md",
+      "source_sha256": "5ca2c825c82ec4f8b5f906a821a34ff78657f474f44dd1a76d7fc586be041542",
+      "expected": [],
+      "acceptable": []
+    },
+    {
+      "id": "meeting-emergence",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-12 Meeting with Steph.md",
+      "source_sha256": "ef32b9eec86e95582b36d22623e2e5732f4dd3beb07dbae059171695724bc435",
+      "expected": [["Out of Control"], ["Emergence"]],
+      "acceptable": ["Out of Control", "Emergence"]
+    },
+    {
+      "id": "daily-2023-09-12-stub",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-12.md",
+      "source_sha256": "d2b39819b63832bf6300634cfebde2b6e24d97af03fd03e69b1739504bd95b7d",
+      "expected": [],
+      "acceptable": []
+    },
+    {
+      "id": "daily-2023-09-30-stub",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-30.md",
+      "source_sha256": "d2b39819b63832bf6300634cfebde2b6e24d97af03fd03e69b1739504bd95b7d",
+      "expected": [],
+      "acceptable": []
+    },
+    {
+      "id": "evergreen-notes",
+      "source_path": "testdata/kepano-obsidian-main/Evergreen notes turn ideas into objects that you can manipulate.md",
+      "source_sha256": "d7ec083b3c9a66dea05245bbc89febbaf3e187f7a9fe8fb23a2175966dfa4215",
+      "expected": [["Evergreen notes", "evergreen"]],
+      "acceptable": ["Evergreen notes", "evergreen", "Obsidian", "creativity", "Creativity is combinatory uniqueness", "Everything is a remix"]
+    },
+    {
+      "id": "isolated-thought",
+      "source_path": "testdata/kepano-obsidian-main/Isolated thought.md",
+      "source_sha256": "c0edc383fcb28ea15872cc92903b3fdfeb9da604de5dcb88e60187678b5c7831",
+      "expected": [["Isolated thought"], ["knowledge graph"]],
+      "acceptable": ["Isolated thought", "knowledge graph", "orphan", "isolation"]
+    },
+    {
+      "id": "minimal-theme",
+      "source_path": "testdata/kepano-obsidian-main/Minimal Theme.md",
+      "source_sha256": "16d99bfd0fdf5dd80eaa043e2d4b41a98670abf13445cf7d6830f9057d4f10ad",
+      "expected": [["Obsidian"], ["minimalism"], ["usability"]],
+      "acceptable": ["Obsidian", "minimalism", "usability", "Color schemes", "E-ink mode", "Mobile support"]
+    },
+    {
+      "id": "obsidian-application",
+      "source_path": "testdata/kepano-obsidian-main/Obsidian.md",
+      "source_sha256": "a9889fbf6bae2a8109c065803043c0b523c018823e946cdf57d1eb920443c1bf",
+      "expected": [["knowledge management"], ["note-taking"]],
+      "acceptable": ["knowledge management", "note-taking", "Minimal Theme", "Evergreen notes"]
+    },
+    {
+      "id": "product-usage-analysis",
+      "source_path": "testdata/kepano-obsidian-main/Product usage analysis.md",
+      "source_sha256": "3b7d468fff01f1ad6f6f3424c97dc0130712c613a6a4c75e82e0c51ca173cbc8",
+      "expected": [["cost per use"], ["product usage patterns"]],
+      "acceptable": ["cost per use", "product usage patterns", "Obsidian"]
+    },
+    {
+      "id": "vault-template-readme",
+      "source_path": "testdata/kepano-obsidian-main/Readme.md",
+      "source_sha256": "c32b01b5b152b7613ac39b57cba6746f415015e1598e95145dfcb938d4788120",
+      "expected": [["Obsidian"], ["vault template"]],
+      "acceptable": ["Obsidian", "vault template", "note-taking", "bottom-up approach", "vault structure"]
+    }
+  ]
+}

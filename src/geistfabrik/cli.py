@@ -19,6 +19,7 @@ from .commands import (
     StatsCommand,
     TestAllCommand,
     TestCommand,
+    TopicsCommand,
     ValidateCommand,
 )
 from .config import (
@@ -89,6 +90,7 @@ Examples:
 
     # Validate command
     _add_validate_parser(subparsers)
+    _add_topics_parser(subparsers)
 
     return parser
 
@@ -348,6 +350,19 @@ def _add_validate_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     )
 
 
+def _add_topics_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    """Inspect local derived topic tags without loading models or plugins."""
+    parser = subparsers.add_parser("topics", help="Inspect automatically extracted topics")
+    parser.add_argument("vault", nargs="?", help="Vault path (auto-detect if omitted)")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--note", help="Note path, title or [[link]] to inspect")
+    selection.add_argument("--topic", help="Exact topic label whose source notes to inspect")
+    parser.add_argument("--limit", type=bounded_int("limit", 1, 1000), default=50)
+    parser.add_argument("--json", action="store_true", help="Print a structured JSON report")
+    parser.add_argument("--rebuild", action="store_true", help="Rebuild all eligible topics")
+    parser.add_argument("--verbose", "-v", action="store_true")
+
+
 # Command registry mapping command names to their classes
 # Using a concrete type for each command to avoid abstract instantiation issues
 COMMANDS: dict[str, type[BaseCommand]] = {
@@ -357,6 +372,7 @@ COMMANDS: dict[str, type[BaseCommand]] = {
     "test-all": TestAllCommand,
     "stats": StatsCommand,
     "validate": ValidateCommand,
+    "topics": TopicsCommand,
 }
 
 
