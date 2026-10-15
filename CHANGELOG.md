@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Automatic local YAKE topic extraction, derived tags and source evidence in SQLite.
+  Inspect with `geistfabrik topics`; query through VaultContext and Tracery.
+- Schema v11 migrates automatically and additively. Source notes and authored tags
+  remain unchanged; extraction/source errors explicitly block complete corpus queries.
+
+
 ### Breaking Changes
 - **Duplicate geists merged.** Geists whose job duplicated another's were
   merged into the one truest to the vision (claims that are true of the named

@@ -12,6 +12,7 @@ from sentence_transformers import SentenceTransformer
 import geistfabrik
 from geistfabrik.embeddings import EmbeddingComputer, Session
 from geistfabrik.vault import Vault
+from geistfabrik.topics import TopicIndex
 
 package_file = Path(geistfabrik.__file__).resolve()
 assert ".venv" not in package_file.parts, package_file
@@ -59,6 +60,7 @@ with tempfile.TemporaryDirectory() as temporary_directory:
     (vault_path / "unrelated.md").write_text(f"# Unrelated\n\n{phrases[2]}")
     vault = Vault(vault_path)
     assert vault.sync() == 3
+    assert "chocolate cake" in {tag.key for tag in TopicIndex(vault.db).tags("unrelated.md")}
     notes = vault.all_notes()
     session = Session(datetime(2026, 1, 15), vault.db, computer=computer)
     session.compute_embeddings(notes)

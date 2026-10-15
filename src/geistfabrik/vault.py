@@ -22,6 +22,7 @@ from .models import Link, Note, NoteLinkIndex
 from .path_safety import PathSafetyError, ensure_contained
 from .schema import init_db
 from .sqlite_transaction import owned_transaction
+from .topics import TopicIndex
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ class Vault:
         # init_db performs ordered migrations for existing databases.
         self._link_index: NoteLinkIndex | None = None
         self._link_index_version: tuple[int, int] | None = None
+        self._topic_sync_errors: dict[str, str] = {}
 
     def _is_excluded_from_date_collection(self, rel_path: str) -> bool:
         """Check if file should be excluded from date-collection detection.
@@ -94,7 +96,7 @@ class Vault:
                 return True
         return False
 
-    def sync(self) -> int:
+    def sync(self, *, rebuild_topics: bool = False) -> int:
         """Incrementally update the database as one exception-atomic unit.
 
         Returns:
@@ -108,11 +110,15 @@ class Vault:
         for attempt in range(_SYNC_SNAPSHOT_ATTEMPTS):
             try:
                 with owned_transaction(self.db, "Vault.sync"):
+                    self._topic_sync_errors = {}
                     md_files = self._discover_markdown_files()
                     processed_count = self._sync_discovered_files(md_files)
+                    self._delete_missing_notes(md_files)
+                    TopicIndex(self.db, self.config.filtering.exclude_paths).synchronize(
+                        rebuild=rebuild_topics, source_errors=self._topic_sync_errors
+                    )
                     if not self._snapshot_is_current(md_files):
                         raise _VaultSnapshotChangedError
-                    self._delete_missing_notes(md_files)
                     return processed_count
             except _VaultSnapshotChangedError:
                 if attempt + 1 == _SYNC_SNAPSHOT_ATTEMPTS:
@@ -177,6 +183,7 @@ class Vault:
             if not resolved.is_file():
                 continue
             if stat.st_size > MAX_NOTE_BYTES:
+                self._topic_sync_errors[rel_path] = "source exceeds file size limit"
                 logger.warning(
                     "Skipping oversized note %s (%d bytes; limit %d)",
                     rel_path,
@@ -213,6 +220,7 @@ class Vault:
                 with resolved_file.open("rb") as handle:
                     raw_content = handle.read(MAX_NOTE_BYTES + 1)
                 if len(raw_content) > MAX_NOTE_BYTES:
+                    self._topic_sync_errors[rel_path] = "source exceeds file size limit"
                     logger.warning(
                         "Skipping note %s because it grew beyond the size limit", rel_path
                     )
@@ -221,9 +229,11 @@ class Vault:
             except FileNotFoundError:
                 continue
             except UnicodeDecodeError as e:
+                self._topic_sync_errors[rel_path] = "source is not valid UTF-8"
                 logger.warning(f"Skipping file {rel_path} due to encoding error: {e}")
                 continue
             except PermissionError as e:
+                self._topic_sync_errors[rel_path] = "source is unreadable"
                 logger.warning(f"Skipping file {rel_path} due to permission denied: {e}")
                 continue
 
@@ -255,6 +265,7 @@ class Vault:
                     )
                 )
             except MarkdownLimitError as exc:
+                self._topic_sync_errors[rel_path] = "source exceeds Markdown parser limit"
                 logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                 self.db.execute(
                     "DELETE FROM notes WHERE path = ? OR source_file = ?",
@@ -269,6 +280,7 @@ class Vault:
                 try:
                     virtual_notes = split_date_collection_note(rel_path, content, created, modified)
                 except MarkdownLimitError as exc:
+                    self._topic_sync_errors[rel_path] = "source exceeds Markdown parser limit"
                     logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                     continue
 
@@ -280,6 +292,7 @@ class Vault:
                 try:
                     title, clean_content, links, tags = parse_markdown(rel_path, content)
                 except MarkdownLimitError as exc:
+                    self._topic_sync_errors[rel_path] = "source exceeds Markdown parser limit"
                     logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                     self.db.execute(
                         "DELETE FROM notes WHERE path = ? OR source_file = ?",

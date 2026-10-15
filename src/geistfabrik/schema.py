@@ -12,11 +12,40 @@ from pathlib import Path
 # Version 8: Added geist_status table (persistent per-geist failure tracking)
 # Version 9: Version embedding metric caches by exact source and algorithm inputs
 # Version 10: Persist exact filesystem fingerprints for incremental vault sync
-SCHEMA_VERSION = 10
+# Version 11: Derived topics, source evidence, and explicit extraction/source failures
+SCHEMA_VERSION = 11
 MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
 SCHEMA_SQL = """
+-- Derived data only; never rewrite source notes or author-written tags.
+CREATE TABLE IF NOT EXISTS topics (topic_key TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS note_topic_state (
+    note_path TEXT PRIMARY KEY,
+    source_digest TEXT NOT NULL,
+    algorithm_digest TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('complete', 'error')),
+    error TEXT,
+    FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS note_topics (
+    note_path TEXT NOT NULL,
+    topic_key TEXT NOT NULL,
+    label TEXT NOT NULL,
+    score REAL NOT NULL,
+    source_start INTEGER NOT NULL,
+    source_end INTEGER NOT NULL,
+    source_text TEXT NOT NULL,
+    source_line INTEGER NOT NULL,
+    provenance TEXT NOT NULL,
+    PRIMARY KEY (note_path, topic_key),
+    FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE,
+    FOREIGN KEY (topic_key) REFERENCES topics(topic_key) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_note_topics_topic ON note_topics(topic_key, note_path);
+-- Newly discovered failures have no notes row and must still block completeness.
+CREATE TABLE IF NOT EXISTS topic_source_errors (source_path TEXT PRIMARY KEY, error TEXT NOT NULL);
+
 -- Notes table
 CREATE TABLE IF NOT EXISTS notes (
     path TEXT PRIMARY KEY,
