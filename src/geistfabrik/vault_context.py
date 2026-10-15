@@ -21,6 +21,7 @@ import numpy as np
 from .clustering_analysis import Cluster, format_cluster_label
 from .config import GEIST_JOURNAL_DIR, SEMANTIC_DIM
 from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
+from .lexical_index import lexical_excerpt
 from .markdown_parser import parse_frontmatter
 from .models import Link, Note, NoteLinkIndex, _normalise_vault_path
 from .semantic_vectors import decode_meaning_vector
@@ -278,6 +279,12 @@ class VaultContext:
     def word_bursts(self) -> list[WordBurstFinding]:
         """Lexical episodes up to this session's date, with explicit provenance."""
         return analyze_word_bursts(self.vault, end_day=self.session.date.date())
+
+    def word_burst_excerpt(self, note: Note, term: str) -> str | None:
+        """Current visible wording for a lexical comparison, never historical text."""
+        return lexical_excerpt(
+            self.read(note), term, include_quotes=self.vault.config.lexical_analysis.include_quotes
+        )
 
     def __init__(
         self,

@@ -26,6 +26,12 @@ retained historical prose, exact old-text replay and alternative rolling baselin
 are **DEFERRED**. `docs/WORD_BURST_ORIGINAL_SPEC.md` is an archival proposal whose
 different data structures/defaults are not current promises.
 
+The same geist now includes declining lower-rate episodes, default two-word phrases and optional three-word
+phrases, bounded current-prose passages, and persisted interval identity for
+episode-level novelty (schema v12). Declines require established prior use and
+later observed exposure. Reader-feedback controls, semantic terminology-change
+detection and inferred contradictions remain deferred.
+
 | key | status | note |
 |---|---|---|
 | `vault.path` | BUILT-DIFFERENTLY | CLI vault argument / auto-detect, not config |

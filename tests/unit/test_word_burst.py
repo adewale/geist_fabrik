@@ -8,7 +8,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from geistfabrik.word_burst import detect_bursts, sparse_gain_cannot_burst
+from geistfabrik.word_burst import BurstModel, detect_bursts, sparse_gain_cannot_burst
 
 
 @st.composite
@@ -18,14 +18,22 @@ def series(draw: st.DrawFn) -> tuple[list[int], list[int]]:
     return counts, exposure
 
 
-def oracle(counts: list[int], exposure: list[int], s: float, gamma: float, maximum: int) -> float:
+def oracle(
+    counts: list[int],
+    exposure: list[int],
+    s: float,
+    gamma: float,
+    maximum: int,
+    direction: str = "rising",
+) -> float:
     """Enumerate every path using direct negative log likelihood and transitions."""
     pairs = [(r, n) for r, n in zip(counts, exposure, strict=True) if n]
     relevant, total = sum(counts), sum(exposure)
     if not total or relevant in (0, total):
         return 0.0
     base = relevant / total
-    probabilities = [base * s**k for k in range(maximum) if base * s**k < 1]
+    factor = s if direction == "rising" else 1 / s
+    probabilities = [base * factor**k for k in range(maximum) if 0 < base * factor**k < 1]
     penalty = gamma * math.log(len(pairs))
     baseline = sum(-r * math.log(base) - (n - r) * math.log(1 - base) for r, n in pairs)
     costs = []
@@ -40,15 +48,38 @@ def oracle(counts: list[int], exposure: list[int], s: float, gamma: float, maxim
     return min(costs)
 
 
-@given(series(), st.sampled_from([1.125, 1.5, 2.0, 3.0]), st.floats(0, 10), st.integers(1, 3))
+@given(
+    data=series(),
+    s=st.sampled_from([1.125, 1.5, 2.0, 3.0]),
+    gamma=st.floats(0, 10),
+    maximum=st.integers(1, 3),
+)
 @settings(max_examples=1000, deadline=None)
-def test_decoder_matches_global_exhaustive_objective(data, s, gamma, maximum):
+@pytest.mark.parametrize("direction", ["rising", "declining"])
+def test_decoder_matches_global_exhaustive_objective(data, s, gamma, maximum, direction):
     """A greedy/local transition bug changes the globally optimal objective."""
     counts, exposure = data
-    result = detect_bursts(counts, exposure, s=s, gamma=gamma, max_states=maximum)
-    assert result.objective == pytest.approx(
-        oracle(counts, exposure, s, gamma, maximum), abs=2e-12, rel=0
+    result = detect_bursts(
+        counts, exposure, s=s, gamma=gamma, max_states=maximum, direction=direction
     )
+    assert result.objective == pytest.approx(
+        oracle(counts, exposure, s, gamma, maximum, direction), abs=2e-12, rel=0
+    )
+    model = BurstModel(exposure, s=s, gamma=gamma, max_states=maximum)
+    sparse = {i: r for i, r in enumerate(counts) if r}
+    assert model.detect_sparse(sparse, direction=direction) == result
+    assert model.detect(counts, direction=direction) == result
+    batch = model.detect_many([sparse, {}, sparse], direction=direction)
+    assert batch[0] == batch[2] == result
+    assert batch[1].states == tuple(0 if n else None for n in exposure)
+    assert batch[1].objective == 0
+    prepared = model.prepare(sparse)
+    assert model.cannot_burst(prepared, direction=direction) == model.cannot_burst(
+        sparse, direction=direction
+    )
+    sparse.clear()
+    assert model.detect_sparse(prepared, direction=direction) == result
+    assert model.detect_many([prepared], direction=direction) == [result]
     if sum(counts) not in (0, sum(exposure)):
         base = sum(counts) / sum(exposure)
         previous = 0
@@ -58,7 +89,7 @@ def test_decoder_matches_global_exhaustive_objective(data, s, gamma, maximum):
                 assert state is None
                 continue
             assert state is not None
-            p = base * s**state
+            p = base * s ** (state if direction == "rising" else -state)
             costs.append(-r * math.log(p) - (n - r) * math.log(1 - p))
             costs.append(r * math.log(base) + (n - r) * math.log(1 - base))
             costs.append(max(0, state - previous) * gamma * math.log(sum(n > 0 for n in exposure)))
@@ -75,8 +106,8 @@ def test_near_one_nonconstant_series_matches_high_precision_bin_costs():
     s = 1.0000000000000002
     with localcontext() as context:
         context.prec = 80
-        base = Decimal.from_float(sum(counts) / sum(exposure))
-        elevated = Decimal.from_float(float(base) * s)
+        base = Decimal(sum(counts)) / Decimal(sum(exposure))
+        elevated = base * Decimal.from_float(s)
         costs = [
             r * (base / elevated).ln() + (n - r) * ((1 - base) / (1 - elevated)).ln()
             for r, n in zip(counts, exposure, strict=True)
@@ -91,17 +122,157 @@ def test_near_one_nonconstant_series_matches_high_precision_bin_costs():
     ] == [(4, 7, False)]
 
 
+def test_large_summed_exposure_keeps_tiny_baseline_complement():
+    counts, exposure = [0, 2**53, 2**53], [1, 2**53, 2**53]
+    with localcontext() as context:
+        context.prec = 80
+        base = Decimal(sum(counts)) / Decimal(sum(exposure))
+        # The representable alternative is 0.5; baseline failure mass must
+        # survive even though floating-point sum(counts)/sum(exposure) is 1.
+        expected = float(((1 - base) / Decimal("0.5")).ln())
+    result = detect_bursts(counts, exposure, direction="declining", gamma=0)
+    assert result.states == (1, 0, 0)
+    assert result.objective == pytest.approx(expected, abs=0, rel=1e-14)
+    assert not sparse_gain_cannot_burst(
+        {1: 2**53, 2: 2**53}, exposure, direction="declining", gamma=0
+    )
+
+
+def test_near_one_rising_grid_retains_valid_complementary_probability():
+    counts, exposure = [2**53, 2**53 - 5], [2**53, 2**53]
+    s = math.nextafter(1.0, math.inf)
+    with localcontext() as context:
+        context.prec = 80
+        base = Decimal(sum(counts)) / Decimal(sum(exposure))
+        elevated = base * Decimal.from_float(s)
+        expected = float(Decimal(counts[0]) * (base / elevated).ln())
+    result = detect_bursts(counts, exposure, s=s, gamma=0)
+    assert result.states == (1, 0)
+    assert result.objective == pytest.approx(expected, abs=0, rel=1e-14)
+    assert not sparse_gain_cannot_burst(dict(enumerate(counts)), exposure, s=s, gamma=0)
+
+
+def test_near_one_large_coefficient_products_keep_sub_ulp_gain():
+    counts = [8463726215890284, 8463726215890282]
+    exposure = [2**53, 2**53]
+    s = math.nextafter(1.0, math.inf)
+    with localcontext() as context:
+        context.prec = 80
+        base = Decimal(sum(counts)) / Decimal(sum(exposure))
+        elevated = base * Decimal.from_float(s)
+        expected = float(
+            Decimal(counts[0]) * (base / elevated).ln()
+            + Decimal(exposure[0] - counts[0]) * ((1 - base) / (1 - elevated)).ln()
+        )
+    model = BurstModel(exposure, s=s, gamma=0)
+    result = model.detect(counts)
+    assert result.states == (1, 0)
+    assert result.objective == pytest.approx(expected, abs=0, rel=1e-13)
+    assert model.detect_many([dict(enumerate(counts))]) == [result]
+
+
+@given(st.integers(1, 2**53), st.integers(1, 12), st.integers(2, 8))
+@settings(max_examples=250, deadline=None)
+def test_declining_extreme_counts_agree_with_independent_decimal_likelihood(unit, missing, repeats):
+    counts, exposure = [0] + [unit] * repeats, [missing] + [unit] * repeats
+    with localcontext() as context:
+        context.prec = 80
+        base = Decimal(sum(counts)) / Decimal(sum(exposure))
+        lower = base / 2
+        expected = float(missing * ((1 - base) / (1 - lower)).ln())
+    result = detect_bursts(counts, exposure, direction="declining", gamma=0)
+    assert result.states == (1,) + (0,) * repeats
+    assert result.objective == pytest.approx(expected, rel=1e-13, abs=0)
+
+
 @given(
-    series(), st.floats(1.0000000000000002, 1_000_000), st.floats(0, 1_000_000), st.integers(1, 16)
+    data=series(),
+    s=st.floats(1.0000000000000002, 1_000_000),
+    gamma=st.floats(0, 1_000_000),
+    maximum=st.integers(1, 16),
 )
 @settings(max_examples=1000, deadline=None)
-def test_gain_pruning_never_discards_a_beneficial_path(data, s, gamma, maximum):
+@pytest.mark.parametrize("direction", ["rising", "declining"])
+def test_gain_pruning_never_discards_a_beneficial_path(data, s, gamma, maximum, direction):
     """Every claimed prune has the same baseline optimum as full decoding."""
     counts, exposure = data
     if sparse_gain_cannot_burst(
-        {i: r for i, r in enumerate(counts) if r}, exposure, s=s, gamma=gamma, max_states=maximum
+        {i: r for i, r in enumerate(counts) if r},
+        exposure,
+        s=s,
+        gamma=gamma,
+        max_states=maximum,
+        direction=direction,
     ):
-        assert detect_bursts(counts, exposure, s=s, gamma=gamma, max_states=maximum).objective == 0
+        assert (
+            detect_bursts(
+                counts, exposure, s=s, gamma=gamma, max_states=maximum, direction=direction
+            ).objective
+            == 0
+        )
+
+
+def test_disappearance_has_a_declining_state_even_when_absence_is_already_common():
+    result = detect_bursts([6] * 4 + [0] * 4, [10] * 8, direction="declining")
+    assert result.states == (0, 0, 0, 0, 1, 1, 1, 1)
+    assert [(i.start, i.end, i.open) for i in result.intervals] == [(4, 7, True)]
+
+
+@pytest.mark.parametrize("direction", ["falling", "", None, True])
+def test_both_decoder_and_pruner_reject_unknown_directions(direction):
+    with pytest.raises(ValueError, match="direction"):
+        detect_bursts([1, 0], [2, 2], direction=direction)
+    with pytest.raises(ValueError, match="direction"):
+        sparse_gain_cannot_burst({0: 1}, [2, 2], direction=direction)
+    model = BurstModel([2, 2])
+    for operation in (
+        lambda: model.detect([1, 0], direction=direction),
+        lambda: model.detect_sparse({0: 1}, direction=direction),
+        lambda: model.cannot_burst({0: 1}, direction=direction),
+        lambda: model.detect_many([{0: 1}], direction=direction),
+    ):
+        with pytest.raises(ValueError, match="direction"):
+            operation()
+
+
+def test_prepared_counts_cannot_cross_exposure_models():
+    original = BurstModel([2, 2])
+    prepared = original.prepare({0: 1})
+    foreign = BurstModel([2, 2], s=3)
+    for operation in (
+        lambda: foreign.prepare(prepared),
+        lambda: foreign.cannot_burst(prepared),
+        lambda: foreign.detect_sparse(prepared),
+        lambda: foreign.detect_many([prepared]),
+    ):
+        with pytest.raises(ValueError, match="another exposure"):
+            operation()
+
+
+@pytest.mark.parametrize("counts", [{True: 1}, {-1: 0}, {2: 0}, {0: True}, {0: -1}, {0: 3}])
+def test_compiled_sparse_surfaces_reject_malformed_counts(counts):
+    model = BurstModel([2, 2])
+    for operation in (model.detect_sparse, model.cannot_burst):
+        with pytest.raises(ValueError):
+            operation(counts)
+    with pytest.raises(ValueError):
+        model.detect_many([counts])
+
+
+def test_batched_decoding_preserves_order_across_work_chunks():
+    results = BurstModel([10] * 8).detect_many([{6: 8, 7: 8}] * 1024 + [{0: 8, 1: 8}])
+    assert len(results) == 1025
+    assert [(i.start, i.end) for i in results[0].intervals] == [(6, 7)]
+    assert [(i.start, i.end) for i in results[-1].intervals] == [(0, 1)]
+
+
+@given(series())
+def test_compiled_exposure_owns_its_snapshot(data):
+    counts, exposure = data
+    model = BurstModel(exposure)
+    expected = model.detect(counts)
+    exposure.append(100)
+    assert model.detect(counts) == expected
 
 
 @given(series())

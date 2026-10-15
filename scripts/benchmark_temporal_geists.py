@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from generate_temporal_corpus import apply_snapshot
 
-from geistfabrik import EmbeddingComputer, Session, Vault, VaultContext
+from geistfabrik import EmbeddingComputer, GeistFabrikConfig, Session, Vault, VaultContext
 from geistfabrik.geist_executor import GeistExecutor
 from geistfabrik.geist_status import GeistStatusStore
 from geistfabrik.word_burst_analysis import WordBurstDiagnostics, analyze_word_bursts
@@ -53,7 +53,9 @@ def execute(executor, name, context, index, report):
     return result
 
 
-def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> dict:
+def replay(
+    corpus: Path, vault_path: Path, *, real_embeddings: bool = False, ngram_max: int = 2
+) -> dict:
     """Sequential replay with timings, raw findings/suggestions, and stable-vector checks."""
     manifest = json.loads((corpus / "manifest.json").read_text())
     if vault_path.exists() and any(vault_path.iterdir()):
@@ -65,6 +67,7 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
         "python": platform.python_version(),
         "initial_notes": manifest["initial_notes"],
         "real_embeddings": real_embeddings,
+        "ngram_max": ngram_max,
         "snapshots": [],
         "errors": [],
         "stable_meaning_changes": [],
@@ -87,7 +90,11 @@ def replay(corpus: Path, vault_path: Path, *, real_embeddings: bool = False) -> 
             _ = computer.model
             report["model_startup_seconds"] = time.perf_counter() - started
         stage = "open_vault"
-        with closing(Vault(vault_path, db_path=vault_path / "_geistfabrik/vault.db")) as vault:
+        config = GeistFabrikConfig()
+        config.lexical_analysis.ngram_max = ngram_max
+        with closing(
+            Vault(vault_path, db_path=vault_path / "_geistfabrik/vault.db", config=config)
+        ) as vault:
             executor = GeistExecutor(
                 vault_path / "_geistfabrik/geists/code", status_store=GeistStatusStore(vault.db)
             )
@@ -186,8 +193,11 @@ if __name__ == "__main__":
     parser.add_argument("vault", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--real-embeddings", action="store_true")
+    parser.add_argument("--ngram-max", type=int, choices=[1, 2, 3], default=2)
     args = parser.parse_args()
-    result = replay(args.corpus, args.vault, real_embeddings=args.real_embeddings)
+    result = replay(
+        args.corpus, args.vault, real_embeddings=args.real_embeddings, ngram_max=args.ngram_max
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
     if result["errors"] or result["stable_meaning_changes"]:

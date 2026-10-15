@@ -404,7 +404,7 @@ class LexicalAnalysisConfig:
     """Versioned extraction policy; changing it resets the observation baseline."""
 
     enabled: bool = True
-    ngram_max: int = 1
+    ngram_max: int = 2
     include_quotes: bool = False
     capture_observed: bool = True
     exclude_paths: list[str] = field(default_factory=lambda: ["Templates/"])
@@ -414,7 +414,7 @@ class LexicalAnalysisConfig:
         _reject_unknown(data, set(cls().to_dict()), "lexical_analysis")
         return cls(
             enabled=_strict_bool(data, "lexical_analysis.enabled", True),
-            ngram_max=_bounded_int(data, "lexical_analysis.ngram_max", 1, 1, 3),
+            ngram_max=_bounded_int(data, "lexical_analysis.ngram_max", 2, 1, 3),
             include_quotes=_strict_bool(data, "lexical_analysis.include_quotes", False),
             capture_observed=_strict_bool(data, "lexical_analysis.capture_observed", True),
             exclude_paths=_string_list(
@@ -447,6 +447,7 @@ class WordBurstConfig:
     gamma: float = 1.0
     max_states: int = 2
     max_suggestions: int = 3
+    directions: list[str] = field(default_factory=lambda: ["rising", "declining"])
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "WordBurstConfig":
@@ -454,6 +455,16 @@ class WordBurstConfig:
         s = _bounded_float(data, "word_burst.s", 2.0, 1.0, 1_000_000.0)
         if s <= 1:
             raise ConfigError("word_burst.s must be greater than one")
+        directions = _string_list(
+            {"directions": data.get("directions", ["rising", "declining"])},
+            "word_burst.directions",
+        )
+        if (
+            not directions
+            or len(set(directions)) != len(directions)
+            or any(direction not in {"rising", "declining"} for direction in directions)
+        ):
+            raise ConfigError("word_burst.directions must contain rising and/or declining once")
         return cls(
             history_mode=_enum_string(
                 data,
@@ -470,6 +481,7 @@ class WordBurstConfig:
             gamma=_bounded_float(data, "word_burst.gamma", 1.0, 0.0, 1_000_000.0),
             max_states=_bounded_int(data, "word_burst.max_states", 2, 1, 16),
             max_suggestions=_bounded_int(data, "word_burst.max_suggestions", 3, 1, 100),
+            directions=directions,
         )
 
     def to_dict(self) -> dict[str, Any]:

@@ -12,7 +12,9 @@ from pathlib import Path
 # Version 8: Added geist_status table (persistent per-geist failure tracking)
 # Version 9: Version embedding metric caches by exact source and algorithm inputs
 # Version 10: Persist exact filesystem fingerprints for incremental vault sync
-SCHEMA_VERSION = 11
+# Version 11: Atomic incremental lexical vectors and captured additions
+# Version 12: Optional suggestion evidence identity for episode-level novelty
+SCHEMA_VERSION = 12
 MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
@@ -106,6 +108,7 @@ CREATE TABLE IF NOT EXISTS session_suggestions (
     suggestion_text TEXT NOT NULL,
     block_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    evidence_key TEXT,
     PRIMARY KEY (session_date, block_id)
 );
 
@@ -188,9 +191,10 @@ CREATE TRIGGER IF NOT EXISTS lexical_note_update AFTER UPDATE ON lexical_notes
 WHEN OLD.body_hash != NEW.body_hash OR OLD.cohort_day IS NOT NEW.cohort_day
     OR OLD.provenance != NEW.provenance OR OLD.counts_json != NEW.counts_json BEGIN
     UPDATE lexical_terms SET documents = documents - 1
-        WHERE term IN (SELECT key FROM json_each(OLD.counts_json));
+        WHERE OLD.counts_json != NEW.counts_json
+          AND term IN (SELECT key FROM json_each(OLD.counts_json));
     INSERT INTO lexical_terms(term, documents)
-        SELECT key, 1 FROM json_each(NEW.counts_json) WHERE true
+        SELECT key, 1 FROM json_each(NEW.counts_json) WHERE OLD.counts_json != NEW.counts_json
         ON CONFLICT(term) DO UPDATE SET documents = documents + 1;
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
@@ -342,9 +346,21 @@ def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:
         if "cluster_label" not in embedding_columns:
             conn.execute("ALTER TABLE session_embeddings ADD COLUMN cluster_label TEXT")
 
+    suggestions_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='session_suggestions'"
+    ).fetchone()
+    if suggestions_table is not None:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(session_suggestions)")}
+        if "evidence_key" not in columns:
+            conn.execute("ALTER TABLE session_suggestions ADD COLUMN evidence_key TEXT")
+
 
 def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) -> None:
     """Apply required pre-reconciliation DDL without committing or stamping."""
+    if current_version < 12:
+        # v12 separates chronology/cache invalidation from dictionary updates.
+        # Recreate this derived trigger inside the owned migration transaction.
+        conn.execute("DROP TRIGGER IF EXISTS lexical_note_update")
     if current_version < 4:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
         if "is_virtual" not in columns:

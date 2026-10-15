@@ -226,3 +226,40 @@ firing gate. The [validation record](../benchmarks/results/word_burst_review_fix
 identifies the tested source commit and anchors the lossless full log with SHA-256.
 Only this verification evidence is added afterward. Canonical autoreview remains
 unavailable because of authentication; the PR remains draft.
+
+## Bidirectional phrases and episode identity, 2026-10-15
+
+The same geist now handles both directions and 1–3-word phrases (pairs default,
+triples configurable). This follows the Openclaw authoring gate and Hegel surface,
+generator, direction and adversarial-review guidance linked above. The scalar,
+sparse, prepared and bounded-batch model surfaces share independent exhaustive
+objective proof; parameter generators retain their original domains. High-precision
+Decimal references cover both near-one grid boundaries and coefficient cancellation
+at accepted counts up to 2**53. No tolerance was widened to hide these failures.
+
+A separate reviewer read production/contracts without tests/results. Its concrete
+findings drove repairs for rounded baseline complements, valid rising states near
+one, sub-ulp gains, lazy quoted continuations, Unicode source-line numbering,
+thematic quote boundaries and repeat identity under rolling-window clipping.
+It independently compared 17,600 scalar/batch results, including the 1,024-series
+boundary, and reported exact parity before the final precision/preparation changes.
+Those changes receive a follow-up review. Initial red proof is retained outside
+this repo; new feature tests on the old API initially failed as expected. One
+initial test run failed collection because positional Hypothesis arguments consumed
+a pytest parameter; switching to named generators restored intended red proof.
+
+Primary lifecycle owners are the real Vault sync/history plus GeistExecutor
+phrase test in both modes, JournalWriter-to-novelty overlap test, v11 migration
+preserving captured observations/questions, and chronology-only write-budget test.
+The independent dictionary edit/delete model now spans all configured n-gram
+lengths. Sentence/removal/quote boundary tables own extraction/excerpt exclusion.
+Displayed references remain in the bounded payload after complete privacy checks.
+No new reader-feedback controls, stance inference or historical prose store are
+claimed. Old explicit words-only configurations remain valid.
+
+Profiling found repeated sparse validation, vocabulary construction and gain-bound
+work, not just recurrence time. The two-state scalar and bounded NumPy paths,
+shared immutable exposure, prevalence grids, validated series and necessary-gain
+bounds preserve complete eligible vocabulary. Earlier experimental timings are
+not treated as final acceptance evidence. Phrases increase indexing, memory and
+analysis costs; cold/cache and actual executor results are reported separately.

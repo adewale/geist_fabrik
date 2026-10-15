@@ -576,6 +576,9 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-12.2 | ✅ | Atomic lexical capture and automatic data-preserving v10 migration | `uv run pytest tests/unit/test_word_burst_integration.py::{test_failed_sync_rolls_back_lexical_capture_and_dictionary,test_schema_v10_upgrade_preserves_note_and_embedding_bytes}` |
 | AC-12.3 | ✅ | Real provenance, cache invalidation and nonempty linked questions | `uv run pytest tests/unit/test_word_burst_integration.py` |
 | AC-12.4 | ✅ | Deterministic temporal fixtures and safe hash-verified replay | `uv run pytest tests/unit/test_temporal_corpus.py` |
+| AC-12.5 | ✅ | One geist reports rising and disappearing phrases in both history modes | `uv run pytest tests/unit/test_word_burst_integration.py::test_one_geist_reports_rising_and_disappearing_phrases_through_real_history` |
+| AC-12.6 | ✅ | Saved episode identity survives rewording and rolling-window clipping | `uv run pytest tests/unit/test_word_burst_integration.py::test_saved_episode_suppresses_changed_wording_and_clipped_dates_but_not_return` |
+| AC-12.7 | ✅ | Automatic v11 upgrade preserves captured lexical history and saved questions | `uv run pytest tests/unit/test_word_burst_integration.py::test_v11_episode_migration_preserves_lexical_history_and_saved_questions` |
 
 ## Summary Statistics
 

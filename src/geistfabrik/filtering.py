@@ -15,7 +15,7 @@ no note.
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from itertools import chain
 from typing import Any
 
@@ -30,6 +30,7 @@ from .config import (
     get_default_filter_config,
 )
 from .embeddings import EmbeddingComputer
+from .evidence_identity import evidence_interval
 from .models import NoteLinkIndex, Suggestion, _normalise_vault_path
 
 
@@ -214,6 +215,48 @@ class SuggestionFilter:
         window_days = novelty_config.get("window_days", 60)
         threshold = novelty_config.get("threshold", 0.85)
         method = novelty_config.get("method", "embedding_similarity")
+
+        # An episode remains the same observation when a template, percentage
+        # or its selected links change. Persist identity only on journal writes;
+        # previews keep the existing read-only, deterministic behavior.
+        if any(s.evidence_key is not None for s in suggestions):
+            cutoff = session_date - timedelta(days=window_days)
+            seen = {
+                (geist_id, key)
+                for geist_id, key in self.db.execute(
+                    "SELECT geist_id, evidence_key FROM session_suggestions "
+                    "WHERE session_date >= ? AND session_date < ? AND evidence_key IS NOT NULL",
+                    (cutoff.strftime("%Y-%m-%d"), session_date.strftime("%Y-%m-%d")),
+                )
+            }
+            intervals: dict[tuple[str, str], list[tuple[date, date]]] = {}
+            for geist_id, key in seen:
+                interval = evidence_interval(key)
+                if interval is not None:
+                    identity, first, last = interval
+                    intervals.setdefault((geist_id, identity), []).append((first, last))
+            fresh = []
+            for suggestion in suggestions:
+                if (suggestion.geist_id, suggestion.evidence_key) in seen:
+                    continue
+                interval = (
+                    evidence_interval(suggestion.evidence_key)
+                    if suggestion.evidence_key is not None
+                    else None
+                )
+                if interval is not None:
+                    identity, first, last = interval
+                    if any(
+                        first <= old_last and old_first <= last
+                        for old_first, old_last in intervals.get(
+                            (suggestion.geist_id, identity), []
+                        )
+                    ):
+                        continue
+                fresh.append(suggestion)
+            suggestions = fresh
+            if not suggestions:
+                return []
 
         if method == "text_match":
             # Simple exact text matching

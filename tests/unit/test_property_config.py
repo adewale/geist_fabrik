@@ -112,6 +112,9 @@ full_config_dicts = st.fixed_dictionaries(
                 "gamma": st.floats(min_value=0, max_value=1_000_000),
                 "max_states": st.integers(1, 16),
                 "max_suggestions": st.integers(1, 100),
+                "directions": st.lists(
+                    st.sampled_from(["rising", "declining"]), min_size=1, max_size=2, unique=True
+                ),
             }
         ),
     }

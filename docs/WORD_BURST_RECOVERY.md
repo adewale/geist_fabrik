@@ -375,3 +375,28 @@ Usefulness so far: indexed word bursts are practical at this scale and can
 produce linked questions with honest evidence. Synthetic replay and real-vault
 qualitative evaluation remain necessary to establish which temporal geists
 produce useful suggestions, rather than merely firing.
+
+## Bidirectional phrase extension, 2026-10-15
+
+The next request was to keep inversion in the same geist and include phrases.
+The implementation on `codex/word-burst-context` extends `word_burst`, with rising
+and declining directions, words plus pairs by default, and optional triples.
+A decline requires established prior use and later populated observations; it
+cannot infer abandonment from missing data. Historical modes remain explicit.
+The lower-probability state grid is our extension of the Kleinberg model.
+
+Matuschak's notebook discussion led to current passage excerpts, questions that
+invite connecting notes, nested-expression deduplication, and saved episode
+identity that survives wording/window changes. Munger's inversion lens led to
+questions about vocabulary that has become quieter. Neither establishes that a
+reader has forgotten an idea or that a change is conceptually important. Feedback,
+semantic terminology replacement and contradiction detection remain deferred.
+
+Extraction version 3 changes sentence/quote boundaries. The next sync rebuilds
+that derived index and starts a new observed-additions baseline; old captured
+observations cannot safely be compared across extraction policies. Schema v12
+adds nullable evidence identity while preserving source notes, saved questions,
+and history for unchanged policies. Existing explicit words-only settings stay
+words-only. See [current behavior](WORD_BURST.md),
+[measurements](WORD_BURST_PERFORMANCE.md), and
+[test audit](WORD_BURST_TEST_AUDIT.md) for verification and limitations.

@@ -329,3 +329,4 @@ class Suggestion:
     notes: list[str]  # Referenced notes' link_text (must be non-empty to pass filtering)
     geist_id: str  # Identifier of creating geist
     title: str | None = None  # Optional suggested note title
+    evidence_key: str | None = None  # Stable observation identity across wording changes

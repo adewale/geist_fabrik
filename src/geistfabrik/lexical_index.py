@@ -7,6 +7,7 @@ import re
 import sqlite3
 import unicodedata
 from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
@@ -14,9 +15,9 @@ from .config_loader import LexicalAnalysisConfig
 from .markdown_parser import declared_creation_date, markdown_prose_lines, parse_frontmatter
 from .models import Note, _normalise_vault_path
 
-EXTRACTION_VERSION = 2
+EXTRACTION_VERSION = 3
 _WORDS = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*", re.UNICODE)
-_REMOVED = re.compile(r"https?://[^\s)\]>]+")
+_REMOVED = re.compile(r"https?://[^\s)\]>]+", re.IGNORECASE)
 _INLINE_CODE = re.compile(r"(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)", re.DOTALL)
 
 
@@ -29,45 +30,91 @@ def week_start(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
-def extract_terms(
-    content: str, *, ngram_max: int = 1, include_quotes: bool = False
-) -> Counter[str]:
-    """Exact occurrences of words and within-line phrases in Markdown prose.
-
-    Frontmatter, code, URLs and (by default) blockquotes are excluded. Removed
-    inline regions and line boundaries interrupt phrases. Unicode NFKC/casefold
-    normalization is deterministic; numeric IDs are not words.
-    """
-    if isinstance(ngram_max, bool) or not isinstance(ngram_max, int) or not 1 <= ngram_max <= 3:
-        raise ValueError("ngram_max must be an integer in [1, 3]")
-    if not isinstance(include_quotes, bool):
-        raise ValueError("include_quotes must be boolean")
+def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
     _, body = parse_frontmatter(content)
     body = re.sub(r"<!--.*?-->", "\n\x00\n", body, flags=re.DOTALL)
     prose = []
     previous = 0
+    quoted_lines: set[int] = set()
+    if not include_quotes:
+        quoted = False
+        # Track raw lines before the code filter, which can hide indented lazy
+        # continuations. A skipped line alone does not end a quoted paragraph.
+        for number, line in enumerate(body.split("\n"), start=1):
+            if not line.strip():
+                quoted = False
+            if re.match(r"^ {0,3}>", line):
+                quoted = True
+            elif re.match(
+                r"^ {0,3}(?:#{1,6}(?:\s|$)|`{3,}|~{3,}|[-+*]\s|1[.)]\s)", line
+            ) or re.match(r"^ {0,3}(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,})$", line):
+                quoted = False
+            if quoted:
+                quoted_lines.add(number)
     for number, line in markdown_prose_lines(body):
         if number != previous + 1:
             prose.append("\x00")
         previous = number
-        if not include_quotes and line.lstrip().startswith(">"):
+        if number in quoted_lines:
             prose.append("\x00")
         else:
             prose.append(line)
     # Matching delimiter lengths also handles multiline inline-code spans.
     body = _INLINE_CODE.sub("\x00", "\n".join(prose))
-    counts: Counter[str] = Counter()
     for line in body.splitlines():
         # Keep visible Markdown labels; link destinations are not writing.
         line = re.sub(r"!?\[([^]\n]*)\]\([^)]*\)", r"\1", line)
         line = re.sub(r"\[\[([^]|\n]+)\|([^]\n]+)\]\]", r"\2", line)
         line = re.sub(r"\[\[([^]\n]+)\]\]", r"\1", line)
-        normalized = unicodedata.normalize("NFKC", line).casefold()
-        for region in _REMOVED.sub("\x00", normalized).split("\x00"):
-            words = _WORDS.findall(region)
-            for size in range(1, ngram_max + 1):
-                counts.update(" ".join(words[i : i + size]) for i in range(len(words) - size + 1))
+        visible = unicodedata.normalize("NFKC", line)
+        # Sentence/semicolon boundaries are not phrases. Removed regions and
+        # line boundaries also interrupt them, including inline-code gaps.
+        yield from re.split(r"[.!?;]+|\x00", _REMOVED.sub("\x00", visible))
+
+
+def extract_terms(
+    content: str, *, ngram_max: int = 1, include_quotes: bool = False
+) -> Counter[str]:
+    """Exact words and 1–3 word phrases within visible sentence/line regions.
+
+    Frontmatter, code, URLs and (by default) blockquotes are excluded. Unicode
+    NFKC/casefold normalization is deterministic; numeric IDs are not words.
+    """
+    if isinstance(ngram_max, bool) or not isinstance(ngram_max, int) or not 1 <= ngram_max <= 3:
+        raise ValueError("ngram_max must be an integer in [1, 3]")
+    if not isinstance(include_quotes, bool):
+        raise ValueError("include_quotes must be boolean")
+    counts: Counter[str] = Counter()
+    for region in _prose_regions(content, include_quotes):
+        region = region.casefold()
+        words = _WORDS.findall(region)
+        for size in range(1, ngram_max + 1):
+            counts.update(" ".join(words[i : i + size]) for i in range(len(words) - size + 1))
     return counts
+
+
+def lexical_excerpt(content: str, term: str, *, include_quotes: bool = False) -> str | None:
+    """A bounded current-prose passage containing the exact normalized term.
+
+    This never claims to recover historical wording from captured additions.
+    Only the same visible regions used for extraction are eligible.
+    """
+    target = term.split()
+    if not target:
+        return None
+    for region in _prose_regions(content, include_quotes):
+        matches = list(_WORDS.finditer(region))
+        words = [match.group().casefold() for match in matches]
+        for i in range(len(words) - len(target) + 1):
+            if words[i : i + len(target)] == target:
+                start = matches[max(0, i - 6)].start()
+                end = matches[min(len(matches) - 1, i + len(target) + 5)].end()
+                passage = region[start:end].strip()
+                if len(passage) > 160:
+                    start = matches[i].start()
+                    passage = region[start : start + 157].strip() + "…"
+                return passage
+    return None
 
 
 @dataclass
