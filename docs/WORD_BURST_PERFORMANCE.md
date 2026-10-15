@@ -1,4 +1,86 @@
-# Rebuilt word-burst measurements
+# Bidirectional phrase measurements, 2026-10-15
+
+The same geist now covers rising and declining expressions. New configurations
+include words and two-word phrases; triples are configurable. The older sections
+below describe their dated implementation/defaults, rather than current defaults.
+Extraction v3 respects sentence/quote boundaries and differs from those earlier
+vocabularies, so cross-version times are not controlled speedup measurements.
+
+The original 10,000-note corpus still has no chronology. All episode measurements
+on it use a labelled synthetic 104-week date overlay in owned copies. Source
+hashes remained unchanged. Timing excludes embedding inference and CLI startup.
+
+## Current large-corpus resource limits
+
+A subsequent [isolated pair trial](../benchmarks/results/word_burst_bidirectional_pairs_isolated.json)
+on final source commit `ae2a868` completed with the normal 30-second executor
+budget: **22.131 s uncached execution**, **27.074 s fresh analysis**, and
+**0.179 s cached analysis**. Cold sync was 72.168 s, unchanged sync 4.402 s
+(zero extractions), and editing 100 notes took 5.530 s (100 extractions).
+Peak process RSS was 1,409 MiB, including imports. It produced exactly the same
+4,257 findings and full finding SHA-256 as the contended pair trial; fresh/cached
+executor suggestions matched. Sources stayed unchanged. This is one trial with
+warm filesystem/import caches possible, not a latency guarantee under load.
+
+The first final-candidate trials ran alongside other corpus/validation/report work.
+These are contention observations, not isolated latency estimates. Both uncached
+analysis and a cache-cleared real executor invocation were measured: cached
+success alone would conceal an execution-budget problem.
+
+| Operation | Words plus pairs | Words plus triples |
+| --- | ---: | ---: |
+| Cold index/sync | 75.106 s | 462.106 s |
+| Unchanged sync | 3.483 s | 5.111 s |
+| Edit 100 notes | 16.629 s | 5.524 s |
+| Fresh analysis | 137.365 s | 106.990 s |
+| Cache-cleared executor | timeout at 30 s | success, 110.912 s / 120 s budget |
+| Cached analysis | 7.418 s | 0.195 s |
+| Full dictionary after marker edit | 42,992 | 821,667 |
+| Eligible candidates after necessary DF screen | 28,240 | 407,697 |
+| Findings on artificial chronology | 4,257 | 6,767 |
+| Peak process RSS (includes package/ML imports) | 1,350 MiB | 2,440 MiB |
+
+Raw records: [pairs](../benchmarks/results/word_burst_bidirectional_pairs_contended.json)
+and [triples](../benchmarks/results/word_burst_bidirectional_triples_contended.json).
+Both found rising/declining words and phrases. Warm sync extracted zero notes;
+each 100-note edit extracted exactly 100. Full and cached findings matched. Triple
+fresh/cached executor suggestions also matched exactly. The pair timeout is
+retained as a failure, rather than represented as an empty successful result.
+No general claim that phrases fit the 30-second default is justified. For large
+phrase vocabularies, measure locally and configure `geist_execution.timeout`
+(for example 120 seconds for the measured triple run), or explicitly use
+`lexical_analysis.ngram_max: 1`. Triples remain an expensive opt-in.
+
+## Temporal behavior and actual CLI
+
+The [compact corpus archives](../benchmarks/results/word_burst_bidirectional_artifacts.json)
+cover 32 snapshots each at 128, 1,000 and 10,000 initial notes, with explicit triples.
+All 192 word-burst executor calls across both modes succeeded. Each profile
+produced rising/declining words, pairs and triples. All injected aurora/quasar
+bursts first appeared in their injected week for dated cohorts (indices 8/22)
+and one week later for observed additions (9/23), consistent with the two-bin
+support requirement. Dated/observed modes produced questions in 31/23 snapshots
+per profile. Smoke and standard used real offline CPU embeddings and all eight
+selected geists; unchanged meaning vectors stayed byte-identical. Large skipped
+semantic work explicitly. These are behavior checks, not isolated timing trials.
+
+The complete triple matrix preceded the last behavior-preserving performance
+screens. Independent model properties cover those screens; a separate
+[cache-cleared final-snapshot comparison](../benchmarks/results/word_burst_bidirectional_final_parity.json)
+checks the final candidate against each profile/mode's prior finding digest.
+This comparison does not claim a second full replay. The compact archives retain
+all executor outputs, statuses, timings, diagnostics, categories, injected-term
+findings and complete finding digests; full raw finding payloads remain ephemeral
+and are identified by SHA-256, rather than falsely described as archived here.
+
+Fresh default-pair copies also passed the real offline CLI with all four filters:
+[Kepano](../benchmarks/results/word_burst_bidirectional_cli_kepano.json) returned a
+healthy empty result; [synthetic smoke](../benchmarks/results/word_burst_bidirectional_cli_smoke.json)
+retained three questions. Original Markdown hashes stayed unchanged. Some selected
+expressions are fixture scaffolding (for example “a related”), so successful
+execution and lexical change detection remain distinct from proven reader value.
+
+## Earlier measurements, 2026-10-13 and 2026-10-14
 
 These are fresh measurements of the rebuilt implementation on 2026-10-13.
 They replace reliance on the lost implementation's raw artifacts; older numbers

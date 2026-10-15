@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-15",
+  "source_commit": "ae2a868b404a13903d910a4957b6afafdb31e4b5",
+  "scope": "Published feature commit; frozen committed context only, no unpublished files or binary benchmark evidence",
+  "public_commit_check": {
+    "url": "https://api.github.com/repos/adewale/geist_fabrik/commits/ae2a868b404a13903d910a4957b6afafdb31e4b5",
+    "authentication_used": false,
+    "http_status": 200
+  },
+  "initial_attempt": "Approval review rejected a local-diff review bundled with stopping a read-only parsing process: unpublished-source egress and unclear process authorization. Neither operation ran. No process was subsequently stopped.",
+  "resolved_approval_concern": "Published authorized PR commit, verified its unauthenticated public access, then separately ran a committed-only review with no process-stop operation. Approval accepted that scope.",
+  "helper": "Canonical unmodified openclaw/agent-skills autoreview",
+  "helper_outcome": {
+    "schema_version": 1,
+    "status": "reviewer_unavailable",
+    "exit_code": 1,
+    "engine": "codex",
+    "report_produced": false,
+    "reason": "engine_failed",
+    "reviewer_exit_code": 1,
+    "timed_out": false,
+    "usage": {
+      "attempts": 1,
+      "reported_attempts": 0,
+      "unknown_attempts": 1,
+      "partial_attempts": 0,
+      "complete": false,
+      "tokens": null
+    }
+  },
+  "failure": "codex engine failed: authentication; authentication diagnostics suppressed",
+  "prepared_change_bytes": 132056,
+  "review_passes": 1,
+  "independent_review": {
+    "scope": "Production code and contracts, without test/results access",
+    "findings": "No outstanding concrete P1/P2",
+    "final_dynamic_cases": 1000
+  },
+  "disposition": "PR remains draft pending authenticated canonical review; no clean canonical review is claimed."
+}

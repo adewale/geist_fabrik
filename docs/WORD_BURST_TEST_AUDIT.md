@@ -263,3 +263,38 @@ shared immutable exposure, prevalence grids, validated series and necessary-gain
 bounds preserve complete eligible vocabulary. Earlier experimental timings are
 not treated as final acceptance evidence. Phrases increase indexing, memory and
 analysis costs; cold/cache and actual executor results are reported separately.
+
+The final production-only follow-up found no outstanding concrete P1/P2 issues.
+It independently checked copied/immutable prepared inputs, foreign-owner and
+invalid-input rejection, the tiny-gain reproduction, and 1,000 raw/prepared/batch
+cases across both directions. No necessary-bound false prune was observed.
+The dated current-DF screen is a necessary upper bound; observed history bypasses
+it. A lifecycle test removes a phrase from every current note and still recovers
+its captured decline. The early episode gates check necessary support/exposure,
+then final evidence still enforces distinct-body support.
+
+Final required [validation](../benchmarks/results/word_burst_bidirectional_validation.json)
+passed for source commit `ae2a868`: 1,724 unit tests (one skipped, eight deselected),
+81 integration tests, 155/155 AUTO acceptance criteria, 81.61% branch coverage,
+all 45 bundled geists firing, type/security/workflow checks, and installed-wheel
+real offline inference. The lossless full log is SHA-256 anchored in that record.
+Only benchmark/documentation evidence follows this source checkpoint.
+
+The Openclaw [test-audit skill](https://github.com/openclaw/openclaw/blob/main/.agents/skills/test-audit/SKILL.md)
+requires “then autoreview.” The initial combined local review/process-stop command
+was rejected before execution over unpublished-source egress and process scope.
+After pushing the authorized implementation and verifying unauthenticated public
+access to its exact SHA, a separate committed-only canonical review was approved.
+It prepared one pass, then failed authentication (`reviewer_unavailable`, no
+report). The [review status](../benchmarks/results/word_burst_bidirectional_review.json)
+records both the resolved approval concern and remaining authentication gap.
+The PR stays draft; the independent production review does not substitute for a
+clean canonical report.
+
+Final default-pair original-corpus execution passed uncached at 22.131 s within
+30 s, with fresh/cached suggestion equality and identical full finding digest to
+the contended trial. The earlier 30-second timeout remains archived. The triple
+run passed uncached at 110.912 s with an explicit 120-second budget. Six final
+cache-cleared snapshot comparisons matched the earlier full triple replay. The
+real default-pair CLI passed on positive synthetic and sparse real fixtures,
+with unchanged source hashes. Resource/relevance limitations remain explicit.

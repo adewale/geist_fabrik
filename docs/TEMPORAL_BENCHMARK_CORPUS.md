@@ -30,6 +30,10 @@ GEISTFABRIK_OFFLINE=1 uv run python scripts/benchmark_temporal_geists.py \
   --real-embeddings --output /tmp/temporal-results.json
 ```
 
+Replay defaults to words and pairs, matching new vault configuration. Pass
+`--ngram-max 3` to include triples, or `--ngram-max 1` for words only. The
+2026-10-15 bidirectional matrix explicitly used triples.
+
 Omitting `--real-embeddings` runs both lexical modes and explicitly skips semantic
 work. With it, replay uses the real bundled model on CPU, real sessions and eight
 bundled geists through `GeistExecutor`, including runtime limits and persistent

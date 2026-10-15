@@ -1,0 +1,44 @@
+{
+  "source_commit": "ae2a868b404a13903d910a4957b6afafdb31e4b5",
+  "date": "2026-10-15",
+  "command": "scripts/validate.sh",
+  "exit_code": 0,
+  "unit": {
+    "passed": 1724,
+    "skipped": 1,
+    "deselected": 8
+  },
+  "integration": {
+    "passed": 81,
+    "deselected": 8
+  },
+  "automatic_acceptance": {
+    "passed": 155,
+    "total": 155
+  },
+  "branch_coverage": {
+    "covered": 3062,
+    "total": 3752,
+    "percent": 81.61
+  },
+  "geist_firing": {
+    "passed": 45,
+    "allowlisted": 0
+  },
+  "checks": [
+    "ruff",
+    "strict mypy",
+    "ty",
+    "unused tables",
+    "bandit",
+    "actionlint",
+    "package smoke and real offline installed-wheel inference"
+  ],
+  "raw_log": {
+    "archive": "word_burst_bidirectional_validation.log.xz",
+    "archive_sha256": "8dd152b16c4bb3f4934cb39faaaa375186b440f74e1cdaa51f00ec84b7567598",
+    "log_sha256": "d7bd5d47afe28d907c31bcc2dcbdba6068687aca223656c120b4766e48e01d48",
+    "log_bytes": 314150
+  },
+  "initial_failure": "First full run found two mypy local-variable type collisions and a stale schema-v11 status string; repaired, then this complete run passed. No test tolerances widened."
+}
