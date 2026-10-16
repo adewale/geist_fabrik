@@ -1,4 +1,49 @@
-# Bidirectional phrase measurements, 2026-10-15
+# Audit repair measurements, 2026-10-16
+
+Source commit `f9d9349` repairs reference-link extraction and cancellation-heavy
+numeric decisions. The [final default-pair run](../benchmarks/results/word_burst_audit_fixes_large.json)
+uses the same immutable 10,000-note / 46,635,807-byte corpus and a clearly labelled
+synthetic 104-week chronology. Raw undated analysis abstains in 0.035 s.
+
+| Operation | Final repaired implementation |
+| --- | ---: |
+| Cold index/sync | 130.545 s |
+| Unchanged sync | 3.164 s; zero extractions |
+| Edit 100 notes | 4.614 s; exactly 100 extractions |
+| Fresh analysis | 21.441 s |
+| Cache-cleared actual executor | success, 24.732 s / 30 s budget |
+| Cached analysis / executor | 0.237 s / 0.437 s |
+| Findings | 4,257 |
+| Full dictionary after marker edit | 42,990 expressions |
+| Peak process RSS, including imports | 1,418 MiB |
+
+Fresh analysis includes 11.709 s collection, 7.254 s decoding and 1.853 s evidence.
+All 28,238 eligible candidates remain available; necessary bounds prune 4,075
+series across both directions and 202 identical series reuse decoding. The run
+contains rising/declining words and pairs. Fresh/cached findings and executor
+suggestions agree exactly; source hashes remained unchanged. The earlier version's
+finding digest is not a parity oracle for changed extraction and score precision.
+
+This is one trial, without simultaneous heavy tests during analysis/execution;
+filesystem/import caches may be warm. Pre-commit ran during cold indexing.
+Compared with the dated earlier trial, cold indexing is materially more expensive:
+resolved reference syntax now requires block parsing. Initial core inline parsing
+is skipped because only block maps/definitions are needed; selected blocks are
+parsed later. Unchanged syncs still avoid lexical extraction and the dictionary
+is updated only for changed notes. Different policy and host load prevent a
+controlled speedup/regression ratio. The 30-second execution margin remains
+limited under load; triples retain the explicit resource warning below.
+
+The [fresh default-pair temporal smoke replay](../benchmarks/results/word_burst_audit_fixes_smoke.json)
+completed all 32 snapshots and 64 executor calls successfully in both modes.
+Both directions and words/pairs appeared. Planted aurora/quasar rising episodes
+first appeared at dated indices 8/22 and observed indices 9/23; questions appeared
+in 31/23 snapshots respectively. Its lossless raw archive is SHA-256 anchored.
+This replay is lexical-only; the previous semantic matrix is historical evidence,
+not a claim that all geists or real embeddings were rerun here. Installed-wheel
+real inference is separately required by full validation.
+
+## Earlier bidirectional phrase measurements, 2026-10-15
 
 The same geist now covers rising and declining expressions. New configurations
 include words and two-word phrases; triples are configurable. The older sections

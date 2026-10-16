@@ -357,3 +357,26 @@ That correctness property now disables the per-example timing deadline while
 retaining the canonical 60-second pytest timeout; the independent corpus benchmark
 owns performance measurement. No assertion, generator or numeric tolerance changed.
 The failed full log is archived rather than treated as a successful validation.
+
+Final required [validation](../benchmarks/results/word_burst_audit_fixes_validation.json)
+passed on checkpoint `73fe4bd`, whose production code is identical to measured
+commit `f9d9349`: **1,767 unit tests**, 81 integration tests, 155/155 AUTO criteria,
+81.89% branch coverage, all 45 bundled geists firing, strict type/lint/security/
+workflow checks and installed-wheel real offline inference. The complete green
+log, initial failed full log and seven-regression red log are losslessly archived
+with SHA-256 receipts. Only evidence/documentation changes follow this checkpoint.
+The [large-corpus trial](../benchmarks/results/word_burst_audit_fixes_large.json)
+and [32-snapshot smoke replay](../benchmarks/results/word_burst_audit_fixes_smoke.json)
+retain their exact scope; the smoke raw payload is also losslessly archived.
+
+The Openclaw [test-audit skill](https://github.com/openclaw/openclaw/blob/main/.agents/skills/test-audit/SKILL.md)
+requires “then autoreview.” The first command was rejected by automatic approval
+review over possible private-source/instruction transmission. An unauthenticated
+public check then matched **all 26** before/after changed-file and frozen context
+blobs byte for byte; the same command was accepted. Committed branch review
+excluded working-tree, untracked and binary evidence files. The canonical helper
+prepared one pass, then failed authentication: `reviewer_unavailable`, no report.
+The [review record](../benchmarks/results/word_burst_audit_fixes_review.json)
+anchors the public-byte proof and distinguishes resolved approval concerns from
+unavailable reviewer authentication. Existing draft status remains; independent
+production reviews are not represented as a clean canonical verdict.

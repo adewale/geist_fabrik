@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-16",
+  "source_commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+  "production_commit": "f9d934932c2cac3a899bfc98df2ef1b12812d868",
+  "command": "scripts/validate.sh",
+  "exit_code": 0,
+  "unit": {
+    "passed": 1767,
+    "skipped": 1,
+    "deselected": 8
+  },
+  "integration": {
+    "passed": 81,
+    "deselected": 8
+  },
+  "automatic_acceptance": {
+    "passed": 155,
+    "total": 155,
+    "manual_not_verified": 83
+  },
+  "branch_coverage": {
+    "covered": 3174,
+    "total": 3876,
+    "percent": 81.89
+  },
+  "geist_firing": {
+    "passed": 45,
+    "allowlisted": 0
+  },
+  "checks": [
+    "ruff",
+    "strict mypy",
+    "ty",
+    "unused tables",
+    "bandit",
+    "actionlint",
+    "wheel/sdist build, artifact checks, sdist rebuild and installed-wheel real offline inference"
+  ],
+  "raw_log": {
+    "archive": "word_burst_audit_fixes_validation.log.xz",
+    "archive_sha256": "3b54f35666ae2cc9f71b9cf0bb8f735ec60546a11dca15d3b05acef697c17eef",
+    "log_sha256": "3b07f1b501738a3e364820679e2d1d7a909cf19e6d64b902ef21d25f2c1d725a",
+    "log_bytes": 320756
+  },
+  "initial_failed_validation": {
+    "source_commit": "f9d934932c2cac3a899bfc98df2ef1b12812d868",
+    "exit_code": 1,
+    "cause": "One Hypothesis per-example timing deadline failure: 428 ms then 5 ms on replay. Value assertions passed. Correctness property disables this deadline; canonical 60-second test timeout remains. No generator, assertion or numerical tolerance changed.",
+    "archive": "word_burst_audit_fixes_initial_validation.log.xz",
+    "archive_sha256": "9d1f4df2ca752d16ed0c89e3ef46977b5d5616f4367e4980a00547215c684094",
+    "log_sha256": "eb913bf5cd2cada633a7bb06fb0495e358f9eac79eddb0a3d4ccad7d5bd3c52e",
+    "log_bytes": 324541
+  },
+  "initial_regressions": {
+    "source_baseline": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+    "failed": 7,
+    "seconds": 2.47,
+    "archive": "word_burst_audit_fixes_red.log.xz",
+    "archive_sha256": "8727cae385d63881d5564a047c12913d49d7aafdecee362156360bd78a8e3a83",
+    "log_sha256": "35a0b5dd4c19f2f2b0db554495671478ca1a9f9abcecbba7253a7b4d2c0d4120",
+    "log_bytes": 10842
+  },
+  "scope": "Full local validation on source checkpoint. Subsequent changes only preserve benchmark/review/validation evidence and documentation; runtime, tests, lock and scripts remain unchanged."
+}
