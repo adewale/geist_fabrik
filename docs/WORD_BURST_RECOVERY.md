@@ -400,3 +400,21 @@ and history for unchanged policies. Existing explicit words-only settings stay
 words-only. See [current behavior](WORD_BURST.md),
 [measurements](WORD_BURST_PERFORMANCE.md), and
 [test audit](WORD_BURST_TEST_AUDIT.md) for verification and limitations.
+
+## Audit repairs, 2026-10-16
+
+The follow-up audit confirmed two defects: hidden reference-link identifiers
+entered vocabulary/excerpts, and cancellation at accepted large counts could
+invent or hide episodes, including unsafe pruning. Both are repaired on
+`codex/word-burst-context`. Extraction and analysis policy versions are now 4;
+the next sync rebuilds the derived index and establishes a fresh observed baseline.
+Core notes, embeddings and saved questions are preserved.
+
+The numeric design keeps integer counts, exact Fraction probability grids and
+guarded float recurrence/batching. Ambiguous decisions use adaptive Decimal
+enclosures on symbolic integer-weighted logarithms. GCD-based algebraic reduction
+proves exact ties without constructing powers with observation-sized exponents.
+This avoids both binary-float cancellation and Decimal-only false ties/gains.
+Reported scores are accurately rounded after aggregate exact-count evaluation.
+Independent production-only review confirmed the recurrence and score routing;
+the test audit and performance report record final verification separately.

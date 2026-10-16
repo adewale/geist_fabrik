@@ -11,14 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Word and phrase changes in one geist:** `word_burst` now samples rising and
   declining episodes, with two-word phrases enabled by default and optional
   three-word phrases. Existing
-  explicit `ngram_max: 1` settings remain words-only. Extraction version 3 adds
-  sentence boundaries and conservative quote-continuation exclusion; the next
+  explicit `ngram_max: 1` settings remain words-only. Extraction version 4 adds
+  sentence/quote boundaries and excludes hidden reference-link metadata; the next
   sync rebuilds incompatible lexical baselines and clears captured observations.
   Observed phrase history starts at that baseline; old prose is not reconstructed.
   Core notes, embeddings and saved session questions remain intact. Automatic
   additive schema v12 adds optional episode identities to saved suggestions and
   avoids frequency rewrites for chronology-only edits. Overlapping episodes are
   suppressed across wording/window changes by the normal novelty-history policy.
+  Large-count likelihood decisions and pruning now use conservative error bounds
+  with adaptive exact-log comparisons for ambiguous cases, including exact ties.
 - **Lexical schema v11:** automatic additive migration preserves existing notes
   and embeddings. No rebuild is required. The new word-burst geist indexes prose
   incrementally and supports reconstructed dated cohorts and prospective observed

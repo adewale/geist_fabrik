@@ -429,6 +429,110 @@ def test_markdown_regions_and_phrase_boundaries():
     )
 
 
+@pytest.mark.parametrize("footnote", [False, True])
+@pytest.mark.parametrize(
+    "link,definition",
+    [
+        (
+            "[Visible guide][hiddenreference]",
+            '[hiddenreference]: https://example.com "Secret title"',
+        ),
+        ("[Visible guide][]", "[visible guide]: https://example.com"),
+        ("[Visible guide]", "[visible guide]:\n  <https://example.com>\n  'Secret title'"),
+        ("[Visible guide][HIDDENREFERENCE]", "> [hiddenreference]: https://example.com"),
+        (r"[Visible \[guide\]][hiddenreference]", "[hiddenreference]: https://example.com"),
+        ("![Visible guide][hiddenreference]", "[hiddenreference]: https://example.com"),
+        ("[Visible guide][secret`code`id]", "[secret`code`id]: /hidden"),
+        ("[Visible guide][secret<!-- hidden -->id]", "[secret<!-- hidden -->id]: /hidden"),
+    ],
+)
+def test_reference_links_keep_only_visible_prose_and_excerpts(link, definition, footnote):
+    content = ("[^1]: " if footnote else "") + f"Read {link}.\n\n{definition}"
+    assert extract_terms(content, ngram_max=2) == Counter(
+        {"read": 1, "visible": 1, "guide": 1, "read visible": 1, "visible guide": 1}
+    )
+    assert lexical_excerpt(content, "hiddenreference") is None
+    assert lexical_excerpt(content, "secret") is None
+    assert lexical_excerpt(content, "visible guide") == (
+        "Read Visible [guide" if "\\[" in link else "Read Visible guide"
+    )
+
+
+@pytest.mark.parametrize("image", ["", "!"])
+def test_reference_only_footnote_retains_visible_body(image):
+    content = f"[^1]: {image}[visible][hiddenid]\n\n[hiddenid]: /secret"
+    assert extract_terms(content) == Counter({"visible": 1})
+    assert lexical_excerpt(content, "hiddenid") is None
+
+
+@given(
+    words=st.lists(st.sampled_from(["soil", "café", "habitat", "nebula"]), min_size=1, max_size=15),
+    form=st.sampled_from(["full", "collapsed", "shortcut"]),
+    first=st.booleans(),
+    separate=st.booleans(),
+    maximum=st.integers(1, 3),
+)
+@settings(max_examples=200)
+def test_reference_prose_matches_visible_word_windows(words, form, first, separate, maximum):
+    links, definitions = [], []
+    for visible in words if separate else [" ".join(words)]:
+        identifier = "hiddenreference" if form == "full" else visible
+        links.append(
+            f"[{visible}]"
+            + (f"[{identifier}]" if form == "full" else "[]" if form == "collapsed" else "")
+        )
+        definitions.append(
+            f'[{identifier.upper()}]:\n  <https://example.com/hiddendestination>\n  "Hidden title"'
+        )
+    link, definition = " ".join(links), "\n\n".join(definitions)
+    content = definition + "\n\n" + link if first else link + "\n\n" + definition
+    expected = Counter(
+        " ".join(words[i : i + width])
+        for width in range(1, maximum + 1)
+        for i in range(len(words) - width + 1)
+    )
+    assert extract_terms(content, ngram_max=maximum) == expected
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "visible\n    hidden code",
+        "visible\u2028other",
+        "small &amp; reversible",
+        "<section>\nvisible prose\n</section>",
+        "before [[target|visible]] after",
+        "[^footnote]: soil",
+    ],
+)
+def test_unused_reference_definition_preserves_other_prose_boundaries(content):
+    assert extract_terms(content + "\n\n[unused]: /destination", ngram_max=3) == extract_terms(
+        content, ngram_max=3
+    )
+
+
+def test_reference_definition_cannot_capture_a_wikilink_alias():
+    content = "before [[target|visible]] after\n\n[target|visible]: /destination"
+    assert extract_terms(content) == Counter({"before": 1, "visible": 1, "after": 1})
+    assert lexical_excerpt(content, "target") is None
+
+
+@pytest.mark.parametrize("boundary", ["\n\n", "\n```\nhidden code\n```\n", "\n# Heading\n"])
+def test_reference_recognition_cannot_cross_block_boundaries(boundary):
+    content = f"[visible{boundary}other][hiddenid]\n\n[hiddenid]: /destination"
+    expected = Counter({"visible": 1, "other": 1, "hiddenid": 1})
+    if "Heading" in boundary:
+        expected["heading"] = 1
+    assert extract_terms(content) == expected
+
+
+@pytest.mark.parametrize("separator", ["\n", "\r\n", "\r", "\n\r"])
+@pytest.mark.parametrize("prefix", ["", "\x00"])
+def test_reference_source_mapping_preserves_line_endings_and_nulls(separator, prefix):
+    content = prefix + "[visible][hiddenid]" + separator * 2 + "[hiddenid]: /destination"
+    assert extract_terms(content) == Counter({"visible": 1})
+
+
 @pytest.mark.parametrize("hidden", ["<!--\nsecret\n-->", "``secret ` code``"])
 def test_hidden_multiline_comments_and_nested_backticks_are_excluded(hidden):
     assert extract_terms(f"before {hidden} after") == Counter({"before": 1, "after": 1})

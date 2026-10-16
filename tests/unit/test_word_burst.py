@@ -3,6 +3,7 @@
 import itertools
 import math
 from decimal import Decimal, localcontext
+from fractions import Fraction
 
 import pytest
 from hypothesis import given, settings
@@ -216,6 +217,145 @@ def test_disappearance_has_a_declining_state_even_when_absence_is_already_common
     result = detect_bursts([6] * 4 + [0] * 4, [10] * 8, direction="declining")
     assert result.states == (0, 0, 0, 0, 1, 1, 1, 1)
     assert [(i.start, i.end, i.open) for i in result.intervals] == [(4, 7, True)]
+
+
+@pytest.mark.parametrize(
+    "counts,states,objective",
+    [
+        ([542823286867086, 207776651027996], (0, 0), 0.0),
+        ([5375475922601571, 1664885876232855], (1, 0), -0.5275703420874939),
+    ],
+)
+def test_large_counts_preserve_transition_decisions_and_safe_pruning(counts, states, objective):
+    model = BurstModel([2**53, 2**53])
+    sparse = dict(enumerate(counts))
+    for result in (
+        model.detect(counts),
+        model.detect_sparse(sparse),
+        model.detect_many([sparse])[0],
+    ):
+        assert result.states == states
+        assert result.objective == pytest.approx(objective, rel=1e-12, abs=0)
+    if objective < 0:
+        assert not model.cannot_burst(sparse)
+
+
+@given(
+    rise_power=st.integers(1, 7),
+    fall_power=st.integers(1, 7),
+    maximum=st.integers(2, 16),
+    gap=st.booleans(),
+)
+@settings(max_examples=100, deadline=None)
+@pytest.mark.parametrize("direction", ["rising", "declining"])
+def test_exact_likelihood_ties_keep_baseline(rise_power, fall_power, maximum, gap, direction):
+    # -fall_power*ln(2**rise_power) + rise_power*ln(2**fall_power) is exactly zero.
+    total, relevant = 2 ** (rise_power + fall_power) - 1, 2**fall_power - 1
+    exposure = [rise_power + fall_power, total - rise_power - fall_power]
+    counts = [fall_power, relevant - fall_power]
+    s = 2**rise_power
+    if direction == "declining":
+        counts = [n - r for r, n in zip(counts, exposure, strict=True)]
+        s = 2**fall_power
+    if gap:
+        counts.insert(1, 0)
+        exposure.insert(1, 0)
+    model = BurstModel(exposure, s=s, gamma=0, max_states=maximum)
+    sparse = dict(enumerate(counts))
+    for result in (
+        model.detect(counts, direction=direction),
+        model.detect_sparse(sparse, direction=direction),
+        model.detect_many([sparse], direction=direction)[0],
+    ):
+        assert result.states == tuple(0 if n else None for n in exposure)
+        assert result.objective == 0
+        assert result.intervals == ()
+
+
+def decimal_paths(counts, exposure, s, gamma, maximum, direction):
+    """Independent short-series enumeration, without production grids/costs."""
+    with localcontext() as context:
+        context.prec = 180
+        base = Fraction(sum(counts), sum(exposure))
+        probabilities = [base]
+        for level in range(1, maximum):
+            p = base * Fraction(s) ** (level if direction == "rising" else -level)
+            if not 0 < p < 1:
+                break
+            probabilities.append(p)
+        emissions = []
+        observed = [i for i, n in enumerate(exposure) if n]
+        for i in observed:
+            costs = []
+            for p in probabilities:
+                a, b = base / p, (1 - base) / (1 - p)
+                costs.append(
+                    Decimal(counts[i]) * (Decimal(a.numerator) / Decimal(a.denominator)).ln()
+                    + Decimal(exposure[i] - counts[i])
+                    * (Decimal(b.numerator) / Decimal(b.denominator)).ln()
+                )
+            emissions.append(costs)
+        penalty = Decimal.from_float(float(gamma)) * Decimal(len(observed)).ln()
+        paths = []
+        for path in itertools.product(range(len(probabilities)), repeat=len(observed)):
+            previous, cost = 0, Decimal(0)
+            for state, costs in zip(path, emissions, strict=True):
+                cost += costs[state] + max(0, state - previous) * penalty
+                previous = state
+            paths.append((cost, path))
+        return sorted(paths)
+
+
+@given(
+    n=st.integers(1, 2**53),
+    fraction=st.fractions(min_value=Fraction(0), max_value=Fraction(1), max_denominator=2**53),
+    s=st.one_of(
+        st.sampled_from([math.nextafter(1.0, math.inf), 1.00000002, 1.125, 2.0, 3.0, 1e6]),
+        st.floats(min_value=math.nextafter(1.0, math.inf), max_value=1e6),
+    ),
+    gamma=st.floats(0, 1e6),
+    neighbor=st.integers(-2, 2),
+    side=st.sampled_from(["given", "below", "above"]),
+    maximum=st.integers(1, 3),
+    gap=st.booleans(),
+)
+@settings(max_examples=150, deadline=None)
+@pytest.mark.parametrize("direction", ["rising", "declining"])
+def test_decision_boundaries_match_independent_decimal_paths(
+    n, fraction, s, gamma, neighbor, side, maximum, gap, direction
+):
+    relevant = min(2 * n - 1, max(1, int(2 * n * fraction)))
+    first = min(n, relevant)
+    with localcontext() as context:
+        context.prec = 180
+        base = Decimal(relevant) / Decimal(2 * n)
+        p = base * Decimal.from_float(s) ** (1 if direction == "rising" else -1)
+        if 0 < p < 1:
+            a, b = (base / p).ln(), ((1 - base) / (1 - p)).ln()
+            crossover = (n * b + Decimal.from_float(gamma) * Decimal(2).ln()) / (b - a)
+            first = min(n, relevant, max(0, relevant - n, int(crossover) + neighbor))
+            critical_gamma = -(first * a + (n - first) * b) / Decimal(2).ln()
+            if side != "given" and 0 < critical_gamma < 1e6:
+                gamma = math.nextafter(float(critical_gamma), 0.0 if side == "below" else math.inf)
+    counts, exposure = [first, relevant - first], [n, n]
+    if gap:
+        counts.insert(1, 0)
+        exposure.insert(1, 0)
+    paths = decimal_paths(counts, exposure, s, gamma, maximum, direction)
+    expected = float(paths[0][0])
+    model = BurstModel(exposure, s=s, gamma=gamma, max_states=maximum)
+    sparse = dict(enumerate(counts))
+    for result in (
+        model.detect(counts, direction=direction),
+        model.detect_sparse(sparse, direction=direction),
+        model.detect_many([sparse], direction=direction)[0],
+    ):
+        # 180-digit oracle log rounding times <=2**54 observations is <1e-150.
+        assert result.objective == pytest.approx(expected, rel=1e-12, abs=1e-150)
+        if len(paths) > 1 and paths[1][0] - paths[0][0] > Decimal("1e-150"):
+            assert tuple(state for state in result.states if state is not None) == paths[0][1]
+    if model.cannot_burst(sparse, direction=direction):
+        assert expected >= -1e-150
 
 
 @pytest.mark.parametrize("direction", ["falling", "", None, True])

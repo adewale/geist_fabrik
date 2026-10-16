@@ -8,8 +8,8 @@ The initial state is zero. Scores are likelihood gains, never p-values.
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
-from decimal import Decimal, localcontext
+from dataclasses import dataclass, field, replace
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from fractions import Fraction
 from types import MappingProxyType
 
@@ -68,46 +68,154 @@ def _direction(direction: str) -> None:
         raise ValueError("direction must be rising or declining")
 
 
-def _probabilities(
-    relevant: int, total: int, s: float, maximum: int, direction: str
-) -> list[tuple[float, float, float]]:
-    # Exact, tiny state grid; carry both masses and the baseline difference.
-    # float(p)==1 must not erase a valid complementary probability near zero.
-    base = Fraction(relevant, total)
-    probability = base
-    multiplier = Fraction(s)
-    probabilities = [(float(base), float(1 - base), 0.0)]
-    for _ in range(1, maximum):
-        candidate = probability * multiplier if direction == "rising" else probability / multiplier
-        if not 0 < candidate < 1:
-            break
-        probabilities.append((float(candidate), float(1 - candidate), float(candidate - base)))
-        probability = candidate
-    return probabilities
+def _log_bounds(ratio: Fraction, precision: int = 80) -> tuple[Decimal, Decimal]:
+    """Enclose ln(exact rational) using correctly rounded Decimal logarithms.
+
+    Taking integer logarithms avoids first rounding the ratio. Adjacent Decimal
+    values enclose each correctly rounded ln; subtraction rounds outwards.
+    These bounds describe coefficient error before float products cancel.
+    """
+    if ratio == 1:
+        return Decimal(0), Decimal(0)
+    with localcontext() as context:
+        context.prec = precision
+        numerator = Decimal(ratio.numerator).ln()
+        denominator = Decimal(ratio.denominator).ln()
+        context.rounding = ROUND_FLOOR
+        lower = numerator.next_minus() - denominator.next_plus()
+        context.rounding = ROUND_CEILING
+        upper = numerator.next_plus() - denominator.next_minus()
+    return lower, upper
 
 
-def _emission(
-    r: int,
-    n: int,
-    p: float,
-    complement: float,
-    delta: float,
-    base: float,
-    base_complement: float,
-) -> float:
-    if delta == 0:
-        return 0.0
-    # Independently computing the complementary baseline preserves tiny failure
-    # mass even when relevant/total rounds to 1 after summing valid large bins.
-    # Ratios near one lose their sign if rounded before taking a logarithm.
-    # Far-apart probabilities use log directly to avoid log1p rounding to -1.
-    positive = math.log1p(-delta / p) if p < 2 * base else math.log(base / p)
-    negative = (
-        math.log1p(delta / complement)
-        if complement < 2 * base_complement
-        else math.log(base_complement / complement)
-    )
-    return r * positive + (n - r) * negative
+def _float_enclosure(lower: Decimal, upper: Decimal) -> tuple[float, float]:
+    """A float approximation and outward-rounded absolute error enclosure."""
+    with localcontext() as context:
+        context.prec = 80
+        value = float((lower + upper) / 2)
+        context.rounding = ROUND_CEILING
+        error = max(Decimal.from_float(value) - lower, upper - Decimal.from_float(value))
+        return value, math.nextafter(float(error), math.inf) if error else 0.0
+
+
+class _LogCost:
+    """Integer-weighted logarithms of exact rationals for ambiguous decisions.
+
+    Gamma's rational denominator scales all costs to integer weights. Decimal
+    enclosures decide unequal costs adaptively; gcd reduction proves exact ties
+    without constructing integers raised to enormous observation counts.
+    """
+
+    def __init__(
+        self,
+        terms: Mapping[Fraction, int],
+        cache: dict[tuple[Fraction, int], tuple[Decimal, Decimal]],
+    ) -> None:
+        self.terms = {ratio: weight for ratio, weight in terms.items() if ratio != 1 and weight}
+        self.cache = cache
+
+    def plus(self, other: "_LogCost", factor: int = 1) -> "_LogCost":
+        terms = dict(self.terms)
+        for ratio, weight in other.terms.items():
+            terms[ratio] = terms.get(ratio, 0) + factor * weight
+        return _LogCost(terms, self.cache)
+
+    def _reduced(self) -> "_LogCost":
+        factors: dict[int, int] = {}
+
+        def add(base: int, weight: int) -> None:
+            if base != 1:
+                factors[base] = factors.get(base, 0) + weight
+                if not factors[base]:
+                    del factors[base]
+
+        for ratio, weight in self.terms.items():
+            add(ratio.numerator, weight)
+            add(ratio.denominator, -weight)
+        while True:
+            bases = list(factors)
+            for i, a in enumerate(bases):
+                for b in bases[i + 1 :]:
+                    divisor = math.gcd(a, b)
+                    if divisor != 1:
+                        left, right = factors.pop(a), factors.pop(b)
+                        add(divisor, left + right)
+                        add(a // divisor, left)
+                        add(b // divisor, right)
+                        break
+                else:
+                    continue
+                break
+            else:
+                return _LogCost(
+                    {Fraction(base): weight for base, weight in factors.items()}, self.cache
+                )
+
+    def _bounds(self, precision: int) -> tuple[Decimal, Decimal]:
+        with localcontext() as context:
+            context.prec = precision
+            lower, upper = Decimal(0), Decimal(0)
+            for ratio, weight in self.terms.items():
+                key = (ratio, precision)
+                if key not in self.cache:
+                    self.cache[key] = _log_bounds(ratio, precision)
+                lo, hi = self.cache[key]
+                context.rounding = ROUND_FLOOR
+                lower += Decimal(weight) * (lo if weight > 0 else hi)
+                context.rounding = ROUND_CEILING
+                upper += Decimal(weight) * (hi if weight > 0 else lo)
+        return lower, upper
+
+    def compare(self, other: "_LogCost") -> int:
+        if self.terms == other.terms:
+            return 0
+        difference = self.plus(other, -1)
+        precision = 80
+        while True:
+            lower, upper = difference._bounds(precision)
+            if lower > 0:
+                return 1
+            if upper < 0:
+                return -1
+            if precision == 80:
+                difference = difference._reduced()
+                if not difference.terms:
+                    return 0
+            precision *= 2
+
+    def value(self, denominator: int) -> float:
+        cost = self
+        precision = 80
+        while True:
+            lower, upper = cost._bounds(precision)
+            with localcontext() as context:
+                context.prec = precision
+                context.rounding = ROUND_FLOOR
+                lo = float(lower / Decimal(denominator))
+                context.rounding = ROUND_CEILING
+                hi = float(upper / Decimal(denominator))
+            if lo == hi:
+                return lo
+            if precision == 80:
+                cost = cost._reduced()
+                if not cost.terms:
+                    return 0.0
+            precision *= 2
+
+
+def _best_log_cost(
+    left: tuple[_LogCost, int] | None, right: tuple[_LogCost, int] | None
+) -> tuple[_LogCost, int] | None:
+    if left is None:
+        return right
+    if right is None:
+        return left
+    order = left[0].compare(right[0])
+    return left if order < 0 or (order == 0 and left[1] <= right[1]) else right
+
+
+def _ambiguous(a: float, b: float, uncertainty: float) -> bool:
+    return math.isfinite(a) and math.isfinite(b) and abs(a - b) <= 2 * uncertainty
 
 
 def _sparse_gain_bound(
@@ -117,6 +225,7 @@ def _sparse_gain_bound(
     penalty: float,
     coefficients: Sequence[tuple[float, float]],
     direction: str,
+    uncertainty: float,
 ) -> bool:
     """Necessary-gain bound over validated counts and a compiled exposure."""
     relevant = sum(counts.values())
@@ -141,8 +250,9 @@ def _sparse_gain_bound(
         # as zeros or allocating a dense vector for each phrase.
         absent_exposure = total - sum(exposure[i] for i, r in counts.items() if r)
         bound += absent_exposure * -coefficients[-1][1]
-    slack = 64 * math.ulp(max(1.0, bound, penalty))
-    return bound < penalty - slack
+    # Uncertainty includes the original coefficient products, not just their
+    # potentially tiny difference. Ambiguity must never remove a candidate.
+    return bound < penalty - uncertainty
 
 
 def _decode_bursts(
@@ -152,9 +262,9 @@ def _decode_bursts(
     observed: Sequence[int],
     penalty: float,
     coefficients: Sequence[tuple[float, float]],
-    precise: Sequence[tuple[Decimal, Decimal]] | None = None,
-) -> BurstResult:
-    """Exact decoding after boundary validation; shared by dense and sparse callers."""
+    uncertainty: float,
+) -> BurstResult | None:
+    """Float DP, or None when a deciding comparison needs Decimal arithmetic."""
     states: list[int | None] = [0 if n else None for n in exposure]
     relevant = sum(counts)
     reason = ""
@@ -173,6 +283,8 @@ def _decode_bursts(
     size = len(coefficients)
     if size == 1:
         return BurstResult(tuple(states), 0.0, (), "no_alternative_state")
+    if math.isinf(uncertainty):
+        return None
     if size == 2:
         # The default grid needs only two scalar recurrences and two parent
         # bits per observed bin, rather than per-bin prefix/suffix allocations.
@@ -180,18 +292,18 @@ def _decode_bursts(
         zero, one = 0.0, math.inf
         bits = bytearray()
         for i in observed:
-            zero_parent = int(one < zero)
             enter = zero + penalty
+            if _ambiguous(one, zero, uncertainty) or _ambiguous(one, enter, uncertainty):
+                return None
+            zero_parent = int(one < zero)
             one_parent = int(one < enter)
             next_zero = one if zero_parent else zero
-            emission = (
-                counts[i] * positive + (exposure[i] - counts[i]) * negative
-                if precise is None
-                else _precise_emission(counts[i], exposure[i], precise[1])
-            )
+            emission = counts[i] * positive + (exposure[i] - counts[i]) * negative
             one = (one if one_parent else enter) + emission
             zero = next_zero
             bits.append((zero_parent << 1) | one_parent)
+        if _ambiguous(one, zero, uncertainty):
+            return None
         state = int(one < zero)
         objective = one if state else zero
         if objective == 0:
@@ -206,36 +318,42 @@ def _decode_bursts(
             prefix: list[tuple[float, int]] = []
             best = (math.inf, 0)
             for j in range(size):
-                best = min(best, (previous[j] - penalty * j, j))
+                candidate = (previous[j] - penalty * j, j)
+                if _ambiguous(best[0], candidate[0], uncertainty):
+                    return None
+                best = min(best, candidate)
                 prefix.append(best)
             suffix = [(math.inf, 0)] * size
             best = (math.inf, 0)
             for j in range(size - 1, -1, -1):
+                if _ambiguous(best[0], previous[j], uncertainty):
+                    return None
                 best = min(best, (previous[j], j))
                 suffix[j] = best
             current, parent = [], []
             for j, (positive, negative) in enumerate(coefficients):
-                cost, predecessor = min((prefix[j][0] + penalty * j, prefix[j][1]), suffix[j])
-                emission = (
-                    counts[i] * positive + (exposure[i] - counts[i]) * negative
-                    if precise is None
-                    else _precise_emission(counts[i], exposure[i], precise[j])
-                )
+                entering = (prefix[j][0] + penalty * j, prefix[j][1])
+                if entering[1] == suffix[j][1] == j and math.isfinite(entering[0]):
+                    cost, predecessor = previous[j], j
+                else:
+                    if _ambiguous(entering[0], suffix[j][0], uncertainty):
+                        return None
+                    cost, predecessor = min(entering, suffix[j])
+                emission = counts[i] * positive + (exposure[i] - counts[i]) * negative
                 current.append(cost + emission)
                 parent.append(predecessor)
             previous = current
             parents.append(parent)
         objective, state = min((cost, j) for j, cost in enumerate(previous))
+        if any(
+            j != state and _ambiguous(cost, objective, uncertainty)
+            for j, cost in enumerate(previous)
+        ):
+            return None
         for position in range(len(observed) - 1, -1, -1):
             states[observed[position]] = state
             state = parents[position][state]
-    return _interval_result(counts, exposure, observed, coefficients, states, objective, precise)
-
-
-def _precise_emission(r: int, n: int, coefficients: tuple[Decimal, Decimal]) -> float:
-    with localcontext() as context:
-        context.prec = 400
-        return float(Decimal(r) * coefficients[0] + Decimal(n - r) * coefficients[1])
+    return _interval_result(counts, exposure, observed, coefficients, states, objective)
 
 
 def _interval_result(
@@ -245,7 +363,6 @@ def _interval_result(
     coefficients: Sequence[tuple[float, float]],
     states: list[int | None],
     objective: float,
-    precise: Sequence[tuple[Decimal, Decimal]] | None = None,
 ) -> BurstResult:
     """One episode/provenance owner for scalar and batched traceback."""
     intervals: list[BurstInterval] = []
@@ -259,12 +376,8 @@ def _interval_result(
             stop += 1
         first, last = observed[start], observed[stop]
         gain = -math.fsum(
-            (
-                counts[i] * coefficients[int(states[i] or 0)][0]
-                + (exposure[i] - counts[i]) * coefficients[int(states[i] or 0)][1]
-                if precise is None
-                else _precise_emission(counts[i], exposure[i], precise[int(states[i] or 0)])
-            )
+            counts[i] * coefficients[int(states[i] or 0)][0]
+            + (exposure[i] - counts[i]) * coefficients[int(states[i] or 0)][1]
             for i in observed[start : stop + 1]
         )
         intervals.append(
@@ -316,10 +429,21 @@ class BurstModel:
             _count(n)
         self._total = sum(self._exposure)
         self._observed = tuple(i for i, n in enumerate(self._exposure) if n)
-        self._penalty = gamma * math.log(len(self._observed)) if self._observed else 0.0
+        with localcontext() as context:
+            context.prec = 80
+            lower, upper = _log_bounds(Fraction(len(self._observed) or 1))
+            context.rounding = ROUND_FLOOR
+            lower *= Decimal.from_float(float(gamma))
+            context.rounding = ROUND_CEILING
+            upper *= Decimal.from_float(float(gamma))
+            self._penalty, self._penalty_error = _float_enclosure(lower, upper)
+        self._gamma = gamma
         self._s, self._maximum = s, max_states
         self._grids: dict[tuple[int, str], tuple[tuple[float, float], ...]] = {}
-        self._precise_grids: dict[tuple[int, str], tuple[tuple[Decimal, Decimal], ...]] = {}
+        self._errors: dict[tuple[int, str], tuple[tuple[float, float], ...]] = {}
+        self._budgets: dict[tuple[int, str], float] = {}
+        self._ratios: dict[tuple[int, str], tuple[tuple[Fraction, Fraction], ...]] = {}
+        self._logs: dict[tuple[Fraction, int], tuple[Decimal, Decimal]] = {}
         self._global_prunes: dict[tuple[int, str], bool] = {}
 
     def prepare(self, counts: Mapping[int, int] | PreparedBurstSeries) -> PreparedBurstSeries:
@@ -330,51 +454,179 @@ class BurstModel:
             return counts
         return PreparedBurstSeries(self, counts)
 
-    def _precision(
-        self, relevant: int, direction: str
-    ) -> tuple[tuple[Decimal, Decimal], ...] | None:
-        # Rare near-one multipliers can lose a real gain through cancellation
-        # of opposite coefficient products. Default s=2 keeps the fast path.
-        if self._s - 1 > 1e-8 or not self._total or relevant in (0, self._total):
-            return None
-        key = (relevant, direction)
-        if key not in self._precise_grids:
-            base = Fraction(relevant, self._total)
-            multiplier = Fraction(self._s)
-            coefficients = []
-            with localcontext() as context:
-                context.prec = 400
-                for level in range(len(self._grid(relevant, direction))):
-                    p = base * multiplier ** (level if direction == "rising" else -level)
-                    positive, negative = base / p, (1 - base) / (1 - p)
-                    coefficients.append(
-                        (
-                            (Decimal(positive.numerator) / Decimal(positive.denominator)).ln(),
-                            (Decimal(negative.numerator) / Decimal(negative.denominator)).ln(),
-                        )
-                    )
-            self._precise_grids[key] = tuple(coefficients)
-        return self._precise_grids[key]
-
     def _grid(self, relevant: int, direction: str) -> tuple[tuple[float, float], ...]:
         key = (relevant, direction)
         if key not in self._grids:
             if not self._total or relevant in (0, self._total):
                 grid: tuple[tuple[float, float], ...] = ((0.0, 0.0),)
             else:
-                base = relevant / self._total
-                complement = (self._total - relevant) / self._total
-                grid = tuple(
-                    (
-                        _emission(1, 1, p, q, delta, base, complement),
-                        _emission(0, 1, p, q, delta, base, complement),
-                    )
-                    for p, q, delta in _probabilities(
-                        relevant, self._total, self._s, self._maximum, direction
-                    )
-                )
+                base = Fraction(relevant, self._total)
+                multiplier = Fraction(self._s)
+                values, errors = [(0.0, 0.0)], [(0.0, 0.0)]
+                ratios = [(Fraction(1), Fraction(1))]
+                for level in range(1, self._maximum):
+                    p = base * multiplier ** (level if direction == "rising" else -level)
+                    if not 0 < p < 1:
+                        break
+                    pair = (base / p, (1 - base) / (1 - p))
+                    ratios.append(pair)
+                    for ratio in pair:
+                        if (ratio, 80) not in self._logs:
+                            self._logs[(ratio, 80)] = _log_bounds(ratio)
+                    positive, positive_error = _float_enclosure(*self._logs[(pair[0], 80)])
+                    negative, negative_error = _float_enclosure(*self._logs[(pair[1], 80)])
+                    values.append((positive, negative))
+                    errors.append((positive_error, negative_error))
+                grid = tuple(values)
+                self._errors[key] = tuple(errors)
+                self._ratios[key] = tuple(ratios)
             self._grids[key] = grid
+            self._errors.setdefault(key, ((0.0, 0.0),))
         return self._grids[key]
+
+    def _uncertainty(self, relevant: int, direction: str) -> float:
+        """Bound coefficient and DP rounding error before cancellation.
+
+        Each path uses at most R successes, N-R failures and B*(K-1)
+        transition levels. Eight rounding operations per observed bin bound
+        products, prefix/suffix rebasing and cumulative additions. The absolute
+        operation scale bounds every intermediate, even if final cost is tiny.
+        This layout-independent budget is cached with the prevalence grid.
+        """
+        key = (relevant, direction)
+        if key not in self._budgets:
+            grid = self._grid(relevant, direction)
+            errors = self._errors[key]
+            bins = len(self._observed)
+            scale = math.fsum(
+                (
+                    relevant * max(abs(a) for a, _ in grid),
+                    (self._total - relevant) * max(abs(b) for _, b in grid),
+                    (bins + 2) * self._maximum * self._penalty,
+                )
+            )
+            error = math.fsum(
+                (
+                    relevant * max(a for a, _ in errors),
+                    (self._total - relevant) * max(b for _, b in errors),
+                    bins * self._maximum * self._penalty_error,
+                    8 * (bins + 1) * math.ulp(scale),
+                )
+            )
+            self._budgets[key] = math.nextafter(error, math.inf)
+        return self._budgets[key]
+
+    def _decode(self, counts: Sequence[int], relevant: int, direction: str) -> BurstResult:
+        grid = self._grid(relevant, direction)
+        budget = math.inf if self._s - 1 <= 1e-8 else self._uncertainty(relevant, direction)
+        result = _decode_bursts(
+            counts, self._exposure, self._total, self._observed, self._penalty, grid, budget
+        )
+        if result is not None:
+            return self._score_result(counts, relevant, direction, result)
+        gamma = Fraction(self._gamma)
+        denominator = gamma.denominator
+        penalty = _LogCost({Fraction(len(self._observed)): gamma.numerator}, self._logs)
+        zero = _LogCost({}, self._logs)
+        previous: list[_LogCost | None] = [zero] + [None] * (len(grid) - 1)
+        parents = []
+        ratios = self._ratios[(relevant, direction)]
+
+        def emission(i: int, state: int) -> _LogCost:
+            positive, negative = ratios[state]
+            terms = {positive: counts[i] * denominator}
+            terms[negative] = terms.get(negative, 0) + (self._exposure[i] - counts[i]) * denominator
+            return _LogCost(terms, self._logs)
+
+        for i in self._observed:
+            prefix = []
+            best = None
+            for j, cost in enumerate(previous):
+                candidate = (cost.plus(penalty, -j), j) if cost is not None else None
+                best = _best_log_cost(best, candidate)
+                prefix.append(best)
+            suffix: list[tuple[_LogCost, int] | None] = [None] * len(grid)
+            best = None
+            for j in range(len(grid) - 1, -1, -1):
+                cost = previous[j]
+                best = _best_log_cost(best, (cost, j) if cost is not None else None)
+                suffix[j] = best
+            current: list[_LogCost | None] = []
+            parent = []
+            for j in range(len(grid)):
+                entering = prefix[j]
+                candidate = (
+                    (entering[0].plus(penalty, j), entering[1]) if entering is not None else None
+                )
+                selected = _best_log_cost(candidate, suffix[j])
+                assert selected is not None
+                current.append(selected[0].plus(emission(i, j)))
+                parent.append(selected[1])
+            previous = current
+            parents.append(parent)
+        best = None
+        for j, cost in enumerate(previous):
+            best = _best_log_cost(best, (cost, j) if cost is not None else None)
+        assert best is not None
+        objective, state = best
+        states: list[int | None] = [0 if n else None for n in self._exposure]
+        for position in range(len(self._observed) - 1, -1, -1):
+            states[self._observed[position]] = state
+            state = parents[position][state]
+        result = _interval_result(
+            counts, self._exposure, self._observed, grid, states, objective.value(denominator)
+        )
+        intervals = []
+        for interval in result.intervals:
+            gain = zero
+            for i in range(interval.start, interval.end + 1):
+                if self._exposure[i]:
+                    gain = gain.plus(emission(i, int(states[i] or 0)))
+            intervals.append(replace(interval, gain=-gain.value(denominator)))
+        return replace(result, intervals=tuple(intervals))
+
+    def _score_result(
+        self, counts: Sequence[int], relevant: int, direction: str, result: BurstResult
+    ) -> BurstResult:
+        """Report the chosen path without cancellation in its scalar score.
+
+        Certified float decisions can still have a tiny relative-cost score.
+        Aggregate exact counts once; only a few weighted logs need evaluation,
+        rather than rerunning a whole high-precision recurrence.
+        """
+        if not result.intervals:
+            return result
+        gamma = Fraction(self._gamma)
+        denominator = gamma.denominator
+        ratios = self._ratios[(relevant, direction)]
+
+        def emissions(indices: Sequence[int]) -> _LogCost:
+            terms: dict[Fraction, int] = {}
+            for i in indices:
+                level = result.states[i]
+                if level:
+                    positive, negative = ratios[level]
+                    terms[positive] = terms.get(positive, 0) + counts[i] * denominator
+                    terms[negative] = (
+                        terms.get(negative, 0) + (self._exposure[i] - counts[i]) * denominator
+                    )
+            return _LogCost(terms, self._logs)
+
+        previous, steps = 0, 0
+        for i in self._observed:
+            state = int(result.states[i] or 0)
+            steps += max(0, state - previous)
+            previous = state
+        penalty = _LogCost({Fraction(len(self._observed)): gamma.numerator * steps}, self._logs)
+        objective = emissions(self._observed).plus(penalty).value(denominator)
+        intervals = tuple(
+            replace(
+                interval,
+                gain=-emissions(range(interval.start, interval.end + 1)).value(denominator),
+            )
+            for interval in result.intervals
+        )
+        return replace(result, objective=objective, intervals=intervals)
 
     def _validate_sparse(self, counts: Mapping[int, int]) -> None:
         for i, r in counts.items():
@@ -392,8 +644,6 @@ class BurstModel:
         prepared = self.prepare(counts)
         relevant = prepared._relevant
         grid = self._grid(relevant, direction)
-        if self._s - 1 <= 1e-8 and len(grid) > 1:
-            return False
         key = (relevant, direction)
         if key not in self._global_prunes:
             if len(grid) == 1:
@@ -404,8 +654,9 @@ class BurstModel:
                     if direction == "rising"
                     else (self._total - relevant) * max(-negative for _, negative in grid[1:])
                 )
-                slack = 64 * math.ulp(max(1.0, upper, self._penalty))
-                self._global_prunes[key] = upper < self._penalty - slack
+                self._global_prunes[key] = upper < self._penalty - self._uncertainty(
+                    relevant, direction
+                )
         if self._global_prunes[key]:
             return True
         return _sparse_gain_bound(
@@ -415,6 +666,7 @@ class BurstModel:
             self._penalty,
             grid,
             direction,
+            self._uncertainty(relevant, direction),
         )
 
     def detect(self, counts: Sequence[int], *, direction: str = "rising") -> BurstResult:
@@ -426,15 +678,7 @@ class BurstModel:
             _count(r)
             if r > n:
                 raise ValueError("term count exceeds exposure")
-        return _decode_bursts(
-            counts,
-            self._exposure,
-            self._total,
-            self._observed,
-            self._penalty,
-            self._grid(sum(counts), direction),
-            self._precision(sum(counts), direction),
-        )
+        return self._decode(counts, sum(counts), direction)
 
     def detect_sparse(
         self, counts: Mapping[int, int] | PreparedBurstSeries, *, direction: str = "rising"
@@ -443,15 +687,7 @@ class BurstModel:
         _direction(direction)
         prepared = self.prepare(counts)
         dense = [prepared._counts.get(i, 0) for i in range(len(self._exposure))]
-        return _decode_bursts(
-            dense,
-            self._exposure,
-            self._total,
-            self._observed,
-            self._penalty,
-            self._grid(prepared._relevant, direction),
-            self._precision(prepared._relevant, direction),
-        )
+        return self._decode(dense, prepared._relevant, direction)
 
     def detect_many(
         self,
@@ -500,19 +736,30 @@ class BurstModel:
         coefficients = np.asarray([grid[1] for grid in grids], dtype=np.float64)
         exposure = np.asarray([self._exposure[i] for i in self._observed], dtype=np.float64)
         emissions = dense * coefficients[:, :1] + (exposure - dense) * coefficients[:, 1:]
+        budgets = np.asarray(
+            [self._uncertainty(prepared[index]._relevant, direction) for index in selected]
+        )
+        ambiguous = np.zeros(len(selected), dtype=np.bool_)
         zero = np.zeros(len(selected), dtype=np.float64)
         one = np.full(len(selected), np.inf, dtype=np.float64)
         parents = np.empty((len(self._observed), len(selected)), dtype=np.uint8)
         for position in range(len(self._observed)):
             zero_parent = one < zero
             enter = zero + self._penalty
+            ambiguous |= np.isfinite(one) & (
+                (np.abs(one - zero) <= 2 * budgets) | (np.abs(one - enter) <= 2 * budgets)
+            )
             one_parent = one < enter
             next_zero = np.where(zero_parent, one, zero)
             one = np.where(one_parent, one, enter) + emissions[:, position]
             zero = next_zero
             parents[position] = (zero_parent.astype(np.uint8) << 1) | one_parent
+        ambiguous |= np.isfinite(one) & (np.abs(one - zero) <= 2 * budgets)
         baseline = tuple(0 if n else None for n in self._exposure)
         for column, index in enumerate(selected):
+            if ambiguous[column]:
+                results[index] = self.detect_sparse(prepared[index], direction=direction)
+                continue
             state = int(one[column] < zero[column])
             objective = float(one[column] if state else zero[column])
             if objective == 0:
@@ -523,13 +770,17 @@ class BurstModel:
                 states[self._observed[position]] = state
                 bits = int(parents[position, column])
                 state = bits & 1 if state else bits >> 1
-            results[index] = _interval_result(
-                [prepared[index]._counts.get(i, 0) for i in range(len(self._exposure))],
+            dense_counts = [prepared[index]._counts.get(i, 0) for i in range(len(self._exposure))]
+            result = _interval_result(
+                dense_counts,
                 self._exposure,
                 self._observed,
                 grids[column],
                 states,
                 objective,
+            )
+            results[index] = self._score_result(
+                dense_counts, prepared[index]._relevant, direction, result
             )
         return [results[i] for i in range(len(series))]
 

@@ -298,3 +298,45 @@ run passed uncached at 110.912 s with an explicit 120-second budget. Six final
 cache-cleared snapshot comparisons matched the earlier full triple replay. The
 real default-pair CLI passed on positive synthetic and sparse real fixtures,
 with unchanged source hashes. Resource/relevance limitations remain explicit.
+
+## Reference prose and numeric decisions, 2026-10-16
+
+The next audit confirmed hidden reference-link metadata entering vocabulary and
+excerpts, plus false positive/negative large-count paths and an unsafe pruning
+result. Seven initial owner regressions failed before repair. Reference handling
+now changes only resolved source spans; unused definitions preserve surrounding
+code, Unicode line, entity, HTML, quote and wikilink policy. Caret-label Obsidian
+footnotes remain prose, including reference links/images in their bodies. The
+existing extraction table/window property owns visible counts and phrase bounds;
+small negative controls protect real block boundaries, line endings and NULs.
+Policy version 4 rebuilds incompatible lexical capture; the existing real-Vault
+policy-reset owner protects that lifecycle without duplicating the detector proof.
+
+Numeric counts remain Python integers, probability grids remain exact fractions,
+and fast float recurrence/batching carries coefficient and arithmetic bounds.
+An ambiguous comparison reruns the complete recurrence with integer-weighted
+logarithms, adaptive Decimal enclosures and algebraic tie reduction. Pruning only
+exits when its bound is decisively below the transition cost. Exact aggregate
+emissions also produce accurately rounded reported scores. No epsilon is used to
+turn a small gain into a tie. Interval rescoring traverses disjoint intervals.
+
+An independent 180-digit exhaustive oracle now covers the accepted count range,
+near-one and larger multipliers, both directions, gaps, and gamma values around
+transition boundaries. Generated algebraic identities cover exact ties, including
+higher states and nonadjacent observations. Dense, sparse and batch paths agree;
+the unsafe-prune regression remains an explicit owner. A production-only reviewer
+also independently enumerated 163 nondegenerate exact rational-product cases,
+without using logarithmic comparisons or reading tests/results: all paths were
+optimal, with no false prune. Its final score-helper review found no correctness
+issue. The separate Markdown reviewer found several concrete boundary defects
+that were repaired before final validation.
+
+Two repair iterations found additional product regressions: an unreachable-state
+prefix shortcut in the guarded recurrence, and inaccurate reported tiny scores
+although the selected path was correct. Existing exhaustive properties caught
+the first; the new high-precision oracle caught the second. Test authoring also
+initially omitted the selected direction in one property; this was corrected.
+No tolerances were widened. The 1e-150 oracle floor accounts for rounding at
+180 digits multiplied by the maximum short-case exposure, independently of the
+implementation. The original seven red cases and intermediate failures are
+recorded in the external work log; committed tests are the durable proof.

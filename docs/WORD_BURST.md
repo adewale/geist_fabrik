@@ -14,7 +14,12 @@ extend it with lower-rate states, `baseline / s**level`. Both use exact global
 dynamic programming and traceback. Moving farther from baseline has a penalty;
 returning towards it is free. Invalid probabilities are omitted rather than
 clipped. A tiny rational grid preserves complementary probabilities near zero
-and one; likelihood evaluation uses stable floating-point logarithms.
+and one. Counts remain integers and probabilities remain exact fractions.
+Fast floating-point decisions carry conservative error bounds; ambiguous
+decisions use adaptive Decimal bounds on integer-weighted logarithms of exact
+fractions. Algebraic cancellation proves exact ties, which prefer lower states.
+Only reported objective/episode scores are rounded to floats. Using Decimal
+alone would still allow rounded logarithms to invent a gain at a true tie.
 Decoding is O(weeks × states), with a compact two-state default path. A likelihood
 gain is an episode weight, not statistical significance or evidence about a
 person's mental state. Questions describe the measured population.
@@ -41,8 +46,8 @@ lexical history. This is not a secure physical erasure guarantee.
 A coalesced row whose final addition was observed after a replay cutoff is
 omitted in full. Historical quoting, exact old-text replay and Git/backup import
 are deferred. Changing extraction policy clears incompatible observations and
-establishes a fresh baseline. Extraction version 3 adds sentence boundaries and
-conservative lazy-blockquote exclusion; upgrading an earlier PR build rebuilds lexical baselines and
+establishes a fresh baseline. Extraction version 4 adds reference-link metadata
+exclusion to the sentence/quote boundaries; upgrading an earlier PR build rebuilds lexical baselines and
 clears incompatible captured observations. Core notes and embeddings are retained.
 A replay against changed, unsynchronized extraction
 settings abstains until sync rebuilds the index.
@@ -72,7 +77,10 @@ word_burst:
 
 Words use Unicode NFKC/casefold normalization. Frontmatter, fenced/indented and
 inline code, complete HTML comments, URLs, generated session output and configured
-paths are excluded. Visible link labels count as prose. Quotes are excluded by
+paths are excluded. Visible link labels count as prose; resolved reference-link
+identifiers, definitions and destinations do not. CommonMark parsing identifies
+those source spans without changing the remaining extraction policy. Caret-label
+Obsidian footnotes retain the existing footnote policy. Quotes are excluded by
 default. Three-word phrases can need a larger configured execution budget on large
 vocabularies. Phrases never cross sentence, semicolon, line or removed-region
 boundaries. Explicit existing `ngram_max: 1` configurations stay words-only until
@@ -115,8 +123,11 @@ fingerprint checks and filesystem scans still occur; whole-vault sync is not O(1
 Code-only changes preserve lexical generation and cached detector results.
 Date-only edits invalidate chronology-dependent analysis without rewriting the
 unchanged dictionary. `BurstModel` validates shared exposure once and reuses exact
-probability/emission grids for equal overall prevalence. Near-one multipliers
-use high-precision emissions to preserve tiny gains. The default two-state grid
+probability/emission grids for equal overall prevalence. Error bounds use the
+uncancelled arithmetic scale, so large counts and near-one multipliers cannot
+hide uncertain decisions behind a small final score. Uncertain paths are decoded
+again with the exact-log representation; uncertain pruning retains the candidate.
+The default two-state grid
 can decode independent series in bounded NumPy batches. Identical weekly series
 also share decoding; every term retains its own independent source evidence.
 

@@ -16,7 +16,7 @@ from .word_burst import BurstInterval, BurstModel, PreparedBurstSeries
 if TYPE_CHECKING:
     from .vault import Vault
 
-ANALYSIS_VERSION = 3
+ANALYSIS_VERSION = 4
 
 
 @dataclass(frozen=True)

@@ -10,15 +10,148 @@ from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
+
+from markdown_it import MarkdownIt
+from markdown_it.rules_block import StateBlock, reference
+from markdown_it.rules_inline import StateInline, image, link
+from markdown_it.token import Token
 
 from .config_loader import LexicalAnalysisConfig
-from .markdown_parser import declared_creation_date, markdown_prose_lines, parse_frontmatter
+from .markdown_parser import (
+    declared_creation_date,
+    iter_wikilinks,
+    markdown_prose_lines,
+    parse_frontmatter,
+)
 from .models import Note, _normalise_vault_path
 
-EXTRACTION_VERSION = 3
+EXTRACTION_VERSION = 4
 _WORDS = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*", re.UNICODE)
 _REMOVED = re.compile(r"https?://[^\s)\]>]+", re.IGNORECASE)
 _INLINE_CODE = re.compile(r"(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)", re.DOTALL)
+
+
+def _reference_spans(
+    body: str, parser: MarkdownIt, environment: dict[str, Any]
+) -> list[tuple[int, int, str]]:
+    """Replace only resolved reference syntax, preserving all other source.
+
+    The library owns definition/label validity. Inline rules record source spans
+    instead of rendering the whole document: an unused definition must not alter
+    existing code, Unicode line, entity or HTML extraction boundaries.
+    """
+    spans: list[tuple[int, int, str]] = []
+    wiki_spans = {match.start(): match.end() for match in iter_wikilinks(body)}
+
+    def visible(tokens: list[Token]) -> str:
+        return "".join(
+            "\n"
+            if token.type in {"softbreak", "hardbreak"}
+            else "\x00"
+            if token.type == "code_inline"
+            else visible(token.children or [])
+            if token.type == "image"
+            else token.content
+            if token.type in {"text", "text_special", "html_inline"}
+            else ""
+            for token in tokens
+        )
+
+    def wiki(state: StateInline, silent: bool) -> bool:
+        end = wiki_spans.get(state.pos) if state.src == body else None
+        if end is None:
+            return False
+        if not silent:
+            state.push("text", "", 0).content = state.src[state.pos : end]
+        state.pos = end
+        return True
+
+    def capture(state: StateInline, silent: bool) -> bool:
+        start, before = state.pos, len(state.tokens)
+        is_image = state.src.startswith("![", start)
+        if not (image if is_image else link)(state, silent):
+            return False
+        if not silent and state.src == body:
+            created = state.tokens[before:]
+            kind = "image" if is_image else "link_open"
+            first = next(i for i, token in enumerate(created) if token.type == kind)
+            if created[first].meta.get("label"):
+                spans.append((start, state.pos, visible(created[first:])))
+        return True
+
+    parser.inline.ruler.before("link", "lexical_wiki", wiki)
+    parser.inline.ruler.at("link", capture)
+    parser.inline.ruler.at("image", capture)
+    parser.inline.parse(body, parser, environment, [])
+    return spans
+
+
+def _clean_references(body: str, include_quotes: bool) -> str:
+    """Resolve references within their real inline blocks, before prose masking."""
+    parser = MarkdownIt("commonmark", {"inline_definitions": True, "store_labels": True})
+    # Only block maps and definitions are needed here. Parse selected inline
+    # blocks below, after excluding documents without reference definitions.
+    parser.core.ruler.disable(["inline"])
+
+    def prose_footnotes(state: StateBlock, start: int, end: int, silent: bool) -> bool:
+        # Caret labels belong to Obsidian footnotes. Keep their bodies inline,
+        # including any real reference links/images within those bodies.
+        position = state.bMarks[start] + state.tShift[start]
+        if state.src.startswith("[^", position):
+            return False
+        return reference(state, start, end, silent)
+
+    parser.block.ruler.at("reference", prose_footnotes)
+    environment: dict[str, Any] = {}
+    tokens = parser.parse(body, environment)
+    if not environment.get("references"):
+        return body
+    lines = body.split("\n")
+    offsets, offset = [], 0
+    for line in lines:
+        offsets.append(offset)
+        offset += len(line) + 1
+    replacements: list[tuple[int, int, str]] = []
+    depth = 0
+    for token in tokens:
+        if token.type == "blockquote_open":
+            depth += 1
+        elif token.type == "blockquote_close":
+            depth -= 1
+        elif token.type == "definition" and token.map:
+            for i in range(*token.map):
+                marker = "> \x00" if lines[i].lstrip().startswith(">") else "\x00"
+                replacements.append((offsets[i], offsets[i] + len(lines[i]), marker))
+        elif token.type == "inline" and token.map and (include_quotes or not depth):
+            if "[" not in token.content:
+                continue
+            positions: list[int] = []
+            for i, line in enumerate(token.content.split("\n"), start=token.map[0]):
+                # Core Markdown normalization replaces NUL one-for-one; source
+                # offsets therefore still refer to the original characters.
+                start = lines[i].replace("\x00", "\ufffd").find(line)
+                if start < 0:
+                    break
+                positions.extend(range(offsets[i] + start, offsets[i] + start + len(line)))
+                positions.append(offsets[i] + len(lines[i]))
+            else:
+                # A fresh inline parser keeps its rules local to this source.
+                inline = MarkdownIt("commonmark", {"store_labels": True})
+                for start, end, label in _reference_spans(token.content, inline, environment):
+                    first, last = positions[start], positions[end - 1] + 1
+                    # Hidden ID newlines are boundaries, not new prose. Keep
+                    # them so unrelated following lines retain their eligibility.
+                    label += "\n" * max(0, body[first:last].count("\n") - label.count("\n"))
+                    replacements.append((first, last, label))
+    pieces: list[str] = []
+    position = 0
+    for start, end, label in sorted(replacements, key=lambda span: (span[0], -span[1])):
+        if start >= position:
+            pieces.extend((body[position:start], label))
+            position = end
+    pieces.append(body[position:])
+    return "".join(pieces)
 
 
 def _digest(value: str) -> str:
@@ -32,6 +165,9 @@ def week_start(day: date) -> date:
 
 def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
     _, body = parse_frontmatter(content)
+    body = body.replace("\r\n", "\n").replace("\r", "\n")
+    if "]:" in body:
+        body = _clean_references(body, include_quotes)
     body = re.sub(r"<!--.*?-->", "\n\x00\n", body, flags=re.DOTALL)
     prose = []
     previous = 0
