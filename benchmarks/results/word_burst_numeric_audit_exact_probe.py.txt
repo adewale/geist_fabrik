@@ -1,0 +1,47 @@
+import itertools,random,math,time
+from fractions import Fraction
+from geistfabrik.word_burst import BurstModel
+rng=random.Random(45323)
+start=time.perf_counter();checked=0
+for case in range(1500):
+    b=rng.randrange(2,5)
+    ns=[rng.randrange(0,9) for _ in range(b)]
+    if not sum(ns): continue
+    rs=[rng.randrange(n+1) for n in ns]
+    r,n=sum(rs),sum(ns)
+    if r==0 or r==n: continue
+    direction=rng.choice(['rising','declining'])
+    s=rng.choice([math.nextafter(1,math.inf),1.00000002,1.5,2.,3.,4.,1000000.])
+    gamma=rng.choice([0.,.125,.5,1.,2.])
+    maximum=rng.randrange(1,5)
+    ps=[Fraction(r,n)]
+    for j in range(1,maximum):
+        p=ps[0]*Fraction(s)**(j if direction=='rising' else -j)
+        if not 0<p<1:break
+        ps.append(p)
+    observed=[i for i,x in enumerate(ns) if x]
+    g=Fraction(gamma); d=g.denominator
+    best=None; bestkey=None
+    for path in itertools.product(range(len(ps)),repeat=len(observed)):
+        v=Fraction(1); last=0; transitions=0
+        for i,state in zip(observed,path):
+            transitions+=max(0,state-last);last=state
+            v*= (ps[0]/ps[state])**(rs[i]*d)
+            v*= ((1-ps[0])/(1-ps[state]))**((ns[i]-rs[i])*d)
+        v*=len(observed)**(g.numerator*transitions)
+        key=tuple(reversed(path))
+        if best is None or v<best or(v==best and key<bestkey):best,bestkey=v,key
+    checked+=1
+    model=BurstModel(ns,s=s,gamma=gamma,max_states=maximum)
+    sparse={i:x for i,x in enumerate(rs) if x}
+    dense=model.detect(rs,direction=direction)
+    expected=tuple(reversed(bestkey))
+    actual=tuple(dense.states[i] for i in observed)
+    if actual!=expected:
+        print('BADPATH',case,ns,rs,s,gamma,maximum,direction,expected,dense,flush=True);break
+    if model.cannot_burst(sparse,direction=direction) and best<1:
+        print('BADPRUNE',case,ns,rs,s,gamma,maximum,direction,best,flush=True);break
+    batch=model.detect_many([sparse],direction=direction)[0]
+    if batch!=dense:
+        print('BADBATCH',case,ns,rs,s,gamma,maximum,direction,dense,batch,flush=True);break
+else:print('PASS_EXACT',checked,time.perf_counter()-start)

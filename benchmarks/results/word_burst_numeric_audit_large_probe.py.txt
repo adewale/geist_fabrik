@@ -1,0 +1,39 @@
+from decimal import Decimal,localcontext
+from fractions import Fraction
+from geistfabrik.word_burst import BurstModel
+import random,math,time
+rng=random.Random(6151);start=time.perf_counter();checked=0
+with localcontext() as ctx:
+ ctx.prec=420
+ for case in range(180):
+  ns=[rng.choice([1,2,100,2**52,2**53-1,2**53]) for _ in range(rng.randrange(2,7))]
+  rs=[rng.choice([0,1,n//3,n//2,max(0,n-1),n]) for n in ns]
+  if sum(rs) in (0,sum(ns)):continue
+  s=rng.choice([math.nextafter(1,math.inf),1.00000002,1.01,1.5,2.,3.,1e6])
+  gamma=rng.choice([0.,math.nextafter(0,1),1e-300,1e-20,.1,1.,1e6])
+  k=rng.choice([2,3,4,16]);direction=rng.choice(['rising','declining'])
+  base=Fraction(sum(rs),sum(ns)); ps=[base]
+  for j in range(1,k):
+   p=base*Fraction(s)**(j if direction=='rising' else -j)
+   if not 0<p<1:break
+   ps.append(p)
+  log=lambda f:(Decimal(f.numerator)/Decimal(f.denominator)).ln()
+  a=[log(base/p) for p in ps];b=[log((1-base)/(1-p)) for p in ps]
+  penalty=Decimal.from_float(gamma)*Decimal(len(ns)).ln()
+  prev=[Decimal(0)]+[Decimal('Infinity')]*(len(ps)-1)
+  for n,r in zip(ns,rs):
+   prev=[min(x+penalty*max(0,j-i) for i,x in enumerate(prev))+r*a[j]+(n-r)*b[j] for j in range(len(ps))]
+  optimum=min(prev)
+  checked+=1
+  model=BurstModel(ns,s=s,gamma=gamma,max_states=k)
+  result=model.detect(rs,direction=direction)
+  pathscore=Decimal(0);last=0
+  for n,r,state in zip(ns,rs,result.states):
+   pathscore+=penalty*max(0,state-last)+r*a[state]+(n-r)*b[state];last=state
+  if abs(pathscore-optimum)>Decimal('1e-350'):
+   print('BADPATH',case,ns,rs,s,gamma,k,direction,result,optimum,pathscore,flush=True);break
+  if optimum<Decimal('-1e-350') and model.cannot_burst({i:r for i,r in enumerate(rs)},direction=direction):
+   print('BADPRUNE',case,ns,rs,s,gamma,k,direction,result,optimum,flush=True);break
+  if result.objective != float(optimum) and abs(result.objective-float(optimum))>max(1e-300,abs(float(optimum))*1e-14):
+   print('BADSCORE',case,ns,rs,s,gamma,k,direction,result,optimum,flush=True);break
+ else:print('PASS_LARGE',checked,time.perf_counter()-start)
