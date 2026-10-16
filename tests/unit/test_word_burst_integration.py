@@ -472,7 +472,7 @@ def test_reference_only_footnote_retains_visible_body(image):
     separate=st.booleans(),
     maximum=st.integers(1, 3),
 )
-@settings(max_examples=200)
+@settings(max_examples=200, deadline=None)
 def test_reference_prose_matches_visible_word_windows(words, form, first, separate, maximum):
     links, definitions = [], []
     for visible in words if separate else [" ".join(words)]:

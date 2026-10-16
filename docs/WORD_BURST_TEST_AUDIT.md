@@ -340,3 +340,20 @@ No tolerances were widened. The 1e-150 oracle floor accounts for rounding at
 180 digits multiplied by the maximum short-case exposure, independently of the
 implementation. The original seven red cases and intermediate failures are
 recorded in the external work log; committed tests are the durable proof.
+
+The production repair changed 527 added / 140 removed runtime lines; its owner
+proof added 244 test lines. No test-only production seams were added. The focused
+run passed 154 tests; the final reference-parser optimization separately passed
+all 103 integration-module owners. A fresh 32-snapshot lexical smoke replay passed
+64/64 executor calls across both modes; the final original 10,000-note pair run
+passed uncached execution in 24.732 s within 30 s, with zero extractions on
+unchanged sync. Details and limitations are in the performance report.
+
+The first full validation found one harness timing failure: the reference-link
+property took 428 ms once, then 5 ms on replay, exceeding Hypothesis' default
+200 ms example deadline. All value assertions passed, along with the other
+1,766 unit tests, 81 integration tests, 155 AUTO criteria and package checks.
+That correctness property now disables the per-example timing deadline while
+retaining the canonical 60-second pytest timeout; the independent corpus benchmark
+owns performance measurement. No assertion, generator or numeric tolerance changed.
+The failed full log is archived rather than treated as a successful validation.
