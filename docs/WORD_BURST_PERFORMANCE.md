@@ -1,4 +1,68 @@
-# Audit repair measurements, 2026-10-16
+# Correctness-by-construction measurements, 2026-10-17
+
+Runtime checkpoint `abfdec672edaaf0b3ad5a647ed80552f6616aca9`, extraction/analysis
+policy 5. The [new default-pair run](../benchmarks/results/word_burst_construction_large.json)
+uses the original immutable 10,000-note / 46,635,807-byte corpus and a labelled
+synthetic 104-week date overlay. Raw undated analysis abstains in 0.053 s.
+
+| Operation | Measured result |
+| --- | ---: |
+| Cold index/sync | 99.205 s |
+| Unchanged sync | 3.430 s; zero extractions |
+| Edit 100 notes | 4.677 s; exactly 100 extractions |
+| Fresh analysis | 25.617 s |
+| Cache-cleared actual executor | success, 25.914 s / 30 s budget |
+| Cached analysis / executor | 0.313 s / 1.047 s |
+| Findings | 4,257 |
+| Full dictionary after marker edit | 42,990 expressions |
+| Peak process RSS including imports | 1,424 MiB |
+
+Exact fresh/cached findings and sampled suggestions agree; source hashes remain
+unchanged. Necessary bounds prune 4,075 series and identical grids reuse 202
+decodes, without vocabulary sampling. This single trial ran without other heavy
+tests/replays. Comparing different policy versions is not a controlled regression
+measurement. Cold indexing improved in this observation, while fresh analysis
+took longer than the prior trial; the uncached executor still has a narrow
+four-second margin. Earlier contention and optional-triple limits below remain
+relevant. Integer count payloads and corrected token/date semantics change the
+finding digest, so an old serialized digest is not a parity oracle.
+
+The shared semantic kernel computes in float64 with fixed per-pair reduction.
+This costs throughput compared with BLAS and doubles a dense output matrix's
+storage compared with float32. Existing bounded filtering chunks limit that
+cost. In-memory neighbour search caches immutable normalized directions on the
+backend's existing lifecycle instead of normalizing the corpus for every query.
+
+The [bounded single-thread kernel probe](../benchmarks/results/word_burst_construction_vector_performance.json)
+uses 10,000 float32 input rows, 384 dimensions, 20 queries, and five timed trials
+after warmup. Median totals for 20 neighbour queries were 0.153 s for the former
+sklearn arithmetic, 0.273 s for the canonical kernel with cached directions,
+and 2.064 s without that cache. Direction construction took 0.077 s once.
+A 1,000-by-1,000 matrix took 0.144 s versus 0.00753 s: roughly 19 times the kernel
+time, an explicit correctness cost rather than a speedup claim. This is a library
+microbenchmark, not a whole-application before/after measurement.
+
+Fresh real-model replays completed all 32 snapshots of both the
+[128-note smoke](../benchmarks/results/word_burst_construction_smoke.json) and
+[1,000-note standard](../benchmarks/results/word_burst_construction_standard.json)
+profiles. All **576 actual executor calls** succeeded: eight geists plus the
+second word-burst history mode. Neither replay changed stable meaning-vector
+bytes. Both modes produced rising/declining words and pairs; planted rising
+episodes first appeared at dated indices 8/22 and observed indices 9/23.
+The standard profile fired every one of the eight geists; the shorter smoke
+profile did not fire seasonal_patterns. Full lossless raw receipts are hash-bound
+by the summaries. These fixtures verify execution and planted evidence, rather
+than proving reader usefulness.
+
+The [real-model novelty probe](../benchmarks/results/word_burst_construction_real_novelty.json)
+wrote the audited orchard question through JournalWriter, then replayed it through
+the actual filter. Self-cosine is now exactly one; no repeat survives at threshold
+1.0 or 0.85. The [ten-note Kepano fixture](../benchmarks/results/word_burst_construction_kepano.json)
+also ran on an owned copy with unchanged source hashes. It correctly abstains
+for insufficient dated documents. That harness's edit batch is capped at 100;
+on this fixture it edits and re-extracts ten notes.
+
+## Earlier audit repair measurements, 2026-10-16
 
 Source commit `f9d9349` repairs reference-link extraction and cancellation-heavy
 numeric decisions. The [final default-pair run](../benchmarks/results/word_burst_audit_fixes_large.json)

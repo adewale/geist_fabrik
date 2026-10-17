@@ -1,0 +1,76 @@
+{
+  "python": "3.12.14",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "files": 10,
+  "bytes": 3294,
+  "source_manifest_sha256": "53b8f8f2e0f9534f143c15055bf0a437420505966711b6a95d3ae753afc2cecf",
+  "ngram_max": 2,
+  "trials": [
+    {
+      "trial": 0,
+      "cold_sync_seconds": 0.0445410399697721,
+      "warm_sync_seconds": 0.003367749974131584,
+      "warm_lexical_stats": {
+        "extracted": 0,
+        "changed": 0
+      },
+      "raw_analysis_seconds": 0.0003405859461054206,
+      "raw_diagnostics": {
+        "documents": 0,
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "series_reused": 0,
+        "cache_hit": false,
+        "reason": "insufficient_documents",
+        "collection_seconds": 6.475590635091066e-05,
+        "decoding_seconds": 0.0,
+        "evidence_seconds": 0.0
+      },
+      "raw_findings": 0,
+      "synthetic_overlay_seconds": 0.00035017996560782194,
+      "analysis_seconds": 0.0008401289815083146,
+      "diagnostics": {
+        "documents": 9,
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "series_reused": 0,
+        "cache_hit": false,
+        "reason": "insufficient_documents",
+        "collection_seconds": 0.0006156329764053226,
+        "decoding_seconds": 0.0,
+        "evidence_seconds": 0.0
+      },
+      "findings": 0,
+      "finding_categories": {
+        "rising_words": 0,
+        "rising_phrases": 0,
+        "declining_words": 0,
+        "declining_phrases": 0
+      },
+      "cached_seconds": 7.357902359217405e-05,
+      "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "executor_seconds": 0.0010716660181060433,
+      "executor_status": "success",
+      "suggestions": [],
+      "largest_episode_support": 0,
+      "fresh_executor_seconds": 0.0004922799998894334,
+      "fresh_executor_status": "success",
+      "fresh_executor_suggestions": [],
+      "edit_100_sync_seconds": 0.04271807998884469,
+      "edit_lexical_stats": {
+        "extracted": 10,
+        "changed": 10
+      },
+      "dictionary_terms": 461,
+      "database_bytes": 233472,
+      "process_peak_rss_kib": 837364
+    }
+  ],
+  "synthetic_date_overlay": true,
+  "embedding_inference": false,
+  "executor_timeout": 30,
+  "source_unchanged": true,
+  "source_commit": "abfdec672edaaf0b3ad5a647ed80552f6616aca9"
+}

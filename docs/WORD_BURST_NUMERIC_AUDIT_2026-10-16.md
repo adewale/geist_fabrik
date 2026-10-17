@@ -1,5 +1,9 @@
 # Multi-agent numeric and PR audit, 2026-10-16
 
+Follow-up: the [2026-10-17 correctness-by-construction repairs](WORD_BURST_CONSTRUCTION.md)
+close these findings. The report below preserves what was demonstrated on the
+earlier audited head.
+
 Audited PR #97 at `36270724f0fd214830dace52aaa98d1385f56caa`, against
 `7882ed5bbf4997ee645129fac4d170e201eea4e4`. Six reviewers covered the detector,
 history/storage, analysis/rendering, prose extraction/replay, shared semantic

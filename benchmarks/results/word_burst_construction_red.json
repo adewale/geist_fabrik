@@ -1,0 +1,10 @@
+{
+  "baseline": "3808af42f62beb9c25434c29d401a906dec29fb5",
+  "failed": 24,
+  "passed": 127,
+  "raw_archive": "word_burst_construction_initial_red.log.xz",
+  "raw_sha256": "e4597e8ef113a42ba4caf2adfac7fc9a7ad6a346af379628e440c6e136c04d4b",
+  "archive_sha256": "f22d49546bd4fe9d483d817e7893562f2cf93c86dfa481b2abbded3ba0575c22",
+  "raw_bytes": 40482,
+  "archive_bytes": 4260
+}

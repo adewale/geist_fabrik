@@ -1,5 +1,9 @@
 # Word-burst test audit
 
+The [2026-10-17 construction repairs and test audit](WORD_BURST_CONSTRUCTION.md)
+record the latest exact-rate, Unicode/prose, date and shared semantic changes.
+The sections below retain the previous validation history.
+
 This rebuild applies the user-requested
 [Openclaw test-audit skill](https://github.com/openclaw/openclaw/blob/main/.agents/skills/test-audit/SKILL.md),
 its authoring gate, boundary/cost guide and audit references, plus
