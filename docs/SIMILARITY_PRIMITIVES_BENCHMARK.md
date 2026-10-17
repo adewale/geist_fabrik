@@ -271,22 +271,26 @@ than evidence of detection quality at scale.
 ## Reproduce
 
 Use the locked environment with the `vector-search` extra and materialized LFS
-model files in both checkouts. Both baseline and after runs invoke the **new**
-harness while selecting the package source with `--source` or `PYTHONPATH`.
+model files in both checkouts. Pin the historical after source and its harness
+to `6555d6c`; the current harness now includes three additional follow-up cases.
+Both baseline and after runs invoke that pinned harness while selecting the
+package source with `--source` or `PYTHONPATH`. Current performance is reported
+in the [refinement follow-up](SIMILARITY_REFINEMENT_BENCHMARK.md).
 The source commit recorded for the uncommitted after run is its parent; the
 per-file runtime manifest identifies the actual measured source bytes.
 
 ```bash
 git worktree add --detach ../geist-primitives-before 32f9d0dba57dff1ebe983de4d894a7bffe443f92
-.venv/bin/python scripts/benchmark_similarity_primitives.py \
+git worktree add --detach ../geist-primitives-after-original 6555d6c547327d6c0abad55a7ab9312670c2d4d9
+.venv/bin/python ../geist-primitives-after-original/scripts/benchmark_similarity_primitives.py \
   --source ../geist-primitives-before --phase before --trials 5 --output /tmp/before.json
-.venv/bin/python scripts/benchmark_similarity_primitives.py \
-  --source . --phase after --trials 5 --output /tmp/after.json
+.venv/bin/python ../geist-primitives-after-original/scripts/benchmark_similarity_primitives.py \
+  --source ../geist-primitives-after-original --phase after --trials 5 --output /tmp/after.json
 PYTHONPATH=../geist-primitives-before/src GEISTFABRIK_OFFLINE=1 \
   .venv/bin/python scripts/benchmark_temporal_geists.py \
   /path/to/temporal-corpus/standard /tmp/before-standard-vault \
   --real-embeddings --similarity-suite --output /tmp/before-standard.json
-PYTHONPATH=src GEISTFABRIK_OFFLINE=1 \
+PYTHONPATH=../geist-primitives-after-original/src GEISTFABRIK_OFFLINE=1 \
   .venv/bin/python scripts/benchmark_temporal_geists.py \
   /path/to/temporal-corpus/standard /tmp/after-standard-vault \
   --real-embeddings --similarity-suite --output /tmp/after-standard.json

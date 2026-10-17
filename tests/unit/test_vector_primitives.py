@@ -68,15 +68,24 @@ def test_any_matches_equal_canonical(pair, data):
 
 
 @settings(max_examples=80, deadline=None)
-@given(pair=populations(), count=st.integers(min_value=0))
-def test_topk_is_exact_and_stable(pair, count):
+@given(
+    pair=populations(),
+    count=st.integers(),
+    budget=st.sampled_from([64, 256, 1024 * 1024]),
+)
+def test_topk_is_exact_and_stable(pair, count, budget):
     peers, queries = pair
     count = min(count, len(peers) + 1)
     scores = queries.cosine(peers)
     expected = [
-        [(int(i), float(row[i])) for i in np.argsort(-row, kind="stable")[:count]] for row in scores
+        [(int(i), float(row[i])) for i in np.argsort(-row, kind="stable")[: max(0, count)]]
+        for row in scores
     ]
-    assert peers.nearest(queries, count) == expected
+    with patch("geistfabrik.vector_math.SCORE_BLOCK_BYTES", budget):
+        assert peers.nearest(queries, count) == expected
+        indices = peers.nearest_indices(queries, count)
+        assert indices.shape == (len(queries), min(max(0, count), len(peers)))
+        assert indices.tolist() == [[i for i, _score in row] for row in expected]
 
 
 @settings(max_examples=80, deadline=None)
@@ -184,8 +193,8 @@ def test_wide_mean_respects_score_tile_budget(monkeypatch, method):
     sizes = []
     original = UnitRows.cosine if method == "mean_similarity" else UnitRows._estimate
 
-    def record(self, other):
-        result = original(self, other)
+    def record(self, other, **kwargs):
+        result = original(self, other, **kwargs)
         sizes.append(result.nbytes)
         return result
 
@@ -201,8 +210,10 @@ def test_tied_topk_refinement_is_bounded_by_dimension(monkeypatch):
     import geistfabrik.vector_math as vm
 
     monkeypatch.setattr(vm, "SCORE_BLOCK_BYTES", 4096)
-    peers = UnitRows(np.ones((257, 16)))
-    query = UnitRows(np.ones((1, 16)))
+    raw = np.zeros((257, 16))
+    raw[:, :2] = [0.8, 0.6]
+    peers = UnitRows(raw)
+    query = UnitRows(np.eye(1, 16))
     allocations = []
     original = np.einsum
 
@@ -212,7 +223,7 @@ def test_tied_topk_refinement_is_bounded_by_dimension(monkeypatch):
         return original(expression, *operands, **kwargs)
 
     monkeypatch.setattr(np, "einsum", record)
-    assert peers.nearest(query, 3) == [[(0, 1.0), (1, 1.0), (2, 1.0)]]
+    assert peers.nearest(query, 3) == [[(0, 0.8), (1, 0.8), (2, 0.8)]]
     assert allocations and max(allocations) <= 4096
 
 
@@ -256,13 +267,16 @@ def test_exact_topk_spans_query_batch_boundary(monkeypatch, budget):
     sizes = []
     original = UnitRows._estimate
 
-    def record(self, other):
-        result = original(self, other)
+    def record(self, other, **kwargs):
+        result = original(self, other, **kwargs)
         sizes.append(result.nbytes)
         return result
 
     monkeypatch.setattr(UnitRows, "_estimate", record)
     assert peers.nearest(queries, 3) == expected
+    assert peers.nearest_indices(queries, 3).tolist() == [
+        [i for i, _score in row] for row in expected
+    ]
     assert sizes and max(sizes) <= budget
 
 
@@ -290,16 +304,39 @@ def test_prepared_selection_rejects_invalid_indices(indices):
 def test_digest_collision_never_establishes_direction_identity(monkeypatch):
     import geistfabrik.vector_math as vm
 
-    class CollidingDigest:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def digest(self):
-            return b"x" * 16
-
-    monkeypatch.setattr(vm.hashlib, "blake2b", CollidingDigest)
+    monkeypatch.setattr(vm, "hash", lambda _value: 0, raising=False)
     left = UnitRows(np.array([[1.0, 0], [0, 1.0]]))
     right = UnitRows(np.array([[0.0, 1], [1, 0.0]]))
     assert np.array_equal(left.cosine(right), [[0.0, 1.0], [1.0, 0.0]])
     assert left.paired(right).tolist() == [0.0, 0.0]
     assert np.array_equal(left.compare(right, 1), [[False, True], [True, False]])
+
+
+@pytest.mark.parametrize("inclusive", [False, True])
+@pytest.mark.parametrize("threshold", [0.0, 1.0])
+def test_exact_identity_and_zero_decisions_need_no_numeric_kernel(
+    inclusive, threshold, monkeypatch
+):
+    rows = UnitRows(np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 0.0]]))
+    work = SimilarityWork()
+    canonical = rows.cosine(rows)
+    expected = canonical >= threshold if inclusive else canonical > threshold
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("exact identity/zero work must bypass numeric kernels")
+
+    monkeypatch.setattr(np, "matmul", forbidden)
+    monkeypatch.setattr(np, "einsum", forbidden)
+    assert np.array_equal(rows.compare(rows, threshold, inclusive=inclusive, work=work), expected)
+    assert work.fast_pairs == work.refined_pairs == 0
+    work = SimilarityWork()
+    assert rows.nearest_indices(rows, 2, work=work).tolist() == [[0, 1], [1, 2], [1, 2]]
+    assert work.fast_pairs == work.refined_pairs == 0
+
+
+@pytest.mark.parametrize("method", ["nearest", "nearest_indices"])
+@pytest.mark.parametrize("count", [True, 1.5, float("nan"), "2"])
+def test_topk_rejects_non_integer_counts_even_for_empty_queries(method, count):
+    rows = UnitRows(np.empty((0, 2)))
+    with pytest.raises(ValueError, match="integer"):
+        getattr(rows, method)(rows, count)

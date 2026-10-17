@@ -1,6 +1,8 @@
 """Unit tests for embeddings module (mocked models)."""
 
+import gc
 import sqlite3
+import weakref
 from contextlib import closing
 from dataclasses import replace
 from datetime import datetime
@@ -952,3 +954,291 @@ def test_is_offline_mode_respects_env_flags(monkeypatch):
     monkeypatch.setenv("HF_HUB_OFFLINE", "0")
     monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
     assert is_offline_mode() is True
+
+
+@pytest.mark.parametrize("backend", ["in-memory", "sqlite-vec"])
+@pytest.mark.parametrize("population_size", [0, 1, 3])
+def test_unchanged_session_retains_projection_and_writes_nothing(
+    db_with_notes, sample_notes, mock_embedding_computer, backend, population_size
+):
+    """The public compute/search cycle remains read-only after acceptance."""
+    for note in sample_notes[population_size:]:
+        db_with_notes.execute("DELETE FROM notes WHERE path = ?", (note.path,))
+    db_with_notes.commit()
+    sample_notes = sample_notes[:population_size]
+    session = Session(
+        datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer, backend=backend
+    )
+    session.compute_embeddings(sample_notes)
+    projection = session.get_backend()
+    before = db_with_notes.total_changes
+    session.compute_embeddings(list(reversed(sample_notes)))
+    assert db_with_notes.total_changes == before
+    assert session.get_backend() is projection
+    assert not projection.closed
+    session.close()
+
+
+def test_reopened_unchanged_session_preserves_bytes_and_labels(
+    db_with_notes, sample_notes, mock_embedding_computer
+):
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    session.compute_embeddings(sample_notes)
+    db_with_notes.execute("UPDATE session_embeddings SET cluster_label = 7")
+    db_with_notes.commit()
+    before = db_with_notes.execute(
+        "SELECT note_path, embedding, cluster_label FROM session_embeddings ORDER BY note_path"
+    ).fetchall()
+    reopened = Session(session.date, db_with_notes, computer=mock_embedding_computer)
+    changes = db_with_notes.total_changes
+    reopened.compute_embeddings(list(reversed(sample_notes)))
+    assert db_with_notes.total_changes == changes
+    assert (
+        db_with_notes.execute(
+            "SELECT note_path, embedding, cluster_label FROM session_embeddings ORDER BY note_path"
+        ).fetchall()
+        == before
+    )
+
+
+@pytest.mark.parametrize("change", ["content", "delete", "corrupt_embedding"])
+def test_accepted_session_invalidates_on_same_connection_changes(
+    db_with_notes, sample_notes, mock_embedding_computer, change
+):
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    session.compute_embeddings(sample_notes)
+    projection = session.get_backend()
+    db_with_notes.execute("UPDATE session_embeddings SET cluster_label = 7")
+    expected = session.get_embedding(sample_notes[0].path)
+    assert expected is not None
+    expected = expected.copy()
+    notes = list(sample_notes)
+    if change == "content":
+        notes[0] = replace(notes[0], content="entirely different revised note")
+        db_with_notes.execute(
+            "UPDATE notes SET content = ? WHERE path = ?", (notes[0].content, notes[0].path)
+        )
+    elif change == "delete":
+        db_with_notes.execute("DELETE FROM notes WHERE path = ?", (notes.pop(0).path,))
+    else:
+        db_with_notes.execute(
+            "UPDATE session_embeddings SET embedding = ? WHERE note_path = ?",
+            (b"invalid", notes[0].path),
+        )
+    db_with_notes.commit()
+    session.compute_embeddings(notes)
+    assert projection.closed
+    assert db_with_notes.execute(
+        "SELECT COUNT(*) FROM session_embeddings WHERE cluster_label IS NOT NULL"
+    ).fetchone() == (0,)
+    if change == "corrupt_embedding":
+        repaired = session.get_embedding(notes[0].path)
+        assert repaired is not None
+        assert np.array_equal(repaired, expected)
+
+
+@pytest.mark.parametrize("backend", ["in-memory", "sqlite-vec"])
+def test_external_change_rejection_discards_cached_projection(
+    tmp_path, sample_notes, mock_embedding_computer, backend
+):
+    db_path = tmp_path / "accepted.db"
+    db = init_db(db_path)
+    note = sample_notes[0]
+    db.execute(
+        "INSERT INTO notes (path, title, content, created, modified, file_mtime) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            note.path,
+            note.title,
+            note.content,
+            note.created.isoformat(),
+            note.modified.isoformat(),
+            note.modified.timestamp(),
+        ),
+    )
+    db.commit()
+    session = Session(datetime(2023, 6, 15), db, computer=mock_embedding_computer, backend=backend)
+    session.compute_embeddings([note])
+    projection = session.get_backend()
+    with closing(init_db(db_path)) as external:
+        external.execute("UPDATE notes SET content = 'external change'")
+        external.commit()
+    with pytest.raises(RuntimeError, match="changed before"):
+        session.compute_embeddings([note])
+    assert projection.closed
+    session.close()
+    db.close()
+
+
+def test_cached_shortcut_never_takes_ownership_of_caller_transaction(
+    db_with_notes, sample_notes, mock_embedding_computer
+):
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    session.compute_embeddings(sample_notes)
+    db_with_notes.execute("UPDATE notes SET title = 'pending'")
+    with pytest.raises(RuntimeError, match="idle SQLite"):
+        session.compute_embeddings(sample_notes)
+    assert db_with_notes.in_transaction
+    db_with_notes.rollback()
+
+
+def test_semantic_cache_and_fresh_float64_results_compose_identical_bytes(
+    db_with_notes, sample_notes, mock_embedding_computer, monkeypatch
+):
+    monkeypatch.setattr(
+        mock_embedding_computer,
+        "compute_batch_semantic",
+        lambda texts, **kwargs: np.full((len(texts), 384), 1.00000005),
+    )
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    session.compute_embeddings(sample_notes)
+    db_with_notes.execute("UPDATE session_embeddings SET cluster_label = 7")
+    db_with_notes.commit()
+    before = db_with_notes.total_changes
+    # Force full cache-backed validation rather than the input shortcut.
+    session.compute_embeddings(sample_notes)
+    assert db_with_notes.total_changes == before
+    assert db_with_notes.execute(
+        "SELECT DISTINCT cluster_label FROM session_embeddings"
+    ).fetchall() == [("7",)]
+
+
+def test_callback_cannot_replace_the_population_being_validated(
+    db_with_notes, sample_notes, mock_embedding_computer, monkeypatch
+):
+    """Computation and validation use the same frozen Note population."""
+    supplied = list(sample_notes)
+    original = mock_embedding_computer.compute_temporal_features
+
+    def mutate_population(note, date):
+        supplied.clear()
+        db_with_notes.execute("DELETE FROM notes")
+        db_with_notes.commit()
+        return original(note, date)
+
+    monkeypatch.setattr(mock_embedding_computer, "compute_temporal_features", mutate_population)
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    with pytest.raises(RuntimeError, match="do not match the committed vault snapshot"):
+        session.compute_embeddings(supplied)
+    assert db_with_notes.execute("SELECT COUNT(*) FROM session_embeddings").fetchone() == (0,)
+
+
+def test_changed_retention_is_not_hidden_by_unchanged_input_shortcut(
+    db_with_notes, sample_notes, mock_embedding_computer
+):
+    old = Session(datetime(2023, 6, 13), db_with_notes, computer=mock_embedding_computer)
+    old.compute_embeddings(sample_notes)
+    middle = Session(datetime(2023, 6, 14), db_with_notes, computer=mock_embedding_computer)
+    middle.compute_embeddings(sample_notes)
+    current = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    current.compute_embeddings(sample_notes)
+    current.embedding_retention = 1
+    current.compute_embeddings(sample_notes)
+    assert db_with_notes.execute(
+        "SELECT COUNT(*) FROM session_embeddings WHERE session_id = ?", (old.session_id,)
+    ).fetchone() == (0,)
+
+
+def test_session_close_releases_cached_input_text(
+    db_with_notes, sample_notes, mock_embedding_computer
+):
+    # Seed persistent vectors with ordinary strings so the injected computer's
+    # independent text cache cannot own the tracked input object.
+    seed = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    seed.compute_embeddings(sample_notes)
+    seed.close()
+
+    class TrackedText(str):
+        pass
+
+    tracked = TrackedText(sample_notes[0].content)
+    reference = weakref.ref(tracked)
+    supplied = [replace(sample_notes[0], content=tracked), *sample_notes[1:]]
+    session = Session(seed.date, db_with_notes, computer=mock_embedding_computer)
+    session.compute_embeddings(supplied)
+    del supplied, tracked
+    session.close()
+    gc.collect()
+    assert reference() is None
+
+
+@pytest.mark.parametrize("recycled_id", [False, True])
+def test_replacing_computer_invalidates_accepted_embedding_state(
+    db_with_notes, sample_notes, mock_embedding_computer, monkeypatch, recycled_id
+):
+    if recycled_id:
+        # Deterministically emulate Python recycling a released object's address.
+        # Cache admission must depend on actual identity, not a numeric ID.
+        monkeypatch.setattr("geistfabrik.embeddings.id", lambda value: 1, raising=False)
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer)
+    session.compute_embeddings(sample_notes)
+    before = session.get_embedding(sample_notes[0].path)
+    assert before is not None
+    replacement = EmbeddingComputer(model=mock_embedding_computer.model)
+    monkeypatch.setattr(
+        replacement,
+        "compute_temporal_features",
+        lambda note, date: 1 - mock_embedding_computer.compute_temporal_features(note, date),
+    )
+    session.computer = replacement
+    session.compute_embeddings(sample_notes)
+    cached = session.get_embedding(sample_notes[0].path)
+    assert cached is not None
+    # The fresh public path is the independent oracle for accepted-state reuse.
+    fresh = Session(session.date, db_with_notes, computer=replacement)
+    fresh.compute_embeddings(sample_notes)
+    expected = fresh.get_embedding(sample_notes[0].path)
+    assert expected is not None
+    assert not np.array_equal(before, expected)
+    assert np.array_equal(cached, expected)
+
+
+def test_accepted_state_does_not_retain_replaced_computer(
+    db_with_notes, sample_notes, mock_embedding_computer
+):
+    original = EmbeddingComputer(model=mock_embedding_computer.model)
+    reference = weakref.ref(original)
+    session = Session(datetime(2023, 6, 15), db_with_notes, computer=original)
+    session.compute_embeddings(sample_notes)
+    session.computer = mock_embedding_computer
+    del original
+    gc.collect()
+    assert reference() is None
+    session.compute_embeddings(sample_notes)
+    session.close()
+
+
+@pytest.mark.parametrize(
+    ("backend", "mutation"),
+    [("in-memory", "row"), ("in-memory", "map"), ("in-memory", "reload"), ("sqlite-vec", "reload")],
+)
+def test_unchanged_compute_discards_mutated_search_projection(
+    db_with_notes, sample_notes, mock_embedding_computer, backend, mutation
+):
+    from geistfabrik.vector_search import InMemoryVectorBackend
+
+    session = Session(
+        datetime(2023, 6, 15), db_with_notes, computer=mock_embedding_computer, backend=backend
+    )
+    session.compute_embeddings(sample_notes)
+    projection = session.get_backend()
+    original = projection.get_embedding(sample_notes[0].path).copy()
+    if mutation == "reload":
+        projection.load_embeddings("1900-01-01")
+    else:
+        assert isinstance(projection, InMemoryVectorBackend)
+        if mutation == "row":
+            projection.embeddings[sample_notes[0].path] = np.zeros_like(original)
+        else:
+            values = {n.path: projection.get_embedding(n.path) for n in sample_notes}
+            values[sample_notes[0].path] = np.zeros_like(original)
+            projection.embeddings = values
+    # Rebuilding a derived index must not conceal a source mutation.
+    projection.find_similar(original, count=1)
+    before = db_with_notes.total_changes
+    session.compute_embeddings(sample_notes)
+    assert projection.closed
+    assert db_with_notes.total_changes == before
+    restored = session.get_backend()
+    assert np.array_equal(restored.get_embedding(sample_notes[0].path), original)
+    session.close()

@@ -61,6 +61,16 @@ class VectorSearchBackend(ABC):
         """Whether this backend has released its loaded projection."""
         return self._closed
 
+    @property
+    def projection_token(self) -> tuple[int, ...] | None:
+        """Immutable loaded-state marker; None opts out of projection reuse.
+
+        Successful loads and public mutations change the marker. Rebuilding a
+        derived matrix does not erase source mutations. Tokens are opaque to
+        consumers and meaningful only for this backend instance.
+        """
+        return None
+
     def _ensure_open(self) -> None:
         if self.closed:
             raise RuntimeError("Vector search backend is closed")
@@ -155,7 +165,12 @@ class InMemoryVectorBackend(VectorSearchBackend):
         self._directions: UnitRows | None = None
         self._row_index: dict[str, int] = {}
         self._matrix_generation = -1
+        self._map_revision = 0
         self.embeddings = {}
+
+    @property
+    def projection_token(self) -> tuple[int, ...]:
+        return self.session_id, self._map_revision, self._embeddings.generation
 
     @property
     def embeddings(self) -> MutableMapping[str, np.ndarray]:
@@ -164,6 +179,7 @@ class InMemoryVectorBackend(VectorSearchBackend):
     @embeddings.setter
     def embeddings(self, values: Mapping[str, np.ndarray]) -> None:
         self._embeddings = _EmbeddingMap(values)
+        self._map_revision += 1
         self._matrix_generation = -1
 
     def close(self) -> None:
@@ -345,9 +361,14 @@ class SqliteVecBackend(VectorSearchBackend):
         self.session_id: int = 0
         self._path_to_id: dict[str, int] = {}  # Cache for path -> vec_id mapping
         self._id_to_path: dict[int, str] = {}  # Cache for vec_id -> path mapping
+        self._load_revision = 0
         self._search_table = f"_geist_vec_search_{next(_VEC_TABLE_COUNTER)}"
         self._closed = False
         self._setup_vec_tables()
+
+    @property
+    def projection_token(self) -> tuple[int, ...]:
+        return self.session_id, self._load_revision
 
     def _setup_vec_tables(self) -> None:
         """Create vec0 virtual table and path mapping table.
@@ -526,6 +547,7 @@ class SqliteVecBackend(VectorSearchBackend):
         self.session_id = session_id
         self._path_to_id = path_to_id
         self._id_to_path = id_to_path
+        self._load_revision += 1
 
     def close(self) -> None:
         """Drop this backend's connection-local vector projection."""

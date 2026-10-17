@@ -35,6 +35,9 @@ FEATURES = (
     "text_cache",
     "labels",
     "filter_pipeline",
+    "exact_threshold",
+    "tied_topk",
+    "unchanged_session",
 )
 
 
@@ -120,9 +123,9 @@ def worker(feature, phase, trials):
     if hasattr(UnitRows, "_install"):
         original_install = UnitRows._install
 
-        def counted_install(self, matrix, keys):
+        def counted_install(self, matrix, keys, *args, **kwargs):
             work["identity_index_rows"] += len(matrix)
-            return original_install(self, matrix, keys)
+            return original_install(self, matrix, keys, *args, **kwargs)
 
         UnitRows._install = counted_install
 
@@ -148,7 +151,75 @@ def worker(feature, phase, trials):
 
         UnitRows._selected_pairs = counted_selected
 
-    if feature == "prepare":
+    if feature == "unchanged_session":
+        from geistfabrik.config import semantic_cache_key
+        from geistfabrik.embeddings import Session
+        from geistfabrik.models import Note
+        from geistfabrik.schema import init_db
+
+        db = init_db()
+        when = datetime(2026, 1, 1)
+        notes = [
+            Note(f"n{i:04d}.md", f"Note {i}", f"Corpus text {i}", [], [], when, when)
+            for i in range(1000)
+        ]
+        db.executemany(
+            "INSERT INTO notes(path,title,content,created,modified,file_mtime) VALUES(?,?,?,?,?,?)",
+            [
+                (n.path, n.title, n.content, when.isoformat(), when.isoformat(), when.timestamp())
+                for n in notes
+            ],
+        )
+        db.executemany(
+            "INSERT INTO embeddings VALUES(?,?,?,?)",
+            [
+                (n.path, row.tobytes(), semantic_cache_key(n.content), when.isoformat())
+                for n, row in zip(notes, a_raw, strict=True)
+            ],
+        )
+        db.commit()
+        session = Session(when, db)
+        session.compute_embeddings(notes)
+        backend = session.get_backend()
+        retained = owned_bytes(session)
+
+        def run():
+            before = db.total_changes
+            session.compute_embeddings(notes)
+            return {
+                "sqlite_changes": db.total_changes - before,
+                "backend_reused": session._backend is backend,
+            }
+
+        def summarize(value):
+            value["digest"] = hashlib.sha256(
+                b"".join(
+                    row[0]
+                    for row in db.execute(
+                        "SELECT embedding FROM session_embeddings ORDER BY note_path"
+                    )
+                )
+            ).hexdigest()
+            return value
+
+    elif feature in {"exact_threshold", "tied_topk"}:
+        raw = np.ones((256, 384))
+        raw[128:] = 0
+        prepared = UnitRows(raw)
+        retained = owned_bytes(prepared)
+
+        def run():
+            if feature == "exact_threshold":
+                return prepared.compare(prepared, 1.0)
+            return prepared.nearest(prepared._view(0, 20), 10)
+
+        def summarize(value):
+            payload = (
+                value.tobytes() if isinstance(value, np.ndarray) else json.dumps(value).encode()
+            )
+            return {"digest": hashlib.sha256(payload).hexdigest()}
+
+    elif feature == "prepare":
         raw = rng.normal(size=(10000, 384)).astype(np.float32)
 
         def run():
@@ -448,6 +519,7 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--trials", type=int, default=5)
     parser.add_argument("--worker", choices=FEATURES)
+    parser.add_argument("--features", nargs="+", choices=FEATURES)
     args = parser.parse_args()
     if args.worker:
         print(json.dumps(worker(args.worker, args.phase, args.trials)))
@@ -471,7 +543,7 @@ def main():
         "features": {},
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    for feature in FEATURES:
+    for feature in args.features or FEATURES:
         environment = dict(os.environ, PYTHONPATH=str(args.source / "src"), GEISTFABRIK_OFFLINE="1")
         completed = subprocess.run(
             [

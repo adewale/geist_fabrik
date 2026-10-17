@@ -126,11 +126,11 @@ def _jaccard_churn(old: set[str], new: set[str]) -> float:
 
 def _prepared_topk(prepared: UnitRows, k: int) -> np.ndarray:
     """Exact stable neighbours, excluding only the query's own row."""
-    found = prepared.nearest(prepared, k + 1)
-    return np.asarray(
-        [[i for i, _score in row if i != query][:k] for query, row in enumerate(found)],
-        dtype=np.intp,
-    ).reshape(len(prepared), k)
+    found = prepared.nearest_indices(prepared, k + 1)
+    # Keep rank order and drop only self, including when other directions tie.
+    valid = found != np.arange(len(prepared))[:, None]
+    ranks = np.cumsum(valid, axis=1)
+    return np.asarray(found[valid & (ranks <= k)].reshape(len(prepared), k))
 
 
 def _neighbour_sets_from_indices(paths: list[str], topk_idx: np.ndarray) -> dict[str, set[str]]:

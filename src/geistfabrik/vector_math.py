@@ -5,7 +5,6 @@ the canonical result and refine ambiguous cells; no arbitrary threshold epsilon
 or approximate neighbour index changes the answer.
 """
 
-import hashlib
 import math
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -40,12 +39,18 @@ def _threshold(value: float) -> float:
 def _paired_scores(
     left: np.ndarray,
     right: np.ndarray,
-    left_keys: Sequence[bytes | None],
-    right_keys: Sequence[bytes | None],
+    left_keys: Sequence[int | None],
+    right_keys: Sequence[int | None],
+    identity_ids: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> np.ndarray:
     """One canonical pair kernel shared by paired and sparse refinement paths."""
     result: np.ndarray = np.einsum("ij,ij->i", left, right, optimize=False)
     np.clip(result, -1.0, 1.0, out=result)
+    if identity_ids is not None:
+        a_ids, b_ids = identity_ids
+        result[(a_ids == b_ids) & (a_ids >= 0)] = 1.0
+        result[(a_ids < 0) | (b_ids < 0)] = 0.0
+        return result
     for i, (a, b) in enumerate(zip(left_keys, right_keys, strict=True)):
         if a is None or b is None:
             result[i] = 0.0
@@ -68,15 +73,17 @@ class UnitRows:
     """Immutable validated directions with cached collision-checked identity.
 
     Contiguous slices share bytes and prepared metadata. Array views have
-    disposable metadata. A digest match alone never establishes vector identity.
+    disposable metadata. A hash match alone never establishes vector identity.
     """
 
     _data: bytes = field(repr=False)
     _shape: tuple[int, int]
     _start: int
-    _keys: tuple[bytes | None, ...] = field(repr=False)
-    _identities: Mapping[bytes, tuple[tuple[int, ...], ...]] = field(repr=False)
+    _keys: tuple[int | None, ...] = field(repr=False)
+    _identities: Mapping[int, tuple[tuple[int, ...], ...]] = field(repr=False)
     _zeros: tuple[int, ...] = field(repr=False)
+    _identity_data: bytes = field(repr=False)
+    _distinct_nonzero: bool = field(repr=False)
 
     def __init__(self, values: np.ndarray) -> None:
         matrix = np.array(values, dtype=np.float64, order="C", copy=True)
@@ -93,14 +100,22 @@ class UnitRows:
         norms = np.sqrt(np.einsum("ij,ij->i", matrix, matrix, optimize=False))[:, None]
         matrix /= np.where(norms == 0, 1.0, norms)
         matrix[matrix == 0] = 0.0
+        data = matrix.tobytes()
+        payload = memoryview(data)
+        width = matrix.shape[1] * 8
+        # Salted process-local hashes are only bucket indexes. Every collision
+        # is checked against actual rows; keys are never persisted or scored.
         keys = tuple(
-            hashlib.blake2b(row.tobytes(), digest_size=16).digest() if scales[i, 0] else None
-            for i, row in enumerate(matrix)
+            hash(payload[i * width : (i + 1) * width]) if scales[i, 0] else None
+            for i in range(len(matrix))
         )
-        self._install(matrix, keys)
+        self._install(matrix, keys, data)
 
-    def _install(self, matrix: np.ndarray, keys: tuple[bytes | None, ...]) -> None:
-        groups: dict[bytes, list[list[int]]] = {}
+    def _install(
+        self, matrix: np.ndarray, keys: tuple[int | None, ...], data: bytes | None = None
+    ) -> None:
+        groups: dict[int, list[list[int]]] = {}
+        identities = np.full(len(matrix), -1, dtype=np.intp)
         for i, key in enumerate(keys):
             if key is None:
                 continue
@@ -108,10 +123,16 @@ class UnitRows:
             for group in bucket:
                 if np.array_equal(matrix[i], matrix[group[0]]):
                     group.append(i)
+                    identities[i] = group[0]
                     break
             else:
                 bucket.append([i])
-        object.__setattr__(self, "_data", matrix.tobytes())
+                identities[i] = i
+        object.__setattr__(self, "_data", matrix.tobytes() if data is None else data)
+        object.__setattr__(self, "_identity_data", identities.tobytes())
+        object.__setattr__(
+            self, "_distinct_nonzero", bool(np.array_equal(identities, np.arange(len(matrix))))
+        )
         object.__setattr__(self, "_shape", matrix.shape)
         object.__setattr__(self, "_start", 0)
         object.__setattr__(self, "_keys", keys)
@@ -139,7 +160,14 @@ class UnitRows:
 
     def _view(self, start: int, stop: int) -> "UnitRows":
         result = object.__new__(UnitRows)
-        for name in ("_data", "_keys", "_identities", "_zeros"):
+        for name in (
+            "_data",
+            "_keys",
+            "_identities",
+            "_zeros",
+            "_identity_data",
+            "_distinct_nonzero",
+        ):
             object.__setattr__(result, name, getattr(self, name))
         object.__setattr__(result, "_shape", (stop - start, self._shape[1]))
         object.__setattr__(result, "_start", self._start + start)
@@ -169,7 +197,40 @@ class UnitRows:
         if self._shape[1] != other._shape[1]:
             raise ValueError("embedding dimensions must match")
 
-    def _identical(self, other: "UnitRows", result: np.ndarray) -> None:
+    @property
+    def _identity_ids(self) -> np.ndarray:
+        return np.frombuffer(
+            self._identity_data,
+            dtype=np.intp,
+            count=len(self),
+            offset=self._start * np.dtype(np.intp).itemsize,
+        )
+
+    def _identical(
+        self, other: "UnitRows", result: np.ndarray, exact: np.ndarray | None = None
+    ) -> None:
+        if self._data is other._data and self._distinct_nonzero:
+            # Verified distinct directions can match only at the same root row.
+            # Disjoint slices need no mask or identity work at all.
+            start = max(self._start, other._start)
+            stop = min(self._start + len(self), other._start + len(other))
+            if start < stop:
+                positions = np.arange(start, stop)
+                root_rows, root_columns = positions - self._start, positions - other._start
+                result[root_rows, root_columns] = 1.0
+                if exact is not None:
+                    exact[root_rows, root_columns] = True
+            return
+        if self._data is other._data:
+            left_ids, right_ids = self._identity_ids, other._identity_ids
+            identical = left_ids[:, None] == right_ids[None, :]
+            identical &= left_ids[:, None] >= 0
+            result[identical] = 1.0
+            zeros = (left_ids[:, None] < 0) | (right_ids[None, :] < 0)
+            result[zeros] = 0.0
+            if exact is not None:
+                np.logical_or(identical, zeros, out=exact)
+            return
         left, right = self.values, other.values
         left_end, right_end = self._start + len(self), other._start + len(other)
         for key in set(self._keys[self._start : left_end]):
@@ -183,10 +244,15 @@ class UnitRows:
                     columns = [j - other._start for j in peer if other._start <= j < right_end]
                     if columns and np.array_equal(left[rows[0]], right[columns[0]]):
                         result[np.ix_(rows, columns)] = 1.0
+                        if exact is not None:
+                            exact[np.ix_(rows, columns)] = True
         zeros_a = [i - self._start for i in self._zeros if self._start <= i < left_end]
         zeros_b = [j - other._start for j in other._zeros if other._start <= j < right_end]
         result[zeros_a, :] = 0.0
         result[:, zeros_b] = 0.0
+        if exact is not None:
+            exact[zeros_a, :] = True
+            exact[:, zeros_b] = True
 
     def cosine(self, other: "UnitRows") -> np.ndarray:
         """Canonical scores, identical to scalar and chunked calls."""
@@ -214,21 +280,49 @@ class UnitRows:
         """Canonical refinement with a dimension-aware temporary-vector bound."""
         result = np.empty(len(rows), dtype=np.float64)
         size = max(1, SCORE_BLOCK_BYTES // (32 * max(1, self._shape[1])))
+        left_values, right_values = self.values, other.values
+        shared = self._data is other._data
+        own_ids, peer_ids = self._identity_ids, other._identity_ids
         for start in range(0, len(rows), size):
             left, right = rows[start : start + size], columns[start : start + size]
-            result[start : start + size] = _paired_scores(
-                self.values[left],
-                other.values[right],
-                [self._keys[self._start + int(i)] for i in left],
-                [other._keys[other._start + int(j)] for j in right],
-            )
+            if shared:
+                a_ids, b_ids = own_ids[left], peer_ids[right]
+                zero = (a_ids < 0) | (b_ids < 0)
+                same = (a_ids == b_ids) & ~zero
+                target = result[start : start + len(left)]
+                target[zero], target[same] = 0.0, 1.0
+                unknown = ~(zero | same)
+                target[unknown] = _paired_scores(
+                    left_values[left[unknown]],
+                    right_values[right[unknown]],
+                    (),
+                    (),
+                    (a_ids[unknown], b_ids[unknown]),
+                )
+            else:
+                result[start : start + size] = _paired_scores(
+                    left_values[left],
+                    right_values[right],
+                    [self._keys[self._start + int(i)] for i in left],
+                    [other._keys[other._start + int(j)] for j in right],
+                )
         return result
 
-    def _estimate(self, other: "UnitRows") -> np.ndarray:
+    def _estimate(self, other: "UnitRows", *, exact: np.ndarray | None = None) -> np.ndarray:
         self._compatible(other)
-        result: np.ndarray = self.values @ other.values.T
+        if exact is None:
+            result: np.ndarray = self.values @ other.values.T
+            np.clip(result, -1.0, 1.0, out=result)
+            self._identical(other, result)
+            return result
+        result = np.empty((len(self), len(other)), dtype=np.float64)
+        self._identical(other, result, exact)
+        if exact.all():
+            return result
+        known = result[exact]
+        np.matmul(self.values, other.values.T, out=result)
         np.clip(result, -1.0, 1.0, out=result)
-        self._identical(other, result)
+        result[exact] = known
         return result
 
     @property
@@ -250,12 +344,19 @@ class UnitRows:
     def _compare_block(
         self, other: "UnitRows", threshold: float, inclusive: bool, work: SimilarityWork | None
     ) -> np.ndarray:
-        estimates = self._estimate(other)
+        exact = np.zeros((len(self), len(other)), dtype=np.bool_)
+        estimates = self._estimate(other, exact=exact)
+        if exact.all():
+            if work is not None:
+                work.blocks += 1
+            return estimates >= threshold if inclusive else estimates > threshold
         error = self.score_error
         low = np.nextafter(estimates - error, -np.inf)
         high = np.nextafter(estimates + error, np.inf)
         result = low >= threshold if inclusive else low > threshold
         uncertain = ~(result | (high < threshold if inclusive else high <= threshold))
+        uncertain &= ~exact
+        result[exact] = estimates[exact] >= threshold if inclusive else estimates[exact] > threshold
         i, j = np.nonzero(uncertain)
         refined = len(i)
         if len(i):
@@ -358,56 +459,98 @@ class UnitRows:
         if pending:
             yield from scored()
 
-    def nearest(
-        self, queries: "UnitRows", count: int, *, work: SimilarityWork | None = None
-    ) -> list[list[tuple[int, float]]]:
-        """Batched exact top-k; ties preserve collection row order.
+    @staticmethod
+    def _stable_top(scores: np.ndarray, count: int) -> np.ndarray:
+        """Exact top-k positions; only sort the winning frontier, preserving ties."""
+        if len(scores) <= 2 * count:
+            return np.argsort(-scores, kind="stable")[:count]
+        cutoff = np.partition(scores, len(scores) - count)[len(scores) - count]
+        above = np.flatnonzero(scores > cutoff)
+        equal = np.flatnonzero(scores == cutoff)[: count - len(above)]
+        chosen = np.concatenate((above, equal))
+        return np.asarray(chosen[np.lexsort((chosen, -scores[chosen]))])
 
-        Keep every candidate whose upper enclosure reaches the kth lower
-        enclosure. Canonical rescoring certifies selection and returned scores;
-        a true tie can require all rows, never an arbitrary candidate cutoff.
-        """
+    def _nearest_blocks(
+        self, queries: "UnitRows", count: int, work: SimilarityWork | None
+    ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
         self._compatible(queries)
         if isinstance(count, bool) or not isinstance(count, int):
             raise ValueError("neighbour count must be an integer")
         count = min(max(0, count), len(self))
-        if not count:
-            return [[] for _ in range(len(queries))]
-        result: list[list[tuple[int, float]]] = []
         query_rows = max(1, min(len(queries), 128, SCORE_BLOCK_BYTES // 8))
         columns = max(1, SCORE_BLOCK_BYTES // (8 * query_rows))
         for start in range(0, len(queries), query_rows):
             query = queries._view(start, min(start + query_rows, len(queries)))
-            keep: list[list[tuple[int, float]]] = [[] for _ in range(len(query))]
-            for column in range(0, len(self), columns):
-                peers = self._view(column, min(column + columns, len(self)))
-                estimates = query._estimate(peers)
-                error = self.score_error
-                local_count = min(count, len(peers))
-                lower = np.nextafter(estimates - error, -np.inf)
-                kth = len(peers) - local_count
-                cutoff = np.partition(lower, kth, axis=1)[:, kth]
-                rows, candidates = np.nonzero(
-                    np.nextafter(estimates + error, np.inf) >= cutoff[:, None]
-                )
-                # Certify all queries' candidates together, retaining O(tile)
-                # score/index arrays and only dimension-bounded vector copies.
-                scores = query._selected_pairs(peers, rows, candidates)
-                ends = np.searchsorted(rows, np.arange(len(query) + 1))
-                for offset in range(len(query)):
-                    first, stop = int(ends[offset]), int(ends[offset + 1])
-                    order = np.argsort(-scores[first:stop], kind="stable")[:local_count] + first
-                    keep[offset].extend(
-                        (column + int(candidates[i]), float(scores[i])) for i in order
-                    )
-                    keep[offset].sort(key=lambda item: (-item[1], item[0]))
-                    del keep[offset][count:]
-                if work is not None:
-                    work.refined_pairs += len(candidates)
-                if work is not None:
-                    work.fast_pairs += estimates.size
-                    work.blocks += 1
-            result.extend(keep)
+            best_scores = np.full((len(query), count), -np.inf)
+            best_indices = np.full((len(query), count), len(self), dtype=np.intp)
+            if count:
+                for column in range(0, len(self), columns):
+                    peers = self._view(column, min(column + columns, len(self)))
+                    exact = np.zeros((len(query), len(peers)), dtype=np.bool_)
+                    estimates = query._estimate(peers, exact=exact)
+                    local_count = min(count, len(peers))
+                    pivot = np.partition(estimates, len(peers) - local_count, axis=1)[
+                        :, len(peers) - local_count
+                    ]
+                    # The uniform enclosure is monotone: partition its centre,
+                    # then bound just the row's kth value instead of a full lower matrix.
+                    cutoff = np.nextafter(pivot - self.score_error, -np.inf)
+                    upper = np.nextafter(estimates + self.score_error, np.inf)
+                    np.minimum(upper, 1.0, out=upper)
+                    upper[exact] = estimates[exact]
+                    possible = upper >= cutoff[:, None]
+                    # All previous blocks have smaller row indexes. A later exact
+                    # tie cannot replace the current kth winner, hence strict >.
+                    possible &= upper > best_scores[:, -1, None]
+                    rows, candidates = np.nonzero(possible)
+                    scores = estimates[rows, candidates]
+                    refine = ~exact[rows, candidates]
+                    scores[refine] = query._selected_pairs(peers, rows[refine], candidates[refine])
+                    ends = np.searchsorted(rows, np.arange(len(query) + 1))
+                    for offset in np.flatnonzero(ends[1:] > ends[:-1]):
+                        first, stop = int(ends[offset]), int(ends[offset + 1])
+                        order = self._stable_top(scores[first:stop], local_count) + first
+                        merged_scores = np.concatenate((best_scores[offset], scores[order]))
+                        merged_indices = np.concatenate(
+                            (best_indices[offset], column + candidates[order])
+                        )
+                        winners = np.lexsort((merged_indices, -merged_scores))[:count]
+                        best_scores[offset] = merged_scores[winners]
+                        best_indices[offset] = merged_indices[winners]
+                    if work is not None:
+                        work.refined_pairs += int(refine.sum())
+                        work.fast_pairs += 0 if exact.all() else estimates.size
+                        work.blocks += 1
+            yield best_indices, best_scores
+
+    def nearest(
+        self, queries: "UnitRows", count: int, *, work: SimilarityWork | None = None
+    ) -> list[list[tuple[int, float]]]:
+        """Batched canonical top-k, stable ties, with certified global pruning.
+
+        Exact identities/zeros need no dot-product refinement. Other candidates
+        whose upper bounds can beat the retained kth score are canonically scored.
+        There is no approximate cutoff, including for a completely tied frontier.
+        """
+        return [
+            [(int(i), float(score)) for i, score in zip(indices, scores, strict=True)]
+            for block_indices, block_scores in self._nearest_blocks(queries, count, work)
+            for indices, scores in zip(block_indices, block_scores, strict=True)
+        ]
+
+    def nearest_indices(
+        self, queries: "UnitRows", count: int, *, work: SimilarityWork | None = None
+    ) -> np.ndarray:
+        """Canonical top-k indices without materializing Python score tuples."""
+        result = None
+        offset = 0
+        for indices, _scores in self._nearest_blocks(queries, count, work):
+            if result is None:
+                result = np.empty((len(queries), indices.shape[1]), dtype=np.intp)
+            result[offset : offset + len(indices)] = indices
+            offset += len(indices)
+        if result is None:
+            return np.empty((0, min(max(0, count), len(self))), dtype=np.intp)
         return result
 
     def mean_similarity(self, other: "UnitRows | None" = None) -> float:

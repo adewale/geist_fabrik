@@ -15,7 +15,8 @@ retain the existing fixed-order float64 contract.
 | Matching unordered pairs | `UnitRows.matching_pairs` / `scored_matching_pairs`, `VaultContext.similar_pairs` | Graph bridges, structural holes, unlinked pairs |
 | Mean as a number | `UnitRows.mean_similarity`, `VaultContext.mean_similarity` | Seasonal coherence |
 | Mean above a threshold | `UnitRows.mean_compare`, `VaultContext.mean_similarity_matches` | Concept clusters, density inversion, cross-season threads |
-| Exact top-k with scores | `UnitRows.nearest` | In-memory search, cluster representatives, shared surprisal/churn index |
+| Exact top-k with scores | `UnitRows.nearest` | In-memory search, cluster representatives |
+| Exact top-k indices | `UnitRows.nearest_indices` | Shared surprisal/churn index, without Python score tuples |
 | Full canonical Cartesian output | `UnitRows.cosine`, existing cosine APIs | Callers that actually need every score; compatibility |
 
 `UnitRows` returns signed scores in [-1,1]. Vault note similarities and means
@@ -41,9 +42,13 @@ for seed, neighbours in zip(seeds, vault.neighbours_many(seeds, count=5)):
 Prepared directions own immutable float64 bytes. Contiguous selections share
 those bytes and metadata; other selections copy already prepared rows without
 renormalizing or revalidating them. Array views have disposable shape metadata.
-The identity index stores compact BLAKE2b digests and row groups, verifying
-actual array equality before any digest match can establish identity. Zero row
-positions are also cached. Equal nonzero directions score exactly one; zeros
+The identity index uses salted process-local hashes to select buckets and
+verifies actual array equality before assigning immutable group IDs. Hashes
+never persist and cannot establish identity. Contiguous views share group IDs,
+so identity/zero corrections and sparse refinement avoid repeated Python
+lookups. A verified population of distinct nonzero directions only needs
+identity correction where two contiguous views overlap in root row positions;
+disjoint views skip identity masks. Zero row positions are also cached. Equal nonzero directions score exactly one; zeros
 score zero, including against themselves.
 
 The in-memory backend owns immutable raw buffers and a mutation generation.
@@ -73,6 +78,33 @@ labelling use this same cache; plugin label encoders use the same bounded
 primitive through weak ownership. Filtering shares prepared candidate rows
 between novelty and diversity for one pipeline invocation, then releases them.
 
+Session embedding computation retains an exact input manifest and a SQLite
+change token after a successful commit. Matching input, date, computer and
+retention settings with no local/external writes returns before inference,
+serialization, writer-lock acquisition or backend invalidation. Loading an
+accepted sqlite-vec projection absorbs only its own writes into the local token.
+External commits invalidate the backend and reject the stale session. Any
+unrelated local write requires full validation. This remains an O(N) input
+comparison, not a constant-time watcher. Retained manifest tuples share content
+strings but add metadata proportional to the note count. They retain supplied
+text objects for the open Session lifetime. `Session.close()`
+releases the manifest and its change token, including for injected computers.
+Computer identity is checked through a weak reference with `is`, so replacing a
+computer cannot collide with a recycled Python object ID or retain the old model.
+Search backends publish an optional projection revision token. An unchanged
+compute discards a closed, mutated or unversioned projection before returning;
+the next search rebuilds it from the accepted persisted vectors. Whole-map
+replacement, individual in-memory row changes and explicit backend reloads all
+advance the built-in tokens. Third-party backends can return `None` to opt out
+of projection reuse.
+
+A fresh Session still validates and composes the population. Conditional UPSERTs
+write only changed BLOBs, and an unchanged hash is not rewritten. Unchanged
+populations retain cluster labels; a changed vector, membership or vault hash
+clears all labels because clustering describes the entire population. Semantic
+composition uses float32 both before and after persistent cache reuse. All
+persistent changes and retention pruning remain one owned transaction.
+
 ## Why optimized decisions preserve canonical answers
 
 Let `d` be the prepared dimension, `E` be binary64 machine epsilon and
@@ -98,11 +130,16 @@ epsilon. Dense ambiguous tiles recompute a canonical tile instead of expanding
 one D-dimensional vector per uncertain cell. Mean decisions additionally bound
 nonnegative summation and division, using canonical `math.fsum` if ambiguous.
 
-Top-k retains every candidate whose upper enclosure reaches the kth lower
-enclosure, canonically scores those candidates, then sorts by score and row
-index. Every tile's local winners are sufficient for the global winners. A
-true tie may require all candidates: correctness never depends on an arbitrary
-refinement cutoff. Sparse pair refinement batches candidates across queries and
+Top-k retains candidates whose upper enclosure reaches the tile's kth lower
+enclosure and can beat the already retained canonical kth score. Later tiles
+contain larger row indices, so an upper bound equal to the existing kth score
+cannot win its stable tie. Verified identities and zeros already have exact
+scores and bypass refinement; an entirely exact tile bypasses BLAS too. Other
+candidates use the canonical kernel. Partial selection sorts the winning
+frontier by score and row index. Every tile's local winners are sufficient for
+the global winners. A true nonidentity tie may still require scoring all
+candidates: correctness never depends on an arbitrary refinement cutoff.
+Sparse pair refinement batches candidates across queries and
 bounds vector copies by dimension. Unlinked-pair discovery streams scored
 matches into the standard-library stable top-k heap, retaining only the requested
 result count.
@@ -135,4 +172,5 @@ NumPy, threadpoolctl and the existing sqlite-vec engine supply the numerical
 and native-search work. This adds no approximate index or dependency. Mutable
 raw inputs are never put into an unbounded global normalized-vector cache.
 
-See [matched measurements and verification](SIMILARITY_PRIMITIVES_BENCHMARK.md).
+See the [first-pass measurements](SIMILARITY_PRIMITIVES_BENCHMARK.md) and the
+[canonical-neighbourhood and Session refinement measurements](SIMILARITY_REFINEMENT_BENCHMARK.md).

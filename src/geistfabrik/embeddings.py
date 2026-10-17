@@ -18,6 +18,7 @@ from datetime import datetime
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
+from weakref import ReferenceType, ref
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -387,7 +388,11 @@ class Session:
         self._owns_computer = computer is None
         self._backend_type = backend
         self._backend: VectorSearchBackend | None = None
+        self._backend_token: tuple[int, ...] | None = None
         self.embedding_retention = embedding_retention
+        self._computed_inputs: list[tuple[str, str, str, str]] | None = None
+        self._computed_token: tuple[int, int, datetime, int | None] | None = None
+        self._computed_computer: ReferenceType[EmbeddingComputer] | None = None
 
     def close(self) -> None:
         """Release resources owned by this session, leaving its shared DB open.
@@ -401,6 +406,10 @@ class Session:
                 self._backend.close()
                 self._backend = None
         finally:
+            self._computed_inputs = None
+            self._computed_token = None
+            self._computed_computer = None
+            self._backend_token = None
             if self._owns_computer:
                 self.computer.close()
 
@@ -581,20 +590,46 @@ class Session:
         """
         if self.db.in_transaction:
             raise RuntimeError("Session.compute_embeddings requires an idle SQLite connection")
-        if self._backend is not None:
-            self._backend.close()
-            self._backend = None
-
         # Compute expensive/model-dependent values before taking SQLite's
         # single-writer lock. data_version is an optimistic-concurrency token:
         # after the lock is acquired we must still be looking at the same
         # committed database state from which caches/notes were read.
+        notes = list(notes)  # Note is frozen; detach the caller-owned population list.
         initial_data_version = self._read_data_version()
         if initial_data_version != self._snapshot_data_version:
+            self._invalidate_backend()
             raise ConcurrentVaultChangeError(
                 "Vault changed before the embedding snapshot was accepted; rerun the command "
                 "from a fresh synchronized snapshot"
             )
+        inputs = self._embedding_input_snapshot(notes)
+        token = (
+            initial_data_version,
+            self.db.total_changes,
+            self.date,
+            self.embedding_retention,
+        )
+        if (
+            self._computed_computer is not None
+            and self._computed_computer() is self.computer
+            and self._computed_token == token
+            and self._computed_inputs == inputs
+        ):
+            # A final version check catches a commit during input comparison.
+            # No writer lock, vector serialization or backend invalidation is needed.
+            if self._read_data_version() != initial_data_version:
+                self._invalidate_backend()
+                raise ConcurrentVaultChangeError(
+                    "Vault changed while embeddings were being checked; rerun the command"
+                )
+            if self._backend is not None and (
+                self._backend.closed
+                or self._backend_token is None
+                or self._backend.projection_token != self._backend_token
+            ):
+                self._invalidate_backend()
+            return
+        self._invalidate_backend()
         vault_hash = self.compute_vault_state_hash(notes)
 
         # Separate notes into cached and uncached
@@ -618,7 +653,8 @@ class Session:
             )
 
             for i, note in enumerate(uncached_notes):
-                semantic = computed_embeddings[i]
+                # Compose from the same representation that semantic-cache reads return.
+                semantic = np.asarray(computed_embeddings[i], dtype=np.float32)
                 semantic_embeddings[note.path] = semantic
 
         # Add cached embeddings to lookup dict
@@ -648,23 +684,52 @@ class Session:
             # data_version covers commits after method entry. This exact state
             # comparison also covers a Note list captured before method entry.
             self._assert_embedding_inputs_are_current(notes)
-            self.db.execute(
-                "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ?",
-                (vault_hash, self.session_id),
+            hash_changed = (
+                self.db.execute(
+                    "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ? "
+                    "AND vault_state_hash IS NOT ?",
+                    (vault_hash, self.session_id, vault_hash),
+                ).rowcount
+                > 0
             )
+            before_rows = self.db.total_changes
             self.db.execute(
-                "DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,)
+                "DELETE FROM session_embeddings WHERE session_id = ? AND NOT EXISTS "
+                "(SELECT 1 FROM notes WHERE notes.path = session_embeddings.note_path)",
+                (self.session_id,),
             )
+            removed = self.db.total_changes - before_rows
             for note in uncached_notes:
                 self._cache_semantic_embedding(note, semantic_embeddings[note.path])
+            before_rows = self.db.total_changes
             self.db.executemany(
                 """
                 INSERT INTO session_embeddings (session_id, note_path, embedding)
                 VALUES (?, ?, ?)
+                ON CONFLICT(session_id, note_path) DO UPDATE SET
+                    embedding = excluded.embedding, cluster_label = NULL
+                WHERE session_embeddings.embedding IS NOT excluded.embedding
                 """,
                 embedding_rows,
             )
+            if hash_changed or removed or self.db.total_changes != before_rows:
+                # Cluster labels describe the entire population. A changed row
+                # can change another note's membership, so invalidate all labels.
+                self.db.execute(
+                    "UPDATE session_embeddings SET cluster_label = NULL "
+                    "WHERE session_id = ? AND cluster_label IS NOT NULL",
+                    (self.session_id,),
+                )
             pruned = self._prune_old_session_embeddings()
+
+        self._computed_inputs = inputs
+        self._computed_token = (
+            initial_data_version,
+            self.db.total_changes,
+            self.date,
+            self.embedding_retention,
+        )
+        self._computed_computer = ref(self.computer)
 
         if pruned > 0:
             logger.info(
@@ -755,6 +820,12 @@ class Session:
         else:
             raise ValueError(f"Unknown backend type: {self._backend_type}")
 
+    def _invalidate_backend(self) -> None:
+        if self._backend is not None:
+            self._backend.close()
+            self._backend = None
+        self._backend_token = None
+
     def get_backend(self) -> "VectorSearchBackend":
         """Get vector search backend for this session.
 
@@ -765,6 +836,21 @@ class Session:
         """
         if self._backend is None or self._backend.closed:
             self._backend = None
+            self._backend_token = None
+            # Only absorb projection-owned writes when the accepted snapshot
+            # was still current before loading. Never hide unrelated DB writes.
+            accepted = self._computed_token
+            projection_only = (
+                self._computed_computer is not None
+                and self._computed_computer() is self.computer
+                and accepted
+                == (
+                    self._read_data_version(),
+                    self.db.total_changes,
+                    self.date,
+                    self.embedding_retention,
+                )
+            )
             backend = self._create_backend()
             session_date = self.date.strftime("%Y-%m-%d")
             try:
@@ -778,6 +864,9 @@ class Session:
                     )
                 raise
             self._backend = backend
+            self._backend_token = backend.projection_token
+            if projection_only and accepted is not None:
+                self._computed_token = (accepted[0], self.db.total_changes, *accepted[2:])
 
         return self._backend
 
