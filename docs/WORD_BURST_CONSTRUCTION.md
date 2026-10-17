@@ -88,6 +88,27 @@ Fixed-order arithmetic has a real throughput cost relative to BLAS: a bounded
 1,000-by-1,000 kernel probe took 0.144 s versus 0.00753 s. Caching normalized
 directions reduced 20 canonical neighbour queries from 2.064 s to 0.273 s.
 
-Canonical repository validation and shared autoreview outcomes are recorded
-after their completed runs. Independent reviews above are distinct from the
-shared autoreview and do not substitute for an authenticated canonical report.
+## Final validation and review receipts
+
+Full `scripts/validate.sh` passed at `dff03bfec0c3b0174171687f843cf69862967564`:
+1,816 unit tests (one skipped, eight deselected), 81 integration tests (eight
+deselected), 155/155 automated acceptance criteria, 82.16% branch coverage,
+all 45 bundled geists firing, strict type/lint/security/workflow checks and
+installed-wheel real offline model inference. The 83 manual acceptance criteria
+remain unverified. Runtime, tests, scripts and lock match checkpoint `abfdec6`.
+The [validation receipt](../benchmarks/results/word_burst_construction_validation.json)
+anchors the lossless complete log with raw and archive SHA-256 hashes.
+
+The unmodified canonical Openclaw autoreview helper targeted source commit
+`abfdec6`, with four frozen caller/contract files.
+All 43 before/after and context blobs first matched unauthenticated public
+GitHub copies byte-for-byte. The helper attempted one Codex review, failed
+authentication, and returned `reviewer_unavailable`, `report_produced: false`.
+The [review receipt](../benchmarks/results/word_burst_construction_review.json)
+records this outcome and links the public-input proof. This is not a clean
+canonical verdict. PR #97 remains draft awaiting authenticated canonical review;
+the independent reviews above do not substitute for that report.
+
+This final receipt update changes only documentation/evidence. Local full
+validation is separate from the GitHub Actions platform matrix, which was
+in progress on `dff03bf` when these receipts were recorded.
