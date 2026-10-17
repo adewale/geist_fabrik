@@ -1,0 +1,29 @@
+{
+  "smoke": {
+    "row_pairs": 5263,
+    "changed_rows": 0,
+    "changed_coordinates": 0,
+    "maximum_absolute_difference": 0.0,
+    "changed_by_session": {},
+    "before_rows": 5263,
+    "after_rows": 5263
+  },
+  "standard": {
+    "row_pairs": 34607,
+    "changed_rows": 0,
+    "changed_coordinates": 0,
+    "maximum_absolute_difference": 0.0,
+    "changed_by_session": {},
+    "before_rows": 34607,
+    "after_rows": 34607
+  },
+  "large": {
+    "row_pairs": 20302,
+    "changed_rows": 0,
+    "changed_coordinates": 0,
+    "maximum_absolute_difference": 0.0,
+    "changed_by_session": {},
+    "before_rows": 20302,
+    "after_rows": 20302
+  }
+}

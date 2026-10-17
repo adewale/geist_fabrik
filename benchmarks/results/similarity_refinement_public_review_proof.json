@@ -1,0 +1,217 @@
+{
+  "repository": "adewale/geist_fabrik",
+  "private": false,
+  "base": "201acf98162ee03272783143249106425cf19836",
+  "head": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+  "scope": "Every before/after changed-file blob and seven committed source-context files; unauthenticated public bytes match exact git blobs. No working tree or untracked inputs.",
+  "files": [
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "docs/SIMILARITY_PRIMITIVES.md",
+      "bytes": 8294,
+      "sha256": "2b615e84213fe8c2812ade46a12a7e79913241fe3c22125e31328a4d883d2f89",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "docs/SIMILARITY_PRIMITIVES_BENCHMARK.md",
+      "bytes": 20628,
+      "sha256": "0d2f84f39a28bf4989af970528a937279c42dbd3a0dbc633cf6ed627fc24ae0a",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "docs/SIMILARITY_PRIMITIVES_TEST_AUDIT.md",
+      "bytes": 10428,
+      "sha256": "5504ce46a73046d89be6dd87999e2b720d4a8aee3ea9c9928bb28bff9b7d9eb5",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "scripts/benchmark_similarity_primitives.py",
+      "bytes": 18429,
+      "sha256": "b79383ac1effa285c46972d401568ebde10829d96f359a5345a6bc19b1b72e80",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "src/geistfabrik/embeddings.py",
+      "bytes": 31336,
+      "sha256": "05a1192b7279cf0ee445e4ed55e5de2cbb20f062a925284ca9dad0130c3178ad",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "src/geistfabrik/vault_context.py",
+      "bytes": 75393,
+      "sha256": "517fc8e60c6624fcfc55f7be0de25519d612020a9833119ca265c3e1d3f0048b",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "src/geistfabrik/vector_math.py",
+      "bytes": 21864,
+      "sha256": "9bcb4af9d020a53b64f244f299d66e3919b44df483855ee1e6f41e43e02311ca",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "src/geistfabrik/vector_search.py",
+      "bytes": 23146,
+      "sha256": "0f8ac6e681778b841153912efa4eac1477c684e95f85eba8148c1d59d3990318",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "tests/unit/test_embeddings.py",
+      "bytes": 33756,
+      "sha256": "7974ff394c7830b3454ff5d5e482c72b7bb8767396dd6bc4d772cdd637bc0c73",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "201acf98162ee03272783143249106425cf19836",
+      "path": "tests/unit/test_vector_primitives.py",
+      "bytes": 11302,
+      "sha256": "ecb7daec0bee0148928ae86f89b0295c4216f61bf0d60632c6a8712e3ac38310",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "CLAUDE.md",
+      "bytes": 36260,
+      "sha256": "c69e4264cb2bfe7ad622645b579c3b8412dea2b742d7b385137c1d7e3a92ad5f",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "docs/SIMILARITY_PRIMITIVES.md",
+      "bytes": 11037,
+      "sha256": "0886febb8017a4b8f0edb3a8913b2b2bdf8221c8dbbf806c2ca456b9d9decff5",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "docs/SIMILARITY_PRIMITIVES_BENCHMARK.md",
+      "bytes": 21096,
+      "sha256": "df6d2331e413ae46f0a87066d9d96322eb4e7d415e170c002ddbd0b73fdee091",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "docs/SIMILARITY_PRIMITIVES_TEST_AUDIT.md",
+      "bytes": 16743,
+      "sha256": "d94ac45642841a9d837b7ee7e19ea58831fc29b39c529072a0d24087b72e64c7",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "docs/SIMILARITY_REFINEMENT_BENCHMARK.md",
+      "bytes": 16339,
+      "sha256": "7dfcdac12a586aa2a2bbd8ae29a5bd23c502c90db235563b0f160401988a776e",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "scripts/benchmark_similarity_primitives.py",
+      "bytes": 21014,
+      "sha256": "7f5b823c60e84fb7b52a8f0ba5fb9a3f87d5aa1c4a0e3a819f9707c28d822cd3",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/embeddings.py",
+      "bytes": 35578,
+      "sha256": "2d4df19c6ac5d23c7f424fc2ba7c13203db3b20a549be0686c9da8b0c912d8ff",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/models.py",
+      "bytes": 14115,
+      "sha256": "da4cdbe64b9bdd4c7c6e6bb9b0d1be68b6fd0481acc634cdf7e867cac534e6ab",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/schema.py",
+      "bytes": 18529,
+      "sha256": "dca3cec278b627bc0ff0876aecee208769e43752ff150db2314629d532ed01b0",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/semantic_vectors.py",
+      "bytes": 1472,
+      "sha256": "7b54cfb25770b60bcdf8a9697de0ac731f53642daf43eef677376587a6a05589",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/text_embeddings.py",
+      "bytes": 3742,
+      "sha256": "ddb94956f96f8daa4d039e607b165f6ca66fb27e71bcf686d736ef75a3060653",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/vault_context.py",
+      "bytes": 75482,
+      "sha256": "158da54ca2a6ab8d4c8910ec17b22de476ede8c16a3558b77e1e8543369d2ebf",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/vector_math.py",
+      "bytes": 28836,
+      "sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "src/geistfabrik/vector_search.py",
+      "bytes": 23941,
+      "sha256": "dd515e2cb012848347da7b8c15e0321f7c458de82f4318d819e7da0ad593e397",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "tests/unit/test_embeddings.py",
+      "bytes": 45956,
+      "sha256": "b2fefd3be64fa85be820ee24c683e5684cebb7bc8b3e1f935cf1554ef962e1b7",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+      "path": "tests/unit/test_vector_primitives.py",
+      "bytes": 13041,
+      "sha256": "c2b5456710d06ecb7216b641425ced701f7cb5c0ee05795ab5f8130e34240e58",
+      "authentication_used": false,
+      "matches_git_blob": true
+    }
+  ]
+}

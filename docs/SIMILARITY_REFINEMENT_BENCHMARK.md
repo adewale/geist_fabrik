@@ -263,3 +263,14 @@ individual samples, output comparisons and validation status.
 The [contract guide](SIMILARITY_PRIMITIVES.md) explains the enclosure and pruning
 arguments; the [test audit](SIMILARITY_PRIMITIVES_TEST_AUDIT.md) records blind
 review findings, owner boundaries, baseline failures and resource proof.
+
+Source commit: `65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c`. The canonical
+Openclaw autoreview attempt at P2 verified all 26 frozen input blobs against
+unauthenticated public copies, then failed authentication and produced no
+report. Its status is `reviewer_unavailable`, not a clean verdict. The PR remains
+draft. [Review status](../benchmarks/results/similarity_refinement_review.json),
+[public-input proof](../benchmarks/results/similarity_refinement_public_review_proof.json)
+and the [lossless receipt](../benchmarks/results/similarity_refinement_receipt.json)
+retain the result. The subsequent evidence commit changes only documentation
+and archived verification data; runtime, tests and benchmark harness remain at
+the validated source commit.
