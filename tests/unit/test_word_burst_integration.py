@@ -304,6 +304,50 @@ def test_same_timestamp_observations_still_capture_positive_changes(tmp_path, mo
         assert row is not None and json.loads(row[0]) == ["aurora", "soil aurora"]
 
 
+@pytest.mark.parametrize("virtual", [False, True])
+def test_policy_reset_waits_for_confirmed_source_baseline(tmp_path, monkeypatch, virtual):
+    source = tmp_path / "note.md"
+    prefix = "## 2026-01-01\n" if virtual else ""
+    source.write_text(prefix + "old baseline words", encoding="utf-8")
+    with closing(Vault(tmp_path)) as vault:
+        vault.config.date_collection.min_sections = 1
+        vault.config.lexical_analysis.ngram_max = 1
+        freeze(monkeypatch, 5)
+        vault.sync()
+        assert vault.db.execute("SELECT is_virtual FROM notes").fetchone() == (int(virtual),)
+        source.write_text(prefix + "old baseline words nebula signal", encoding="utf-8")
+        vault.config.lexical_analysis.ngram_max = 2
+        original_open = Path.open
+
+        def unreadable(path, *args, **kwargs):
+            if path == source:
+                raise PermissionError("source temporarily unreadable")
+            return original_open(path, *args, **kwargs)
+
+        freeze(monkeypatch, 12)
+        with monkeypatch.context() as patcher:
+            patcher.setattr(Path, "open", unreadable)
+            vault.sync()
+            assert vault.db.execute("SELECT count(*) FROM lexical_notes").fetchone() == (0,)
+            # An unchanged extraction policy must not fill the missing baseline
+            # from the same unconfirmed persisted source on a later sync either.
+            freeze(monkeypatch, 13)
+            vault.sync()
+            assert vault.db.execute("SELECT count(*) FROM lexical_notes").fetchone() == (0,)
+        freeze(monkeypatch, 19)
+        vault.sync()
+        baseline = vault.db.execute("SELECT counts_json, observed_at FROM lexical_notes").fetchone()
+        assert json.loads(baseline[0])["nebula signal"] == 1
+        assert baseline[1].startswith("2026-01-19")
+        assert vault.db.execute("SELECT count(*) FROM lexical_events").fetchone() == (0,)
+        freeze(monkeypatch, 26)
+        source.write_text(prefix + "old baseline words nebula signal aurora", encoding="utf-8")
+        vault.sync()
+        event = vault.db.execute("SELECT terms_json, previous_at FROM lexical_events").fetchone()
+        assert json.loads(event[0]) == ["aurora", "signal aurora"]
+        assert event[1].startswith("2026-01-19")
+
+
 def test_edit_during_lexical_capture_is_retried_before_commit(tmp_path, monkeypatch):
     path = tmp_path / "note.md"
     path.write_text("soil", encoding="utf-8")
@@ -423,23 +467,56 @@ def test_completed_and_partial_week_flags(tmp_path):
 
 
 def test_duplicate_observations_preserve_episode_values_and_include_evidence_paths(tmp_path):
-    with closing(planted_vault(tmp_path)) as vault:
-        before = next(
-            f for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29)) if f.term == "aurora"
-        )
-        (tmp_path / "copy.md").write_bytes((tmp_path / "note-8-0.md").read_bytes())
+    # Independently counted population: exposures [2,2,1,0], a=[1,2,0,0],
+    # b=[2,1,0,0]. The copy shares one observation; A in a different week
+    # contributes again. A body with only ineligible terms still adds exposure.
+    documents = [
+        ("01-first-a", "2026-01-05", "a b"),
+        ("05-first-a-copy", "2026-01-05", "a b"),
+        ("03-first-b", "2026-01-05", "b"),
+        ("02-second-a", "2026-01-12", "a b"),
+        ("04-second-c", "2026-01-12", "a c"),
+        ("00-third-d", "2026-01-19", "d"),
+    ]
+    for name, day, body in documents:
+        (tmp_path / f"{name}.md").write_text(f"---\ncreated: {day}\n---\n{body}", encoding="utf-8")
+    with closing(Vault(tmp_path)) as vault:
+        vault.config.lexical_analysis.ngram_max = 1
+        options = vault.config.word_burst
+        options.window_weeks = 4
+        options.min_documents = options.min_populated_bins = options.min_support_bins = 1
+        options.min_support = 2
+        options.s, options.gamma, options.directions = 1.5, 0, ["rising"]
         vault.sync()
-        after = next(
-            f for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29)) if f.term == "aurora"
-        )
-        assert (after.rate, after.baseline_rate, after.gain, after.start, after.end) == (
-            before.rate,
-            before.baseline_rate,
-            before.gain,
-            before.start,
-            before.end,
-        )
-        assert set(after.support_paths) == set(before.support_paths) | {"copy.md"}
+        actual = analyze_word_bursts(vault, end_day=date(2026, 2, 1))
+        assert {
+            finding.term: (
+                finding.start,
+                finding.end,
+                finding.prevalence,
+                finding.baseline,
+                finding.support_paths,
+            )
+            for finding in actual
+        } == {
+            "a": (
+                "2026-01-12",
+                "2026-01-18",
+                DocumentRate(2, 2),
+                DocumentRate(3, 5),
+                ("02-second-a.md", "04-second-c.md"),
+            ),
+            "b": (
+                "2026-01-05",
+                "2026-01-11",
+                DocumentRate(2, 2),
+                DocumentRate(3, 5),
+                ("01-first-a.md", "03-first-b.md", "05-first-a-copy.md"),
+            ),
+        }
+
+        assert [finding.term for finding in actual] == ["a", "b"]
+        assert analyze_word_bursts(vault, end_day=date(2026, 2, 1)) == actual
 
 
 @given(
@@ -467,6 +544,33 @@ def test_markdown_regions_and_phrase_boundaries():
     assert extract_terms(content, ngram_max=2) == Counter(
         {"soil": 1, "habitat": 1, "café": 1, "nebula": 1}
     )
+
+
+@given(
+    prefix=st.sampled_from(["- ", "+ ", "1. ", "12) ", "- - ", "1. - "]),
+    fence=st.sampled_from(["```", "````", "~~~", "~~~~"]),
+    maximum=st.integers(1, 3),
+)
+def test_list_fences_exclude_code_and_preserve_following_prose(prefix, fence, maximum):
+    indent = " " * len(prefix)
+    content = f"{prefix}{fence}python\n{indent}hiddenmarker\n{indent}{fence}\n\nvisible prose"
+    expected = Counter({"visible": 1, "prose": 1})
+    if maximum > 1:
+        expected["visible prose"] = 1
+    assert extract_terms(content, ngram_max=maximum) == expected
+
+
+@given(
+    ticks=st.integers(1, 4),
+    boundary=st.sampled_from(["\n\n", "\n# heading\n", "\n- "]),
+)
+def test_inline_code_cannot_cross_markdown_blocks(ticks, boundary):
+    delimiter = "`" * ticks
+    content = f"red {delimiter}alpha{boundary}beta{delimiter} blue"
+    expected = Counter({"red": 1, "alpha": 1, "beta": 1, "blue": 1})
+    if "heading" in boundary:
+        expected["heading"] = 1
+    assert extract_terms(content) == expected
 
 
 @pytest.mark.parametrize(
@@ -592,6 +696,36 @@ def test_reference_definition_cannot_capture_a_wikilink_alias():
     content = "before [[target|visible]] after\n\n[target|visible]: /destination"
     assert extract_terms(content) == Counter({"before": 1, "visible": 1, "after": 1})
     assert lexical_excerpt(content, "target") is None
+
+
+@pytest.mark.parametrize("image", ["", "!"])
+@pytest.mark.parametrize("reference", [False, True])
+def test_wikilinks_in_markdown_labels_do_not_expose_destinations(image, reference):
+    destination = "[hiddenid]\n\n[hiddenid]: /destination" if reference else "(destination)"
+    content = f"{image}[before [[target|visible]] after]{destination}"
+    assert extract_terms(content) == Counter({"before": 1, "visible": 1, "after": 1})
+    assert lexical_excerpt(content, "destination") is None
+
+
+def test_parser_upgrade_restores_virtual_code_indentation(tmp_path):
+    source = tmp_path / "journal.md"
+    source.write_text(
+        "## 2026-01-05\n    hiddenalpha\n\n## 2026-01-12\n    hiddenbeta\n", encoding="utf-8"
+    )
+    with closing(Vault(tmp_path)) as vault:
+        vault.sync()
+        # Rows from the former splitter lost their meaningful indentation.
+        # The physical source is unchanged, so parser revision must refresh it.
+        vault.db.execute(
+            "UPDATE notes SET content=ltrim(content), source_fingerprint='parser-v6:legacy'"
+        )
+        vault.db.commit()
+        assert vault.sync() == 2
+        assert [row[0] for row in vault.db.execute("SELECT content FROM notes ORDER BY path")] == [
+            "    hiddenalpha",
+            "    hiddenbeta",
+        ]
+        assert vault.db.execute("SELECT count(*) FROM lexical_terms").fetchone() == (0,)
 
 
 @pytest.mark.parametrize("boundary", ["\n\n", "\n```\nhidden code\n```\n", "\n# Heading\n"])

@@ -46,12 +46,18 @@ lexical history. This is not a secure physical erasure guarantee.
 A coalesced row whose final addition was observed after a replay cutoff is
 omitted in full. Historical quoting, exact old-text replay and Git/backup import
 are deferred. Changing extraction policy clears incompatible observations and
-establishes a fresh baseline. Extraction version 5 uses parser-owned link/image
-spans and blockquote line maps, preserves code indentation through comment masking,
-and shares Unicode word spans between counting and excerpts. Declared creation
+establishes a fresh baseline. Sources skipped during that sync cannot establish
+the new baseline from stale stored prose; recovery starts their confirmed history.
+Extraction version 6 uses parser-owned fence and inline-code boundaries, including
+list-contained fences and separate paragraphs. It retains link/image spans,
+blockquote line maps and Unicode word spans shared by counting and excerpts.
+Virtual entries preserve source indentation; parser revision 7 refreshes existing
+entries that an earlier splitter stripped. Declared creation
 dates retain their written calendar day, independent of the host timezone;
 observed instants continue to use UTC. Upgrading an earlier PR build rebuilds lexical baselines and
-clears incompatible captured observations. Core notes and embeddings are retained.
+clears incompatible captured observations. Core notes and saved questions are
+retained. A virtual entry whose corrected whitespace changes its stored text
+invalidates its own cached embeddings; unchanged note bodies retain theirs.
 A replay against changed, unsynchronized extraction
 settings abstains until sync rebuilds the index.
 
@@ -136,7 +142,11 @@ probability/emission grids for equal overall prevalence. Error bounds use the
 uncancelled arithmetic scale, so large counts and near-one multipliers cannot
 hide uncertain decisions behind a small final score. Uncertain paths are decoded
 again with the exact-log representation; uncertain pruning retains the candidate.
-The default two-state grid
+The layout-independent necessary-gain screen is exposed as
+`BurstModel.cannot_burst_total`: a true result proves that no weekly layout with
+that total can beat the baseline. Analysis applies it before allocating prepared
+series. Weekly prevalence uses packed integer presences and unweighted NumPy
+histograms; counts remain integers. The default two-state grid
 can decode independent series in bounded NumPy batches. Identical weekly series
 also share decoding; every term retains its own independent source evidence.
 

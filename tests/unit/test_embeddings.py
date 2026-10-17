@@ -20,6 +20,7 @@ from geistfabrik.embeddings import (
 )
 from geistfabrik.models import Note
 from geistfabrik.schema import init_db
+from tests.sqlite_vec import REQUIRES_SQLITE_VEC
 from tests.stubs import SentenceTransformerStub
 
 # Add 5 second timeout to ALL tests to prevent hangs
@@ -956,7 +957,9 @@ def test_is_offline_mode_respects_env_flags(monkeypatch):
     assert is_offline_mode() is True
 
 
-@pytest.mark.parametrize("backend", ["in-memory", "sqlite-vec"])
+@pytest.mark.parametrize(
+    "backend", ["in-memory", pytest.param("sqlite-vec", marks=REQUIRES_SQLITE_VEC)]
+)
 @pytest.mark.parametrize("population_size", [0, 1, 3])
 def test_unchanged_session_retains_projection_and_writes_nothing(
     db_with_notes, sample_notes, mock_embedding_computer, backend, population_size
@@ -1037,7 +1040,9 @@ def test_accepted_session_invalidates_on_same_connection_changes(
         assert np.array_equal(repaired, expected)
 
 
-@pytest.mark.parametrize("backend", ["in-memory", "sqlite-vec"])
+@pytest.mark.parametrize(
+    "backend", ["in-memory", pytest.param("sqlite-vec", marks=REQUIRES_SQLITE_VEC)]
+)
 def test_external_change_rejection_discards_cached_projection(
     tmp_path, sample_notes, mock_embedding_computer, backend
 ):
@@ -1210,7 +1215,12 @@ def test_accepted_state_does_not_retain_replaced_computer(
 
 @pytest.mark.parametrize(
     ("backend", "mutation"),
-    [("in-memory", "row"), ("in-memory", "map"), ("in-memory", "reload"), ("sqlite-vec", "reload")],
+    [
+        ("in-memory", "row"),
+        ("in-memory", "map"),
+        ("in-memory", "reload"),
+        pytest.param("sqlite-vec", "reload", marks=REQUIRES_SQLITE_VEC),
+    ],
 )
 def test_unchanged_compute_discards_mutated_search_projection(
     db_with_notes, sample_notes, mock_embedding_computer, backend, mutation

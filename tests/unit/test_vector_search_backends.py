@@ -1,7 +1,6 @@
 """Unit tests for vector search backends."""
 
 import gc
-import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -19,43 +18,7 @@ from geistfabrik.vector_search import (
     SqliteVecBackend,
     VectorSearchBackend,
 )
-
-# Check if sqlite-vec is available AND loadable
-SQLITE_VEC_AVAILABLE = False
-SQLITE_VEC_LOADABLE = False
-
-try:
-    import sqlite_vec
-
-    SQLITE_VEC_AVAILABLE = True
-
-    # Check if SQLite supports extension loading
-    probe_conn = sqlite3.connect(":memory:")
-    if hasattr(probe_conn, "enable_load_extension"):
-        try:
-            probe_conn.enable_load_extension(True)
-            sqlite_vec.load(probe_conn)
-            probe_conn.execute("SELECT vec_version()")
-            SQLITE_VEC_LOADABLE = True
-        except (sqlite3.OperationalError, AttributeError):
-            pass
-        finally:
-            probe_conn.close()
-    else:
-        probe_conn.close()
-except ImportError:
-    pass
-
-# In CI on Linux, we require sqlite-vec to be fully functional
-# macOS runners may not support extension loading, so we allow it to be skipped there
-if os.environ.get("CI") and not SQLITE_VEC_LOADABLE:
-    import platform
-
-    if platform.system() == "Linux":
-        pytest.fail(
-            "sqlite-vec is required in CI (Linux) but not loadable. "
-            "Run: uv pip install -e '.[vector-search]'"
-        )
+from tests.sqlite_vec import SQLITE_VEC_LOADABLE
 
 
 @pytest.fixture
@@ -143,6 +106,8 @@ class TestExtensionLoading:
         conn.enable_load_extension(True)
 
         # Load extension
+        import sqlite_vec
+
         sqlite_vec.load(conn)
 
         # Verify extension is loaded by calling vec_version()
@@ -537,6 +502,8 @@ class TestSqliteVecBackend:
         lock_requested = Event()
 
         def load_after_writer_starts():
+            import sqlite_vec
+
             reader = init_db(db_path)
             reader.enable_load_extension(True)
             sqlite_vec.load(reader)

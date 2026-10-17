@@ -24,6 +24,7 @@ jobs:
       VECLIB_MAXIMUM_THREADS: "1"
       TOKENIZERS_PARALLELISM: "false"
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.11", "3.12"]

@@ -43,6 +43,8 @@ def benchmark(
     ngram_max: int = 2,
     retain_workdir: Path | None = None,
     executor_timeout: int = 30,
+    date_overlay: bool = True,
+    end_day: date = date(2026, 10, 11),
 ) -> dict:
     """Fresh independent DB/copy per trial; retain exact source and result digests."""
     before = _manifest(source)
@@ -60,12 +62,14 @@ def benchmark(
         ).hexdigest(),
         "ngram_max": ngram_max,
         "trials": [],
-        "synthetic_date_overlay": True,
+        "synthetic_date_overlay": date_overlay,
+        "end_day": end_day.isoformat(),
         "embedding_inference": False,
         "executor_timeout": executor_timeout,
     }
-    end = date(2026, 10, 11)
-    first = week_start(end) - timedelta(weeks=103)
+    end = end_day
+    weeks = min(104, (week_start(end) - date.min).days // 7 + 1)
+    first = week_start(end) - timedelta(weeks=weeks - 1)
     for trial in range(trials):
         workspace = (
             tempfile.TemporaryDirectory(prefix="word-burst-benchmark-")
@@ -96,16 +100,31 @@ def benchmark(
                 paths = [
                     r[0] for r in vault.db.execute("SELECT path FROM lexical_notes ORDER BY path")
                 ]
+                row["source_chronology"] = {
+                    "notes": len(paths),
+                    "dated_notes": vault.db.execute(
+                        "SELECT count(*) FROM lexical_notes WHERE cohort_day IS NOT NULL"
+                    ).fetchone()[0],
+                    "declared_date_range": vault.db.execute(
+                        "SELECT min(cohort_day), max(cohort_day) FROM lexical_notes"
+                    ).fetchone(),
+                }
                 started = time.perf_counter()
-                with owned_transaction(vault.db, "synthetic benchmark dates"):
-                    vault.db.executemany(
-                        "UPDATE lexical_notes SET cohort_day=?, "
-                        "provenance='synthetic_overlay' WHERE path=?",
-                        (
-                            ((first + timedelta(weeks=i % 104)).isoformat(), path)
-                            for i, path in enumerate(paths)
-                        ),
-                    )
+                if date_overlay:
+                    with owned_transaction(vault.db, "synthetic benchmark dates"):
+                        vault.db.executemany(
+                            "UPDATE lexical_notes SET cohort_day=?, "
+                            "provenance='synthetic_overlay' WHERE path=?",
+                            (
+                                ((first + timedelta(weeks=i % weeks)).isoformat(), path)
+                                for i, path in enumerate(paths)
+                            ),
+                        )
+                else:
+                    # Measure a fresh analysis of real declared dates without
+                    # silently reusing the raw-analysis result measured above.
+                    vault.db.execute("DELETE FROM word_burst_cache")
+                    vault.db.commit()
                 row["synthetic_overlay_seconds"] = time.perf_counter() - started
                 print(
                     f"trial {trial + 1}: date overlay {row['synthetic_overlay_seconds']:.3f}s",
@@ -199,6 +218,12 @@ if __name__ == "__main__":
         help="Retain an isolated copy/database in a new directory for profiling",
     )
     parser.add_argument("--executor-timeout", type=int, default=30)
+    parser.add_argument(
+        "--real-dates",
+        action="store_true",
+        help="Use only source-declared dates; do not manufacture benchmark chronology",
+    )
+    parser.add_argument("--end-day", type=date.fromisoformat, default=date(2026, 10, 11))
     args = parser.parse_args()
     result = benchmark(
         args.source,
@@ -206,6 +231,8 @@ if __name__ == "__main__":
         ngram_max=args.ngram_max,
         retain_workdir=args.retain_workdir,
         executor_timeout=args.executor_timeout,
+        date_overlay=not args.real_dates,
+        end_day=args.end_day,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")

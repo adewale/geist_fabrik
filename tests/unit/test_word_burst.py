@@ -67,6 +67,8 @@ def test_decoder_matches_global_exhaustive_objective(data, s, gamma, maximum, di
         oracle(counts, exposure, s, gamma, maximum, direction), abs=2e-12, rel=0
     )
     model = BurstModel(exposure, s=s, gamma=gamma, max_states=maximum)
+    if model.cannot_burst_total(sum(counts), direction=direction):
+        assert result.objective == 0
     sparse = {i: r for i, r in enumerate(counts) if r}
     assert model.detect_sparse(sparse, direction=direction) == result
     assert model.detect(counts, direction=direction) == result
@@ -211,6 +213,16 @@ def test_gain_pruning_never_discards_a_beneficial_path(data, s, gamma, maximum, 
             ).objective
             == 0
         )
+
+
+@pytest.mark.parametrize("total", [-1, True, 1.0, 4])
+def test_total_screen_rejects_counts_outside_its_population(total):
+    with pytest.raises(ValueError, match="total term count"):
+        BurstModel([1, 2]).cannot_burst_total(total)
+
+
+def test_total_screen_preserves_totals_larger_than_a_single_bin():
+    assert BurstModel([2**53, 2**53]).cannot_burst_total(2**54)
 
 
 def test_disappearance_has_a_declining_state_even_when_absence_is_already_common():
@@ -364,6 +376,8 @@ def test_both_decoder_and_pruner_reject_unknown_directions(direction):
         detect_bursts([1, 0], [2, 2], direction=direction)
     with pytest.raises(ValueError, match="direction"):
         sparse_gain_cannot_burst({0: 1}, [2, 2], direction=direction)
+    with pytest.raises(ValueError, match="direction"):
+        BurstModel([2, 2]).cannot_burst_total(1, direction=direction)
     model = BurstModel([2, 2])
     for operation in (
         lambda: model.detect([1, 0], direction=direction),

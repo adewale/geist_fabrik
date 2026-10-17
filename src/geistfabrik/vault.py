@@ -121,19 +121,19 @@ class Vault:
                     # Process only source rows changed by this sync. A policy upgrade
                     # reads existing prose once; an unchanged sync reads none.
                     if self.config.lexical_analysis.enabled:
-                        if rebuild_lexical:
-                            rows = self.db.execute(
-                                "SELECT path, title, content, created, modified, "
-                                "is_virtual, source_file, entry_date FROM notes"
-                            )
-                        else:
-                            rows = self.db.execute(
-                                "SELECT n.path, n.title, n.content, n.created, n.modified, "
-                                "n.is_virtual, n.source_file, n.entry_date FROM notes n "
-                                "LEFT JOIN lexical_notes l ON l.path = n.path "
-                                "WHERE l.path IS NULL OR n.source_fingerprint IN "
-                                "(SELECT fingerprint FROM _lexical_changed_sources)"
-                            )
+                        # A skipped source retains its old core note, but cannot
+                        # establish a fresh lexical observation or policy baseline.
+                        # Virtual entries share their physical source's status.
+                        rows = self.db.execute(
+                            "SELECT n.path, n.title, n.content, n.created, n.modified, "
+                            "n.is_virtual, n.source_file, n.entry_date FROM notes n "
+                            "LEFT JOIN lexical_notes l ON l.path = n.path "
+                            "WHERE NOT EXISTS (SELECT 1 FROM _lexical_unconfirmed_sources u "
+                            "WHERE u.path = n.path OR u.path = n.source_file) "
+                            "AND (? OR l.path IS NULL OR n.source_fingerprint IN "
+                            "(SELECT fingerprint FROM _lexical_changed_sources))",
+                            (rebuild_lexical,),
+                        )
                         for row in rows:
                             lexical.sync_note(self._build_note_from_row(row, [], []))
                     lexical.finish()
@@ -402,12 +402,13 @@ class Vault:
         parsers read from inside code or from URL fragments and numbers, and
         (v5) takes ``created`` from frontmatter or a dated file name where the
         note declares one, and (v6) takes ``modified`` from frontmatter
-        ``modified:``/``updated:``; no schema migration is needed.
+        ``modified:``/``updated:``; (v7) preserves virtual-entry indentation.
+        No schema migration is needed.
         """
         settings = json.dumps(self.config.date_collection.to_dict(), sort_keys=True)
         config_digest = hashlib.sha256(settings.encode()).hexdigest()
         stat_key = ":".join(str(value) for value in self._stat_signature(stat))
-        return f"parser-v6:{config_digest}:{stat_key}"
+        return f"parser-v7:{config_digest}:{stat_key}"
 
     def _delete_missing_notes(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> None:
         """Delete notes absent from the validated, writer-owned filesystem view."""

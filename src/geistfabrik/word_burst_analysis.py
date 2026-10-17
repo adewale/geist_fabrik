@@ -9,6 +9,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 from .document_rate import DocumentRate
 from .lexical_index import EXTRACTION_VERSION, week_start
 from .sqlite_transaction import owned_transaction
@@ -168,46 +170,64 @@ def analyze_word_bursts(
             )
             parameters = (first.isoformat(), end_day.isoformat() + "T23:59:59.999999+00:00")
         started = time.perf_counter()
-        eligible_terms = (
+        # Preseed only eligible cohort terms with an unassigned ID. One lookup
+        # then handles both the eligibility screen and the eventual stable ID.
+        term_ids: dict[str, int] = (
             {
-                row[0]
+                row[0]: -1
                 for row in vault.db.execute(
                     "SELECT term FROM lexical_terms WHERE documents >= ?", (config.min_support,)
                 )
             }
             if config.history_mode == "dated_cohorts"
-            else None
+            else {}
         )
         rows = vault.db.execute(query, parameters)
         exposure = [0] * weeks
-        term_ids: dict[str, int] = {}
         terms: list[str] = []
         counts: list[Counter[int]] = []
-        groups: dict[tuple[int, str], array[int]] = {}
-        documents: list[tuple[str, int, str, array[int]]] = []
+        # One packed presence buffer per bin. Duplicate bodies share offsets,
+        # so collection and evidence use the same population without copying
+        # every document's term IDs or incrementing millions of Python counters.
+        bins = [array("q") for _ in exposure]
+        groups: dict[tuple[int, str], tuple[int, int]] = {}
+        documents: list[tuple[str, int, str, tuple[int, int]]] = []
         for path, stamp, vector, body in rows:
             i = (date.fromisoformat(stamp) - first).days // 7
             if not 0 <= i < len(exposure):
                 continue
             group = (i, body)
-            ids = groups.get(group)
-            if ids is None:
-                ids = array("Q")
+            span = groups.get(group)
+            if span is None:
+                ids = bins[i]
+                span_start = len(ids)
                 for term in json.loads(vector):
                     # Current document frequency is a necessary upper bound
                     # only for current-text cohorts, never for captured history.
-                    if eligible_terms is not None and term not in eligible_terms:
-                        continue
-                    if term not in term_ids:
-                        term_ids[term] = len(terms)
+                    term_id = term_ids.get(term)
+                    if term_id is None:
+                        if config.history_mode == "dated_cohorts":
+                            continue
+                    if term_id is None or term_id < 0:
+                        term_id = len(terms)
+                        term_ids[term] = term_id
                         terms.append(term)
                         counts.append(Counter())
-                    term_id = term_ids[term]
                     ids.append(term_id)
-                    counts[term_id][i] += 1
-                groups[group] = ids
+                span = (span_start, len(ids))
+                groups[group] = span
                 exposure[i] += 1
-            documents.append((path, i, body, ids))
+            documents.append((path, i, body, span))
+        for i, ids in enumerate(bins):
+            if ids:
+                # IDs index Python lists and hence fit np.intp. Each term occurs
+                # at most once per distinct body, so counts are bounded by the
+                # number of materialized groups and fit the platform index type.
+                frequencies = np.bincount(
+                    np.frombuffer(ids, dtype=np.int64).astype(np.intp, copy=False)
+                )
+                for term_id in np.flatnonzero(frequencies).tolist():
+                    counts[term_id][i] = int(frequencies[term_id])
         stats.collection_seconds = time.perf_counter() - started
         stats.documents = sum(exposure)
         findings: list[WordBurstFinding] = []
@@ -221,6 +241,7 @@ def analyze_word_bursts(
             model = BurstModel(
                 exposure, s=config.s, gamma=config.gamma, max_states=config.max_states
             )
+            batched = config.max_states == 2 and config.s - 1 > 1e-8
             # Phrases often share exactly the same weekly series. Decode each
             # distinct series/direction once, preserving every term and its
             # independently collected evidence. This is exact reuse, not sampling.
@@ -230,13 +251,22 @@ def analyze_word_bursts(
             }
             vectors: dict[int, tuple[tuple[int, int], ...]] = {}
             prepared: dict[tuple[tuple[int, int], ...], PreparedBurstSeries] = {}
+            screens: dict[int, set[str]] = {}
             for term_id, sparse in enumerate(counts):
                 stats.candidates += 1
-                if (
-                    sum(sparse.values()) < config.min_support
-                    or len(sparse) < config.min_support_bins
-                ):
+                relevant = sum(sparse.values())
+                if relevant < config.min_support or len(sparse) < config.min_support_bins:
                     stats.pruned += 1
+                    continue
+                viable = screens.get(relevant)
+                if viable is None:
+                    viable = screens[relevant] = {
+                        direction
+                        for direction in config.directions
+                        if not model.cannot_burst_total(relevant, direction=direction)
+                    }
+                stats.pruned += len(config.directions) - len(viable)
+                if not viable:
                     continue
                 vector = tuple(sorted(sparse.items()))
                 vectors[term_id] = vector
@@ -246,7 +276,9 @@ def analyze_word_bursts(
                     cache_key = (vector, direction)
                     if cache_key in decoded:
                         stats.series_reused += 1
-                    elif model.cannot_burst(prepared[vector], direction=direction):
+                    elif direction not in viable:
+                        decoded[cache_key] = ()
+                    elif not batched and model.cannot_burst(prepared[vector], direction=direction):
                         stats.pruned += 1
                         decoded[cache_key] = ()
                     else:
@@ -293,8 +325,8 @@ def analyze_word_bursts(
             stats.decoding_seconds = time.perf_counter() - started
             started = time.perf_counter()
             # One evidence pass over compact IDs, rather than rescanning the vault per term.
-            for path, i, body, ids in documents:
-                for term_id in ids:
+            for path, i, body, (span_start, span_end) in documents:
+                for term_id in memoryview(bins[i])[span_start:span_end]:
                     for episode in episodes.get(term_id, ()):
                         if (
                             episode.direction == "rising"
@@ -315,9 +347,7 @@ def analyze_word_bursts(
                     )
                     if populated_support < config.min_support_bins:
                         continue
-                    numerator = sum(
-                        counts[term_id][i] for i in range(interval.start, interval.end + 1)
-                    )
+                    numerator = sum(sparse[i] for i in range(interval.start, interval.end + 1))
                     denominator = sum(exposure[interval.start : interval.end + 1])
                     reference, reference_start, reference_end = None, None, None
                     prevalence = DocumentRate(numerator, denominator)
@@ -352,7 +382,7 @@ def analyze_word_bursts(
                             interval.level,
                             interval.gain,
                             prevalence,
-                            DocumentRate(sum(counts[term_id].values()), stats.documents),
+                            DocumentRate(sum(sparse.values()), stats.documents),
                             tuple(sorted(set(episode.paths))),
                             config.history_mode,
                             tuple((first + timedelta(weeks=i)).isoformat() for i in interval.gaps),

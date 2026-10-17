@@ -233,17 +233,25 @@ def _sparse_gain_bound(
         return True
     if len(coefficients) == 1:
         return True
-    bound = math.fsum(
-        max(
-            0.0,
-            *(
-                -r * positive - (exposure[i] - r) * negative
-                for positive, negative in coefficients[1:]
-            ),
+    if len(coefficients) == 2:
+        # The default grid has one alternative. Preserve the same products and
+        # fsum while avoiding an inner generator for every nonzero term/bin.
+        positive, negative = coefficients[1]
+        bound = math.fsum(
+            max(0.0, -r * positive - (exposure[i] - r) * negative) for i, r in counts.items() if r
         )
-        for i, r in counts.items()
-        if r
-    )
+    else:
+        bound = math.fsum(
+            max(
+                0.0,
+                *(
+                    -r * positive - (exposure[i] - r) * negative
+                    for positive, negative in coefficients[1:]
+                ),
+            )
+            for i, r in counts.items()
+            if r
+        )
     if direction == "declining":
         # Every zero-count bin can favour a lower-rate state. Account for all
         # that exposure in O(sparse support), without treating missing weeks
@@ -429,6 +437,7 @@ class BurstModel:
             _count(n)
         self._total = sum(self._exposure)
         self._observed = tuple(i for i, n in enumerate(self._exposure) if n)
+        self._positions = {i: position for position, i in enumerate(self._observed)}
         with localcontext() as context:
             context.prec = 80
             lower, upper = _log_bounds(Fraction(len(self._observed) or 1))
@@ -636,13 +645,20 @@ class BurstModel:
             if r > self._exposure[i]:
                 raise ValueError("term count exceeds exposure")
 
-    def cannot_burst(
-        self, counts: Mapping[int, int] | PreparedBurstSeries, *, direction: str = "rising"
-    ) -> bool:
-        """Conservative sparse bound; True guarantees baseline is optimal."""
+    def cannot_burst_total(self, relevant: int, *, direction: str = "rising") -> bool:
+        """True proves baseline optimal for every layout with this total count.
+
+        This necessary-gain screen can run before copying/validating a full
+        sparse layout. Totals may exceed the per-bin 2**53 input bound, but
+        cannot exceed this model's exact integer exposure population.
+        """
         _direction(direction)
-        prepared = self.prepare(counts)
-        relevant = prepared._relevant
+        if (
+            isinstance(relevant, bool)
+            or not isinstance(relevant, int)
+            or not 0 <= relevant <= self._total
+        ):
+            raise ValueError("total term count must be an integer within total exposure")
         grid = self._grid(relevant, direction)
         key = (relevant, direction)
         if key not in self._global_prunes:
@@ -657,8 +673,18 @@ class BurstModel:
                 self._global_prunes[key] = upper < self._penalty - self._uncertainty(
                     relevant, direction
                 )
-        if self._global_prunes[key]:
+        return self._global_prunes[key]
+
+    def cannot_burst(
+        self, counts: Mapping[int, int] | PreparedBurstSeries, *, direction: str = "rising"
+    ) -> bool:
+        """Conservative sparse bound; True guarantees baseline is optimal."""
+        _direction(direction)
+        prepared = self.prepare(counts)
+        relevant = prepared._relevant
+        if self.cannot_burst_total(relevant, direction=direction):
             return True
+        grid = self._grid(relevant, direction)
         return _sparse_gain_bound(
             prepared._counts,
             self._exposure,
@@ -729,10 +755,14 @@ class BurstModel:
                 grids.append(grid)
         if not selected:
             return [results[i] for i in range(len(series))]
-        dense = np.asarray(
-            [[prepared[index]._counts.get(i, 0) for i in self._observed] for index in selected],
-            dtype=np.float64,
-        )
+        # Sparse phrase series usually mention only a few of the observed bins.
+        # Populate those entries instead of doing B dictionary probes per row.
+        # Validated per-bin counts fit 2**53, so integer-to-binary64 assignment is exact.
+        dense = np.zeros((len(selected), len(self._observed)), dtype=np.float64)
+        for row, index in enumerate(selected):
+            for i, count in prepared[index]._counts.items():
+                if count:
+                    dense[row, self._positions[i]] = count
         coefficients = np.asarray([grid[1] for grid in grids], dtype=np.float64)
         exposure = np.asarray([self._exposure[i] for i in self._observed], dtype=np.float64)
         emissions = dense * coefficients[:, :1] + (exposure - dense) * coefficients[:, 1:]

@@ -23,20 +23,18 @@ from .config_loader import LexicalAnalysisConfig
 from .markdown_parser import (
     declared_creation_day,
     iter_wikilinks,
-    markdown_prose_lines,
     parse_frontmatter,
 )
 from .models import Note, _normalise_vault_path
 
-EXTRACTION_VERSION = 5
+EXTRACTION_VERSION = 6
 _REMOVED = re.compile(r"https?://[^\s)\]>]+", re.IGNORECASE)
-_INLINE_CODE = re.compile(r"(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)", re.DOTALL)
 
 
 def _link_spans(
     body: str, parser: MarkdownIt, environment: dict[str, Any]
 ) -> list[tuple[int, int, str]]:
-    """Parser-owned link/image spans; replacement preserves physical line count."""
+    """Parser-owned link/image/code spans within a single inline block."""
     spans: list[tuple[int, int, str]] = []
     wiki_spans = {match.start(): match.end() for match in iter_wikilinks(body)}
 
@@ -57,6 +55,10 @@ def _link_spans(
         )
 
     def wiki(state: StateInline, silent: bool) -> bool:
+        # Silent scanning discovers an enclosing Markdown link's label. Claiming
+        # a wiki token there looks like a forbidden nested link to CommonMark.
+        if silent:
+            return False
         end = wiki_spans.get(state.pos) if state.src == body else None
         if end is None:
             return False
@@ -82,7 +84,10 @@ def _link_spans(
         if not backtick(state, silent):
             return False
         if not silent and len(state.tokens) > before and state.tokens[-1].type == "code_inline":
-            state.tokens[-1].meta["source_newlines"] = state.src[start : state.pos].count("\n")
+            newlines = state.src[start : state.pos].count("\n")
+            state.tokens[-1].meta["source_newlines"] = newlines
+            if state.src == body:
+                spans.append((start, state.pos, "\x00" + "\n" * newlines))
         return True
 
     parser.inline.ruler.at("backticks", code)
@@ -93,8 +98,8 @@ def _link_spans(
     return spans
 
 
-def _clean_links(body: str, quoted_lines: set[int]) -> str:
-    """Rewrite only linked inline blocks, using authoritative block line maps.
+def _clean_inline_blocks(body: str, quoted_lines: set[int], code_lines: set[int]) -> str:
+    """Mask code and rewrite links using authoritative block and inline spans.
 
     No character offsets are inferred from normalized text. Each emitted line
     belongs to the same original source line; eligibility is decided separately
@@ -116,10 +121,14 @@ def _clean_links(body: str, quoted_lines: set[int]) -> str:
     for token in tokens:
         if token.type == "blockquote_open" and token.map:
             quoted_lines.update(range(token.map[0] + 1, token.map[1] + 1))
+        elif token.type in {"fence", "code_block"} and token.map:
+            code_lines.update(range(token.map[0] + 1, token.map[1] + 1))
         elif token.type == "definition" and token.map:
             for i in range(*token.map):
                 lines[i] = "\x00"
-        elif token.type == "inline" and token.map and "[" in token.content:
+        elif (
+            token.type == "inline" and token.map and ("[" in token.content or "`" in token.content)
+        ):
             inline = MarkdownIt("commonmark", {"store_labels": True})
             spans = _link_spans(token.content, inline, environment)
             if not spans:
@@ -135,7 +144,7 @@ def _clean_links(body: str, quoted_lines: set[int]) -> str:
             pieces.append(token.content[position:])
             cleaned = "".join(pieces).split("\n")
             if len(cleaned) != token.content.count("\n") + 1:
-                raise ValueError("link normalization must preserve source lines")
+                raise ValueError("inline normalization must preserve source lines")
             for offset, line in enumerate(cleaned, start=token.map[0]):
                 lines[offset] = line
     return "\n".join(lines)
@@ -167,9 +176,10 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
     _, body = parse_frontmatter(content)
     original = _mask_comments(body)
     quoted_lines: set[int] = set()
+    code_lines: set[int] = set()
     cleaned = (
-        _clean_links(body, quoted_lines)
-        if "](" in body or "]:" in body or (not include_quotes and ">" in body)
+        _clean_inline_blocks(body, quoted_lines, code_lines)
+        if any(marker in body for marker in ("[", "`", "~", ">"))
         else body
     )
     cleaned_lines = _mask_comments(cleaned).split("\n")
@@ -190,7 +200,11 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
                 quoted = False
             if quoted:
                 quoted_lines.add(number)
-    for number, _line in markdown_prose_lines(original):
+    for number, line in enumerate(original.split("\n"), start=1):
+        # Preserve the conservative indentation policy while letting the parser
+        # own container-aware fence boundaries (including nested list items).
+        if number in code_lines or line.expandtabs(4).startswith("    "):
+            continue
         if number != previous + 1:
             prose.append("\x00")
         previous = number
@@ -198,9 +212,7 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
             prose.append("\x00")
         else:
             prose.append(cleaned_lines[number - 1])
-    # Matching delimiter lengths also handles multiline inline-code spans.
-    body = _INLINE_CODE.sub("\x00", "\n".join(prose))
-    for line in body.splitlines():
+    for line in "\n".join(prose).splitlines():
         # Link syntax has already been resolved inside its actual inline block.
         line = re.sub(r"\[\[([^]|\n]+)\|([^]\n]+)\]\]", r"\2", line)
         line = re.sub(r"\[\[([^]\n]+)\]\]", r"\1", line)
