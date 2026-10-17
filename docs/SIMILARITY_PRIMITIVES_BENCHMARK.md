@@ -342,3 +342,11 @@ checks and installed-wheel real offline inference also passed. The initial
 lexical deadline flake and its narrow repair are recorded in the test audit and
 initial validation log. GitHub's separate platform/Python jobs are not claimed
 as local validation results.
+
+Canonical Openclaw autoreview targeted source commit `6555d6c` after all 65
+before/after input blobs and committed context files matched unauthenticated
+public copies. The reviewer failed authentication and produced no report:
+[`reviewer_unavailable`](../benchmarks/results/similarity_primitives_review.json),
+not a clean verdict. Its status and suppressed-auth
+execution log are archived in the receipt. The PR remains in draft; this service
+failure is separate from the completed independent reviews and green validation.

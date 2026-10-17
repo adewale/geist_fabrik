@@ -1,0 +1,18 @@
+{
+  "exit_code": 0,
+  "wall_seconds": 435.6932036218932,
+  "command": "./scripts/validate.sh",
+  "source_commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+  "unit_passed": 1877,
+  "unit_skipped": 1,
+  "integration_passed": 81,
+  "automated_criteria_passed": 155,
+  "automated_criteria_total": 155,
+  "bundled_geists_fired": 45,
+  "branch_covered": 3321,
+  "branch_total": 4034,
+  "branch_percent": 82.33,
+  "mypy_source_files": 98,
+  "installed_wheel_real_offline_inference": true,
+  "ci_platform_jobs": "not claimed"
+}
