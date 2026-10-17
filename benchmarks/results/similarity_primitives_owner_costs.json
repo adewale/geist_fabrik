@@ -1,0 +1,112 @@
+[
+  {
+    "file": "tests/unit/test_density_inversion.py",
+    "wall_seconds": 8.54552300402429,
+    "exit_code": 0,
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 1.325
+  },
+  {
+    "file": "tests/unit/test_embeddings.py",
+    "wall_seconds": 7.494220838998444,
+    "exit_code": 0,
+    "tests": 32,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 0.174
+  },
+  {
+    "file": "tests/unit/test_filtering.py",
+    "wall_seconds": 7.586473402916454,
+    "exit_code": 0,
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 0.081
+  },
+  {
+    "file": "tests/unit/test_phase2_batch_loading.py",
+    "wall_seconds": 7.920321805053391,
+    "exit_code": 0,
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 0.324
+  },
+  {
+    "file": "tests/unit/test_phase2_return_scores.py",
+    "wall_seconds": 7.952322261990048,
+    "exit_code": 0,
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 0.17
+  },
+  {
+    "file": "tests/unit/test_surprisal_churn.py",
+    "wall_seconds": 15.615586839034222,
+    "exit_code": 0,
+    "tests": 31,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 8.253
+  },
+  {
+    "file": "tests/unit/test_text_embeddings.py",
+    "wall_seconds": 7.946344188996591,
+    "exit_code": 0,
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 0.54
+  },
+  {
+    "file": "tests/unit/test_vault_context.py",
+    "wall_seconds": 9.423340228036977,
+    "exit_code": 0,
+    "tests": 45,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 1.77
+  },
+  {
+    "file": "tests/unit/test_vector_primitives.py",
+    "wall_seconds": 11.909212842932902,
+    "exit_code": 0,
+    "tests": 42,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 4.924
+  },
+  {
+    "file": "tests/unit/test_vector_search_backends.py",
+    "wall_seconds": 7.327541267964989,
+    "exit_code": 0,
+    "tests": 69,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "suite_seconds": 0.542
+  },
+  {
+    "file": "tests/unit/test_word_burst_integration.py",
+    "wall_seconds": 17.72026614798233,
+    "exit_code": 0,
+    "tests": 128,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suite_seconds": 10.493
+  }
+]

@@ -357,6 +357,35 @@ def declared_creation_date(path: str, content: str) -> datetime | None:
     return None
 
 
+def declared_creation_day(path: str, content: str) -> date | None:
+    """Declared calendar date for cohorts, without conversion through host time.
+
+    Note timestamp APIs keep their existing local-time semantics. Cohorts use
+    the calendar written in frontmatter, then a dated filename, never an mtime.
+    """
+    normalized = content.replace("\r\n", "\n").replace("\r", "\n")
+    frontmatter, _ = parse_frontmatter(normalized)
+    for key, value in (frontmatter or {}).items():
+        if key.strip().lower() != "created":
+            continue
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+            except ValueError:
+                continue
+        if isinstance(value, datetime):
+            value = value.date()
+        if isinstance(value, date) and 1900 <= value.year <= 2200:
+            return value
+    match = _FILENAME_DATE.match(Path(path).name)
+    if match:
+        try:
+            return date(int(match[1]), int(match[2]), int(match[3]))
+        except ValueError:
+            return None
+    return None
+
+
 def parse_markdown(path: str, content: str) -> tuple[str, str, list[Link], list[str]]:
     """Parse markdown file and extract structured data.
 

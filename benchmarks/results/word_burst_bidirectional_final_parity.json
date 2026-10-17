@@ -1,0 +1,132 @@
+{
+  "source_commit": "ae2a868b404a13903d910a4957b6afafdb31e4b5",
+  "scope": "Final snapshot only, each profile and mode, cache cleared; current candidate compared with prior full triple replay. Does not repeat the entire replay.",
+  "results": [
+    {
+      "profile": "smoke",
+      "mode": "dated_cohorts",
+      "findings": 248,
+      "seconds": 0.039422225032467395,
+      "diagnostics": {
+        "documents": 175,
+        "candidates": 398,
+        "decoded": 35,
+        "pruned": 9,
+        "series_reused": 752,
+        "cache_hit": false,
+        "reason": "burst",
+        "collection_seconds": 0.0074840940069407225,
+        "decoding_seconds": 0.009554885036777705,
+        "evidence_seconds": 0.0056875330046750605
+      },
+      "sha256": "3e92f0f3d6c46c607c3a68599a0f2190ea76f1bb382780c48b151da34c85e281",
+      "expected_sha256": "3e92f0f3d6c46c607c3a68599a0f2190ea76f1bb382780c48b151da34c85e281",
+      "matched": true
+    },
+    {
+      "profile": "smoke",
+      "mode": "observed_additions",
+      "findings": 18,
+      "seconds": 0.013474992010742426,
+      "diagnostics": {
+        "documents": 508,
+        "candidates": 356,
+        "decoded": 28,
+        "pruned": 157,
+        "series_reused": 372,
+        "cache_hit": false,
+        "reason": "burst",
+        "collection_seconds": 0.005883115984033793,
+        "decoding_seconds": 0.0024043830344453454,
+        "evidence_seconds": 0.0012408090406097472
+      },
+      "sha256": "a30ea6136f266a7c75afa85f29749740ebaea960fd7d2283738057845f5126b2",
+      "expected_sha256": "a30ea6136f266a7c75afa85f29749740ebaea960fd7d2283738057845f5126b2",
+      "matched": true
+    },
+    {
+      "profile": "standard",
+      "mode": "dated_cohorts",
+      "findings": 402,
+      "seconds": 0.14782843098510057,
+      "diagnostics": {
+        "documents": 1180,
+        "candidates": 398,
+        "decoded": 23,
+        "pruned": 21,
+        "series_reused": 752,
+        "cache_hit": false,
+        "reason": "burst",
+        "collection_seconds": 0.05149973399238661,
+        "decoding_seconds": 0.01186973397852853,
+        "evidence_seconds": 0.03204295801697299
+      },
+      "sha256": "57a835f33dfbef4157eb0ebabc49422f041e4e53504baffcf7286de20917b9f9",
+      "expected_sha256": "57a835f33dfbef4157eb0ebabc49422f041e4e53504baffcf7286de20917b9f9",
+      "matched": true
+    },
+    {
+      "profile": "standard",
+      "mode": "observed_additions",
+      "findings": 1110,
+      "seconds": 0.19628305500373244,
+      "diagnostics": {
+        "documents": 3901,
+        "candidates": 356,
+        "decoded": 26,
+        "pruned": 157,
+        "series_reused": 374,
+        "cache_hit": false,
+        "reason": "burst",
+        "collection_seconds": 0.04480672295903787,
+        "decoding_seconds": 0.004254621977452189,
+        "evidence_seconds": 0.06515183602459729
+      },
+      "sha256": "8d9f042ed79bb6799d2dde38751fbbee2fe229460337e5801dfe6c950cb8eba3",
+      "expected_sha256": "8d9f042ed79bb6799d2dde38751fbbee2fe229460337e5801dfe6c950cb8eba3",
+      "matched": true
+    },
+    {
+      "profile": "large",
+      "mode": "dated_cohorts",
+      "findings": 405,
+      "seconds": 1.3565620789886452,
+      "diagnostics": {
+        "documents": 11584,
+        "candidates": 398,
+        "decoded": 27,
+        "pruned": 17,
+        "series_reused": 752,
+        "cache_hit": false,
+        "reason": "burst",
+        "collection_seconds": 0.6455395349767059,
+        "decoding_seconds": 0.015199073008261621,
+        "evidence_seconds": 0.35413228801917285
+      },
+      "sha256": "5e1d19f5eed0488dbe1ef48ad1556b67b293c9ddf33c59d89d161d284260894e",
+      "expected_sha256": "5e1d19f5eed0488dbe1ef48ad1556b67b293c9ddf33c59d89d161d284260894e",
+      "matched": true
+    },
+    {
+      "profile": "large",
+      "mode": "observed_additions",
+      "findings": 1110,
+      "seconds": 1.7182193609769456,
+      "diagnostics": {
+        "documents": 39001,
+        "candidates": 356,
+        "decoded": 16,
+        "pruned": 157,
+        "series_reused": 384,
+        "cache_hit": false,
+        "reason": "burst",
+        "collection_seconds": 0.5166629839804955,
+        "decoding_seconds": 0.004262886010110378,
+        "evidence_seconds": 0.5104002180160023
+      },
+      "sha256": "ade694ed2b1f840d25069397ccd71268e238cb5b06edd1d62e96564453516ad3",
+      "expected_sha256": "ade694ed2b1f840d25069397ccd71268e238cb5b06edd1d62e96564453516ad3",
+      "matched": true
+    }
+  ]
+}

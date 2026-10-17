@@ -26,7 +26,7 @@ def _hash_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _hash_rows(rows: list[tuple[str, str, str]]) -> str:
+def _hash_rows(rows: list[tuple[str, ...]]) -> str:
     payload = json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return _hash_bytes(payload)
 
@@ -287,10 +287,10 @@ class JournalWriter:
 
     def _database_state_hash(self, date_str: str) -> str:
         rows = [
-            (str(geist_id), str(text), str(block_id))
-            for geist_id, text, block_id in self.db.execute(
+            (str(geist_id), str(text), str(block_id)) + ((str(key),) if key is not None else ())
+            for geist_id, text, block_id, key in self.db.execute(
                 """
-                SELECT geist_id, suggestion_text, block_id
+                SELECT geist_id, suggestion_text, block_id, evidence_key
                 FROM session_suggestions
                 WHERE session_date = ?
                 ORDER BY block_id
@@ -303,6 +303,7 @@ class JournalWriter:
     def _expected_state_hash(self, date: datetime, suggestions: list[Suggestion]) -> str:
         rows = [
             (suggestion.geist_id, suggestion.text, self._generate_block_id(date, index))
+            + ((suggestion.evidence_key,) if suggestion.evidence_key is not None else ())
             for index, suggestion in enumerate(suggestions, start=1)
         ]
         rows.sort(key=lambda row: row[2])
@@ -628,6 +629,7 @@ class JournalWriter:
                 suggestion.text,
                 self._generate_block_id(datetime.fromisoformat(date_str), index),
                 now,
+                suggestion.evidence_key,
             )
             for index, suggestion in enumerate(suggestions, start=1)
         ]
@@ -635,8 +637,8 @@ class JournalWriter:
             self.db.executemany(
                 """
                 INSERT INTO session_suggestions
-                (session_date, geist_id, suggestion_text, block_id, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                (session_date, geist_id, suggestion_text, block_id, created_at, evidence_key)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -648,9 +650,7 @@ class JournalWriter:
             else False
         )
 
-    def get_recent_suggestions(
-        self, days: int = 60, *, as_of: datetime | None = None
-    ) -> list[str]:
+    def get_recent_suggestions(self, days: int = 60, *, as_of: datetime | None = None) -> list[str]:
         """Return suggestions before the reference session within ``days``.
 
         ``as_of`` makes replay and diff output independent of the current wall

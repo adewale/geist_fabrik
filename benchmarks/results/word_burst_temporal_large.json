@@ -1,0 +1,2299 @@
+{
+  "synthetic": true,
+  "python": "3.12.14",
+  "initial_notes": 10000,
+  "real_embeddings": false,
+  "errors": [],
+  "stable_meaning_changes": [],
+  "semantic_work_skipped": true,
+  "raw_sha256": "875bab5f69e345128e252ebf0db1a079babf311901b7edb85395146e5c735e15",
+  "raw_archive": "word_burst_temporal_large.raw.json.xz",
+  "snapshots": [
+    {
+      "index": 0,
+      "date": "2026-01-05",
+      "apply_seconds": 1.8303912749979645,
+      "processed": 10101,
+      "sync_seconds": 33.52958606398897,
+      "lexical_sync": {
+        "extracted": 10101,
+        "changed": 10101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.3762345190043561,
+          "diagnostics": {
+            "documents": 10100,
+            "candidates": 10175,
+            "decoded": 16,
+            "pruned": 10159,
+            "cache_hit": false,
+            "reason": "no_burst"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.0033711889991536736,
+          "diagnostics": {
+            "documents": 0,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_documents"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 1,
+      "date": "2026-01-12",
+      "apply_seconds": 0.43812407297082245,
+      "processed": 1102,
+      "sync_seconds": 6.949011918972246,
+      "lexical_sync": {
+        "extracted": 1102,
+        "changed": 1102
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.2133362169843167,
+          "diagnostics": {
+            "documents": 10202,
+            "candidates": 10279,
+            "decoded": 19,
+            "pruned": 10260,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.013344715000130236,
+          "diagnostics": {
+            "documents": 1000,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 2,
+      "date": "2026-01-19",
+      "apply_seconds": 0.44613346800906584,
+      "processed": 1103,
+      "sync_seconds": 6.905148323974572,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.1979675839538686,
+          "diagnostics": {
+            "documents": 10303,
+            "candidates": 10379,
+            "decoded": 19,
+            "pruned": 10360,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.015564195055048913,
+          "diagnostics": {
+            "documents": 2000,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 3,
+      "date": "2026-01-26",
+      "apply_seconds": 0.3644683589809574,
+      "processed": 1104,
+      "sync_seconds": 6.860651298018638,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.3821611279854551,
+          "diagnostics": {
+            "documents": 10404,
+            "candidates": 10479,
+            "decoded": 19,
+            "pruned": 10460,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.029647768998984247,
+          "diagnostics": {
+            "documents": 3000,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 4,
+      "date": "2026-02-02",
+      "apply_seconds": 0.6006922509986907,
+      "processed": 2105,
+      "sync_seconds": 10.447905615961645,
+      "lexical_sync": {
+        "extracted": 2101,
+        "changed": 2101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.19578591699246317,
+          "diagnostics": {
+            "documents": 10505,
+            "candidates": 10579,
+            "decoded": 19,
+            "pruned": 10560,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.034513544000219554,
+          "diagnostics": {
+            "documents": 5000,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 5,
+      "date": "2026-02-09",
+      "apply_seconds": 0.37307394901290536,
+      "processed": 1106,
+      "sync_seconds": 7.333709942991845,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.2235559819964692,
+          "diagnostics": {
+            "documents": 10606,
+            "candidates": 10679,
+            "decoded": 19,
+            "pruned": 10660,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.23242747597396374,
+          "diagnostics": {
+            "documents": 6000,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 6,
+      "date": "2026-02-16",
+      "apply_seconds": 0.4166609079693444,
+      "processed": 1107,
+      "sync_seconds": 6.82302140200045,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.20704658300383016,
+          "diagnostics": {
+            "documents": 10707,
+            "candidates": 10779,
+            "decoded": 19,
+            "pruned": 10760,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.04869763500755653,
+          "diagnostics": {
+            "documents": 7000,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 7,
+      "date": "2026-02-23",
+      "apply_seconds": 0.39137503696838394,
+      "processed": 1108,
+      "sync_seconds": 7.772925322002266,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.30406034499173984,
+          "diagnostics": {
+            "documents": 10808,
+            "candidates": 10879,
+            "decoded": 19,
+            "pruned": 10860,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.25198173499666154,
+          "diagnostics": {
+            "documents": 8000,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 8,
+      "date": "2026-03-02",
+      "apply_seconds": 0.5063683229964226,
+      "processed": 2109,
+      "sync_seconds": 10.508818790025543,
+      "lexical_sync": {
+        "extracted": 2101,
+        "changed": 2101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.20786442595999688,
+          "diagnostics": {
+            "documents": 10909,
+            "candidates": 10980,
+            "decoded": 20,
+            "pruned": 10960,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 3,
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.0973250039969571,
+          "diagnostics": {
+            "documents": 10000,
+            "candidates": 75,
+            "decoded": 60,
+            "pruned": 15,
+            "cache_hit": false,
+            "reason": "no_burst"
+          },
+          "finding_count": 0,
+          "planted_findings": []
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 9,
+      "date": "2026-03-09",
+      "apply_seconds": 0.3866280749789439,
+      "processed": 1110,
+      "sync_seconds": 7.190558072004933,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.4150172619847581,
+          "diagnostics": {
+            "documents": 11010,
+            "candidates": 11080,
+            "decoded": 20,
+            "pruned": 11060,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 4,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-09",
+              "level": 1,
+              "gain": 138.3684802017138,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.10899182561307902,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 200
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.10300332499900833,
+          "diagnostics": {
+            "documents": 11000,
+            "candidates": 76,
+            "decoded": 61,
+            "pruned": 15,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-09",
+              "level": 1,
+              "gain": 1134.9799328389845,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.18181818181818182,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 10,
+      "date": "2026-03-16",
+      "apply_seconds": 0.3502756350208074,
+      "processed": 1111,
+      "sync_seconds": 7.062152442988008,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.23269166302634403,
+          "diagnostics": {
+            "documents": 11111,
+            "candidates": 11180,
+            "decoded": 20,
+            "pruned": 11160,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 4,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-16",
+              "level": 1,
+              "gain": 207.5177198859243,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11700117001170011,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 300
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.3236176520003937,
+          "diagnostics": {
+            "documents": 12000,
+            "candidates": 77,
+            "decoded": 61,
+            "pruned": 16,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-16",
+              "level": 1,
+              "gain": 1673.9764335716714,
+              "rate": 0.75,
+              "baseline_rate": 0.25,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 11,
+      "date": "2026-03-23",
+      "apply_seconds": 0.367990943021141,
+      "processed": 1112,
+      "sync_seconds": 7.426753869047388,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.25286766898352653,
+          "diagnostics": {
+            "documents": 11212,
+            "candidates": 11280,
+            "decoded": 20,
+            "pruned": 11260,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 4,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-23",
+              "level": 1,
+              "gain": 276.64308474975496,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.1248662147698894,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.11732904403470457,
+          "diagnostics": {
+            "documents": 13000,
+            "candidates": 78,
+            "decoded": 61,
+            "pruned": 17,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-23",
+              "level": 1,
+              "gain": 2184.802057337662,
+              "rate": 0.8,
+              "baseline_rate": 0.3076923076923077,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 12,
+      "date": "2026-03-30",
+      "apply_seconds": 0.499289678002242,
+      "processed": 2113,
+      "sync_seconds": 10.698058474983554,
+      "lexical_sync": {
+        "extracted": 2101,
+        "changed": 2101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.42007562500657514,
+          "diagnostics": {
+            "documents": 11313,
+            "candidates": 11380,
+            "decoded": 20,
+            "pruned": 11360,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 4,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.64986174338276,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.12375143640060107,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.1427924689487554,
+          "diagnostics": {
+            "documents": 15000,
+            "candidates": 79,
+            "decoded": 61,
+            "pruned": 18,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2320.603598496724,
+              "rate": 0.8,
+              "baseline_rate": 0.26666666666666666,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 13,
+      "date": "2026-04-06",
+      "apply_seconds": 0.3793737649684772,
+      "processed": 1114,
+      "sync_seconds": 7.527889042976312,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.5047497589839622,
+          "diagnostics": {
+            "documents": 11414,
+            "candidates": 11480,
+            "decoded": 20,
+            "pruned": 11460,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6564909148748,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.12265638689328895,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.5256264319759794,
+          "diagnostics": {
+            "documents": 16000,
+            "candidates": 80,
+            "decoded": 61,
+            "pruned": 19,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2367.1236141316167,
+              "rate": 0.8,
+              "baseline_rate": 0.25,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 14,
+      "date": "2026-04-13",
+      "apply_seconds": 0.40512278000824153,
+      "processed": 1115,
+      "sync_seconds": 7.577546944026835,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.26338344695977867,
+          "diagnostics": {
+            "documents": 11515,
+            "candidates": 11580,
+            "decoded": 20,
+            "pruned": 11560,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.66297705738725,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.12158054711246201,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.34379049902781844,
+          "diagnostics": {
+            "documents": 17000,
+            "candidates": 81,
+            "decoded": 61,
+            "pruned": 20,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2404.8639421144635,
+              "rate": 0.8,
+              "baseline_rate": 0.23529411764705882,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 15,
+      "date": "2026-04-20",
+      "apply_seconds": 0.37722653103992343,
+      "processed": 1116,
+      "sync_seconds": 9.272046605998185,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.2315936799859628,
+          "diagnostics": {
+            "documents": 11616,
+            "candidates": 11680,
+            "decoded": 20,
+            "pruned": 11660,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6693247586994,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.12052341597796143,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.3413360890117474,
+          "diagnostics": {
+            "documents": 18000,
+            "candidates": 82,
+            "decoded": 61,
+            "pruned": 21,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2436.116485618568,
+              "rate": 0.8,
+              "baseline_rate": 0.2222222222222222,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 16,
+      "date": "2026-04-27",
+      "apply_seconds": 0.6894249829929322,
+      "processed": 3117,
+      "sync_seconds": 16.37690910004312,
+      "lexical_sync": {
+        "extracted": 3102,
+        "changed": 3102
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.4427801119745709,
+          "diagnostics": {
+            "documents": 11717,
+            "candidates": 11780,
+            "decoded": 20,
+            "pruned": 11760,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.67553841211617,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11948450968677989,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.77114786504535,
+          "diagnostics": {
+            "documents": 21001,
+            "candidates": 83,
+            "decoded": 61,
+            "pruned": 22,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2504.342833964221,
+              "rate": 0.8,
+              "baseline_rate": 0.19046712061330412,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 17,
+      "date": "2026-05-04",
+      "apply_seconds": 0.7104066530009732,
+      "processed": 1118,
+      "sync_seconds": 11.415526769007556,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.3556847389554605,
+          "diagnostics": {
+            "documents": 11818,
+            "candidates": 11880,
+            "decoded": 20,
+            "pruned": 11860,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6816222266817,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11846336097478423,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.5408741229912266,
+          "diagnostics": {
+            "documents": 22001,
+            "candidates": 84,
+            "decoded": 61,
+            "pruned": 23,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2521.2901659670015,
+              "rate": 0.8,
+              "baseline_rate": 0.18180991773101224,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 18,
+      "date": "2026-05-11",
+      "apply_seconds": 0.4244728470221162,
+      "processed": 1119,
+      "sync_seconds": 9.277011976053473,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.2757904569734819,
+          "diagnostics": {
+            "documents": 11919,
+            "candidates": 11980,
+            "decoded": 20,
+            "pruned": 11960,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6875802367557,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11745951841597449,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.24875854304991663,
+          "diagnostics": {
+            "documents": 23001,
+            "candidates": 85,
+            "decoded": 61,
+            "pruned": 24,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2536.2139784261394,
+              "rate": 0.8,
+              "baseline_rate": 0.17390548237033174,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 19,
+      "date": "2026-05-18",
+      "apply_seconds": 0.4104196080006659,
+      "processed": 1120,
+      "sync_seconds": 8.525944419961888,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.2408013220410794,
+          "diagnostics": {
+            "documents": 12020,
+            "candidates": 12080,
+            "decoded": 20,
+            "pruned": 12060,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.69341631099695,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11647254575707154,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.3981362659833394,
+          "diagnostics": {
+            "documents": 24001,
+            "candidates": 86,
+            "decoded": 61,
+            "pruned": 25,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2549.457670222486,
+              "rate": 0.8,
+              "baseline_rate": 0.16665972251156203,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 20,
+      "date": "2026-05-25",
+      "apply_seconds": 0.5654448409914039,
+      "processed": 2121,
+      "sync_seconds": 12.87748843303416,
+      "lexical_sync": {
+        "extracted": 2101,
+        "changed": 2101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.24886828399030492,
+          "diagnostics": {
+            "documents": 12121,
+            "candidates": 12180,
+            "decoded": 20,
+            "pruned": 12160,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6991341607978,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.1155020212853725,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.4468848669785075,
+          "diagnostics": {
+            "documents": 26001,
+            "candidates": 87,
+            "decoded": 61,
+            "pruned": 26,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2571.9281272776047,
+              "rate": 0.8,
+              "baseline_rate": 0.15384023691396484,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 21,
+      "date": "2026-06-01",
+      "apply_seconds": 0.4180578400264494,
+      "processed": 1122,
+      "sync_seconds": 7.861486555018928,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.23865695903077722,
+          "diagnostics": {
+            "documents": 12222,
+            "candidates": 12280,
+            "decoded": 20,
+            "pruned": 12260,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.70473734820735,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.1145475372279496,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.43164944200543687,
+          "diagnostics": {
+            "documents": 27001,
+            "candidates": 88,
+            "decoded": 61,
+            "pruned": 27,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2581.5426383553086,
+              "rate": 0.8,
+              "baseline_rate": 0.14814266138291174,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 22,
+      "date": "2026-06-08",
+      "apply_seconds": 0.3482973609934561,
+      "processed": 1123,
+      "sync_seconds": 7.61614053696394,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.2801624870044179,
+          "diagnostics": {
+            "documents": 12323,
+            "candidates": 12381,
+            "decoded": 21,
+            "pruned": 12360,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 5,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.71022929338017,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11360869918039439,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.44251446903217584,
+          "diagnostics": {
+            "documents": 28001,
+            "candidates": 90,
+            "decoded": 61,
+            "pruned": 29,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2590.2754983972327,
+              "rate": 0.8,
+              "baseline_rate": 0.14285204099853577,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 23,
+      "date": "2026-06-15",
+      "apply_seconds": 0.4564606550266035,
+      "processed": 1124,
+      "sync_seconds": 8.437449471035507,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.4352431580191478,
+          "diagnostics": {
+            "documents": 12424,
+            "candidates": 12481,
+            "decoded": 21,
+            "pruned": 12460,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 6,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.7156132815824,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11268512556342562,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-15",
+              "level": 1,
+              "gain": 138.4032918615763,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.09658725048293625,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 200
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.29952143802074715,
+          "diagnostics": {
+            "documents": 29001,
+            "candidates": 91,
+            "decoded": 62,
+            "pruned": 29,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2598.24295380885,
+              "rate": 0.8,
+              "baseline_rate": 0.13792627840419297,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-15",
+              "level": 1,
+              "gain": 1386.2943611198905,
+              "rate": 1.0,
+              "baseline_rate": 0.06896313920209649,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 24,
+      "date": "2026-06-22",
+      "apply_seconds": 0.6738501859945245,
+      "processed": 2125,
+      "sync_seconds": 10.548490637040231,
+      "lexical_sync": {
+        "extracted": 2101,
+        "changed": 2101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.2470811890088953,
+          "diagnostics": {
+            "documents": 11525,
+            "candidates": 11581,
+            "decoded": 21,
+            "pruned": 11560,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 6,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6636116443617,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.12147505422993492,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-22",
+              "level": 1,
+              "gain": 207.53621604519412,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11279826464208242,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 300
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.29205090302275494,
+          "diagnostics": {
+            "documents": 31001,
+            "candidates": 92,
+            "decoded": 62,
+            "pruned": 30,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2612.252513129136,
+              "rate": 0.8,
+              "baseline_rate": 0.12902809586787523,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-22",
+              "level": 1,
+              "gain": 1966.1171419248794,
+              "rate": 0.75,
+              "baseline_rate": 0.09677107190090642,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 25,
+      "date": "2026-06-29",
+      "apply_seconds": 0.3690609050099738,
+      "processed": 1126,
+      "sync_seconds": 7.88109582697507,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.4408720349892974,
+          "diagnostics": {
+            "documents": 11626,
+            "candidates": 11681,
+            "decoded": 21,
+            "pruned": 11660,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 6,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.66994588073635,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.12041974883880957,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-29",
+              "level": 1,
+              "gain": 276.66994588073635,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.12041974883880957,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.5033171760151163,
+          "diagnostics": {
+            "documents": 32001,
+            "candidates": 93,
+            "decoded": 62,
+            "pruned": 31,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2618.4439945631834,
+              "rate": 0.8,
+              "baseline_rate": 0.12499609387206649,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-29",
+              "level": 1,
+              "gain": 2618.4439945631834,
+              "rate": 0.8,
+              "baseline_rate": 0.12499609387206649,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 26,
+      "date": "2026-07-06",
+      "apply_seconds": 0.3482091570040211,
+      "processed": 1127,
+      "sync_seconds": 7.882431840989739,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.22927677299594507,
+          "diagnostics": {
+            "documents": 11709,
+            "candidates": 11763,
+            "decoded": 13,
+            "pruned": 11750,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 6,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6760706184292,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.1193953369203177,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 276.6760706184292,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.1193953369203177,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.5041442309739068,
+          "diagnostics": {
+            "documents": 33001,
+            "candidates": 94,
+            "decoded": 62,
+            "pruned": 32,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2624.174234157425,
+              "rate": 0.8,
+              "baseline_rate": 0.12120844822884155,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 2624.174234157425,
+              "rate": 0.8,
+              "baseline_rate": 0.12120844822884155,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 27,
+      "date": "2026-07-13",
+      "apply_seconds": 0.3346681749681011,
+      "processed": 1128,
+      "sync_seconds": 9.766684788977727,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.27994883799692616,
+          "diagnostics": {
+            "documents": 11684,
+            "candidates": 11744,
+            "decoded": 13,
+            "pruned": 11731,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 7,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.68168630513026,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11845258473125642,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 276.68168630513026,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11845258473125642,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.6566950000124052,
+          "diagnostics": {
+            "documents": 34001,
+            "candidates": 95,
+            "decoded": 62,
+            "pruned": 33,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2629.493006620153,
+              "rate": 0.8,
+              "baseline_rate": 0.11764359871768477,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 2629.493006620153,
+              "rate": 0.8,
+              "baseline_rate": 0.11764359871768477,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 28,
+      "date": "2026-07-20",
+      "apply_seconds": 0.9598951460211538,
+      "processed": 2129,
+      "sync_seconds": 12.194409902964253,
+      "lexical_sync": {
+        "extracted": 2101,
+        "changed": 2101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.5752445959951729,
+          "diagnostics": {
+            "documents": 11659,
+            "candidates": 11725,
+            "decoded": 13,
+            "pruned": 11712,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 7,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6873061011397,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11750578951882666,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 276.6873061011397,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11750578951882666,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.600141370028723,
+          "diagnostics": {
+            "documents": 36001,
+            "candidates": 96,
+            "decoded": 62,
+            "pruned": 34,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2639.061793751504,
+              "rate": 0.8,
+              "baseline_rate": 0.11110802477708953,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 2639.061793751504,
+              "rate": 0.8,
+              "baseline_rate": 0.11110802477708953,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 29,
+      "date": "2026-07-27",
+      "apply_seconds": 0.34308050002437085,
+      "processed": 1130,
+      "sync_seconds": 11.91212934703799,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 1.044390138995368,
+          "diagnostics": {
+            "documents": 11634,
+            "candidates": 11706,
+            "decoded": 13,
+            "pruned": 11693,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 7,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.69293001652227,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11655492521918515,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 276.69293001652227,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11655492521918515,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 1.242956527043134,
+          "diagnostics": {
+            "documents": 37001,
+            "candidates": 97,
+            "decoded": 62,
+            "pruned": 35,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2643.3811703527035,
+              "rate": 0.8,
+              "baseline_rate": 0.10810518634631497,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 2643.3811703527035,
+              "rate": 0.8,
+              "baseline_rate": 0.10810518634631497,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 30,
+      "date": "2026-08-03",
+      "apply_seconds": 0.6631468679988757,
+      "processed": 1131,
+      "sync_seconds": 12.26824864099035,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.5123772129882127,
+          "diagnostics": {
+            "documents": 11609,
+            "candidates": 11687,
+            "decoded": 13,
+            "pruned": 11674,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 7,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.6985580613736,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.1155999655439745,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 276.6985580613736,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.1155999655439745,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 1.2078188540181145,
+          "diagnostics": {
+            "documents": 38001,
+            "candidates": 98,
+            "decoded": 62,
+            "pruned": 36,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2647.4295007313767,
+              "rate": 0.8,
+              "baseline_rate": 0.10526038788452935,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 2647.4295007313767,
+              "rate": 0.8,
+              "baseline_rate": 0.10526038788452935,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    },
+    {
+      "index": 31,
+      "date": "2026-08-10",
+      "apply_seconds": 0.8044319489854388,
+      "processed": 1132,
+      "sync_seconds": 9.095872855046764,
+      "lexical_sync": {
+        "extracted": 1101,
+        "changed": 1101
+      },
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.27484962705057114,
+          "diagnostics": {
+            "documents": 11584,
+            "candidates": 11664,
+            "decoded": 48,
+            "pruned": 11616,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 42,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 276.7041902458207,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11464088397790055,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 276.7041902458207,
+              "rate": 0.9900990099009901,
+              "baseline_rate": 0.11464088397790055,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 400
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.6299379090196453,
+          "diagnostics": {
+            "documents": 39001,
+            "candidates": 99,
+            "decoded": 62,
+            "pruned": 37,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 2651.2315517593333,
+              "rate": 0.8,
+              "baseline_rate": 0.10256147278274916,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 2651.2315517593333,
+              "rate": 0.8,
+              "baseline_rate": 0.10256147278274916,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 1000
+            }
+          ]
+        }
+      },
+      "geists": {}
+    }
+  ]
+}

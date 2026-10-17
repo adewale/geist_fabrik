@@ -1,7 +1,7 @@
 # GeistFabrik Implementation Status
 
 **Last Updated**: 2026-10-02
-**Version**: 0.11.0 (Beta, Schema v10)
+**Version**: 0.11.0 (Beta, Schema v12)
 **Overall Progress**: Release-candidate hardening
 
 ---
@@ -14,7 +14,7 @@
 | **Source inventory** | Derived from the tree; avoid freezing counts in documentation |
 | **Type Checking** | Mypy strict |
 | **Linting** | Ruff |
-| **Database Schema** | v10 (exact source fingerprints) |
+| **Database Schema** | v12 (lexical capture, burst cache and suggestion episode identities) |
 | **Default Geists** | Bundled in `src/geistfabrik/default_geists/`; counts come from `geistfabrik.default_geists` |
 | **Example Modules** | Code and Tracery geists, metadata modules and vault functions - examples/ |
 
@@ -89,7 +89,7 @@ geist_fabrik/
 
 ### Database Schema
 
-**Current Version**: v10
+**Current Version**: v12
 
 **Tables**:
 - `notes` - Note content, metadata, timestamps

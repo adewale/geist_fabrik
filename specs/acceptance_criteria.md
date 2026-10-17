@@ -568,6 +568,18 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 
 ---
 
+## Phase 12: Word Bursts and Temporal Fixtures
+
+| ID | Status | Acceptance Criterion | Verification |
+|----|--------|---------------------|--------------|
+| AC-12.1 | ✅ | Exact binomial global objective and conservative pruning | `uv run pytest tests/unit/test_word_burst.py::{test_decoder_matches_global_exhaustive_objective,test_gain_pruning_never_discards_a_beneficial_path}` |
+| AC-12.2 | ✅ | Atomic lexical capture and automatic data-preserving v10 migration | `uv run pytest tests/unit/test_word_burst_integration.py::{test_failed_sync_rolls_back_lexical_capture_and_dictionary,test_schema_v10_upgrade_preserves_note_and_embedding_bytes}` |
+| AC-12.3 | ✅ | Real provenance, cache invalidation and nonempty linked questions | `uv run pytest tests/unit/test_word_burst_integration.py` |
+| AC-12.4 | ✅ | Deterministic temporal fixtures and safe hash-verified replay | `uv run pytest tests/unit/test_temporal_corpus.py` |
+| AC-12.5 | ✅ | One geist reports rising and disappearing phrases in both history modes | `uv run pytest tests/unit/test_word_burst_integration.py::test_one_geist_reports_rising_and_disappearing_phrases_through_real_history` |
+| AC-12.6 | ✅ | Saved episode identity survives rewording and rolling-window clipping | `uv run pytest tests/unit/test_word_burst_integration.py::test_saved_episode_suppresses_changed_wording_and_clipped_dates_but_not_return` |
+| AC-12.7 | ✅ | Automatic v11 upgrade preserves captured lexical history and saved questions | `uv run pytest tests/unit/test_word_burst_integration.py::test_v11_episode_migration_preserves_lexical_history_and_saved_questions` |
+
 ## Summary Statistics
 
 ### By Phase
@@ -586,13 +598,14 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | 9 | 5 | 14 | 19 | 0% |
 | 10 | 8 | 18 | 26 | 0% |
 | 11 | 8 | 17 | 25 | 0% |
-| **Total** | **73** | **158** | **231** | **0%** |
+| 12 | 4 | 0 | 4 | 100% |
+| **Total** | **77** | **158** | **235** | **See executable gate** |
 
 ### By Category
 
 | Category | Count | % Complete |
 |----------|-------|------------|
-| Core Functionality | 73 | 0% |
+| Core Functionality | 77 | See executable gate |
 | Edge Cases | 89 | 0% |
 | Error Handling | 42 | 0% |
 | Performance | 13 | 0% |

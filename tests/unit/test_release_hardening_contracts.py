@@ -138,7 +138,12 @@ def test_diff_history_is_bounded_by_replay_date(tmp_path: Path) -> None:
             ("2024-03-01", "same", "current", "same-1", "2024-03-01"),
             ("2024-04-01", "future", "future", "future-1", "2024-04-01"),
         ]
-        db.executemany("INSERT INTO session_suggestions VALUES (?, ?, ?, ?, ?)", rows)
+        db.executemany(
+            "INSERT INTO session_suggestions "
+            "(session_date, geist_id, suggestion_text, block_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            rows,
+        )
         db.commit()
 
         writer = JournalWriter(tmp_path, db)
@@ -242,7 +247,9 @@ def test_stats_separate_geist_types_and_written_session_average(tmp_path: Path) 
             date = f"2025-01-0{day}"
             vault.db.execute("INSERT INTO sessions (date, created_at) VALUES (?, ?)", (date, date))
         vault.db.executemany(
-            "INSERT INTO session_suggestions VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO session_suggestions "
+            "(session_date, geist_id, suggestion_text, block_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
             [
                 ("2025-01-02", "a", "one", "a-1", "2025-01-02"),
                 ("2025-01-02", "b", "two", "b-1", "2025-01-02"),

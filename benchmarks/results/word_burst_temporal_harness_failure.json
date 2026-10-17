@@ -1,0 +1,5361 @@
+{
+  "synthetic": true,
+  "execution_path": "GeistExecutor",
+  "python": "3.12.14",
+  "initial_notes": 128,
+  "real_embeddings": true,
+  "errors": [
+    {
+      "index": 0,
+      "geist": "recent_focus",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/recent_focus.py\n  \u2192 Test this geist: geistfabrik test recent_focus <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist recent_focus"
+    },
+    {
+      "index": 0,
+      "geist": "seasonal_patterns",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/seasonal_patterns.py\n  \u2192 Test this geist: geistfabrik test seasonal_patterns <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist seasonal_patterns"
+    },
+    {
+      "index": 1,
+      "geist": "recent_focus",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/recent_focus.py\n  \u2192 Test this geist: geistfabrik test recent_focus <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist recent_focus"
+    },
+    {
+      "index": 1,
+      "geist": "seasonal_patterns",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/seasonal_patterns.py\n  \u2192 Test this geist: geistfabrik test seasonal_patterns <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist seasonal_patterns"
+    },
+    {
+      "index": 1,
+      "geist": "temporal_clustering",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/temporal_clustering.py\n  \u2192 Test this geist: geistfabrik test temporal_clustering <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist temporal_clustering"
+    },
+    {
+      "index": 2,
+      "geist": "recent_focus",
+      "error": "exceeded 3 consecutive failures"
+    },
+    {
+      "index": 2,
+      "geist": "seasonal_patterns",
+      "error": "exceeded 3 consecutive failures"
+    },
+    {
+      "index": 2,
+      "geist": "temporal_clustering",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/temporal_clustering.py\n  \u2192 Test this geist: geistfabrik test temporal_clustering <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist temporal_clustering"
+    },
+    {
+      "index": 3,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 3,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 3,
+      "geist": "temporal_clustering",
+      "error": "exceeded 3 consecutive failures"
+    },
+    {
+      "index": 4,
+      "geist": "concept_drift",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/concept_drift.py\n  \u2192 Test this geist: geistfabrik test concept_drift <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist concept_drift"
+    },
+    {
+      "index": 4,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 4,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 4,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 5,
+      "geist": "concept_drift",
+      "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/concept_drift.py\n  \u2192 Test this geist: geistfabrik test concept_drift <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist concept_drift"
+    },
+    {
+      "index": 5,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 5,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 5,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 6,
+      "geist": "concept_drift",
+      "error": "exceeded 3 consecutive failures"
+    },
+    {
+      "index": 6,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 6,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 6,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 7,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 7,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 7,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 7,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 8,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 8,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 8,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 8,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 9,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 9,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 9,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 9,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 10,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 10,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 10,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 10,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 11,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 11,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 11,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 11,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 12,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 12,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 12,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 12,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 13,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 13,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 13,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 13,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 14,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 14,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 14,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 14,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 15,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 15,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 15,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 15,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 16,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 16,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 16,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 16,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 17,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 17,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 17,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 17,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 18,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 18,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 18,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 18,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 19,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 19,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 19,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 19,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 20,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 20,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 20,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 20,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 21,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 21,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 21,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 21,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 22,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 22,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 22,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 22,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 23,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 23,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 23,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 23,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 24,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 24,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 24,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 24,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 25,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 25,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 25,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 25,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 26,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 26,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 26,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 26,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 27,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 27,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 27,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 27,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 28,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 28,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 28,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 28,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 29,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 29,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 29,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 29,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 30,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 30,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 30,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 30,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    },
+    {
+      "index": 31,
+      "geist": "concept_drift",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+    },
+    {
+      "index": 31,
+      "geist": "recent_focus",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+    },
+    {
+      "index": 31,
+      "geist": "seasonal_patterns",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+    },
+    {
+      "index": 31,
+      "geist": "temporal_clustering",
+      "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+    }
+  ],
+  "stable_meaning_changes": [],
+  "semantic_work_skipped": false,
+  "model_startup_seconds": 0.10466302098939195,
+  "raw_sha256": "e74cabef66bc7f45b8aa5b9ee9007104ee8fb2db582956c62377ba3133466d13",
+  "raw_archive": "word_burst_temporal_harness_failure.raw.json.xz",
+  "snapshots": [
+    {
+      "index": 0,
+      "date": "2026-01-05",
+      "apply_seconds": 0.019958255987148732,
+      "processed": 131,
+      "sync_seconds": 0.35914299899013713,
+      "lexical_sync": {
+        "extracted": 131,
+        "changed": 131
+      },
+      "embedding_seconds": 2.75541639898438,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.006792721047531813,
+          "diagnostics": {
+            "documents": 130,
+            "candidates": 205,
+            "decoded": 0,
+            "pruned": 205,
+            "cache_hit": false,
+            "reason": "no_burst"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00027731398586183786,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.0025310280034318566,
+          "diagnostics": {
+            "documents": 0,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_documents"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00019997399067506194,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.00027731398586183786,
+          "suggestion_count": 0
+        },
+        "concept_drift": {
+          "seconds": 0.0018582920311018825,
+          "suggestion_count": 0
+        },
+        "attention_shift": {
+          "seconds": 0.00011612399248406291,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.05616187903797254,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 0.004868309013545513,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/recent_focus.py\n  \u2192 Test this geist: geistfabrik test recent_focus <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist recent_focus"
+        },
+        "seasonal_patterns": {
+          "seconds": 0.0039046769961714745,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/seasonal_patterns.py\n  \u2192 Test this geist: geistfabrik test seasonal_patterns <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist seasonal_patterns"
+        },
+        "temporal_clustering": {
+          "seconds": 0.00016807299107313156,
+          "suggestion_count": 0
+        },
+        "this_time_last_year": {
+          "seconds": 0.0001054219901561737,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 1,
+      "date": "2026-01-12",
+      "apply_seconds": 0.0075529630412347615,
+      "processed": 17,
+      "sync_seconds": 0.08156296302331612,
+      "lexical_sync": {
+        "extracted": 17,
+        "changed": 17
+      },
+      "embedding_seconds": 0.39808187197195366,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.00992028001928702,
+          "diagnostics": {
+            "documents": 134,
+            "candidates": 211,
+            "decoded": 6,
+            "pruned": 205,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 6,
+          "executor": {
+            "seconds": 0.002924163010902703,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.0035475799813866615,
+          "diagnostics": {
+            "documents": 13,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_documents"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00020098098320886493,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.002924163010902703,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 0.0019305110326968133,
+          "suggestion_count": 0
+        },
+        "attention_shift": {
+          "seconds": 8.311396231874824e-05,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.055869289964903146,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 0.00356744701275602,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/recent_focus.py\n  \u2192 Test this geist: geistfabrik test recent_focus <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist recent_focus"
+        },
+        "seasonal_patterns": {
+          "seconds": 0.003550113004166633,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/seasonal_patterns.py\n  \u2192 Test this geist: geistfabrik test seasonal_patterns <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist seasonal_patterns"
+        },
+        "temporal_clustering": {
+          "seconds": 0.003834242990706116,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/temporal_clustering.py\n  \u2192 Test this geist: geistfabrik test temporal_clustering <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist temporal_clustering"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0001695120008662343,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 2,
+      "date": "2026-01-19",
+      "apply_seconds": 0.008191292989067733,
+      "processed": 18,
+      "sync_seconds": 0.08241745800478384,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.41238756402162835,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.010636445018462837,
+          "diagnostics": {
+            "documents": 137,
+            "candidates": 213,
+            "decoded": 9,
+            "pruned": 204,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 9,
+          "executor": {
+            "seconds": 0.0026030069566331804,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 19
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.0033019299735315144,
+          "diagnostics": {
+            "documents": 26,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_documents"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00017836398910731077,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0026030069566331804,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 0.006061645981390029,
+          "suggestion_count": 0
+        },
+        "attention_shift": {
+          "seconds": 0.00010192999616265297,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.059917309030424803,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 0.0043451840174384415,
+          "suggestion_count": 0,
+          "error": "exceeded 3 consecutive failures"
+        },
+        "seasonal_patterns": {
+          "seconds": 0.003779955965001136,
+          "suggestion_count": 0,
+          "error": "exceeded 3 consecutive failures"
+        },
+        "temporal_clustering": {
+          "seconds": 0.003308161976747215,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/temporal_clustering.py\n  \u2192 Test this geist: geistfabrik test temporal_clustering <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist temporal_clustering"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00018820201512426138,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 3,
+      "date": "2026-01-26",
+      "apply_seconds": 0.005671134975273162,
+      "processed": 19,
+      "sync_seconds": 0.07518842798890546,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.4410234030219726,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.009453321050386876,
+          "diagnostics": {
+            "documents": 140,
+            "candidates": 215,
+            "decoded": 10,
+            "pruned": 205,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 10,
+          "executor": {
+            "seconds": 0.002064624975901097,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.0036313380114734173,
+          "diagnostics": {
+            "documents": 39,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_documents"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.0001974959741346538,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.002064624975901097,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 0.005921565985772759,
+          "suggestion_count": 0
+        },
+        "attention_shift": {
+          "seconds": 9.917496936395764e-05,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.06017310201423243,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 5.134032107889652e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.7859856598079205e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 0.0037816889816895127,
+          "suggestion_count": 0,
+          "error": "exceeded 3 consecutive failures"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00019398698350414634,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 4,
+      "date": "2026-02-02",
+      "apply_seconds": 0.01006199000403285,
+      "processed": 33,
+      "sync_seconds": 0.11402380099752918,
+      "lexical_sync": {
+        "extracted": 29,
+        "changed": 29
+      },
+      "embedding_seconds": 0.7403543199761771,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.00950930401450023,
+          "diagnostics": {
+            "documents": 143,
+            "candidates": 217,
+            "decoded": 11,
+            "pruned": 206,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 11,
+          "executor": {
+            "seconds": 0.0030658140312880278,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 23
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.005634872999507934,
+          "diagnostics": {
+            "documents": 65,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00020512397168204188,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0030658140312880278,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 0.01036489597754553,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/concept_drift.py\n  \u2192 Test this geist: geistfabrik test concept_drift <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist concept_drift"
+        },
+        "attention_shift": {
+          "seconds": 0.00014702999033033848,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.05770858796313405,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 2.9400107450783253e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.0650255717337132e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 8.689821697771549e-07,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0001374990097247064,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 5,
+      "date": "2026-02-09",
+      "apply_seconds": 0.006167823972646147,
+      "processed": 21,
+      "sync_seconds": 0.07882959500420839,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.5459164179628715,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.010742725047748536,
+          "diagnostics": {
+            "documents": 146,
+            "candidates": 219,
+            "decoded": 19,
+            "pruned": 200,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 12,
+          "executor": {
+            "seconds": 0.002385290979873389,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.00569255102891475,
+          "diagnostics": {
+            "documents": 78,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.0008059990359470248,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.002385290979873389,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 0.01123963698046282,
+          "suggestion_count": 0,
+          "error": "RuntimeError: Vector search backend is closed\n  File: /workspace/geist_fabrik/src/geistfabrik/default_geists/code/concept_drift.py\n  \u2192 Test this geist: geistfabrik test concept_drift <vault>\n  \u2192 Validate syntax: geistfabrik validate --geist concept_drift"
+        },
+        "attention_shift": {
+          "seconds": 0.0005449759773910046,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.05867912102257833,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.129703691229224e-05,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.4320248737931252e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 9.34000127017498e-07,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00016903196228668094,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 6,
+      "date": "2026-02-16",
+      "apply_seconds": 0.005586167972069234,
+      "processed": 22,
+      "sync_seconds": 0.07766584696946666,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.6745196339907125,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.011158365989103913,
+          "diagnostics": {
+            "documents": 149,
+            "candidates": 221,
+            "decoded": 20,
+            "pruned": 201,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 13,
+          "executor": {
+            "seconds": 0.0027167610242031515,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 27
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.0034963469952344894,
+          "diagnostics": {
+            "documents": 91,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00016992498422041535,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0027167610242031515,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 0.020864522026386112,
+          "suggestion_count": 0,
+          "error": "exceeded 3 consecutive failures"
+        },
+        "attention_shift": {
+          "seconds": 0.0005451280158013105,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.07097887503914535,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 2.9520015232264996e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.5709665603935719e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.0030344128608704e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00015559903113171458,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 7,
+      "date": "2026-02-23",
+      "apply_seconds": 0.007160227978602052,
+      "processed": 23,
+      "sync_seconds": 0.09256380400620401,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.6315415770513937,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.011643155012279749,
+          "diagnostics": {
+            "documents": 152,
+            "candidates": 223,
+            "decoded": 21,
+            "pruned": 202,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 14,
+          "executor": {
+            "seconds": 0.002676422009244561,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 16
+          },
+          "planted_findings": []
+        },
+        "observed_additions": {
+          "seconds": 0.004558141983579844,
+          "diagnostics": {
+            "documents": 104,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "cache_hit": false,
+            "reason": "insufficient_bins"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00017084996215999126,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.002676422009244561,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.986017640680075e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0010598599910736084,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.06624784204177558,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.184948582202196e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.4409888535737991e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.1119991540908813e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00020714604761451483,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 8,
+      "date": "2026-03-02",
+      "apply_seconds": 0.010482418991159648,
+      "processed": 37,
+      "sync_seconds": 0.12044833099935204,
+      "lexical_sync": {
+        "extracted": 29,
+        "changed": 29
+      },
+      "embedding_seconds": 0.9848873919690959,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.011204519018065184,
+          "diagnostics": {
+            "documents": 155,
+            "candidates": 226,
+            "decoded": 23,
+            "pruned": 203,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 23,
+          "executor": {
+            "seconds": 0.0025590579607523978,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.104283864823262,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.0967741935483871,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.004834495019167662,
+          "diagnostics": {
+            "documents": 130,
+            "candidates": 75,
+            "decoded": 1,
+            "pruned": 74,
+            "cache_hit": false,
+            "reason": "no_burst"
+          },
+          "finding_count": 0,
+          "executor": {
+            "seconds": 0.00017476198263466358,
+            "status": "success",
+            "suggestion_count": 0,
+            "max_notes": 0
+          },
+          "planted_findings": []
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0025590579607523978,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 4.76703280583024e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0007167509756982327,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.06466069800080732,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.1440285965800285e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.2529781088232994e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 6.67001586407423e-07,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00014585303142666817,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 9,
+      "date": "2026-03-09",
+      "apply_seconds": 0.004791419021785259,
+      "processed": 25,
+      "sync_seconds": 0.08193879696773365,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.7371215849998407,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.013464290997944772,
+          "diagnostics": {
+            "documents": 158,
+            "candidates": 228,
+            "decoded": 30,
+            "pruned": 198,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 30,
+          "executor": {
+            "seconds": 0.0032503289985470474,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 29
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.983086749094237,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.10759493670886076,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.0053070380236022174,
+          "diagnostics": {
+            "documents": 143,
+            "candidates": 76,
+            "decoded": 2,
+            "pruned": 74,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.001357676985207945,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-09",
+              "level": 1,
+              "gain": 14.754739126906797,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.18181818181818182,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0032503289985470474,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.969021003693342e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0006112109986133873,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.06820767599856481,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.096996806561947e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.1599622666835785e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 2.0030420273542404e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00015572999836876988,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 10,
+      "date": "2026-03-16",
+      "apply_seconds": 0.0064498959691263735,
+      "processed": 26,
+      "sync_seconds": 0.08261463098460808,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.7474157869582996,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.01220598298823461,
+          "diagnostics": {
+            "documents": 161,
+            "candidates": 230,
+            "decoded": 31,
+            "pruned": 199,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 32,
+          "executor": {
+            "seconds": 0.002363970037549734,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.8617717294485425,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.11801242236024845,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-16",
+              "level": 1,
+              "gain": 3.7279549766731424,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11801242236024845,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 6
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.005165920010767877,
+          "diagnostics": {
+            "documents": 156,
+            "candidates": 77,
+            "decoded": 2,
+            "pruned": 75,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.0013882549828849733,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-16",
+              "level": 1,
+              "gain": 21.76169363643173,
+              "rate": 0.75,
+              "baseline_rate": 0.25,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.002363970037549734,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.370005965232849e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0005906790029257536,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.06601244199555367,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.1679519452154636e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.3629905879497528e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.2390082702040672e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0001464310334995389,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 11,
+      "date": "2026-03-23",
+      "apply_seconds": 0.004715196031611413,
+      "processed": 27,
+      "sync_seconds": 0.08784945105435327,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.8892696569673717,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.013619361037854105,
+          "diagnostics": {
+            "documents": 164,
+            "candidates": 232,
+            "decoded": 32,
+            "pruned": 200,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 33,
+          "executor": {
+            "seconds": 0.002380435005761683,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.740324663066083,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.12804878048780488,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-23",
+              "level": 1,
+              "gain": 4.90988310237296,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.12804878048780488,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.005014972994104028,
+          "diagnostics": {
+            "documents": 169,
+            "candidates": 78,
+            "decoded": 2,
+            "pruned": 76,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.0014149640337564051,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-23",
+              "level": 1,
+              "gain": 28.402426745389604,
+              "rate": 0.8,
+              "baseline_rate": 0.3076923076923077,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.002380435005761683,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.046953447163105e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.001623557007405907,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.07511114602675661,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.9219739846885204e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.0979711078107357e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.0569929145276546e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0002848890144377947,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 12,
+      "date": "2026-03-30",
+      "apply_seconds": 0.01000100199598819,
+      "processed": 41,
+      "sync_seconds": 0.14189257100224495,
+      "lexical_sync": {
+        "extracted": 29,
+        "changed": 29
+      },
+      "embedding_seconds": 1.5689873889787123,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.01901422702940181,
+          "diagnostics": {
+            "documents": 167,
+            "candidates": 234,
+            "decoded": 34,
+            "pruned": 200,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 34,
+          "executor": {
+            "seconds": 0.004399569006636739,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 26
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.768570272031006,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.12574850299401197,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 4.924005906855421,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.12574850299401197,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.007013506954535842,
+          "diagnostics": {
+            "documents": 195,
+            "candidates": 79,
+            "decoded": 2,
+            "pruned": 77,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.0014611229998990893,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 30.16784678045741,
+              "rate": 0.8,
+              "baseline_rate": 0.26666666666666666,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.004399569006636739,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.176996976137161e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0008546500466763973,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.16482022497802973,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 4.002999048680067e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 2.0649749785661697e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.5780096873641014e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00024976901477202773,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 13,
+      "date": "2026-04-06",
+      "apply_seconds": 0.010734523995779455,
+      "processed": 29,
+      "sync_seconds": 0.17396386398468167,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.1741922149667516,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.033217547985259444,
+          "diagnostics": {
+            "documents": 170,
+            "candidates": 236,
+            "decoded": 35,
+            "pruned": 201,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 35,
+          "executor": {
+            "seconds": 0.005213870026636869,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.795585011072553,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.12352941176470589,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 4.937513276376194,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.12352941176470589,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.009285218955483288,
+          "diagnostics": {
+            "documents": 208,
+            "candidates": 80,
+            "decoded": 3,
+            "pruned": 77,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.0023640270228497684,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 30.772606983711015,
+              "rate": 0.8,
+              "baseline_rate": 0.25,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.005213870026636869,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.1060418374836445e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0007855070289224386,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.12794287502765656,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 4.030007403343916e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.736974809318781e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 2.6980414986610413e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00023639202117919922,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 14,
+      "date": "2026-04-13",
+      "apply_seconds": 0.00981489900732413,
+      "processed": 30,
+      "sync_seconds": 0.15377855900442228,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.4072447280050255,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.025460211967583746,
+          "diagnostics": {
+            "documents": 173,
+            "candidates": 238,
+            "decoded": 36,
+            "pruned": 202,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 36,
+          "executor": {
+            "seconds": 0.004570825025439262,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.82144776611829,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.12138728323699421,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 4.950444653899063,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.12138728323699421,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.008668516005855054,
+          "diagnostics": {
+            "documents": 221,
+            "candidates": 81,
+            "decoded": 3,
+            "pruned": 78,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.002425636979751289,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 31.26323124748803,
+              "rate": 0.8,
+              "baseline_rate": 0.23529411764705882,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.004570825025439262,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.037997081875801e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0007764159818179905,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.14320693700574338,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 4.030007403343916e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.4750403352081776e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.4640390872955322e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00025084998924285173,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 15,
+      "date": "2026-04-20",
+      "apply_seconds": 0.008871825993992388,
+      "processed": 31,
+      "sync_seconds": 0.1600919059710577,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.512349296011962,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.02530836098594591,
+          "diagnostics": {
+            "documents": 176,
+            "candidates": 240,
+            "decoded": 37,
+            "pruned": 203,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 38,
+          "executor": {
+            "seconds": 0.004761151969432831,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.846230811532607,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.11931818181818182,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 4.9628361766062214,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11931818181818182,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.008654609962832183,
+          "diagnostics": {
+            "documents": 234,
+            "candidates": 82,
+            "decoded": 3,
+            "pruned": 79,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.0024196550366468728,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 31.669514313041386,
+              "rate": 0.8,
+              "baseline_rate": 0.2222222222222222,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.004761151969432831,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.366986781358719e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.000840567983686924,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.13173756998730823,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.6390265449881554e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.7890124581754208e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.3390090316534042e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0003298369701951742,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 16,
+      "date": "2026-04-27",
+      "apply_seconds": 0.015831955999601632,
+      "processed": 58,
+      "sync_seconds": 0.27008007501717657,
+      "lexical_sync": {
+        "extracted": 43,
+        "changed": 43
+      },
+      "embedding_seconds": 1.991604881011881,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.02656723401742056,
+          "diagnostics": {
+            "documents": 179,
+            "candidates": 242,
+            "decoded": 37,
+            "pruned": 205,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 39,
+          "executor": {
+            "seconds": 0.0047269799979403615,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 19
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.870000489688553,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.11731843575418995,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 4.974721015684195,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11731843575418995,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.008793222019448876,
+          "diagnostics": {
+            "documents": 274,
+            "candidates": 83,
+            "decoded": 4,
+            "pruned": 79,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.002450969011988491,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 32.574227106430925,
+              "rate": 0.8,
+              "baseline_rate": 0.1897810218978102,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0047269799979403615,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 0.00011759297922253609,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0012828489998355508,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.13554311805637553,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 4.498986527323723e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.6840058378875256e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.1440133675932884e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00045189401134848595,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 17,
+      "date": "2026-05-04",
+      "apply_seconds": 0.008712107024621218,
+      "processed": 33,
+      "sync_seconds": 0.15923787700012326,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.3380744399619289,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.026534322008956224,
+          "diagnostics": {
+            "documents": 182,
+            "candidates": 244,
+            "decoded": 38,
+            "pruned": 206,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 40,
+          "executor": {
+            "seconds": 0.00465685996459797,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.892817808278019,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.11538461538461539,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 4.986129674978928,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11538461538461539,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.012806033017113805,
+          "diagnostics": {
+            "documents": 287,
+            "candidates": 84,
+            "decoded": 17,
+            "pruned": 67,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.002400470955763012,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 32.79236169218156,
+              "rate": 0.8,
+              "baseline_rate": 0.18118466898954705,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.00465685996459797,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.404996383935213e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0007945239776745439,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.12871431099483743,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.8370490074157715e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.494016032665968e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.3909884728491306e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0004397020093165338,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 18,
+      "date": "2026-05-11",
+      "apply_seconds": 0.008612542995251715,
+      "processed": 34,
+      "sync_seconds": 0.15380616101901978,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.2835742429597303,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.027658797975163907,
+          "diagnostics": {
+            "documents": 185,
+            "candidates": 246,
+            "decoded": 39,
+            "pruned": 207,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 41,
+          "executor": {
+            "seconds": 0.005041052005253732,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 21
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.9147389667649595,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.11351351351351352,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 4.997090254222398,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11351351351351352,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.012511857028584927,
+          "diagnostics": {
+            "documents": 300,
+            "candidates": 85,
+            "decoded": 17,
+            "pruned": 68,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.002715364971663803,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 32.98457025896911,
+              "rate": 0.8,
+              "baseline_rate": 0.17333333333333334,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.005041052005253732,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.687012501060963e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0010074449819512665,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.13859298900933936,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.992987331002951e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 3.30101465806365e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.3400567695498466e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0002558479900471866,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 19,
+      "date": "2026-05-18",
+      "apply_seconds": 0.008853022998664528,
+      "processed": 35,
+      "sync_seconds": 0.17174377996707335,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.301752909028437,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.031097623985260725,
+          "diagnostics": {
+            "documents": 188,
+            "candidates": 248,
+            "decoded": 40,
+            "pruned": 208,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 42,
+          "executor": {
+            "seconds": 0.007629981962963939,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 22
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.935815821611939,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.11170212765957446,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 5.007628681645888,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11170212765957446,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.013490064011421055,
+          "diagnostics": {
+            "documents": 313,
+            "candidates": 86,
+            "decoded": 25,
+            "pruned": 61,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.0029238139977678657,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 33.15523336946468,
+              "rate": 0.8,
+              "baseline_rate": 0.16613418530351437,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.007629981962963939,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.977992597967386e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0008851329912431538,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.13744137197500095,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.967026714235544e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.6859848983585835e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.4540273696184158e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00025911902775987983,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 20,
+      "date": "2026-05-25",
+      "apply_seconds": 0.013269446964841336,
+      "processed": 49,
+      "sync_seconds": 0.21607598196715117,
+      "lexical_sync": {
+        "extracted": 29,
+        "changed": 29
+      },
+      "embedding_seconds": 1.594761896005366,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.032051032001618296,
+          "diagnostics": {
+            "documents": 191,
+            "candidates": 250,
+            "decoded": 41,
+            "pruned": 209,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 44,
+          "executor": {
+            "seconds": 0.00706058501964435,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 24
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.956096298440867,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.1099476439790576,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 5.017768920060352,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.1099476439790576,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.014750561967957765,
+          "diagnostics": {
+            "documents": 339,
+            "candidates": 87,
+            "decoded": 17,
+            "pruned": 70,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.0037585769896395504,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 33.44499626811614,
+              "rate": 0.8,
+              "baseline_rate": 0.15339233038348082,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.00706058501964435,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.273970939218998e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0007903900113888085,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.20605254895053804,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 1.8391001503914595e-05,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.5539699234068394e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.1220108717679977e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0006403690204024315,
+          "suggestion_count": 0
+        }
+      }
+    },
+    {
+      "index": 21,
+      "date": "2026-06-01",
+      "apply_seconds": 0.009110592014621943,
+      "processed": 37,
+      "sync_seconds": 0.09067612997023389,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.9997689170413651,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.020282012003008276,
+          "diagnostics": {
+            "documents": 194,
+            "candidates": 252,
+            "decoded": 42,
+            "pruned": 210,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 45,
+          "executor": {
+            "seconds": 0.003213429998140782,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 25
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.975624758067268,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.10824742268041238,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 5.027533149873552,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.10824742268041238,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.010304666007868946,
+          "diagnostics": {
+            "documents": 352,
+            "candidates": 88,
+            "decoded": 17,
+            "pruned": 71,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.00258697202662006,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 33.56905491873131,
+              "rate": 0.8,
+              "baseline_rate": 0.14772727272727273,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.003213429998140782,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.458015948534012e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0012617289903573692,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.07194486499065533,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 2.9570073820650578e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.02602643892169e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 2.368004061281681e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0002362289815209806,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 22,
+      "date": "2026-06-08",
+      "apply_seconds": 0.006174131995067,
+      "processed": 38,
+      "sync_seconds": 0.08835307799745351,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.9956949509796686,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.1825009140302427,
+          "diagnostics": {
+            "documents": 197,
+            "candidates": 255,
+            "decoded": 44,
+            "pruned": 211,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 47,
+          "executor": {
+            "seconds": 0.0038246599724516273,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 46
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 7.994442322328047,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.1065989847715736,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 5.036941932003941,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.1065989847715736,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.322810349998967,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.07614213197969544,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.009536284022033215,
+          "diagnostics": {
+            "documents": 365,
+            "candidates": 90,
+            "decoded": 32,
+            "pruned": 58,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 1,
+          "executor": {
+            "seconds": 0.001596650981809944,
+            "status": "success",
+            "suggestion_count": 1,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 33.681777207290175,
+              "rate": 0.8,
+              "baseline_rate": 0.14246575342465753,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0038246599724516273,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.507958121597767e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0005523089785128832,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.07093986199470237,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.2700481824576855e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.3969838619232178e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 8.780043572187424e-07,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00021399598335847259,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 23,
+      "date": "2026-06-15",
+      "apply_seconds": 0.0071036359877325594,
+      "processed": 39,
+      "sync_seconds": 0.09058021404780447,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.0183952230145223,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.018647378019522876,
+          "diagnostics": {
+            "documents": 200,
+            "candidates": 257,
+            "decoded": 45,
+            "pruned": 212,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 47,
+          "executor": {
+            "seconds": 0.0031157589983195066,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.012587164768982,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.105,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 5.046014353224409,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.105,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.230926431400267,
+              "rate": 0.6190476190476191,
+              "baseline_rate": 0.085,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.010519024974200875,
+          "diagnostics": {
+            "documents": 378,
+            "candidates": 91,
+            "decoded": 33,
+            "pruned": 58,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.002153512032236904,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 33.78465281439487,
+              "rate": 0.8,
+              "baseline_rate": 0.13756613756613756,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-15",
+              "level": 1,
+              "gain": 18.021826694558577,
+              "rate": 1.0,
+              "baseline_rate": 0.06878306878306878,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0031157589983195066,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.379959475249052e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0006991170230321586,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.0745269869803451,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.376975655555725e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.2500095181167126e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.1589727364480495e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00022541399812325835,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 24,
+      "date": "2026-06-22",
+      "apply_seconds": 0.009303885977715254,
+      "processed": 53,
+      "sync_seconds": 0.13154495501657948,
+      "lexical_sync": {
+        "extracted": 29,
+        "changed": 29
+      },
+      "embedding_seconds": 1.3004631089861505,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.017453438020311296,
+          "diagnostics": {
+            "documents": 190,
+            "candidates": 246,
+            "decoded": 41,
+            "pruned": 205,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 35,
+          "executor": {
+            "seconds": 0.003565307008102536,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 50
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.442811115831141,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.11052631578947368,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.657564240310139,
+              "rate": 0.8125,
+              "baseline_rate": 0.1,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-22",
+              "level": 1,
+              "gain": 3.805533976390522,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.1,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 6
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.010117197001818568,
+          "diagnostics": {
+            "documents": 404,
+            "candidates": 92,
+            "decoded": 25,
+            "pruned": 67,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.0020477459765970707,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 33.96562027687251,
+              "rate": 0.8,
+              "baseline_rate": 0.12871287128712872,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-22",
+              "level": 1,
+              "gain": 25.563740403032675,
+              "rate": 0.75,
+              "baseline_rate": 0.09653465346534654,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.003565307008102536,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.409012712538242e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0007129219593480229,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.06755000998964533,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.2479874789714813e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.401000190526247e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.04197533801198e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00021462800214067101,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 25,
+      "date": "2026-06-29",
+      "apply_seconds": 0.006346794019918889,
+      "processed": 41,
+      "sync_seconds": 0.09519712498877198,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.9959154949756339,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.018650087993592024,
+          "diagnostics": {
+            "documents": 193,
+            "candidates": 248,
+            "decoded": 48,
+            "pruned": 200,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 36,
+          "executor": {
+            "seconds": 0.003160483029205352,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.519436951804462,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.10880829015544041,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.620269427283702,
+              "rate": 0.8125,
+              "baseline_rate": 0.10880829015544041,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-29",
+              "level": 1,
+              "gain": 5.024318884485448,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.10880829015544041,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.01309541502268985,
+          "diagnostics": {
+            "documents": 417,
+            "candidates": 93,
+            "decoded": 62,
+            "pruned": 31,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.002052229014225304,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 34.04562926956675,
+              "rate": 0.8,
+              "baseline_rate": 0.12470023980815348,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-06-29",
+              "level": 1,
+              "gain": 34.04562926956675,
+              "rate": 0.8,
+              "baseline_rate": 0.12470023980815348,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": true,
+              "provisional": true,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.003160483029205352,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.534966476261616e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0006265409756451845,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.06973525701323524,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.5599805414676666e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.319043803960085e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.1210213415324688e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00028262101113796234,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 26,
+      "date": "2026-07-06",
+      "apply_seconds": 0.008251042978372425,
+      "processed": 42,
+      "sync_seconds": 0.0872035599895753,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.9797326729749329,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.018248015025164932,
+          "diagnostics": {
+            "documents": 195,
+            "candidates": 249,
+            "decoded": 41,
+            "pruned": 208,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 37,
+          "executor": {
+            "seconds": 0.003608099010307342,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 21
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.56895207927395,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.1076923076923077,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.625061213813009,
+              "rate": 0.8125,
+              "baseline_rate": 0.1076923076923077,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 5.030707933191188,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.1076923076923077,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.013897907978389412,
+          "diagnostics": {
+            "documents": 430,
+            "candidates": 94,
+            "decoded": 62,
+            "pruned": 32,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.0020029949955642223,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 34.11969480382972,
+              "rate": 0.8,
+              "baseline_rate": 0.12093023255813953,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 34.11969480382972,
+              "rate": 0.8,
+              "baseline_rate": 0.12093023255813953,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.003608099010307342,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.4140109568834305e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0005805320106446743,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.07114227098645642,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.1869858503341675e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.260021235793829e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 9.380164556205273e-07,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0002185680205002427,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 27,
+      "date": "2026-07-13",
+      "apply_seconds": 0.006437043019104749,
+      "processed": 43,
+      "sync_seconds": 0.08720503700897098,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 0.9693299040081911,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.018367431999649853,
+          "diagnostics": {
+            "documents": 191,
+            "candidates": 251,
+            "decoded": 43,
+            "pruned": 208,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 38,
+          "executor": {
+            "seconds": 0.0030493289814330637,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.468674727509969,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.1099476439790576,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.61535695396488,
+              "rate": 0.8125,
+              "baseline_rate": 0.1099476439790576,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 5.017768920060352,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.1099476439790576,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.013677791983354837,
+          "diagnostics": {
+            "documents": 443,
+            "candidates": 95,
+            "decoded": 62,
+            "pruned": 33,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.0019334550015628338,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 34.18845650525325,
+              "rate": 0.8,
+              "baseline_rate": 0.11738148984198646,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 34.18845650525325,
+              "rate": 0.8,
+              "baseline_rate": 0.11738148984198646,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.0030493289814330637,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 4.683039151132107e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0007565280538983643,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.07309389999136329,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.0589872039854527e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 9.450013749301434e-07,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 7.500057108700275e-07,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.00020155200036242604,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 28,
+      "date": "2026-07-20",
+      "apply_seconds": 0.011393139022402465,
+      "processed": 57,
+      "sync_seconds": 0.12651656998787075,
+      "lexical_sync": {
+        "extracted": 29,
+        "changed": 29
+      },
+      "embedding_seconds": 1.206398446985986,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.019695213995873928,
+          "diagnostics": {
+            "documents": 187,
+            "candidates": 253,
+            "decoded": 59,
+            "pruned": 194,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 39,
+          "executor": {
+            "seconds": 0.002675037016160786,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 20
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.363215367743816,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.11229946524064172,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.605151209471382,
+              "rate": 0.8125,
+              "baseline_rate": 0.11229946524064172,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 5.004161260735687,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11229946524064172,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.01347492600325495,
+          "diagnostics": {
+            "documents": 469,
+            "candidates": 96,
+            "decoded": 62,
+            "pruned": 34,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.0019556269980967045,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 34.312198102305125,
+              "rate": 0.8,
+              "baseline_rate": 0.11087420042643924,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 34.312198102305125,
+              "rate": 0.8,
+              "baseline_rate": 0.11087420042643924,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.002675037016160786,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 4.8209913074970245e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0005581240402534604,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.08479264000197873,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.0120136216282845e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.2919772416353226e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.0830117389559746e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0002714520087465644,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 29,
+      "date": "2026-07-27",
+      "apply_seconds": 0.0061781349941156805,
+      "processed": 45,
+      "sync_seconds": 0.09356125799240544,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.139285591954831,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.027899403998162597,
+          "diagnostics": {
+            "documents": 183,
+            "candidates": 255,
+            "decoded": 81,
+            "pruned": 174,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 40,
+          "executor": {
+            "seconds": 0.003503252984955907,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.25216100127816,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.11475409836065574,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.594404012716641,
+              "rate": 0.8125,
+              "baseline_rate": 0.11475409836065574,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 4.989831665062699,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11475409836065574,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.014461854996625334,
+          "diagnostics": {
+            "documents": 482,
+            "candidates": 97,
+            "decoded": 62,
+            "pruned": 35,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.0031142350053414702,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 34.36807021923289,
+              "rate": 0.8,
+              "baseline_rate": 0.1078838174273859,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 34.36807021923289,
+              "rate": 0.8,
+              "baseline_rate": 0.1078838174273859,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.003503252984955907,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 5.687004886567593e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0008556419634260237,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.12082757201278582,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 4.008994437754154e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.5799887478351593e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.3479730114340782e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0002147200284525752,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 30,
+      "date": "2026-08-03",
+      "apply_seconds": 0.007363408978562802,
+      "processed": 46,
+      "sync_seconds": 0.16031494399067014,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.25429518497549,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.04411054600495845,
+          "diagnostics": {
+            "documents": 179,
+            "candidates": 257,
+            "decoded": 91,
+            "pruned": 166,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 50,
+          "executor": {
+            "seconds": 0.008959246973972768,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 86
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.135053468594752,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.11731843575418995,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.583071025682763,
+              "rate": 0.8125,
+              "baseline_rate": 0.11731843575418995,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 4.974721015684195,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.11731843575418995,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.02605746901826933,
+          "diagnostics": {
+            "documents": 495,
+            "candidates": 98,
+            "decoded": 62,
+            "pruned": 36,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.0033930219942703843,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 34.420444658340145,
+              "rate": 0.8,
+              "baseline_rate": 0.10505050505050505,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 34.420444658340145,
+              "rate": 0.8,
+              "baseline_rate": 0.10505050505050505,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.008959246973972768,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 6.838992703706026e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0009618100011721253,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.13713236601324752,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.8209836930036545e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.3299868442118168e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.2659584172070026e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0001832260168157518,
+          "suggestion_count": 1
+        }
+      }
+    },
+    {
+      "index": 31,
+      "date": "2026-08-10",
+      "apply_seconds": 0.00898240297101438,
+      "processed": 47,
+      "sync_seconds": 0.16933681000955403,
+      "lexical_sync": {
+        "extracted": 16,
+        "changed": 16
+      },
+      "embedding_seconds": 1.2570516670239158,
+      "lexical": {
+        "dated_cohorts": {
+          "seconds": 0.04655700002331287,
+          "diagnostics": {
+            "documents": 175,
+            "candidates": 255,
+            "decoded": 100,
+            "pruned": 155,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 51,
+          "executor": {
+            "seconds": 0.009347812039777637,
+            "status": "success",
+            "suggestion_count": 3,
+            "max_notes": 79
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2024-10-21",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 10.011383091810714,
+              "rate": 0.40384615384615385,
+              "baseline_rate": 0.12,
+              "history_mode": "dated_cohorts",
+              "gaps": [
+                "2024-11-11",
+                "2024-11-18",
+                "2024-11-25",
+                "2024-12-02",
+                "2024-12-09",
+                "2024-12-16",
+                "2024-12-23",
+                "2024-12-30",
+                "2025-01-06",
+                "2025-01-13",
+                "2025-01-20",
+                "2025-01-27",
+                "2025-02-03",
+                "2025-02-10",
+                "2025-02-17",
+                "2025-02-24",
+                "2025-03-03",
+                "2025-03-10",
+                "2025-03-17",
+                "2025-03-24",
+                "2025-03-31",
+                "2025-04-07",
+                "2025-04-14",
+                "2025-04-21",
+                "2025-04-28",
+                "2025-05-05",
+                "2025-05-12",
+                "2025-05-19",
+                "2025-05-26",
+                "2025-06-02",
+                "2025-06-09",
+                "2025-06-16",
+                "2025-06-23",
+                "2025-06-30",
+                "2025-07-07",
+                "2025-07-14",
+                "2025-07-21",
+                "2025-07-28",
+                "2025-08-04",
+                "2025-08-11",
+                "2025-08-18",
+                "2025-08-25",
+                "2025-09-01",
+                "2025-09-08",
+                "2025-09-15",
+                "2025-09-22",
+                "2025-09-29",
+                "2025-10-06",
+                "2025-10-13",
+                "2025-10-20",
+                "2025-10-27",
+                "2025-11-03",
+                "2025-11-10",
+                "2025-11-17",
+                "2025-11-24",
+                "2025-12-01",
+                "2025-12-08",
+                "2025-12-15",
+                "2025-12-22",
+                "2025-12-29"
+              ],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 21
+            },
+            {
+              "term": "quasar",
+              "start": "2024-10-21",
+              "end": "2024-11-10",
+              "level": 1,
+              "gain": 8.571102924703663,
+              "rate": 0.8125,
+              "baseline_rate": 0.12,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 4.958763547712061,
+              "rate": 0.6666666666666666,
+              "baseline_rate": 0.12,
+              "history_mode": "dated_cohorts",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 8
+            }
+          ]
+        },
+        "observed_additions": {
+          "seconds": 0.02604546200018376,
+          "diagnostics": {
+            "documents": 508,
+            "candidates": 99,
+            "decoded": 62,
+            "pruned": 37,
+            "cache_hit": false,
+            "reason": "burst"
+          },
+          "finding_count": 2,
+          "executor": {
+            "seconds": 0.0033115929691120982,
+            "status": "success",
+            "suggestion_count": 2,
+            "max_notes": 13
+          },
+          "planted_findings": [
+            {
+              "term": "aurora",
+              "start": "2026-03-02",
+              "end": "2026-03-29",
+              "level": 1,
+              "gain": 34.469640278925084,
+              "rate": 0.8,
+              "baseline_rate": 0.10236220472440945,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            },
+            {
+              "term": "quasar",
+              "start": "2026-06-08",
+              "end": "2026-07-05",
+              "level": 1,
+              "gain": 34.469640278925084,
+              "rate": 0.8,
+              "baseline_rate": 0.10236220472440945,
+              "history_mode": "observed_additions",
+              "gaps": [],
+              "left_censored": false,
+              "open": false,
+              "provisional": false,
+              "support_count": 13
+            }
+          ]
+        }
+      },
+      "geists": {
+        "word_burst": {
+          "seconds": 0.009347812039777637,
+          "suggestion_count": 3
+        },
+        "concept_drift": {
+          "seconds": 2.6478024665266275e-05,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test concept_drift <vault>' to debug and re-enable"
+        },
+        "attention_shift": {
+          "seconds": 0.0009830360068008304,
+          "suggestion_count": 0
+        },
+        "temporal_drift": {
+          "seconds": 0.1410737739643082,
+          "suggestion_count": 3
+        },
+        "recent_focus": {
+          "seconds": 3.815977834165096e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test recent_focus <vault>' to debug and re-enable"
+        },
+        "seasonal_patterns": {
+          "seconds": 1.728010829538107e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test seasonal_patterns <vault>' to debug and re-enable"
+        },
+        "temporal_clustering": {
+          "seconds": 1.2859818525612354e-06,
+          "suggestion_count": 0,
+          "error": "disabled after 3 consecutive failures - run 'geistfabrik test temporal_clustering <vault>' to debug and re-enable"
+        },
+        "this_time_last_year": {
+          "seconds": 0.0002722719800658524,
+          "suggestion_count": 1
+        }
+      }
+    }
+  ]
+}

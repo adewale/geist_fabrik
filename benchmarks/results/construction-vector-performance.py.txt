@@ -1,0 +1,38 @@
+"""Bounded shared-kernel cost probe, with equivalent old-library arithmetic."""
+import json
+import subprocess
+import time
+from pathlib import Path
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity as old_cosine
+from threadpoolctl import threadpool_limits
+
+from geistfabrik.vector_math import UnitRows, cosine_matrix
+
+rng = np.random.default_rng(20261017)
+rows = rng.normal(size=(10000, 384)).astype(np.float32)
+queries = rng.normal(size=(20, 384)).astype(np.float32)
+report = {"source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(), "rows": 10000, "dimensions": 384, "queries": 20, "blas_threads": 1, "trials": 5, "note": "Library arithmetic comparison, not a whole-application before/after benchmark."}
+
+def measure(function):
+    function()
+    values = []
+    for _ in range(5):
+        start = time.perf_counter()
+        function()
+        values.append(time.perf_counter() - start)
+    return {"median_seconds": float(np.median(values)), "seconds": values}
+
+with threadpool_limits(limits=1):
+    start = time.perf_counter()
+    directions = UnitRows(rows)
+    report["direction_build_seconds"] = time.perf_counter() - start
+    report["old_library_neighbor_20_queries"] = measure(lambda: [old_cosine(query[None, :], rows) for query in queries])
+    report["canonical_cached_neighbor_20_queries"] = measure(lambda: [UnitRows(query[None, :]).cosine(directions) for query in queries])
+    report["canonical_uncached_neighbor_20_queries"] = measure(lambda: [cosine_matrix(query[None, :], rows) for query in queries])
+    report["old_library_matrix_1000x1000"] = measure(lambda: old_cosine(rows[:1000], rows[1000:2000]))
+    report["canonical_matrix_1000x1000"] = measure(lambda: cosine_matrix(rows[:1000], rows[1000:2000]))
+    assert np.allclose(directions.cosine(UnitRows(queries)), old_cosine(rows, queries), rtol=0, atol=3e-7)
+Path("/workspace/verification-tools/word-burst-construction-vector-performance.json").write_text(json.dumps(report, indent=2) + "\n")
+print(json.dumps(report, indent=2))

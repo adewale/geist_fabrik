@@ -101,6 +101,14 @@ class NoteLinkIndex:
             for note in notes
         )
 
+    def references_allowed(self, targets: Iterable[str], exclude_paths: tuple[str, ...]) -> bool:
+        """Check every matching identity; reject unresolved or excluded references."""
+        for target in targets:
+            paths = self.matching_paths(target)
+            if not paths or any(self.sources[path].startswith(exclude_paths) for path in paths):
+                return False
+        return True
+
     def candidates(self, target: str, source_path: str | None = None) -> frozenset[str]:
         """Return the best matching identities (possibly ambiguous)."""
         target = _strip_alias(target)
@@ -321,3 +329,4 @@ class Suggestion:
     notes: list[str]  # Referenced notes' link_text (must be non-empty to pass filtering)
     geist_id: str  # Identifier of creating geist
     title: str | None = None  # Optional suggested note title
+    evidence_key: str | None = None  # Stable observation identity across wording changes

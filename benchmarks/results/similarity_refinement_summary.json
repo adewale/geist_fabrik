@@ -1,0 +1,799 @@
+{
+  "micro_output_comparison": {
+    "prepare": {
+      "equal": false
+    },
+    "canonical_matrix": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "threshold_matrix": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "ambiguous_threshold": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "paired": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "batch_topk": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "mean": {
+      "equal": true
+    },
+    "mean_decision": {
+      "equal": true
+    },
+    "surprisal": {
+      "equal": true,
+      "digest_equal": true,
+      "changed": 0,
+      "maximum_absolute_difference": 0.0
+    },
+    "threshold_pairs": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "scored_top_pairs": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "text_cache": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "labels": {
+      "equal": true
+    },
+    "filter_pipeline": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "exact_threshold": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "tied_topk": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "unchanged_session": {
+      "equal": false,
+      "digest_equal": true
+    }
+  },
+  "temporal": {
+    "smoke": {
+      "before_file": "refinement-before-smoke.json",
+      "after_file": "refinement-after-smoke.json",
+      "snapshots": 32,
+      "initial_notes": 128,
+      "manifest_equal": true,
+      "before_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "after_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "geists": [
+        {
+          "geist": "word_burst",
+          "before_seconds": 0.5099527449347079,
+          "after_seconds": 0.4546740973601118,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_drift",
+          "before_seconds": 4.588682467117906,
+          "after_seconds": 3.842310866108164,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "attention_shift",
+          "before_seconds": 1.625176258967258,
+          "after_seconds": 0.8140229947166517,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_drift",
+          "before_seconds": 3.7600667137885466,
+          "after_seconds": 3.387460606521927,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "recent_focus",
+          "before_seconds": 0.18072600767482072,
+          "after_seconds": 0.2021555381361395,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "seasonal_patterns",
+          "before_seconds": 0.1548289330676198,
+          "after_seconds": 0.127254237071611,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_clustering",
+          "before_seconds": 0.05220560706220567,
+          "after_seconds": 0.04194737772922963,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "this_time_last_year",
+          "before_seconds": 0.005490908748470247,
+          "after_seconds": 0.005055919871665537,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "density_inversion",
+          "before_seconds": 0.01164742384571582,
+          "after_seconds": 0.014471650822088122,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_cluster",
+          "before_seconds": 0.09526383492629975,
+          "after_seconds": 0.07155184168368578,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "bridge_builder",
+          "before_seconds": 0.36355855455622077,
+          "after_seconds": 0.5407001161947846,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "method_scrambler",
+          "before_seconds": 2.3775127722183242,
+          "after_seconds": 1.2663105020765215,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "surprisal",
+          "before_seconds": 0.36823841370642185,
+          "after_seconds": 0.3083721949951723,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "word_burst:observed_additions",
+          "before_seconds": 0.17188148223794997,
+          "after_seconds": 0.14494589599780738,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        }
+      ],
+      "before": {
+        "embedding_seconds": 36.4115892611444,
+        "context_seconds": 0.21487287257332355,
+        "sync_seconds": 5.203377349418588,
+        "unchanged_sync_seconds": 1.4577337990049273,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 0.4524622348835692,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 11184,
+        "encoder": {
+          "calls": 32,
+          "texts": 708
+        },
+        "peak_rss_mib": 1005.42578125,
+        "text_cache_peak_bytes": 1885944,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "after": {
+        "embedding_seconds": 39.48569426883478,
+        "context_seconds": 0.1637321626767516,
+        "sync_seconds": 5.073295762180351,
+        "unchanged_sync_seconds": 1.4040318096522242,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 0.10367612796835601,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 0,
+        "encoder": {
+          "calls": 32,
+          "texts": 708
+        },
+        "peak_rss_mib": 998.7109375,
+        "text_cache_peak_bytes": 1885944,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "changed_prompts": [],
+      "lexical_findings_equal": true
+    },
+    "standard": {
+      "before_file": "refinement-before-standard.json",
+      "after_file": "refinement-after-standard.json",
+      "snapshots": 32,
+      "initial_notes": 1000,
+      "manifest_equal": true,
+      "before_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "after_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "geists": [
+        {
+          "geist": "word_burst",
+          "before_seconds": 1.403086285223253,
+          "after_seconds": 1.4545996107626706,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_drift",
+          "before_seconds": 12.803802937152795,
+          "after_seconds": 12.367580509744585,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "attention_shift",
+          "before_seconds": 14.36746235715691,
+          "after_seconds": 9.968112624366768,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_drift",
+          "before_seconds": 20.499077953165397,
+          "after_seconds": 17.87183246598579,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "recent_focus",
+          "before_seconds": 0.7827323366655037,
+          "after_seconds": 0.6642982071498409,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "seasonal_patterns",
+          "before_seconds": 0.20833613828290254,
+          "after_seconds": 0.1516923097660765,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_clustering",
+          "before_seconds": 0.48489252070430666,
+          "after_seconds": 0.5935998628847301,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "this_time_last_year",
+          "before_seconds": 0.01045060413889587,
+          "after_seconds": 0.008392823161557317,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "density_inversion",
+          "before_seconds": 0.02823462092783302,
+          "after_seconds": 0.023094696924090385,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_cluster",
+          "before_seconds": 0.15252801461610943,
+          "after_seconds": 0.21348620497155935,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "bridge_builder",
+          "before_seconds": 0.42147550371009856,
+          "after_seconds": 1.3422596470918506,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "method_scrambler",
+          "before_seconds": 3.3144829072989523,
+          "after_seconds": 2.7022725312272087,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "surprisal",
+          "before_seconds": 3.8807714948197827,
+          "after_seconds": 4.012308589066379,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "word_burst:observed_additions",
+          "before_seconds": 0.5857947776094079,
+          "after_seconds": 0.71925784193445,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        }
+      ],
+      "before": {
+        "embedding_seconds": 253.4121262221597,
+        "context_seconds": 1.4369959828909487,
+        "sync_seconds": 31.338109308853745,
+        "unchanged_sync_seconds": 11.668477666098624,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 2.674600226804614,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 74048,
+        "encoder": {
+          "calls": 32,
+          "texts": 5229
+        },
+        "peak_rss_mib": 1083.43359375,
+        "text_cache_peak_bytes": 8388440,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "after": {
+        "embedding_seconds": 238.16254147980362,
+        "context_seconds": 0.8990069237770513,
+        "sync_seconds": 30.562690888997167,
+        "unchanged_sync_seconds": 11.019956296659075,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 0.6580705820815638,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 0,
+        "encoder": {
+          "calls": 32,
+          "texts": 5229
+        },
+        "peak_rss_mib": 1068.3984375,
+        "text_cache_peak_bytes": 8388440,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "changed_prompts": [],
+      "lexical_findings_equal": true
+    },
+    "large": {
+      "before_file": "refinement-before-large.json",
+      "after_file": "refinement-after-large.json",
+      "snapshots": 2,
+      "initial_notes": 10000,
+      "manifest_equal": true,
+      "before_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "after_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "geists": [
+        {
+          "geist": "word_burst",
+          "before_seconds": 0.15443761099595577,
+          "after_seconds": 0.34673352108802646,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "concept_drift",
+          "before_seconds": 0.7769824359565973,
+          "after_seconds": 0.5554349339799955,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "attention_shift",
+          "before_seconds": 0.0003762169508263469,
+          "after_seconds": 0.00038983486592769623,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "temporal_drift",
+          "before_seconds": 9.65946337603964,
+          "after_seconds": 10.284567071939819,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "recent_focus",
+          "before_seconds": 0.21730447001755238,
+          "after_seconds": 0.300160072860308,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "seasonal_patterns",
+          "before_seconds": 0.018855278030969203,
+          "after_seconds": 0.01807249092962593,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "temporal_clustering",
+          "before_seconds": 0.2226412439486012,
+          "after_seconds": 0.26136878086254,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "this_time_last_year",
+          "before_seconds": 0.0019673280185088515,
+          "after_seconds": 0.001678131869994104,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "density_inversion",
+          "before_seconds": 0.0018357610097154975,
+          "after_seconds": 0.0018403849098831415,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "concept_cluster",
+          "before_seconds": 0.019607790047302842,
+          "after_seconds": 0.01866453210823238,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "bridge_builder",
+          "before_seconds": 0.058715170016512275,
+          "after_seconds": 0.051210171077400446,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "method_scrambler",
+          "before_seconds": 0.1430823301197961,
+          "after_seconds": 0.19072936195880175,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "surprisal",
+          "before_seconds": 22.16446384298615,
+          "after_seconds": 14.873111282126047,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "word_burst:observed_additions",
+          "before_seconds": 0.0004928678972646594,
+          "after_seconds": 0.0005734099540859461,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        }
+      ],
+      "before": {
+        "embedding_seconds": 226.17201015911996,
+        "context_seconds": 0.6043612990761176,
+        "sync_seconds": 38.19175886991434,
+        "unchanged_sync_seconds": 5.842433186946437,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 1.7695676250150427,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 40608,
+        "encoder": {
+          "calls": 2,
+          "texts": 11203
+        },
+        "peak_rss_mib": 1287.38671875,
+        "text_cache_peak_bytes": 8388273,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 28,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "after": {
+        "embedding_seconds": 234.94769620907027,
+        "context_seconds": 0.6684080410050228,
+        "sync_seconds": 41.59253806399647,
+        "unchanged_sync_seconds": 5.636227753944695,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 0.8613189539173618,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 0,
+        "encoder": {
+          "calls": 2,
+          "texts": 11203
+        },
+        "peak_rss_mib": 1282.8203125,
+        "text_cache_peak_bytes": 8388273,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 28,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "changed_prompts": [],
+      "lexical_findings_equal": true
+    }
+  },
+  "runtime_source_sha256": {
+    "src/geistfabrik/__init__.py": "1c5c2a26644c65afe0c58ae776176139947d276844db03dd7b979576ad5e7207",
+    "src/geistfabrik/bounded_yaml.py": "4ea56605e734a5c24051e166d5285096397f40fb1ed90728cd9d428aba39d82f",
+    "src/geistfabrik/cli.py": "d66d06a5554958406af6475f1ccf78ca3b801d84167df63b095c5f4b42082f5c",
+    "src/geistfabrik/cluster_labeling.py": "23afd8281670e4203a10bd592037b435b5672a5dff4823fe37756b97ad8c3f6b",
+    "src/geistfabrik/clustering_analysis.py": "5e1ea454eca8dd9a98ab9c07803056d74996d4273f5550227d3dec54475c2944",
+    "src/geistfabrik/commands/__init__.py": "20f64a146c939ec17c911992038e57e519a690275f5380c16263477aaec0ba32",
+    "src/geistfabrik/commands/base.py": "959f4b8e2bc14a24f8dac4962331af561d12473529c4846ce0f798c64f0c5d1e",
+    "src/geistfabrik/commands/batch_runner.py": "42282920c743c428a12c05048da6c1cba0d0b2520a12da213fe0d24256cd44cf",
+    "src/geistfabrik/commands/initialize.py": "4da554c76a4a30657079bab79e146e0e184181c676205391f94b1ac0a66deb59",
+    "src/geistfabrik/commands/invoke.py": "9b91fe9e208e76603d17e1a9f240ffa9afe2a9a27f5d2442ec2ef67d763ec08d",
+    "src/geistfabrik/commands/runner.py": "ef067425d250c72c665aaa0c5b5de687c1b2d4bdf70a83f25729c398b2a62fbc",
+    "src/geistfabrik/commands/stats.py": "b110f0d6c78cf326a0627591d4c7272d23f5306b9db4043b9a1c286e7d3dcffb",
+    "src/geistfabrik/commands/validate.py": "d8cb43fc88b082e0657a07eaecc6e1ab557bc7616e446b20489ee0c03da6aef2",
+    "src/geistfabrik/config.py": "199f9f6c6ad73c15e419c5b5d89c52a296f95f88e058e3a97e91a91dfb2fb315",
+    "src/geistfabrik/config_loader.py": "448e09f04fb9ed4e644c757fadcb2f7439457af94f86776f3969c4f19e27be7f",
+    "src/geistfabrik/content_extraction.py": "65a553ae7bc5897bb21e560f3f8a921288dedbc52c15a214def76926dee1cdae",
+    "src/geistfabrik/date_collection.py": "2ac1779e655ea2164240b85a35dee435cb7811ba9bb4862a67e7e45609b8031e",
+    "src/geistfabrik/default_geists/__init__.py": "09e9698ab517785e4f13264d51c979f6937f4ee397400a01e7fc106636f096e3",
+    "src/geistfabrik/default_geists/code/__init__.py": "c7fb33ba8474cdd7b0b9e017a7e072d64611b76b5ee798d0a49926af5679f4f7",
+    "src/geistfabrik/default_geists/code/assumption_challenger.py": "06694b4e158e0a9cd16758e558eaf2661eb27d78b167e80937d6dfdb3fdb5193",
+    "src/geistfabrik/default_geists/code/attention_shift.py": "48a0809ffd7dd1f247351503814a7368312dee5329b5bddb4adfae0eabd42aa7",
+    "src/geistfabrik/default_geists/code/bridge_builder.py": "9a3760e2d9d2583165f2a057c17184ed435bfebc2d83919ebbd715f73d8648d2",
+    "src/geistfabrik/default_geists/code/bridge_hunter.py": "699362529ca8e9c78b8097741442dc37bb2a868fef6088725c4d7095510efcea",
+    "src/geistfabrik/default_geists/code/claim_harvester.py": "9132f7a5107ed4db2afa37f884b45b648c8fdbab9cbd02d5809d499a117effb9",
+    "src/geistfabrik/default_geists/code/cluster_mirror.py": "fc5acbd2bc9fe2c53e95789879283598fba161708fdb5681243eb02ef5aa474f",
+    "src/geistfabrik/default_geists/code/concept_cluster.py": "6735e0c106a1b8fdd9b36364de7a9c55cafbb781ff3b65a31538e7d035e23190",
+    "src/geistfabrik/default_geists/code/concept_drift.py": "832e120f55b1465c138ad6405eb4288b80febc574d7943131aa5e9e6cb9fdb41",
+    "src/geistfabrik/default_geists/code/convergent_evolution.py": "7718f4da93db501f88c1ca520991a242e6a88cb94698e4a87b3d3c6b4479f6ca",
+    "src/geistfabrik/default_geists/code/creation_burst.py": "bed4fb01fb3d98c1d23428f468ceb339aac644482ff44193104ab2bcab51446f",
+    "src/geistfabrik/default_geists/code/creative_collision.py": "b2c40d9438b0711a1b519276631cd3a6d53d7aaabeea16bcd4531f3a79c26cce",
+    "src/geistfabrik/default_geists/code/cyclical_thinking.py": "92cafd8b74a705a73c9084e60e9d71e80f74be72983340c2cde6143870ef0e41",
+    "src/geistfabrik/default_geists/code/definition_harvester.py": "cfd1f175aa27b7f6f46cf2d557478ae3633d48e6fc46918168982ad1a4a683b1",
+    "src/geistfabrik/default_geists/code/density_inversion.py": "d1dd0b4e3be700dc938a82a348bca38ef748a394e9050ae7a326930bcceaca9c",
+    "src/geistfabrik/default_geists/code/divergent_evolution.py": "c66f51a308a8be558f074d0123ee24823efcda561dc786772f93ea8c82f9024e",
+    "src/geistfabrik/default_geists/code/hidden_hub.py": "d4b455a18f01ba78f3609c3937d61d58eadd89b8a12be4703ced45001929bd4a",
+    "src/geistfabrik/default_geists/code/hypothesis_harvester.py": "b7dcd4e07601a0b22e630de336452bd908a417c94b2ea4ee945db312ff25bd12",
+    "src/geistfabrik/default_geists/code/link_density_analyser.py": "1b0e21746e96ceec1607fe77e9e742a410bb04906e7044d9b2a562113a5cf399",
+    "src/geistfabrik/default_geists/code/metadata_driven_discovery.py": "2e61093bfc28a2e9ee0aff40f7392004a288416348d5adb60da68a83f584f9c7",
+    "src/geistfabrik/default_geists/code/method_scrambler.py": "a44a21ebb73ad84176cd234d8522ad482769687a01d82206da5d0f7390cbd0fb",
+    "src/geistfabrik/default_geists/code/orphan_connector.py": "8df7a5acca2dda741624ecf52a27318026d357dbfee2c332e3cadaec9319e9bd",
+    "src/geistfabrik/default_geists/code/pattern_finder.py": "32417612a50fe2e61d40f9286f54ffc64e8d11c5ab971ac77b1307b8042e4dbd",
+    "src/geistfabrik/default_geists/code/question_generator.py": "08ff6701201c605b2af2b6adc03efa5fc75b82ccc81b2dc2d566e1efe134a410",
+    "src/geistfabrik/default_geists/code/question_harvester.py": "00d3ab93bdc3a7073ac95c6d721b10eed815fb967d105ba526afb2b52543fc98",
+    "src/geistfabrik/default_geists/code/quote_harvester.py": "e28f1180cda42ea5e653b549b889da58dcf491e2d39b0d1eed6c5eac970ec563",
+    "src/geistfabrik/default_geists/code/recent_focus.py": "cc0f075af5c4400b384c8f0fe037583878948fac43e076b4b8b130bca5b27a85",
+    "src/geistfabrik/default_geists/code/scale_shifter.py": "7e66f56410696bc22cccf0c5272c148d06b8cd6b87bc06b28763211c91dd27c8",
+    "src/geistfabrik/default_geists/code/seasonal_patterns.py": "6dba8ff218c7c0300d1f7ce5b8ba8fcf3cbaceb8d34d2fec205d33c32f22bb59",
+    "src/geistfabrik/default_geists/code/self_and_other.py": "e0e7893b564e4e959e0821cfab7814e51acfd453f66403f43e643b1f253b6310",
+    "src/geistfabrik/default_geists/code/sentence_variance.py": "bedaac4fca6bc074194ac603de34827229685fe9331f4f9a9f1c7dd9f544e1d0",
+    "src/geistfabrik/default_geists/code/structure_diversity_checker.py": "84dab45ea2b5b1a94882eab26b934611bfbea4773043afe2c2e2a7249a5155a7",
+    "src/geistfabrik/default_geists/code/stub_expander.py": "e9f71ca36717b588cc2ef5aa7d63270bb83bb7b752f518f0f6cf0abd8b8dd3bb",
+    "src/geistfabrik/default_geists/code/surprisal.py": "f8202fa10d3d29b7f69c762ed754104ea73b35b0f7f7dabbc796c09931383dc5",
+    "src/geistfabrik/default_geists/code/task_archaeology.py": "0c0ad622d36b86a6893c4b334fed07ee3dfac403337c7f75c5e4080ec18c9e0d",
+    "src/geistfabrik/default_geists/code/temporal_clustering.py": "b298eaefc8b003c7d32219c85b7f27e1c368982e994fc99a5f002c7f98d82172",
+    "src/geistfabrik/default_geists/code/temporal_drift.py": "900ef15c952d2ee58b4a0b9ea0a08fc649531d4c74ce53089a482c4691a7b221",
+    "src/geistfabrik/default_geists/code/this_time_last_year.py": "ecd587cb468fc05034d3fbd111d11ba4f856ab9858406c7ab4f9e29b5d659144",
+    "src/geistfabrik/default_geists/code/todo_harvester.py": "034d16d0258c82654b4996e0f4b762e20e310379876d91853655a72203b2b940",
+    "src/geistfabrik/default_geists/code/uncertainty_mapper.py": "7acae7c5ee3d678cce950a4c5bed2c5fe6a5e5a549aeb8218e975f95585d7cdd",
+    "src/geistfabrik/default_geists/code/vocabulary_expansion.py": "46477fc933a061c1dcf0a2f47f68455d7be24fa8b3c0354d41c8b8cf64a6de85",
+    "src/geistfabrik/default_geists/code/voice_absence.py": "5db82b6f1280098b8388f09375989fae21343044b2713ecf0dd5991a54b6f515",
+    "src/geistfabrik/default_geists/code/word_burst.py": "c658581d5c7ad8db0a5e2079a035537a2e53d39bc926502598e2917583fa0855",
+    "src/geistfabrik/default_geists/tracery/__init__.py": "59e6d36d9c296f2ad8e2eca95f5757acabe5afe766d984446bc43142ff4d48a1",
+    "src/geistfabrik/document_rate.py": "68e90198cbebfea489ceab87338135f70dbb9f35938807e7f6aecb9a97619ee4",
+    "src/geistfabrik/embedding_metrics.py": "49db397f826ba056b092591366873e07b97afed7cfdbe8da795fc6c88ff91d3c",
+    "src/geistfabrik/embeddings.py": "2d4df19c6ac5d23c7f424fc2ba7c13203db3b20a549be0686c9da8b0c912d8ff",
+    "src/geistfabrik/evidence_identity.py": "520599fd76556b0fda82de6effab2137f1cc4e32f0f390e89e42d2705d28d34b",
+    "src/geistfabrik/execution_timeout.py": "e107ccfef1733ada0e07b59c4a341f6d4019c8b1372c71c0891bc4e4de75da5d",
+    "src/geistfabrik/filtering.py": "3d795d963357d59a97c4335897238db47172d29cba6b49102a33278c672d7df1",
+    "src/geistfabrik/function_registry.py": "088135ca5935a8300fc49882a3fbb8111f74928ee5319d63b4a456f5282629e6",
+    "src/geistfabrik/geist_executor.py": "05a8ec775111a2a93350c89d89cc9691c26dc98d6d446ecbdf8fbd7d21bb2fd6",
+    "src/geistfabrik/geist_status.py": "63a97b3a687a0c85cfc4c2a1e2e65a44943e16a5db9adba810b6fc5f8689c2c1",
+    "src/geistfabrik/graph_analysis.py": "8e97c9fd231d30fa4cda83661d8132ce4583af587f084e725e8bef926c454550",
+    "src/geistfabrik/journal_writer.py": "956b8e1fd2599989cd7303e4016b75c2278842dbc5432ae1f9fbd18420c49ffc",
+    "src/geistfabrik/lexical_index.py": "3dbdb56ad4c05d262553989d05d637f117fca753776ab512aa36e39a0b975435",
+    "src/geistfabrik/markdown_parser.py": "c1f1dd928584724b260a516622fcefd1c01b9aa1c815f259ed06f8ee4e97eae8",
+    "src/geistfabrik/metadata_system.py": "b08192743aad7e2d1adf3b5897fa113958fa8c80e9a08234d881ffa2f1dd5946",
+    "src/geistfabrik/model_data/__init__.py": "54c5fc6bfa094b88027a15d5f00251eea069723eb351c2fdc20a78f616c6e74c",
+    "src/geistfabrik/models.py": "da4cdbe64b9bdd4c7c6e6bb9b0d1be68b6fd0481acc634cdf7e867cac534e6ab",
+    "src/geistfabrik/path_safety.py": "dfca5b7a5382c178614ec6a2a205b16479a4d8fb71f31c4faf998273d05b31c6",
+    "src/geistfabrik/schema.py": "dca3cec278b627bc0ff0876aecee208769e43752ff150db2314629d532ed01b0",
+    "src/geistfabrik/semantic_vectors.py": "7b54cfb25770b60bcdf8a9697de0ac731f53642daf43eef677376587a6a05589",
+    "src/geistfabrik/session_time.py": "de15e2f1dcbe4e82824da48d7c938d0be39cae153e28958f90bfb9a18b53839b",
+    "src/geistfabrik/similarity_analysis.py": "ecdb9c8f90dff2abaa8f5d88fd8d8a45c1b48d5ec6dea762938fa6a8ae8f9985",
+    "src/geistfabrik/sqlite_transaction.py": "eb6c5e76be05fbd578f4dfcbe2108d769ca11660c4dd171b2de64271067376fd",
+    "src/geistfabrik/stats.py": "95d20f3123d1315ae4ecfab30480b45048a55e610b083e9d50da1aff095db4a0",
+    "src/geistfabrik/stats_formatter.py": "fe10667a6c9982c6438a0ea29f2c9ca41a7339b5212199ed537cd410c3a51254",
+    "src/geistfabrik/suggestion_limits.py": "ef5e75d01126750335b379f630419fd9ec4fcd62416b26697790268795bfc498",
+    "src/geistfabrik/temporal_analysis.py": "6578a5e01f58c6d940cd0c4dcfa93b28f1761823986a5d1d9bcbad3a2837952c",
+    "src/geistfabrik/text_embeddings.py": "ddb94956f96f8daa4d039e607b165f6ca66fb27e71bcf686d736ef75a3060653",
+    "src/geistfabrik/tracery.py": "030450918b0c714647fc08bcb83793ab76e10544c0d76f85dcfe50065907e155",
+    "src/geistfabrik/validator.py": "53f8c5393eb25f389c53323eb2d36c25e7f6c2452d8c0a44d468755c86291e1d",
+    "src/geistfabrik/vault.py": "0c41204a029e7acf806e5a266a6739d958adf631365cbcba7620ec80cb49350d",
+    "src/geistfabrik/vault_context.py": "158da54ca2a6ab8d4c8910ec17b22de476ede8c16a3558b77e1e8543369d2ebf",
+    "src/geistfabrik/vector_math.py": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+    "src/geistfabrik/vector_search.py": "dd515e2cb012848347da7b8c15e0321f7c458de82f4318d819e7da0ad593e397",
+    "src/geistfabrik/voice_analysis.py": "2ed635646ea02948dad2ec17c3edd287bd87745e500c6548d37c86b6f12fff0b",
+    "src/geistfabrik/word_burst.py": "289a3ef74de5fa1ac3f6af995fafeaff30c1e81cb8e2ffe3456e318d1480365f",
+    "src/geistfabrik/word_burst_analysis.py": "9cb77c11a4851f6b1c16495ccd50b88b406371c9dc8e953fbf52f22011c2d871"
+  }
+}

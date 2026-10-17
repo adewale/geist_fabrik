@@ -1,0 +1,529 @@
+{
+  "repository": "adewale/geist_fabrik",
+  "private": false,
+  "base": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+  "head": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+  "scope": "Every before/after changed-file blob and three committed source-context files; unauthenticated public bytes match exact git blobs. No working tree or untracked inputs.",
+  "files": [
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "CHANGELOG.md",
+      "bytes": 67652,
+      "sha256": "2895c8050abfe21e9a51930a3b0b7cd61cc7457ea0ce5cbd3660d6cdc412e182",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "scripts/benchmark_temporal_geists.py",
+      "bytes": 8893,
+      "sha256": "b17979eeb4f7c0be249271b84072b063cfd8e7f14cdedbdee712e3fc4b59398f",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/cluster_labeling.py",
+      "bytes": 21483,
+      "sha256": "c115c1764a29f7533b955fef2f8ce6d39c41fa47d04c4e984915c73d10acbf1e",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/clustering_analysis.py",
+      "bytes": 5856,
+      "sha256": "fd5dd3f5f725773e30c418ac00f5f54609f3b51fc8561814db4d64875fd2b45a",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/default_geists/code/bridge_builder.py",
+      "bytes": 3655,
+      "sha256": "3db1f6f98ae77b9de90623921eca1bbd6408989feda2d70e6d3b3bd8b5afab72",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/default_geists/code/concept_cluster.py",
+      "bytes": 3981,
+      "sha256": "b111e50c87405b095a6686f2d3a3e80f23cc7bbb5567a180b366e583978de6dc",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/default_geists/code/density_inversion.py",
+      "bytes": 4922,
+      "sha256": "12eb6504c020a7eb962a42f2b545d35bd3eff8787c9d15fabeee712736db9229",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/default_geists/code/method_scrambler.py",
+      "bytes": 3296,
+      "sha256": "76fe57f86fe51ef15e82724b8d2f4817ed5d820818a00c1ada72bb92799ef51a",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/default_geists/code/recent_focus.py",
+      "bytes": 3677,
+      "sha256": "1cbb551a72aecb5d3daabe379c19df0b5d9f61adfab26bfc2b3534f2da7ea6ec",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/default_geists/code/seasonal_patterns.py",
+      "bytes": 7972,
+      "sha256": "ef460f3f32359575b5e85dceb20073796d70313fe1e8560b041669368ae66b99",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/default_geists/code/temporal_clustering.py",
+      "bytes": 6136,
+      "sha256": "0a219246ae55410f86d21141f718532711f605384b115c2d3b937555f72bec09",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/embeddings.py",
+      "bytes": 31180,
+      "sha256": "149a8b7057c51df017bb96dbecb62ac1504d022b0769e623818051e4fdd315fd",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/filtering.py",
+      "bytes": 16588,
+      "sha256": "fa8f3b48f5025149e91006cd0cff18e4aa6f46731f733ae792f9e7f074e0f2ba",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/function_registry.py",
+      "bytes": 26743,
+      "sha256": "7ce1710b429c20641566dcaf525e99eb4b8e847eb64071b18dd72b46390f3c6e",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/graph_analysis.py",
+      "bytes": 10800,
+      "sha256": "94391ce5c0c607a7cdea8de9ed9d2fe0db1566d1b6609168c9662bc36b322995",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/vault.py",
+      "bytes": 35573,
+      "sha256": "efbd7415135145b6f8e059fa162935a4ff55da42dd6623921e9a872356a3da12",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/vault_context.py",
+      "bytes": 74936,
+      "sha256": "fecc20cf04f52203443225c59ab11ce0eed18f8882995d6ffdcd3d5836672d31",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/vector_math.py",
+      "bytes": 3287,
+      "sha256": "ace61946ad7b496428521305d97f73a0490f8d33ddf3ff80404df1827bc7b74b",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "src/geistfabrik/vector_search.py",
+      "bytes": 20887,
+      "sha256": "a7a7797db839e08a2e4c2774116e6ccd61963929b50d1451e9ccc1a40b582873",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_density_inversion.py",
+      "bytes": 13325,
+      "sha256": "59002d0f8ba822bc10e19571ddee4d92c1ba9accdc93e9fea51630ecb62a7b09",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_embeddings.py",
+      "bytes": 33557,
+      "sha256": "34ca9d9c9499f9cbd2001d1ddb468b7fbc466438437c7125ef5688655a27d17f",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_filtering.py",
+      "bytes": 12248,
+      "sha256": "93580757ed865b16ab16f0329d5d437a247cbb22ccf61791b0ac7d2ccfbf5e28",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_phase2_batch_loading.py",
+      "bytes": 10933,
+      "sha256": "92d6e9111aa5a8203b4ad5b3647b03f7fb3c417ce53af77c2e66dfb936e73834",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_phase2_return_scores.py",
+      "bytes": 12973,
+      "sha256": "843a4cd27d977a58d14cfe412042f474665d08bfeb0c766023e144dbb7b277dc",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_surprisal_churn.py",
+      "bytes": 20076,
+      "sha256": "b617304ab8ca8b0a4f072b7c396a627bf2f346a1c29e4079e2c53cb51d3ce82f",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_vault_context.py",
+      "bytes": 48250,
+      "sha256": "c754d2178cfe9483f09e04c1c5dd2ecd35e215d55347c14a7c78176be2eeadbb",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_vector_search_backends.py",
+      "bytes": 56398,
+      "sha256": "6f29f12fbaade3e88331c78828275f6117f5aa0b5282e0954f072fe5c5f4fa83",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "32f9d0dba57dff1ebe983de4d894a7bffe443f92",
+      "path": "tests/unit/test_word_burst_integration.py",
+      "bytes": 41725,
+      "sha256": "6f609c356756313a69e8950fe12d471cad395fdd34e3c71d877b289a6a42331f",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "CHANGELOG.md",
+      "bytes": 68236,
+      "sha256": "8bd8e2101fa5c45821429858d76ad0beecd0273983180b3cf146cf321d864d64",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "CLAUDE.md",
+      "bytes": 36260,
+      "sha256": "c69e4264cb2bfe7ad622645b579c3b8412dea2b742d7b385137c1d7e3a92ad5f",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "docs/SIMILARITY_PRIMITIVES.md",
+      "bytes": 8294,
+      "sha256": "2b615e84213fe8c2812ade46a12a7e79913241fe3c22125e31328a4d883d2f89",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "docs/SIMILARITY_PRIMITIVES_BENCHMARK.md",
+      "bytes": 20103,
+      "sha256": "39cfc2b76c62531e839fd6ee683d53aebbfa9cb34331e91e8e848638940500a8",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "docs/SIMILARITY_PRIMITIVES_TEST_AUDIT.md",
+      "bytes": 10428,
+      "sha256": "5504ce46a73046d89be6dd87999e2b720d4a8aee3ea9c9928bb28bff9b7d9eb5",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "scripts/benchmark_similarity_primitives.py",
+      "bytes": 18429,
+      "sha256": "b79383ac1effa285c46972d401568ebde10829d96f359a5345a6bc19b1b72e80",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "scripts/benchmark_temporal_geists.py",
+      "bytes": 12105,
+      "sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/cluster_labeling.py",
+      "bytes": 20618,
+      "sha256": "23afd8281670e4203a10bd592037b435b5672a5dff4823fe37756b97ad8c3f6b",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/clustering_analysis.py",
+      "bytes": 5318,
+      "sha256": "5e1ea454eca8dd9a98ab9c07803056d74996d4273f5550227d3dec54475c2944",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/default_geists/code/bridge_builder.py",
+      "bytes": 3581,
+      "sha256": "9a3760e2d9d2583165f2a057c17184ed435bfebc2d83919ebbd715f73d8648d2",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/default_geists/code/concept_cluster.py",
+      "bytes": 3516,
+      "sha256": "6735e0c106a1b8fdd9b36364de7a9c55cafbb781ff3b65a31538e7d035e23190",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/default_geists/code/density_inversion.py",
+      "bytes": 3957,
+      "sha256": "d1dd0b4e3be700dc938a82a348bca38ef748a394e9050ae7a326930bcceaca9c",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/default_geists/code/method_scrambler.py",
+      "bytes": 3357,
+      "sha256": "a44a21ebb73ad84176cd234d8522ad482769687a01d82206da5d0f7390cbd0fb",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/default_geists/code/recent_focus.py",
+      "bytes": 3677,
+      "sha256": "cc0f075af5c4400b384c8f0fe037583878948fac43e076b4b8b130bca5b27a85",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/default_geists/code/seasonal_patterns.py",
+      "bytes": 7538,
+      "sha256": "6dba8ff218c7c0300d1f7ce5b8ba8fcf3cbaceb8d34d2fec205d33c32f22bb59",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/default_geists/code/temporal_clustering.py",
+      "bytes": 5893,
+      "sha256": "b298eaefc8b003c7d32219c85b7f27e1c368982e994fc99a5f002c7f98d82172",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/embeddings.py",
+      "bytes": 31336,
+      "sha256": "05a1192b7279cf0ee445e4ed55e5de2cbb20f062a925284ca9dad0130c3178ad",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/filtering.py",
+      "bytes": 17115,
+      "sha256": "3d795d963357d59a97c4335897238db47172d29cba6b49102a33278c672d7df1",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/function_registry.py",
+      "bytes": 26258,
+      "sha256": "088135ca5935a8300fc49882a3fbb8111f74928ee5319d63b4a456f5282629e6",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/graph_analysis.py",
+      "bytes": 9738,
+      "sha256": "8e97c9fd231d30fa4cda83661d8132ce4583af587f084e725e8bef926c454550",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/semantic_vectors.py",
+      "bytes": 1472,
+      "sha256": "7b54cfb25770b60bcdf8a9697de0ac731f53642daf43eef677376587a6a05589",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/text_embeddings.py",
+      "bytes": 3742,
+      "sha256": "ddb94956f96f8daa4d039e607b165f6ca66fb27e71bcf686d736ef75a3060653",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/vault.py",
+      "bytes": 36103,
+      "sha256": "0c41204a029e7acf806e5a266a6739d958adf631365cbcba7620ec80cb49350d",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/vault_context.py",
+      "bytes": 75393,
+      "sha256": "517fc8e60c6624fcfc55f7be0de25519d612020a9833119ca265c3e1d3f0048b",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/vector_math.py",
+      "bytes": 21864,
+      "sha256": "9bcb4af9d020a53b64f244f299d66e3919b44df483855ee1e6f41e43e02311ca",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "src/geistfabrik/vector_search.py",
+      "bytes": 23146,
+      "sha256": "0f8ac6e681778b841153912efa4eac1477c684e95f85eba8148c1d59d3990318",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_density_inversion.py",
+      "bytes": 13282,
+      "sha256": "ae8465766b20182906e0004746e8b159d32b4fc48adea0cf625303a57a366633",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_embeddings.py",
+      "bytes": 33756,
+      "sha256": "7974ff394c7830b3454ff5d5e482c72b7bb8767396dd6bc4d772cdd637bc0c73",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_filtering.py",
+      "bytes": 13584,
+      "sha256": "a143934721efcd36d354d9f8ae1c06af26c7b4e51fff0c04934dd187d2e1955b",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_phase2_batch_loading.py",
+      "bytes": 11478,
+      "sha256": "f018d4ed4895e91a3e7c87765400886745a0d2a564f4d808f39e8d4e59f7dadf",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_phase2_return_scores.py",
+      "bytes": 13010,
+      "sha256": "dcb7a604203632d502d083fae594e62e74c0dc59838a3a4d3ab1147a2f8815b6",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_surprisal_churn.py",
+      "bytes": 20715,
+      "sha256": "660958cb73d4720ccbb266d949d359bdfea44e18f95813644fd54b059db9865b",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_text_embeddings.py",
+      "bytes": 3516,
+      "sha256": "768b94351a202275f4061171a3658357b36eea28b8979f52a6ab2744e9aa31b0",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_vault_context.py",
+      "bytes": 48460,
+      "sha256": "ca912b31b92acfc105990f13181170ab1394334512c42fe1b8e8ba508eec899e",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_vector_primitives.py",
+      "bytes": 11302,
+      "sha256": "ecb7daec0bee0148928ae86f89b0295c4216f61bf0d60632c6a8712e3ac38310",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_vector_search_backends.py",
+      "bytes": 58358,
+      "sha256": "5e24b3feb470a3c144ce0877b2f5cb5356a7675c98497b183f0dd3fce6322f17",
+      "authentication_used": false,
+      "matches_git_blob": true
+    },
+    {
+      "commit": "6555d6c547327d6c0abad55a7ab9312670c2d4d9",
+      "path": "tests/unit/test_word_burst_integration.py",
+      "bytes": 41740,
+      "sha256": "c75fe2e8f6250cc20562243f44e230ccd572d65a5d05ab4710a56ac964a02762",
+      "authentication_used": false,
+      "matches_git_blob": true
+    }
+  ]
+}

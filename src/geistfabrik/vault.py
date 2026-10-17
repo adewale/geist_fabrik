@@ -5,13 +5,15 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .config import MAX_NOTE_BYTES, semantic_cache_key
 from .config_loader import GeistFabrikConfig, load_config
 from .date_collection import is_date_collection_note, split_date_collection_note
+from .lexical_index import LexicalIndex
 from .markdown_parser import (
     MarkdownLimitError,
     declared_creation_date,
@@ -108,11 +110,41 @@ class Vault:
         for attempt in range(_SYNC_SNAPSHOT_ATTEMPTS):
             try:
                 with owned_transaction(self.db, "Vault.sync"):
+                    lexical = LexicalIndex(self.db, self.config.lexical_analysis, datetime.now(UTC))
+                    rebuild_lexical = lexical.prepare()
                     md_files = self._discover_markdown_files()
                     processed_count = self._sync_discovered_files(md_files)
+                    self._delete_missing_notes(md_files)
+                    # Timestamp evidence after reading sources, rather than before
+                    # discovery (which could straddle an observation-week boundary).
+                    lexical.observed_at = datetime.now(UTC)
+                    # Process only source rows changed by this sync. A policy upgrade
+                    # reads existing prose once; an unchanged sync reads none.
+                    if self.config.lexical_analysis.enabled:
+                        # A skipped source retains its old core note, but cannot
+                        # establish a fresh lexical observation or policy baseline.
+                        # Virtual entries share their physical source's status.
+                        rows = self.db.execute(
+                            "SELECT n.path, n.title, n.content, n.created, n.modified, "
+                            "n.is_virtual, n.source_file, n.entry_date FROM notes n "
+                            "LEFT JOIN lexical_notes l ON l.path = n.path "
+                            "WHERE NOT EXISTS (SELECT 1 FROM _lexical_unconfirmed_sources u "
+                            "WHERE u.path = n.path OR u.path = n.source_file) "
+                            "AND (? OR l.path IS NULL OR n.source_fingerprint IN "
+                            "(SELECT fingerprint FROM _lexical_changed_sources))",
+                            (rebuild_lexical,),
+                        )
+                        for row in rows:
+                            lexical.sync_note(self._build_note_from_row(row, [], []))
+                    lexical.finish()
+                    # Lexical capture can be expensive. Validate immediately before
+                    # commit so edits during that work roll back and retry everything.
                     if not self._snapshot_is_current(md_files):
                         raise _VaultSnapshotChangedError
-                    self._delete_missing_notes(md_files)
+                    self.last_lexical_stats = {
+                        "extracted": lexical.extracted,
+                        "changed": lexical.changed,
+                    }
                     return processed_count
             except _VaultSnapshotChangedError:
                 if attempt + 1 == _SYNC_SNAPSHOT_ATTEMPTS:
@@ -190,6 +222,15 @@ class Vault:
     def _sync_discovered_files(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> int:
         """Reconcile already-resolved sources inside the owned transaction."""
         processed_count = 0
+        self.db.execute(
+            "CREATE TEMP TABLE IF NOT EXISTS _lexical_changed_sources "
+            "(fingerprint TEXT PRIMARY KEY)"
+        )
+        self.db.execute("DELETE FROM _lexical_changed_sources")
+        self.db.execute(
+            "CREATE TEMP TABLE IF NOT EXISTS _lexical_unconfirmed_sources (path TEXT PRIMARY KEY)"
+        )
+        self.db.execute("DELETE FROM _lexical_unconfirmed_sources")
         for md_file, resolved_file, initial_stat in md_files:
             rel_path = str(md_file.relative_to(self.vault_path))
             file_mtime = initial_stat.st_mtime
@@ -209,6 +250,10 @@ class Vault:
                 continue
 
             # File is new or modified, process it
+            self.db.execute(
+                "INSERT OR IGNORE INTO _lexical_changed_sources VALUES (?)", (source_fingerprint,)
+            )
+            self.db.execute("INSERT INTO _lexical_unconfirmed_sources VALUES (?)", (rel_path,))
             try:
                 with resolved_file.open("rb") as handle:
                     raw_content = handle.read(MAX_NOTE_BYTES + 1)
@@ -307,6 +352,10 @@ class Vault:
 
                 processed_count += 1
 
+            # Confirmation belongs to this source identity, not just its stat
+            # fingerprint: hardlinks may share a fingerprint but parse differently.
+            self.db.execute("DELETE FROM _lexical_unconfirmed_sources WHERE path=?", (rel_path,))
+
         return processed_count
 
     @staticmethod
@@ -353,12 +402,13 @@ class Vault:
         parsers read from inside code or from URL fragments and numbers, and
         (v5) takes ``created`` from frontmatter or a dated file name where the
         note declares one, and (v6) takes ``modified`` from frontmatter
-        ``modified:``/``updated:``; no schema migration is needed.
+        ``modified:``/``updated:``; (v7) preserves virtual-entry indentation.
+        No schema migration is needed.
         """
         settings = json.dumps(self.config.date_collection.to_dict(), sort_keys=True)
         config_digest = hashlib.sha256(settings.encode()).hexdigest()
         stat_key = ":".join(str(value) for value in self._stat_signature(stat))
-        return f"parser-v6:{config_digest}:{stat_key}"
+        return f"parser-v7:{config_digest}:{stat_key}"
 
     def _delete_missing_notes(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> None:
         """Delete notes absent from the validated, writer-owned filesystem view."""
@@ -723,6 +773,16 @@ class Vault:
         """
         if not paths:
             return {}
+
+        # Keep every shared batch consumer within this connection's limit,
+        # including environments that lower SQLite's default variable budget.
+        paths = list(dict.fromkeys(paths))
+        limit = self.db.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER)
+        if len(paths) > limit:
+            combined: dict[str, Note | None] = {}
+            for start in range(0, len(paths), limit):
+                combined.update(self.get_notes_batch(paths[start : start + limit]))
+            return combined
 
         # Query 1: Load all notes at once
         placeholders = ",".join(["?"] * len(paths))

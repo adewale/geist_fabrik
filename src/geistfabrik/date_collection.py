@@ -207,10 +207,12 @@ def split_by_date_headings(content: str, file_path: str | None = None) -> list[D
         # Extract section content (excluding the heading itself)
         # Content starts after the heading line
         section_lines = lines[heading_idx + 1 : end_idx]
-        section_content = "\n".join(section_lines).strip()
+        # Indentation and trailing spaces are Markdown syntax (code and hard
+        # breaks). Trim boundary newlines only, never the first line's spaces.
+        section_content = "\n".join(section_lines).strip("\n")
 
         # Skip empty sections
-        if not section_content:
+        if not section_content.strip():
             logger.debug(f"Skipping empty section for date {entry_date}")
             continue
 

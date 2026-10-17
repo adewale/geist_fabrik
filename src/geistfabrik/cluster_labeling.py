@@ -8,12 +8,11 @@ and stats.py, avoiding circular dependencies while maintaining single source
 of truth for labeling logic.
 """
 
-import hashlib
 import logging
 import re
 import sqlite3
 import weakref
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import date
 from typing import Protocol
 
@@ -30,6 +29,8 @@ from geistfabrik.markdown_parser import (
     markdown_prose_lines,
     parse_frontmatter,
 )
+
+from .text_embeddings import TextEmbeddingCache
 
 logger = logging.getLogger(__name__)
 
@@ -375,34 +376,11 @@ class TextEncoder(Protocol):
         ...
 
 
-# Label-text embeddings, keyed by the SHA-256 of the text, held per encoder
-# (so per model) and dropped with it. Each labelling run keeps exactly the
-# texts it used, so an encoder reused across sessions re-encodes only notes
-# whose label text changed.
-_LABEL_TEXT_EMBEDDINGS: "weakref.WeakKeyDictionary[TextEncoder, dict[str, np.ndarray]]" = (
+# Plugin encoders share the same bounded primitive. EmbeddingComputer already
+# owns its cache, so production labelling uses that cache directly.
+_LABEL_TEXT_EMBEDDINGS: "weakref.WeakKeyDictionary[TextEncoder, TextEmbeddingCache]" = (
     weakref.WeakKeyDictionary()
 )
-
-
-def _text_key(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def _embed_label_texts(
-    computer: TextEncoder, texts: list[str], cache: dict[str, np.ndarray]
-) -> list[np.ndarray]:
-    """Embeddings for texts, encoding only those not already in cache.
-
-    When nothing is cached the encode call is exactly the uncached one
-    (same texts, same order), so cold results are unchanged.
-    """
-    keys = [_text_key(text) for text in texts]
-    missing = [text for text, key in zip(texts, keys) if key not in cache]
-    if missing:
-        encoded = computer.compute_batch_semantic(missing)
-        for text, embedding in zip(missing, encoded):
-            cache[_text_key(text)] = embedding
-    return [cache[key] for key in keys]
 
 
 def label_keybert(
@@ -427,7 +405,7 @@ def label_keybert(
         n_terms: Number of terms to use in final label (after MMR)
         computer: Embedding computer to reuse (the session's, whose model is
             usually loaded already). None creates one, loading the model.
-            Label-text embeddings are cached per computer by content hash.
+            Exact label texts and candidate phrases share a bounded per-computer cache.
         note_vectors: The session's meaning vectors by note path. When given,
             each cluster's centroid is the mean of its notes' vectors, so only
             the candidate phrases are encoded (re-encoding every clustered
@@ -475,11 +453,18 @@ def label_keybert(
             )
             return {cid: f"Cluster {cid}" for cid in clusters.keys()}
 
-    try:
-        text_cache = dict(_LABEL_TEXT_EMBEDDINGS.get(computer, {}))
-        cacheable = True
-    except TypeError:  # an encoder that cannot be weakly referenced
-        text_cache, cacheable = {}, False
+    encode: Callable[[list[str]], np.ndarray]
+    if isinstance(getattr(computer, "text_cache", None), TextEmbeddingCache):
+        encode = computer.compute_batch_semantic
+    else:
+        try:
+            text_cache = _LABEL_TEXT_EMBEDDINGS.setdefault(computer, TextEmbeddingCache())
+        except TypeError:  # Plugin encoders need not support weak references.
+            text_cache = TextEmbeddingCache()
+
+        def encode(texts: list[str]) -> np.ndarray:
+            assert computer is not None
+            return text_cache.encode(texts, computer.compute_batch_semantic)
 
     # Get cluster embeddings to compute centroids
     cluster_embeddings: dict[int, list[np.ndarray]] = {}
@@ -494,7 +479,7 @@ def label_keybert(
             continue
         try:
             # Embed all texts in this cluster (cached ones are not re-encoded)
-            cluster_embeddings[cluster_id] = _embed_label_texts(computer, texts, text_cache)
+            cluster_embeddings[cluster_id] = list(encode(texts))
         except Exception:
             # If embedding fails for this cluster, skip to simple label
             logger.debug(
@@ -503,14 +488,6 @@ def label_keybert(
                 exc_info=True,
             )
             cluster_labels[cluster_id] = f"Cluster {cluster_id}"
-
-    # Keep only this run's texts: bounded by the vault, and a later run
-    # re-encodes exactly the label texts that changed.
-    if cacheable:
-        used = {_text_key(text) for texts in clusters.values() for text in texts}
-        _LABEL_TEXT_EMBEDDINGS[computer] = {
-            key: value for key, value in text_cache.items() if key in used
-        }
 
     # Process each cluster
     for cluster_id, texts in clusters.items():
@@ -548,7 +525,7 @@ def label_keybert(
                 continue
 
             # Embed candidate phrases
-            candidate_embeddings = computer.compute_batch_semantic(candidate_terms)
+            candidate_embeddings = encode(candidate_terms)
 
             # Compute semantic similarity to cluster centroid
             centroid_2d = centroid.reshape(1, -1)

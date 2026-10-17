@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-16",
+  "audited_commit": "36270724f0fd214830dace52aaa98d1385f56caa",
+  "base_commit": "7882ed5bbf4997ee645129fac4d170e201eea4e4",
+  "report": "docs/WORD_BURST_NUMERIC_AUDIT_2026-10-16.md",
+  "scope": "Six independent reviewers; audit notes only. No runtime/test/lock/script changes. Findings remain open.",
+  "reviewers": [
+    "numeric_detector_review",
+    "numeric_history_storage_review",
+    "analysis_render_review",
+    "shared_numeric_types_review",
+    "parser_feature_review",
+    "tests_numeric_review"
+  ],
+  "ci": {
+    "run_id": 38980373837,
+    "conclusion": "success",
+    "jobs": [
+      "test (ubuntu-latest, 3.11)",
+      "test (ubuntu-latest, 3.12)",
+      "test (macos-latest, 3.11)",
+      "package-smoke (3.11)",
+      "package-smoke (3.12)"
+    ]
+  },
+  "confirmed_findings": {
+    "pr_p2": 4,
+    "pr_p3": 2,
+    "pre_existing_p2": 2,
+    "pre_existing_p3": 1,
+    "p0_or_p1": 0
+  },
+  "independent_detector_probe": {
+    "exact_non_degenerate_cases": 1352,
+    "large_non_degenerate_cases": 177,
+    "large_oracle_decimal_digits": 420,
+    "outcome": "No demonstrated numerical defect. Original stdout remains only in session tool transcript; scripts retained without recreating logs."
+  },
+  "probe_sources": [
+    {
+      "file": "word_burst_numeric_audit_exact_probe.py.txt",
+      "sha256": "2ec0e18069bf39988c314bb7319de07cf94b7db79c8576a2eeb6936539083549",
+      "bytes": 2121
+    },
+    {
+      "file": "word_burst_numeric_audit_large_probe.py.txt",
+      "sha256": "b8348b3538721e112f4a22bd86858e5d370b747afe8a34933cbd8b022286fdee",
+      "bytes": 2081
+    },
+    {
+      "file": "word_burst_numeric_audit_shared_probe.py.txt",
+      "sha256": "8ca706e3b95755390808c5b486bb658328798ae5f74f2917b754b356e532cb8a",
+      "bytes": 2859
+    }
+  ],
+  "root_verified_examples": {
+    "tab_reference_terms": [
+      "visible",
+      "secret",
+      "visible secret"
+    ],
+    "unicode_input": "İstanbul orchards",
+    "unicode_terms": [
+      "i",
+      "stanbul",
+      "orchards",
+      "i stanbul",
+      "stanbul orchards"
+    ],
+    "host_timezone_cohorts": {
+      "UTC": "2026-01-04",
+      "Europe/Helsinki": "2026-01-05",
+      "America/Los_Angeles": "2026-01-04"
+    },
+    "shared_scalar_first_similarity": 0.7999996900558131,
+    "shared_batch_first_similarity": 0.8000004148483144,
+    "vocabulary_identical_vectors_dispersion_10": 6.241803163220538e-08,
+    "vocabulary_identical_vectors_dispersion_1000": 7.101269147824496e-06,
+    "vocabulary_float64_dispersion": 0.0,
+    "actual_offline_model_novelty_probe": {
+      "text": "What might orchard experiment number 7 teach us about changing observations?",
+      "self_cosine": 0.9999998807907104,
+      "surviving_exact_repeats_threshold_1": 1,
+      "surviving_exact_repeats_threshold_0_85": 0,
+      "history": "Written through real JournalWriter on 2026-10-14; filtered on 2026-10-16. Model is real bundled CPU inference with offline enabled."
+    }
+  },
+  "canonical_review": "Previously attempted canonical autoreview remains unavailable due authentication; no clean canonical report claimed."
+}

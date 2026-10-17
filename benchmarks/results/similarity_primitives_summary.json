@@ -1,0 +1,1230 @@
+{
+  "micro_output_comparison": {
+    "prepare": {
+      "equal": false
+    },
+    "canonical_matrix": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "threshold_matrix": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "ambiguous_threshold": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "paired": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "batch_topk": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "mean": {
+      "equal": true
+    },
+    "mean_decision": {
+      "equal": true
+    },
+    "surprisal": {
+      "equal": false,
+      "digest_equal": false,
+      "changed": 599,
+      "maximum_absolute_difference": 4.440892098500626e-16
+    },
+    "threshold_pairs": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "scored_top_pairs": {
+      "equal": true,
+      "digest_equal": true
+    },
+    "text_cache": {
+      "equal": false,
+      "digest_equal": true
+    },
+    "labels": {
+      "equal": false
+    },
+    "filter_pipeline": {
+      "equal": false,
+      "digest_equal": true
+    }
+  },
+  "temporal": {
+    "smoke": {
+      "before_file": "primitives-before-smoke-v2.json",
+      "after_file": "primitives-after-smoke-v3.json",
+      "snapshots": 32,
+      "initial_notes": 128,
+      "manifest_equal": true,
+      "before_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "after_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "geists": [
+        {
+          "geist": "word_burst",
+          "before_seconds": 0.3969738419400528,
+          "after_seconds": 0.43687751155812293,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_drift",
+          "before_seconds": 2.338181860977784,
+          "after_seconds": 3.7106299768202007,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "attention_shift",
+          "before_seconds": 0.4462136758957058,
+          "after_seconds": 0.9736954238032922,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_drift",
+          "before_seconds": 3.1328197853872553,
+          "after_seconds": 3.5112172190565616,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "recent_focus",
+          "before_seconds": 0.3551029278896749,
+          "after_seconds": 0.16708675608970225,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "seasonal_patterns",
+          "before_seconds": 0.10016339528374374,
+          "after_seconds": 0.09440846915822476,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_clustering",
+          "before_seconds": 0.07444862113334239,
+          "after_seconds": 0.04583629278931767,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "this_time_last_year",
+          "before_seconds": 0.004833277547731996,
+          "after_seconds": 0.004876748891547322,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "density_inversion",
+          "before_seconds": 0.12226899969391525,
+          "after_seconds": 0.012670986936427653,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_cluster",
+          "before_seconds": 0.10546078311745077,
+          "after_seconds": 0.07093238329980522,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "bridge_builder",
+          "before_seconds": 0.27677528327330947,
+          "after_seconds": 0.23432684887666255,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "method_scrambler",
+          "before_seconds": 1.0878623659955338,
+          "after_seconds": 1.2349416877841577,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "surprisal",
+          "before_seconds": 0.21281220170203596,
+          "after_seconds": 0.527038867934607,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        }
+      ],
+      "before": {
+        "embedding_seconds": 31.444779225741513,
+        "context_seconds": 0.09949345723725855,
+        "sync_seconds": 3.8175588288577273,
+        "unchanged_sync_seconds": 1.2391477129422128,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 0.36578084202483296,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 11184,
+        "encoder": {
+          "calls": 32,
+          "texts": 733
+        },
+        "peak_rss_mib": 984.67578125,
+        "text_cache_peak_bytes": 0,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "after": {
+        "embedding_seconds": 31.879245643038303,
+        "context_seconds": 0.20579585223458707,
+        "sync_seconds": 5.216843922040425,
+        "unchanged_sync_seconds": 1.39397773204837,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 0.36667594232130796,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 11184,
+        "encoder": {
+          "calls": 32,
+          "texts": 708
+        },
+        "peak_rss_mib": 1014.08203125,
+        "text_cache_peak_bytes": 1885944,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "changed_prompts": [
+        {
+          "index": 12,
+          "geist": "method_scrambler",
+          "before": [
+            {
+              "text": "What if you substituted [[Note 00095|specimendr]] with [[Note 00076|specimency]]?",
+              "notes": [
+                "Note 00095|specimendr",
+                "Note 00076|specimency"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you adapted [[Journal#2026-01-26]] to work like [[Journal#2026-03-23]]?",
+              "notes": [
+                "Journal#2026-01-26",
+                "Journal#2026-03-23"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you combined [[Note 00112|specimenei]] and [[Note 00102|specimendy]] into something new?",
+              "notes": [
+                "Note 00112|specimenei",
+                "Note 00102|specimendy"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            }
+          ],
+          "after": [
+            {
+              "text": "What if you substituted [[Note 00095|specimendr]] with [[Note 00076|specimency]]?",
+              "notes": [
+                "Note 00095|specimendr",
+                "Note 00076|specimency"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you adapted [[Journal#2026-01-19]] to work like [[Journal#2026-03-16]]?",
+              "notes": [
+                "Journal#2026-01-19",
+                "Journal#2026-03-16"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you combined [[Note 00112|specimenei]] and [[Note 00102|specimendy]] into something new?",
+              "notes": [
+                "Note 00112|specimenei",
+                "Note 00102|specimendy"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            }
+          ]
+        },
+        {
+          "index": 13,
+          "geist": "method_scrambler",
+          "before": [
+            {
+              "text": "What if you combined [[Journal#2026-02-02]] and [[Journal#2026-03-30]] into something new?",
+              "notes": [
+                "Journal#2026-02-02",
+                "Journal#2026-03-30"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you substituted [[Note 00114|specimenek]] with [[Note 00105|specimeneb]]?",
+              "notes": [
+                "Note 00114|specimenek",
+                "Note 00105|specimeneb"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you adapted [[Note 00104|specimenea]] to work like [[Note 00112|specimenei]]?",
+              "notes": [
+                "Note 00104|specimenea",
+                "Note 00112|specimenei"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            }
+          ],
+          "after": [
+            {
+              "text": "What if you combined [[Journal#2026-01-26]] and [[Journal#2026-03-23]] into something new?",
+              "notes": [
+                "Journal#2026-01-26",
+                "Journal#2026-03-23"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you substituted [[Note 00114|specimenek]] with [[Note 00105|specimeneb]]?",
+              "notes": [
+                "Note 00114|specimenek",
+                "Note 00105|specimeneb"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            },
+            {
+              "text": "What if you adapted [[Note 00104|specimenea]] to work like [[Note 00112|specimenei]]?",
+              "notes": [
+                "Note 00104|specimenea",
+                "Note 00112|specimenei"
+              ],
+              "geist_id": "method_scrambler",
+              "title": null,
+              "evidence_key": null
+            }
+          ]
+        }
+      ]
+    },
+    "standard": {
+      "before_file": "primitives-before-standard-v2.json",
+      "after_file": "primitives-after-standard-v3.json",
+      "snapshots": 32,
+      "initial_notes": 1000,
+      "manifest_equal": true,
+      "before_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "after_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "geists": [
+        {
+          "geist": "word_burst",
+          "before_seconds": 1.3932867557741702,
+          "after_seconds": 1.3708692310610786,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_drift",
+          "before_seconds": 9.637856554007158,
+          "after_seconds": 11.646404222818092,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "attention_shift",
+          "before_seconds": 5.308774926466867,
+          "after_seconds": 12.898009510943666,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_drift",
+          "before_seconds": 18.99559600360226,
+          "after_seconds": 17.292246909695677,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "recent_focus",
+          "before_seconds": 1.5454846723005176,
+          "after_seconds": 0.6541789043694735,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "seasonal_patterns",
+          "before_seconds": 0.18617950624320656,
+          "after_seconds": 0.18905006477143615,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "temporal_clustering",
+          "before_seconds": 1.1265783810522407,
+          "after_seconds": 0.4034880369435996,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "this_time_last_year",
+          "before_seconds": 0.008765965118072927,
+          "after_seconds": 0.007795794983394444,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "density_inversion",
+          "before_seconds": 0.17232762195635587,
+          "after_seconds": 0.020301090087741613,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "concept_cluster",
+          "before_seconds": 0.2600429968442768,
+          "after_seconds": 0.195938924793154,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "bridge_builder",
+          "before_seconds": 0.48946888418868184,
+          "after_seconds": 0.3635424996027723,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "method_scrambler",
+          "before_seconds": 2.873415340553038,
+          "after_seconds": 2.7778913301881403,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        },
+        {
+          "geist": "surprisal",
+          "before_seconds": 2.9484306628583,
+          "after_seconds": 4.305115231894888,
+          "before_statuses": {
+            "success": 32
+          },
+          "after_statuses": {
+            "success": 32
+          }
+        }
+      ],
+      "before": {
+        "embedding_seconds": 224.39007170451805,
+        "context_seconds": 0.9063167220447212,
+        "sync_seconds": 29.63720748119522,
+        "unchanged_sync_seconds": 12.50164703372866,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 2.712466844590381,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 74048,
+        "encoder": {
+          "calls": 32,
+          "texts": 5254
+        },
+        "peak_rss_mib": 1067.76953125,
+        "text_cache_peak_bytes": 0,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "after": {
+        "embedding_seconds": 215.9590223225532,
+        "context_seconds": 0.8988555907271802,
+        "sync_seconds": 27.84330813609995,
+        "unchanged_sync_seconds": 9.105814595590346,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 1.9399067180929706,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 74048,
+        "encoder": {
+          "calls": 32,
+          "texts": 5229
+        },
+        "peak_rss_mib": 1076.2421875,
+        "text_cache_peak_bytes": 8388440,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 448,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "changed_prompts": []
+    },
+    "large": {
+      "before_file": "primitives-before-large.json",
+      "after_file": "primitives-after-large.json",
+      "snapshots": 2,
+      "initial_notes": 10000,
+      "manifest_equal": true,
+      "before_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "after_harness_sha256": "a4b4035f6ae10ce8aaf187ad469eacc7cf0d39078948343ed7919033f48c2515",
+      "geists": [
+        {
+          "geist": "word_burst",
+          "before_seconds": 0.5048269730759785,
+          "after_seconds": 0.15724984603002667,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "concept_drift",
+          "before_seconds": 0.3646408619824797,
+          "after_seconds": 0.9192179199308157,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "attention_shift",
+          "before_seconds": 0.0007691399659961462,
+          "after_seconds": 0.0004990819143131375,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "temporal_drift",
+          "before_seconds": 10.586143648950383,
+          "after_seconds": 11.711960570071824,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "recent_focus",
+          "before_seconds": 1.4759032749570906,
+          "after_seconds": 0.1879252231447026,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "seasonal_patterns",
+          "before_seconds": 0.016176218981854618,
+          "after_seconds": 0.03706485289148986,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "temporal_clustering",
+          "before_seconds": 0.7124066419200972,
+          "after_seconds": 0.2416373840533197,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "this_time_last_year",
+          "before_seconds": 0.002283927984535694,
+          "after_seconds": 0.0020634119864553213,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "density_inversion",
+          "before_seconds": 0.011797152925282717,
+          "after_seconds": 0.0017078490927815437,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "concept_cluster",
+          "before_seconds": 0.06982060999143869,
+          "after_seconds": 0.025251768995076418,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "bridge_builder",
+          "before_seconds": 0.15801697003189474,
+          "after_seconds": 0.17451703106053174,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "method_scrambler",
+          "before_seconds": 1.1236623980803415,
+          "after_seconds": 0.18734989303629845,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        },
+        {
+          "geist": "surprisal",
+          "before_seconds": 5.204982051975094,
+          "after_seconds": 23.526916568982415,
+          "before_statuses": {
+            "success": 2
+          },
+          "after_statuses": {
+            "success": 2
+          }
+        }
+      ],
+      "before": {
+        "embedding_seconds": 243.8720991120208,
+        "context_seconds": 0.41173271101433784,
+        "sync_seconds": 35.91696619102731,
+        "unchanged_sync_seconds": 5.153092253021896,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 2.356381267076358,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 40608,
+        "encoder": {
+          "calls": 2,
+          "texts": 11203
+        },
+        "peak_rss_mib": 1506.828125,
+        "text_cache_peak_bytes": 0,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 28,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "after": {
+        "embedding_seconds": 236.78488304605708,
+        "context_seconds": 0.6543915079673752,
+        "sync_seconds": 36.728835692978464,
+        "unchanged_sync_seconds": 5.497031743987463,
+        "unchanged_processed": 0,
+        "unchanged_embedding_seconds": 3.0322330630151555,
+        "unchanged_embedding_texts": 0,
+        "unchanged_embedding_db_changes": 40608,
+        "encoder": {
+          "calls": 2,
+          "texts": 11203
+        },
+        "peak_rss_mib": 1284.1640625,
+        "text_cache_peak_bytes": 8388273,
+        "errors": [],
+        "stable_meaning_changes": [],
+        "executor_calls": 28,
+        "unchanged_lexical_extracted": 0,
+        "unchanged_lexical_changed": 0
+      },
+      "changed_prompts": []
+    }
+  },
+  "runtime_source_sha256": {
+    "src/geistfabrik/__init__.py": "1c5c2a26644c65afe0c58ae776176139947d276844db03dd7b979576ad5e7207",
+    "src/geistfabrik/bounded_yaml.py": "4ea56605e734a5c24051e166d5285096397f40fb1ed90728cd9d428aba39d82f",
+    "src/geistfabrik/cli.py": "d66d06a5554958406af6475f1ccf78ca3b801d84167df63b095c5f4b42082f5c",
+    "src/geistfabrik/cluster_labeling.py": "23afd8281670e4203a10bd592037b435b5672a5dff4823fe37756b97ad8c3f6b",
+    "src/geistfabrik/clustering_analysis.py": "5e1ea454eca8dd9a98ab9c07803056d74996d4273f5550227d3dec54475c2944",
+    "src/geistfabrik/commands/__init__.py": "20f64a146c939ec17c911992038e57e519a690275f5380c16263477aaec0ba32",
+    "src/geistfabrik/commands/base.py": "959f4b8e2bc14a24f8dac4962331af561d12473529c4846ce0f798c64f0c5d1e",
+    "src/geistfabrik/commands/batch_runner.py": "42282920c743c428a12c05048da6c1cba0d0b2520a12da213fe0d24256cd44cf",
+    "src/geistfabrik/commands/initialize.py": "4da554c76a4a30657079bab79e146e0e184181c676205391f94b1ac0a66deb59",
+    "src/geistfabrik/commands/invoke.py": "9b91fe9e208e76603d17e1a9f240ffa9afe2a9a27f5d2442ec2ef67d763ec08d",
+    "src/geistfabrik/commands/runner.py": "ef067425d250c72c665aaa0c5b5de687c1b2d4bdf70a83f25729c398b2a62fbc",
+    "src/geistfabrik/commands/stats.py": "b110f0d6c78cf326a0627591d4c7272d23f5306b9db4043b9a1c286e7d3dcffb",
+    "src/geistfabrik/commands/validate.py": "d8cb43fc88b082e0657a07eaecc6e1ab557bc7616e446b20489ee0c03da6aef2",
+    "src/geistfabrik/config.py": "199f9f6c6ad73c15e419c5b5d89c52a296f95f88e058e3a97e91a91dfb2fb315",
+    "src/geistfabrik/config_loader.py": "448e09f04fb9ed4e644c757fadcb2f7439457af94f86776f3969c4f19e27be7f",
+    "src/geistfabrik/content_extraction.py": "65a553ae7bc5897bb21e560f3f8a921288dedbc52c15a214def76926dee1cdae",
+    "src/geistfabrik/date_collection.py": "2ac1779e655ea2164240b85a35dee435cb7811ba9bb4862a67e7e45609b8031e",
+    "src/geistfabrik/default_geists/__init__.py": "09e9698ab517785e4f13264d51c979f6937f4ee397400a01e7fc106636f096e3",
+    "src/geistfabrik/default_geists/code/__init__.py": "c7fb33ba8474cdd7b0b9e017a7e072d64611b76b5ee798d0a49926af5679f4f7",
+    "src/geistfabrik/default_geists/code/assumption_challenger.py": "06694b4e158e0a9cd16758e558eaf2661eb27d78b167e80937d6dfdb3fdb5193",
+    "src/geistfabrik/default_geists/code/attention_shift.py": "48a0809ffd7dd1f247351503814a7368312dee5329b5bddb4adfae0eabd42aa7",
+    "src/geistfabrik/default_geists/code/bridge_builder.py": "9a3760e2d9d2583165f2a057c17184ed435bfebc2d83919ebbd715f73d8648d2",
+    "src/geistfabrik/default_geists/code/bridge_hunter.py": "699362529ca8e9c78b8097741442dc37bb2a868fef6088725c4d7095510efcea",
+    "src/geistfabrik/default_geists/code/claim_harvester.py": "9132f7a5107ed4db2afa37f884b45b648c8fdbab9cbd02d5809d499a117effb9",
+    "src/geistfabrik/default_geists/code/cluster_mirror.py": "fc5acbd2bc9fe2c53e95789879283598fba161708fdb5681243eb02ef5aa474f",
+    "src/geistfabrik/default_geists/code/concept_cluster.py": "6735e0c106a1b8fdd9b36364de7a9c55cafbb781ff3b65a31538e7d035e23190",
+    "src/geistfabrik/default_geists/code/concept_drift.py": "832e120f55b1465c138ad6405eb4288b80febc574d7943131aa5e9e6cb9fdb41",
+    "src/geistfabrik/default_geists/code/convergent_evolution.py": "7718f4da93db501f88c1ca520991a242e6a88cb94698e4a87b3d3c6b4479f6ca",
+    "src/geistfabrik/default_geists/code/creation_burst.py": "bed4fb01fb3d98c1d23428f468ceb339aac644482ff44193104ab2bcab51446f",
+    "src/geistfabrik/default_geists/code/creative_collision.py": "b2c40d9438b0711a1b519276631cd3a6d53d7aaabeea16bcd4531f3a79c26cce",
+    "src/geistfabrik/default_geists/code/cyclical_thinking.py": "92cafd8b74a705a73c9084e60e9d71e80f74be72983340c2cde6143870ef0e41",
+    "src/geistfabrik/default_geists/code/definition_harvester.py": "cfd1f175aa27b7f6f46cf2d557478ae3633d48e6fc46918168982ad1a4a683b1",
+    "src/geistfabrik/default_geists/code/density_inversion.py": "d1dd0b4e3be700dc938a82a348bca38ef748a394e9050ae7a326930bcceaca9c",
+    "src/geistfabrik/default_geists/code/divergent_evolution.py": "c66f51a308a8be558f074d0123ee24823efcda561dc786772f93ea8c82f9024e",
+    "src/geistfabrik/default_geists/code/hidden_hub.py": "d4b455a18f01ba78f3609c3937d61d58eadd89b8a12be4703ced45001929bd4a",
+    "src/geistfabrik/default_geists/code/hypothesis_harvester.py": "b7dcd4e07601a0b22e630de336452bd908a417c94b2ea4ee945db312ff25bd12",
+    "src/geistfabrik/default_geists/code/link_density_analyser.py": "1b0e21746e96ceec1607fe77e9e742a410bb04906e7044d9b2a562113a5cf399",
+    "src/geistfabrik/default_geists/code/metadata_driven_discovery.py": "2e61093bfc28a2e9ee0aff40f7392004a288416348d5adb60da68a83f584f9c7",
+    "src/geistfabrik/default_geists/code/method_scrambler.py": "a44a21ebb73ad84176cd234d8522ad482769687a01d82206da5d0f7390cbd0fb",
+    "src/geistfabrik/default_geists/code/orphan_connector.py": "8df7a5acca2dda741624ecf52a27318026d357dbfee2c332e3cadaec9319e9bd",
+    "src/geistfabrik/default_geists/code/pattern_finder.py": "32417612a50fe2e61d40f9286f54ffc64e8d11c5ab971ac77b1307b8042e4dbd",
+    "src/geistfabrik/default_geists/code/question_generator.py": "08ff6701201c605b2af2b6adc03efa5fc75b82ccc81b2dc2d566e1efe134a410",
+    "src/geistfabrik/default_geists/code/question_harvester.py": "00d3ab93bdc3a7073ac95c6d721b10eed815fb967d105ba526afb2b52543fc98",
+    "src/geistfabrik/default_geists/code/quote_harvester.py": "e28f1180cda42ea5e653b549b889da58dcf491e2d39b0d1eed6c5eac970ec563",
+    "src/geistfabrik/default_geists/code/recent_focus.py": "cc0f075af5c4400b384c8f0fe037583878948fac43e076b4b8b130bca5b27a85",
+    "src/geistfabrik/default_geists/code/scale_shifter.py": "7e66f56410696bc22cccf0c5272c148d06b8cd6b87bc06b28763211c91dd27c8",
+    "src/geistfabrik/default_geists/code/seasonal_patterns.py": "6dba8ff218c7c0300d1f7ce5b8ba8fcf3cbaceb8d34d2fec205d33c32f22bb59",
+    "src/geistfabrik/default_geists/code/self_and_other.py": "e0e7893b564e4e959e0821cfab7814e51acfd453f66403f43e643b1f253b6310",
+    "src/geistfabrik/default_geists/code/sentence_variance.py": "bedaac4fca6bc074194ac603de34827229685fe9331f4f9a9f1c7dd9f544e1d0",
+    "src/geistfabrik/default_geists/code/structure_diversity_checker.py": "84dab45ea2b5b1a94882eab26b934611bfbea4773043afe2c2e2a7249a5155a7",
+    "src/geistfabrik/default_geists/code/stub_expander.py": "e9f71ca36717b588cc2ef5aa7d63270bb83bb7b752f518f0f6cf0abd8b8dd3bb",
+    "src/geistfabrik/default_geists/code/surprisal.py": "f8202fa10d3d29b7f69c762ed754104ea73b35b0f7f7dabbc796c09931383dc5",
+    "src/geistfabrik/default_geists/code/task_archaeology.py": "0c0ad622d36b86a6893c4b334fed07ee3dfac403337c7f75c5e4080ec18c9e0d",
+    "src/geistfabrik/default_geists/code/temporal_clustering.py": "b298eaefc8b003c7d32219c85b7f27e1c368982e994fc99a5f002c7f98d82172",
+    "src/geistfabrik/default_geists/code/temporal_drift.py": "900ef15c952d2ee58b4a0b9ea0a08fc649531d4c74ce53089a482c4691a7b221",
+    "src/geistfabrik/default_geists/code/this_time_last_year.py": "ecd587cb468fc05034d3fbd111d11ba4f856ab9858406c7ab4f9e29b5d659144",
+    "src/geistfabrik/default_geists/code/todo_harvester.py": "034d16d0258c82654b4996e0f4b762e20e310379876d91853655a72203b2b940",
+    "src/geistfabrik/default_geists/code/uncertainty_mapper.py": "7acae7c5ee3d678cce950a4c5bed2c5fe6a5e5a549aeb8218e975f95585d7cdd",
+    "src/geistfabrik/default_geists/code/vocabulary_expansion.py": "46477fc933a061c1dcf0a2f47f68455d7be24fa8b3c0354d41c8b8cf64a6de85",
+    "src/geistfabrik/default_geists/code/voice_absence.py": "5db82b6f1280098b8388f09375989fae21343044b2713ecf0dd5991a54b6f515",
+    "src/geistfabrik/default_geists/code/word_burst.py": "c658581d5c7ad8db0a5e2079a035537a2e53d39bc926502598e2917583fa0855",
+    "src/geistfabrik/default_geists/tracery/__init__.py": "59e6d36d9c296f2ad8e2eca95f5757acabe5afe766d984446bc43142ff4d48a1",
+    "src/geistfabrik/document_rate.py": "68e90198cbebfea489ceab87338135f70dbb9f35938807e7f6aecb9a97619ee4",
+    "src/geistfabrik/embedding_metrics.py": "49db397f826ba056b092591366873e07b97afed7cfdbe8da795fc6c88ff91d3c",
+    "src/geistfabrik/embeddings.py": "05a1192b7279cf0ee445e4ed55e5de2cbb20f062a925284ca9dad0130c3178ad",
+    "src/geistfabrik/evidence_identity.py": "520599fd76556b0fda82de6effab2137f1cc4e32f0f390e89e42d2705d28d34b",
+    "src/geistfabrik/execution_timeout.py": "e107ccfef1733ada0e07b59c4a341f6d4019c8b1372c71c0891bc4e4de75da5d",
+    "src/geistfabrik/filtering.py": "3d795d963357d59a97c4335897238db47172d29cba6b49102a33278c672d7df1",
+    "src/geistfabrik/function_registry.py": "088135ca5935a8300fc49882a3fbb8111f74928ee5319d63b4a456f5282629e6",
+    "src/geistfabrik/geist_executor.py": "05a8ec775111a2a93350c89d89cc9691c26dc98d6d446ecbdf8fbd7d21bb2fd6",
+    "src/geistfabrik/geist_status.py": "63a97b3a687a0c85cfc4c2a1e2e65a44943e16a5db9adba810b6fc5f8689c2c1",
+    "src/geistfabrik/graph_analysis.py": "8e97c9fd231d30fa4cda83661d8132ce4583af587f084e725e8bef926c454550",
+    "src/geistfabrik/journal_writer.py": "956b8e1fd2599989cd7303e4016b75c2278842dbc5432ae1f9fbd18420c49ffc",
+    "src/geistfabrik/lexical_index.py": "3dbdb56ad4c05d262553989d05d637f117fca753776ab512aa36e39a0b975435",
+    "src/geistfabrik/markdown_parser.py": "c1f1dd928584724b260a516622fcefd1c01b9aa1c815f259ed06f8ee4e97eae8",
+    "src/geistfabrik/metadata_system.py": "b08192743aad7e2d1adf3b5897fa113958fa8c80e9a08234d881ffa2f1dd5946",
+    "src/geistfabrik/model_data/__init__.py": "54c5fc6bfa094b88027a15d5f00251eea069723eb351c2fdc20a78f616c6e74c",
+    "src/geistfabrik/models.py": "da4cdbe64b9bdd4c7c6e6bb9b0d1be68b6fd0481acc634cdf7e867cac534e6ab",
+    "src/geistfabrik/path_safety.py": "dfca5b7a5382c178614ec6a2a205b16479a4d8fb71f31c4faf998273d05b31c6",
+    "src/geistfabrik/schema.py": "dca3cec278b627bc0ff0876aecee208769e43752ff150db2314629d532ed01b0",
+    "src/geistfabrik/semantic_vectors.py": "7b54cfb25770b60bcdf8a9697de0ac731f53642daf43eef677376587a6a05589",
+    "src/geistfabrik/session_time.py": "de15e2f1dcbe4e82824da48d7c938d0be39cae153e28958f90bfb9a18b53839b",
+    "src/geistfabrik/similarity_analysis.py": "ecdb9c8f90dff2abaa8f5d88fd8d8a45c1b48d5ec6dea762938fa6a8ae8f9985",
+    "src/geistfabrik/sqlite_transaction.py": "eb6c5e76be05fbd578f4dfcbe2108d769ca11660c4dd171b2de64271067376fd",
+    "src/geistfabrik/stats.py": "95d20f3123d1315ae4ecfab30480b45048a55e610b083e9d50da1aff095db4a0",
+    "src/geistfabrik/stats_formatter.py": "fe10667a6c9982c6438a0ea29f2c9ca41a7339b5212199ed537cd410c3a51254",
+    "src/geistfabrik/suggestion_limits.py": "ef5e75d01126750335b379f630419fd9ec4fcd62416b26697790268795bfc498",
+    "src/geistfabrik/temporal_analysis.py": "6578a5e01f58c6d940cd0c4dcfa93b28f1761823986a5d1d9bcbad3a2837952c",
+    "src/geistfabrik/text_embeddings.py": "ddb94956f96f8daa4d039e607b165f6ca66fb27e71bcf686d736ef75a3060653",
+    "src/geistfabrik/tracery.py": "030450918b0c714647fc08bcb83793ab76e10544c0d76f85dcfe50065907e155",
+    "src/geistfabrik/validator.py": "53f8c5393eb25f389c53323eb2d36c25e7f6c2452d8c0a44d468755c86291e1d",
+    "src/geistfabrik/vault.py": "0c41204a029e7acf806e5a266a6739d958adf631365cbcba7620ec80cb49350d",
+    "src/geistfabrik/vault_context.py": "517fc8e60c6624fcfc55f7be0de25519d612020a9833119ca265c3e1d3f0048b",
+    "src/geistfabrik/vector_math.py": "9bcb4af9d020a53b64f244f299d66e3919b44df483855ee1e6f41e43e02311ca",
+    "src/geistfabrik/vector_search.py": "0f8ac6e681778b841153912efa4eac1477c684e95f85eba8148c1d59d3990318",
+    "src/geistfabrik/voice_analysis.py": "2ed635646ea02948dad2ec17c3edd287bd87745e500c6548d37c86b6f12fff0b",
+    "src/geistfabrik/word_burst.py": "289a3ef74de5fa1ac3f6af995fafeaff30c1e81cb8e2ffe3456e318d1480365f",
+    "src/geistfabrik/word_burst_analysis.py": "9cb77c11a4851f6b1c16495ccd50b88b406371c9dc8e953fbf52f22011c2d871"
+  },
+  "vector_comparison": {
+    "smoke": {
+      "row_pairs": 5263,
+      "changed_rows": 72,
+      "changed_coordinates": 25928,
+      "maximum_absolute_difference": 1.341104507446289e-07,
+      "changed_by_session": {
+        "2026-03-02": 1,
+        "2026-03-09": 1,
+        "2026-03-16": 1,
+        "2026-03-23": 1,
+        "2026-03-30": 3,
+        "2026-04-06": 3,
+        "2026-04-13": 3,
+        "2026-04-20": 3,
+        "2026-04-27": 2,
+        "2026-05-04": 2,
+        "2026-05-11": 2,
+        "2026-05-18": 2,
+        "2026-05-25": 4,
+        "2026-06-01": 4,
+        "2026-06-08": 4,
+        "2026-06-15": 4,
+        "2026-06-22": 5,
+        "2026-06-29": 5,
+        "2026-07-06": 5,
+        "2026-07-13": 5,
+        "2026-07-20": 3,
+        "2026-07-27": 3,
+        "2026-08-03": 3,
+        "2026-08-10": 3
+      },
+      "before_rows": 5263,
+      "after_rows": 5263
+    },
+    "standard": {
+      "row_pairs": 34607,
+      "changed_rows": 154,
+      "changed_coordinates": 56369,
+      "maximum_absolute_difference": 1.6158446669578552e-07,
+      "changed_by_session": {
+        "2026-03-02": 6,
+        "2026-03-09": 2,
+        "2026-03-16": 6,
+        "2026-03-23": 6,
+        "2026-03-30": 2,
+        "2026-04-06": 2,
+        "2026-04-13": 12,
+        "2026-04-20": 2,
+        "2026-04-27": 8,
+        "2026-05-04": 8,
+        "2026-05-11": 8,
+        "2026-05-18": 8,
+        "2026-05-25": 7,
+        "2026-06-01": 7,
+        "2026-06-08": 7,
+        "2026-06-15": 7,
+        "2026-06-22": 7,
+        "2026-06-29": 7,
+        "2026-07-06": 7,
+        "2026-07-13": 7,
+        "2026-07-20": 7,
+        "2026-07-27": 7,
+        "2026-08-03": 7,
+        "2026-08-10": 7
+      },
+      "before_rows": 34607,
+      "after_rows": 34607
+    },
+    "large": {
+      "row_pairs": 20302,
+      "changed_rows": 0,
+      "changed_coordinates": 0,
+      "maximum_absolute_difference": 0.0,
+      "changed_by_session": {},
+      "before_rows": 20302,
+      "after_rows": 20302
+    }
+  },
+  "lexical_controls": {
+    "original": {
+      "before": {
+        "trial": 0,
+        "cold_sync_seconds": 94.95064129389357,
+        "warm_sync_seconds": 3.1618712820345536,
+        "warm_lexical_stats": {
+          "extracted": 0,
+          "changed": 0
+        },
+        "raw_analysis_seconds": 0.02509081200696528,
+        "raw_diagnostics": {
+          "documents": 0,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 0.022592267021536827,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "raw_findings": 0,
+        "synthetic_overlay_seconds": 0.8809861509362236,
+        "analysis_seconds": 25.53425791405607,
+        "diagnostics": {
+          "documents": 10001,
+          "candidates": 28238,
+          "decoded": 52200,
+          "pruned": 4074,
+          "series_reused": 202,
+          "cache_hit": false,
+          "reason": "burst",
+          "collection_seconds": 13.984436884056777,
+          "decoding_seconds": 8.005988041986711,
+          "evidence_seconds": 2.099860603106208
+        },
+        "finding_categories": {
+          "rising_words": 204,
+          "rising_phrases": 1763,
+          "declining_words": 359,
+          "declining_phrases": 1931
+        },
+        "cached_seconds": 0.2663801999296993,
+        "result_sha256": "64e074ab64c581b0e40a54b7c676849b996e4184160ece5872ea868e1e038a50",
+        "executor_seconds": 0.7366659420076758,
+        "executor_status": "success",
+        "largest_episode_support": 2159,
+        "fresh_executor_seconds": 22.60245909402147,
+        "fresh_executor_status": "success",
+        "edit_100_sync_seconds": 6.373223842005245,
+        "edit_lexical_stats": {
+          "extracted": 100,
+          "changed": 100
+        },
+        "dictionary_terms": 43002,
+        "database_bytes": 234872832,
+        "process_peak_rss_kib": 1520300,
+        "source_manifest_sha256": "efb4bc3bda5394a4eeb2b58aa3fd680e800d63c203b3a3af891bf577920a007e",
+        "source_unchanged": true,
+        "files": 10001,
+        "bytes": 46635898
+      },
+      "after": {
+        "trial": 0,
+        "cold_sync_seconds": 102.61306540400255,
+        "warm_sync_seconds": 3.4710479979403317,
+        "warm_lexical_stats": {
+          "extracted": 0,
+          "changed": 0
+        },
+        "raw_analysis_seconds": 0.0241653670091182,
+        "raw_diagnostics": {
+          "documents": 0,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 0.022141979075968266,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "raw_findings": 0,
+        "synthetic_overlay_seconds": 1.0105040509952232,
+        "analysis_seconds": 24.785951290046796,
+        "diagnostics": {
+          "documents": 10001,
+          "candidates": 28238,
+          "decoded": 52200,
+          "pruned": 4074,
+          "series_reused": 202,
+          "cache_hit": false,
+          "reason": "burst",
+          "collection_seconds": 13.653713500010781,
+          "decoding_seconds": 7.752909553935751,
+          "evidence_seconds": 2.2033879311056808
+        },
+        "finding_categories": {
+          "rising_words": 204,
+          "rising_phrases": 1763,
+          "declining_words": 359,
+          "declining_phrases": 1931
+        },
+        "cached_seconds": 0.22838685498572886,
+        "result_sha256": "64e074ab64c581b0e40a54b7c676849b996e4184160ece5872ea868e1e038a50",
+        "executor_seconds": 0.7010966469533741,
+        "executor_status": "success",
+        "largest_episode_support": 2159,
+        "fresh_executor_seconds": 24.77466934802942,
+        "fresh_executor_status": "success",
+        "edit_100_sync_seconds": 4.682211008970626,
+        "edit_lexical_stats": {
+          "extracted": 100,
+          "changed": 100
+        },
+        "dictionary_terms": 43002,
+        "database_bytes": 234872832,
+        "process_peak_rss_kib": 1521604,
+        "source_manifest_sha256": "efb4bc3bda5394a4eeb2b58aa3fd680e800d63c203b3a3af891bf577920a007e",
+        "source_unchanged": true,
+        "files": 10001,
+        "bytes": 46635898
+      }
+    },
+    "kepano": {
+      "before": {
+        "trial": 0,
+        "cold_sync_seconds": 0.0655400570249185,
+        "warm_sync_seconds": 0.004079496953636408,
+        "warm_lexical_stats": {
+          "extracted": 0,
+          "changed": 0
+        },
+        "raw_analysis_seconds": 0.00031377794221043587,
+        "raw_diagnostics": {
+          "documents": 0,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 6.024900358170271e-05,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "raw_findings": 0,
+        "synthetic_overlay_seconds": 0.00040760100819170475,
+        "analysis_seconds": 0.0007132010068744421,
+        "diagnostics": {
+          "documents": 9,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 0.00042248598765581846,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "finding_categories": {
+          "rising_words": 0,
+          "rising_phrases": 0,
+          "declining_words": 0,
+          "declining_phrases": 0
+        },
+        "cached_seconds": 8.273299317806959e-05,
+        "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "executor_seconds": 0.0007647520396858454,
+        "executor_status": "success",
+        "largest_episode_support": 0,
+        "fresh_executor_seconds": 0.00047072500456124544,
+        "fresh_executor_status": "success",
+        "edit_100_sync_seconds": 0.03865440108347684,
+        "edit_lexical_stats": {
+          "extracted": 10,
+          "changed": 10
+        },
+        "dictionary_terms": 461,
+        "database_bytes": 233472,
+        "process_peak_rss_kib": 834856,
+        "source_manifest_sha256": "53b8f8f2e0f9534f143c15055bf0a437420505966711b6a95d3ae753afc2cecf",
+        "source_unchanged": true,
+        "files": 10,
+        "bytes": 3294
+      },
+      "after": {
+        "trial": 0,
+        "cold_sync_seconds": 0.04641784296836704,
+        "warm_sync_seconds": 0.003829162917099893,
+        "warm_lexical_stats": {
+          "extracted": 0,
+          "changed": 0
+        },
+        "raw_analysis_seconds": 0.0004912499571219087,
+        "raw_diagnostics": {
+          "documents": 0,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 8.58129933476448e-05,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "raw_findings": 0,
+        "synthetic_overlay_seconds": 0.0005801250226795673,
+        "analysis_seconds": 0.0005607849452644587,
+        "diagnostics": {
+          "documents": 9,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 0.00035475404001772404,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "finding_categories": {
+          "rising_words": 0,
+          "rising_phrases": 0,
+          "declining_words": 0,
+          "declining_phrases": 0
+        },
+        "cached_seconds": 6.71029556542635e-05,
+        "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "executor_seconds": 0.00032374891452491283,
+        "executor_status": "success",
+        "largest_episode_support": 0,
+        "fresh_executor_seconds": 0.00045105908066034317,
+        "fresh_executor_status": "success",
+        "edit_100_sync_seconds": 0.07772303698584437,
+        "edit_lexical_stats": {
+          "extracted": 10,
+          "changed": 10
+        },
+        "dictionary_terms": 461,
+        "database_bytes": 233472,
+        "process_peak_rss_kib": 831692,
+        "source_manifest_sha256": "53b8f8f2e0f9534f143c15055bf0a437420505966711b6a95d3ae753afc2cecf",
+        "source_unchanged": true,
+        "files": 10,
+        "bytes": 3294
+      }
+    }
+  },
+  "original_inventory": {
+    "source_root": "/workspace/benchmark-corpora/10000-markdown-files/10000 markdown files",
+    "files": 10000,
+    "bytes": 46635807,
+    "source_manifest_sha256": "d361aa39ae4c4db4bad9adc96bb22be50db77d21fec36543bf149b6bf6c8235a",
+    "extra_file": "../README.md",
+    "extra_bytes": 91,
+    "matches_previous_10000_manifest": true
+  }
+}

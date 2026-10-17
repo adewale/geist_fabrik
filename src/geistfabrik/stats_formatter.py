@@ -180,9 +180,7 @@ class StatsFormatter:
                 )
             lines.append(f"  Average interval: {sessions['average_interval_days']:.1f} days")
             lines.append(f"  Total suggestions: {sessions['total_suggestions']}")
-            lines.append(
-                f"  Sessions with suggestions: {sessions.get('suggestion_sessions', 0)}"
-            )
+            lines.append(f"  Sessions with suggestions: {sessions.get('suggestion_sessions', 0)}")
             lines.append(
                 "  Average per session with suggestions: "
                 f"{sessions['average_suggestions_per_session']:.1f}"

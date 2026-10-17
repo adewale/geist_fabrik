@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-16",
+  "source_commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+  "base_commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+  "scope": "Only published text changes plus four frozen committed context files; working tree, untracked files and binary benchmark evidence excluded.",
+  "helper": "Canonical unmodified openclaw/agent-skills autoreview",
+  "initial_rejection": "Automatic approval review rejected possible private-source/instruction transmission. No review command executed.",
+  "resolved_approval_concern": "Repository is public. All 26 before/after changed-file and context blobs matched unauthenticated raw GitHub copies byte for byte. The same command was then accepted and ran.",
+  "public_proof": {
+    "file": "word_burst_audit_fixes_public_review_proof.json",
+    "sha256": "e0b378e27450216f4a3d5fb4f708a5443c858455ce594af0f75ad8af8078892d",
+    "verified_blobs": 26,
+    "authentication_used": false
+  },
+  "helper_outcome": {
+    "schema_version": 1,
+    "status": "reviewer_unavailable",
+    "exit_code": 1,
+    "engine": "codex",
+    "report_produced": false,
+    "reason": "engine_failed",
+    "reviewer_exit_code": 1,
+    "timed_out": false,
+    "usage": {
+      "attempts": 1,
+      "reported_attempts": 0,
+      "unknown_attempts": 1,
+      "partial_attempts": 0,
+      "complete": false,
+      "tokens": null
+    }
+  },
+  "failure": "codex engine failed: authentication; authentication diagnostics suppressed",
+  "prepared_change_bytes": 66173,
+  "review_passes": 1,
+  "independent_review": {
+    "scope": "Two separate production-only reviews, without tests/results access",
+    "numeric": "No remaining correctness issue after exact-log recurrence and aggregate score review; 163 independently enumerated exact rational-product cases.",
+    "extraction": "All directed reference/footnote, quote/code, CR/NUL and wikilink boundary probes passed; no remaining actionable issue found."
+  },
+  "disposition": "Existing PR remains draft. No clean canonical review is claimed; authentication remains unavailable."
+}

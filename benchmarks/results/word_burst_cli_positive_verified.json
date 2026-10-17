@@ -1,0 +1,19 @@
+{
+  "synthetic": true,
+  "profile": "smoke",
+  "offline_required": true,
+  "command": [
+    ".venv/bin/geistfabrik",
+    "invoke",
+    "/workspace/post-review-replays/smoke-final",
+    "--geist",
+    "word_burst",
+    "--date",
+    "2026-08-10",
+    "--full"
+  ],
+  "exit_code": 0,
+  "stdout": "Loading vault: /workspace/post-review-replays/smoke-final\nSynced 0 notes\n\n============================================================\nGeistFabrik Configuration Audit\n============================================================\nVault: /workspace/post-review-replays/smoke-final\nGeists directory: /workspace/post-review-replays/smoke-final/_geistfabrik/geists\nLoaded geists: 45\n  - Code geists: 42 (42 enabled)\n  - Tracery geists: 3 (3 enabled)\nFiltering: ENABLED (4-stage pipeline)\nSampling: DISABLED (--full or --no-filter)\nMode: Filtered output\n============================================================\n\nExecuting 1 geist...\nExecution summary:\n  - Code geists: 1 produced output, 0 healthy empty, 0 failed, 0 skipped, 0 unknown\nGenerated 3 raw suggestions\nFiltered to 1 suggestions\nSelected 1 final suggestions\n\n================================================================================\nGeistFabrik Session - 2026-08-10\n================================================================================\n\n## word_burst\nFrom 2024-10-21 to 2024-11-10, \u2018specimenbb\u2019 appeared in 81% of observations, compared with 7% across the window, using current text grouped by declared dates. What connects [[Note 00102|specimendy]], [[Note 00103|specimendz]], [[Note 00104|specimenea]], and what question was this language opening up?\n_Notes: [[Note 00102|specimendy]], [[Note 00103|specimendz]], [[Note 00104|specimenea]], [[Note 00105|specimeneb]], [[Note 00106|specimenec]], [[Note 00107|specimened]], [[Note 00108|specimenee]], [[Note 00109|specimenef]], [[Note 00110|specimeneg]], [[Note 00111|specimeneh]], [[Note 00112|specimenei]], [[Note 00113|specimenej]], [[Note 00114|specimenek]]_\n\n================================================================================\nTotal: 1 suggestions\n================================================================================\n\n",
+  "stderr": "",
+  "source_unchanged": true
+}

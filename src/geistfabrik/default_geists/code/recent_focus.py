@@ -51,10 +51,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     suggestions = []
     # Sample, don't rank: any recent note can be the starting point, not only
     # the few most recently modified.
-    for recent_note in vault.sample(recent, MAX_SUGGESTIONS):
+    sampled = vault.sample(recent, MAX_SUGGESTIONS)
+    for recent_note, similar in zip(sampled, vault.neighbours_many(sampled, count=10)):
         # Nearest neighbours come back even when nothing is close; the
         # suggestion claims similarity, so require at least a weak match.
-        similar = vault.neighbours(recent_note, count=10, return_scores=True)
         older = [
             note
             for note, score in similar

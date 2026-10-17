@@ -7,19 +7,48 @@ allowing users to choose between in-memory and sqlite-vec implementations.
 import re
 import sqlite3
 from abc import ABC, abstractmethod
+from collections.abc import Iterator, Mapping, MutableMapping, Sequence
 from importlib import import_module
 from itertools import count
 
 import numpy as np
-from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-    cosine_similarity as sklearn_cosine,
-)
 
 from .config import SEMANTIC_DIM
 from .semantic_vectors import decode_meaning_vector, meaning_blob, meaning_vector
 from .sqlite_transaction import owned_transaction
+from .vector_math import UnitRows
 
 _VEC_TABLE_COUNTER = count()
+
+
+class _EmbeddingMap(MutableMapping[str, np.ndarray]):
+    """Versioned input store; values have immutable bytes and disposable metadata."""
+
+    def __init__(self, values: Mapping[str, np.ndarray]) -> None:
+        self._data: dict[str, tuple[bytes, np.dtype, int]] = {}
+        self.generation = 0
+        self.update(values)
+
+    def __getitem__(self, key: str) -> np.ndarray:
+        blob, dtype, width = self._data[key]
+        return np.frombuffer(blob, dtype=dtype, count=width)
+
+    def __setitem__(self, key: str, value: np.ndarray) -> None:
+        array = np.asarray(meaning_vector(value))
+        if array.ndim != 1 or not np.isfinite(array).all():
+            raise ValueError("embedding rows must be finite vectors")
+        self._data[key] = array.tobytes(), array.dtype, array.size
+        self.generation += 1
+
+    def __delitem__(self, key: str) -> None:
+        del self._data[key]
+        self.generation += 1
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
 
 
 class VectorSearchBackend(ABC):
@@ -31,6 +60,16 @@ class VectorSearchBackend(ABC):
     def closed(self) -> bool:
         """Whether this backend has released its loaded projection."""
         return self._closed
+
+    @property
+    def projection_token(self) -> tuple[int, ...] | None:
+        """Immutable loaded-state marker; None opts out of projection reuse.
+
+        Successful loads and public mutations change the marker. Rebuilding a
+        derived matrix does not erase source mutations. Tokens are opaque to
+        consumers and meaningful only for this backend instance.
+        """
+        return None
 
     def _ensure_open(self) -> None:
         if self.closed:
@@ -62,6 +101,15 @@ class VectorSearchBackend(ABC):
             List of (note_path, similarity_score) tuples, sorted descending
         """
         pass
+
+    def find_similar_batch(
+        self, queries: np.ndarray, count: int = 10
+    ) -> list[list[tuple[str, float]]]:
+        """Batch retrieval interface; native backends may keep their own query engine."""
+        self._ensure_open()
+        if np.asarray(queries).ndim != 2:
+            raise ValueError("query batches must have two dimensions")
+        return [self.find_similar(query, count=count) for query in queries]
 
     @abstractmethod
     def get_similarity(self, path_a: str, path_b: str) -> float:
@@ -96,16 +144,11 @@ class VectorSearchBackend(ABC):
 
 
 class InMemoryVectorBackend(VectorSearchBackend):
-    """In-memory vector search using Python cosine similarity.
+    """Exact cosine search over immutable raw rows and prepared directions.
 
-    This is the current implementation, now encapsulated
-    in the backend interface.
-
-    Characteristics:
-    - Fast for small-medium vaults (100-1000 notes)
-    - Loads all embeddings into memory
-    - Pure Python, no external dependencies
-    - Memory usage: ~50 bytes per dimension per note
+    NumPy supplies blocked BLAS estimates and canonical refinement. Persisted
+    float32 rows coexist with float64 directions and compact identity metadata;
+    score tiles have a separate temporary-memory budget.
     """
 
     def __init__(self, db: sqlite3.Connection):
@@ -115,33 +158,68 @@ class InMemoryVectorBackend(VectorSearchBackend):
             db: SQLite database connection
         """
         self.db = db
-        self.embeddings: dict[str, np.ndarray] = {}
         self.session_id: int = 0
         # Cached stacked matrix + parallel path index for vectorised search.
         # Rebuilt whenever embeddings change (see _rebuild_matrix).
         self._paths: list[str] = []
-        self._matrix: np.ndarray | None = None
+        self._directions: UnitRows | None = None
+        self._row_index: dict[str, int] = {}
+        self._matrix_generation = -1
+        self._map_revision = 0
+        self.embeddings = {}
+
+    @property
+    def projection_token(self) -> tuple[int, ...]:
+        return self.session_id, self._map_revision, self._embeddings.generation
+
+    @property
+    def embeddings(self) -> MutableMapping[str, np.ndarray]:
+        return self._embeddings
+
+    @embeddings.setter
+    def embeddings(self, values: Mapping[str, np.ndarray]) -> None:
+        self._embeddings = _EmbeddingMap(values)
+        self._map_revision += 1
+        self._matrix_generation = -1
 
     def close(self) -> None:
         """Release loaded arrays; the shared database connection remains open."""
         self.embeddings = {}
         self._paths = []
-        self._matrix = None
+        self._directions = None
+        self._row_index = {}
         self.session_id = 0
         super().close()
 
     def _rebuild_matrix(self) -> None:
-        """Rebuild the cached embedding matrix and path index from self.embeddings.
-
-        Stacking all embeddings into a single (N, dim) matrix once lets
-        find_similar() compute every cosine similarity in a single vectorised
-        operation instead of an O(N) Python loop of per-pair calls.
-        """
+        """Prepare validated directions and path lookup once per mutation generation."""
         self._paths = list(self.embeddings.keys())
         if self._paths:
-            self._matrix = np.vstack([self.embeddings[p] for p in self._paths])
+            matrix = np.vstack([self.embeddings[p] for p in self._paths])
+            # A prepared zero sentinel represents absent notes without ever
+            # normalizing the whole snapshot again when a caller has a miss.
+            self._directions = UnitRows(
+                np.vstack([matrix, np.zeros((1, matrix.shape[1]), dtype=matrix.dtype)])
+            )
+            self._row_index = {path: i for i, path in enumerate(self._paths)}
         else:
-            self._matrix = None
+            self._directions = None
+            self._row_index = {}
+        self._matrix_generation = self._embeddings.generation
+
+    def prepared_rows(self, paths: Sequence[str]) -> UnitRows:
+        """Reuse validated snapshot directions; absent paths are exact zero rows."""
+        self._ensure_open()
+        if self._matrix_generation != self._embeddings.generation:
+            self._rebuild_matrix()
+        if self._directions is None:
+            return UnitRows(np.zeros((len(paths), SEMANTIC_DIM)))
+        indices = [self._row_index.get(path, len(self._paths)) for path in paths]
+        if not indices:
+            return self._directions._view(0, 0)
+        if indices == list(range(indices[0], indices[0] + len(indices))):
+            return self._directions._view(indices[0], indices[0] + len(indices))
+        return self._directions.take(indices)
 
     def load_embeddings(self, session_date: str) -> None:
         """Load all embeddings for session into memory.
@@ -194,30 +272,25 @@ class InMemoryVectorBackend(VectorSearchBackend):
         Returns:
             List of (note_path, similarity_score) tuples, sorted descending
         """
-        self._ensure_open()
-        # Defensive: rebuild if embeddings were mutated since the last load.
-        if self._matrix is None or len(self._paths) != len(self.embeddings):
-            self._rebuild_matrix()
-        if self._matrix is None or count <= 0:
-            return []
+        return self.find_similar_batch(np.asarray(query_embedding).reshape(1, -1), count=count)[0]
 
-        query = meaning_vector(query_embedding)
-        scores = sklearn_cosine(query.reshape(1, -1), self._matrix)[0]
-        n = scores.shape[0]
-        if count >= n:
-            # Full stable sort: descending by score, ties keep insertion order.
-            order = np.argsort(-scores, kind="stable")
-        else:
-            # O(N + k log k) top-k via argpartition instead of an O(N log N)
-            # full sort (this is the hottest path - every neighbours() call).
-            # To keep output byte-identical to a full stable argsort prefix,
-            # widen the candidate set to every score tied with the k-th
-            # largest, then stable-sort just that small set.
-            part = np.argpartition(-scores, count - 1)[:count]
-            kth_score = scores[part].min()
-            cand = np.flatnonzero(scores >= kth_score)
-            order = cand[np.argsort(-scores[cand], kind="stable")][:count]
-        return [(self._paths[int(i)], float(scores[int(i)])) for i in order]
+    def find_similar_batch(
+        self, queries: np.ndarray, count: int = 10
+    ) -> list[list[tuple[str, float]]]:
+        """Certified batched NumPy search over one cached prepared snapshot."""
+        self._ensure_open()
+        matrix = np.asarray(queries)
+        if matrix.ndim != 2:
+            raise ValueError("query batches must have two dimensions")
+        if self._matrix_generation != self._embeddings.generation:
+            self._rebuild_matrix()
+        if self._directions is None or count <= 0:
+            return [[] for _ in matrix]
+        if not len(matrix):
+            return []
+        prepared = UnitRows(np.stack([meaning_vector(query) for query in matrix]))
+        found = self._directions._view(0, len(self._paths)).nearest(prepared, count)
+        return [[(self._paths[i], score) for i, score in row] for row in found]
 
     def get_similarity(self, path_a: str, path_b: str) -> float:
         """Compute similarity between two notes.
@@ -233,16 +306,12 @@ class InMemoryVectorBackend(VectorSearchBackend):
             KeyError: If either note path not found
         """
         self._ensure_open()
-        from .embeddings import cosine_similarity
-
         if path_a not in self.embeddings:
             raise KeyError(f"Note not found: {path_a}")
         if path_b not in self.embeddings:
             raise KeyError(f"Note not found: {path_b}")
 
-        emb_a = self.embeddings[path_a]
-        emb_b = self.embeddings[path_b]
-        return cosine_similarity(emb_a, emb_b)
+        return float(self.prepared_rows([path_a]).paired(self.prepared_rows([path_b]))[0])
 
     def get_embedding(self, path: str) -> np.ndarray:
         """Get embedding for a note.
@@ -292,9 +361,14 @@ class SqliteVecBackend(VectorSearchBackend):
         self.session_id: int = 0
         self._path_to_id: dict[str, int] = {}  # Cache for path -> vec_id mapping
         self._id_to_path: dict[int, str] = {}  # Cache for vec_id -> path mapping
+        self._load_revision = 0
         self._search_table = f"_geist_vec_search_{next(_VEC_TABLE_COUNTER)}"
         self._closed = False
         self._setup_vec_tables()
+
+    @property
+    def projection_token(self) -> tuple[int, ...]:
+        return self.session_id, self._load_revision
 
     def _setup_vec_tables(self) -> None:
         """Create vec0 virtual table and path mapping table.
@@ -473,6 +547,7 @@ class SqliteVecBackend(VectorSearchBackend):
         self.session_id = session_id
         self._path_to_id = path_to_id
         self._id_to_path = id_to_path
+        self._load_revision += 1
 
     def close(self) -> None:
         """Drop this backend's connection-local vector projection."""

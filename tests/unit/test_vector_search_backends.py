@@ -1,7 +1,6 @@
 """Unit tests for vector search backends."""
 
 import gc
-import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -19,43 +18,7 @@ from geistfabrik.vector_search import (
     SqliteVecBackend,
     VectorSearchBackend,
 )
-
-# Check if sqlite-vec is available AND loadable
-SQLITE_VEC_AVAILABLE = False
-SQLITE_VEC_LOADABLE = False
-
-try:
-    import sqlite_vec
-
-    SQLITE_VEC_AVAILABLE = True
-
-    # Check if SQLite supports extension loading
-    probe_conn = sqlite3.connect(":memory:")
-    if hasattr(probe_conn, "enable_load_extension"):
-        try:
-            probe_conn.enable_load_extension(True)
-            sqlite_vec.load(probe_conn)
-            probe_conn.execute("SELECT vec_version()")
-            SQLITE_VEC_LOADABLE = True
-        except (sqlite3.OperationalError, AttributeError):
-            pass
-        finally:
-            probe_conn.close()
-    else:
-        probe_conn.close()
-except ImportError:
-    pass
-
-# In CI on Linux, we require sqlite-vec to be fully functional
-# macOS runners may not support extension loading, so we allow it to be skipped there
-if os.environ.get("CI") and not SQLITE_VEC_LOADABLE:
-    import platform
-
-    if platform.system() == "Linux":
-        pytest.fail(
-            "sqlite-vec is required in CI (Linux) but not loadable. "
-            "Run: uv pip install -e '.[vector-search]'"
-        )
+from tests.sqlite_vec import SQLITE_VEC_LOADABLE
 
 
 @pytest.fixture
@@ -143,6 +106,8 @@ class TestExtensionLoading:
         conn.enable_load_extension(True)
 
         # Load extension
+        import sqlite_vec
+
         sqlite_vec.load(conn)
 
         # Verify extension is loaded by calling vec_version()
@@ -537,6 +502,8 @@ class TestSqliteVecBackend:
         lock_requested = Event()
 
         def load_after_writer_starts():
+            import sqlite_vec
+
             reader = init_db(db_path)
             reader.enable_load_extension(True)
             sqlite_vec.load(reader)
@@ -1319,7 +1286,6 @@ class TestInMemoryFindSimilarMatrix:
 
         backend = InMemoryVectorBackend(db)
         backend.load_embeddings("2099-01-01")
-        assert backend._matrix is None
         assert backend.find_similar(np.array([1.0, 0.0, 0.0], dtype=np.float32), count=5) == []
 
     def test_find_similar_rebuilds_matrix_after_mutation(self, db, sample_embeddings):
@@ -1408,3 +1374,50 @@ class TestInMemoryFindSimilarMatrix:
 
         writable = emb.copy()
         writable[0] = 99.0  # copies are mutable
+
+
+def test_same_length_snapshot_replacement_invalidates_prepared_scores(db):
+    backend = InMemoryVectorBackend(db)
+    backend.embeddings = {"a": np.array([1.0, 0]), "b": np.array([0.0, 1])}
+    assert backend.find_similar(np.array([1.0, 0]), count=1) == [("a", 1.0)]
+    backend.embeddings.update({"a": np.array([0.0, 1]), "b": np.array([1.0, 0])})
+    assert backend.find_similar(np.array([1.0, 0]), count=1) == [("b", 1.0)]
+    backend.embeddings.clear()
+    assert backend.find_similar(np.array([1.0, 0]), count=1) == []
+
+
+def test_snapshot_takes_ownership_of_input_and_returned_views(db):
+    backend = InMemoryVectorBackend(db)
+    raw = np.array([1.0, 0])
+    backend.embeddings = {"a": raw}
+    raw[:] = [0, 1]
+    returned = backend.get_embedding("a")
+    with pytest.raises(ValueError):
+        returned.flags.writeable = True
+    returned.shape = (2, 1)
+    assert backend.find_similar(np.array([1.0, 0]), count=1) == [("a", 1.0)]
+
+
+@pytest.mark.skipif(not SQLITE_VEC_LOADABLE, reason="sqlite-vec unavailable")
+def test_native_prepared_context_uses_snapshot_width_and_rejects_closed_backend(
+    db, sample_embeddings, tmp_path, monkeypatch
+):
+    from geistfabrik.vault import Vault
+    from geistfabrik.vault_context import VaultContext
+
+    backend = SqliteVecBackend(db, dim=3)
+    backend.load_embeddings(sample_embeddings["session_date"])
+    (tmp_path / "native").mkdir()
+    vault = Vault(str(tmp_path / "native"))
+    vault.db.close()
+    vault.db = db
+    session = Session(datetime.fromisoformat(sample_embeddings["session_date"]), db)
+    monkeypatch.setattr(session, "get_backend", lambda: backend)
+    context = VaultContext(vault, session)
+    a = vault.get_note("note1.md")
+    b = vault.get_note("note2.md")
+    assert a is not None and b is not None
+    assert context.paired_similarity([a], [b]).tolist() == [backend.get_similarity(a.path, b.path)]
+    backend.close()
+    with pytest.raises(RuntimeError, match="closed"):
+        context.paired_similarity([a], [b])

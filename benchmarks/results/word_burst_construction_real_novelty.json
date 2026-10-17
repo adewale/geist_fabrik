@@ -1,0 +1,11 @@
+{
+  "source_commit": "abfdec672edaaf0b3ad5a647ed80552f6616aca9",
+  "real_bundled_offline_model": true,
+  "self_cosine": 1.0,
+  "journal_written": true,
+  "persisted_history_rows": 1,
+  "surviving_repeats": {
+    "1.0": 0,
+    "0.85": 0
+  }
+}

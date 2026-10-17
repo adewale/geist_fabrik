@@ -239,9 +239,7 @@ def test_density_inversion_densities_match_per_pair_reference(tmp_path: Path) ->
         assert [n.path for n in ref_neighbours] == [n.path for n in neighbours]
         edges, semantic = _reference_densities(reference_ctx, ref_neighbours)
         assert density_inversion._link_count(neighbours, lambda n: adjacency[n.path]) == edges
-        assert density_inversion._semantic_density(ctx, neighbours) == pytest.approx(
-            semantic, rel=0, abs=1e-12
-        )
+        assert ctx.mean_similarity(neighbours) == pytest.approx(semantic, rel=0, abs=1e-12)
         checked += 1
     assert checked >= 20
 

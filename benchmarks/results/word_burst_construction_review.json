@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-17",
+  "reviewed_commit": "abfdec672edaaf0b3ad5a647ed80552f6616aca9",
+  "scope": "All changes in the correctness-by-construction source repair commit, with four frozen caller/contract files. Evidence-only follow-up commits are outside this source review.",
+  "helper": "Unmodified canonical Openclaw autoreview installation",
+  "status": {
+    "schema_version": 1,
+    "status": "reviewer_unavailable",
+    "exit_code": 1,
+    "engine": "codex",
+    "report_produced": false,
+    "reason": "engine_failed",
+    "reviewer_exit_code": 1,
+    "timed_out": false,
+    "usage": {
+      "attempts": 1,
+      "reported_attempts": 0,
+      "unknown_attempts": 1,
+      "partial_attempts": 0,
+      "complete": false,
+      "tokens": null
+    }
+  },
+  "authentication": "failed; diagnostics suppressed by the helper",
+  "public_input_proof": "word_burst_construction_public_review_proof.json",
+  "independent_reviews": {
+    "production_only_reviewers": 3,
+    "test_audit_reviewers": 1,
+    "remaining_concrete_findings": 0
+  },
+  "clean_canonical_verdict": false,
+  "draft_reason": "Awaiting authenticated canonical autoreview; all confirmed audit defects repaired and local validation passed."
+}

@@ -1,0 +1,60 @@
+{
+  "source_commit": "abfdec672edaaf0b3ad5a647ed80552f6616aca9",
+  "rows": 10000,
+  "dimensions": 384,
+  "queries": 20,
+  "blas_threads": 1,
+  "trials": 5,
+  "note": "Library arithmetic comparison, not a whole-application before/after benchmark.",
+  "direction_build_seconds": 0.0770516770426184,
+  "old_library_neighbor_20_queries": {
+    "median_seconds": 0.15318902395665646,
+    "seconds": [
+      0.1502464230870828,
+      0.1589048869209364,
+      0.1539622669806704,
+      0.1505214599892497,
+      0.15318902395665646
+    ]
+  },
+  "canonical_cached_neighbor_20_queries": {
+    "median_seconds": 0.2733809989877045,
+    "seconds": [
+      0.45668565295636654,
+      0.2609433069592342,
+      0.2733809989877045,
+      0.49601819401141256,
+      0.27082798699848354
+    ]
+  },
+  "canonical_uncached_neighbor_20_queries": {
+    "median_seconds": 2.0641602989053354,
+    "seconds": [
+      2.0641602989053354,
+      1.6482923229923472,
+      21.087968845968135,
+      3.8043496659956872,
+      1.842824585037306
+    ]
+  },
+  "old_library_matrix_1000x1000": {
+    "median_seconds": 0.007526810979470611,
+    "seconds": [
+      0.007184115005657077,
+      0.007526810979470611,
+      0.007027955958619714,
+      0.008430902031250298,
+      0.010198166943155229
+    ]
+  },
+  "canonical_matrix_1000x1000": {
+    "median_seconds": 0.14442536199931055,
+    "seconds": [
+      0.14442536199931055,
+      0.14474449993576854,
+      0.14333397801965475,
+      0.1508496789028868,
+      0.13690342905465513
+    ]
+  }
+}

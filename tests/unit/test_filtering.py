@@ -10,6 +10,7 @@ import pytest
 from geistfabrik.config import SIMILARITY_HISTORY_CHUNK, SIMILARITY_SUGGESTION_CHUNK
 from geistfabrik.filtering import SuggestionFilter
 from geistfabrik.models import Suggestion
+from geistfabrik.vector_math import UnitRows
 
 
 @pytest.fixture
@@ -200,11 +201,13 @@ def test_novelty_similarity_is_chunked_across_both_dimensions(
     mock_embedding_computer.compute_batch_semantic.side_effect = embeddings_for
     shapes: list[tuple[int, int]] = []
 
-    def bounded_cosine(left: np.ndarray, right: np.ndarray) -> np.ndarray:
-        shapes.append((len(left), len(right)))
-        return np.zeros((len(left), len(right)), dtype=np.float32)
+    original = UnitRows.any_matches
 
-    monkeypatch.setattr("geistfabrik.filtering.sklearn_cosine", bounded_cosine)
+    def bounded_matches(left, right, threshold, **kwargs):
+        shapes.append((len(left.values), len(right.values)))
+        return original(left, right, threshold, **kwargs)
+
+    monkeypatch.setattr(UnitRows, "any_matches", bounded_matches)
     filter_obj = SuggestionFilter(
         db,
         mock_embedding_computer,
@@ -264,6 +267,40 @@ def test_novelty_excludes_future_sessions_from_replay_window(db, mock_embedding_
     assert text_filter.filter_novelty([suggestion], datetime(2025, 1, 2)) == [suggestion]
 
 
+@pytest.mark.parametrize("zero", [False, True])
+def test_threshold_one_removes_exact_history_and_current_duplicates(
+    db, mock_embedding_computer, zero
+):
+    """Exact text is identity even if the model returns no semantic direction."""
+    text = "What might orchard experiment number 7 teach us about changing observations?"
+    db.execute(
+        "INSERT INTO session_suggestions VALUES (?, ?, ?, ?, ?)",
+        ("2023-01-01", "old", text, "^old", "now"),
+    )
+    db.commit()
+    vector = np.zeros(384) if zero else np.random.default_rng(7).normal(size=384).astype(np.float32)
+    mock_embedding_computer.compute_batch_semantic.side_effect = lambda texts: np.tile(
+        vector, (len(texts), 1)
+    )
+    candidate = Suggestion(text=text, notes=["Note 1"], geist_id="g")
+    other = Suggestion(text="A differently worded candidate", notes=["Note 1"], geist_id="g")
+    filter_obj = SuggestionFilter(
+        db,
+        mock_embedding_computer,
+        config={
+            "strategies": ["novelty", "diversity"],
+            "novelty": {"enabled": True, "window_days": 60, "threshold": 1.0},
+            "diversity": {"enabled": True, "threshold": 1.0},
+        },
+    )
+    assert filter_obj.filter_novelty([candidate, other], datetime(2023, 1, 2)) == (
+        [other] if zero else []
+    )
+    assert filter_obj.filter_diversity([candidate, candidate, other]) == (
+        [candidate, other] if zero else [candidate]
+    )
+
+
 class TestBoundaryFilterVirtualNotes:
     """Boundary filter must recognise virtual (journal) note references."""
 
@@ -299,3 +336,40 @@ class TestBoundaryFilterVirtualNotes:
 
         assert kept in result, "virtual-note deeplink reference should be kept"
         assert dropped not in result, "reference to a missing note should be dropped"
+
+
+def test_filter_pipeline_reuses_candidate_vectors_across_semantic_strategies(
+    db, mock_embedding_computer
+):
+    db.execute(
+        "INSERT INTO session_suggestions VALUES (?, ?, ?, ?, ?)",
+        ("2023-01-01", "old", "old history", "^old", "now"),
+    )
+    db.commit()
+    directions = {
+        "first candidate": [1.0, 0],
+        "second candidate": [0, 1.0],
+        "similar candidate": [1.0, 0],
+        "old history": [-1.0, -1.0],
+    }
+    calls = []
+
+    def encode_inputs(texts):
+        calls.extend(texts)
+        return np.asarray([directions[text] for text in texts])
+
+    mock_embedding_computer.compute_batch_semantic.side_effect = encode_inputs
+    filtering = SuggestionFilter(
+        db,
+        mock_embedding_computer,
+        config={
+            "strategies": ["novelty", "diversity"],
+            "novelty": {"enabled": True, "window_days": 60, "threshold": 0.85},
+            "diversity": {"enabled": True, "threshold": 0.85},
+        },
+    )
+    candidates = [
+        Suggestion(text=text, notes=["Note 1"], geist_id="g") for text in list(directions)[:3]
+    ]
+    assert filtering.filter_all(candidates, datetime(2023, 1, 2)) == candidates[:2]
+    assert {text: calls.count(text) for text in directions} == dict.fromkeys(directions, 1)

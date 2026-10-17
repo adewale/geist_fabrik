@@ -54,11 +54,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Get hub notes and check their neighbourhoods
     hubs = vault.hubs(count=10)
 
-    for hub in hubs:
+    for hub, neighbours_with_scores in zip(hubs, vault.neighbours_many(hubs, count=10)):
         hub_neighbourhood = graph_neighbourhood(hub)
-
-        # Find notes similar to this hub but not linked
-        neighbours_with_scores = vault.neighbours(hub, count=10, return_scores=True)
 
         for neighbour, similarity in neighbours_with_scores:
             if similarity <= SimilarityLevel.HIGH:  # Need strong similarity

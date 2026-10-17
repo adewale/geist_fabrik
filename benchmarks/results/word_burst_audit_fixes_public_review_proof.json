@@ -1,0 +1,243 @@
+{
+  "repository": "adewale/geist_fabrik",
+  "private": false,
+  "base": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+  "head": "73fe4bd91d02323c533296e0f370f0595043ec64",
+  "scope": "Every before/after changed-file blob and all four frozen context files for committed branch review. No working tree, untracked files, credentials or private payload included. Public bytes fetched without authorization headers and matched to exact git blobs.",
+  "files": [
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "CHANGELOG.md",
+      "http_status": 200,
+      "bytes": 66931,
+      "sha256": "07237c20f6ea51a806033a1129473fa0728287912db5d29040345b1ce77670dc",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "CLAUDE.md",
+      "http_status": 200,
+      "bytes": 36260,
+      "sha256": "c69e4264cb2bfe7ad622645b579c3b8412dea2b742d7b385137c1d7e3a92ad5f",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "docs/WORD_BURST.md",
+      "http_status": 200,
+      "bytes": 12850,
+      "sha256": "b14b04eb5ffa4e737f8b8bea68517d5074fd845edcd3f147423b11a1d24f3c69",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "docs/WORD_BURST_RECOVERY.md",
+      "http_status": 200,
+      "bytes": 23069,
+      "sha256": "feaa8964692b24f72000d366bffc8484e2eecad928d827da6e0ce4863baf827c",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "docs/WORD_BURST_TEST_AUDIT.md",
+      "http_status": 200,
+      "bytes": 24834,
+      "sha256": "1785b329994cb3b62b9578f91b6eb5b723bda33fe56c48bc6bc8dbfa0f9a5e9d",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "pyproject.toml",
+      "http_status": 200,
+      "bytes": 4985,
+      "sha256": "98ff315dc01d09631d1029ad97fa3bafa756065ef80c722db07a8969a86b9765",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "src/geistfabrik/geist_executor.py",
+      "http_status": 200,
+      "bytes": 28762,
+      "sha256": "05a8ec775111a2a93350c89d89cc9691c26dc98d6d446ecbdf8fbd7d21bb2fd6",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "src/geistfabrik/lexical_index.py",
+      "http_status": 200,
+      "bytes": 16977,
+      "sha256": "34f6c1633ba2c88bebfa7ba3dc904c2d0331979e6e72ab6dc4117d8d522c7d9c",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "src/geistfabrik/sqlite_transaction.py",
+      "http_status": 200,
+      "bytes": 1474,
+      "sha256": "eb6c5e76be05fbd578f4dfcbe2108d769ca11660c4dd171b2de64271067376fd",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "src/geistfabrik/vault.py",
+      "http_status": 200,
+      "bytes": 35573,
+      "sha256": "efbd7415135145b6f8e059fa162935a4ff55da42dd6623921e9a872356a3da12",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "src/geistfabrik/word_burst.py",
+      "http_status": 200,
+      "bytes": 33972,
+      "sha256": "289a3ef74de5fa1ac3f6af995fafeaff30c1e81cb8e2ffe3456e318d1480365f",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "src/geistfabrik/word_burst_analysis.py",
+      "http_status": 200,
+      "bytes": 16022,
+      "sha256": "6ca7c53c47d5a6e92fed27c65453951a59479666cb8b6eb67717cb288297a348",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "tests/unit/test_word_burst.py",
+      "http_status": 200,
+      "bytes": 19912,
+      "sha256": "4939edd193287f3531482e2f1f484acc72efb87d6a79f1fe8a875852e0d08513",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "tests/unit/test_word_burst_integration.py",
+      "http_status": 200,
+      "bytes": 36805,
+      "sha256": "2eec46af42da62ef86dc0bcab9e23b7419cc80172ad1655d760788186faed0c1",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "73fe4bd91d02323c533296e0f370f0595043ec64",
+      "path": "uv.lock",
+      "http_status": 200,
+      "bytes": 197501,
+      "sha256": "4b3db16a8ef8005d8ace8a36cb4d26863d98e0e18e91a80d92d0c83894bfd502",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "CHANGELOG.md",
+      "http_status": 200,
+      "bytes": 66765,
+      "sha256": "31994bef073ad77ddda0394d072084c4b09d6f72ad71e0d06d0aca5a26177b0f",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "docs/WORD_BURST.md",
+      "http_status": 200,
+      "bytes": 12031,
+      "sha256": "86644de61167a2a901f12d0ddd2e1145ec1278e39db3e1f192233fd64b4b2a4b",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "docs/WORD_BURST_RECOVERY.md",
+      "http_status": 200,
+      "bytes": 21962,
+      "sha256": "62369a6125378d0214e78771008a46c2d22cee0d81d345287b0918bbfefd41bd",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "docs/WORD_BURST_TEST_AUDIT.md",
+      "http_status": 200,
+      "bytes": 20765,
+      "sha256": "25a4cfd3b37bd18be59ab6dd46e3c38a4f9d0e9ddb7ae4acc12681290dc222d8",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "pyproject.toml",
+      "http_status": 200,
+      "bytes": 4957,
+      "sha256": "1e1e7fb93513ee91757f099338b5a0ecc756ffc5588aaacbdaaaf3402731da6c",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "src/geistfabrik/lexical_index.py",
+      "http_status": 200,
+      "bytes": 11038,
+      "sha256": "9fc8be7da4873a1358de05f91d884cf950ffc9df59589f81506dfcc696fe2dd3",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "src/geistfabrik/word_burst.py",
+      "http_status": 200,
+      "bytes": 22626,
+      "sha256": "bbf4bf4e6d80c1f7ed49e61a2ed7fed266051a11ab3946ef5ba782b65ab61485",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "src/geistfabrik/word_burst_analysis.py",
+      "http_status": 200,
+      "bytes": 16022,
+      "sha256": "6998db27c3df493488dbdb454056a2e09b0916476b0b554a0da7ba9c73851bd3",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "tests/unit/test_word_burst.py",
+      "http_status": 200,
+      "bytes": 13893,
+      "sha256": "2ad3e17231d8052046c1ecc0a0f7e366f63a65a2a0e496042871b0f3c2d2c861",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "tests/unit/test_word_burst_integration.py",
+      "http_status": 200,
+      "bytes": 32299,
+      "sha256": "303d82266abd5d2dd6135ce1f109aa427bba0639ce0604bf15de2262506f2ded",
+      "matches_git_blob": true,
+      "authentication_used": false
+    },
+    {
+      "commit": "f3e11cc56bd11e18c0e2c30f2637a4595e1cfad5",
+      "path": "uv.lock",
+      "http_status": 200,
+      "bytes": 197454,
+      "sha256": "c359f556199b9b9f74052e0d886eecfdaeeb2bc3bc63cd57de67d686d0fedd45",
+      "matches_git_blob": true,
+      "authentication_used": false
+    }
+  ]
+}
