@@ -187,15 +187,12 @@ def test_jaccard_churn_known_answers() -> None:
 
 
 def test_topk_neighbour_sets_basics() -> None:
-    """Top-k sets exclude self, have size k, and respect blocking."""
+    """Top-k sets exclude self and cap the requested population size."""
     embeddings = _random_embeddings(20, d=16, seed=11)
     paths = sorted(embeddings)
     matrix = np.stack([embeddings[p] for p in paths])
 
     sets_default = _topk_neighbour_sets(matrix, paths, k=4)
-    sets_blocked = _topk_neighbour_sets(matrix, paths, k=4, block_size=3)
-
-    assert sets_default == sets_blocked
     for path, neighbours in sets_default.items():
         assert path not in neighbours  # self excluded
         assert len(neighbours) == 4
@@ -374,48 +371,56 @@ def test_neighbour_churn_recent_history_returns_empty(tmp_path) -> None:
 # ============================================================================
 
 
-def _head_topk_sets(matrix: np.ndarray, paths: list[str], k: int) -> dict[str, set[str]]:
-    """_topk_neighbour_sets as it was before the shared index (reference)."""
-    n = matrix.shape[0]
-    k_eff = min(k, n - 1)
-    if n == 0 or k <= 0 or k_eff <= 0:
-        return {path: set() for path in paths}
-    norms = np.linalg.norm(matrix.astype(np.float64), axis=1, keepdims=True)
-    normalised = matrix.astype(np.float64) / np.where(norms == 0, 1.0, norms)
-    result: dict[str, set[str]] = {}
-    for start in range(0, n, 1024):
-        end = min(start + 1024, n)
-        sims = normalised[start:end] @ normalised.T
-        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
-        topk_idx = np.argpartition(sims, -k_eff, axis=1)[:, -k_eff:]
-        for offset in range(end - start):
-            result[paths[start + offset]] = {paths[j] for j in topk_idx[offset]}
-    return result
+def _canonical_topk_sets(matrix: np.ndarray, paths: list[str], k: int) -> dict[str, set[str]]:
+    """Independent full-matrix stable-sort oracle for the shared score contract."""
+    from geistfabrik.embeddings import cosine_similarity_matrix
+
+    scores = cosine_similarity_matrix(matrix, matrix)
+    np.fill_diagonal(scores, -np.inf)
+    order = np.argsort(-scores, axis=1, kind="stable")[:, : min(k, max(0, len(paths) - 1))]
+    return {path: {paths[int(j)] for j in row} for path, row in zip(paths, order)}
 
 
-def _head_surprisal(embeddings: dict[str, np.ndarray], k: int) -> dict[str, float]:
-    """_surprisal_blocked as it was before the shared index (reference)."""
+def _canonical_surprisal(embeddings: dict[str, np.ndarray], k: int) -> dict[str, float]:
+    """Stable canonical neighbours and scalar centroid scores, not fast top-k."""
+    from geistfabrik.embeddings import cosine_similarity
+    from geistfabrik.vector_math import UnitRows
+
     paths = sorted(embeddings)
-    n = len(paths)
-    if k < 1 or n < k + 1:
+    if k < 1 or len(paths) < k + 1:
         return {}
-    matrix = np.stack([np.asarray(embeddings[p], dtype=np.float64) for p in paths])
-    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
-    normalised = matrix / np.where(norms == 0, 1.0, norms)
-    scores: dict[str, float] = {}
-    for start in range(0, n, 1024):
-        end = min(start + 1024, n)
-        block = normalised[start:end]
-        sims = block @ normalised.T
-        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
-        topk_idx = np.argpartition(sims, -k, axis=1)[:, -k:]
-        centroids = normalised[topk_idx].mean(axis=1)
-        c_norms = np.linalg.norm(centroids, axis=1, keepdims=True)
-        centroids = centroids / np.where(c_norms == 0, 1.0, c_norms)
-        values = np.clip(1.0 - np.einsum("ij,ij->i", block, centroids), 0.0, 2.0)
-        for offset in range(end - start):
-            scores[paths[start + offset]] = float(values[offset])
-    return scores
+    raw = np.stack([embeddings[p] for p in paths])
+    sets = _canonical_topk_sets(raw, paths, k)
+    unit = UnitRows(raw).values
+    # Sort selected neighbours by score and index before the centroid sum.
+    # Set iteration is deliberately not allowed to influence rounding.
+    from geistfabrik.embeddings import cosine_similarity_matrix
+
+    scores = cosine_similarity_matrix(raw, raw)
+    index = {path: i for i, path in enumerate(paths)}
+    return {
+        path: float(
+            np.clip(
+                1
+                - cosine_similarity(
+                    raw[i],
+                    np.mean(
+                        [
+                            unit[j]
+                            for j in sorted(
+                                (index[peer] for peer in sets[path]),
+                                key=lambda j: (-scores[i, j], j),
+                            )
+                        ],
+                        axis=0,
+                    ),
+                ),
+                0,
+                2,
+            )
+        )
+        for i, path in enumerate(paths)
+    }
 
 
 def _clustered_with_duplicates(n: int, seed: int) -> dict[str, np.ndarray]:
@@ -430,15 +435,18 @@ def _clustered_with_duplicates(n: int, seed: int) -> dict[str, np.ndarray]:
 
 
 @pytest.mark.parametrize("n,seed", [(40, 0), (300, 1), (2100, 2)])
-def test_shared_topk_helpers_equal_previous_implementation_exactly(n: int, seed: int) -> None:
-    """Equivalence (bitwise): the refactored helpers select the same
-    neighbours and the same surprisal floats, ties and block edges included."""
+def test_shared_topk_helpers_match_stable_canonical_reference(n: int, seed: int) -> None:
+    """Certified neighbours use canonical scores and stable ties at block edges.
+
+    This deliberately replaces the historical BLAS/argpartition tie policy;
+    numeric canonical cosine entry points retain their separate exact proofs.
+    """
     embeddings = _clustered_with_duplicates(n, seed)
     paths = sorted(embeddings)
     matrix = np.stack([embeddings[p] for p in paths])
     for k in (1, 3, 10):
-        assert _surprisal_blocked(embeddings, k) == _head_surprisal(embeddings, k)
-        assert _topk_neighbour_sets(matrix, paths, k) == _head_topk_sets(matrix, paths, k)
+        assert _surprisal_blocked(embeddings, k) == _canonical_surprisal(embeddings, k)
+        assert _topk_neighbour_sets(matrix, paths, k) == _canonical_topk_sets(matrix, paths, k)
 
 
 def _two_epoch_context(tmp_path) -> VaultContext:
@@ -460,13 +468,13 @@ def test_surprisal_and_churn_share_one_current_topk_pass(
 
     context = _two_epoch_context(tmp_path)
     passes: list[int] = []
-    real = vc._topk_indices
+    real = vc._prepared_topk
 
-    def counting(normalised: np.ndarray, k: int, block_size: int = 1024) -> np.ndarray:
-        passes.append(normalised.shape[0])
-        return real(normalised, k, block_size)
+    def counting(prepared, k):
+        passes.append(len(prepared))
+        return real(prepared, k)
 
-    monkeypatch.setattr(vc, "_topk_indices", counting)
+    monkeypatch.setattr(vc, "_prepared_topk", counting)
 
     context.surprisal_scores(k_neighbours=10)
     context.neighbour_churn(since_days=180, k=10)
@@ -475,7 +483,7 @@ def test_surprisal_and_churn_share_one_current_topk_pass(
     assert len(passes) == 3  # current once, then one historical pass per churn
 
 
-def test_context_surprisal_and_churn_equal_previous_implementation(tmp_path) -> None:
+def test_context_surprisal_and_churn_match_canonical_reference(tmp_path) -> None:
     """Equivalence at the VaultContext level, in either call order."""
     for first in ("surprisal", "churn"):
         (tmp_path / first).mkdir()
@@ -488,7 +496,7 @@ def test_context_surprisal_and_churn_equal_previous_implementation(tmp_path) -> 
             churn = context.neighbour_churn(since_days=180, k=4)
 
         current = context.get_all_embeddings()
-        assert scores == _head_surprisal(current, 4)
+        assert scores == _canonical_surprisal(current, 4)
 
         old_session_id = context.db.execute(
             "SELECT session_id FROM sessions WHERE date = '2024-06-01'"
@@ -501,11 +509,31 @@ def test_context_surprisal_and_churn_equal_previous_implementation(tmp_path) -> 
             )
         }
         old_paths = sorted(historical)
-        old_sets = _head_topk_sets(np.stack([historical[p] for p in old_paths]), old_paths, 4)
+        old_sets = _canonical_topk_sets(np.stack([historical[p] for p in old_paths]), old_paths, 4)
         new_paths = sorted(current)
-        new_sets = _head_topk_sets(np.stack([current[p] for p in new_paths]), new_paths, 4)
+        new_sets = _canonical_topk_sets(np.stack([current[p] for p in new_paths]), new_paths, 4)
         assert churn
         for path, result in churn.items():
             assert result.departed == sorted(old_sets[path] - new_sets[path])
             assert result.arrived == sorted(new_sets[path] - old_sets[path])
             assert result.churn == _jaccard_churn(old_sets[path], new_sets[path])
+
+
+def test_unchanged_float32_history_has_same_neighbours_as_current_preparation():
+    """Review regression: double normalization reversed a stored near tie."""
+    from geistfabrik.vault_context import _prepared_topk
+    from geistfabrik.vector_math import UnitRows
+
+    rng = np.random.default_rng(931)
+    for _ in range(8):
+        query = np.zeros(384, dtype=np.float32)
+        query[0] = 1
+        b = rng.normal(size=384).astype(np.float32)
+        b[0] = abs(b[0])
+        c = b.copy()
+        c[1:] = rng.permutation(c[1:])
+        matrix = np.stack([query, b, c])
+        paths = ["q", "b", "c"]
+        current = _prepared_topk(UnitRows(matrix), 1)
+        expected = {path: {paths[int(row[0])]} for path, row in zip(paths, current)}
+        assert _topk_neighbour_sets(matrix, paths, 1) == expected

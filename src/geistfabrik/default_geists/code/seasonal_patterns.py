@@ -79,16 +79,8 @@ def _recurring_month_themes(vault: "VaultContext", notes: list["Note"]) -> list[
         # Calculate average intra-month similarity
         sample = vault.sample(month_notes, min(10, len(month_notes)))
 
-        # batch_similarity() is cache-aware, optimal for matrix operations
         if len(sample) > 1:
-            sim_matrix = vault.batch_similarity(sample, sample)
-            # Extract upper triangle (avoid diagonal and duplicates)
-            similarities = []
-            for i in range(len(sample)):
-                for j in range(i + 1, len(sample)):
-                    similarities.append(sim_matrix[i, j])
-
-            avg_similarity = sum(similarities) / len(similarities)
+            avg_similarity = vault.mean_similarity(sample)
             month_profiles.append((month_num, month_notes, avg_similarity))
 
     # Find months with high internal coherence (seasonal themes)
@@ -131,10 +123,10 @@ def _recurring_month_themes(vault: "VaultContext", notes: list["Note"]) -> list[
     if cross_year_pairs:
         notes1 = [pair[0] for pair in cross_year_pairs]
         notes2 = [pair[1] for pair in cross_year_pairs]
-        sim_matrix = vault.batch_similarity(notes1, notes2)
+        similarities = vault.paired_similarity(notes1, notes2)
 
         for i, (note1, note2) in enumerate(cross_year_pairs):
-            sim = sim_matrix[i, i]  # Diagonal for pairwise similarities
+            sim = similarities[i]
             cross_year_sims.append((note1, note2, sim))
 
     if not cross_year_sims:

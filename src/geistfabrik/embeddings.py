@@ -35,6 +35,7 @@ from .config import (
 from .models import Note
 from .session_time import normalise_session_date
 from .sqlite_transaction import owned_transaction
+from .text_embeddings import TextEmbeddingCache
 from .vector_math import cosine_matrix
 
 logger = logging.getLogger(__name__)
@@ -171,6 +172,7 @@ class EmbeddingComputer:
         self.model_name = model_name
         self._model: EmbeddingModel | None = model
         self.device: str | None = None  # Will be set on first model access
+        self.text_cache = TextEmbeddingCache()
 
     def _detect_device(self) -> str:
         """Detect best available device for model inference.
@@ -246,9 +248,8 @@ class EmbeddingComputer:
         Returns:
             384-dimensional semantic embedding
         """
-        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
-            embedding = self.model.encode(text, convert_to_numpy=True)
-        return embedding
+        result: np.ndarray = self.compute_batch_semantic([text])[0]
+        return result
 
     def compute_batch_semantic(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
         """Compute semantic embeddings for multiple texts in batch.
@@ -266,14 +267,22 @@ class EmbeddingComputer:
         if not texts:
             return np.array([])
 
-        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
-            embeddings = self.model.encode(
-                texts,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-                batch_size=batch_size,
-            )
-        return embeddings
+        model = self.model
+
+        def encode(missing: list[str]) -> np.ndarray:
+            with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+                return model.encode(
+                    missing,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                    batch_size=batch_size,
+                )
+
+        return self.text_cache.encode(
+            texts,
+            encode,
+            identity=(id(model), self.model_name, self.device),
+        )
 
     def compute_temporal_features(self, note: Note, session_date: datetime) -> np.ndarray:
         """Compute temporal features for a note.
@@ -325,6 +334,8 @@ class EmbeddingComputer:
 
     def close(self) -> None:
         """Clean up model resources."""
+        if hasattr(self, "text_cache"):
+            self.text_cache.clear()
         if self._model is not None:
             self._model = None
 
@@ -602,13 +613,9 @@ class Session:
 
         if uncached_notes:
             texts = [note.content for note in uncached_notes]
-            with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
-                computed_embeddings = self.computer.model.encode(
-                    texts,
-                    convert_to_numpy=True,
-                    show_progress_bar=False,
-                    batch_size=DEFAULT_BATCH_SIZE,
-                )
+            computed_embeddings = self.computer.compute_batch_semantic(
+                texts, batch_size=DEFAULT_BATCH_SIZE
+            )
 
             for i, note in enumerate(uncached_notes):
                 semantic = computed_embeddings[i]

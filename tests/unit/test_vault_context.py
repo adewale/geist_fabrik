@@ -521,7 +521,12 @@ def test_unlinked_pairs_matches_bruteforce_oracle(tmp_path: Path) -> None:
     assert set(keys) == oracle
     sims = [ctx.similarity(a, b) for a, b in got]
     assert sims == sorted(sims, reverse=True)
-    assert len(ctx.unlinked_pairs(count=3)) == 3
+    ordered = [
+        (a, b) for a, b in combinations(ctx.notes(), 2) if frozenset((a.title, b.title)) in oracle
+    ]
+    ordered.sort(key=lambda pair: ctx.similarity(*pair), reverse=True)
+    assert got == ordered
+    assert ctx.unlinked_pairs(count=3) == ordered[:3]
 
 
 def test_unlinked_pairs_sampling_never_pairs_a_note_with_itself(tmp_path: Path) -> None:
@@ -1171,21 +1176,6 @@ def test_batch_similarity_equals_per_pair_reference_exactly(
             ref_ctx._similarity_cache.update(cache_before)
 
 
-class _ArrayBackend:
-    """Minimal backend serving fixed embeddings (for a large synthetic matrix)."""
-
-    def __init__(self, embeddings: dict) -> None:
-        self.embeddings = embeddings
-
-    def get_embedding(self, path: str):
-        return self.embeddings[path]
-
-    def get_similarity(self, path_a: str, path_b: str) -> float:
-        from geistfabrik.embeddings import cosine_similarity
-
-        return cosine_similarity(self.embeddings[path_a], self.embeddings[path_b])
-
-
 @pytest.mark.timeout(15)
 def test_batch_similarity_large_matrix_has_no_per_pair_python_work(
     vault_with_notes, monkeypatch: pytest.MonkeyPatch
@@ -1196,13 +1186,16 @@ def test_batch_similarity_large_matrix_has_no_per_pair_python_work(
     import numpy as np
 
     from geistfabrik.embeddings import cosine_similarity_matrix
+    from geistfabrik.vector_search import InMemoryVectorBackend
 
     vault, session = vault_with_notes
     ctx = VaultContext(vault, session)
     rng = np.random.default_rng(0)
     paths = [f"bulk/{i:04d}.md" for i in range(3000)]
     embeddings = {p: rng.standard_normal(384).astype(np.float32) for p in paths}
-    monkeypatch.setattr(ctx, "_backend", _ArrayBackend(embeddings))
+    backend = InMemoryVectorBackend(ctx.db)
+    backend.embeddings = embeddings
+    monkeypatch.setattr(ctx, "_backend", backend)
     when = datetime(2023, 1, 1)
     notes = [
         Note(path=p, title=p, content="", links=[], tags=[], created=when, modified=when)
@@ -1255,3 +1248,13 @@ def test_get_clusters_labels_with_the_session_embedding_computer(
 
     assert seen == [ctx.session.computer]
     assert vectors == [ctx.get_all_embeddings()]
+
+
+def test_empty_supplied_cluster_has_no_representatives(tmp_path):
+    import numpy as np
+
+    from geistfabrik.clustering_analysis import Cluster
+
+    context = VaultBuilder(tmp_path).build()
+    cluster = Cluster(0, "empty", "Empty cluster", [], 0, np.zeros(2))
+    assert context.get_cluster_representatives(0, clusters={0: cluster}) == []

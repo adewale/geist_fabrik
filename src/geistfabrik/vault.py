@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -771,6 +772,16 @@ class Vault:
         """
         if not paths:
             return {}
+
+        # Keep every shared batch consumer within this connection's limit,
+        # including environments that lower SQLite's default variable budget.
+        paths = list(dict.fromkeys(paths))
+        limit = self.db.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER)
+        if len(paths) > limit:
+            combined: dict[str, Note | None] = {}
+            for start in range(0, len(paths), limit):
+                combined.update(self.get_notes_batch(paths[start : start + limit]))
+            return combined
 
         # Query 1: Load all notes at once
         placeholders = ",".join(["?"] * len(paths))

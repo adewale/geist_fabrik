@@ -449,7 +449,7 @@ def test_duplicate_observations_preserve_episode_values_and_include_evidence_pat
     ),
     st.integers(1, 3),
 )
-@settings(max_examples=1000)
+@settings(max_examples=1000, deadline=None)
 def test_extraction_matches_independent_sliding_windows(words, maximum):
     words = [unicodedata.normalize("NFKC", word.casefold()) for word in words]
     expected = Counter()

@@ -181,31 +181,32 @@ class TestReturnScoresParameter:
 
 
 class TestReturnScoresCaching:
-    """Test that return_scores uses separate cache keys."""
+    """Both neighbour return formats share their ranked search."""
 
-    def test_return_scores_cached_separately(self, context_with_embeddings: VaultContext):
-        """Test that return_scores=True and False have separate cache entries."""
+    def test_return_formats_share_search(self, context_with_embeddings: VaultContext, monkeypatch):
+        """Changing return format reuses the same ranked search and scores."""
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
+        searches = []
+        original = context_with_embeddings._backend.find_similar_batch
+
+        def counted(queries, count=10):
+            searches.append(len(queries))
+            return original(queries, count=count)
+
+        monkeypatch.setattr(context_with_embeddings._backend, "find_similar_batch", counted)
         # Call with return_scores=False
         neighbours1 = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Call with return_scores=True
         neighbours2 = context_with_embeddings.neighbours(note, count=3, return_scores=True)
 
-        # Both should be cached independently
-        assert isinstance(neighbours1, list)
-        assert isinstance(neighbours2, list)
-        assert all(isinstance(n, Note) for n in neighbours1)
-        assert all(isinstance(item, tuple) for item in neighbours2)
-
-        # Verify cache contains both
-        cache_key_false = (note.path, 3, False)
-        cache_key_true = (note.path, 3, True)
-
-        assert cache_key_false in context_with_embeddings._neighbours_cache
-        assert cache_key_true in context_with_embeddings._neighbours_cache
+        assert neighbours1 == [item for item, _score in neighbours2]
+        assert [score for _item, score in neighbours2] == [
+            context_with_embeddings.similarity(note, item) for item in neighbours1
+        ]
+        assert searches == [1]
 
 
 class TestReturnScoresPerformance:

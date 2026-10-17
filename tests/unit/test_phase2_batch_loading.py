@@ -278,3 +278,17 @@ class TestBatchLoadingBenchmark:
         assert {
             path: note.content if note is not None else None for path, note in loaded.items()
         } == {path: (vault_with_notes.vault_path / path).read_text() for path in paths}
+
+
+def test_shared_batch_loader_respects_connection_variable_limit(vault_with_notes):
+    import sqlite3
+
+    paths = [f"note_{i}.md" for i in range(10)] + ["missing.md"]
+    expected = {path: vault_with_notes.get_note(path) for path in paths}
+    old = vault_with_notes.db.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, 3)
+    try:
+        actual = vault_with_notes.get_notes_batch(paths)
+    finally:
+        vault_with_notes.db.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, old)
+    assert actual == expected
+    assert list(actual) == paths

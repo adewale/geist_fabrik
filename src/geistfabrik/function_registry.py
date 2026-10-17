@@ -276,9 +276,8 @@ class FunctionRegistry:
             Like ``neighbours``, in Tracery it accepts only a literal note
             name, never a ``#symbol#`` argument.
 
-            Performance optimised: Uses vectorised numpy operations to compute all
-            similarities at once via matrix multiplication, rather than looping.
-            This is 10-100x faster than the loop-based approach.
+            Uses the shared scale-safe canonical kernel, including explicit
+            zero-vector handling, and stable ordering for equal scores.
 
             Args:
                 note_title: Note title, path or link target to resolve
@@ -317,20 +316,12 @@ class FunctionRegistry:
             if not candidate_notes:
                 return []
 
-            # Vectorized: Compute all similarities at once
-            query_array = np.array(query_embedding)
-            candidates_matrix = np.array(candidate_embeddings)
+            from .vector_math import UnitRows
 
-            # Compute dot products (similarity scores)
-            similarities = np.dot(candidates_matrix, query_array)
-
-            # Normalise to get cosine similarities
-            query_norm = np.linalg.norm(query_array)
-            candidate_norms = np.linalg.norm(candidates_matrix, axis=1)
-            similarities = similarities / (candidate_norms * query_norm)
-
-            # Get indices of count least similar (ascending sort)
-            least_similar_indices = np.argsort(similarities)[:count]
+            similarities = UnitRows(np.stack(candidate_embeddings)).cosine(
+                UnitRows(query_embedding[None, :])
+            )[:, 0]
+            least_similar_indices = np.argsort(similarities, kind="stable")[:count]
 
             # Return bracketed obsidian links
             return [f"[[{candidate_notes[i].link_text}]]" for i in least_similar_indices]

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Shared prepared-vector primitives now support certified BLAS threshold and
+  mean decisions, exact batched top-k, corresponding pairs and streamed pair
+  matches. Session inference, filtering and labels share a bounded exact-text
+  cache; in-memory snapshots invalidate on same-length replacements. Surprisal
+  and churn now use canonical scores and stable ties, so ambiguous neighbour
+  membership and derived values can change. See
+  [semantic primitive contracts](docs/SIMILARITY_PRIMITIVES.md) and
+  [matched measurements](docs/SIMILARITY_PRIMITIVES_BENCHMARK.md).
+
 ### Breaking Changes
 - **Word and phrase changes in one geist:** `word_burst` now samples rising and
   declining episodes, with two-word phrases enabled by default and optional

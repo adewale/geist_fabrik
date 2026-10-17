@@ -6,10 +6,12 @@ without it only lexical evidence is benchmarked and semantic work is skipped.
 """
 
 import argparse
+import hashlib
 import importlib
 import json
 import os
 import platform
+import resource
 import time
 from contextlib import closing
 from dataclasses import asdict
@@ -36,6 +38,15 @@ GEISTS = (
 )
 
 
+SIMILARITY_GEISTS = (
+    "density_inversion",
+    "concept_cluster",
+    "bridge_builder",
+    "method_scrambler",
+    "surprisal",
+)
+
+
 def execute(executor, name, context, index, report):
     """Retain the production executor outcome, including swallowed failures."""
     started = time.perf_counter()
@@ -54,15 +65,30 @@ def execute(executor, name, context, index, report):
 
 
 def replay(
-    corpus: Path, vault_path: Path, *, real_embeddings: bool = False, ngram_max: int = 2
+    corpus: Path,
+    vault_path: Path,
+    *,
+    real_embeddings: bool = False,
+    ngram_max: int = 2,
+    similarity_suite: bool = False,
+    snapshot_limit: int | None = None,
 ) -> dict:
     """Sequential replay with timings, raw findings/suggestions, and stable-vector checks."""
-    manifest = json.loads((corpus / "manifest.json").read_text())
+    if snapshot_limit is not None and snapshot_limit < 1:
+        raise ValueError("snapshot limit must be positive")
+    manifest_bytes = (corpus / "manifest.json").read_bytes()
+    manifest = json.loads(manifest_bytes)
+    geists = GEISTS + (SIMILARITY_GEISTS if similarity_suite else ())
+    encoder_work = {"calls": 0, "texts": 0}
     if vault_path.exists() and any(vault_path.iterdir()):
         raise ValueError("benchmark requires a fresh replay vault")
     vault_path.mkdir(parents=True, exist_ok=True)
     report = {
         "synthetic": True,
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "similarity_suite": similarity_suite,
+        "snapshot_limit": snapshot_limit,
         "execution_path": "GeistExecutor",
         "python": platform.python_version(),
         "initial_notes": manifest["initial_notes"],
@@ -87,7 +113,15 @@ def replay(
             os.environ["GEISTFABRIK_OFFLINE"] = "1"
             computer = EmbeddingComputer()
             computer.device = "cpu"
-            _ = computer.model
+            model = computer.model
+            original_encode = model.encode
+
+            def counted_encode(sentences, **kwargs):
+                encoder_work["calls"] += 1
+                encoder_work["texts"] += 1 if isinstance(sentences, str) else len(sentences)
+                return original_encode(sentences, **kwargs)
+
+            model.encode = counted_encode
             report["model_startup_seconds"] = time.perf_counter() - started
         stage = "open_vault"
         config = GeistFabrikConfig()
@@ -98,10 +132,10 @@ def replay(
             executor = GeistExecutor(
                 vault_path / "_geistfabrik/geists/code", status_store=GeistStatusStore(vault.db)
             )
-            for name in GEISTS if real_embeddings else ("word_burst",):
+            for name in geists if real_embeddings else ("word_burst",):
                 module = importlib.import_module("geistfabrik.default_geists.code." + name)
                 executor.register_geist(name, Path(module.__file__), module.suggest)
-            for index, snapshot in enumerate(manifest["snapshots"]):
+            for index, snapshot in enumerate(manifest["snapshots"][:snapshot_limit]):
                 stage = "apply_snapshot"
                 started = time.perf_counter()
                 if index:
@@ -125,7 +159,13 @@ def replay(
                 with patch("geistfabrik.vault.datetime", Clock):
                     row["processed"] = vault.sync()
                 row["sync_seconds"] = time.perf_counter() - started
-                row["lexical_sync"] = vault.last_lexical_stats
+                row["lexical_sync"] = dict(vault.last_lexical_stats)
+                if similarity_suite:
+                    started = time.perf_counter()
+                    with patch("geistfabrik.vault.datetime", Clock):
+                        row["unchanged_processed"] = vault.sync()
+                    row["unchanged_sync_seconds"] = time.perf_counter() - started
+                    row["unchanged_lexical_sync"] = dict(vault.last_lexical_stats)
                 row["lexical"] = {}
                 row["geists"] = {}
                 with Session(observed.replace(tzinfo=None), vault.db, computer=computer) as session:
@@ -134,7 +174,21 @@ def replay(
                         started = time.perf_counter()
                         session.compute_embeddings(vault.all_notes())
                         row["embedding_seconds"] = time.perf_counter() - started
+                        if similarity_suite:
+                            encoded_before = encoder_work["texts"]
+                            changes_before = vault.db.total_changes
+                            started = time.perf_counter()
+                            session.compute_embeddings(vault.all_notes())
+                            row["unchanged_embedding_seconds"] = time.perf_counter() - started
+                            row["unchanged_embedding_texts"] = (
+                                encoder_work["texts"] - encoded_before
+                            )
+                            row["unchanged_embedding_db_changes"] = (
+                                vault.db.total_changes - changes_before
+                            )
+                    started = time.perf_counter()
                     context = VaultContext(vault, session)
+                    row["context_seconds"] = time.perf_counter() - started
                     for mode in ("dated_cohorts", "observed_additions"):
                         stage = "analysis:" + mode
                         vault.config.word_burst.history_mode = mode
@@ -167,9 +221,14 @@ def replay(
                                     {"index": index, "path": path}
                                 )
                             stable_vectors.setdefault(path, blob)
-                        for name in GEISTS[1:]:
+                        for name in geists[1:]:
                             stage = "executor:" + name
                             row["geists"][name] = execute(executor, name, context, index, report)
+                row["encoder_cumulative"] = dict(encoder_work)
+                row["text_cache_bytes"] = getattr(
+                    getattr(computer, "text_cache", None), "retained_bytes", 0
+                )
+                row["peak_rss_kib"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                 report["snapshots"].append(row)
                 print(
                     f"snapshot {index + 1}/{len(manifest['snapshots'])}: {row['date']}", flush=True
@@ -184,6 +243,8 @@ def replay(
                 report["errors"].append(
                     {"index": index, "stage": "close_model", "error": repr(exc)}
                 )
+    report["peak_rss_kib"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    report["encoder"] = encoder_work
     return report
 
 
@@ -194,9 +255,22 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--real-embeddings", action="store_true")
     parser.add_argument("--ngram-max", type=int, choices=[1, 2, 3], default=2)
+    parser.add_argument(
+        "--similarity-suite",
+        action="store_true",
+        help="Also benchmark density, clusters, bridges, SCAMPER and surprisal",
+    )
+    parser.add_argument(
+        "--snapshot-limit", type=int, help="Replay only this many initial snapshots"
+    )
     args = parser.parse_args()
     result = replay(
-        args.corpus, args.vault, real_embeddings=args.real_embeddings, ngram_max=args.ngram_max
+        args.corpus,
+        args.vault,
+        real_embeddings=args.real_embeddings,
+        ngram_max=args.ngram_max,
+        similarity_suite=args.similarity_suite,
+        snapshot_limit=args.snapshot_limit,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")

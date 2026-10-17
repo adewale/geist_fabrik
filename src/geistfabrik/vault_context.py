@@ -1,10 +1,11 @@
 """VaultContext - Rich execution context for geists."""
 
+import heapq
 import json
 import logging
 import random
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import (
@@ -20,7 +21,7 @@ import numpy as np
 
 from .clustering_analysis import Cluster, format_cluster_label
 from .config import GEIST_JOURNAL_DIR, SEMANTIC_DIM
-from .embeddings import Session, cosine_similarity, cosine_similarity_matrix
+from .embeddings import Session
 from .lexical_index import lexical_excerpt
 from .markdown_parser import parse_frontmatter
 from .models import Link, Note, NoteLinkIndex, _normalise_vault_path
@@ -28,6 +29,8 @@ from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
+from .vector_math import SCORE_BLOCK_BYTES, UnitRows, _threshold
+from .vector_search import InMemoryVectorBackend
 from .voice_analysis import VoiceMetadata, compute_voice
 from .word_burst_analysis import WordBurstFinding, analyze_word_bursts
 
@@ -102,21 +105,6 @@ class ChurnResult:
     arrived: list[str]
 
 
-def _normalise_rows(matrix: np.ndarray) -> np.ndarray:
-    """Row-normalise a matrix to unit vectors, leaving zero rows as zeros.
-
-    Args:
-        matrix: (N, d) array
-
-    Returns:
-        (N, d) array with each non-zero row scaled to unit norm
-    """
-    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
-    norms = np.where(norms == 0, 1.0, norms)
-    result: np.ndarray = matrix / norms
-    return result
-
-
 def _jaccard_churn(old: set[str], new: set[str]) -> float:
     """Compute Jaccard churn between two neighbour sets.
 
@@ -136,44 +124,13 @@ def _jaccard_churn(old: set[str], new: set[str]) -> float:
     return 1.0 - len(old & new) / len(union)
 
 
-def _normalised_matrix(embeddings: dict[str, np.ndarray]) -> tuple[list[str], np.ndarray]:
-    """Sorted paths and the float64 row-normalised matrix in that order."""
-    paths = sorted(embeddings)
-    if not paths:
-        return paths, np.zeros((0, 0))
-    matrix = np.stack([np.asarray(embeddings[p], dtype=np.float64) for p in paths])
-    return paths, _normalise_rows(matrix)
-
-
-def _topk_indices(normalised: np.ndarray, k: int, block_size: int = 1024) -> np.ndarray:
-    """Top-k cosine neighbour row indices for every row of a normalised matrix.
-
-    Uses blocked matrix multiplication (block_size rows at a time) so peak
-    memory stays bounded at roughly block_size × N floats, followed by
-    np.argpartition for O(N) top-k selection per row. Self-similarity is
-    masked out. Requires 1 <= k <= N - 1.
-
-    This is the shared core of surprisal_scores() and neighbour_churn(), so
-    both select exactly the same neighbours (float64 throughout: in float32,
-    near-tied neighbours at the k-th place can swap).
-
-    Args:
-        normalised: (N, d) row-normalised float64 matrix
-        k: Number of neighbours per row
-        block_size: Rows per block (memory/speed trade-off)
-
-    Returns:
-        (N, k) array of neighbour row indices (unordered within a row)
-    """
-    n = normalised.shape[0]
-    result = np.empty((n, k), dtype=np.intp)
-    for start in range(0, n, block_size):
-        end = min(start + block_size, n)
-        sims = normalised[start:end] @ normalised.T
-        # Mask self-similarity so a note is never its own neighbour
-        sims[np.arange(end - start), np.arange(start, end)] = -np.inf
-        result[start:end] = np.argpartition(sims, -k, axis=1)[:, -k:]
-    return result
+def _prepared_topk(prepared: UnitRows, k: int) -> np.ndarray:
+    """Exact stable neighbours, excluding only the query's own row."""
+    found = prepared.nearest(prepared, k + 1)
+    return np.asarray(
+        [[i for i, _score in row if i != query][:k] for query, row in enumerate(found)],
+        dtype=np.intp,
+    ).reshape(len(prepared), k)
 
 
 def _neighbour_sets_from_indices(paths: list[str], topk_idx: np.ndarray) -> dict[str, set[str]]:
@@ -181,18 +138,15 @@ def _neighbour_sets_from_indices(paths: list[str], topk_idx: np.ndarray) -> dict
     return {path: {paths[j] for j in row} for path, row in zip(paths, topk_idx)}
 
 
-def _topk_neighbour_sets(
-    matrix: np.ndarray, paths: list[str], k: int, block_size: int = 1024
-) -> dict[str, set[str]]:
+def _topk_neighbour_sets(matrix: np.ndarray, paths: list[str], k: int) -> dict[str, set[str]]:
     """Compute top-k cosine neighbour path sets for every row of a matrix.
 
-    k is capped at N - 1; see _topk_indices for the method.
+    k is capped at N - 1; exact cutoff ties preserve row order.
 
     Args:
         matrix: (N, d) embedding matrix; row i corresponds to paths[i]
         paths: Note paths, one per matrix row
         k: Number of neighbours per note
-        block_size: Rows per block (memory/speed trade-off)
 
     Returns:
         Dictionary mapping each path to the set of its top-k neighbour paths
@@ -205,12 +159,11 @@ def _topk_neighbour_sets(
     if k_eff <= 0:
         return {path: set() for path in paths}
 
-    normalised = _normalise_rows(matrix.astype(np.float64))
-    return _neighbour_sets_from_indices(paths, _topk_indices(normalised, k_eff, block_size))
+    return _neighbour_sets_from_indices(paths, _prepared_topk(UnitRows(matrix), k_eff))
 
 
 def _surprisal_from_topk(
-    paths: list[str], normalised: np.ndarray, topk_idx: np.ndarray, block_size: int = 1024
+    paths: list[str], prepared: UnitRows, topk_idx: np.ndarray, block_size: int = 1024
 ) -> dict[str, float]:
     """Surprisal for every row, given its top-k neighbour indices.
 
@@ -219,17 +172,17 @@ def _surprisal_from_topk(
     """
     scores: dict[str, float] = {}
     n = len(paths)
-    for start in range(0, n, block_size):
-        end = min(start + block_size, n)
-        block = normalised[start:end]
-        # Centroids of top-k neighbours: (b, k, d) -> (b, d), then normalise
-        centroids = normalised[topk_idx[start:end]].mean(axis=1)
-        centroid_norms = np.linalg.norm(centroids, axis=1, keepdims=True)
-        centroid_norms = np.where(centroid_norms == 0, 1.0, centroid_norms)
-        centroids = centroids / centroid_norms
-
-        surprisal = 1.0 - np.einsum("ij,ij->i", block, centroids)
-        surprisal = np.clip(surprisal, 0.0, 2.0)
+    rows = max(
+        1,
+        min(
+            block_size,
+            SCORE_BLOCK_BYTES // (8 * max(1, prepared.values.shape[1]) * max(1, topk_idx.shape[1])),
+        ),
+    )
+    for start in range(0, n, rows):
+        end = min(start + rows, n)
+        centroids = UnitRows(prepared.values[topk_idx[start:end]].mean(axis=1))
+        surprisal = np.clip(1.0 - prepared._view(start, end).paired(centroids), 0.0, 2.0)
 
         for offset in range(end - start):
             scores[paths[start + offset]] = float(surprisal[offset])
@@ -240,32 +193,18 @@ def _surprisal_from_topk(
 def _surprisal_blocked(
     embeddings: dict[str, np.ndarray], k_neighbours: int, block_size: int = 1024
 ) -> dict[str, float]:
-    """Compute surprisal for all notes using blocked matrix operations.
+    """Canonical surprisal with certified neighbours and bounded score tiles.
 
-    Surprisal = 1 - cosine(note, centroid of its k nearest neighbours).
-    Same flop count as the naive version but runs as blocked BLAS matmuls
-    rather than Python loops:
-
-    1. E = row-normalised embedding matrix (paths in fixed sorted order)
-    2. For each block of rows: S = E_block @ E.T (peak ~block_size × N)
-    3. Mask self-similarity to -inf; top-k indices via np.argpartition
-    4. centroid = mean of top-k rows, normalised (zero-norm guarded)
-    5. surprisal = 1 - row · centroid, clipped to [0.0, 2.0]
-
-    Args:
-        embeddings: Mapping of note path to embedding vector
-        k_neighbours: Number of nearest neighbours forming the centroid
-        block_size: Rows per block (memory/speed trade-off)
-
-    Returns:
-        Mapping of note path to surprisal in [0.0, 2.0]; empty dict if
-        fewer than k_neighbours + 1 notes are available
+    Equal scores preserve sorted path order. Centroids average prepared rows
+    in neighbour rank order, then use the shared canonical paired kernel.
+    block_size bounds centroid materialization, separately from score tiles.
     """
     if k_neighbours < 1 or len(embeddings) < k_neighbours + 1:
         return {}
-    paths, normalised = _normalised_matrix(embeddings)
-    topk_idx = _topk_indices(normalised, k_neighbours, block_size)
-    return _surprisal_from_topk(paths, normalised, topk_idx, block_size)
+    paths = sorted(embeddings)
+    prepared = UnitRows(np.stack([embeddings[path] for path in paths]))
+    topk_idx = _prepared_topk(prepared, k_neighbours)
+    return _surprisal_from_topk(paths, prepared, topk_idx, block_size)
 
 
 class VaultContext:
@@ -334,10 +273,9 @@ class VaultContext:
         # Cache for similarity scores (performance optimisation - keyed by note path pair)
         self._similarity_cache: dict[tuple[str, str], float] = {}
 
-        # Cache for neighbours (keyed by (note_path, count, return_scores))
-        self._neighbours_cache: dict[
-            tuple[str, int, bool], list[Note] | list[tuple[Note, float]]
-        ] = {}
+        # One largest ranked prefix per query, shared by both return formats.
+        # Missing note slots remain in rank order so smaller requests agree.
+        self._neighbours_cache: dict[str, tuple[int, list[tuple[Note | None, float]]]] = {}
 
         # Cache for backlinks (performance optimisation - keyed by note_path)
         self._backlinks_cache: dict[str, list[Note]] = {}
@@ -360,7 +298,8 @@ class VaultContext:
         # Current-epoch top-k neighbour index shared by surprisal_scores() and
         # neighbour_churn() (session-scoped - keyed by k), over the sorted
         # user paths and normalised matrix built once per session
-        self._current_matrix: tuple[list[str], np.ndarray] | None = None
+        self._current_prepared: tuple[list[str], UnitRows] | None = None
+        self._prepared_snapshot: tuple[dict[str, int], UnitRows] | None = None
         self._current_topk_cache: dict[int, np.ndarray] = {}
 
         # Cache for typed voice metadata (session-scoped - keyed by note path)
@@ -375,18 +314,18 @@ class VaultContext:
         # Vector search backend (delegated from session)
         self._backend = session.get_backend()
 
-        # Session embeddings loaded once and cached for the session
-        cursor = vault.db.execute(
-            """
-            SELECT note_path, embedding FROM session_embeddings
-            WHERE session_id = ?
-            """,
-            (session.session_id,),
-        )
+        # Share immutable raw buffers with the in-memory backend. Native
+        # backends keep their own search engine and use one CPU snapshot here.
         self._embeddings: dict[str, np.ndarray] = {}
-        for row in cursor.fetchall():
-            note_path, embedding_bytes = row
-            self._embeddings[note_path] = decode_meaning_vector(embedding_bytes)
+        if isinstance(self._backend, InMemoryVectorBackend):
+            self._embeddings = dict(self._backend.embeddings)
+        else:
+            cursor = vault.db.execute(
+                "SELECT note_path, embedding FROM session_embeddings WHERE session_id = ?",
+                (session.session_id,),
+            )
+            for note_path, embedding_bytes in cursor:
+                self._embeddings[note_path] = decode_meaning_vector(embedding_bytes)
         # The population every vault-wide lookup works over: session journal
         # notes are the engine's own output, so they never count as the
         # user's notes, neighbours, links, clusters or history.
@@ -582,57 +521,59 @@ class VaultContext:
             List of similar notes, or list of (note, score) tuples, sorted by
             similarity descending
         """
-        # Create cache key (note path + k parameter + return_scores flag)
-        cache_key = (note.path, count, return_scores)
-
-        # Check cache first
-        if cache_key in self._neighbours_cache:
-            return self._neighbours_cache[cache_key]
-
-        # Get embedding for query note
-        try:
-            query_embedding = self._backend.get_embedding(note.path)
-        except KeyError:
-            return [] if not return_scores else []
-
-        # Find similar notes: request k+1 to exclude self, plus one per
-        # journal note so dropping them cannot leave fewer than k results
-        journal_count = len(self._embeddings) - len(self._user_embeddings)
-        similar = self._backend.find_similar(query_embedding, count=count + 1 + journal_count)
-
-        # Convert paths to notes using batch loading (OP-6)
-        # Collect paths first (excluding self)
-        paths_to_load: list[str] = []
-        path_score_map = {}
-        for path, score in similar:
-            if path != note.path and not is_geist_journal_path(path):
-                if len(paths_to_load) >= count:
-                    break
-                paths_to_load.append(path)
-                # Clip score to [0, 1] range (handle floating-point precision errors)
-                path_score_map[path] = _clip_similarity(score)
-
-        # Batch load all notes at once
-        notes_map = self.vault.get_notes_batch(paths_to_load)
-
-        # Build results in order, preserving similarity ranking
-        result = []
-        result_with_scores = []
-        for path in paths_to_load:
-            similar_note = notes_map.get(path)
-            if similar_note is not None:
-                result.append(similar_note)
-                result_with_scores.append((similar_note, path_score_map[path]))
-                if len(result) >= count:
-                    break
-
-        # Cache and return based on return_scores flag
+        found = self.neighbours_many([note], count=count)[0]
         if return_scores:
-            self._neighbours_cache[cache_key] = result_with_scores
-            return result_with_scores
-        else:
-            self._neighbours_cache[cache_key] = result
-            return result
+            return found
+        return [item for item, _score in found]
+
+    def neighbours_many(
+        self, notes: Sequence[Note], count: int = 10
+    ) -> list[list[tuple[Note, float]]]:
+        """Batch independent queries, sharing score and note-loading work.
+
+        Both neighbours() return formats share these cached results. A larger
+        cached search also answers smaller requests without scoring again.
+        """
+        if isinstance(count, bool) or not isinstance(count, int):
+            raise ValueError("neighbour count must be an integer")
+        if count <= 0:
+            return [[] for _ in notes]
+        result: dict[str, list[tuple[Note, float]]] = {}
+        pending: dict[str, np.ndarray] = {}
+        for note in notes:
+            cached = self._neighbours_cache.get(note.path)
+            if cached is not None and cached[0] >= count:
+                result[note.path] = [
+                    (item, score) for item, score in cached[1][:count] if item is not None
+                ]
+                continue
+            try:
+                pending[note.path] = self._backend.get_embedding(note.path)
+            except KeyError:
+                result[note.path] = []
+        if pending:
+            journal_count = len(self._embeddings) - len(self._user_embeddings)
+            searches = self._backend.find_similar_batch(
+                np.stack(list(pending.values())), count=count + 1 + journal_count
+            )
+            ranked = {
+                path: [
+                    (other, _clip_similarity(score))
+                    for other, score in matches
+                    if other != path and not is_geist_journal_path(other)
+                ][:count]
+                for path, matches in zip(pending, searches)
+            }
+            loaded = self.vault.get_notes_batch(
+                list(
+                    dict.fromkeys(other for matches in ranked.values() for other, _score in matches)
+                )
+            )
+            for path, matches in ranked.items():
+                ranked_notes = [(loaded.get(other), score) for other, score in matches]
+                self._neighbours_cache[path] = (count, ranked_notes)
+                result[path] = [(item, score) for item, score in ranked_notes if item is not None]
+        return [list(result[note.path]) for note in notes]
 
     def similarity(self, a: Note, b: Note) -> float:
         """Calculate semantic similarity between two notes.
@@ -751,12 +692,79 @@ class VaultContext:
         A path with no session embedding contributes a zero row (similarity
         0.0 with everything), matching similarity()'s KeyError fallback.
         """
-        embeddings_a = [self._embedding_or_zeros(path) for path in paths_a]
-        embeddings_b = [self._embedding_or_zeros(path) for path in paths_b]
-        matrix: np.ndarray = np.clip(
-            cosine_similarity_matrix(np.stack(embeddings_a), np.stack(embeddings_b)), 0.0, 1.0
-        )
+        matrix = self._prepared_paths(paths_a).cosine(self._prepared_paths(paths_b))
+        np.clip(matrix, 0.0, 1.0, out=matrix)
         return matrix
+
+    def _prepared_paths(self, paths: Sequence[str]) -> UnitRows:
+        """Share one validated snapshot across all semantic consumers."""
+        self._backend._ensure_open()
+        if isinstance(self._backend, InMemoryVectorBackend):
+            return self._backend.prepared_rows(paths)
+        # Native backends keep their search engine; CPU reductions reuse the
+        # already-loaded session snapshot instead of issuing per-note SQL reads.
+        if getattr(self, "_prepared_snapshot", None) is None:
+            embeddings = getattr(self, "_embeddings", None)
+            if embeddings is None:
+                return UnitRows(np.stack([self._embedding_or_zeros(path) for path in paths]))
+            order = list(embeddings)
+            width = (
+                len(embeddings[order[0]]) if order else getattr(self._backend, "dim", SEMANTIC_DIM)
+            )
+            rows = [embeddings[path] for path in order] + [np.zeros(width)]
+            self._prepared_snapshot = (
+                {path: i for i, path in enumerate(order)},
+                UnitRows(np.stack(rows)),
+            )
+        assert self._prepared_snapshot is not None
+        index, prepared = self._prepared_snapshot
+        indices = [index.get(path, len(index)) for path in paths]
+        if not indices:
+            return prepared._view(0, 0)
+        if indices == list(range(indices[0], indices[0] + len(indices))):
+            return prepared._view(indices[0], indices[0] + len(indices))
+        return prepared.take(indices)
+
+    def paired_similarity(self, notes_a: Sequence[Note], notes_b: Sequence[Note]) -> np.ndarray:
+        """Score corresponding pairs without a Cartesian matrix."""
+        scores = self._prepared_paths([n.path for n in notes_a]).paired(
+            self._prepared_paths([n.path for n in notes_b])
+        )
+        np.clip(scores, 0.0, 1.0, out=scores)
+        return scores
+
+    def mean_similarity(self, notes: Sequence[Note], others: Sequence[Note] | None = None) -> float:
+        """Stream the nonnegative mean, within notes or between populations."""
+        prepared = self._prepared_paths([n.path for n in notes])
+        peer = None if others is None else self._prepared_paths([n.path for n in others])
+        return prepared.mean_similarity(peer)
+
+    def mean_similarity_matches(
+        self,
+        notes: Sequence[Note],
+        threshold: float,
+        others: Sequence[Note] | None = None,
+        *,
+        inclusive: bool = True,
+    ) -> bool:
+        """Certify a mean threshold; only ambiguous decisions use canonical sums."""
+        prepared = self._prepared_paths([n.path for n in notes])
+        peer = None if others is None else self._prepared_paths([n.path for n in others])
+        return prepared.mean_compare(threshold, peer, inclusive=inclusive)
+
+    def similar_pairs(
+        self, notes: Sequence[Note], threshold: float, *, inclusive: bool = True
+    ) -> Iterator[tuple[Note, Note]]:
+        """Stream threshold matches in input row order without a dense matrix."""
+        threshold = _threshold(threshold)
+        prepared = self._prepared_paths([n.path for n in notes])
+        # Vault similarities project signed cosines onto [0,1]. A nonpositive
+        # threshold therefore also includes negative raw cosines as appropriate.
+        if threshold < 0 or (threshold == 0 and inclusive):
+            yield from ((a, b) for i, a in enumerate(notes) for b in notes[i + 1 :])
+            return
+        for i, j in prepared.matching_pairs(threshold, inclusive=inclusive):
+            yield notes[i], notes[j]
 
     def _embedding_or_zeros(self, path: str) -> np.ndarray:
         try:
@@ -1347,27 +1355,20 @@ class VaultContext:
         centroid = cluster.centroid
         notes = cluster.notes
 
-        # Use cached session embeddings instead of re-querying DB
-        similarities = []
-
-        for note in notes:
-            note_embedding = self._embeddings.get(note.path)
-            if note_embedding is not None:
-                sim = cosine_similarity(centroid, note_embedding)
-                similarities.append((note, sim))
-
-        # Sort by similarity descending, return top k
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        return [note for note, _ in similarities[:count]]
+        valid = [note for note in notes if note.path in self._embeddings]
+        if not valid:
+            return []
+        prepared = self._prepared_paths([note.path for note in valid])
+        return [valid[i] for i, _score in prepared.nearest(UnitRows(centroid[None, :]), count)[0]]
 
     def unlinked_pairs(
         self, count: int = 10, candidate_limit: int = 200
     ) -> list[tuple[Note, Note]]:
         """Find semantically similar note pairs with no links between them.
 
-        Performance optimised: Uses vectorised numpy matrix multiplication to compute
-        all pairwise similarities at once, rather than nested loops. This is 10-50x
-        faster than the loop-based approach, especially for large vaults.
+        Streams threshold matches with canonical pair scores, discards linked
+        pairs and retains only the requested top results. Linked threshold
+        matches also incur scoring; no full score matrix is retained.
 
         Args:
             count: Number of pairs to return
@@ -1391,47 +1392,16 @@ class VaultContext:
         else:
             notes = all_notes
 
-        # Build valid notes + embeddings arrays
-        valid_notes = []
-        embeddings_list = []
-
-        for note in notes:
-            embedding = self._embeddings.get(note.path)
-            if embedding is not None:
-                valid_notes.append(note)
-                embeddings_list.append(embedding)
-
-        if len(valid_notes) < 2:
-            return []
-
-        # Vectorised: Compute all pairwise similarities at once
-        embeddings_matrix = np.array(embeddings_list)
-
-        similarity_matrix = cosine_similarity_matrix(embeddings_matrix, embeddings_matrix)
-
-        # Extract high-similarity pairs (upper triangle only, threshold > 0.5)
-        pairs = []
-        n = len(valid_notes)
-
-        for i in range(n):
-            for j in range(i + 1, n):
-                sim = similarity_matrix[i, j]
-
-                # Early threshold filter
-                if sim <= 0.5:
-                    continue
-
-                note_a, note_b = valid_notes[i], valid_notes[j]
-
-                # Check if linked (this is now the main bottleneck)
-                if self.links_between(note_a, note_b):
-                    continue
-
-                pairs.append((note_a, note_b, sim))
-
-        # Sort by similarity descending, return top k
-        pairs.sort(key=lambda x: x[2], reverse=True)
-        return [(a, b) for a, b, _ in pairs[:count]]
+        valid_notes = [note for note in notes if note.path in self._embeddings]
+        prepared = self._prepared_paths([note.path for note in valid_notes])
+        candidates = (
+            (valid_notes[i], valid_notes[j], score)
+            for i, j, score in prepared.scored_matching_pairs(0.5, inclusive=False)
+            if not self.links_between(valid_notes[i], valid_notes[j])
+        )
+        # nlargest is stable for equal keys, preserving input pair order while
+        # retaining only the requested result count rather than every match.
+        return [(a, b) for a, b, _score in heapq.nlargest(count, candidates, key=lambda x: x[2])]
 
     def links_between(self, a: Note, b: Note) -> list[Link]:
         """Find all links between two notes (bidirectional).
@@ -1574,16 +1544,17 @@ class VaultContext:
         if k_neighbours < 1 or len(self._user_embeddings) < k_neighbours + 1:
             scores: dict[str, float] = {}
         else:
-            paths, normalised = self._current_normalised_matrix()
-            scores = _surprisal_from_topk(paths, normalised, self._current_topk(k_neighbours))
+            paths, prepared = self._current_directions()
+            scores = _surprisal_from_topk(paths, prepared, self._current_topk(k_neighbours))
         self._surprisal_cache[k_neighbours] = scores
         return scores
 
-    def _current_normalised_matrix(self) -> tuple[list[str], np.ndarray]:
-        """Sorted user paths and their row-normalised matrix (session-cached)."""
-        if self._current_matrix is None:
-            self._current_matrix = _normalised_matrix(self._user_embeddings)
-        return self._current_matrix
+    def _current_directions(self) -> tuple[list[str], UnitRows]:
+        """Retain prepared metadata even when excluding interspersed journals."""
+        if self._current_prepared is None:
+            paths = sorted(self._user_embeddings)
+            self._current_prepared = (paths, self._prepared_paths(paths))
+        return self._current_prepared
 
     def _current_topk(self, k: int) -> np.ndarray:
         """This session's top-k neighbour indices (1 <= k < N), computed once.
@@ -1592,8 +1563,8 @@ class VaultContext:
         shared, every session ran the O(N^2) pass twice.
         """
         if k not in self._current_topk_cache:
-            _paths, normalised = self._current_normalised_matrix()
-            self._current_topk_cache[k] = _topk_indices(normalised, k)
+            _paths, prepared = self._current_directions()
+            self._current_topk_cache[k] = _prepared_topk(prepared, k)
         return self._current_topk_cache[k]
 
     def neighbour_churn(self, since_days: int = 180, k: int = 10) -> dict[str, ChurnResult]:
@@ -1698,7 +1669,7 @@ class VaultContext:
         old_sets = _topk_neighbour_sets(old_matrix, old_paths, k)
 
         # The current epoch's index is shared with surprisal_scores()
-        new_paths, _normalised = self._current_normalised_matrix()
+        new_paths, _prepared = self._current_directions()
         k_eff = min(k, len(new_paths) - 1)
         if k_eff <= 0:
             new_sets: dict[str, set[str]] = {path: set() for path in new_paths}

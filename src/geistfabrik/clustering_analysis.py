@@ -50,9 +50,7 @@ class Cluster:
         Returns:
             Cosine similarity to cluster centroid (0-1)
         """
-        from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-            cosine_similarity as sklearn_cosine,
-        )
+        from .embeddings import cosine_similarity
 
         # Get note embedding via public accessor
         note_emb = vault.get_embedding(note.path)
@@ -60,8 +58,7 @@ class Cluster:
             return 0.0
 
         # Compute similarity to centroid
-        similarity = sklearn_cosine(note_emb.reshape(1, -1), self.centroid.reshape(1, -1))
-        return float(similarity[0, 0])
+        return cosine_similarity(note_emb, self.centroid)
 
 
 def format_cluster_label(keyword_label: str) -> str:
@@ -176,16 +173,4 @@ class ClusterAnalyser:
         if cluster_id not in clusters:
             return []
 
-        cluster = clusters[cluster_id]
-
-        # Compute similarity of each note to cluster centroid
-        note_similarities = []
-        for note in cluster.notes:
-            sim = cluster.similarity_to_note(note, self.vault)
-            note_similarities.append((note, sim))
-
-        # Sort by similarity (descending)
-        note_similarities.sort(key=lambda x: x[1], reverse=True)
-
-        # Return top k
-        return [note for note, _ in note_similarities[:k]]
+        return self.vault.get_cluster_representatives(cluster_id, count=k, clusters=clusters)

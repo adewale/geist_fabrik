@@ -29,7 +29,7 @@ from .config import (
 from .embeddings import EmbeddingComputer
 from .evidence_identity import evidence_interval
 from .models import NoteLinkIndex, Suggestion, _normalise_vault_path
-from .vector_math import cosine_matrix
+from .vector_math import UnitRows
 
 
 @dataclass(frozen=True)
@@ -78,15 +78,28 @@ class SuggestionFilter:
         self.db = db
         self.embedding_computer = embedding_computer
         self.config = config or self._default_config()
+        self._pipeline_vectors: tuple[dict[str, int], UnitRows] | None = None
+        self._in_pipeline = False
+
+    def _candidate_vectors(self, texts: list[str]) -> UnitRows:
+        """Share prepared candidate rows between novelty and diversity in one run."""
+        if self._pipeline_vectors is not None:
+            indices, prepared = self._pipeline_vectors
+            if all(text in indices for text in texts):
+                return prepared.take([indices[text] for text in texts])
+        prepared = UnitRows(np.asarray(self.embedding_computer.compute_batch_semantic(texts)))
+        if self._in_pipeline:
+            self._pipeline_vectors = ({text: i for i, text in enumerate(texts)}, prepared)
+        return prepared
 
     def _default_config(self) -> dict[str, Any]:
         """Return default filtering configuration."""
         return get_default_filter_config()
 
-    def _iter_recent_embedding_chunks(
+    def _iter_recent_text_chunks(
         self, session_date: datetime, window_days: int
-    ) -> Iterator[tuple[list[str], np.ndarray]]:
-        """Stream bounded embedding chunks from sessions before the replay date."""
+    ) -> Iterator[list[str]]:
+        """Stream bounded text chunks; exact matches can stop before encoding."""
         cutoff_date = session_date - timedelta(days=window_days)
         cursor = self.db.execute(
             """
@@ -98,8 +111,7 @@ class SuggestionFilter:
             (cutoff_date.strftime("%Y-%m-%d"), session_date.strftime("%Y-%m-%d")),
         )
         while rows := cursor.fetchmany(SIMILARITY_SUGGESTION_CHUNK):
-            texts = [str(row[0]) for row in rows]
-            yield texts, np.asarray(self.embedding_computer.compute_batch_semantic(texts))
+            yield [str(row[0]) for row in rows]
 
     def filter_all(self, suggestions: list[Suggestion], session_date: datetime) -> list[Suggestion]:
         """Apply all enabled filters in sequence.
@@ -131,24 +143,29 @@ class SuggestionFilter:
         strategies = [s for s in ("boundary", "quality") if s in configured]
         strategies.extend(s for s in configured if s not in {"boundary", "quality"})
 
-        for strategy in strategies:
-            input_count = len(filtered)
-            if strategy == "boundary":
-                filtered = self.filter_boundary(filtered)
-            elif strategy == "novelty":
-                filtered = self.filter_novelty(filtered, session_date)
-            elif strategy == "diversity":
-                filtered = self.filter_diversity(filtered)
-            elif strategy == "quality":
-                filtered = self.filter_quality(filtered)
+        self._in_pipeline = True
+        try:
+            for strategy in strategies:
+                input_count = len(filtered)
+                if strategy == "boundary":
+                    filtered = self.filter_boundary(filtered)
+                elif strategy == "novelty":
+                    filtered = self.filter_novelty(filtered, session_date)
+                elif strategy == "diversity":
+                    filtered = self.filter_diversity(filtered)
+                elif strategy == "quality":
+                    filtered = self.filter_quality(filtered)
 
-            stage_reports.append(
-                FilterStageReport(
-                    name=strategy,
-                    input_count=input_count,
-                    output_count=len(filtered),
+                stage_reports.append(
+                    FilterStageReport(
+                        name=strategy,
+                        input_count=input_count,
+                        output_count=len(filtered),
+                    )
                 )
-            )
+        finally:
+            self._in_pipeline = False
+            self._pipeline_vectors = None
 
         return filtered, FilteringReport(
             input_count=len(suggestions),
@@ -279,24 +296,29 @@ class SuggestionFilter:
             if not suggestions:
                 return suggestions
 
-            recent_chunks = self._iter_recent_embedding_chunks(session_date, window_days)
+            recent_chunks = self._iter_recent_text_chunks(session_date, window_days)
             first_chunk = next(recent_chunks, None)
             if first_chunk is None:
                 return suggestions
 
-            # Batch compute embeddings for the bounded current suggestion set.
             suggestion_texts = [s.text for s in suggestions]
-            suggestion_embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
-
-            # Stream history once and compare bounded blocks in both dimensions.
-            suggestion_matrix = np.asarray(suggestion_embeddings)
+            suggestion_vectors = None
             too_similar = np.zeros(len(suggestions), dtype=np.bool_)
-            for recent_texts, recent_chunk in chain((first_chunk,), recent_chunks):
+            for recent_texts in chain((first_chunk,), recent_chunks):
                 exact_texts = set(recent_texts)
                 too_similar |= np.array([text in exact_texts for text in suggestion_texts])
-                for history_start in range(0, len(recent_chunk), SIMILARITY_HISTORY_CHUNK):
+                if too_similar.all():
+                    break
+                if suggestion_vectors is None:
+                    suggestion_vectors = self._candidate_vectors(suggestion_texts)
+                history_vectors = UnitRows(
+                    np.asarray(self.embedding_computer.compute_batch_semantic(recent_texts))
+                )
+                for history_start in range(0, len(history_vectors), SIMILARITY_HISTORY_CHUNK):
                     history_end = history_start + SIMILARITY_HISTORY_CHUNK
-                    history_block = recent_chunk[history_start:history_end]
+                    history_block = history_vectors._view(
+                        history_start, min(history_end, len(history_vectors))
+                    )
                     for suggestion_start in range(0, len(suggestions), SIMILARITY_SUGGESTION_CHUNK):
                         suggestion_end = min(
                             suggestion_start + SIMILARITY_SUGGESTION_CHUNK,
@@ -304,13 +326,9 @@ class SuggestionFilter:
                         )
                         if too_similar[suggestion_start:suggestion_end].all():
                             continue
-                        similarities = cosine_matrix(
-                            suggestion_matrix[suggestion_start:suggestion_end],
-                            history_block,
-                        )
-                        too_similar[suggestion_start:suggestion_end] |= (
-                            similarities >= threshold
-                        ).any(axis=1)
+                        too_similar[suggestion_start:suggestion_end] |= suggestion_vectors._view(
+                            suggestion_start, suggestion_end
+                        ).any_matches(history_block, threshold)
                 if too_similar.all():
                     break
             return [s for i, s in enumerate(suggestions) if not too_similar[i]]
@@ -336,24 +354,19 @@ class SuggestionFilter:
         if not suggestions:
             return suggestions
 
-        # Batch compute embeddings for all suggestions at once
         suggestion_texts = [s.text for s in suggestions]
-        embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
-
-        # One S x S similarity matrix, then the same greedy keep-first loop
-        # reading matrix cells (previously S^2/2 per-pair cosine calls - the
-        # dominant filter cost in --full mode at 50-200+ suggestions).
-        sim_matrix = cosine_matrix(np.asarray(embeddings))
-
+        vectors = self._candidate_vectors(suggestion_texts)
         keep = [True] * len(suggestions)
         for i in range(len(suggestions)):
             if not keep[i]:
                 continue
 
+            matches = vectors._view(i, i + 1).compare(
+                vectors._view(i + 1, len(vectors)), threshold
+            )[0]
             for j in range(i + 1, len(suggestions)):
                 if keep[j] and (
-                    suggestions[i].text == suggestions[j].text
-                    or float(sim_matrix[i, j]) >= threshold
+                    suggestions[i].text == suggestions[j].text or bool(matches[j - i - 1])
                 ):
                     # Mark later suggestion as duplicate
                     keep[j] = False

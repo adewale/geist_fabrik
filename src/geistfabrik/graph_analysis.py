@@ -107,21 +107,9 @@ class GraphPatternFinder:
             if len(connected_list) < 2:
                 continue  # Need at least 2 connections to bridge
 
-            # One vectorised similarity matrix for the whole neighbourhood
-            # instead of O(degree^2) individual similarity() calls - for a
-            # super-hub with degree 200 that is one matrix op vs ~20k calls.
-            sim_matrix = self.vault.batch_similarity(connected_list, connected_list)
-
-            # Check all pairs of connected notes
-            for i, note_a in enumerate(connected_list):
-                for j in range(i + 1, len(connected_list)):
-                    note_b = connected_list[j]
-                    # Cheap link check first, similarity lookup second
-                    if self.vault.has_link(note_a, note_b):
-                        continue
-                    if float(sim_matrix[i, j]) >= min_similarity:
-                        # Found a bridge!
-                        bridges.append((note_a, bridge_candidate, note_b))
+            for note_a, note_b in self.vault.similar_pairs(connected_list, min_similarity):
+                if not self.vault.has_link(note_a, note_b):
+                    bridges.append((note_a, bridge_candidate, note_b))
 
         return bridges
 
@@ -275,21 +263,10 @@ class GraphPatternFinder:
         if candidate_limit is not None and len(candidates) > candidate_limit:
             candidates = self.vault.sample(candidates, candidate_limit)
 
-        # One vectorised matrix instead of O(C^2) individual similarity calls
-        sim_matrix = self.vault.batch_similarity(candidates, candidates)
-
         structural_holes: list[tuple[Note, Note]] = []
-        for i, note_a in enumerate(candidates):
-            comp_a = note_to_component.get(note_a.path)
-            if comp_a is None:
-                continue
-            for j in range(i + 1, len(candidates)):
-                note_b = candidates[j]
-                comp_b = note_to_component.get(note_b.path)
-
-                if comp_b is not None and comp_a != comp_b:
-                    # Different components - check similarity (matrix lookup)
-                    if float(sim_matrix[i, j]) >= min_similarity:
-                        structural_holes.append((note_a, note_b))
+        for note_a, note_b in self.vault.similar_pairs(candidates, min_similarity):
+            comp_a, comp_b = note_to_component.get(note_a.path), note_to_component.get(note_b.path)
+            if comp_a is not None and comp_b is not None and comp_a != comp_b:
+                structural_holes.append((note_a, note_b))
 
         return structural_holes
