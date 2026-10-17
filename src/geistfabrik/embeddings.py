@@ -21,9 +21,6 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-    cosine_similarity as sklearn_cosine,
-)
 from threadpoolctl import threadpool_limits  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
@@ -38,6 +35,7 @@ from .config import (
 from .models import Note
 from .session_time import normalise_session_date
 from .sqlite_transaction import owned_transaction
+from .vector_math import cosine_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -133,25 +131,6 @@ def is_offline_mode() -> bool:
     if os.environ.get("TRANSFORMERS_OFFLINE", "") == "1":
         return True
     return False
-
-
-# ============================================================================
-# Similarity Performance Optimisations
-# ============================================================================
-# Based on comprehensive benchmarking (8 configs × 9 geists = 72 runs),
-# the optimal configuration is opt1+2:
-#   - fast_path: Uses np.dot() for L2-normalised vectors
-#
-# Performance improvement: 21.5% speedup on large vaults (10k+ notes)
-# Key improvements (historical; antithesis_generator and columbo since retired):
-#   - hidden_hub: 43.52s → 32.77s (32.8% faster)
-#   - antithesis_generator: 7.74s → 5.95s (30% faster)
-#   - method_scrambler: 27.76s → 21.70s (22% faster)
-#   - bridge_hunter: 25.38s → 19.61s (23% faster)
-#   - columbo: 27.73s → 21.51s (22% faster)
-SKLEARN_OPTIMIZATIONS = {
-    "fast_path": True,
-}
 
 
 def combine_embedding(
@@ -806,76 +785,19 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     Returns:
         Cosine similarity in [-1, 1]
     """
-    # Calculate in float64. Squaring tiny float32 values in float32 can underflow
-    # to zero, making a non-zero vector appear orthogonal to itself. Preserve the
-    # caller's shape contract before flattening the equally shaped embeddings.
-    a_array = np.asarray(a, dtype=np.float64)
-    b_array = np.asarray(b, dtype=np.float64)
-    if a_array.shape != b_array.shape:
-        raise ValueError(f"embedding shapes must match, got {a.shape} and {b.shape}")
-    a64 = a_array.reshape(-1)
-    b64 = b_array.reshape(-1)
-    if not np.all(np.isfinite(a64)) or not np.all(np.isfinite(b64)):
-        raise ValueError("embeddings must contain only finite values")
-
-    # Scale each vector before its norm. This avoids underflow for subnormals and
-    # overflow for large-but-finite float64 inputs without changing direction.
-    scale_a = float(np.max(np.abs(a64))) if a64.size else 0.0
-    scale_b = float(np.max(np.abs(b64))) if b64.size else 0.0
-
-    if scale_a == 0 or scale_b == 0:
-        return 0.0
-    scaled_a = a64 / scale_a
-    scaled_b = b64 / scale_b
-    scaled_norm_a = float(np.linalg.norm(scaled_a))
-    scaled_norm_b = float(np.linalg.norm(scaled_b))
-    norm_a = scale_a * scaled_norm_a
-    norm_b = scale_b * scaled_norm_b
-
-    # Fast path: for unit-norm vectors, cosine similarity is just the dot
-    # product. NOTE: production embeddings do NOT take this path - encode()
-    # is called without normalize_embeddings=True, the stored 387-dim
-    # temporal embeddings (semantic*0.9 concatenated with temporal*0.1) have
-    # norms around 0.90-1.04, and the 384-dim meaning vectors that are
-    # actually compared (semantic*0.9) have norms near 0.9. The branch only
-    # fires for vectors that happen to be unit-norm (e.g. the normalised test
-    # stubs). Do not rely on a unit-norm invariant anywhere in this codebase.
-    if SKLEARN_OPTIMIZATIONS["fast_path"]:
-        # Check if both vectors are approximately normalised (norm ≈ 1.0)
-        if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
-            similarity = float(np.dot(a64, b64))
-            return max(-1.0, min(1.0, similarity))
-
-    # Avoid sklearn's near-zero normalisation cutoff: any mathematically non-zero
-    # vector has self-similarity one, regardless of magnitude. Floating-point
-    # accumulation can drift a few ulps outside the range, so clamp the result.
-    similarity = float(np.dot(scaled_a, scaled_b) / (scaled_norm_a * scaled_norm_b))
-    return max(-1.0, min(1.0, similarity))
+    left, right = np.asarray(a), np.asarray(b)
+    if left.shape != right.shape:
+        raise ValueError(f"embedding shapes must match, got {left.shape} and {right.shape}")
+    return float(cosine_matrix(left.reshape(1, -1), right.reshape(1, -1))[0, 0])
 
 
 def cosine_similarity_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Compute pairwise cosine similarity between the rows of two matrices.
+    """Canonical float64 pairwise cosine, identical to the scalar path.
 
-    Vectorised counterpart of :func:`cosine_similarity`, shared by every
-    VaultContext similarity matrix (``batch_similarity`` and
-    ``unlinked_pairs``). Computed in float64; a zero row has similarity 0.0
-    with every row (never NaN), and results are clamped to [-1, 1].
-
-    Args:
-        a: (N, d) matrix
-        b: (M, d) matrix
-
-    Returns:
-        (N, M) matrix where element [i, j] is cosine(a[i], b[j])
+    Finite nonzero vectors retain their direction at every supported magnitude.
+    Equal nonzero directions score exactly one; zero rows score zero.
     """
-    a64 = np.asarray(a, dtype=np.float64)
-    b64 = np.asarray(b, dtype=np.float64)
-    norms_a = np.linalg.norm(a64, axis=1, keepdims=True)
-    norms_b = np.linalg.norm(b64, axis=1, keepdims=True)
-    unit_a = a64 / np.where(norms_a == 0, 1.0, norms_a)
-    unit_b = b64 / np.where(norms_b == 0, 1.0, norms_b)
-    result: np.ndarray = np.clip(unit_a @ unit_b.T, -1.0, 1.0)
-    return result
+    return cosine_matrix(a, b)
 
 
 def find_similar_notes(
@@ -908,7 +830,7 @@ def find_similar_notes(
     embedding_matrix = np.vstack([embeddings[p] for p in filtered_paths])
 
     query_reshaped = query_embedding.reshape(1, -1)
-    similarity_scores = sklearn_cosine(query_reshaped, embedding_matrix)[0]
+    similarity_scores = cosine_matrix(query_reshaped, embedding_matrix)[0]
 
     # Create (path, similarity) tuples
     similarities = [

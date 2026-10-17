@@ -3,17 +3,13 @@
 from typing import TYPE_CHECKING
 
 from geistfabrik.config import MAX_SUGGESTION_NOTES
+from geistfabrik.document_rate import percentage_pair
 from geistfabrik.evidence_identity import interval_evidence_key
 from geistfabrik.models import Suggestion
 
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
     from geistfabrik.word_burst_analysis import WordBurstFinding
-
-
-def _rate(value: float) -> str:
-    """Keep a rare positive prevalence distinct from complete disappearance."""
-    return f"{value * 100:.3g}%"
 
 
 def suggest(vault: "VaultContext") -> list[Suggestion]:
@@ -87,10 +83,11 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
                 passages.append(f"[[{note.link_text}]]: “{excerpt}”")
         wording = " Current passages: " + "; ".join(passages) + "." if passages else ""
         if finding.direction == "declining":
-            if finding.reference_rate is None:
+            if finding.reference is None:
                 continue
+            rate, reference_rate = percentage_pair(finding.prevalence, finding.reference)
             comparison = (
-                f"compared with {_rate(finding.reference_rate)} during the earlier period "
+                f"compared with {reference_rate} during the earlier period "
                 f"{finding.reference_start} to {finding.reference_end}"
             )
             question = (
@@ -98,13 +95,14 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
                 "working on now, or has this language done its work?"
             )
         else:
-            comparison = f"compared with {_rate(finding.baseline_rate)} across the window"
+            rate, baseline_rate = percentage_pair(finding.prevalence, finding.baseline)
+            comparison = f"compared with {baseline_rate} across the window"
             question = (
                 f"What changes if you read {named} beside one another through ‘{finding.term}’?"
             )
         text = (
             f"From {finding.start} to {finding.end}, ‘{finding.term}’ appeared in "
-            f"{_rate(finding.rate)} of observations, {comparison}, "
+            f"{rate} of observations, {comparison}, "
             f"using {population}{qualification}.{wording} {question}"
         )
         suggestions.append(

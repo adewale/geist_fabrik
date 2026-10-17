@@ -13,34 +13,30 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from markdown_it import MarkdownIt
-from markdown_it.rules_block import StateBlock, reference
+from markdown_it.rules_block import StateBlock
+from markdown_it.rules_block.reference import reference
 from markdown_it.rules_inline import StateInline, image, link
+from markdown_it.rules_inline.backticks import backtick
 from markdown_it.token import Token
 
 from .config_loader import LexicalAnalysisConfig
 from .markdown_parser import (
-    declared_creation_date,
+    declared_creation_day,
     iter_wikilinks,
     markdown_prose_lines,
     parse_frontmatter,
 )
 from .models import Note, _normalise_vault_path
 
-EXTRACTION_VERSION = 4
-_WORDS = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*", re.UNICODE)
+EXTRACTION_VERSION = 5
 _REMOVED = re.compile(r"https?://[^\s)\]>]+", re.IGNORECASE)
 _INLINE_CODE = re.compile(r"(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)", re.DOTALL)
 
 
-def _reference_spans(
+def _link_spans(
     body: str, parser: MarkdownIt, environment: dict[str, Any]
 ) -> list[tuple[int, int, str]]:
-    """Replace only resolved reference syntax, preserving all other source.
-
-    The library owns definition/label validity. Inline rules record source spans
-    instead of rendering the whole document: an unused definition must not alter
-    existing code, Unicode line, entity or HTML extraction boundaries.
-    """
+    """Parser-owned link/image spans; replacement preserves physical line count."""
     spans: list[tuple[int, int, str]] = []
     wiki_spans = {match.start(): match.end() for match in iter_wikilinks(body)}
 
@@ -48,12 +44,14 @@ def _reference_spans(
         return "".join(
             "\n"
             if token.type in {"softbreak", "hardbreak"}
-            else "\x00"
+            else "\x00" + "\n" * token.meta.get("source_newlines", 0)
             if token.type == "code_inline"
             else visible(token.children or [])
             if token.type == "image"
+            else token.content.replace("\n", "\u2028")
+            if token.type == "text_special"
             else token.content
-            if token.type in {"text", "text_special", "html_inline"}
+            if token.type in {"text", "html_inline"}
             else ""
             for token in tokens
         )
@@ -76,10 +74,18 @@ def _reference_spans(
             created = state.tokens[before:]
             kind = "image" if is_image else "link_open"
             first = next(i for i, token in enumerate(created) if token.type == kind)
-            if created[first].meta.get("label"):
-                spans.append((start, state.pos, visible(created[first:])))
+            spans.append((start, state.pos, visible(created[first:])))
         return True
 
+    def code(state: StateInline, silent: bool) -> bool:
+        start, before = state.pos, len(state.tokens)
+        if not backtick(state, silent):
+            return False
+        if not silent and len(state.tokens) > before and state.tokens[-1].type == "code_inline":
+            state.tokens[-1].meta["source_newlines"] = state.src[start : state.pos].count("\n")
+        return True
+
+    parser.inline.ruler.at("backticks", code)
     parser.inline.ruler.before("link", "lexical_wiki", wiki)
     parser.inline.ruler.at("link", capture)
     parser.inline.ruler.at("image", capture)
@@ -87,71 +93,64 @@ def _reference_spans(
     return spans
 
 
-def _clean_references(body: str, include_quotes: bool) -> str:
-    """Resolve references within their real inline blocks, before prose masking."""
+def _clean_links(body: str, quoted_lines: set[int]) -> str:
+    """Rewrite only linked inline blocks, using authoritative block line maps.
+
+    No character offsets are inferred from normalized text. Each emitted line
+    belongs to the same original source line; eligibility is decided separately
+    on original source, so tab/container normalization cannot admit hidden prose.
+    """
     parser = MarkdownIt("commonmark", {"inline_definitions": True, "store_labels": True})
-    # Only block maps and definitions are needed here. Parse selected inline
-    # blocks below, after excluding documents without reference definitions.
     parser.core.ruler.disable(["inline"])
 
     def prose_footnotes(state: StateBlock, start: int, end: int, silent: bool) -> bool:
-        # Caret labels belong to Obsidian footnotes. Keep their bodies inline,
-        # including any real reference links/images within those bodies.
         position = state.bMarks[start] + state.tShift[start]
-        if state.src.startswith("[^", position):
-            return False
-        return reference(state, start, end, silent)
+        return (
+            False if state.src.startswith("[^", position) else reference(state, start, end, silent)
+        )
 
     parser.block.ruler.at("reference", prose_footnotes)
     environment: dict[str, Any] = {}
     tokens = parser.parse(body, environment)
-    if not environment.get("references"):
-        return body
     lines = body.split("\n")
-    offsets, offset = [], 0
-    for line in lines:
-        offsets.append(offset)
-        offset += len(line) + 1
-    replacements: list[tuple[int, int, str]] = []
-    depth = 0
     for token in tokens:
-        if token.type == "blockquote_open":
-            depth += 1
-        elif token.type == "blockquote_close":
-            depth -= 1
+        if token.type == "blockquote_open" and token.map:
+            quoted_lines.update(range(token.map[0] + 1, token.map[1] + 1))
         elif token.type == "definition" and token.map:
             for i in range(*token.map):
-                marker = "> \x00" if lines[i].lstrip().startswith(">") else "\x00"
-                replacements.append((offsets[i], offsets[i] + len(lines[i]), marker))
-        elif token.type == "inline" and token.map and (include_quotes or not depth):
-            if "[" not in token.content:
+                lines[i] = "\x00"
+        elif token.type == "inline" and token.map and "[" in token.content:
+            inline = MarkdownIt("commonmark", {"store_labels": True})
+            spans = _link_spans(token.content, inline, environment)
+            if not spans:
                 continue
-            positions: list[int] = []
-            for i, line in enumerate(token.content.split("\n"), start=token.map[0]):
-                # Core Markdown normalization replaces NUL one-for-one; source
-                # offsets therefore still refer to the original characters.
-                start = lines[i].replace("\x00", "\ufffd").find(line)
-                if start < 0:
-                    break
-                positions.extend(range(offsets[i] + start, offsets[i] + start + len(line)))
-                positions.append(offsets[i] + len(lines[i]))
-            else:
-                # A fresh inline parser keeps its rules local to this source.
-                inline = MarkdownIt("commonmark", {"store_labels": True})
-                for start, end, label in _reference_spans(token.content, inline, environment):
-                    first, last = positions[start], positions[end - 1] + 1
-                    # Hidden ID newlines are boundaries, not new prose. Keep
-                    # them so unrelated following lines retain their eligibility.
-                    label += "\n" * max(0, body[first:last].count("\n") - label.count("\n"))
-                    replacements.append((first, last, label))
-    pieces: list[str] = []
-    position = 0
-    for start, end, label in sorted(replacements, key=lambda span: (span[0], -span[1])):
-        if start >= position:
-            pieces.extend((body[position:start], label))
-            position = end
-    pieces.append(body[position:])
-    return "".join(pieces)
+            pieces: list[str] = []
+            position = 0
+            for start, end, label in sorted(spans, key=lambda span: (span[0], -span[1])):
+                if start >= position:
+                    # Hidden destination/ID newlines remain physical boundaries.
+                    label += "\n" * (token.content[start:end].count("\n") - label.count("\n"))
+                    pieces.extend((token.content[position:start], label))
+                    position = end
+            pieces.append(token.content[position:])
+            cleaned = "".join(pieces).split("\n")
+            if len(cleaned) != token.content.count("\n") + 1:
+                raise ValueError("link normalization must preserve source lines")
+            for offset, line in enumerate(cleaned, start=token.map[0]):
+                lines[offset] = line
+    return "\n".join(lines)
+
+
+def _mask_comments(body: str) -> str:
+    """Hide comments without changing the source-line coordinate system."""
+    return re.sub(
+        r"<!--.*?-->",
+        lambda match: "\n".join(
+            line[: len(line) - len(line.lstrip(" \t"))] + "\x00" for line in match[0].split("\n")
+        ),
+        body,
+        flags=re.DOTALL,
+    )
 
 
 def _digest(value: str) -> str:
@@ -164,19 +163,23 @@ def week_start(day: date) -> date:
 
 
 def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
     _, body = parse_frontmatter(content)
-    body = body.replace("\r\n", "\n").replace("\r", "\n")
-    if "]:" in body:
-        body = _clean_references(body, include_quotes)
-    body = re.sub(r"<!--.*?-->", "\n\x00\n", body, flags=re.DOTALL)
+    original = _mask_comments(body)
+    quoted_lines: set[int] = set()
+    cleaned = (
+        _clean_links(body, quoted_lines)
+        if "](" in body or "]:" in body or (not include_quotes and ">" in body)
+        else body
+    )
+    cleaned_lines = _mask_comments(cleaned).split("\n")
     prose = []
     previous = 0
-    quoted_lines: set[int] = set()
     if not include_quotes:
         quoted = False
         # Track raw lines before the code filter, which can hide indented lazy
         # continuations. A skipped line alone does not end a quoted paragraph.
-        for number, line in enumerate(body.split("\n"), start=1):
+        for number, line in enumerate(original.split("\n"), start=1):
             if not line.strip():
                 quoted = False
             if re.match(r"^ {0,3}>", line):
@@ -187,25 +190,56 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
                 quoted = False
             if quoted:
                 quoted_lines.add(number)
-    for number, line in markdown_prose_lines(body):
+    for number, _line in markdown_prose_lines(original):
         if number != previous + 1:
             prose.append("\x00")
         previous = number
-        if number in quoted_lines:
+        if not include_quotes and number in quoted_lines:
             prose.append("\x00")
         else:
-            prose.append(line)
+            prose.append(cleaned_lines[number - 1])
     # Matching delimiter lengths also handles multiline inline-code spans.
     body = _INLINE_CODE.sub("\x00", "\n".join(prose))
     for line in body.splitlines():
-        # Keep visible Markdown labels; link destinations are not writing.
-        line = re.sub(r"!?\[([^]\n]*)\]\([^)]*\)", r"\1", line)
+        # Link syntax has already been resolved inside its actual inline block.
         line = re.sub(r"\[\[([^]|\n]+)\|([^]\n]+)\]\]", r"\2", line)
         line = re.sub(r"\[\[([^]\n]+)\]\]", r"\1", line)
         visible = unicodedata.normalize("NFKC", line)
         # Sentence/semicolon boundaries are not phrases. Removed regions and
         # line boundaries also interrupt them, including inline-code gaps.
-        yield from re.split(r"[.!?;]+|\x00", _REMOVED.sub("\x00", visible))
+        yield from re.split(r"[.!?;]+|\x00|\ufffd", _REMOVED.sub("\x00", visible))
+
+
+@dataclass(frozen=True)
+class _Word:
+    text: str
+    start: int
+    end: int
+
+
+def _words(region: str) -> list[_Word]:
+    """Tokenize once before casefold expansion, retaining marks and source spans."""
+    result = []
+    position = 0
+    while position < len(region):
+        if not region[position].isalpha():
+            position += 1
+            continue
+        start = position
+        position += 1
+        while position < len(region):
+            character = region[position]
+            if character.isalpha() or unicodedata.category(character).startswith("M"):
+                position += 1
+            elif (
+                character in "'’" and position + 1 < len(region) and region[position + 1].isalpha()
+            ):
+                position += 1
+            else:
+                break
+        text = unicodedata.normalize("NFKC", region[start:position].casefold())
+        result.append(_Word(text, start, position))
+    return result
 
 
 def extract_terms(
@@ -222,8 +256,7 @@ def extract_terms(
         raise ValueError("include_quotes must be boolean")
     counts: Counter[str] = Counter()
     for region in _prose_regions(content, include_quotes):
-        region = region.casefold()
-        words = _WORDS.findall(region)
+        words = [word.text for word in _words(region)]
         for size in range(1, ngram_max + 1):
             counts.update(" ".join(words[i : i + size]) for i in range(len(words) - size + 1))
     return counts
@@ -239,15 +272,15 @@ def lexical_excerpt(content: str, term: str, *, include_quotes: bool = False) ->
     if not target:
         return None
     for region in _prose_regions(content, include_quotes):
-        matches = list(_WORDS.finditer(region))
-        words = [match.group().casefold() for match in matches]
+        matches = _words(region)
+        words = [match.text for match in matches]
         for i in range(len(words) - len(target) + 1):
             if words[i : i + len(target)] == target:
-                start = matches[max(0, i - 6)].start()
-                end = matches[min(len(matches) - 1, i + len(target) + 5)].end()
+                start = matches[max(0, i - 6)].start
+                end = matches[min(len(matches) - 1, i + len(target) + 5)].end
                 passage = region[start:end].strip()
                 if len(passage) > 160:
-                    start = matches[i].start()
+                    start = matches[i].start
                     passage = region[start : start + 157].strip() + "…"
                 return passage
     return None
@@ -322,8 +355,8 @@ class LexicalIndex:
         cohort, provenance = None, "filesystem_estimate"
         if note.entry_date:
             cohort, provenance = note.entry_date.isoformat(), "entry_heading"
-        elif (declared := declared_creation_date(note.path, note.content)) is not None:
-            cohort, provenance = declared.date().isoformat(), "declared_date"
+        elif (declared := declared_creation_day(note.path, note.content)) is not None:
+            cohort, provenance = declared.isoformat(), "declared_date"
         watermark = self.db.execute(
             "SELECT value FROM lexical_meta WHERE key = 'last_sync_at'"
         ).fetchone()

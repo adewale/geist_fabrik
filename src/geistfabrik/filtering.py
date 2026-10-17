@@ -20,9 +20,6 @@ from itertools import chain
 from typing import Any
 
 import numpy as np
-from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-    cosine_similarity as sklearn_cosine,
-)
 
 from .config import (
     SIMILARITY_HISTORY_CHUNK,
@@ -32,6 +29,7 @@ from .config import (
 from .embeddings import EmbeddingComputer
 from .evidence_identity import evidence_interval
 from .models import NoteLinkIndex, Suggestion, _normalise_vault_path
+from .vector_math import cosine_matrix
 
 
 @dataclass(frozen=True)
@@ -87,7 +85,7 @@ class SuggestionFilter:
 
     def _iter_recent_embedding_chunks(
         self, session_date: datetime, window_days: int
-    ) -> Iterator[np.ndarray]:
+    ) -> Iterator[tuple[list[str], np.ndarray]]:
         """Stream bounded embedding chunks from sessions before the replay date."""
         cutoff_date = session_date - timedelta(days=window_days)
         cursor = self.db.execute(
@@ -101,10 +99,7 @@ class SuggestionFilter:
         )
         while rows := cursor.fetchmany(SIMILARITY_SUGGESTION_CHUNK):
             texts = [str(row[0]) for row in rows]
-            yield np.asarray(
-                self.embedding_computer.compute_batch_semantic(texts),
-                dtype=np.float32,
-            )
+            yield texts, np.asarray(self.embedding_computer.compute_batch_semantic(texts))
 
     def filter_all(self, suggestions: list[Suggestion], session_date: datetime) -> list[Suggestion]:
         """Apply all enabled filters in sequence.
@@ -294,9 +289,11 @@ class SuggestionFilter:
             suggestion_embeddings = self.embedding_computer.compute_batch_semantic(suggestion_texts)
 
             # Stream history once and compare bounded blocks in both dimensions.
-            suggestion_matrix = np.asarray(suggestion_embeddings, dtype=np.float32)
+            suggestion_matrix = np.asarray(suggestion_embeddings)
             too_similar = np.zeros(len(suggestions), dtype=np.bool_)
-            for recent_chunk in chain((first_chunk,), recent_chunks):
+            for recent_texts, recent_chunk in chain((first_chunk,), recent_chunks):
+                exact_texts = set(recent_texts)
+                too_similar |= np.array([text in exact_texts for text in suggestion_texts])
                 for history_start in range(0, len(recent_chunk), SIMILARITY_HISTORY_CHUNK):
                     history_end = history_start + SIMILARITY_HISTORY_CHUNK
                     history_block = recent_chunk[history_start:history_end]
@@ -307,7 +304,7 @@ class SuggestionFilter:
                         )
                         if too_similar[suggestion_start:suggestion_end].all():
                             continue
-                        similarities = sklearn_cosine(
+                        similarities = cosine_matrix(
                             suggestion_matrix[suggestion_start:suggestion_end],
                             history_block,
                         )
@@ -346,7 +343,7 @@ class SuggestionFilter:
         # One S x S similarity matrix, then the same greedy keep-first loop
         # reading matrix cells (previously S^2/2 per-pair cosine calls - the
         # dominant filter cost in --full mode at 50-200+ suggestions).
-        sim_matrix = sklearn_cosine(np.asarray(embeddings, dtype=np.float32))
+        sim_matrix = cosine_matrix(np.asarray(embeddings))
 
         keep = [True] * len(suggestions)
         for i in range(len(suggestions)):
@@ -354,7 +351,10 @@ class SuggestionFilter:
                 continue
 
             for j in range(i + 1, len(suggestions)):
-                if keep[j] and float(sim_matrix[i, j]) >= threshold:
+                if keep[j] and (
+                    suggestions[i].text == suggestions[j].text
+                    or float(sim_matrix[i, j]) >= threshold
+                ):
                     # Mark later suggestion as duplicate
                     keep[j] = False
 

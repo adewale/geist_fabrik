@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Word and phrase changes in one geist:** `word_burst` now samples rising and
   declining episodes, with two-word phrases enabled by default and optional
   three-word phrases. Existing
-  explicit `ngram_max: 1` settings remain words-only. Extraction version 4 adds
-  sentence/quote boundaries and excludes hidden reference-link metadata; the next
+  explicit `ngram_max: 1` settings remain words-only. Extraction version 5 adds
+  parser-owned link/image and quote boundaries, shared Unicode word spans, and
+  host-independent declared calendar days; the next
   sync rebuilds incompatible lexical baselines and clears captured observations.
   Observed phrase history starts at that baseline; old prose is not reconstructed.
   Core notes, embeddings and saved session questions remain intact. Automatic
@@ -21,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   suppressed across wording/window changes by the normal novelty-history policy.
   Large-count likelihood decisions and pruning now use conservative error bounds
   with adaptive exact-log comparisons for ambiguous cases, including exact ties.
+  Prevalence and cached findings retain integer counts, compare exact ratios,
+  and display distinct percentages at sufficient precision.
+- **Shared semantic arithmetic:** scalar, batch, in-memory neighbour search,
+  temporal comparisons and suggestion filters share scale-safe float64 cosine
+  arithmetic with exact nonzero direction identity. In-memory searches cache
+  immutable normalized directions; optional sqlite-vec search scores remain
+  native float32. Duplicate text is suppressed even for zero embeddings. Centroid
+  dispersion uses shifted float64 offsets so repeated identical vectors cannot
+  invent vocabulary expansion. Stored embeddings remain float32.
 - **Lexical schema v11:** automatic additive migration preserves existing notes
   and embeddings. No rebuild is required. The new word-burst geist indexes prose
   incrementally and supports reconstructed dated cohorts and prospective observed

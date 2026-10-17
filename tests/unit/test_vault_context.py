@@ -901,7 +901,11 @@ def test_batch_similarity_matches_scalar_similarity_on_cold_caches(vault_with_no
     result = batch_ctx.batch_similarity(rows, notes)
 
     expected = np.array([[scalar_ctx.similarity(a, b) for b in notes] for a in rows])
-    np.testing.assert_allclose(result, expected, rtol=0, atol=1e-6)
+    np.testing.assert_array_equal(result, expected)
+    # Cache population order must not change a later threshold decision.
+    for a in rows:
+        for b in notes:
+            assert batch_ctx.similarity(a, b) == scalar_ctx.similarity(a, b)
     assert np.all(result[-1] == 0.0)
     assert np.any((expected > 0.05) & (expected < 0.95)), "fixture must not be all 0/1"
 

@@ -11,13 +11,11 @@ from importlib import import_module
 from itertools import count
 
 import numpy as np
-from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-    cosine_similarity as sklearn_cosine,
-)
 
 from .config import SEMANTIC_DIM
 from .semantic_vectors import decode_meaning_vector, meaning_blob, meaning_vector
 from .sqlite_transaction import owned_transaction
+from .vector_math import UnitRows
 
 _VEC_TABLE_COUNTER = count()
 
@@ -121,12 +119,14 @@ class InMemoryVectorBackend(VectorSearchBackend):
         # Rebuilt whenever embeddings change (see _rebuild_matrix).
         self._paths: list[str] = []
         self._matrix: np.ndarray | None = None
+        self._directions: UnitRows | None = None
 
     def close(self) -> None:
         """Release loaded arrays; the shared database connection remains open."""
         self.embeddings = {}
         self._paths = []
         self._matrix = None
+        self._directions = None
         self.session_id = 0
         super().close()
 
@@ -140,8 +140,10 @@ class InMemoryVectorBackend(VectorSearchBackend):
         self._paths = list(self.embeddings.keys())
         if self._paths:
             self._matrix = np.vstack([self.embeddings[p] for p in self._paths])
+            self._directions = UnitRows(self._matrix)
         else:
             self._matrix = None
+            self._directions = None
 
     def load_embeddings(self, session_date: str) -> None:
         """Load all embeddings for session into memory.
@@ -198,11 +200,11 @@ class InMemoryVectorBackend(VectorSearchBackend):
         # Defensive: rebuild if embeddings were mutated since the last load.
         if self._matrix is None or len(self._paths) != len(self.embeddings):
             self._rebuild_matrix()
-        if self._matrix is None or count <= 0:
+        if self._directions is None or count <= 0:
             return []
 
         query = meaning_vector(query_embedding)
-        scores = sklearn_cosine(query.reshape(1, -1), self._matrix)[0]
+        scores = UnitRows(query.reshape(1, -1)).cosine(self._directions)[0]
         n = scores.shape[0]
         if count >= n:
             # Full stable sort: descending by score, ties keep insertion order.

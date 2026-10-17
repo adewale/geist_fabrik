@@ -7,8 +7,9 @@ from array import array
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from .document_rate import DocumentRate
 from .lexical_index import EXTRACTION_VERSION, week_start
 from .sqlite_transaction import owned_transaction
 from .word_burst import BurstInterval, BurstModel, PreparedBurstSeries
@@ -16,7 +17,7 @@ from .word_burst import BurstInterval, BurstModel, PreparedBurstSeries
 if TYPE_CHECKING:
     from .vault import Vault
 
-ANALYSIS_VERSION = 4
+ANALYSIS_VERSION = 5
 
 
 @dataclass(frozen=True)
@@ -28,8 +29,8 @@ class WordBurstFinding:
     end: str
     level: int
     gain: float
-    rate: float
-    baseline_rate: float
+    prevalence: DocumentRate
+    baseline: DocumentRate
     support_paths: tuple[str, ...]
     history_mode: str
     gaps: tuple[str, ...]
@@ -37,9 +38,30 @@ class WordBurstFinding:
     open: bool
     provisional: bool
     direction: str = "rising"
-    reference_rate: float | None = None
+    reference: DocumentRate | None = None
     reference_start: str | None = None
     reference_end: str | None = None
+
+    @property
+    def rate(self) -> float:
+        return self.prevalence.value
+
+    @property
+    def baseline_rate(self) -> float:
+        return self.baseline.value
+
+    @property
+    def reference_rate(self) -> float | None:
+        return None if self.reference is None else self.reference.value
+
+    def to_dict(self) -> dict[str, Any]:
+        """Preserve reporting fields while retaining exact counts for replay/display."""
+        return {
+            **asdict(self),
+            "rate": self.rate,
+            "baseline_rate": self.baseline_rate,
+            "reference_rate": self.reference_rate,
+        }
 
 
 @dataclass
@@ -116,8 +138,8 @@ def analyze_word_bursts(
                     item["end"],
                     item["level"],
                     item["gain"],
-                    item["rate"],
-                    item["baseline_rate"],
+                    DocumentRate(**item["prevalence"]),
+                    DocumentRate(**item["baseline"]),
                     tuple(item["support_paths"]),
                     item["history_mode"],
                     tuple(item["gaps"]),
@@ -125,7 +147,7 @@ def analyze_word_bursts(
                     item["open"],
                     item["provisional"],
                     item["direction"],
-                    item["reference_rate"],
+                    None if item["reference"] is None else DocumentRate(**item["reference"]),
                     item["reference_start"],
                     item["reference_end"],
                 )
@@ -297,7 +319,8 @@ def analyze_word_bursts(
                         counts[term_id][i] for i in range(interval.start, interval.end + 1)
                     )
                     denominator = sum(exposure[interval.start : interval.end + 1])
-                    reference_rate, reference_start, reference_end = None, None, None
+                    reference, reference_start, reference_end = None, None, None
+                    prevalence = DocumentRate(numerator, denominator)
                     if episode.direction == "declining":
                         # An initially quiet period is not a decline. Require
                         # established earlier use and sustained later activity,
@@ -310,10 +333,10 @@ def analyze_word_bursts(
                         prior_exposure = sum(exposure[: interval.start])
                         if not prior_exposure:
                             continue
-                        reference_rate = (
-                            sum(sparse[i] for i in range(interval.start)) / prior_exposure
+                        reference = DocumentRate(
+                            sum(sparse[i] for i in range(interval.start)), prior_exposure
                         )
-                        if numerator / denominator >= reference_rate:
+                        if prevalence.fraction >= reference.fraction:
                             continue
                         reference_start = first.isoformat()
                         reference_end = (
@@ -328,8 +351,8 @@ def analyze_word_bursts(
                             end.isoformat(),
                             interval.level,
                             interval.gain,
-                            numerator / denominator,
-                            sum(counts[term_id].values()) / stats.documents,
+                            prevalence,
+                            DocumentRate(sum(counts[term_id].values()), stats.documents),
                             tuple(sorted(set(episode.paths))),
                             config.history_mode,
                             tuple((first + timedelta(weeks=i)).isoformat() for i in interval.gaps),
@@ -337,7 +360,7 @@ def analyze_word_bursts(
                             interval.open,
                             interval.end == len(exposure) - 1 and end_day.weekday() < 6,
                             episode.direction,
-                            reference_rate,
+                            reference,
                             reference_start,
                             reference_end,
                         )
@@ -346,7 +369,7 @@ def analyze_word_bursts(
             stats.reason = "burst" if findings else "no_burst"
         vault.db.execute(
             "INSERT INTO word_burst_cache VALUES (?, ?)",
-            (key, json.dumps([asdict(finding) for finding in findings])),
+            (key, json.dumps([finding.to_dict() for finding in findings])),
         )
         # Bound exact-cutoff variants, preserving this newly computed entry.
         vault.db.execute(

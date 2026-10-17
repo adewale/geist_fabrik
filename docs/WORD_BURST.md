@@ -46,11 +46,20 @@ lexical history. This is not a secure physical erasure guarantee.
 A coalesced row whose final addition was observed after a replay cutoff is
 omitted in full. Historical quoting, exact old-text replay and Git/backup import
 are deferred. Changing extraction policy clears incompatible observations and
-establishes a fresh baseline. Extraction version 4 adds reference-link metadata
-exclusion to the sentence/quote boundaries; upgrading an earlier PR build rebuilds lexical baselines and
+establishes a fresh baseline. Extraction version 5 uses parser-owned link/image
+spans and blockquote line maps, preserves code indentation through comment masking,
+and shares Unicode word spans between counting and excerpts. Declared creation
+dates retain their written calendar day, independent of the host timezone;
+observed instants continue to use UTC. Upgrading an earlier PR build rebuilds lexical baselines and
 clears incompatible captured observations. Core notes and embeddings are retained.
 A replay against changed, unsynchronized extraction
 settings abstains until sync rebuilds the index.
+
+Document prevalence is stored as integer mentions and observations, including
+cached findings. Exact rational comparisons decide whether a decline is real;
+floating values exposed by the reporting API are derived projections. Paired
+percentages increase precision together until distinct rates display differently.
+Analysis version 5 invalidates older cached results.
 
 ## Configuration
 

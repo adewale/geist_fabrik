@@ -131,7 +131,7 @@ def benchmark(
                 row["cached_seconds"] = time.perf_counter() - started
                 assert findings == cached
                 row["result_sha256"] = hashlib.sha256(
-                    json.dumps([asdict(f) for f in findings], sort_keys=True).encode()
+                    json.dumps([f.to_dict() for f in findings], sort_keys=True).encode()
                 ).hexdigest()
                 executor = GeistExecutor(
                     root / "geists",

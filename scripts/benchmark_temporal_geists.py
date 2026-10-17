@@ -146,7 +146,7 @@ def replay(
                         row["lexical"][mode] = {
                             "seconds": time.perf_counter() - started,
                             "diagnostics": asdict(stats),
-                            "findings": [asdict(f) for f in findings],
+                            "findings": [f.to_dict() for f in findings],
                         }
                         stage = "executor:" + mode
                         row["lexical"][mode]["executor"] = execute(

@@ -1,8 +1,12 @@
 """Observable lexical sync/history/cache contracts and genuine geist firing."""
 
 import json
+import os
+import time
+import unicodedata
 from collections import Counter
 from contextlib import closing
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,6 +17,7 @@ from hypothesis import strategies as st
 
 from geistfabrik.config_loader import ConfigError, GeistFabrikConfig
 from geistfabrik.default_geists.code.word_burst import suggest
+from geistfabrik.document_rate import DocumentRate
 from geistfabrik.embeddings import EmbeddingComputer, Session
 from geistfabrik.evidence_identity import interval_evidence_key
 from geistfabrik.filtering import SuggestionFilter
@@ -55,6 +60,35 @@ def test_geist_fires_with_all_supporting_links_and_honest_population(tmp_path):
         assert len(aurora[0].notes) == 12
         assert "current text grouped by declared dates" in aurora[0].text
         assert "60%" in aurora[0].text
+
+
+@pytest.mark.parametrize("direction", ["rising", "declining"])
+def test_geist_rendering_preserves_small_exact_prevalence_changes(tmp_path, monkeypatch, direction):
+    """Renderer transport, independent of the detector's existing likelihood proof."""
+    with closing(planted_vault(tmp_path)) as vault:
+        finding = next(
+            f for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29)) if f.term == "aurora"
+        )
+        finding = replace(
+            finding,
+            direction=direction,
+            prevalence=DocumentRate(5000, 10000)
+            if direction == "rising"
+            else DocumentRate(4999, 10000),
+            baseline=DocumentRate(9999, 20000),
+            reference=DocumentRate(1, 2),
+            reference_start="2026-01-05",
+            reference_end="2026-03-01",
+        )
+        with Session(datetime(2026, 3, 29), vault.db) as session:
+            context = VaultContext(vault, session)
+            monkeypatch.setattr(context, "word_bursts", lambda: [finding])
+            output = suggest(context)
+        assert len(output) == 1
+        if direction == "rising":
+            assert "50% of observations, compared with 49.995% across" in output[0].text
+        else:
+            assert "49.99% of observations, compared with 50% during" in output[0].text
 
 
 @pytest.mark.parametrize("private_tail", [False, True])
@@ -409,14 +443,20 @@ def test_duplicate_observations_preserve_episode_values_and_include_evidence_pat
 
 
 @given(
-    st.lists(st.sampled_from(["soil", "aurora", "café", "can't"]), max_size=100), st.integers(1, 3)
+    st.lists(
+        st.sampled_from(["soil", "aurora", "café", "can't", "İstanbul", "ǰ", "ΐ", "किताब"]),
+        max_size=100,
+    ),
+    st.integers(1, 3),
 )
 @settings(max_examples=1000)
 def test_extraction_matches_independent_sliding_windows(words, maximum):
+    words = [unicodedata.normalize("NFKC", word.casefold()) for word in words]
     expected = Counter()
     for width in range(1, maximum + 1):
         expected.update(" ".join(words[i : i + width]) for i in range(len(words) - width + 1))
-    assert extract_terms(" ".join(words).upper(), ngram_max=maximum) == expected
+    content = " ".join(words).upper()
+    assert extract_terms(content, ngram_max=maximum) == expected
 
 
 def test_markdown_regions_and_phrase_boundaries():
@@ -427,6 +467,33 @@ def test_markdown_regions_and_phrase_boundaries():
     assert extract_terms(content, ngram_max=2) == Counter(
         {"soil": 1, "habitat": 1, "café": 1, "nebula": 1}
     )
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "    <!--\n    hide\n    --> phantom",
+        "    <!--\n    --> [visible](secret)",
+        "```\n<!--\n--> phantom\n```",
+    ],
+)
+def test_hidden_comments_cannot_admit_code_as_visible_prose(content):
+    assert extract_terms(content) == Counter()
+    assert lexical_excerpt(content, "phantom") is None
+
+
+def test_comment_contents_cannot_start_a_fence_or_admit_frontmatter():
+    assert extract_terms("<!--\n```\n-->\nvisible") == Counter({"visible": 1})
+    assert extract_terms("---\rtitle: hidden\r---\rvisible") == Counter({"visible": 1})
+
+
+@given(prefix=st.sampled_from(["", "- ", "1. ", "- - ", "1. - "]), quote=st.booleans())
+def test_parser_owned_blockquotes_respect_the_quote_policy(prefix, quote):
+    content = prefix + "> quotedphantom [visible](secret)\n\nordinary"
+    expected = Counter({"ordinary": 1})
+    if quote:
+        expected.update({"quotedphantom": 1, "visible": 1})
+    assert extract_terms(content, include_quotes=quote) == expected
 
 
 @pytest.mark.parametrize("footnote", [False, True])
@@ -444,6 +511,10 @@ def test_markdown_regions_and_phrase_boundaries():
         ("![Visible guide][hiddenreference]", "[hiddenreference]: https://example.com"),
         ("[Visible guide][secret`code`id]", "[secret`code`id]: /hidden"),
         ("[Visible guide][secret<!-- hidden -->id]", "[secret<!-- hidden -->id]: /hidden"),
+        ('[Visible guide](path "secret) hidden")', ""),
+        ("[Visible guide](https://example.com/path(secret)hidden)", ""),
+        ('[Visible guide](\n /hidden\n "secret title"\n)', ""),
+        ('![Visible guide](path "secret) hidden")', ""),
     ],
 )
 def test_reference_links_keep_only_visible_prose_and_excerpts(link, definition, footnote):
@@ -466,7 +537,11 @@ def test_reference_only_footnote_retains_visible_body(image):
 
 
 @given(
-    words=st.lists(st.sampled_from(["soil", "café", "habitat", "nebula"]), min_size=1, max_size=15),
+    words=st.lists(
+        st.sampled_from(["soil", "café", "habitat", "nebula", "İstanbul", "ǰ", "ΐ"]),
+        min_size=1,
+        max_size=15,
+    ),
     form=st.sampled_from(["full", "collapsed", "shortcut"]),
     first=st.booleans(),
     separate=st.booleans(),
@@ -486,12 +561,14 @@ def test_reference_prose_matches_visible_word_windows(words, form, first, separa
         )
     link, definition = " ".join(links), "\n\n".join(definitions)
     content = definition + "\n\n" + link if first else link + "\n\n" + definition
+    words = [unicodedata.normalize("NFKC", word.casefold()) for word in words]
     expected = Counter(
         " ".join(words[i : i + width])
         for width in range(1, maximum + 1)
         for i in range(len(words) - width + 1)
     )
     assert extract_terms(content, ngram_max=maximum) == expected
+    assert all(lexical_excerpt(content, term) is not None for term in expected)
 
 
 @pytest.mark.parametrize(
@@ -531,6 +608,47 @@ def test_reference_recognition_cannot_cross_block_boundaries(boundary):
 def test_reference_source_mapping_preserves_line_endings_and_nulls(separator, prefix):
     content = prefix + "[visible][hiddenid]" + separator * 2 + "[hiddenid]: /destination"
     assert extract_terms(content) == Counter({"visible": 1})
+
+
+@pytest.mark.parametrize("indent", ["  ", "\t", " \t", "\t "])
+def test_reference_list_indentation_cannot_introduce_hidden_vocabulary(indent):
+    content = f"- [visible][secret]\n{indent}continuation\n\n[secret]: /hidden"
+    assert extract_terms(content, ngram_max=2) == Counter(
+        {"visible": 1, **({"continuation": 1} if indent == "  " else {})}
+    )
+    assert lexical_excerpt(content, "secret") is None
+
+
+@pytest.mark.parametrize("word", ["İstanbul", "ǰ", "ΐ", "a\u0307", "किताब"])
+def test_unicode_words_have_identical_count_and_excerpt_boundaries(word):
+    normalized = unicodedata.normalize("NFKC", unicodedata.normalize("NFKC", word).casefold())
+    assert extract_terms(word + " orchards", ngram_max=2) == Counter(
+        {normalized: 1, "orchards": 1, normalized + " orchards": 1}
+    )
+    assert lexical_excerpt(word + " orchards", normalized + " orchards") is not None
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="host timezone probe needs POSIX tzset")
+def test_declared_calendar_cohort_is_independent_of_host_timezone(tmp_path):
+    previous = os.environ.get("TZ")
+    try:
+        for zone in ("UTC", "Europe/Helsinki", "America/Los_Angeles"):
+            os.environ["TZ"] = zone
+            time.tzset()
+            root = tmp_path / zone.replace("/", "_")
+            root.mkdir()
+            (root / "note.md").write_text("---\ncreated: 2026-01-05T00:30:00+02:00\n---\norchards")
+            with closing(Vault(root)) as vault:
+                vault.sync()
+                assert vault.db.execute("SELECT cohort_day FROM lexical_notes").fetchone() == (
+                    "2026-01-05",
+                )
+    finally:
+        if previous is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = previous
+        time.tzset()
 
 
 @pytest.mark.parametrize("hidden", ["<!--\nsecret\n-->", "``secret ` code``"])
