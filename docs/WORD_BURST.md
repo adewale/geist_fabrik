@@ -48,9 +48,13 @@ omitted in full. Historical quoting, exact old-text replay and Git/backup import
 are deferred. Changing extraction policy clears incompatible observations and
 establishes a fresh baseline. Sources skipped during that sync cannot establish
 the new baseline from stale stored prose; recovery starts their confirmed history.
-Extraction version 6 uses parser-owned fence and inline-code boundaries, including
+Extraction version 7 uses parser-owned fence and inline-code boundaries, including
 list-contained fences and separate paragraphs. It retains link/image spans,
 blockquote line maps and Unicode word spans shared by counting and excerpts.
+HTML tag names and attributes are excluded; visible inline formatting text is
+retained. Code, preformatted text, scripts, styles, document headers and templates
+cannot supply prose. HTML blockquotes follow `include_quotes`. Counting and
+excerpts share these regions, including entity and escaped-text handling.
 Virtual entries preserve source indentation; parser revision 7 refreshes existing
 entries that an earlier splitter stripped. Declared creation
 dates retain their written calendar day, independent of the host timezone;
@@ -101,7 +105,7 @@ vocabularies. Phrases never cross sentence, semicolon, line or removed-region
 boundaries. Explicit existing `ngram_max: 1` configurations stay words-only until
 changed. Quotes include conservative exclusion of lazy continuation lines.
 The extractor is a conservative lexical parser, not a complete
-CommonMark renderer.
+CommonMark or browser renderer. CSS and browser layout are not interpreted.
 
 Observations with identical normalized term-count vectors in one week are
 deduplicated. The same body in another week remains a separate observation.

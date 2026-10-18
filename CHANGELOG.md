@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Lexical extraction policy 7 excludes hidden HTML syntax and non-prose elements
+  from both counts and current excerpts. Escaped Markdown labels remain literal
+  text, and code/quote filtering preserves HTML closing syntax without admitting
+  excluded prose. Upgrading an earlier PR build rebuilds lexical baselines and
+  resets incompatible captured observations; notes, embeddings and saved
+  questions remain intact. Trigrams remain opt-in with `ngram_max: 3`.
+- Canonical vector normalization and scores now share an explicit adjacent-pair
+  float64 tree. Scalar, batch and refinement decisions agree above NumPy's
+  previous reduction-buffer boundary. Some final score bits change from earlier
+  PR builds; stored embeddings and the certified BLAS decision interface remain.
 - Word-burst analysis reuses unchanged selected observations across days within
   the same weekly frame, refreshing displayed dates and provisional flags.
   Schema v14 adds compact stable-ID presence vectors without resetting captured

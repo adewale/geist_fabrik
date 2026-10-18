@@ -6,6 +6,7 @@ paths with that canonical API, including adjacent representable thresholds.
 """
 
 import math
+import weakref
 from decimal import Decimal, localcontext
 from unittest.mock import patch
 
@@ -18,6 +19,44 @@ from hypothesis.extra.numpy import arrays
 from geistfabrik.vector_math import SimilarityWork, UnitRows
 
 finite = st.floats(allow_nan=False, allow_infinity=False, width=64)
+
+
+def test_wide_vectors_keep_canonical_threshold_decisions_across_batch_shapes():
+    """The 8193-component iterator boundary used to change the refinement score."""
+    rng = np.random.default_rng(932)
+    raw_left, raw_right = rng.normal(size=(3, 8193)), rng.normal(size=(3, 8193))
+    left, right = UnitRows(raw_left), UnitRows(raw_right)
+    scores = left.cosine(right)
+    threshold = float(scores[1, 2])
+    assert not left.compare(right, threshold, inclusive=False)[1, 2]
+    assert left.compare(right, threshold, inclusive=True)[1, 2]
+    assert scores[1, 2] == UnitRows(raw_left[1:2]).cosine(UnitRows(raw_right[2:3]))[0, 0]
+    assert scores[1, 2] == left.take([1]).paired(right.take([2]))[0]
+
+
+@settings(max_examples=30, deadline=None)
+@given(
+    seed=st.integers(min_value=0, max_value=2**64 - 1),
+    dimension=st.one_of(st.integers(min_value=0), st.sampled_from([8191, 8192, 8193, 16385])),
+    inclusive=st.booleans(),
+)
+def test_wide_canonical_scores_and_decisions_are_population_independent(seed, dimension, inclusive):
+    # The compact all-finite population properties above have a separate oracle;
+    # this structured subset crosses NumPy's old reduction-buffer boundary.
+    dimension = min(dimension, 16385)
+    rng = np.random.default_rng(seed)
+    a, b = rng.normal(size=(3, dimension)), rng.normal(size=(3, dimension))
+    left, right = UnitRows(a), UnitRows(b)
+    expected = np.array(
+        [[UnitRows(x[None, :]).cosine(UnitRows(y[None, :]))[0, 0] for y in b] for x in a]
+    )
+    assert np.array_equal(left.cosine(right), expected)
+    assert np.array_equal(left.paired(right), np.diag(expected))
+    threshold = float(expected[1, 2])
+    assert np.array_equal(
+        left.compare(right, threshold, inclusive=inclusive),
+        expected >= threshold if inclusive else expected > threshold,
+    )
 
 
 @st.composite
@@ -215,14 +254,13 @@ def test_tied_topk_refinement_is_bounded_by_dimension(monkeypatch):
     peers = UnitRows(raw)
     query = UnitRows(np.eye(1, 16))
     allocations = []
-    original = np.einsum
+    original = np.multiply
 
-    def record(expression, *operands, **kwargs):
-        if expression == "ij,ij->i":
-            allocations.append(sum(operand.nbytes for operand in operands))
-        return original(expression, *operands, **kwargs)
+    def record(*operands, **kwargs):
+        allocations.append(sum(operand.nbytes for operand in operands))
+        return original(*operands, **kwargs)
 
-    monkeypatch.setattr(np, "einsum", record)
+    monkeypatch.setattr(np, "multiply", record)
     assert peers.nearest(query, 3) == [[(0, 0.8), (1, 0.8), (2, 0.8)]]
     assert allocations and max(allocations) <= 4096
 
@@ -238,18 +276,45 @@ def test_ambiguous_decisions_bound_prepared_refinement_copies(monkeypatch):
     right = UnitRows(raw)
     expected = left.cosine(right) >= 0.8
     allocations = []
-    original = np.einsum
+    original = np.multiply
 
-    def record(expression, *operands, **kwargs):
-        if expression == "ij,ij->i":
-            allocations.append(sum(operand.nbytes for operand in operands))
-        return original(expression, *operands, **kwargs)
+    def record(*operands, **kwargs):
+        allocations.append(sum(operand.nbytes for operand in operands))
+        return original(*operands, **kwargs)
 
-    monkeypatch.setattr(np, "einsum", record)
+    monkeypatch.setattr(np, "multiply", record)
     work = SimilarityWork()
     assert np.array_equal(left.compare(right, 0.8, work=work), expected)
     assert max(allocations, default=0) <= 4096
     assert work.refined_pairs == 1600
+
+
+def test_paired_scoring_releases_work_buffers_between_chunks(monkeypatch):
+    """Retained arrays from the preceding chunk must not consume the next budget."""
+    import geistfabrik.vector_math as vm
+
+    rows = UnitRows(np.random.default_rng(31).normal(size=(48, 16)))
+    monkeypatch.setattr(vm, "SCORE_BLOCK_BYTES", 4096)
+    live = {}
+    peak = 0
+
+    def record(factory):
+        def allocate(*args, **kwargs):
+            nonlocal peak
+            result = factory(*args, **kwargs)
+            key = id(result)
+            live[key] = result.nbytes
+            peak = max(peak, sum(live.values()))
+            weakref.finalize(result, live.pop, key)
+            return result
+
+        return allocate
+
+    monkeypatch.setattr(np, "multiply", record(np.multiply))
+    monkeypatch.setattr(np, "empty", record(np.empty))
+    assert rows.paired(rows).tolist() == [1.0] * len(rows)
+    assert peak <= 4096
+    assert not live
 
 
 @pytest.mark.parametrize("budget", [64, 256, 1024 * 1024])
@@ -326,7 +391,7 @@ def test_exact_identity_and_zero_decisions_need_no_numeric_kernel(
         raise AssertionError("exact identity/zero work must bypass numeric kernels")
 
     monkeypatch.setattr(np, "matmul", forbidden)
-    monkeypatch.setattr(np, "einsum", forbidden)
+    monkeypatch.setattr(np, "multiply", forbidden)
     assert np.array_equal(rows.compare(rows, threshold, inclusive=inclusive, work=work), expected)
     assert work.fast_pairs == work.refined_pairs == 0
     work = SimilarityWork()

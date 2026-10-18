@@ -1,5 +1,6 @@
 """Observable lexical sync/history/cache contracts and genuine geist firing."""
 
+import html
 import json
 import os
 import time
@@ -549,6 +550,57 @@ def test_markdown_regions_and_phrase_boundaries():
     )
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        '<span class="orchard">Visible weather notes.</span>',
+        '<span class="orchard > hidden" data-topic="secret">Visible weather notes.</span>',
+        '<img src="orchard.png" alt="hidden">Visible weather notes.',
+        "<script>orchard</script>Visible weather notes.",
+        "<style>.orchard { color: red; }</style>Visible weather notes.",
+        "<code>orchard</code>Visible weather notes.",
+        '<span\n    class="orchard">Visible weather notes.</span>',
+        '<span class="first\n    orchard">Visible weather notes.</span>',
+        "```\n<script>\n```\nVisible weather notes.",
+        "`<script>`Visible weather notes.",
+    ],
+)
+def test_html_markup_cannot_supply_lexical_counts_or_excerpts(content):
+    assert extract_terms(content, ngram_max=2) == Counter(
+        {"visible": 1, "weather": 1, "notes": 1, "visible weather": 1, "weather notes": 1}
+    )
+    assert lexical_excerpt(content, "orchard") is None
+    assert lexical_excerpt(content, "visible weather") == "Visible weather notes"
+
+
+@settings(max_examples=80, deadline=None)
+@given(attributes=st.text(), maximum=st.integers(1, 3))
+def test_hidden_html_attributes_do_not_change_visible_word_windows(attributes, maximum):
+    content = f'<span class="{html.escape(attributes, quote=True)}">Visible weather notes.</span>'
+    expected = Counter({"visible": 1, "weather": 1, "notes": 1})
+    if maximum >= 2:
+        expected.update({"visible weather": 1, "weather notes": 1})
+    if maximum == 3:
+        expected["visible weather notes"] = 1
+    assert extract_terms(content, ngram_max=maximum) == expected
+
+
+@pytest.mark.parametrize("wrapper", ["{}", "[{}](destination)", "![{}](destination)"])
+@pytest.mark.parametrize(
+    "content", ["&lt;script&gt;visible", "&amp;#x61;", r"\<code>visible\</code>"]
+)
+def test_decoded_markdown_literals_cannot_be_reparsed_as_html(content, wrapper):
+    wrapped = wrapper.format(content) + " tail"
+    expected = (
+        Counter({"script": 1, "visible": 1, "tail": 1})
+        if "script" in content
+        else Counter({"x": 1, "tail": 1})
+        if "x61" in content
+        else Counter({"code": 2, "visible": 1, "tail": 1})
+    )
+    assert extract_terms(wrapped) == expected
+
+
 @given(
     prefix=st.sampled_from(["- ", "+ ", "1. ", "12) ", "- - ", "1. - "]),
     fence=st.sampled_from(["```", "````", "~~~", "~~~~"]),
@@ -979,11 +1031,70 @@ def test_one_geist_reports_rising_and_disappearing_phrases_through_real_history(
         assert all(item.evidence_key is not None for item in output)
 
 
-@pytest.mark.parametrize("separator", ["\n", ". ", "! ", "? ", "; ", " `hidden` "])
+@pytest.mark.parametrize(
+    "separator", ["\n", ". ", "! ", "? ", "; ", " `hidden` ", "<br>", "<code>hidden</code>"]
+)
 def test_phrase_extraction_and_excerpts_cannot_bridge_removed_or_sentence_regions(separator):
     content = f"small{separator}experiments"
     assert "small experiments" not in extract_terms(content, ngram_max=3)
     assert lexical_excerpt(content, "small experiments") is None
+
+
+def test_inline_html_formatting_keeps_visible_adjacency():
+    content = "small<span class='hidden'> reversible</span> experiments"
+    assert extract_terms(content, ngram_max=3)["small reversible experiments"] == 1
+    assert (
+        lexical_excerpt(content, "small reversible experiments") == "small reversible experiments"
+    )
+
+
+@pytest.mark.parametrize("include_quotes", [False, True])
+def test_html_blockquotes_follow_the_quote_policy(include_quotes):
+    content = "<blockquote>quoted signal</blockquote>visible prose"
+    expected = Counter({"visible": 1, "prose": 1, "visible prose": 1})
+    if include_quotes:
+        expected.update({"quoted": 1, "signal": 1, "quoted signal": 1})
+    assert extract_terms(content, ngram_max=2, include_quotes=include_quotes) == expected
+
+
+def test_partial_html_left_by_quote_filtering_cannot_swallow_later_prose():
+    content = '<span title="private\n> marker">visible</span>\n\nlater tail'
+    terms = extract_terms(content, ngram_max=2)
+    assert terms["later tail"] == 1
+    assert lexical_excerpt(content, "later tail") == "later tail"
+
+
+@pytest.mark.parametrize("tag", ["script", "style", "code", "pre"])
+@pytest.mark.parametrize("closing", ["</{tag}>", "    </{tag}> private"])
+@pytest.mark.parametrize("include_quotes", [False, True])
+def test_hidden_html_closing_syntax_preserves_following_prose(tag, closing, include_quotes):
+    content = f"<{tag}>\n> private content\n{closing.format(tag=tag)}\n\nvisible tail"
+    assert extract_terms(content, ngram_max=2, include_quotes=include_quotes) == Counter(
+        {"visible": 1, "tail": 1, "visible tail": 1}
+    )
+    assert lexical_excerpt(content, "visible tail", include_quotes=include_quotes) == "visible tail"
+
+
+@pytest.mark.parametrize("prefix", ["> quoted\n", "> ", "    ", "```\n"])
+def test_excluded_html_openings_cannot_activate_prose_or_hide_suffix(prefix):
+    content = prefix + '<span title="private\n    marker">hidden</span>'
+    if prefix == "```\n":
+        content += "\n```"
+    content += "\n\nvisible tail"
+    assert extract_terms(content, ngram_max=2) == Counter(
+        {"visible": 1, "tail": 1, "visible tail": 1}
+    )
+
+
+@pytest.mark.parametrize("private", [" private", "\n```\nprivate"])
+def test_literal_fenced_closing_tag_cannot_end_an_active_html_code_element(private):
+    content = "<code>\n\n```\n</code>" + private
+    if private == " private":
+        content += "\n```"
+    content += "\n</code>\nvisible tail"
+    assert extract_terms(content, ngram_max=2) == Counter(
+        {"visible": 1, "tail": 1, "visible tail": 1}
+    )
 
 
 def test_excerpt_uses_visible_current_prose_with_original_case():

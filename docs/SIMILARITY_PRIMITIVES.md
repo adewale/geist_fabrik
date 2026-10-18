@@ -107,6 +107,20 @@ persistent changes and retention pruning remain one owned transaction.
 
 ## Why optimized decisions preserve canonical answers
 
+Canonical normalization and dot products use one explicit adjacent-pair binary64
+tree. Products are materialized first, then separate elementwise additions
+combine adjacent components at each level; an odd final component carries
+unchanged. Every pair therefore executes the same arithmetic independently of
+population shape, tile size or NumPy iterator buffers. `einsum(optimize=False)`
+did not provide that guarantee above its internal buffering boundary.
+
+This changes some final bits relative to earlier PR builds, including at 384
+dimensions. A seeded 32-row comparison found a maximum score difference of
+`1.53e-16`. Prepared state is rebuilt in memory; stored embeddings are unchanged.
+Threshold decisions and stable ties now consistently use the new canonical
+scores. Full canonical matrices and corresponding-pair scores cost more than
+the old reduction; certified BLAS decisions retain their optimized estimates.
+
 Let `d` be the prepared dimension, `E` be binary64 machine epsilon and
 `gamma(n) = n*E/(1-n*E)`, rounded upward. Every prepared component has magnitude
 at most one, so `sum(abs(a_i*b_i)) <= d`. Either reduction uses at most `2d`
@@ -140,7 +154,11 @@ frontier by score and row index. Every tile's local winners are sufficient for
 the global winners. A true nonidentity tie may still require scoring all
 candidates: correctness never depends on an arbitrary refinement cutoff.
 Sparse pair refinement batches candidates across queries and
-bounds vector copies by dimension. Unlinked-pair discovery streams scored
+bounds vector copies by dimension. Canonical product/scratch chunks fit the
+score budget, except for the intrinsic work of one oversized vector. Completed
+chunks release both working arrays before allocating the next chunk. Requested
+outputs, input vectors, array metadata and native iterator scratch are separate
+from this payload allowance. Unlinked-pair discovery streams scored
 matches into the standard-library stable top-k heap, retaining only the requested
 result count.
 

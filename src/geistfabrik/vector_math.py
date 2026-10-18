@@ -36,6 +36,40 @@ def _threshold(value: float) -> float:
     return result
 
 
+def _row_dots(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Fixed adjacent-pair binary64 tree, independent of population shape.
+
+    Inputs are equally shaped rows, or one left row broadcast over right rows.
+    Materialized products and separate elementwise additions prescribe every
+    rounding operation: neither iterator buffering nor BLAS can reorder them or
+    fuse multiplication with addition. Odd trailing components carry unchanged.
+    The same tree normalizes rows and scores every canonical/refinement path.
+    """
+    count, dimension = right.shape
+    result = np.zeros(count, dtype=np.float64)
+    if not dimension:
+        return result
+    # Products plus a half-width scratch array fit this allowance, except for
+    # the unavoidable single pair when its dimension alone exceeds the budget.
+    size = max(1, SCORE_BLOCK_BYTES // (16 * dimension))
+    for start in range(0, count, size):
+        stop = min(count, start + size)
+        work = np.multiply(left if len(left) == 1 else left[start:stop], right[start:stop])
+        scratch = np.empty((stop - start, (dimension + 1) // 2), dtype=np.float64)
+        width = dimension
+        while width > 1:
+            pairs = width // 2
+            np.add(work[:, : 2 * pairs : 2], work[:, 1 : 2 * pairs : 2], out=scratch[:, :pairs])
+            if width % 2:
+                scratch[:, pairs] = work[:, width - 1]
+            work, scratch = scratch, work
+            width = pairs + width % 2
+        result[start:stop] = work[:, 0]
+        # Release both alternating arrays before allocating the next chunk.
+        del work, scratch
+    return result
+
+
 def _paired_scores(
     left: np.ndarray,
     right: np.ndarray,
@@ -44,7 +78,7 @@ def _paired_scores(
     identity_ids: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> np.ndarray:
     """One canonical pair kernel shared by paired and sparse refinement paths."""
-    result: np.ndarray = np.einsum("ij,ij->i", left, right, optimize=False)
+    result = _row_dots(left, right)
     np.clip(result, -1.0, 1.0, out=result)
     if identity_ids is not None:
         a_ids, b_ids = identity_ids
@@ -97,7 +131,7 @@ class UnitRows:
             else np.zeros((len(matrix), 1))
         )
         matrix /= np.where(scales == 0, 1.0, scales)
-        norms = np.sqrt(np.einsum("ij,ij->i", matrix, matrix, optimize=False))[:, None]
+        norms = np.sqrt(_row_dots(matrix, matrix))[:, None]
         matrix /= np.where(norms == 0, 1.0, norms)
         matrix[matrix == 0] = 0.0
         data = matrix.tobytes()
@@ -257,7 +291,10 @@ class UnitRows:
     def cosine(self, other: "UnitRows") -> np.ndarray:
         """Canonical scores, identical to scalar and chunked calls."""
         self._compatible(other)
-        result: np.ndarray = np.einsum("ik,jk->ij", self.values, other.values, optimize=False)
+        left, right = self.values, other.values
+        result = np.empty((len(self), len(other)), dtype=np.float64)
+        for i in range(len(self)):
+            result[i] = _row_dots(left[i : i + 1], right)
         np.clip(result, -1.0, 1.0, out=result)
         self._identical(other, result)
         return result

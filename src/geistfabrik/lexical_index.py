@@ -7,19 +7,21 @@ import re
 import sqlite3
 import unicodedata
 from collections import Counter
-from collections.abc import Collection, Iterator
+from collections.abc import Callable, Collection, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
+from html import escape as escape_html
 from typing import Any
 
 from markdown_it import MarkdownIt
 from markdown_it.rules_block import StateBlock
 from markdown_it.rules_block.reference import reference
-from markdown_it.rules_inline import StateInline, image, link
+from markdown_it.rules_inline import StateInline, entity, escape, image, link
 from markdown_it.rules_inline.backticks import backtick
 from markdown_it.token import Token
 
 from .config_loader import LexicalAnalysisConfig
+from .lexical_html import HTMLProse
 from .lexical_presence import PresenceWriter
 from .markdown_parser import (
     declared_creation_day,
@@ -28,7 +30,7 @@ from .markdown_parser import (
 )
 from .models import Note, _normalise_vault_path
 
-EXTRACTION_VERSION = 6
+EXTRACTION_VERSION = 7
 _REMOVED = re.compile(r"https?://[^\s)\]>]+", re.IGNORECASE)
 
 
@@ -47,10 +49,12 @@ def _link_spans(
             if token.type == "code_inline"
             else visible(token.children or [])
             if token.type == "image"
-            else token.content.replace("\n", "\u2028")
+            else escape_html(token.content, quote=False).replace("\n", "\u2028")
             if token.type == "text_special"
+            else escape_html(token.content, quote=False)
+            if token.type == "text"
             else token.content
-            if token.type in {"text", "html_inline"}
+            if token.type == "html_inline"
             else ""
             for token in tokens
         )
@@ -91,7 +95,29 @@ def _link_spans(
                 spans.append((start, state.pos, "\x00" + "\n" * newlines))
         return True
 
+    def special(
+        state: StateInline, silent: bool, rule: Callable[[StateInline, bool], bool]
+    ) -> bool:
+        start, before = state.pos, len(state.tokens)
+        if not rule(state, silent):
+            return False
+        if not silent and state.src == body and len(state.tokens) > before:
+            token = state.tokens[-1]
+            if token.type == "text_special":
+                # The following HTML pass must see decoded literal text as data,
+                # never as a new tag or a second character-reference expansion.
+                spans.append(
+                    (
+                        start,
+                        state.pos,
+                        escape_html(token.content, quote=False).replace("\n", "\u2028"),
+                    )
+                )
+        return True
+
     parser.inline.ruler.at("backticks", code)
+    parser.inline.ruler.at("escape", lambda state, silent: special(state, silent, escape))
+    parser.inline.ruler.at("entity", lambda state, silent: special(state, silent, entity))
     parser.inline.ruler.before("link", "lexical_wiki", wiki)
     parser.inline.ruler.at("link", capture)
     parser.inline.ruler.at("image", capture)
@@ -128,7 +154,9 @@ def _clean_inline_blocks(body: str, quoted_lines: set[int], code_lines: set[int]
             for i in range(*token.map):
                 lines[i] = "\x00"
         elif (
-            token.type == "inline" and token.map and ("[" in token.content or "`" in token.content)
+            token.type == "inline"
+            and token.map
+            and any(marker in token.content for marker in ("[", "`", "\\", "&"))
         ):
             inline = MarkdownIt("commonmark", {"store_labels": True})
             spans = _link_spans(token.content, inline, environment)
@@ -180,17 +208,27 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
     code_lines: set[int] = set()
     cleaned = (
         _clean_inline_blocks(body, quoted_lines, code_lines)
-        if any(marker in body for marker in ("[", "`", "~", ">"))
+        if any(marker in body for marker in ("[", "`", "~", ">", "<", "\\", "&"))
         else body
     )
-    cleaned_lines = _mask_comments(cleaned).split("\n")
-    prose = []
-    previous = 0
-    if not include_quotes:
-        quoted = False
-        # Track raw lines before the code filter, which can hide indented lazy
-        # continuations. A skipped line alone does not end a quoted paragraph.
-        for number, line in enumerate(original.split("\n"), start=1):
+    cleaned = _mask_comments(cleaned)
+    # Literal tags in Markdown fences must neither open nor close HTML state,
+    # even when a genuine HTML element started before that fenced example.
+    cleaned = "\n".join(
+        "\x00" if number in code_lines else line
+        for number, line in enumerate(cleaned.split("\n"), start=1)
+    )
+    html = HTMLProse(cleaned, include_quotes) if "<" in cleaned or "&" in cleaned else None
+    prose: list[str] = []
+    quoted = False
+    # Track raw quote state before excluding code/indentation, including lazy
+    # continuations. Only an eligible HTML opening can own subsequent syntax;
+    # raw > or an indented closing tag inside it must not change Markdown state.
+    for number, (line, cleaned_line) in enumerate(
+        zip(original.split("\n"), cleaned.split("\n"), strict=True), start=1
+    ):
+        in_html = html is not None and html.in_markup
+        if not include_quotes and not in_html:
             if not line.strip():
                 quoted = False
             if re.match(r"^ {0,3}>", line):
@@ -201,19 +239,24 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
                 quoted = False
             if quoted:
                 quoted_lines.add(number)
-    for number, line in enumerate(original.split("\n"), start=1):
-        # Preserve the conservative indentation policy while letting the parser
-        # own container-aware fence boundaries (including nested list items).
-        if number in code_lines or line.expandtabs(4).startswith("    "):
-            continue
-        if number != previous + 1:
-            prose.append("\x00")
-        previous = number
-        if not include_quotes and number in quoted_lines:
-            prose.append("\x00")
+        allowed = in_html or not (
+            number in code_lines
+            or line.expandtabs(4).startswith("    ")
+            or (not include_quotes and number in quoted_lines)
+        )
+        if html is not None:
+            data_allowed = allowed and not (
+                in_html
+                and html.hidden
+                and (
+                    line.expandtabs(4).startswith("    ")
+                    or (not include_quotes and re.match(r"^ {0,3}>", line))
+                )
+            )
+            html.feed_line(number, allowed=allowed, data_allowed=bool(data_allowed))
         else:
-            prose.append(cleaned_lines[number - 1])
-    for line in "\n".join(prose).splitlines():
+            prose.append(cleaned_line if allowed else "\x00")
+    for line in (html.prose() if html is not None else "\n".join(prose)).splitlines():
         # Link syntax has already been resolved inside its actual inline block.
         line = re.sub(r"\[\[([^]|\n]+)\|([^]\n]+)\]\]", r"\2", line)
         line = re.sub(r"\[\[([^]\n]+)\]\]", r"\1", line)
