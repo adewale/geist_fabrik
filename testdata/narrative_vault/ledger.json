@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "frozen_before_first_run": true,
+  "review_policy": {
+    "primary_population": "Every default-selected question from all 24 snapshots in both history modes, including sessions with no output.",
+    "secondary_population": "First non-empty raw output per bundled geist per mode, plus all selected word-burst questions and all executor errors. This is a declared diagnostic sample, not a quality estimate of all raw suggestions.",
+    "labels": ["useful_candidate", "already_known", "generic_or_weak", "misleading", "unreviewed"],
+    "useful_candidate": "Evidence supports a specific comparison or bounded experiment not already stated by the cited notes; a fictional-author judgment, not a user rating.",
+    "already_known": "Restates the launch, completion, terminology change, seasonal routine or an explicit connection without adding a useful question.",
+    "generic_or_weak": "Valid note references but interchangeable wording, a tenuous analogy or unnecessary work without a concrete reason.",
+    "misleading": "Contradicts source facts, treats an absence as abandonment, implies false historical provenance, or makes a measurement claim unsupported by its evidence.",
+    "abstention": "Record separately; healthy emptiness is neither usefulness nor failure.",
+    "no_retuning": "Do not change the corpus, ledger, model thresholds or selected seeds after inspecting outputs. Corrections must retain original receipts and identify a new corpus version."
+  },
+  "scenarios": [
+    {
+      "id": "archive_complete",
+      "period": ["2024-01-01", "2024-06-30"],
+      "facts": "The harbour archive opens and is handed to the registrar in June 2024. Later stewardship continues; declining new writing is expected, not abandonment.",
+      "sources": ["Museum/Harbour archive handover receipt.md", "Museum/Exhibition plan.md", "Personal/A year after the exhibition opening.md"],
+      "useful": "Compare how obligations and decision rights transfer into a later project.",
+      "bad": "Prescribe reviving a forgotten project, or announce its known completion as a discovery."
+    },
+    {
+      "id": "repair_cafe_launch",
+      "period": ["2025-01-01", "2025-06-30"],
+      "facts": "A repair table becomes a named repair cafe in 2025. Mara already knows this change. Planned closures, limits and diagnostic refusals are intentional.",
+      "sources": ["Community/A name for the repair cafe.md", "Community/The first repair cafe ran late.md", "Community/Repair cafe before the summer pause.md"],
+      "useful": "Ask about how intake, authority or waiting conditions differ from the earlier workshop or care arrangements.",
+      "bad": "Treat fewer bookings or planned closure as declining commitment."
+    },
+    {
+      "id": "terminology_replacement",
+      "period": ["2025-01-01", "2025-12-31"],
+      "facts": "Compliance training is reframed as supported practice. The safety and induction responsibility persists. Both phrases are explicitly explained in later notes.",
+      "sources": ["Museum/A first shift should include a pause.md", "Museum/An induction handbook with fewer pages.md", "Museum/The induction audit asks the old question.md"],
+      "useful": "Distinguish a new method from a new name, citing an actual change in what happens during a shift.",
+      "bad": "Infer lost interest in safety from declining use of the older phrase."
+    },
+    {
+      "id": "distributed_authority",
+      "period": ["2024-07-01", "2025-11-30"],
+      "facts": "Access and decisions repeatedly bottleneck on one person across the museum, workshop and care. These are initially separate accounts; the Maintenance note later articulates the connection.",
+      "sources": ["Community/A queue outside the tool cupboard.md", "Museum/The volunteer rota has a hidden bottleneck.md", "Care/A neighbour who needs a weekend off.md", "Learning/Maintenance.md"],
+      "useful": "Before the synthesis is explicit, compare availability of resources with permission to use them; later ask a new concrete question rather than rediscovering the synthesis.",
+      "bad": "Call an explicitly linked or already synthesized connection hidden."
+    },
+    {
+      "id": "choice_and_exit",
+      "period": ["2024-05-01", "2025-12-31"],
+      "facts": "A shorter route, permission to pause, a care decision and a bounded repair service all preserve the option to refuse or stop. They are not evidence of low motivation.",
+      "sources": ["Personal/Winter rides need an exit option.md", "Care/The person who can say no.md", "Learning/The burden of saying no repeatedly.md"],
+      "useful": "Compare concrete conditions that make starting easier by preserving later choices.",
+      "bad": "Recommend removing exit options to increase commitment."
+    },
+    {
+      "id": "stable_and_seasonal",
+      "period": ["2024-01-01", "2025-12-31"],
+      "facts": "Garden notebook, Routes, Field methods and Pottery are byte-stable core notes. Bean, apple, watering and winter practices recur in both years. Their meaning vectors should not drift on unchanged text.",
+      "sources": ["Garden/Garden notebook.md", "Personal/Routes.md", "Learning/Field methods.md", "Personal/Pottery.md"],
+      "useful": "Resurface an appropriate anniversary with accurate dates, or compare actual seasonal evidence.",
+      "bad": "Claim that unchanged core prose was rewritten, or infer winter abandonment from seasonal inactivity."
+    },
+    {
+      "id": "import_and_non_prose",
+      "period": ["2024-08-01", "2024-10-31"],
+      "facts": "Six invented 2022 clippings arrive together in September 2024. Quoted source prose, code and Templates are not lexical author prose under the configured production defaults.",
+      "sources": ["Clippings/Old ferry timetable.md", "Learning/A parser example is not an observation.md", "Templates/Meeting template.md"],
+      "useful": "Keep capture date separate from declared creation date and claims in a quotation separate from the author's response.",
+      "bad": "Report codeonlynightjar, quoteonlyalbatross or boilerplatekingfisher as author-prose evidence."
+    },
+    {
+      "id": "saved_questions",
+      "period": ["2024-01-01", "2025-12-31"],
+      "facts": "Only the normal five-question selection is saved per session. Later novelty filtering can suppress previously saved questions. Raw candidates were never all presented to Mara.",
+      "sources": [],
+      "useful": "Retain denominator counts for raw, filtered, selected and saved output; inspect repetitions and disjoint later evidence.",
+      "bad": "Call an unsaved raw question a previously shown question or count all generated candidates as useful."
+    }
+  ]
+}

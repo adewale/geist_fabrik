@@ -5,6 +5,7 @@ import json
 import runpy
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -42,6 +43,31 @@ def test_replay_matches_every_snapshot_and_stable_controls(tmp_path):
     assert len(manifest["snapshots"][16]["changed_paths"]) > len(
         manifest["snapshots"][15]["changed_paths"]
     )
+
+
+def test_replay_sets_changed_source_mtime_without_reaging_stable_files(tmp_path):
+    corpus, vault = tmp_path / "corpus", tmp_path / "vault"
+    manifest = generate_corpus(corpus, notes=64, snapshots=2)
+    apply_snapshot(corpus, vault, 0)
+    first = datetime.fromisoformat(manifest["snapshots"][0]["observed_at"]).timestamp()
+    assert (vault / "Journal.md").stat().st_mtime == first
+    stable = vault / manifest["stable_paths"][0]
+    assert stable.stat().st_mtime == first
+    apply_snapshot(corpus, vault, 1)
+    second = datetime.fromisoformat(manifest["snapshots"][1]["observed_at"]).timestamp()
+    assert (vault / "Journal.md").stat().st_mtime == second
+    assert stable.stat().st_mtime == first
+
+
+@pytest.mark.parametrize("observed_at", ["not a time", "2024-01-01T12:00:00"])
+def test_bad_observation_clock_is_rejected_before_source_writes(tmp_path, observed_at):
+    corpus, vault = tmp_path / "corpus", tmp_path / "vault"
+    manifest = generate_corpus(corpus, notes=64, snapshots=2)
+    manifest["snapshots"][0]["observed_at"] = observed_at
+    (corpus / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(ValueError):
+        apply_snapshot(corpus, vault, 0)
+    assert list(vault.iterdir()) == []
 
 
 def test_corrupt_object_rejection_precedes_source_mutation(tmp_path):

@@ -9,7 +9,8 @@ Replaying writes only to an explicitly empty/dedicated benchmark vault.
 import argparse
 import hashlib
 import json
-from datetime import date, timedelta
+import os
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -184,6 +185,10 @@ def apply_snapshot(corpus: Path, vault: Path, index: int) -> dict:
     if state is not None and state.get("manifest_sha256") != manifest_digest:
         raise ValueError("replay manifest has changed")
     record = manifest["snapshots"][index]
+    observed_time = datetime.fromisoformat(record["observed_at"])
+    if observed_time.tzinfo is None:
+        raise ValueError("snapshot observation time must include a timezone")
+    observed = observed_time.timestamp()
     payloads = {}
     for relative in record["changed_paths"] + record["deleted_paths"]:
         path = Path(relative)
@@ -206,6 +211,9 @@ def apply_snapshot(corpus: Path, vault: Path, index: int) -> dict:
         destination = vault / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(data)
+        # Notes without a declared modified date (including journals) inherit
+        # mtime. Today's host clock must not leak into a historical replay.
+        os.utime(destination, (observed, observed))
     with NamedTemporaryFile(mode="w", encoding="utf-8", dir=vault, delete=False) as temporary:
         temporary.write(
             json.dumps(
