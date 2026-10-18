@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Word-burst analysis reuses unchanged selected observations across days within
+  the same weekly frame, refreshing displayed dates and provisional flags.
+  Schema v14 adds compact stable-ID presence vectors without resetting captured
+  history. Source collection, prepared series and exact-series reuse have explicit
+  memory bounds; frequencies and ordered findings retain their exact semantics.
+  See [phrase research and evaluation](docs/word_burst_phrases.md).
 - All geist idea queries and final citation checks now exclude root `Templates/`
   sources and honor enabled privacy boundaries, including virtual entries and
   ambiguous aliases. Recent-focus questions use entry dates for virtual notes;

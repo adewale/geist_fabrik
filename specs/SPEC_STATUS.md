@@ -39,6 +39,13 @@ identities, and cached abstention/population explanations. Additive schema v13
 indexes evidence history and preserves diagnostic metadata; it invalidates only
 derived result caches. These contracts do not establish reader usefulness.
 
+Exact cross-day reuse and compact lexical presence are **BUILT** in additive
+schema v14. Reuse requires the same selected sources, weekly frame, generation
+and settings; date presentation is refreshed separately. Preparation and shared
+series caches are bounded. Existing JSON frequencies and captured history are
+retained. Optional trigram value remains an evaluation question; see
+`docs/word_burst_phrases.md` for primary research and matched corpus results.
+
 | key | status | note |
 |---|---|---|
 | `vault.path` | BUILT-DIFFERENTLY | CLI vault argument / auto-detect, not config |

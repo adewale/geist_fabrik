@@ -7,8 +7,8 @@ import re
 import sqlite3
 import unicodedata
 from collections import Counter
-from collections.abc import Iterator
-from dataclasses import dataclass
+from collections.abc import Collection, Iterator
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -20,6 +20,7 @@ from markdown_it.rules_inline.backticks import backtick
 from markdown_it.token import Token
 
 from .config_loader import LexicalAnalysisConfig
+from .lexical_presence import PresenceWriter
 from .markdown_parser import (
     declared_creation_day,
     iter_wikilinks,
@@ -311,6 +312,12 @@ class LexicalIndex:
     observed_at: datetime
     extracted: int = 0
     changed: int = 0
+    _presence_writer: PresenceWriter | None = field(default=None, init=False, repr=False)
+
+    def _presence(self, terms: Collection[str]) -> bytes:
+        if self._presence_writer is None:
+            self._presence_writer = PresenceWriter(self.db)
+        return self._presence_writer.encode(terms)
 
     def prepare(self) -> bool:
         """Reset incompatible extraction/history and return whether a rebuild is needed."""
@@ -320,6 +327,8 @@ class LexicalIndex:
             return False
         self.db.execute("DELETE FROM lexical_notes")
         self.db.execute("DELETE FROM lexical_terms")
+        self.db.execute("DELETE FROM lexical_presence_terms")
+        self._presence_writer = None
         self.db.execute("DELETE FROM word_burst_cache")
         self.db.execute(
             "INSERT INTO lexical_meta(key, value) VALUES ('policy', ?) "
@@ -334,7 +343,7 @@ class LexicalIndex:
             return
         now = self.observed_at.astimezone(UTC).isoformat()
         old = self.db.execute(
-            "SELECT raw_hash, counts_json, observed_at FROM lexical_notes WHERE path = ?",
+            "SELECT raw_hash, counts_json, observed_at, presence FROM lexical_notes WHERE path = ?",
             (note.path,),
         ).fetchone()
         raw_hash = _digest(note.content)
@@ -380,13 +389,34 @@ class LexicalIndex:
         if old:
             now = max(now, previous_at)
         additions = counts - Counter(json.loads(old[1])) if old else Counter()
+        presence = (
+            old[3] if old and old[1] == encoded and old[3] is not None else self._presence(counts)
+        )
         self.db.execute(
-            "INSERT INTO lexical_notes VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "INSERT INTO lexical_notes "
+            "(path, raw_hash, body_hash, cohort_day, provenance, counts_json, "
+            "observed_at, presence) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(path) DO UPDATE SET raw_hash=excluded.raw_hash, "
             "body_hash=excluded.body_hash, cohort_day=excluded.cohort_day, "
             "provenance=excluded.provenance, counts_json=excluded.counts_json, "
-            "observed_at=excluded.observed_at",
-            (note.path, raw_hash, body_hash, cohort, provenance, encoded, now),
+            "observed_at=excluded.observed_at, presence=excluded.presence",
+            (
+                note.path,
+                raw_hash,
+                body_hash,
+                cohort,
+                provenance,
+                encoded,
+                now,
+                presence,
+            ),
+        )
+        # JSON updates invalidate any old projection, including direct SQL writes.
+        # Restore our freshly constructed projection within this same transaction.
+        self.db.execute(
+            "UPDATE lexical_notes SET presence=? WHERE path=? AND presence IS NULL",
+            (presence, note.path),
         )
         self.changed += bool(not old or old[1] != encoded)
         if old and self.options.capture_observed and not clock_regressed and additions:
@@ -401,11 +431,14 @@ class LexicalIndex:
             revisions = list(json.loads(event[1])) if event else []
             revisions.append(_digest(str(old[1]) + encoded))
             evidence = _digest(json.dumps(revisions, separators=(",", ":")))
+            presence = self._presence(terms)
             self.db.execute(
-                "INSERT INTO lexical_events VALUES (?, ?, ?, ?, ?, ?, ?) "
+                "INSERT INTO lexical_events "
+                "(path, bin_start, previous_at, observed_at, terms_json, revisions_json, "
+                "evidence_hash, presence) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(path, bin_start) DO UPDATE SET observed_at=excluded.observed_at, "
                 "terms_json=excluded.terms_json, revisions_json=excluded.revisions_json, "
-                "evidence_hash=excluded.evidence_hash",
+                "evidence_hash=excluded.evidence_hash, presence=excluded.presence",
                 (
                     note.path,
                     bin_start,
@@ -414,7 +447,13 @@ class LexicalIndex:
                     json.dumps(sorted(terms)),
                     json.dumps(revisions),
                     evidence,
+                    presence,
                 ),
+            )
+            self.db.execute(
+                "UPDATE lexical_events SET presence=? "
+                "WHERE path=? AND bin_start=? AND presence IS NULL",
+                (presence, note.path, bin_start),
             )
 
     def finish(self) -> None:

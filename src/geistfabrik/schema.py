@@ -15,7 +15,8 @@ from pathlib import Path
 # Version 11: Atomic incremental lexical vectors and captured additions
 # Version 12: Optional suggestion evidence identity for episode-level novelty
 # Version 13: Cached lexical evidence diagnostics and durable evidence lookup
-SCHEMA_VERSION = 13
+# Version 14: Compact stable-ID lexical presence projections
+SCHEMA_VERSION = 14
 MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
@@ -153,6 +154,12 @@ CREATE TABLE IF NOT EXISTS lexical_terms (
     documents INTEGER NOT NULL DEFAULT 0 CHECK(documents >= 0)
 );
 CREATE INDEX IF NOT EXISTS idx_lexical_terms_documents ON lexical_terms(documents);
+-- IDs remain stable while either current prose or captured history may use them.
+-- Presence is derived from the retained exact JSON vectors, never a new source.
+CREATE TABLE IF NOT EXISTS lexical_presence_terms (
+    term_id INTEGER PRIMARY KEY CHECK(term_id > 0),
+    term TEXT NOT NULL UNIQUE
+);
 CREATE TABLE IF NOT EXISTS lexical_notes (
     path TEXT PRIMARY KEY REFERENCES notes(path) ON DELETE CASCADE,
     raw_hash TEXT NOT NULL,
@@ -160,7 +167,8 @@ CREATE TABLE IF NOT EXISTS lexical_notes (
     cohort_day TEXT,
     provenance TEXT NOT NULL,
     counts_json TEXT NOT NULL,
-    observed_at TEXT NOT NULL
+    observed_at TEXT NOT NULL,
+    presence BLOB
 );
 CREATE INDEX IF NOT EXISTS idx_lexical_cohort ON lexical_notes(cohort_day);
 CREATE TABLE IF NOT EXISTS lexical_events (
@@ -171,6 +179,7 @@ CREATE TABLE IF NOT EXISTS lexical_events (
     terms_json TEXT NOT NULL,
     revisions_json TEXT NOT NULL,
     evidence_hash TEXT NOT NULL,
+    presence BLOB,
     PRIMARY KEY(path, bin_start)
 );
 CREATE INDEX IF NOT EXISTS idx_lexical_events_bin ON lexical_events(bin_start);
@@ -204,17 +213,30 @@ WHEN OLD.body_hash != NEW.body_hash OR OLD.cohort_day IS NOT NEW.cohort_day
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
 END;
+CREATE TRIGGER IF NOT EXISTS lexical_note_presence_invalid AFTER UPDATE OF counts_json
+ON lexical_notes WHEN OLD.counts_json != NEW.counts_json BEGIN
+    UPDATE lexical_notes SET presence = NULL WHERE path = NEW.path;
+END;
 CREATE TRIGGER IF NOT EXISTS lexical_event_insert AFTER INSERT ON lexical_events BEGIN
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
 END;
-CREATE TRIGGER IF NOT EXISTS lexical_event_update AFTER UPDATE ON lexical_events BEGIN
+CREATE TRIGGER IF NOT EXISTS lexical_event_update AFTER UPDATE ON lexical_events
+WHEN OLD.path != NEW.path OR OLD.bin_start != NEW.bin_start
+    OR OLD.previous_at != NEW.previous_at OR OLD.observed_at != NEW.observed_at
+    OR OLD.terms_json != NEW.terms_json OR OLD.revisions_json != NEW.revisions_json
+    OR OLD.evidence_hash != NEW.evidence_hash BEGIN
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
 END;
 CREATE TRIGGER IF NOT EXISTS lexical_event_delete AFTER DELETE ON lexical_events BEGIN
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
+END;
+CREATE TRIGGER IF NOT EXISTS lexical_event_presence_invalid AFTER UPDATE OF terms_json
+ON lexical_events WHEN OLD.terms_json != NEW.terms_json BEGIN
+    UPDATE lexical_events SET presence = NULL
+        WHERE path = NEW.path AND bin_start = NEW.bin_start;
 END;
 """
 
@@ -373,6 +395,17 @@ def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:
             # This is derived data; source vectors and saved questions survive.
             conn.execute("DELETE FROM word_burst_cache")
 
+    for table in ("lexical_notes", "lexical_events"):
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if exists is not None:
+            columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+            if "presence" not in columns:
+                # Backfilled from retained JSON on the first cold analysis.
+                # Source prose, captured history and all other durable data stay intact.
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN presence BLOB")
+
 
 def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) -> None:
     """Apply required pre-reconciliation DDL without committing or stamping."""
@@ -380,6 +413,9 @@ def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) ->
         # v12 separates chronology/cache invalidation from dictionary updates.
         # Recreate this derived trigger inside the owned migration transaction.
         conn.execute("DROP TRIGGER IF EXISTS lexical_note_update")
+    if current_version < 14:
+        # Compact derived projections do not change captured historical evidence.
+        conn.execute("DROP TRIGGER IF EXISTS lexical_event_update")
     if current_version < 4:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
         if "is_virtual" not in columns:

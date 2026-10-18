@@ -65,7 +65,7 @@ Document prevalence is stored as integer mentions and observations, including
 cached findings. Exact rational comparisons decide whether a decline is real;
 floating values exposed by the reporting API are derived projections. Paired
 percentages increase precision together until distinct rates display differently.
-Analysis version 5 invalidates older cached results.
+Analysis version 7 invalidates older cached results.
 
 ## Configuration
 
@@ -130,6 +130,30 @@ left censoring and partial final weeks. Calendar dates at Python's boundaries
 are supported by clamping the window and cutoff safely.
 
 ## Incremental work and safe exits
+
+Schema v14 stores a sorted little-endian uint64 term-presence vector beside each
+current and captured lexical row, sharing stable IDs in `lexical_presence_terms`.
+Exact frequency/history JSON remains authoritative. Existing installations fill
+missing selected vectors from stored JSON on the first cold analysis, without
+reading Markdown again or resetting observations, notes, embeddings or saved
+questions. It backfills only the requested history mode and weekly window.
+Updates invalidate and replace projections inside the same owned transaction.
+The extra index costs eight bytes per presence plus a shared term dictionary.
+
+Cross-day reuse requires identical selected source identities and weekly exposure
+under the same frame, generation, policy and settings. Future-dated notes entering
+the cutoff, newly captured additions and a moving weekly window still invalidate
+reuse. Stored intervals end at the model's final Sunday; returned dates and
+partial-week flags are refreshed for the requested session date. A cached
+abstention retains its population explanation and reports zero decoding work.
+
+Collection streams presence vectors into compact NumPy integer weekly columns.
+Source buffers stop at 256 rows or 262,144 selected occurrences, plus at most one
+source's vector. Preparation stops at 1,024 terms or 131,072 sparse coordinates,
+plus at most one column. Exact-series reuse retains at most 8,192 entries and
+262,144 coordinates. The final sparse statistics and supported findings still
+scale with actual corpus evidence; these bounds do not truncate vocabulary or
+change statistical thresholds. Cache eviction can require more decoding.
 
 Counts and dictionary document frequencies update inside `Vault.sync`'s existing
 owned transaction. Failure rolls back source notes and lexical history together.

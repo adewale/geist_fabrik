@@ -579,6 +579,9 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | AC-12.5 | ✅ | One geist reports rising and disappearing phrases in both history modes | `uv run pytest tests/unit/test_word_burst_integration.py::test_one_geist_reports_rising_and_disappearing_phrases_through_real_history` |
 | AC-12.6 | ✅ | Saved episode identity survives rewording and rolling-window clipping | `uv run pytest tests/unit/test_word_burst_integration.py::test_saved_episode_suppresses_changed_wording_and_clipped_dates_but_not_return` |
 | AC-12.7 | ✅ | Automatic v11 upgrade preserves captured lexical history and saved questions | `uv run pytest tests/unit/test_word_burst_integration.py::test_v11_episode_migration_preserves_lexical_history_and_saved_questions` |
+| AC-12.8 | ✅ | Compact stable-ID presence preserves exact JSON evidence through v14 migration, source changes and rollback | `uv run pytest tests/unit/test_lexical_presence.py` |
+| AC-12.9 | ✅ | Cross-day reuse preserves cutoff membership, reporting dates and exact sparse counts across bounded buffers | `uv run pytest tests/unit/test_word_burst_reuse.py tests/unit/test_word_burst_reuse_audit.py` |
+| AC-12.10 | ✅ | Matched phrase evaluation preserves source, runtime, context and masked evidence identity | `uv run pytest tests/unit/test_trigram_value_evaluation.py` |
 
 ## Summary Statistics
 
@@ -598,14 +601,14 @@ behaviour loses its only test, make the cell MANUAL with an honest reason.
 | 9 | 5 | 14 | 19 | 0% |
 | 10 | 8 | 18 | 26 | 0% |
 | 11 | 8 | 17 | 25 | 0% |
-| 12 | 4 | 0 | 4 | 100% |
-| **Total** | **77** | **158** | **235** | **See executable gate** |
+| 12 | 10 | 0 | 10 | 100% |
+| **Total** | **83** | **158** | **241** | **See executable gate** |
 
 ### By Category
 
 | Category | Count | % Complete |
 |----------|-------|------------|
-| Core Functionality | 77 | See executable gate |
+| Core Functionality | 83 | See executable gate |
 | Edge Cases | 89 | 0% |
 | Error Handling | 42 | 0% |
 | Performance | 13 | 0% |
