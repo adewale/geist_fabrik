@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-18",
+  "baseline_commit": "d432f84924fca94b1ac4e8dcbfb6fe8bfb6b57f7",
+  "scope": "Host-alarm dispatcher and its primary test owner; word-burst detector/aggregation unchanged.",
+  "source_sha256": {
+    "src/geistfabrik/execution_timeout.py": "6c439687ac79bbf44e9d41238f0783cc4697488871159d1001065a25e7b469ae",
+    "tests/unit/test_correctness_security.py": "b8ec270d813c9740fe91954da3b949c027e34d02a79b5e7cace8459c810be170"
+  },
+  "failed_ci": {
+    "run": 39081882510,
+    "head_sha": "d432f84924fca94b1ac4e8dcbfb6fe8bfb6b57f7",
+    "macos": "one fixed-sleep host alarm test failed; lexical/native regressions passed",
+    "other_jobs": "both Ubuntu and package-smoke jobs passed"
+  },
+  "red_contract_tests": {
+    "failed": 4,
+    "passed": 1
+  },
+  "focused_alarm_tests": {
+    "passed": 9
+  },
+  "independent_probes": [
+    "early delivery",
+    "cancel then raise",
+    "rearm then raise",
+    "cancel then catch",
+    "rearm then catch"
+  ],
+  "validation": {
+    "exit_code": 0,
+    "wall_seconds": 375.5287515710006
+  },
+  "canonical_review": "Still unavailable: invalid CLI credential; no new report.",
+  "real_vault_owner_evaluation": "Not completed.",
+  "archive": {
+    "file": "alarm_followup_receipts.json.xz",
+    "raw_bytes": 1252743,
+    "raw_sha256": "62721b8986e6921ab505946d303fc4daea44171c64d69144e75e71093ed49bcf",
+    "xz_bytes": 57136,
+    "xz_sha256": "affe8fd0728cabebe5479504f407fafc93b8b9c641dd043a04374e4174bae3a1"
+  },
+  "priority_mutation": {
+    "failed": 4,
+    "passed": 1,
+    "expected": "nonzero pytest exit; selecting the later alarm deadline is rejected"
+  },
+  "unchanged_measured_kernel_sha256": {
+    "src/geistfabrik/word_burst.py": "4c631a13cdf8d8c8e7b90e255020d087ebc0807a75c19f4371a3a0ea1b7248f5",
+    "src/geistfabrik/word_burst_analysis.py": "7f24c75e640e88bad893d518f0330c9104c6acd22877797dd9a8965a4e9f4c3d"
+  }
+}

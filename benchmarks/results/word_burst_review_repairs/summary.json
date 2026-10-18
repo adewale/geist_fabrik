@@ -2,7 +2,7 @@
   "date": "2026-10-18",
   "repair_base_commit": "b036e47754ac699f40816317623ef6744970fb44",
   "runtime_source_commit": "88a1bd3062178950321eb8c816b718c0191e3a8e",
-  "later_changes": "Migration fixture strengthening and evidence only; no runtime changes.",
+  "later_changes": "d432f84 strengthened the migration fixture and archived evidence without runtime changes. A subsequent host-alarm dispatcher correction is recorded in alarm_followup.json; measured detector/aggregation modules remain unchanged.",
   "environment": {
     "python": "3.12.14",
     "platform": "Linux x86_64",
@@ -577,5 +577,6 @@
       }
     }
   },
-  "temporal_replay_scope": "Lexical-only; other geists and real embedding inference skipped. Both history modes pass through the actual executor after analysis priming; these replay timings are not uncached executor capacity measurements."
+  "temporal_replay_scope": "Lexical-only; other geists and real embedding inference skipped. Both history modes pass through the actual executor after analysis priming; these replay timings are not uncached executor capacity measurements.",
+  "alarm_followup": "alarm_followup.json"
 }

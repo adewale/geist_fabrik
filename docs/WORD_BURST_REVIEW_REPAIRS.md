@@ -1,9 +1,11 @@
 # PR 97 audit repairs and phrase capacity
 
-Runtime source: `88a1bd3062178950321eb8c816b718c0191e3a8e`.
+Lexical repair and benchmark source: `88a1bd3062178950321eb8c816b718c0191e3a8e`.
 Repair baseline: `b036e47754ac699f40816317623ef6744970fb44`.
-The subsequent evidence commit strengthens one migration fixture without changing
-runtime code. [Machine-readable receipts](../benchmarks/results/word_burst_review_repairs/summary.json)
+Evidence checkpoint `d432f84924fca94b1ac4e8dcbfb6fe8bfb6b57f7` strengthens one
+migration fixture without changing runtime code. The alarm follow-up below
+subsequently corrects host-callback scheduling in `execution_timeout.py`; the
+measured detector and aggregation modules remain unchanged. [Machine-readable receipts](../benchmarks/results/word_burst_review_repairs/summary.json)
 retain raw timings, source hashes, executor statuses, tests and lossless archives.
 
 ## Four confirmed findings
@@ -131,6 +133,57 @@ four dated notes across September 12–30, 2023. No owner-rated real-vault evalu
 has been completed. [The evaluation guide](WORD_BURST_EVALUATION.md) gives the
 chronology, normal-CLI and reader-judgment procedure. A suitable vault and its
 owner's judgments remain necessary to assess useful versus already-known prompts.
+
+## Follow-up: macOS host-alarm failure
+
+The evidence checkpoint's [run 39081882510](https://github.com/adewale/geist_fabrik/actions/runs/39081882510)
+passed both Ubuntu jobs and both package-smoke jobs, but macOS failed one existing
+host-alarm test. The complete authenticated run-level ZIP was recovered after
+workflow completion; the redirected job log was inaccessible. The macOS unit log
+records 1 failed, 1,883 passed and 44 skipped. The lexical/native regressions pass.
+
+The failing test expected at least two periodic SIGALRM deliveries during a fixed
+200 ms sleep, then inspected a counter with the timer still active. POSIX periodic
+signals can coalesce while a runner is descheduled. Its failure renders as
+`assert 2 >= 2`, consistent with another delivery between the comparison and
+assertion formatting. This is concrete evidence of an asynchronous test oracle,
+rather than a reason to rerun CI until it passes.
+
+The primary test now models only the public signal/timer API and a monotonic
+clock. It delivers through the handler installed by `signal.signal`, checks known
+host deadlines and verifies remaining delay, period and original handler on exit.
+Only the timeout module's bindings are replaced; real process timers, including
+pytest-timeout, remain untouched. The adjacent OS integration test keeps real
+host delivery and a real plugin timeout, disarms before asserting, and accepts
+coalesced deliveries. Repetition and phase belong to the deterministic oracle.
+
+Independent production-only review also exposed runtime errors: late delivery
+shifted a periodic timer's phase; a raising callback left an expired host deadline
+for cleanup; catching that exception inside a plugin could leave its own earlier
+deadline unarmed. The dispatcher now schedules the next original-phase tick,
+coalesces missed ticks, reconciles the host's timer in `finally`, and re-arms the
+multiplexed deadline before propagating a host exception. Cancellation and
+replacement timers survive exceptions. The callback's exception is preserved.
+
+Before these production corrections, four deterministic cases fail and the
+on-time control passes. Afterwards, all nine focused alarm tests pass. A separate
+mutation that chooses the later deadline is rejected. Independent standalone
+probes pass early delivery, cancellation/replacement followed by raising, and
+cancellation/replacement with a caught exception. The raw failure, red/green runs,
+mutation and independent probes are retained in `alarm_followup.json` and its
+lossless receipt archive beside the original summaries.
+
+The complete follow-up `scripts/validate.sh` gate passed: 1,931 unit tests,
+81 integration tests, 155/155 automated criteria, 45 bundled firing contracts and
+82.69% branch coverage, plus strict typing, lint, security, workflows and
+installed-package real-model offline inference. Final-head platform status is
+recorded in the PR checks. The receipt also retains an interrupted run and a
+network-denied dependency-fetch run; neither is counted as a successful gate.
+
+The analysis timing/memory measurements above remain tied to source `88a1bd3`.
+This follow-up changes the host-callback branch of the deadline dispatcher, not
+the measured word-burst kernels. Its validation and platform CI are separate
+from the historical green source run and the failed evidence checkpoint.
 
 ## Receipt format
 
