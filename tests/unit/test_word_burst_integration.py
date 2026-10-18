@@ -716,8 +716,12 @@ def test_parser_upgrade_restores_virtual_code_indentation(tmp_path):
         vault.sync()
         # Rows from the former splitter lost their meaningful indentation.
         # The physical source is unchanged, so parser revision must refresh it.
+        fingerprint = vault.db.execute("SELECT source_fingerprint FROM notes LIMIT 1").fetchone()[0]
+        # Preserve the real settings/stat suffix: an arbitrary legacy sentinel
+        # would force a refresh even if the parser revision bump were removed.
+        legacy_fingerprint = "parser-v6:" + fingerprint.partition(":")[2]
         vault.db.execute(
-            "UPDATE notes SET content=ltrim(content), source_fingerprint='parser-v6:legacy'"
+            "UPDATE notes SET content=ltrim(content), source_fingerprint=?", (legacy_fingerprint,)
         )
         vault.db.commit()
         assert vault.sync() == 2

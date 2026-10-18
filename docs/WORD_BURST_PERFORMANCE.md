@@ -1,3 +1,11 @@
+# Latest audit repair measurements, 2026-10-18
+
+See [the repair and capacity report](WORD_BURST_REVIEW_REPAIRS.md) for the
+controlled 17.82 → 11.08 s pair and 50.68 → 29.82 s triple comparisons, process
+RSS, current-policy executor receipts and remaining evaluation gates. Large
+optional triple vocabularies still need an explicit budget above the default
+30 seconds. Earlier measurements below retain their original policy and scope.
+
 # Correctness-by-construction measurements, 2026-10-17
 
 Runtime checkpoint `abfdec672edaaf0b3ad5a647ed80552f6616aca9`, extraction/analysis
