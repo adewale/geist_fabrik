@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-18",
+  "runtime_source_commit": "8b1cde5afee1fffe21e995a691938e3463953b5a",
+  "scope": "Read-only existing dictionary features and exact production extraction of pinned public Markdown; no new detector or embedding runs.",
+  "interpretation": "Global support>=3 is an upper bound before window selection and body deduplication. No population probability or runtime extrapolation.",
+  "comparison": [
+    {
+      "name": "capacity",
+      "globally_eligible_words_pairs": 28239,
+      "globally_eligible_through_trigrams": 407696,
+      "increase_percent": 1343.7338432664046,
+      "eligible_fraction_of_trigram_types": 0.48731113750923044
+    },
+    {
+      "name": "kepano-public",
+      "globally_eligible_words_pairs": 151,
+      "globally_eligible_through_trigrams": 152,
+      "increase_percent": 0.6622516556291391,
+      "eligible_fraction_of_trigram_types": 0.00031075201988812925
+    },
+    {
+      "name": "blue-book",
+      "globally_eligible_words_pairs": 28079,
+      "globally_eligible_through_trigrams": 42661,
+      "increase_percent": 51.93204886213897,
+      "eligible_fraction_of_trigram_types": 0.06382708646114654
+    }
+  ],
+  "extraction_source_sha256": "ca8654896f3d978b8bdbe6597d4fe55692ed2cf216474f4aed51170ca4aed7b4",
+  "narrative_fixture_status": "Proposed; not implemented.",
+  "archive": {
+    "file": "source_and_probe_receipts.json.xz",
+    "raw_bytes": 735871,
+    "raw_sha256": "69a0aa8e1e8c8d5213bf6cd62859ef1c963ced9d830b29313c3244dfc479ccdf",
+    "xz_bytes": 115272,
+    "xz_sha256": "af389d01293977f366f5f5d09e65dda7d5086ed2a049ad870c72cf6d7f443d41"
+  },
+  "validation": {
+    "exit_code": 0,
+    "wall_seconds": 484.803840917004,
+    "command": "./scripts/validate.sh",
+    "runtime_source_commit": "8b1cde5afee1fffe21e995a691938e3463953b5a",
+    "scope": "Documentation and investigation receipts only; runtime and tests unchanged.",
+    "unit_passed": 1931,
+    "unit_skipped": 1,
+    "integration_passed": 81,
+    "automated_criteria_passed": 155,
+    "geist_firing_contracts_passed": 45,
+    "branch_coverage_percent": 82.67,
+    "package_smoke": "passed, including installed-wheel offline real-model inference",
+    "log_file": "validation.log.xz",
+    "log_raw_sha256": "7b18775d208987dd1106414b05c6eda2cb522bdf13289ec27b6aea8e6ee25869",
+    "log_xz_sha256": "51c3eff68f5ccfb32ad678ddcb0f59eff43aa59b170be84ac066900c7864293c"
+  }
+}

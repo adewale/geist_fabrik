@@ -1,6 +1,6 @@
 # Local Utility Evaluation Readiness
 
-**Last verified:** 2026-09-13
+**Last reviewed:** 2026-10-18
 
 The repository does **not** currently contain enough evidence to measure user
 utility locally.
@@ -14,6 +14,13 @@ utility locally.
   paths and verify deterministic, bounded, and safe behaviour.
 - Performance benchmarks for query counts, runtime, clustering, and vector
   backends.
+- A changing temporal corpus with eight stock topic sentences and planted
+  scenarios, plus a separate scrambled-prose capacity corpus. Neither is a
+  curated fictional author's working vault.
+- A pinned authored public knowledge-wiki comparison for lexical workload
+  features. It supplies no owner judgments or reconstructed writing history.
+
+See [the trigram investigation and proposed narrative fixture](WORD_BURST_TRIGRAM_RISK.md).
 
 This is enough to measure mechanical properties such as correctness, output
 shape, empty-result rates, determinism, latency, and regressions. It is not

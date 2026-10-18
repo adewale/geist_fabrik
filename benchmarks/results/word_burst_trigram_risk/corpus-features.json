@@ -1,0 +1,209 @@
+[
+  {
+    "name": "capacity",
+    "db": "/workspace/verification-tools/pr97-repairs/runtime-triples/vault.db",
+    "ngram_statistics": [
+      {
+        "terms": 7422,
+        "document_incidences": 3914396,
+        "df1": 4571,
+        "df2": 194,
+        "df_ge3": 2657,
+        "df_ge10": 2619,
+        "df_ge100": 2604,
+        "ngram": 1
+      },
+      {
+        "terms": 35568,
+        "document_incidences": 6227280,
+        "df1": 9773,
+        "df2": 213,
+        "df_ge3": 25582,
+        "df_ge10": 24059,
+        "df_ge100": 13110,
+        "ngram": 2
+      },
+      {
+        "terms": 778675,
+        "document_incidences": 5909473,
+        "df1": 261783,
+        "df2": 137435,
+        "df_ge3": 379457,
+        "df_ge10": 119543,
+        "df_ge100": 6658,
+        "ngram": 3
+      }
+    ],
+    "notes": 10000,
+    "unique_lexical_bodies": 10000,
+    "dated_notes": 10000,
+    "distinct_declared_days": 104,
+    "terms_per_note": {
+      "min": 861,
+      "p50": 1594.0,
+      "p90": 1930,
+      "p99": 2233,
+      "max": 2659,
+      "total": 16051149,
+      "mean": 1605.1149
+    },
+    "unigram_types_per_note": {
+      "min": 260,
+      "p50": 391.0,
+      "p90": 447,
+      "p99": 495,
+      "max": 569,
+      "total": 3914396,
+      "mean": 391.4396
+    },
+    "visible_word_tokens_per_note": {
+      "min": 388,
+      "p50": 705.0,
+      "p90": 853,
+      "p99": 987,
+      "max": 1167,
+      "total": 7099810,
+      "mean": 709.981
+    },
+    "bigram_types_per_note": {
+      "min": 320,
+      "p50": 618.0,
+      "p90": 756,
+      "p99": 878,
+      "max": 1049,
+      "total": 6227280,
+      "mean": 622.728
+    },
+    "trigram_types_per_note": {
+      "min": 281,
+      "p50": 585.5,
+      "p90": 729,
+      "p99": 860,
+      "max": 1041,
+      "total": 5909473,
+      "mean": 590.9473
+    },
+    "analysis_cache_rows": 1,
+    "markdown_file_bytes": {
+      "min": 2917,
+      "p50": 4634.0,
+      "p90": 5435,
+      "p99": 6165,
+      "max": 7155,
+      "total": 46637507,
+      "mean": 4663.7507
+    },
+    "probe_seconds": 10.017111396999098
+  },
+  {
+    "name": "temporal-large-last-snapshot",
+    "db": "/workspace/verification-tools/pr97-repairs/temporal-large-vault/_geistfabrik/vault.db",
+    "ngram_statistics": [
+      {
+        "terms": 12281,
+        "document_incidences": 276801,
+        "df1": 12169,
+        "df2": 0,
+        "df_ge3": 112,
+        "df_ge10": 112,
+        "df_ge100": 112,
+        "ngram": 1
+      },
+      {
+        "terms": 12349,
+        "document_incidences": 282369,
+        "df1": 12200,
+        "df2": 0,
+        "df_ge3": 149,
+        "df_ge10": 149,
+        "df_ge100": 149,
+        "ngram": 2
+      },
+      {
+        "terms": 12337,
+        "document_incidences": 247937,
+        "df1": 12200,
+        "df2": 0,
+        "df_ge3": 137,
+        "df_ge10": 137,
+        "df_ge100": 137,
+        "ngram": 3
+      }
+    ],
+    "notes": 12232,
+    "unique_lexical_bodies": 12208,
+    "dated_notes": 12232,
+    "distinct_declared_days": 552,
+    "terms_per_note": {
+      "min": 21,
+      "p50": 56.0,
+      "p90": 59,
+      "p99": 232,
+      "max": 232,
+      "total": 807107,
+      "mean": 65.98324068018313
+    },
+    "unigram_types_per_note": {
+      "min": 8,
+      "p50": 21.0,
+      "p90": 22,
+      "p99": 60,
+      "max": 60,
+      "total": 276801,
+      "mean": 22.629251144538916
+    },
+    "visible_word_tokens_per_note": {
+      "min": 8,
+      "p50": 24.0,
+      "p90": 25,
+      "p99": 242,
+      "max": 242,
+      "total": 482801,
+      "mean": 39.47032374100719
+    },
+    "bigram_types_per_note": {
+      "min": 7,
+      "p50": 19.0,
+      "p90": 20,
+      "p99": 88,
+      "max": 88,
+      "total": 282369,
+      "mean": 23.084450621321125
+    },
+    "trigram_types_per_note": {
+      "min": 6,
+      "p50": 16.0,
+      "p90": 17,
+      "p99": 84,
+      "max": 84,
+      "total": 247937,
+      "mean": 20.269538914323086
+    },
+    "analysis_cache_rows": 2,
+    "probe_seconds": 0.5682415809933445
+  },
+  {
+    "public_kepano_tree_metadata_only": {
+      "total_markdown": 103,
+      "all_markdown_bytes": {
+        "min": 25,
+        "p50": 95,
+        "p90": 231,
+        "p99": 4186,
+        "max": 10040,
+        "total": 35993,
+        "mean": 349.4466019417476
+      },
+      "categories": {
+        "Templates": 52,
+        "Categories": 21,
+        "Clippings": 3,
+        "Evergreen": 0,
+        "Journal": 0
+      },
+      "source_ref_kind": "git_commit",
+      "source_commit": "473697347a0eaac790a6596229c741b3915f3b77",
+      "source_tree_sha": "6eed29397758731b7f3723b21fbcc3bf408ad079"
+    }
+  }
+]
