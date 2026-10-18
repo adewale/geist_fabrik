@@ -1175,10 +1175,150 @@
   "archive": {
     "file": "receipts.json.xz",
     "format": "JSON object: relative path to exact UTF-8 file content; encode each value to restore original bytes.",
-    "files": 142,
-    "raw_bytes": 11990172,
-    "raw_sha256": "85ff47a3f6305ecb46912bfe09407ef989961bb6358af4f11849f9367f7cdf3a",
-    "xz_bytes": 197984,
-    "xz_sha256": "84cb3dbeb159a22e704bde63990b221aa41b64d2ae4ab9ed25e516ec7dace036"
+    "files": 147,
+    "raw_bytes": 12346727,
+    "raw_sha256": "9c3c35bdc8912bc1b6da758f160cac178c433227be3bf5656931eb89b86f48f8",
+    "xz_bytes": 233372,
+    "xz_sha256": "95139eaf608e19e5dc8fff40637145ddb5e492214a6d00b560c7a7ae212f45ea"
+  },
+  "claim_verification": {
+    "other_geists_cross_mode_raw_identical": true,
+    "journal_recency_cases": [
+      {
+        "entry": "2024-11-26",
+        "claim_session": "2025-02-28",
+        "days_since_entry_date": 94,
+        "entry_text_identical": true,
+        "entry_sha256": "c32a6dd2ff05d098cbb0ae6131ad7fd7fc547125f532e040bfac3ba4d686db58",
+        "recorded_meaning_bytes_identical": true,
+        "physical_source_changed_at": "2025-02-28T12:00:00+00:00"
+      },
+      {
+        "entry": "2025-01-26",
+        "claim_session": "2025-06-30",
+        "days_since_entry_date": 155,
+        "entry_text_identical": true,
+        "entry_sha256": "17f62a247609bfaedceedb5feb59349777033ec98bdb59eb0993f43b7a7cd61d",
+        "recorded_meaning_bytes_identical": true,
+        "physical_source_changed_at": "2025-06-30T12:00:00+00:00"
+      },
+      {
+        "entry": "2025-06-26",
+        "claim_session": "2025-08-31",
+        "days_since_entry_date": 66,
+        "entry_text_identical": true,
+        "entry_sha256": "6b0782cd9dbae7592090724047d449d79213bbb1e755c3208f785fb3f6ac3bdc",
+        "recorded_meaning_bytes_identical": true,
+        "physical_source_changed_at": "2025-08-31T12:00:00+00:00"
+      }
+    ],
+    "selected_template_questions": {
+      "dated": 8,
+      "observed": 8
+    },
+    "selected_hedging_prompt_count": {
+      "dated": 5,
+      "observed": 5
+    },
+    "current_note_length_groups": {
+      "current_core_created_2023": {
+        "count": 12,
+        "median_visible_words": 122.0,
+        "mean_visible_words": 106.5
+      },
+      "other_current_authored": {
+        "count": 145,
+        "median_visible_words": 62,
+        "mean_visible_words": 63.07586206896552
+      }
+    },
+    "dated_cohort_revision_example": {
+      "path": "Community/Volunteer handbook.md",
+      "cohort_day": "2023-12-06",
+      "phrase": "supported practice",
+      "initial_body_contains_phrase": false,
+      "revision_2025_01_28_contains_phrase": true
+    }
+  },
+  "model_provenance": {
+    "model": "all-MiniLM-L6-v2",
+    "offline": true,
+    "provenance": "Bundled tracked snapshot; hashes collected after the read-only evaluation. Model inputs were not modified by this task.",
+    "files": {
+      "models/all-MiniLM-L6-v2/1_Pooling/config.json": {
+        "bytes": 313,
+        "sha256": "c81049107e2654fc73dca52288212b6a4def66b5e819e47c2da10c96f1db002d"
+      },
+      "models/all-MiniLM-L6-v2/LICENSE.apache-2.0": {
+        "bytes": 11357,
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      "models/all-MiniLM-L6-v2/NOTICE": {
+        "bytes": 804,
+        "sha256": "22abb11ef648954cba26a916fcf661de4dd3078cd8fbd7d6ac97137ab8ac7f9f"
+      },
+      "models/all-MiniLM-L6-v2/README.md": {
+        "bytes": 10447,
+        "sha256": "a1ccde82a144fd20cf7f6461fdeadb58d7500a7e76e9d5d5e560cace49cd8cfc"
+      },
+      "models/all-MiniLM-L6-v2/config.json": {
+        "bytes": 611,
+        "sha256": "690af9cc80966511549996e93b5d1ee6811011f53208da7c697310ef92795b43"
+      },
+      "models/all-MiniLM-L6-v2/config_sentence_transformers.json": {
+        "bytes": 278,
+        "sha256": "2115e947ea5c776a0e37712e678cbf7660ac3d6efcf4e4df205aeb4fcb3bc406"
+      },
+      "models/all-MiniLM-L6-v2/model.safetensors": {
+        "bytes": 90864192,
+        "sha256": "1377e9af0ca0b016a9f2aa584d6fc71ab3ea6804fae21ef9fb1416e2944057ac"
+      },
+      "models/all-MiniLM-L6-v2/modules.json": {
+        "bytes": 350,
+        "sha256": "21ddb3037a55ebf4549eb5c1dc44c3f28f10b56ec7f1335c92fd90e5b30d88ac"
+      },
+      "models/all-MiniLM-L6-v2/sentence_bert_config.json": {
+        "bytes": 58,
+        "sha256": "be4506c789b81981e0fcaebaa7749e8dd9cc2daa0fc8f54caba6d5f2e225822e"
+      },
+      "models/all-MiniLM-L6-v2/special_tokens_map.json": {
+        "bytes": 695,
+        "sha256": "5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a"
+      },
+      "models/all-MiniLM-L6-v2/tokenizer.json": {
+        "bytes": 711662,
+        "sha256": "4084ce5afffa730ba5697e3e81ec5707e14b13ad1bace0cc43bb0bdb411cfdcf"
+      },
+      "models/all-MiniLM-L6-v2/tokenizer_config.json": {
+        "bytes": 1464,
+        "sha256": "c128cee663cc23ce44cf253471d2a538d1623c7c3ead5e465b13519a017ca1f0"
+      },
+      "models/all-MiniLM-L6-v2/vocab.txt": {
+        "bytes": 231508,
+        "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+      }
+    },
+    "git_lfs": [
+      "1377e9af0ca0b016a9f2aa584d6fc71ab3ea6804fae21ef9fb1416e2944057ac * models/all-MiniLM-L6-v2/model.safetensors",
+      "4084ce5afffa730ba5697e3e81ec5707e14b13ad1bace0cc43bb0bdb411cfdcf * models/all-MiniLM-L6-v2/tokenizer.json"
+    ]
+  },
+  "validation": {
+    "exit_code": 0,
+    "wall_seconds": 471.5360586629977,
+    "command": "./scripts/validate.sh",
+    "checkpoint_before_receipts": "7a30c403fed0b25c9f822e413dff17948a1e5ea9",
+    "unit_passed": 1940,
+    "unit_skipped": 1,
+    "integration_passed": 81,
+    "automated_criteria_passed": 155,
+    "branch_coverage_percent": 83.11,
+    "package_smoke": "passed, including installed-wheel offline real-model inference",
+    "runtime_and_harness_still_match_measured_code": true,
+    "negative_control": "Removing only source os.utime makes the mtime contract test fail.",
+    "initial_gate": "Failed on a brittle categories-substring assertion and documentation links checked during report construction. Repaired with exact full-parser label-text oracle and completed report. Original failed log/status retained.",
+    "log_file": "validation.log.xz",
+    "raw_log_sha256": "868c1cc985ffcb4ee8efefe5ffbd9dc23989cde5954d0d33a467ca5b99d453dd",
+    "xz_log_sha256": "7c020c985779cad1d3b1d53e31ddbb2cd489e8a9b35f37ad33778095f994daf6"
   }
 }

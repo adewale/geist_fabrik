@@ -28,6 +28,9 @@ and ledger were frozen before the first run and never ingested. Sources and
 thresholds were not tuned after seeing output. The story includes a known project
 completion, a known launch and a terminology replacement, so a detector cannot
 earn a useful label merely by rediscovering those changes.
+The regular six-note monthly writing schedule and month-end captures simplify
+real behavior. They do not establish when edits occurred within a month or
+represent the uneven writing cadence of a sampled working vault.
 
 Each mode uses a separate fresh vault and persists the normal five-question
 selection into its journal. The harness calls the production `InvokeCommand.run`
@@ -147,6 +150,13 @@ reason and counts. The uncached database-copy check was needed to recover that
 explanation. Preserving abstention metadata would make this behavior easier to
 understand without changing the conservative evidence requirement.
 
+The revision schedule also demonstrates the dated mode's historical limit. The
+handbook retains its 2023 creation date when a 2025 revision adds `supported
+practice`. Dated cohorts assign its current prose to that older cohort; they
+do not prove that the new phrase was written in 2023. The generated provenance
+label is essential, and the captured-additions mode cannot reconstruct revisions
+that occurred before successful observations.
+
 A final cache-cleared dated diagnostic has 168 window observations, 1,216 frequency
 candidates and six findings. With trigrams included, collection, decoding and
 evidence assembly take about 0.056 seconds in that single diagnostic. It is an
@@ -187,6 +197,15 @@ structure, cycle and high-similarity geists do not establish their usefulness or
 failure on other vaults. A second independently authored persona with long essays,
 task-bearing notes and sustained evergreen editing should complement this one.
 Actual owners must judge surprise and usefulness before making real-vault claims.
+
+The completed `scripts/validate.sh` gate passes 1,940 unit tests, 81 integration
+tests, all 155 automated acceptance criteria and 83.11% branch coverage, plus
+strict typing, lint, security/workflow checks and installed-package offline
+real-model inference. A deliberate removal of only the mtime correction makes
+its contract test fail. The new prose also exposed a brittle existing label-text
+test that banned the word `categories`; its replacement compares exact output
+with the independent full-parser oracle while retaining the no-YAML-parse check.
+The initial failed gate and final passing log are retained with the receipts.
 
 ## Outcome of every bundled geist
 
