@@ -155,6 +155,12 @@ benefit from this fixture's added three-word lens.
 
 ## Research receipts
 
+Hash-bound copies of the frozen protocol, model/question outputs, masked packets,
+both assessments, public phrase counts, source metadata and quotation ledger are
+in the [retained receipt archive](../benchmarks/results/word_burst_reuse/README.md).
+The complete all-geist replay separately verifies delivery behavior; the
+lexical-only comparative experiment does not measure delivered owner benefit.
+
 Supplementary downloaded papers, official documentation, resolved URLs and hashes
 are retained outside the repository at
 `/workspace/verification-tools/trigram-reuse/literature/`. The primary links above

@@ -152,3 +152,30 @@ The fixed-width format makes byte order and exact IDs explicit. A future
 versioned compressed format could reduce disk use, but would need migration and
 decode-cost evidence. Quietly narrowing IDs to uint32 would lose the current
 signed-63-bit safety guarantee.
+
+## Verification and retained evidence
+
+The full local validation gate passes 2,091 unit tests, 81 integration tests,
+158 automated acceptance criteria and 83.71% branch coverage, plus all 45 geist
+firing contracts, strict typing, lint/security/workflow checks and installed-wheel
+offline real-model inference. The first run caught a stale schema label in
+`STATUS.md`; it was corrected before a complete clean rerun.
+
+Independent review without reading tests passes 480 complete ordered old/new
+finding comparisons and 1,920 cached/fresh cutoff comparisons, including forced
+tiny buffers and eviction. High-ID, rollback, calendar and count-conservation
+probes pass. Openclaw test-audit and Hegel guidance add public-boundary Hypothesis
+oracles, intended old-source cache failures and a separately labelled synthetic
+full-scan resource mutation. No test-only production seam is added.
+
+Both real-model narrative modes complete 48 sessions, 2,160 calls across all 45
+geists and 240 saved questions without errors. Raw, filtered, selected and saved
+output, exact model findings and populations match the previous repair receipts.
+Concurrent replay timings are not performance evidence.
+
+[Summary and receipt manifest](../benchmarks/results/word_burst_reuse/summary.json)
+and [restoration instructions](../benchmarks/results/word_burst_reuse/README.md)
+retain all trials, exact source hashes, audit/research receipts and the complete
+replays. The official canonical reviewer again failed authentication and produced
+no report. Independent reviews do not replace that missing verdict; the PR remains
+draft.
