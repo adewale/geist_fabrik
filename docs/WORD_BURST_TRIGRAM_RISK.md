@@ -173,7 +173,9 @@ change prompt or random linked-note baseline, retaining all sessions in the
 results. The independently written ledger must remain fixed when outputs are
 unhelpful.
 
-This narrative fixture has not yet been implemented. Its purpose is to fill a
-specific evaluation gap while retaining the existing mechanical and stress
-fixtures. Owner-rated real-vault evaluation remains a separate later check;
+The fixture proposed here was subsequently implemented at source checkpoint
+`73c3393`; [its full-geist evaluation](NARRATIVE_VAULT_EVALUATION.md) records the
+results and limitations. The earlier investigation receipts retain their original
+"proposed" status as historical evidence. Owner-rated real-vault evaluation
+remains a separate later check;
 [the existing protocol](WORD_BURST_EVALUATION.md) describes that process.

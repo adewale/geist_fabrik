@@ -518,12 +518,19 @@ def test_label_text_parses_no_yaml_for_typical_obsidian_frontmatter(
         parses.append(text)
         return real(text, source)
 
-    monkeypatch.setattr(markdown_parser, "load_bounded_yaml_text", counting)
-
     typical = [content for content in _repository_notes() if content.startswith("---")]
     assert typical
-    for content in [*typical, _REAL_FRONTMATTER]:
-        assert "categories" not in _label_text("T", content)
+    # A YAML key is also an ordinary prose word. Compare with the independent
+    # full-parser body oracle instead of banning "categories" anywhere in text.
+    contents = [
+        *typical,
+        _REAL_FRONTMATTER,
+        _REAL_FRONTMATTER + "The categories we choose shape the question.\n",
+    ]
+    expected = [_head_label_text("T", content) for content in contents]
+    monkeypatch.setattr(markdown_parser, "load_bounded_yaml_text", counting)
+    for content, label in zip(contents, expected):
+        assert _label_text("T", content) == label
 
     assert parses == []
 

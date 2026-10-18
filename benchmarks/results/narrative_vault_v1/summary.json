@@ -1,0 +1,1184 @@
+{
+  "synthetic": true,
+  "runtime_and_harness_source_commit": "73c3393898420f115a6d4b967ffa8fe3284eb590",
+  "manifest_sha256": "4dfd127db8611992eed861f237f4a170a018c17dda4d94be39daa8a4c266424b",
+  "ledger_sha256": "edb0dfa178c95dbdcda40506b31c568bc33702f3ea7aa82ad79b81684edbf169",
+  "story": {
+    "months": 24,
+    "first": "2024-01-31",
+    "last": "2025-12-31",
+    "authored_source_note_files": 166,
+    "final_physical_markdown_files": 166,
+    "final_indexed_notes": 189,
+    "stable_source_files": 15,
+    "full_replacements": 9,
+    "deletions": 1,
+    "backdated_imported_clippings": 6,
+    "visible_word_tokens": 11125,
+    "dictionary_expressions": 18318,
+    "global_df3_words_pairs": 1165,
+    "global_df3_through_triples": 1224
+  },
+  "settings": "Optional trigrams enabled, all bundled geists enabled in stable alphabetical configuration order; default thresholds/timeouts/filtering/five-question selection. Monthly capture times and changed-source mtime are fictional.",
+  "review_limits": "Assistant that authored the fixture; subjective author-side assessment, not independent human or owner ratings.",
+  "review_counts": {
+    "primary": {
+      "generic_or_weak": 129,
+      "useful_candidate": 41,
+      "already_known": 62,
+      "misleading": 8
+    },
+    "secondary": {
+      "generic_or_weak": 31,
+      "already_known": 14,
+      "useful_candidate": 14,
+      "misleading": 2
+    },
+    "baseline": {
+      "already_known": 48
+    }
+  },
+  "modes": {
+    "dated": {
+      "sessions": 24,
+      "geist_count_at_source_checkpoint": 45,
+      "executor_calls": 1080,
+      "executor_failures": 0,
+      "raw": 906,
+      "filtered": 882,
+      "selected": 120,
+      "saved": 120,
+      "stable_meaning_changes": 0,
+      "future_note_dates": 0,
+      "nonempty_geists": 31,
+      "empty_geists": [
+        "assumption_challenger",
+        "bridge_builder",
+        "creation_burst",
+        "cyclical_thinking",
+        "density_inversion",
+        "hidden_hub",
+        "link_density_analyser",
+        "metadata_driven_discovery",
+        "scale_shifter",
+        "sentence_variance",
+        "structure_diversity_checker",
+        "task_archaeology",
+        "todo_harvester",
+        "vocabulary_expansion"
+      ],
+      "invoke_seconds": {
+        "median": 3.3965158720020554,
+        "min": 2.106092889000138,
+        "max": 5.274450719996821
+      },
+      "wall_seconds_excluding_interpreter_import": 86.70474132399977,
+      "peak_whole_process_rss_mib": 1071.16015625,
+      "final_db_bytes": 8994816,
+      "filter_rejections": {
+        "boundary": 0,
+        "quality": 0,
+        "novelty": 19,
+        "diversity": 5
+      },
+      "author_assessment_selected": {
+        "generic_or_weak": 64,
+        "useful_candidate": 20,
+        "already_known": 32,
+        "misleading": 4
+      },
+      "per_geist": {
+        "assumption_challenger": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.10059010300756199,
+          "max_executor_seconds": 0.007316562994674314,
+          "first_output_author_label": null
+        },
+        "attention_shift": {
+          "sessions_with_output": 22,
+          "raw": 22,
+          "selected": 4,
+          "selected_labels": {
+            "generic_or_weak": 4
+          },
+          "total_executor_seconds": 0.3538194179927814,
+          "max_executor_seconds": 0.030000578000908718,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "bridge_builder": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.10354182699666126,
+          "max_executor_seconds": 0.00931290999869816,
+          "first_output_author_label": null
+        },
+        "bridge_hunter": {
+          "sessions_with_output": 24,
+          "raw": 48,
+          "selected": 8,
+          "selected_labels": {
+            "already_known": 7,
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 1.0083628930005943,
+          "max_executor_seconds": 0.07410928700119257,
+          "first_output_author_label": "already_known"
+        },
+        "claim_harvester": {
+          "sessions_with_output": 4,
+          "raw": 4,
+          "selected": 1,
+          "selected_labels": {
+            "useful_candidate": 1
+          },
+          "total_executor_seconds": 0.023103389001335017,
+          "max_executor_seconds": 0.004606550995958969,
+          "first_output_author_label": "useful_candidate"
+        },
+        "cluster_mirror": {
+          "sessions_with_output": 23,
+          "raw": 23,
+          "selected": 4,
+          "selected_labels": {
+            "already_known": 4
+          },
+          "total_executor_seconds": 0.05573633399762912,
+          "max_executor_seconds": 0.019469655999273527,
+          "first_output_author_label": "already_known"
+        },
+        "concept_cluster": {
+          "sessions_with_output": 8,
+          "raw": 10,
+          "selected": 3,
+          "selected_labels": {
+            "already_known": 3
+          },
+          "total_executor_seconds": 0.05718955602787901,
+          "max_executor_seconds": 0.006376563003868796,
+          "first_output_author_label": "already_known"
+        },
+        "concept_drift": {
+          "sessions_with_output": 16,
+          "raw": 28,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.8015022160107037,
+          "max_executor_seconds": 0.10893443300301442,
+          "first_output_author_label": "useful_candidate"
+        },
+        "contradictor": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 3,
+          "selected_labels": {
+            "generic_or_weak": 3
+          },
+          "total_executor_seconds": 0.009437416993023362,
+          "max_executor_seconds": 0.0021203219948802143,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "convergent_evolution": {
+          "sessions_with_output": 1,
+          "raw": 1,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 2.0046063879999565,
+          "max_executor_seconds": 0.18685215200093808,
+          "first_output_author_label": "useful_candidate"
+        },
+        "creation_burst": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.00883792699460173,
+          "max_executor_seconds": 0.0007063610028126277,
+          "first_output_author_label": null
+        },
+        "creative_collision": {
+          "sessions_with_output": 24,
+          "raw": 70,
+          "selected": 11,
+          "selected_labels": {
+            "useful_candidate": 6,
+            "generic_or_weak": 5
+          },
+          "total_executor_seconds": 0.019044438013224863,
+          "max_executor_seconds": 0.0022401290043490008,
+          "first_output_author_label": "useful_candidate"
+        },
+        "cyclical_thinking": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.6926970209824503,
+          "max_executor_seconds": 0.09847523200005526,
+          "first_output_author_label": null
+        },
+        "definition_harvester": {
+          "sessions_with_output": 12,
+          "raw": 12,
+          "selected": 1,
+          "selected_labels": {
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 0.017052164002961945,
+          "max_executor_seconds": 0.003795399999944493,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "density_inversion": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.021186856036365498,
+          "max_executor_seconds": 0.0023667360001127236,
+          "first_output_author_label": null
+        },
+        "divergent_evolution": {
+          "sessions_with_output": 3,
+          "raw": 4,
+          "selected": 1,
+          "selected_labels": {
+            "useful_candidate": 1
+          },
+          "total_executor_seconds": 0.7844210770053905,
+          "max_executor_seconds": 0.12332814399997005,
+          "first_output_author_label": "useful_candidate"
+        },
+        "hidden_hub": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 1.4426141450021532,
+          "max_executor_seconds": 0.11723604700091528,
+          "first_output_author_label": null
+        },
+        "hub_explorer": {
+          "sessions_with_output": 24,
+          "raw": 48,
+          "selected": 9,
+          "selected_labels": {
+            "already_known": 7,
+            "generic_or_weak": 2
+          },
+          "total_executor_seconds": 0.1746580280159833,
+          "max_executor_seconds": 0.01667430800443981,
+          "first_output_author_label": "already_known"
+        },
+        "hypothesis_harvester": {
+          "sessions_with_output": 20,
+          "raw": 21,
+          "selected": 2,
+          "selected_labels": {
+            "useful_candidate": 2
+          },
+          "total_executor_seconds": 0.010498761999770068,
+          "max_executor_seconds": 0.0009765310023794882,
+          "first_output_author_label": "useful_candidate"
+        },
+        "link_density_analyser": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 1.8849876030071755,
+          "max_executor_seconds": 0.23103819799871417,
+          "first_output_author_label": null
+        },
+        "metadata_driven_discovery": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.004656168988731224,
+          "max_executor_seconds": 0.00048248899838654324,
+          "first_output_author_label": null
+        },
+        "method_scrambler": {
+          "sessions_with_output": 24,
+          "raw": 72,
+          "selected": 6,
+          "selected_labels": {
+            "useful_candidate": 2,
+            "generic_or_weak": 2,
+            "already_known": 2
+          },
+          "total_executor_seconds": 0.2215867830091156,
+          "max_executor_seconds": 0.03339678300108062,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "orphan_connector": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 3,
+          "selected_labels": {
+            "generic_or_weak": 2,
+            "already_known": 1
+          },
+          "total_executor_seconds": 0.026710287987953052,
+          "max_executor_seconds": 0.003846127998258453,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "pattern_finder": {
+          "sessions_with_output": 5,
+          "raw": 5,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 1.7175748830049997,
+          "max_executor_seconds": 0.15253956599917728,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "question_generator": {
+          "sessions_with_output": 24,
+          "raw": 72,
+          "selected": 8,
+          "selected_labels": {
+            "generic_or_weak": 8
+          },
+          "total_executor_seconds": 0.04118685398861999,
+          "max_executor_seconds": 0.006027386996720452,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "question_harvester": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 2,
+          "selected_labels": {
+            "useful_candidate": 2
+          },
+          "total_executor_seconds": 0.007982829003594816,
+          "max_executor_seconds": 0.002583262001280673,
+          "first_output_author_label": "already_known"
+        },
+        "quote_harvester": {
+          "sessions_with_output": 1,
+          "raw": 1,
+          "selected": 1,
+          "selected_labels": {
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 0.0012285170014365576,
+          "max_executor_seconds": 0.00021613199351122603,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "recent_focus": {
+          "sessions_with_output": 23,
+          "raw": 62,
+          "selected": 11,
+          "selected_labels": {
+            "generic_or_weak": 1,
+            "already_known": 6,
+            "misleading": 3,
+            "useful_candidate": 1
+          },
+          "total_executor_seconds": 0.07145274902723031,
+          "max_executor_seconds": 0.012289347003388684,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "scale_shifter": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.053134838002733886,
+          "max_executor_seconds": 0.004856286002905108,
+          "first_output_author_label": null
+        },
+        "seasonal_patterns": {
+          "sessions_with_output": 16,
+          "raw": 17,
+          "selected": 1,
+          "selected_labels": {
+            "misleading": 1
+          },
+          "total_executor_seconds": 0.0963755120174028,
+          "max_executor_seconds": 0.025234250002540648,
+          "first_output_author_label": "misleading"
+        },
+        "self_and_other": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 1,
+          "selected_labels": {
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 0.005042152988607995,
+          "max_executor_seconds": 0.0006012859957991168,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "sentence_variance": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.1609585589976632,
+          "max_executor_seconds": 0.013288444999489002,
+          "first_output_author_label": null
+        },
+        "structure_diversity_checker": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.021960410005704034,
+          "max_executor_seconds": 0.0023581269997521304,
+          "first_output_author_label": null
+        },
+        "stub_expander": {
+          "sessions_with_output": 8,
+          "raw": 8,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.0035113009726046585,
+          "max_executor_seconds": 0.0004991649984731339,
+          "first_output_author_label": "useful_candidate"
+        },
+        "surprisal": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 3,
+          "selected_labels": {
+            "generic_or_weak": 3
+          },
+          "total_executor_seconds": 0.10521369001071434,
+          "max_executor_seconds": 0.011869882000610232,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "task_archaeology": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.00317499599623261,
+          "max_executor_seconds": 0.0005344320015865378,
+          "first_output_author_label": null
+        },
+        "temporal_clustering": {
+          "sessions_with_output": 1,
+          "raw": 1,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.04356416000518948,
+          "max_executor_seconds": 0.005089384998427704,
+          "first_output_author_label": "already_known"
+        },
+        "temporal_drift": {
+          "sessions_with_output": 23,
+          "raw": 69,
+          "selected": 8,
+          "selected_labels": {
+            "generic_or_weak": 8
+          },
+          "total_executor_seconds": 0.00702002398611512,
+          "max_executor_seconds": 0.0006943519983906299,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "this_time_last_year": {
+          "sessions_with_output": 16,
+          "raw": 16,
+          "selected": 3,
+          "selected_labels": {
+            "useful_candidate": 2,
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 0.004536862019449472,
+          "max_executor_seconds": 0.0007623850033269264,
+          "first_output_author_label": "already_known"
+        },
+        "todo_harvester": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.003017365022969898,
+          "max_executor_seconds": 0.0015720000010333024,
+          "first_output_author_label": null
+        },
+        "uncertainty_mapper": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 5,
+          "selected_labels": {
+            "generic_or_weak": 5
+          },
+          "total_executor_seconds": 0.1655156650012941,
+          "max_executor_seconds": 0.015171595994615927,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "vocabulary_expansion": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.10091490300692385,
+          "max_executor_seconds": 0.019603690001531504,
+          "first_output_author_label": null
+        },
+        "voice_absence": {
+          "sessions_with_output": 19,
+          "raw": 19,
+          "selected": 3,
+          "selected_labels": {
+            "generic_or_weak": 3
+          },
+          "total_executor_seconds": 0.013050852991000284,
+          "max_executor_seconds": 0.0016580309966229834,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "what_if": {
+          "sessions_with_output": 24,
+          "raw": 72,
+          "selected": 14,
+          "selected_labels": {
+            "generic_or_weak": 11,
+            "useful_candidate": 3
+          },
+          "total_executor_seconds": 0.036521073008771054,
+          "max_executor_seconds": 0.014568614999006968,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "word_burst": {
+          "sessions_with_output": 19,
+          "raw": 57,
+          "selected": 4,
+          "selected_labels": {
+            "generic_or_weak": 2,
+            "already_known": 2
+          },
+          "total_executor_seconds": 1.2359896389898495,
+          "max_executor_seconds": 0.08311294500163058,
+          "first_output_author_label": "generic_or_weak"
+        }
+      },
+      "word_burst_terms": {
+        "before": 2,
+        "for": 13,
+        "with": 7,
+        "keep": 8,
+        "is": 1,
+        "do": 3,
+        "of": 2,
+        "of a": 2,
+        "but": 8,
+        "the repair cafe": 3,
+        "supported": 4,
+        "repair cafe": 2,
+        "without": 1,
+        "cafe": 1
+      },
+      "word_burst_findings_including_repeats": {
+        "declining": 41,
+        "rising": 113
+      }
+    },
+    "observed": {
+      "sessions": 24,
+      "geist_count_at_source_checkpoint": 45,
+      "executor_calls": 1080,
+      "executor_failures": 0,
+      "raw": 849,
+      "filtered": 826,
+      "selected": 120,
+      "saved": 120,
+      "stable_meaning_changes": 0,
+      "future_note_dates": 0,
+      "nonempty_geists": 30,
+      "empty_geists": [
+        "assumption_challenger",
+        "bridge_builder",
+        "creation_burst",
+        "cyclical_thinking",
+        "density_inversion",
+        "hidden_hub",
+        "link_density_analyser",
+        "metadata_driven_discovery",
+        "scale_shifter",
+        "sentence_variance",
+        "structure_diversity_checker",
+        "task_archaeology",
+        "todo_harvester",
+        "vocabulary_expansion",
+        "word_burst"
+      ],
+      "invoke_seconds": {
+        "median": 2.7906617549997463,
+        "min": 1.7220047619994148,
+        "max": 3.962354965005943
+      },
+      "wall_seconds_excluding_interpreter_import": 72.21174477000022,
+      "peak_whole_process_rss_mib": 1064.8046875,
+      "final_db_bytes": 8990720,
+      "filter_rejections": {
+        "boundary": 0,
+        "quality": 0,
+        "novelty": 19,
+        "diversity": 4
+      },
+      "author_assessment_selected": {
+        "generic_or_weak": 65,
+        "useful_candidate": 21,
+        "already_known": 30,
+        "misleading": 4
+      },
+      "per_geist": {
+        "assumption_challenger": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.09858407601859653,
+          "max_executor_seconds": 0.007750868004222866,
+          "first_output_author_label": null
+        },
+        "attention_shift": {
+          "sessions_with_output": 22,
+          "raw": 22,
+          "selected": 4,
+          "selected_labels": {
+            "generic_or_weak": 4
+          },
+          "total_executor_seconds": 0.321157886988658,
+          "max_executor_seconds": 0.031292749001295306,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "bridge_builder": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.1016927600139752,
+          "max_executor_seconds": 0.018104634997143876,
+          "first_output_author_label": null
+        },
+        "bridge_hunter": {
+          "sessions_with_output": 24,
+          "raw": 48,
+          "selected": 8,
+          "selected_labels": {
+            "already_known": 7,
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 1.0636886340143974,
+          "max_executor_seconds": 0.15737356500176247,
+          "first_output_author_label": "already_known"
+        },
+        "claim_harvester": {
+          "sessions_with_output": 4,
+          "raw": 4,
+          "selected": 1,
+          "selected_labels": {
+            "useful_candidate": 1
+          },
+          "total_executor_seconds": 0.0217967409917037,
+          "max_executor_seconds": 0.0023568949982291088,
+          "first_output_author_label": "useful_candidate"
+        },
+        "cluster_mirror": {
+          "sessions_with_output": 23,
+          "raw": 23,
+          "selected": 4,
+          "selected_labels": {
+            "already_known": 4
+          },
+          "total_executor_seconds": 0.03978387898678193,
+          "max_executor_seconds": 0.004013003002910409,
+          "first_output_author_label": "already_known"
+        },
+        "concept_cluster": {
+          "sessions_with_output": 8,
+          "raw": 10,
+          "selected": 3,
+          "selected_labels": {
+            "already_known": 3
+          },
+          "total_executor_seconds": 0.06157714298024075,
+          "max_executor_seconds": 0.01045929899555631,
+          "first_output_author_label": "already_known"
+        },
+        "concept_drift": {
+          "sessions_with_output": 16,
+          "raw": 28,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.7006819779853686,
+          "max_executor_seconds": 0.06503590299689677,
+          "first_output_author_label": "useful_candidate"
+        },
+        "contradictor": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 3,
+          "selected_labels": {
+            "generic_or_weak": 3
+          },
+          "total_executor_seconds": 0.007115702974260785,
+          "max_executor_seconds": 0.0011210059965378605,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "convergent_evolution": {
+          "sessions_with_output": 1,
+          "raw": 1,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 2.1099838049995014,
+          "max_executor_seconds": 0.16890588000387652,
+          "first_output_author_label": "useful_candidate"
+        },
+        "creation_burst": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.009266955006751232,
+          "max_executor_seconds": 0.0015436579997185618,
+          "first_output_author_label": null
+        },
+        "creative_collision": {
+          "sessions_with_output": 24,
+          "raw": 70,
+          "selected": 12,
+          "selected_labels": {
+            "useful_candidate": 6,
+            "generic_or_weak": 6
+          },
+          "total_executor_seconds": 0.01755901599972276,
+          "max_executor_seconds": 0.001539384997158777,
+          "first_output_author_label": "useful_candidate"
+        },
+        "cyclical_thinking": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.652297399006784,
+          "max_executor_seconds": 0.06294120000529801,
+          "first_output_author_label": null
+        },
+        "definition_harvester": {
+          "sessions_with_output": 12,
+          "raw": 12,
+          "selected": 1,
+          "selected_labels": {
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 0.016125993031891994,
+          "max_executor_seconds": 0.002052367002761457,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "density_inversion": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.02342204499291256,
+          "max_executor_seconds": 0.002437151997582987,
+          "first_output_author_label": null
+        },
+        "divergent_evolution": {
+          "sessions_with_output": 3,
+          "raw": 4,
+          "selected": 1,
+          "selected_labels": {
+            "useful_candidate": 1
+          },
+          "total_executor_seconds": 0.7332233320121304,
+          "max_executor_seconds": 0.07813553599407896,
+          "first_output_author_label": "useful_candidate"
+        },
+        "hidden_hub": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 1.422246419984731,
+          "max_executor_seconds": 0.1059145899998839,
+          "first_output_author_label": null
+        },
+        "hub_explorer": {
+          "sessions_with_output": 24,
+          "raw": 48,
+          "selected": 9,
+          "selected_labels": {
+            "already_known": 7,
+            "generic_or_weak": 2
+          },
+          "total_executor_seconds": 0.13175555499765323,
+          "max_executor_seconds": 0.007356780995905865,
+          "first_output_author_label": "already_known"
+        },
+        "hypothesis_harvester": {
+          "sessions_with_output": 20,
+          "raw": 21,
+          "selected": 2,
+          "selected_labels": {
+            "useful_candidate": 2
+          },
+          "total_executor_seconds": 0.00921885699062841,
+          "max_executor_seconds": 0.0009549629976390861,
+          "first_output_author_label": "useful_candidate"
+        },
+        "link_density_analyser": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 1.7616324110204005,
+          "max_executor_seconds": 0.12682089900044957,
+          "first_output_author_label": null
+        },
+        "metadata_driven_discovery": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.005342244017811026,
+          "max_executor_seconds": 0.000707418003003113,
+          "first_output_author_label": null
+        },
+        "method_scrambler": {
+          "sessions_with_output": 24,
+          "raw": 72,
+          "selected": 7,
+          "selected_labels": {
+            "useful_candidate": 3,
+            "generic_or_weak": 2,
+            "already_known": 2
+          },
+          "total_executor_seconds": 0.1830793129702215,
+          "max_executor_seconds": 0.015680883996537887,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "orphan_connector": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 3,
+          "selected_labels": {
+            "generic_or_weak": 2,
+            "already_known": 1
+          },
+          "total_executor_seconds": 0.02061394202610245,
+          "max_executor_seconds": 0.0023501159957959317,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "pattern_finder": {
+          "sessions_with_output": 5,
+          "raw": 5,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 1.4748541570079396,
+          "max_executor_seconds": 0.12316505800117739,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "question_generator": {
+          "sessions_with_output": 24,
+          "raw": 72,
+          "selected": 8,
+          "selected_labels": {
+            "generic_or_weak": 8
+          },
+          "total_executor_seconds": 0.03903514301055111,
+          "max_executor_seconds": 0.006609291005588602,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "question_harvester": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 2,
+          "selected_labels": {
+            "useful_candidate": 2
+          },
+          "total_executor_seconds": 0.00492716900043888,
+          "max_executor_seconds": 0.0005962119976175018,
+          "first_output_author_label": "already_known"
+        },
+        "quote_harvester": {
+          "sessions_with_output": 1,
+          "raw": 1,
+          "selected": 1,
+          "selected_labels": {
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 0.0011112950160168111,
+          "max_executor_seconds": 0.00023546699958387762,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "recent_focus": {
+          "sessions_with_output": 23,
+          "raw": 62,
+          "selected": 11,
+          "selected_labels": {
+            "generic_or_weak": 1,
+            "already_known": 6,
+            "misleading": 3,
+            "useful_candidate": 1
+          },
+          "total_executor_seconds": 0.08554655902844388,
+          "max_executor_seconds": 0.02151665800192859,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "scale_shifter": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.05276185400725808,
+          "max_executor_seconds": 0.006230430000869092,
+          "first_output_author_label": null
+        },
+        "seasonal_patterns": {
+          "sessions_with_output": 16,
+          "raw": 17,
+          "selected": 1,
+          "selected_labels": {
+            "misleading": 1
+          },
+          "total_executor_seconds": 0.0685142740039737,
+          "max_executor_seconds": 0.011128340003779158,
+          "first_output_author_label": "misleading"
+        },
+        "self_and_other": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 2,
+          "selected_labels": {
+            "generic_or_weak": 2
+          },
+          "total_executor_seconds": 0.006078698999772314,
+          "max_executor_seconds": 0.0016769879948697053,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "sentence_variance": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.17739132599672303,
+          "max_executor_seconds": 0.02658257499570027,
+          "first_output_author_label": null
+        },
+        "structure_diversity_checker": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.02088887900026748,
+          "max_executor_seconds": 0.0013973370005260222,
+          "first_output_author_label": null
+        },
+        "stub_expander": {
+          "sessions_with_output": 8,
+          "raw": 8,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.02030154300155118,
+          "max_executor_seconds": 0.017519545996037778,
+          "first_output_author_label": "useful_candidate"
+        },
+        "surprisal": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 3,
+          "selected_labels": {
+            "generic_or_weak": 3
+          },
+          "total_executor_seconds": 0.09644252000725828,
+          "max_executor_seconds": 0.0082957280028495,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "task_archaeology": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.003136894985800609,
+          "max_executor_seconds": 0.0006578499960596673,
+          "first_output_author_label": null
+        },
+        "temporal_clustering": {
+          "sessions_with_output": 1,
+          "raw": 1,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.041905189988028724,
+          "max_executor_seconds": 0.00989715100149624,
+          "first_output_author_label": "already_known"
+        },
+        "temporal_drift": {
+          "sessions_with_output": 23,
+          "raw": 69,
+          "selected": 8,
+          "selected_labels": {
+            "generic_or_weak": 8
+          },
+          "total_executor_seconds": 0.005410596008005086,
+          "max_executor_seconds": 0.0005617740025627427,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "this_time_last_year": {
+          "sessions_with_output": 16,
+          "raw": 16,
+          "selected": 3,
+          "selected_labels": {
+            "useful_candidate": 2,
+            "generic_or_weak": 1
+          },
+          "total_executor_seconds": 0.003404787967156153,
+          "max_executor_seconds": 0.000434875997598283,
+          "first_output_author_label": "already_known"
+        },
+        "todo_harvester": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.0018010289932135493,
+          "max_executor_seconds": 0.00030745199910597876,
+          "first_output_author_label": null
+        },
+        "uncertainty_mapper": {
+          "sessions_with_output": 24,
+          "raw": 24,
+          "selected": 5,
+          "selected_labels": {
+            "generic_or_weak": 5
+          },
+          "total_executor_seconds": 0.1861183820074075,
+          "max_executor_seconds": 0.022742191998986527,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "vocabulary_expansion": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.08679330502491212,
+          "max_executor_seconds": 0.007316392999200616,
+          "first_output_author_label": null
+        },
+        "voice_absence": {
+          "sessions_with_output": 19,
+          "raw": 19,
+          "selected": 4,
+          "selected_labels": {
+            "generic_or_weak": 4
+          },
+          "total_executor_seconds": 0.010843380994629115,
+          "max_executor_seconds": 0.0009939340015989728,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "what_if": {
+          "sessions_with_output": 24,
+          "raw": 72,
+          "selected": 14,
+          "selected_labels": {
+            "generic_or_weak": 11,
+            "useful_candidate": 3
+          },
+          "total_executor_seconds": 0.02193421202537138,
+          "max_executor_seconds": 0.002026013004069682,
+          "first_output_author_label": "generic_or_weak"
+        },
+        "word_burst": {
+          "sessions_with_output": 0,
+          "raw": 0,
+          "selected": 0,
+          "selected_labels": {},
+          "total_executor_seconds": 0.15553895597258816,
+          "max_executor_seconds": 0.00977494299877435,
+          "first_output_author_label": null
+        }
+      },
+      "word_burst_terms": {},
+      "word_burst_findings_including_repeats": {}
+    }
+  },
+  "quality_review_binding_verified": true,
+  "selected_word_bursts": [
+    {
+      "date": "2024-11-30",
+      "term": "of a",
+      "evidence_key": "interval:v1:e65077a2d15b7da402a17dea2059e74dfa10505c67325eb67247f1393dc45609:2023-12-04:2024-01-14"
+    },
+    {
+      "date": "2025-02-28",
+      "term": "of",
+      "evidence_key": "interval:v1:42fe0fb0539cd758bc2f9af33c0b84a609ac7a0e8e2626a0ec1c849c4460b5a8:2023-11-27:2023-12-10"
+    },
+    {
+      "date": "2025-09-30",
+      "term": "supported",
+      "evidence_key": "interval:v1:2fd319722a295d15f04a9207b34770ecb8909167e1e8511185ccbcd044a44dea:2024-12-30:2025-06-08"
+    },
+    {
+      "date": "2025-11-30",
+      "term": "supported",
+      "evidence_key": "interval:v1:2fd319722a295d15f04a9207b34770ecb8909167e1e8511185ccbcd044a44dea:2024-12-30:2025-06-08"
+    }
+  ],
+  "initial_clock_run_status": "Superseded: original host mtime leaked into journal metadata. Final runs use corrected replay clock and prove no future note dates. Original reports retained.",
+  "initial_to_final_output_parity": {
+    "dated": {
+      "raw_by_geist_identical": true,
+      "selected_identical": true
+    },
+    "observed": {
+      "raw_by_geist_identical": true,
+      "selected_identical": true
+    }
+  },
+  "cold_diagnostics": {
+    "dated": {
+      "diagnostics": {
+        "documents": 168,
+        "candidates": 1216,
+        "decoded": 465,
+        "pruned": 1758,
+        "series_reused": 24,
+        "cache_hit": false,
+        "reason": "burst",
+        "collection_seconds": 0.014578169000742491,
+        "decoding_seconds": 0.0406211980007356,
+        "evidence_seconds": 0.000879881001310423
+      },
+      "findings": 6,
+      "lexical_events": 9,
+      "event_bins": 8,
+      "sentinel_dictionary_entries": []
+    },
+    "observed": {
+      "diagnostics": {
+        "documents": 9,
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "series_reused": 0,
+        "cache_hit": false,
+        "reason": "insufficient_documents",
+        "collection_seconds": 0.00272014900110662,
+        "decoding_seconds": 0.0,
+        "evidence_seconds": 0.0
+      },
+      "findings": 0,
+      "lexical_events": 9,
+      "event_bins": 8,
+      "sentinel_dictionary_entries": []
+    }
+  },
+  "archive": {
+    "file": "receipts.json.xz",
+    "format": "JSON object: relative path to exact UTF-8 file content; encode each value to restore original bytes.",
+    "files": 142,
+    "raw_bytes": 11990172,
+    "raw_sha256": "85ff47a3f6305ecb46912bfe09407ef989961bb6358af4f11849f9367f7cdf3a",
+    "xz_bytes": 197984,
+    "xz_sha256": "84cb3dbeb159a22e704bde63990b221aa41b64d2ae4ab9ed25e516ec7dace036"
+  }
+}
