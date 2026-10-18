@@ -73,14 +73,15 @@ are retained separately. These are not end-to-end invocation predictions.
 | --- | ---: | ---: | ---: |
 | Prepare 10,000 × 384 directions | 93.35 ms | 93.78 ms | 62.50 / 62.50 MiB |
 | All canonical scores, 20 queries × 10,000 peers | 48.52 ms | 268.32 ms | 1.53 / 2.54 MiB |
-| 10,000 corresponding pairs | 31.39 ms | 34.79 ms | 0.08 / 1.01 MiB |
+| 10,000 distinct corresponding pairs | 4.60 ms | 11.38 ms | 0.08 / 1.01 MiB |
+| 10,000 self-pairs, identity-heavy control | 31.39 ms | 34.79 ms | 0.08 / 1.01 MiB |
 | Certified threshold decisions, 20 × 10,000 | 16.56 ms | 21.82 ms | 0.42 / 0.42 MiB |
 | Exact top-10, 20 queries × 10,000 peers | 11.96 ms | 14.10 ms | 4.13 / 4.24 MiB |
 | Extraction, first 100 stress-corpus notes / 455,960 bytes | 615.20 ms | 573.46 ms | 7.20 / 7.20 MiB |
 
 The complete canonical matrix is 5.53 times slower, adding about 220 ms for this
-shape. The temporary product/tree buffers add about 1 MiB. Certified decisions
-and top-k have smaller observed increases, although they are not free of
+shape. Distinct corresponding pairs add about 6.8 ms. The temporary product/tree
+buffers add about 1 MiB. Certified decisions and top-k have smaller observed increases, although they are not free of
 refinement costs. The extraction difference is too small and noisy to claim a
 speedup. The first exploratory run overlapped development/probes and used 1,000
 notes; it is excluded from this final comparison.
