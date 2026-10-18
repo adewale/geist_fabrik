@@ -32,6 +32,13 @@ episode-level novelty (schema v12). Declines require established prior use and
 later observed exposure. Reader-feedback controls, semantic terminology-change
 detection and inferred contradictions remain deferred.
 
+Narrative-evaluation repairs are **BUILT**: shared template/privacy source
+eligibility, entry-date wording for virtual recency, cross-season-year tag
+evidence, content-bearing lexical question lenses, durable saved factual
+identities, and cached abstention/population explanations. Additive schema v13
+indexes evidence history and preserves diagnostic metadata; it invalidates only
+derived result caches. These contracts do not establish reader usefulness.
+
 | key | status | note |
 |---|---|---|
 | `vault.path` | BUILT-DIFFERENTLY | CLI vault argument / auto-detect, not config |

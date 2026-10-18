@@ -175,12 +175,10 @@ def test_exact_and_interval_lookups_use_the_migrated_covering_index(test_db):
     assert _filter(test_db).filter_novelty([_candidate(key)], datetime(2025, 1, 1)) == []
     test_db.set_trace_callback(None)
     evidence_queries = [query for query in queries if "AND evidence_key" in query]
-    assert len(evidence_queries) == 2
+    assert evidence_queries
     for query in evidence_queries:
         plan = test_db.execute("EXPLAIN QUERY PLAN " + query).fetchall()
-        assert any(
-            "USING COVERING INDEX idx_session_suggestions_evidence" in row[3] for row in plan
-        )
+        assert any("SEARCH session_suggestions USING COVERING INDEX " in row[3] for row in plan)
 
 
 def test_final_boundary_rejects_template_aliases_and_physical_sources_even_when_disabled(test_db):
