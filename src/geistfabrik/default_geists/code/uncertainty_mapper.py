@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik.vault_context import VaultContext
 
+from geistfabrik.evidence_identity import factual_evidence_key
 from geistfabrik.models import Suggestion
 from geistfabrik.voice_analysis import (
     count_hedges,
@@ -69,5 +70,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             ),
             notes=[note.link_text],
             geist_id="uncertainty_mapper",
+            evidence_key=factual_evidence_key(
+                ["uncertainty_mapper", "hedging-v1", note.path], [note.content]
+            ),
         )
     ]

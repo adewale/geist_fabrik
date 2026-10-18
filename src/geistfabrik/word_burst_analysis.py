@@ -5,7 +5,7 @@ import json
 import time
 from array import array
 from collections import Counter
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -19,7 +19,7 @@ from .word_burst import BurstInterval, BurstModel, PreparedBurstSeries
 if TYPE_CHECKING:
     from .vault import Vault
 
-ANALYSIS_VERSION = 5
+ANALYSIS_VERSION = 6
 
 
 @dataclass(frozen=True)
@@ -68,9 +68,13 @@ class WordBurstFinding:
 
 @dataclass
 class WordBurstDiagnostics:
-    """Actual analysis work, usable by benchmarks without changing result semantics."""
+    """Evidence population and actual work, including faithful cached abstentions."""
 
     documents: int = 0
+    populated_bins: int = 0
+    min_documents: int = 0
+    min_populated_bins: int = 0
+    history_mode: str = ""
     candidates: int = 0
     decoded: int = 0
     pruned: int = 0
@@ -80,6 +84,54 @@ class WordBurstDiagnostics:
     collection_seconds: float = 0.0
     decoding_seconds: float = 0.0
     evidence_seconds: float = 0.0
+
+    def explanation(self) -> str:
+        """Explain evidence limits without confusing a cache hit with an outcome."""
+        if self.reason == "disabled":
+            return "abstained: lexical analysis is disabled"
+        if self.reason == "requires_sync":
+            return "abstained: lexical index policy requires sync"
+        population = (
+            "captured observations"
+            if self.history_mode == "observed_additions"
+            else "dated-cohort observations"
+        )
+        if self.reason == "insufficient_documents":
+            message = (
+                f"abstained: {self.documents} {population}; minimum {self.min_documents} required"
+            )
+        elif self.reason == "insufficient_bins":
+            message = (
+                f"abstained: {self.populated_bins} populated weekly bins; "
+                f"minimum {self.min_populated_bins} required "
+                f"({self.documents} {population})"
+            )
+        else:
+            outcome = (
+                "supported burst episodes found"
+                if self.reason == "burst"
+                else "no supported burst episodes"
+            )
+            message = (
+                f"{outcome}: {self.documents} {population} "
+                f"across {self.populated_bins} populated weekly bins"
+            )
+        return message + (" (cached analysis)" if self.cache_hit else "")
+
+    def population_dict(self) -> dict[str, Any]:
+        """Persist evidence metadata, excluding work avoided by a cache hit."""
+        return {
+            name: getattr(self, name)
+            for name in (
+                "documents",
+                "populated_bins",
+                "min_documents",
+                "min_populated_bins",
+                "history_mode",
+                "candidates",
+                "reason",
+            )
+        }
 
 
 @dataclass
@@ -102,7 +154,15 @@ def analyze_word_bursts(
     keys include generation, algorithm, policy and exact cutoff, including empties.
     """
     stats = diagnostics if diagnostics is not None else WordBurstDiagnostics()
+    # Callers may reuse their diagnostics receiver. Each invocation reports its
+    # own work, rather than retaining a previous decode count or cache flag.
+    empty = WordBurstDiagnostics()
+    for diagnostic_field in fields(stats):
+        setattr(stats, diagnostic_field.name, getattr(empty, diagnostic_field.name))
     config = vault.config.word_burst
+    stats.history_mode = config.history_mode
+    stats.min_documents = config.min_documents
+    stats.min_populated_bins = config.min_populated_bins
     if not vault.config.lexical_analysis.enabled:
         stats.reason = "disabled"
         return []
@@ -128,11 +188,14 @@ def analyze_word_bursts(
             ).encode()
         ).hexdigest()
         cached = vault.db.execute(
-            "SELECT result_json FROM word_burst_cache WHERE cache_key=?",
+            "SELECT result_json, diagnostics_json FROM word_burst_cache WHERE cache_key=?",
             (key,),
         ).fetchone()
         if cached:
-            stats.cache_hit, stats.reason = True, "cached"
+            population = json.loads(cached[1])
+            for name in stats.population_dict():
+                setattr(stats, name, population[name])
+            stats.cache_hit = True
             return [
                 WordBurstFinding(
                     item["term"],
@@ -230,10 +293,11 @@ def analyze_word_bursts(
                     counts[term_id][i] = int(frequencies[term_id])
         stats.collection_seconds = time.perf_counter() - started
         stats.documents = sum(exposure)
+        stats.populated_bins = sum(n > 0 for n in exposure)
         findings: list[WordBurstFinding] = []
         if stats.documents < config.min_documents:
             stats.reason = "insufficient_documents"
-        elif sum(n > 0 for n in exposure) < config.min_populated_bins:
+        elif stats.populated_bins < config.min_populated_bins:
             stats.reason = "insufficient_bins"
         else:
             started = time.perf_counter()
@@ -398,8 +462,13 @@ def analyze_word_bursts(
             stats.evidence_seconds = time.perf_counter() - started
             stats.reason = "burst" if findings else "no_burst"
         vault.db.execute(
-            "INSERT INTO word_burst_cache VALUES (?, ?)",
-            (key, json.dumps([finding.to_dict() for finding in findings])),
+            "INSERT INTO word_burst_cache (cache_key, result_json, diagnostics_json) "
+            "VALUES (?, ?, ?)",
+            (
+                key,
+                json.dumps([finding.to_dict() for finding in findings]),
+                json.dumps(stats.population_dict()),
+            ),
         )
         # Bound exact-cutoff variants, preserving this newly computed entry.
         vault.db.execute(

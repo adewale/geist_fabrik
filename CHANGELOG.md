@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- All geist idea queries and final citation checks now exclude root `Templates/`
+  sources and honor enabled privacy boundaries, including virtual entries and
+  ambiguous aliases. Recent-focus questions use entry dates for virtual notes;
+  seasonal tag questions require evidence across distinct season-years.
+- Word-burst questions reject function-word-only lenses without changing exact
+  extraction or model findings. Saved factual identities survive the short
+  novelty window; changed hedging evidence and disjoint later episodes remain
+  eligible. Generic prompts retain the configured novelty window.
+- Automatic additive schema v13 preserves cached word-burst abstention reasons
+  and population counts for `invoke --explain`, and indexes durable evidence
+  lookups. Only the derived result cache is invalidated; lexical observations,
+  notes, embeddings and saved questions are preserved.
 - Shared prepared-vector primitives now support certified BLAS threshold and
   mean decisions, exact batched top-k, corresponding pairs and streamed pair
   matches. Session inference, filtering and labels share a bounded exact-text

@@ -1,5 +1,6 @@
 """Invoke command for running geists and generating suggestions."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -119,6 +120,7 @@ class InvokeCommand(BaseCommand):
                 filtered_count=len(filtered),
                 selected_count=len(final),
                 session_date=session_date,
+                diagnostics=exec_ctx.vault_context.execution_diagnostics,
             )
 
         # Handle --diff mode
@@ -529,6 +531,7 @@ class InvokeCommand(BaseCommand):
         filtered_count: int,
         selected_count: int,
         session_date: datetime,
+        diagnostics: Mapping[str, str] | None = None,
     ) -> None:
         """Explain a run using aggregate counts and explicit outcome states."""
         all_results = {**results.code_results, **results.tracery_results}
@@ -551,6 +554,8 @@ class InvokeCommand(BaseCommand):
             else:
                 detail = status.replace("_", " ")
             self.print(f"  - {geist_id}: {detail}")
+            if status == "success" and diagnostics is not None and geist_id in diagnostics:
+                self.print(f"      {diagnostics[geist_id]}")
 
         load_failures = [
             entry for entry in executor.get_execution_log() if entry.get("status") == "load_error"

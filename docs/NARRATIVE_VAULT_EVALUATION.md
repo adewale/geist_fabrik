@@ -1,5 +1,8 @@
 # Full-geist evaluation on an authored fictional vault
 
+This report preserves the original evaluation. The source, ledger and original
+receipts remain frozen while the follow-up repairs are evaluated separately.
+
 At source checkpoint `73c3393898420f115a6d4b967ffa8fe3284eb590`, the full invocation
 path completed 48 historical sessions and 2,160 executor calls without a failure.
 The questions expose a usefulness gap: the existing filters accept structurally

@@ -15,6 +15,9 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from geistfabrik.cli import create_parser
+from geistfabrik.commands.initialize import InitCommand
+from geistfabrik.commands.invoke import InvokeCommand
 from geistfabrik.config_loader import ConfigError, GeistFabrikConfig
 from geistfabrik.default_geists.code.word_burst import suggest
 from geistfabrik.document_rate import DocumentRate
@@ -1108,4 +1111,202 @@ def test_v11_episode_migration_preserves_lexical_history_and_saved_questions(tmp
         assert migrated.db.execute(
             "SELECT suggestion_text, evidence_key FROM session_suggestions"
         ).fetchall() == [("Earlier question", None)]
-        assert migrated.db.execute("PRAGMA user_version").fetchone() == (12,)
+        assert migrated.db.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)
+
+
+@pytest.mark.parametrize("case", ["documents", "bins", "no_burst", "burst"])
+def test_cached_diagnostics_preserve_population_and_reason_without_repeating_work(
+    tmp_path, monkeypatch, case
+):
+    if case == "burst":
+        vault = planted_vault(tmp_path)
+        expected_reason = "burst"
+    else:
+        count = 9 if case == "documents" else 120
+        for i in range(count):
+            week = 0 if case == "bins" else i // 10
+            (tmp_path / f"note-{i}.md").write_text(
+                f"---\ncreated: {date(2026, 1, 5) + timedelta(weeks=week)}\n---\n"
+                f"soil habitat {word(i)}",
+                encoding="utf-8",
+            )
+        vault = Vault(tmp_path)
+        vault.sync()
+        expected_reason = {
+            "documents": "insufficient_documents",
+            "bins": "insufficient_bins",
+            "no_burst": "no_burst",
+        }[case]
+    with closing(vault):
+        stats = WordBurstDiagnostics()
+        expected = analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert stats.reason == expected_reason
+        original_population = stats.population_dict()
+        original_explanation = stats.explanation()
+        assert not stats.cache_hit
+
+        def forbidden(*args, **kwargs):
+            raise AssertionError("cached analysis must not decode")
+
+        monkeypatch.setattr("geistfabrik.word_burst_analysis.BurstModel", forbidden)
+        queries = []
+        vault.db.set_trace_callback(queries.append)
+        # Reuse the receiver to catch stale work counters and cache flags too.
+        actual = analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        vault.db.set_trace_callback(None)
+        assert actual == expected
+        assert stats.cache_hit
+        assert stats.population_dict() == original_population
+        assert stats.explanation() == original_explanation + " (cached analysis)"
+        assert stats.decoded == stats.pruned == stats.series_reused == 0
+        assert stats.collection_seconds == stats.decoding_seconds == stats.evidence_seconds == 0
+        assert not any("FROM lexical_notes" in query for query in queries)
+        assert not any("FROM lexical_events" in query for query in queries)
+
+
+def test_captured_observations_explain_exact_minimum_on_fresh_and_cached_results(
+    tmp_path, monkeypatch
+):
+    for i in range(9):
+        (tmp_path / f"note-{i}.md").write_text(f"original prose {word(i)}", encoding="utf-8")
+    with closing(Vault(tmp_path)) as vault:
+        freeze(monkeypatch, 1)
+        vault.sync()
+        freeze(monkeypatch, 6)
+        for i in range(9):
+            path = tmp_path / f"note-{i}.md"
+            path.write_text(path.read_text() + " new reflection", encoding="utf-8")
+        vault.sync()
+        vault.config.word_burst.history_mode = "observed_additions"
+        for cached in (False, True):
+            stats = WordBurstDiagnostics()
+            assert analyze_word_bursts(vault, end_day=date(2026, 1, 7), diagnostics=stats) == []
+            assert stats.cache_hit is cached
+            assert stats.reason == "insufficient_documents"
+            assert stats.documents == 9
+            assert stats.populated_bins == 1
+            assert stats.min_documents == 50
+            assert "9 captured observations; minimum 50 required" in stats.explanation()
+
+
+def test_analysis_settings_and_version_invalidate_cached_abstention(tmp_path, monkeypatch):
+    with closing(planted_vault(tmp_path)) as vault:
+        vault.config.word_burst.min_documents = 200
+        stats = WordBurstDiagnostics()
+        assert analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats) == []
+        assert stats.reason == "insufficient_documents"
+        vault.config.word_burst.min_documents = 50
+        actual = analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert actual and not stats.cache_hit and stats.reason == "burst"
+        with monkeypatch.context() as patch:
+            patch.setattr("geistfabrik.word_burst_analysis.ANALYSIS_VERSION", 5)
+            assert (
+                analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats) == actual
+            )
+            assert not stats.cache_hit
+        assert analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats) == actual
+        assert stats.cache_hit and stats.documents == 120
+
+
+def test_disabled_and_unsynced_analysis_do_not_inherit_cached_diagnostics(tmp_path):
+    with closing(planted_vault(tmp_path)) as vault:
+        stats = WordBurstDiagnostics()
+        for _ in range(2):
+            assert analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert stats.cache_hit
+        vault.config.lexical_analysis.enabled = False
+        assert analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats) == []
+        assert stats.reason == "disabled" and not stats.cache_hit
+        assert stats.documents == stats.populated_bins == 0
+        assert stats.explanation() == "abstained: lexical analysis is disabled"
+        vault.config.lexical_analysis.enabled = True
+        vault.config.lexical_analysis.ngram_max = 3
+        assert analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats) == []
+        assert stats.reason == "requires_sync" and not stats.cache_hit
+        assert stats.documents == stats.populated_bins == 0
+        assert stats.explanation() == "abstained: lexical index policy requires sync"
+
+
+@pytest.mark.parametrize("reported_version", [12, SCHEMA_VERSION])
+def test_cache_migration_preserves_sources_history_dictionary_and_embeddings(
+    tmp_path, monkeypatch, reported_version
+):
+    path = tmp_path / "note.md"
+    path.write_text("original prose", encoding="utf-8")
+    db_path = tmp_path / "_geistfabrik/vault.db"
+    preserved = {}
+    tables = (
+        "notes",
+        "embeddings",
+        "lexical_notes",
+        "lexical_events",
+        "lexical_terms",
+        "session_suggestions",
+    )
+    with closing(Vault(tmp_path, db_path=db_path)) as vault:
+        freeze(monkeypatch, 1)
+        vault.sync()
+        freeze(monkeypatch, 6)
+        path.write_text("original prose\nnew reflection", encoding="utf-8")
+        vault.sync()
+        vault.db.execute(
+            "INSERT INTO embeddings VALUES ('note.md', ?, 'old', '2026-01-01')",
+            (b"unchanged embedding bytes",),
+        )
+        vault.db.commit()
+        JournalWriter(tmp_path, vault.db).write_session(
+            datetime(2026, 1, 6), [Suggestion("Earlier question", ["note"], "word_burst")]
+        )
+        for table in tables:
+            preserved[table] = list(vault.db.execute(f"SELECT * FROM {table}"))
+        vault.db.execute("ALTER TABLE word_burst_cache DROP COLUMN diagnostics_json")
+        vault.db.execute("INSERT INTO word_burst_cache VALUES ('legacy', '[]')")
+        vault.db.execute(f"PRAGMA user_version={reported_version}")
+        vault.db.commit()
+    with closing(Vault(tmp_path, db_path=db_path)) as migrated:
+        for table in tables:
+            assert list(migrated.db.execute(f"SELECT * FROM {table}")) == preserved[table]
+        assert migrated.db.execute("SELECT * FROM word_burst_cache").fetchall() == []
+        assert "diagnostics_json" in {
+            row[1] for row in migrated.db.execute("PRAGMA table_info(word_burst_cache)")
+        }
+        assert migrated.db.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)
+
+
+def test_invoke_explain_uses_execution_diagnostics_once_and_preserves_cached_abstention(
+    tmp_path, monkeypatch, capsys
+):
+    for i in range(9):
+        (tmp_path / f"note-{i}.md").write_text(
+            f"---\ncreated: 2026-01-05\n---\noriginal prose {word(i)}", encoding="utf-8"
+        )
+    assert InitCommand(create_parser().parse_args(["init", str(tmp_path)])).run() == 0
+    capsys.readouterr()
+    calls = []
+
+    def counted(*args, **kwargs):
+        calls.append(kwargs["diagnostics"])
+        return analyze_word_bursts(*args, **kwargs)
+
+    monkeypatch.setattr("geistfabrik.vault_context.analyze_word_bursts", counted)
+    for cached in (False, True):
+        command = InvokeCommand(
+            create_parser().parse_args(
+                [
+                    "invoke",
+                    str(tmp_path),
+                    "--geist",
+                    "word_burst",
+                    "--date",
+                    "2026-01-11",
+                    "--explain",
+                ]
+            )
+        )
+        assert command.run() == 0
+        output = capsys.readouterr().out
+        assert "word_burst: healthy empty" in output
+        assert "9 dated-cohort observations; minimum 50 required" in output
+        assert ("cached analysis" in output) is cached
+        assert len(calls) == (2 if cached else 1)
+        assert calls[-1].cache_hit is cached

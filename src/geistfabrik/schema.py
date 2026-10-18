@@ -14,7 +14,8 @@ from pathlib import Path
 # Version 10: Persist exact filesystem fingerprints for incremental vault sync
 # Version 11: Atomic incremental lexical vectors and captured additions
 # Version 12: Optional suggestion evidence identity for episode-level novelty
-SCHEMA_VERSION = 12
+# Version 13: Cached lexical evidence diagnostics and durable evidence lookup
+SCHEMA_VERSION = 13
 MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
@@ -114,6 +115,9 @@ CREATE TABLE IF NOT EXISTS session_suggestions (
 
 CREATE INDEX IF NOT EXISTS idx_session_suggestions_date ON session_suggestions(session_date);
 CREATE INDEX IF NOT EXISTS idx_session_suggestions_geist ON session_suggestions(geist_id);
+CREATE INDEX IF NOT EXISTS idx_session_suggestions_evidence
+    ON session_suggestions(geist_id, evidence_key, session_date)
+    WHERE evidence_key IS NOT NULL;
 
 -- Embedding metrics cache (for stats command)
 CREATE TABLE IF NOT EXISTS embedding_metrics (
@@ -172,7 +176,8 @@ CREATE TABLE IF NOT EXISTS lexical_events (
 CREATE INDEX IF NOT EXISTS idx_lexical_events_bin ON lexical_events(bin_start);
 CREATE TABLE IF NOT EXISTS word_burst_cache (
     cache_key TEXT PRIMARY KEY,
-    result_json TEXT NOT NULL
+    result_json TEXT NOT NULL,
+    diagnostics_json TEXT NOT NULL DEFAULT '{}'
 );
 CREATE TRIGGER IF NOT EXISTS lexical_note_insert AFTER INSERT ON lexical_notes BEGIN
     INSERT INTO lexical_terms(term, documents)
@@ -353,6 +358,20 @@ def _reconcile_additive_columns(conn: sqlite3.Connection) -> None:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(session_suggestions)")}
         if "evidence_key" not in columns:
             conn.execute("ALTER TABLE session_suggestions ADD COLUMN evidence_key TEXT")
+
+    burst_cache = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='word_burst_cache'"
+    ).fetchone()
+    if burst_cache is not None:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(word_burst_cache)")}
+        if "diagnostics_json" not in columns:
+            conn.execute(
+                "ALTER TABLE word_burst_cache "
+                "ADD COLUMN diagnostics_json TEXT NOT NULL DEFAULT '{}'"
+            )
+            # Old result-only cache rows cannot explain their evidence limits.
+            # This is derived data; source vectors and saved questions survive.
+            conn.execute("DELETE FROM word_burst_cache")
 
 
 def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) -> None:

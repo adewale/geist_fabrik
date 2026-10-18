@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from geistfabrik.config import MAX_SUGGESTION_NOTES
 from geistfabrik.document_rate import percentage_pair
 from geistfabrik.evidence_identity import interval_evidence_key
+from geistfabrik.lexical_candidacy import is_question_lens
 from geistfabrik.models import Suggestion
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
     # Prefer the specific expression, then sample rather than ranking by gain.
     groups: dict[tuple[str, str, str, tuple[str, ...]], list[WordBurstFinding]] = {}
     for finding in findings:
-        if len(finding.term) <= 100:
+        if is_question_lens(finding.term):
             groups.setdefault(
                 (finding.direction, finding.start, finding.end, finding.support_paths), []
             ).append(finding)
@@ -36,6 +37,13 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
                 for i in range(len(words) - size + 1)
             )
         eligible.extend(finding for finding in group if finding.term not in covered)
+    if not eligible:
+        vault.record_diagnostic(
+            "word_burst",
+            "Statistical episodes were found, but none supplied a content-bearing word "
+            "or phrase for a question.",
+        )
+        return []
     maximum = vault.vault.config.word_burst.max_suggestions
     chosen = []
     if maximum > 1 and {f.direction for f in eligible} == {"rising", "declining"}:
@@ -46,6 +54,11 @@ def suggest(vault: "VaultContext") -> list[Suggestion]:
     suggestions = []
     for finding in chosen:
         notes = [vault.get_note(path) for path in finding.support_paths]
+        # Source eligibility can make a support unreadable through VaultContext.
+        # Dropping that support would turn a full-evidence check into a partial
+        # one, including when the hidden source falls beyond the rendered limit.
+        if any(note is None for note in notes):
+            continue
         links = [note.link_text for note in notes if note is not None]
         if not links:
             continue

@@ -11,6 +11,8 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
+from geistfabrik.lexical_candidacy import ENGLISH_FUNCTION_WORDS as STOPWORDS
+
 if TYPE_CHECKING:
     from geistfabrik import Suggestion, VaultContext
 from geistfabrik.markdown_parser import (
@@ -23,17 +25,6 @@ from geistfabrik.markdown_parser import (
 # stopword inside, as in "theory of mind", is fine). Matching whole tokens
 # matters: the old substring test rejected any phrase containing "other",
 # "understand" or "together" while letting "for large vaults" through.
-STOPWORDS = frozenset(
-    """
-    a an the and or but nor so yet for of to in on at by with from into onto
-    over under about as than then that this these those there here it its is
-    are was were be been being am do does did done have has had having i me
-    my we our us you your he she they them their his her him not no if when
-    while which who whom whose what where why how all any each every some
-    such can could will would shall should may might must also just only very
-    more most other another
-    """.split()
-)
 _WORD = re.compile(r"[a-z](?:[a-z'-]*[a-z])?")
 # Punctuation that ends a run of words: a phrase never spans a sentence,
 # clause, bracket, table cell or emphasis boundary.

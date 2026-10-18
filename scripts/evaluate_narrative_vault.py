@@ -90,6 +90,7 @@ class RecordingInvokeCommand(InvokeCommand):
         started = time.perf_counter()
         results = super()._execute_geists(exec_ctx, code_executor, tracery_geists)
         self.record["all_geists_seconds"] = time.perf_counter() - started
+        self.record["execution_diagnostics"] = dict(exec_ctx.vault_context.execution_diagnostics)
         self.record["execution_log"] = code_executor.get_execution_log()
         self.record["execution_profiles"] = [asdict(p) for p in code_executor.execution_profiles]
         if results is not None:

@@ -15,7 +15,7 @@ no note.
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from itertools import chain
 from typing import Any
 
@@ -28,7 +28,8 @@ from .config import (
 )
 from .embeddings import EmbeddingComputer
 from .evidence_identity import evidence_interval
-from .models import NoteLinkIndex, Suggestion, _normalise_vault_path
+from .models import NoteLinkIndex, Suggestion
+from .source_eligibility import SourceEligibility
 from .vector_math import UnitRows
 
 
@@ -181,14 +182,11 @@ class SuggestionFilter:
         Returns:
             Suggestions with valid note references only
         """
-        if not self.config.get("boundary", {}).get("enabled", True):
-            return suggestions
-
         # Folder prefixes whose notes must never surface in suggestions
         # (e.g. "Private/", "People/"). Spec: filtering.boundary.exclude_paths.
-        exclude_paths = tuple(
-            _normalise_vault_path(path)
-            for path in (self.config.get("boundary", {}).get("exclude_paths", []) or [])
+        boundary = self.config.get("boundary", {})
+        eligibility = SourceEligibility(
+            tuple(boundary.get("exclude_paths", []) or []) if boundary.get("enabled", True) else ()
         )
 
         index = NoteLinkIndex(
@@ -201,10 +199,56 @@ class SuggestionFilter:
             # path precedence is unsafe here: a private note title can collide
             # with a public filename alias. Boundaries therefore fail closed if
             # any matching identity is excluded.
-            if index.references_allowed(suggestion.notes, exclude_paths):
+            if eligibility.references_allowed(index, suggestion.notes):
                 filtered.append(suggestion)
 
         return filtered
+
+    def _evidence_seen(self, suggestion: Suggestion, session_date: datetime) -> bool:
+        """Look up a factual observation across saved history, without embeddings.
+
+        Evidence identity outlives the short semantic novelty window. Lookups
+        use the (geist_id, evidence_key, session_date) index and read only keys
+        for this observation. Saved future/same-day runs are excluded so replay
+        and repeated previews preserve their existing deterministic behavior.
+        """
+        key = suggestion.evidence_key
+        if key is None:
+            return False
+        before = session_date.date().isoformat()
+        if self.db.execute(
+            "SELECT 1 FROM session_suggestions "
+            "WHERE geist_id = ? AND evidence_key = ? AND session_date < ? LIMIT 1",
+            (suggestion.geist_id, key, before),
+        ).fetchone():
+            return True
+
+        interval = evidence_interval(key)
+        if interval is None:
+            return False
+        identity, first, last = interval
+        prefix = f"interval:v1:{identity}:"
+        # Valid keys sort by their first ISO day. ';' follows ':' and therefore
+        # includes every interval starting on `last` while excluding later days.
+        # The final-day predicate avoids fetching disjoint older episodes.
+        cursor = self.db.execute(
+            "SELECT evidence_key FROM session_suggestions "
+            "WHERE geist_id = ? AND evidence_key >= ? AND evidence_key < ? "
+            "AND session_date < ? AND substr(evidence_key, -10) >= ?",
+            (
+                suggestion.geist_id,
+                prefix,
+                prefix + last.isoformat() + ";",
+                before,
+                first.isoformat(),
+            ),
+        )
+        for (old_key,) in cursor:
+            old = evidence_interval(old_key)
+            # Treat opaque/malformed persisted keys as exact-only identities.
+            if old is not None and old[0] == identity and first <= old[2] and old[1] <= last:
+                return True
+        return False
 
     def filter_novelty(
         self, suggestions: list[Suggestion], session_date: datetime
@@ -228,47 +272,12 @@ class SuggestionFilter:
         threshold = novelty_config.get("threshold", 0.85)
         method = novelty_config.get("method", "embedding_similarity")
 
-        # An episode remains the same observation when a template, percentage
-        # or its selected links change. Persist identity only on journal writes;
-        # previews keep the existing read-only, deterministic behavior.
-        if any(s.evidence_key is not None for s in suggestions):
-            cutoff = session_date - timedelta(days=window_days)
-            seen = {
-                (geist_id, key)
-                for geist_id, key in self.db.execute(
-                    "SELECT geist_id, evidence_key FROM session_suggestions "
-                    "WHERE session_date >= ? AND session_date < ? AND evidence_key IS NOT NULL",
-                    (cutoff.strftime("%Y-%m-%d"), session_date.strftime("%Y-%m-%d")),
-                )
-            }
-            intervals: dict[tuple[str, str], list[tuple[date, date]]] = {}
-            for geist_id, key in seen:
-                interval = evidence_interval(key)
-                if interval is not None:
-                    identity, first, last = interval
-                    intervals.setdefault((geist_id, identity), []).append((first, last))
-            fresh = []
-            for suggestion in suggestions:
-                if (suggestion.geist_id, suggestion.evidence_key) in seen:
-                    continue
-                interval = (
-                    evidence_interval(suggestion.evidence_key)
-                    if suggestion.evidence_key is not None
-                    else None
-                )
-                if interval is not None:
-                    identity, first, last = interval
-                    if any(
-                        first <= old_last and old_first <= last
-                        for old_first, old_last in intervals.get(
-                            (suggestion.geist_id, identity), []
-                        )
-                    ):
-                        continue
-                fresh.append(suggestion)
-            suggestions = fresh
-            if not suggestions:
-                return []
+        # An observation cannot become new merely because 60 days elapsed or
+        # its wording changed. Generic playful prompts retain their deliberate
+        # short-window revisit policy. Only journal writes persist identities.
+        suggestions = [s for s in suggestions if not self._evidence_seen(s, session_date)]
+        if not suggestions:
+            return []
 
         if method == "text_match":
             # Simple exact text matching

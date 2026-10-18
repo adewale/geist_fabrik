@@ -24,15 +24,16 @@ from .config import GEIST_JOURNAL_DIR, SEMANTIC_DIM
 from .embeddings import Session
 from .lexical_index import lexical_excerpt
 from .markdown_parser import parse_frontmatter
-from .models import Link, Note, NoteLinkIndex, _normalise_vault_path
+from .models import Link, Note, NoteLinkIndex
 from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
+from .source_eligibility import SourceEligibility
 from .sqlite_transaction import owned_transaction
 from .vault import Vault
 from .vector_math import SCORE_BLOCK_BYTES, UnitRows, _threshold
 from .vector_search import InMemoryVectorBackend
 from .voice_analysis import VoiceMetadata, compute_voice
-from .word_burst_analysis import WordBurstFinding, analyze_word_bursts
+from .word_burst_analysis import WordBurstDiagnostics, WordBurstFinding, analyze_word_bursts
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +218,16 @@ class VaultContext:
 
     def word_bursts(self) -> list[WordBurstFinding]:
         """Lexical episodes up to this session's date, with explicit provenance."""
-        return analyze_word_bursts(self.vault, end_day=self.session.date.date())
+        diagnostics = WordBurstDiagnostics()
+        findings = analyze_word_bursts(
+            self.vault, end_day=self.session.date.date(), diagnostics=diagnostics
+        )
+        self.record_diagnostic("word_burst", diagnostics.explanation())
+        return findings
+
+    def record_diagnostic(self, geist_id: str, message: str) -> None:
+        """Keep a geist's explanation alongside this invocation's results."""
+        self.execution_diagnostics[geist_id] = message
 
     def word_burst_excerpt(self, note: Note, term: str) -> str | None:
         """Current visible wording for a lexical comparison, never historical text."""
@@ -245,6 +255,11 @@ class VaultContext:
         self.vault = vault
         self.session = session
         self.db = vault.db
+        self.execution_diagnostics: dict[str, str] = {}
+        boundary = vault.config.filtering
+        self.source_eligibility = SourceEligibility(
+            tuple(boundary.exclude_paths) if boundary.boundary_enabled else ()
+        )
 
         # Deterministic randomness
         if seed is None:
@@ -326,27 +341,25 @@ class VaultContext:
             )
             for note_path, embedding_bytes in cursor:
                 self._embeddings[note_path] = decode_meaning_vector(embedding_bytes)
-        # The population every vault-wide lookup works over: session journal
-        # notes are the engine's own output, so they never count as the
-        # user's notes, neighbours, links, clusters or history.
+        # Every vault-wide lookup shares this eligible population: templates
+        # are scaffolding, privacy boundaries protect excluded writing, and
+        # session journal notes are the engine's own output.
         self._user_embeddings: dict[str, np.ndarray] = {
-            path: vec for path, vec in self._embeddings.items() if not is_geist_journal_path(path)
+            path: vec
+            for path, vec in self._embeddings.items()
+            if self._idea_source_allowed(path) and not is_geist_journal_path(path)
         }
 
     # Direct vault access (delegated)
 
     def references_allowed(self, targets: list[str]) -> bool:
         """Check complete evidence before a geist bounds its rendered references."""
-        boundary = self.vault.config.filtering
-        if not boundary.boundary_enabled:
-            return True
-        if self._full_link_index is None:
-            self._full_link_index = NoteLinkIndex(
-                self.db.execute("SELECT path,title,is_virtual,source_file,entry_date FROM notes")
-            )
-        return self._full_link_index.references_allowed(
-            targets, tuple(_normalise_vault_path(path) for path in boundary.exclude_paths)
-        )
+        return self.source_eligibility.references_allowed(self._all_notes_link_index(), targets)
+
+    def _idea_source_allowed(self, path: str) -> bool:
+        """Use physical source identity even for virtual date-collection notes."""
+        index = self._all_notes_link_index()
+        return self.source_eligibility.allows(path, index.sources.get(path))
 
     def _all_notes(self) -> list[Note]:
         """Every synced note, including session journal notes (cached).
@@ -359,22 +372,25 @@ class VaultContext:
         return self._all_notes_cache
 
     def notes(self) -> list[Note]:
-        """Get the user's notes (cached for the session).
+        """Get eligible user ideas (cached for the session).
 
         Session journal notes under ``geist journal/`` are excluded here and
         from every other vault-wide lookup (neighbours, backlinks, outgoing
         links, hubs, orphans, recent/old notes, random notes, unlinked pairs,
         clusters, surprisal, churn, embeddings), so geists never mistake the
-        engine's own output for the user's writing. ``get_note()`` and
-        ``resolve_link_target()`` still return a journal note when asked for
-        it explicitly.
+        engine's own output for the user's writing. Templates and configured
+        boundary exclusions are also excluded from idea queries, including
+        explicit lookups. ``get_note()`` and ``resolve_link_target()`` still
+        return a session journal note when asked for it explicitly.
 
         Returns:
-            List of all non-journal notes
+            List of eligible non-journal notes
         """
         if self._notes_cache is None:
             self._notes_cache = [
-                note for note in self._all_notes() if not is_geist_journal_path(note.path)
+                note
+                for note in self._all_notes()
+                if not is_geist_journal_path(note.path) and self._idea_source_allowed(note.path)
             ]
         return self._notes_cache
 
@@ -403,6 +419,8 @@ class VaultContext:
         Returns:
             Note or None if not found
         """
+        if not self._idea_source_allowed(path):
+            return None
         return self.vault.get_note(path)
 
     def get_embedding(self, path: str) -> np.ndarray | None:
@@ -417,7 +435,7 @@ class VaultContext:
             other caller this session - in-place mutation raises ValueError
             by design. Call .copy() if you need a writable array.
         """
-        return self._embeddings.get(path)
+        return self._embeddings.get(path) if self._idea_source_allowed(path) else None
 
     def get_all_embeddings(self) -> dict[str, np.ndarray]:
         """Get all session embeddings as a path-to-embedding dictionary.
@@ -444,7 +462,9 @@ class VaultContext:
     def _all_notes_link_index(self) -> NoteLinkIndex:
         """Index over every note, journal included, for explicit lookups."""
         if self._full_link_index is None:
-            self._full_link_index = NoteLinkIndex.from_notes(self._all_notes())
+            self._full_link_index = NoteLinkIndex(
+                self.db.execute("SELECT path,title,is_virtual,source_file,entry_date FROM notes")
+            )
         return self._full_link_index
 
     def resolve_link_target(self, target: str, source_path: str | None = None) -> Note | None:
@@ -465,6 +485,10 @@ class VaultContext:
         """
         # The user's notes win; only a target that names no user note falls
         # back to the journal, so an explicit link to a session note resolves.
+        if not self.source_eligibility.references_allowed(
+            self._all_notes_link_index(), [target], source_path
+        ):
+            return None
         path = self.link_index().resolve(target, source_path)
         if path is None:
             path = self._all_notes_link_index().resolve(target, source_path)
@@ -541,6 +565,9 @@ class VaultContext:
         result: dict[str, list[tuple[Note, float]]] = {}
         pending: dict[str, np.ndarray] = {}
         for note in notes:
+            if not self._idea_source_allowed(note.path):
+                result[note.path] = []
+                continue
             cached = self._neighbours_cache.get(note.path)
             if cached is not None and cached[0] >= count:
                 result[note.path] = [
@@ -552,15 +579,15 @@ class VaultContext:
             except KeyError:
                 result[note.path] = []
         if pending:
-            journal_count = len(self._embeddings) - len(self._user_embeddings)
+            excluded_count = len(self._embeddings) - len(self._user_embeddings)
             searches = self._backend.find_similar_batch(
-                np.stack(list(pending.values())), count=count + 1 + journal_count
+                np.stack(list(pending.values())), count=count + 1 + excluded_count
             )
             ranked = {
                 path: [
                     (other, _clip_similarity(score))
                     for other, score in matches
-                    if other != path and not is_geist_journal_path(other)
+                    if other != path and other in self._user_embeddings
                 ][:count]
                 for path, matches in zip(pending, searches)
             }
@@ -827,6 +854,10 @@ class VaultContext:
             # counted, it made the note its own backlink and therefore a "hub".
             seen: set[str] = {note.path}
             for link in note.links:
+                if not self.source_eligibility.references_allowed(
+                    self._all_notes_link_index(), [link.target], note.path
+                ):
+                    continue
                 path = index.resolve(link.target, note.path)
                 if path is not None and path not in seen:
                     seen.add(path)
@@ -887,12 +918,23 @@ class VaultContext:
         full_index = self._all_notes_link_index()
 
         def has_outgoing(note: Note) -> bool:
-            # A link counts unless it resolves to a geist journal note or back
-            # to the note itself (unresolved links still count, as they always
-            # have).
+            # Known references share the graph's eligibility boundary. Truly
+            # unresolved links still count as outgoing, as they always have;
+            # links to session output or back to this note do not.
             for link in note.links:
+                known = full_index.matching_paths(link.target) or full_index.candidates(
+                    link.target, note.path
+                )
+                if known and not self.source_eligibility.references_allowed(
+                    full_index, [link.target], note.path
+                ):
+                    continue
                 target = full_index.resolve(link.target, note.path)
-                if target != note.path and not is_geist_journal_path(target or ""):
+                if (
+                    target != note.path
+                    and not is_geist_journal_path(target or "")
+                    and (target is None or self._idea_source_allowed(target))
+                ):
                     return True
             return False
 
@@ -960,12 +1002,12 @@ class VaultContext:
                 notes: list[Note] = []
                 for p in paths:
                     note = notes_map.get(p)
-                    if note is not None:
+                    if note is not None and self._idea_source_allowed(note.path):
                         notes.append(note)
-                if notes:
+                if len(notes) >= min_per_day:
                     result[date_str] = notes
 
-        return result
+        return dict(sorted(result.items(), key=lambda item: (-len(item[1]), item[0])))
 
     def session_count(self) -> int:
         """Get the number of sessions recorded for this vault.
@@ -1036,12 +1078,16 @@ class VaultContext:
         for session_id, session_date in sessions:
             emb_cursor = self.db.execute(
                 """
-                SELECT embedding FROM session_embeddings
+                SELECT note_path, embedding FROM session_embeddings
                 WHERE session_id = ? AND note_path NOT GLOB ?
                 """,
                 (session_id, f"{_JOURNAL_PREFIX}*"),
             )
-            embeddings = [decode_meaning_vector(row[0]) for row in emb_cursor.fetchall()]
+            embeddings = [
+                decode_meaning_vector(embedding)
+                for path, embedding in emb_cursor.fetchall()
+                if self._idea_source_allowed(path)
+            ]
             date_str = datetime.fromisoformat(str(session_date)).strftime("%Y-%m-%d")
             result_list.append((session_id, date_str, embeddings))
 
@@ -1050,7 +1096,13 @@ class VaultContext:
     def _cluster_history_identity(self) -> list[int | str]:
         """Version historical labels by the canonical clustering configuration."""
         config = self.vault.config.clustering
-        return [1, config.min_cluster_size, config.labeling_method, config.n_label_terms]
+        return [
+            2,
+            config.min_cluster_size,
+            config.labeling_method,
+            config.n_label_terms,
+            *sorted(set(self.source_eligibility.exclude_paths)),
+        ]
 
     def persist_cluster_labels(self, assignments: dict[str, str]) -> None:
         """Record this session's cluster assignment for each note.
@@ -1355,7 +1407,7 @@ class VaultContext:
         centroid = cluster.centroid
         notes = cluster.notes
 
-        valid = [note for note in notes if note.path in self._embeddings]
+        valid = [note for note in notes if note.path in self._user_embeddings]
         if not valid:
             return []
         prepared = self._prepared_paths([note.path for note in valid])
@@ -1414,9 +1466,22 @@ class VaultContext:
             List of links between the notes
         """
 
+        if not self._idea_source_allowed(a.path) or not self._idea_source_allowed(b.path):
+            return []
         index = self.link_index()
-        links_ab = [link for link in a.links if index.resolve(link.target, a.path) == b.path]
-        links_ba = [link for link in b.links if index.resolve(link.target, b.path) == a.path]
+        full_index = self._all_notes_link_index()
+        links_ab = [
+            link
+            for link in a.links
+            if self.source_eligibility.references_allowed(full_index, [link.target], a.path)
+            and index.resolve(link.target, a.path) == b.path
+        ]
+        links_ba = [
+            link
+            for link in b.links
+            if self.source_eligibility.references_allowed(full_index, [link.target], b.path)
+            and index.resolve(link.target, b.path) == a.path
+        ]
 
         return links_ab + links_ba
 
@@ -1475,18 +1540,7 @@ class VaultContext:
         Returns:
             List of old notes, sorted by modification time ascending
         """
-        cursor = self.db.execute(
-            "SELECT path FROM notes WHERE path NOT GLOB ? ORDER BY modified ASC LIMIT ?",
-            (f"{_JOURNAL_PREFIX}*", count),
-        )
-
-        result = []
-        for row in cursor.fetchall():
-            note = self.get_note(row[0])
-            if note is not None:
-                result.append(note)
-
-        return result
+        return sorted(self.notes(), key=lambda note: (note.modified.timestamp(), note.path))[:count]
 
     def recent_notes(self, count: int = 10) -> list[Note]:
         """Find most recently modified notes.
@@ -1497,18 +1551,8 @@ class VaultContext:
         Returns:
             List of recent notes, sorted by modification time descending
         """
-        cursor = self.db.execute(
-            "SELECT path FROM notes WHERE path NOT GLOB ? ORDER BY modified DESC LIMIT ?",
-            (f"{_JOURNAL_PREFIX}*", count),
-        )
-
-        result = []
-        for row in cursor.fetchall():
-            note = self.get_note(row[0])
-            if note is not None:
-                result.append(note)
-
-        return result
+        ordered = sorted(self.notes(), key=lambda note: (-note.modified.timestamp(), note.path))
+        return ordered[:count]
 
     # Reflective lens analysis
 
@@ -1657,7 +1701,7 @@ class VaultContext:
         )
         historical: dict[str, np.ndarray] = {}
         for note_path, embedding_bytes in cursor.fetchall():
-            if not is_geist_journal_path(note_path):
+            if not is_geist_journal_path(note_path) and self._idea_source_allowed(note_path):
                 historical[note_path] = decode_meaning_vector(embedding_bytes)
 
         if not historical or not self._user_embeddings:

@@ -1,7 +1,9 @@
 """Recent focus geist - connects what you've been working on lately to older notes.
 
-Samples notes you have modified in the last RECENT_DAYS days and, for each,
-finds the most similar note you have not touched for longer than that. When
+Samples physical notes modified in the last RECENT_DAYS days and journal
+entries dated within that period. A journal file's modification time is not
+evidence that any particular entry changed. For each recent note, finds the
+most similar older note using the same date scope. When
 the older note is closer to the recent one than ANY other recently modified
 note is (measured against all of them, not a sample), it says so: you may be
 circling back to an old idea. Otherwise it asks the gentler "what if they
@@ -16,23 +18,25 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from geistfabrik import Note, Suggestion, VaultContext
 
-# Modified within this many days of the session = recent work; otherwise older.
+# Physical modification or virtual heading date within this many days = recent.
 RECENT_DAYS = 60
 MAX_SUGGESTIONS = 3
 
 
 def _year_gap(older: "Note", recent: "Note") -> str:
-    """Return "(written N years earlier)", with a leading space, when ``older``
-    was created at least a year before ``recent``; else "" (never rounding up
-    to a year that did not pass)."""
+    """State a whole-year creation gap, describing virtual headings as dated.
+
+    Never round up to a year that did not pass.
+    """
     years = (recent.created - older.created).days // 365
     if years < 1:
         return ""
-    return f" (written {years} year{'s' if years != 1 else ''} earlier)"
+    dating = "dated" if older.is_virtual or recent.is_virtual else "written"
+    return f" ({dating} {years} year{'s' if years != 1 else ''} earlier)"
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
-    """Connect recently modified notes to similar older notes.
+    """Connect recently modified physical notes or dated entries to older notes.
 
     Returns:
         Up to MAX_SUGGESTIONS suggestions, one per sampled recent note
@@ -40,10 +44,18 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik import Suggestion
     from geistfabrik.similarity_analysis import SimilarityLevel
 
-    def days_since_modified(note: "Note") -> int:
-        return int(vault.metadata(note)["days_since_modified"])
+    def reference_age(note: "Note") -> int | None:
+        if note.is_virtual:
+            # Entry dates describe dated cohorts, not the time an entry was
+            # written or edited. Source mtime must never stand in for that.
+            if note.entry_date is None:
+                return None
+            return (vault.session.date.date() - note.entry_date).days
+        return (vault.session.date.date() - note.modified.date()).days
 
-    recent = [n for n in vault.notes() if days_since_modified(n) <= RECENT_DAYS]
+    notes = vault.notes()
+    ages = {n.path: reference_age(n) for n in notes}
+    recent = [n for n in notes if (age := ages[n.path]) is not None and 0 <= age <= RECENT_DAYS]
 
     if len(recent) < 2:
         return []
@@ -58,7 +70,9 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         older = [
             note
             for note, score in similar
-            if score >= SimilarityLevel.WEAK and days_since_modified(note) > RECENT_DAYS
+            if score >= SimilarityLevel.WEAK
+            and (age := ages.get(note.path)) is not None
+            and age > RECENT_DAYS
         ]
         if not older:
             continue
@@ -72,10 +86,24 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         )
         gap = _year_gap(old_note, recent_note)
 
-        if old_similarity > closest_recent:
+        if recent_note.is_virtual:
+            # Say precisely what is known, including for a newly seen entry:
+            # its heading date is recent; its writing/edit date is unknown.
+            text = (
+                f"What if your entry [[{recent_note.link_text}]], dated "
+                f"{recent_note.entry_date}, connects to your older note "
+                f"[[{old_note.link_text}]]{gap}? They're semantically similar "
+                "- has your thinking evolved?"
+            )
+        elif old_similarity > closest_recent:
+            recent_scope = (
+                "any other recent note"
+                if any(n.is_virtual for n in recent)
+                else "anything else you've worked on"
+            )
             text = (
                 f"[[{recent_note.link_text}]], which you've worked on lately, resembles "
-                f"[[{old_note.link_text}]]{gap} more than anything else you've worked on "
+                f"[[{old_note.link_text}]]{gap} more than {recent_scope} "
                 f"in the last {RECENT_DAYS} days. Circling back to an old idea?"
             )
         else:

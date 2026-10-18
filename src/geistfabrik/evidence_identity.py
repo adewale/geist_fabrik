@@ -11,6 +11,19 @@ from collections.abc import Sequence
 from datetime import date
 
 
+def factual_evidence_key(identity: Sequence[str], facts: Sequence[str]) -> str:
+    """Identify a factual lens by its full inputs, independently of its wording.
+
+    Callers include the analysis policy and source identity in ``identity`` and
+    complete factual inputs (such as original note prose) in ``facts``. Counts
+    alone are insufficient: different observations can have the same totals.
+    Length-delimited JSON avoids concatenation ambiguities while bounding the
+    persisted payload; inputs remain local and never enter diagnostic output.
+    """
+    payload = json.dumps([list(identity), list(facts)], ensure_ascii=True)
+    return "facts:v1:" + hashlib.sha256(payload.encode()).hexdigest()
+
+
 def interval_evidence_key(identity: Sequence[str], start: str, end: str) -> str:
     """Encode a bounded identity and an inclusive, validated calendar interval."""
     first, last = date.fromisoformat(start), date.fromisoformat(end)

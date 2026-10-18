@@ -1,7 +1,7 @@
 # GeistFabrik Implementation Status
 
-**Last Updated**: 2026-10-02
-**Version**: 0.11.0 (Beta, Schema v12)
+**Last Updated**: 2026-10-18
+**Version**: 0.11.0 (Beta, Schema v13)
 **Overall Progress**: Release-candidate hardening
 
 ---
@@ -14,7 +14,7 @@
 | **Source inventory** | Derived from the tree; avoid freezing counts in documentation |
 | **Type Checking** | Mypy strict |
 | **Linting** | Ruff |
-| **Database Schema** | v12 (lexical capture, burst cache and suggestion episode identities) |
+| **Database Schema** | v13 (lexical capture, cached evidence diagnostics and durable episode lookup) |
 | **Default Geists** | Bundled in `src/geistfabrik/default_geists/`; counts come from `geistfabrik.default_geists` |
 | **Example Modules** | Code and Tracery geists, metadata modules and vault functions - examples/ |
 
@@ -89,7 +89,7 @@ geist_fabrik/
 
 ### Database Schema
 
-**Current Version**: v12
+**Current Version**: v13
 
 **Tables**:
 - `notes` - Note content, metadata, timestamps
@@ -101,6 +101,8 @@ geist_fabrik/
 - `session_suggestions` - Session history for novelty filtering
 - `embedding_metrics` - Cached stats metrics
 - `geist_status` - Persistent per-geist failure counts / disabled state
+- `lexical_meta`, `lexical_terms`, `lexical_notes`, `lexical_events` - Exact vocabulary and captured additions
+- `word_burst_cache` - Findings and their evidence-population diagnostics
 
 ---
 

@@ -195,10 +195,13 @@ strict resource limits, complete-evidence boundary checks, independent property
 oracles and benchmarks that use the actual executor. Words and two-word phrases are the default; larger vocabularies can outgrow
 the default timeout.
 
-A word spike does not establish importance, intent or a change in beliefs. Common
-scaffolding words can produce less interesting questions, and statistical episodes
-can be uninteresting. Saved episode identities suppress overlapping repeats within
-the configured novelty window; normal novelty/diversity filtering is still needed.
+A word spike does not establish importance, intent or a change in beliefs. A
+presentation gate excludes expressions made entirely of English grammatical
+words, before grouping and sampling; meaningful mixed phrases remain eligible.
+Extraction, dictionary counts and statistical findings remain unchanged. Other
+statistical episodes can still be uninteresting. Saved episode identities
+suppress overlapping repeats throughout saved history; normal novelty/diversity
+filtering is still needed.
 The corpus checks establish signal detection, exclusion and runtime reliability.
 They do not establish reader surprise or usefulness. Real-vault qualitative
 review should judge those qualities before presenting the geist as broadly proven.
@@ -212,13 +215,19 @@ by frequency or gain. When the budget permits and both are available, the geist
 samples both rising and declining candidates.
 
 Saved suggestions have an optional interval evidence key (automatic additive
-schema v12 migration). The normal novelty filter suppresses an overlapping
+schema v12 migration, indexed by additive schema v13). The normal novelty filter suppresses an overlapping
 episode for the same expression, mode and direction even when its percentages,
 wording, chosen links or window-clipped start change. A disjoint later recurrence
-remains eligible. Normal novelty history bounds apply (60 days by default), and
-previews do not add history. Old saved suggestions without keys still use the
+remains eligible. Evidence identities survive the ordinary 60-day novelty window;
+same-day and future saved runs do not affect historical replay. Previews do not
+add history. Old saved suggestions without keys still use the
 existing text/embedding novelty checks. Identity is observation-level, not a
 model of what the reader knows; feedback controls remain deferred.
+
+`invoke --explain` reports the lexical population and abstention reason from the
+actual invocation, including cached empty results. A cached result retains its
+original evidence counts while recording zero decoding work. Schema v13 clears
+only incompatible derived result-cache rows; it preserves captured additions.
 
 This applies lessons from Andy Matuschak's
 [Notes should surprise you](https://notes.andymatuschak.org/zYaWNLqGvd3uLPDXkhRoWoq),

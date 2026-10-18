@@ -11,9 +11,12 @@ Two independent analyses feed the same geist:
 2. Seasonal tag concentration - tags used predominantly in one season, and
    far more often there than the season's share of all notes (a tag is not
    "seasonal" just because most of the vault was written in that season).
+   Tagged examples must span at least two occurrences of that season; one
+   imported or backdated batch is not evidence of recurrence.
 """
 
 from collections import defaultdict
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -39,6 +42,15 @@ MONTH_NAMES = [
     "November",
     "December",
 ]
+
+
+def _season_year(when: datetime) -> int:
+    """Label each northern-hemisphere winter by its January/February year.
+
+    December and the following January are one winter, not cross-year
+    recurrence. For the other seasons the calendar year is unambiguous.
+    """
+    return when.year + (when.month == 12)
 
 
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
@@ -193,14 +205,33 @@ def _seasonal_tag_concentration(vault: "VaultContext", notes: list["Note"]) -> l
                 lift = season_ratio / (len(season_notes) / len(notes))
 
                 # 60% of this tag appears in one season, well above base rate
-                if season_ratio > 0.6 and lift >= MIN_TAG_LIFT:
-                    sample_notes = vault.sample([n for n in season_notes if tag in n.tags], count=3)
+                tagged_by_year: defaultdict[int, list[Note]] = defaultdict(list)
+                for note in season_notes:
+                    if tag in note.tags:
+                        tagged_by_year[_season_year(note.created)].append(note)
+
+                if season_ratio > 0.6 and lift >= MIN_TAG_LIFT and len(tagged_by_year) >= 2:
+                    # The linked evidence must demonstrate the recurrence,
+                    # rather than randomly showing only one year's batch.
+                    years = vault.sample(list(tagged_by_year), count=2)
+                    sample_notes = [
+                        vault.sample(tagged_by_year[year], count=1)[0] for year in years
+                    ]
+                    sampled_paths = {note.path for note in sample_notes}
+                    remaining = [
+                        note
+                        for year_notes in tagged_by_year.values()
+                        for note in year_notes
+                        if note.path not in sampled_paths
+                    ]
+                    sample_notes.extend(vault.sample(remaining, count=1))
                     note_names = ", ".join([f"[[{n.link_text}]]" for n in sample_notes])
 
                     text = (
-                        f"You write about #{tag} predominantly in {season.lower()} "
-                        f"({count} out of {total_with_tag} notes). "
-                        f"Examples: {note_names}. Rhythmic interest?"
+                        f"#{tag} appears predominantly in notes dated in {season.lower()} "
+                        f"({count} out of {total_with_tag} notes), across "
+                        f"{len(tagged_by_year)} {season.lower()} seasons. "
+                        f"Examples: {note_names}. Recurring interest?"
                     )
 
                     suggestions.append(
