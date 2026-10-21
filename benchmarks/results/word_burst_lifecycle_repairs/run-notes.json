@@ -1,0 +1,18 @@
+{
+  "source_commit": "c624c2e57ccbda3b02b2090405c980f481e328d6",
+  "excluded_exploratory_runs": {
+    "legacy_stress": "Extraction6 DB upgraded by real sync to7; correctly removed artificial DB-only dates. Reapplied explicitly synthetic overlay; zero-findings exploratory result is not performance success.",
+    "initial_guard": "Earlier guard5160b5 produced three invocation result; final6fa source measured afresh: four invocations. Never combine those results.",
+    "orchestration": "Initial harness failed on uncompiled narrative authoring inputs; public helper initially lacked scripts import path, then correctly refused initialization over obsolete fixture managed folder. Fixed external harness to compile inputs/use notes-only copy; product source and original fixtures unchanged.",
+    "sandbox_network": "Initial validation passed tests but public dependency workflow/package downloads were sandbox-blocked. Full validation rerun with approved network for public dependencies.",
+    "prepublication_canonical_review": "Automatic approval review rejected transmitting unpublished repository source to Codex. No review launched and no clean verdict claimed."
+  },
+  "scope_limits": [
+    "Large temporal replay is two snapshots only.",
+    "All45 bundled geists covered on narrative and public corpora, not entire large temporal suite.",
+    "Owner usefulness not rated.",
+    "Public snapshot has no in-window lexical evidence; legitimate abstention.",
+    "Single-policy fixture cannot measure archival growth across policy changes.",
+    "One paired timing trial, no significance claim."
+  ]
+}
