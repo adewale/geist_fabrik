@@ -63,12 +63,6 @@ def _links(thread: list["Note"]) -> str:
     return ", ".join(f"[[{n.link_text}]]" for n in thread)
 
 
-def _cross_similarity(vault: "VaultContext", a: list["Note"], b: list["Note"]) -> float:
-    """Mean similarity between every note of thread ``a`` and every note of ``b``."""
-    matrix = vault.batch_similarity(a, b)
-    return float(matrix.mean())
-
-
 def suggest(vault: "VaultContext") -> list["Suggestion"]:
     """Find threads of closely related notes written within one season.
 
@@ -128,7 +122,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     for (label_a, (start_a, thread_a)), (label_b, (start_b, thread_b)) in combinations(
         threads.items(), 2
     ):
-        if _cross_similarity(vault, thread_a, thread_b) < MIN_SIMILARITY:
+        if not vault.mean_similarity_matches(thread_a, MIN_SIMILARITY, thread_b):
             continue
         if start_b < start_a:
             label_a, thread_a, label_b, thread_b = label_b, thread_b, label_a, thread_a

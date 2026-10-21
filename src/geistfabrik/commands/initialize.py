@@ -179,8 +179,7 @@ class InitCommand(BaseCommand):
             "(temporal_drift, assumption_challenger, creation_burst, etc.)"
         )
         print(
-            f"   - {TRACERY_GEIST_COUNT} Tracery geists "
-            "(contradictor, hub_explorer, what_if, etc.)"
+            f"   - {TRACERY_GEIST_COUNT} Tracery geists (contradictor, hub_explorer, what_if, etc.)"
         )
         print(f"\n   Configure in: {config_path.relative_to(vault_path)}")
 

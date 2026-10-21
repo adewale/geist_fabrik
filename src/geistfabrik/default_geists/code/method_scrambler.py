@@ -48,10 +48,10 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Sample notes for SCAMPER operations
     sample_notes = vault.sample(notes, min(30, len(notes)))
 
-    for note in sample_notes:
+    for note, found in zip(sample_notes, vault.neighbours_many(sample_notes, count=5)):
         # Find related notes (both linked and semantically similar)
         linked_notes = vault.outgoing_links(note)[:3]
-        similar = vault.neighbours(note, count=5)
+        similar = [other for other, _score in found]
 
         # Deduplicate by combining into a set
         # dict.fromkeys keeps first-seen order; a set would order by string

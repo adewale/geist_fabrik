@@ -1372,29 +1372,110 @@ def test_executor_restores_prior_alarm_state(tmp_path: Path) -> None:
         signal.setitimer(signal.ITIMER_REAL, *previous_timer)
 
 
-def test_executor_does_not_delay_sooner_host_alarm() -> None:
+@pytest.mark.parametrize(
+    "delivery,expected_next,host_failure",
+    [
+        (2.0, 5.0, None),
+        (2.5, 5.0, None),
+        (8.5, 11.0, None),
+        (2.0, 5.0, "propagate"),
+        (2.0, 20.0, "catch"),
+    ],
+)
+def test_executor_does_not_delay_sooner_host_alarm(
+    monkeypatch: pytest.MonkeyPatch,
+    delivery: float,
+    expected_next: float,
+    host_failure: str | None,
+) -> None:
+    from types import SimpleNamespace
+
+    import geistfabrik.execution_timeout as timeout_module
+
     if not hasattr(signal, "SIGALRM"):
         pytest.skip("SIGALRM unavailable")
-    previous_handler = signal.getsignal(signal.SIGALRM)
-    previous_timer = signal.getitimer(signal.ITIMER_REAL)
-    calls = 0
+    # Model the public timer API, not the timeout dispatcher's private state.
+    # Kernel signals may coalesce when a CI runner is descheduled; a short sleep
+    # cannot guarantee a count of deliveries, and an active handler races asserts.
+    now = 0.0
+    calls: list[float] = []
 
     def host_handler(signum: int, frame: object) -> None:
-        nonlocal calls
-        calls += 1
+        calls.append(now)
+        if host_failure is not None:
+            raise LookupError("host callback failed")
 
-    try:
-        signal.signal(signal.SIGALRM, host_handler)
-        signal.setitimer(signal.ITIMER_REAL, 0.02, 0.02)
-        with _alarm_timeout(1):
-            time.sleep(0.20)
-        _, interval = signal.getitimer(signal.ITIMER_REAL)
-        assert calls >= 2
-        assert interval == pytest.approx(0.02, abs=0.01)
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0.0)
-        signal.signal(signal.SIGALRM, previous_handler)
-        signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+    current_handler: Any = host_handler
+    timer_deadline: float | None = 2.0
+    timer_interval = 30.0 if host_failure == "catch" else 3.0
+
+    def get_timer(which: int) -> tuple[float, float]:
+        assert which == signal.ITIMER_REAL
+        remaining = max(0.0, timer_deadline - now) if timer_deadline is not None else 0.0
+        return remaining, timer_interval
+
+    def set_timer(which: int, seconds: float, interval: float = 0.0) -> tuple[float, float]:
+        nonlocal timer_deadline, timer_interval
+        previous = get_timer(which)
+        timer_deadline = now + seconds if seconds else None
+        timer_interval = interval
+        return previous
+
+    def set_handler(signum: int, handler: Any) -> Any:
+        nonlocal current_handler
+        assert signum == signal.SIGALRM
+        previous = current_handler
+        current_handler = handler
+        return previous
+
+    # Replace this module's bindings only: pytest-timeout's real process timer
+    # and the sibling OS-delivery integration tests remain untouched.
+    monkeypatch.setattr(
+        timeout_module,
+        "signal",
+        SimpleNamespace(
+            SIGALRM=signal.SIGALRM,
+            ITIMER_REAL=signal.ITIMER_REAL,
+            getsignal=lambda _signum: current_handler,
+            signal=set_handler,
+            getitimer=get_timer,
+            setitimer=set_timer,
+        ),
+    )
+    monkeypatch.setattr(timeout_module, "time", SimpleNamespace(monotonic=lambda: now))
+    if host_failure == "catch":
+        with _alarm_timeout(20):
+            now = delivery
+            with pytest.raises(LookupError, match="host callback failed"):
+                current_handler(signal.SIGALRM, None)
+            # A plugin catching the host exception must retain its own deadline,
+            # before the host's next periodic expiration at t=32.
+            assert timer_deadline == expected_next
+        assert calls == [delivery]
+        assert current_handler is host_handler
+        assert get_timer(signal.ITIMER_REAL) == (30.0, 30.0)
+        return
+    if host_failure == "propagate":
+        with pytest.raises(LookupError, match="host callback failed"):
+            with _alarm_timeout(20):
+                now = delivery
+                current_handler(signal.SIGALRM, None)
+        assert calls == [delivery]
+        assert current_handler is host_handler
+        assert get_timer(signal.ITIMER_REAL) == (3.0, 3.0)
+        return
+    with _alarm_timeout(20):
+        assert timer_deadline == 2.0
+        now = delivery
+        current_handler(signal.SIGALRM, None)
+        assert timer_deadline == expected_next
+        now = expected_next
+        current_handler(signal.SIGALRM, None)
+        assert timer_deadline == expected_next + 3.0
+        assert calls == [delivery, expected_next]
+        now = expected_next + 1.0
+    assert current_handler is host_handler
+    assert get_timer(signal.ITIMER_REAL) == (2.0, 3.0)
 
 
 def test_host_handler_can_cancel_its_periodic_alarm() -> None:
@@ -1444,7 +1525,11 @@ def test_periodic_host_alarm_does_not_disable_geist_deadline() -> None:
         with pytest.raises(GeistTimeoutError, match="timed out"):
             with _alarm_timeout(1):
                 time.sleep(2)
-        assert calls >= 2
+        signal.setitimer(signal.ITIMER_REAL, 0.0)
+        # Native periodic signals may coalesce. This integration check requires
+        # host delivery plus a plugin timeout; the virtual-clock test above owns
+        # repeated delivery and phase preservation without scheduler assumptions.
+        assert calls >= 1
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0.0)
         signal.signal(signal.SIGALRM, previous_handler)

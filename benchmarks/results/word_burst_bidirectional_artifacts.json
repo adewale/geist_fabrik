@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-15",
+  "summary_archives": [
+    {
+      "profile": "smoke",
+      "archive": "word_burst_bidirectional_smoke.json.xz",
+      "archive_sha256": "faae34ef871f5facb99f6705982fa8ed4e945661d773bc8385fdfde7900bbc66",
+      "json_sha256": "a02e7986f208d586bc2ac3fa7b4d17ed4e4a481792b84db3e41f4bd3a4f1b946",
+      "archive_bytes": 45368,
+      "json_bytes": 951458
+    },
+    {
+      "profile": "standard",
+      "archive": "word_burst_bidirectional_standard.json.xz",
+      "archive_sha256": "dca65eccf7adf6b73527f4846fb8ab8f0345dc2fdb192f106be97007d40cd89e",
+      "json_sha256": "74ed2311ac2cc98540ccb6ee2da4df5bff71f528bbf8134a1f56232d2d3a498e",
+      "archive_bytes": 61728,
+      "json_bytes": 1578009
+    },
+    {
+      "profile": "large",
+      "archive": "word_burst_bidirectional_large.json.xz",
+      "archive_sha256": "85cee7f81c160772712ab782e60871d36163912c647d2f824aae4d6ed3a4e09b",
+      "json_sha256": "ee1430b9fc33ea07c770607bc228555dc8f608f31455ba2bd8dfde822029f60b",
+      "archive_bytes": 46356,
+      "json_bytes": 1474301
+    }
+  ],
+  "scope": "Compact summaries retain all timings, executor statuses and suggestion outputs, diagnostics, finding category counts, known injected terms and full finding digests. Large raw finding payloads are not checked in; their original SHA-256 and sizes are retained in each summary.",
+  "revision_note": "Triple replays preceded final behavior-preserving preparation/support/dated-DF performance screens; final core properties and live CLI checks validate the updated candidate.",
+  "source_commit": "ae2a868b404a13903d910a4957b6afafdb31e4b5",
+  "additional_evidence": [
+    "word_burst_bidirectional_final_parity.json",
+    "word_burst_bidirectional_cli_kepano.json",
+    "word_burst_bidirectional_cli_smoke.json",
+    "word_burst_bidirectional_pairs_contended.json",
+    "word_burst_bidirectional_triples_contended.json",
+    "word_burst_bidirectional_pairs_isolated.json",
+    "word_burst_bidirectional_validation.json",
+    "word_burst_bidirectional_review.json"
+  ]
+}

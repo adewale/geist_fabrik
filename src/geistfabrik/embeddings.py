@@ -18,12 +18,10 @@ from datetime import datetime
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
+from weakref import ReferenceType, ref
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import (  # type: ignore[import-untyped]
-    cosine_similarity as sklearn_cosine,
-)
 from threadpoolctl import threadpool_limits  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
@@ -38,6 +36,8 @@ from .config import (
 from .models import Note
 from .session_time import normalise_session_date
 from .sqlite_transaction import owned_transaction
+from .text_embeddings import TextEmbeddingCache
+from .vector_math import cosine_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -135,25 +135,6 @@ def is_offline_mode() -> bool:
     return False
 
 
-# ============================================================================
-# Similarity Performance Optimisations
-# ============================================================================
-# Based on comprehensive benchmarking (8 configs × 9 geists = 72 runs),
-# the optimal configuration is opt1+2:
-#   - fast_path: Uses np.dot() for L2-normalised vectors
-#
-# Performance improvement: 21.5% speedup on large vaults (10k+ notes)
-# Key improvements (historical; antithesis_generator and columbo since retired):
-#   - hidden_hub: 43.52s → 32.77s (32.8% faster)
-#   - antithesis_generator: 7.74s → 5.95s (30% faster)
-#   - method_scrambler: 27.76s → 21.70s (22% faster)
-#   - bridge_hunter: 25.38s → 19.61s (23% faster)
-#   - columbo: 27.73s → 21.51s (22% faster)
-SKLEARN_OPTIMIZATIONS = {
-    "fast_path": True,
-}
-
-
 def combine_embedding(
     semantic: np.ndarray,
     temporal: np.ndarray,
@@ -192,6 +173,7 @@ class EmbeddingComputer:
         self.model_name = model_name
         self._model: EmbeddingModel | None = model
         self.device: str | None = None  # Will be set on first model access
+        self.text_cache = TextEmbeddingCache()
 
     def _detect_device(self) -> str:
         """Detect best available device for model inference.
@@ -267,9 +249,8 @@ class EmbeddingComputer:
         Returns:
             384-dimensional semantic embedding
         """
-        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
-            embedding = self.model.encode(text, convert_to_numpy=True)
-        return embedding
+        result: np.ndarray = self.compute_batch_semantic([text])[0]
+        return result
 
     def compute_batch_semantic(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
         """Compute semantic embeddings for multiple texts in batch.
@@ -287,14 +268,22 @@ class EmbeddingComputer:
         if not texts:
             return np.array([])
 
-        with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
-            embeddings = self.model.encode(
-                texts,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-                batch_size=batch_size,
-            )
-        return embeddings
+        model = self.model
+
+        def encode(missing: list[str]) -> np.ndarray:
+            with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
+                return model.encode(
+                    missing,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                    batch_size=batch_size,
+                )
+
+        return self.text_cache.encode(
+            texts,
+            encode,
+            identity=(id(model), self.model_name, self.device),
+        )
 
     def compute_temporal_features(self, note: Note, session_date: datetime) -> np.ndarray:
         """Compute temporal features for a note.
@@ -346,6 +335,8 @@ class EmbeddingComputer:
 
     def close(self) -> None:
         """Clean up model resources."""
+        if hasattr(self, "text_cache"):
+            self.text_cache.clear()
         if self._model is not None:
             self._model = None
 
@@ -397,7 +388,11 @@ class Session:
         self._owns_computer = computer is None
         self._backend_type = backend
         self._backend: VectorSearchBackend | None = None
+        self._backend_token: tuple[int, ...] | None = None
         self.embedding_retention = embedding_retention
+        self._computed_inputs: list[tuple[str, str, str, str]] | None = None
+        self._computed_token: tuple[int, int, datetime, int | None] | None = None
+        self._computed_computer: ReferenceType[EmbeddingComputer] | None = None
 
     def close(self) -> None:
         """Release resources owned by this session, leaving its shared DB open.
@@ -411,6 +406,10 @@ class Session:
                 self._backend.close()
                 self._backend = None
         finally:
+            self._computed_inputs = None
+            self._computed_token = None
+            self._computed_computer = None
+            self._backend_token = None
             if self._owns_computer:
                 self.computer.close()
 
@@ -591,20 +590,46 @@ class Session:
         """
         if self.db.in_transaction:
             raise RuntimeError("Session.compute_embeddings requires an idle SQLite connection")
-        if self._backend is not None:
-            self._backend.close()
-            self._backend = None
-
         # Compute expensive/model-dependent values before taking SQLite's
         # single-writer lock. data_version is an optimistic-concurrency token:
         # after the lock is acquired we must still be looking at the same
         # committed database state from which caches/notes were read.
+        notes = list(notes)  # Note is frozen; detach the caller-owned population list.
         initial_data_version = self._read_data_version()
         if initial_data_version != self._snapshot_data_version:
+            self._invalidate_backend()
             raise ConcurrentVaultChangeError(
                 "Vault changed before the embedding snapshot was accepted; rerun the command "
                 "from a fresh synchronized snapshot"
             )
+        inputs = self._embedding_input_snapshot(notes)
+        token = (
+            initial_data_version,
+            self.db.total_changes,
+            self.date,
+            self.embedding_retention,
+        )
+        if (
+            self._computed_computer is not None
+            and self._computed_computer() is self.computer
+            and self._computed_token == token
+            and self._computed_inputs == inputs
+        ):
+            # A final version check catches a commit during input comparison.
+            # No writer lock, vector serialization or backend invalidation is needed.
+            if self._read_data_version() != initial_data_version:
+                self._invalidate_backend()
+                raise ConcurrentVaultChangeError(
+                    "Vault changed while embeddings were being checked; rerun the command"
+                )
+            if self._backend is not None and (
+                self._backend.closed
+                or self._backend_token is None
+                or self._backend.projection_token != self._backend_token
+            ):
+                self._invalidate_backend()
+            return
+        self._invalidate_backend()
         vault_hash = self.compute_vault_state_hash(notes)
 
         # Separate notes into cached and uncached
@@ -623,16 +648,13 @@ class Session:
 
         if uncached_notes:
             texts = [note.content for note in uncached_notes]
-            with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
-                computed_embeddings = self.computer.model.encode(
-                    texts,
-                    convert_to_numpy=True,
-                    show_progress_bar=False,
-                    batch_size=DEFAULT_BATCH_SIZE,
-                )
+            computed_embeddings = self.computer.compute_batch_semantic(
+                texts, batch_size=DEFAULT_BATCH_SIZE
+            )
 
             for i, note in enumerate(uncached_notes):
-                semantic = computed_embeddings[i]
+                # Compose from the same representation that semantic-cache reads return.
+                semantic = np.asarray(computed_embeddings[i], dtype=np.float32)
                 semantic_embeddings[note.path] = semantic
 
         # Add cached embeddings to lookup dict
@@ -662,23 +684,52 @@ class Session:
             # data_version covers commits after method entry. This exact state
             # comparison also covers a Note list captured before method entry.
             self._assert_embedding_inputs_are_current(notes)
-            self.db.execute(
-                "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ?",
-                (vault_hash, self.session_id),
+            hash_changed = (
+                self.db.execute(
+                    "UPDATE sessions SET vault_state_hash = ? WHERE session_id = ? "
+                    "AND vault_state_hash IS NOT ?",
+                    (vault_hash, self.session_id, vault_hash),
+                ).rowcount
+                > 0
             )
+            before_rows = self.db.total_changes
             self.db.execute(
-                "DELETE FROM session_embeddings WHERE session_id = ?", (self.session_id,)
+                "DELETE FROM session_embeddings WHERE session_id = ? AND NOT EXISTS "
+                "(SELECT 1 FROM notes WHERE notes.path = session_embeddings.note_path)",
+                (self.session_id,),
             )
+            removed = self.db.total_changes - before_rows
             for note in uncached_notes:
                 self._cache_semantic_embedding(note, semantic_embeddings[note.path])
+            before_rows = self.db.total_changes
             self.db.executemany(
                 """
                 INSERT INTO session_embeddings (session_id, note_path, embedding)
                 VALUES (?, ?, ?)
+                ON CONFLICT(session_id, note_path) DO UPDATE SET
+                    embedding = excluded.embedding, cluster_label = NULL
+                WHERE session_embeddings.embedding IS NOT excluded.embedding
                 """,
                 embedding_rows,
             )
+            if hash_changed or removed or self.db.total_changes != before_rows:
+                # Cluster labels describe the entire population. A changed row
+                # can change another note's membership, so invalidate all labels.
+                self.db.execute(
+                    "UPDATE session_embeddings SET cluster_label = NULL "
+                    "WHERE session_id = ? AND cluster_label IS NOT NULL",
+                    (self.session_id,),
+                )
             pruned = self._prune_old_session_embeddings()
+
+        self._computed_inputs = inputs
+        self._computed_token = (
+            initial_data_version,
+            self.db.total_changes,
+            self.date,
+            self.embedding_retention,
+        )
+        self._computed_computer = ref(self.computer)
 
         if pruned > 0:
             logger.info(
@@ -769,6 +820,12 @@ class Session:
         else:
             raise ValueError(f"Unknown backend type: {self._backend_type}")
 
+    def _invalidate_backend(self) -> None:
+        if self._backend is not None:
+            self._backend.close()
+            self._backend = None
+        self._backend_token = None
+
     def get_backend(self) -> "VectorSearchBackend":
         """Get vector search backend for this session.
 
@@ -779,6 +836,21 @@ class Session:
         """
         if self._backend is None or self._backend.closed:
             self._backend = None
+            self._backend_token = None
+            # Only absorb projection-owned writes when the accepted snapshot
+            # was still current before loading. Never hide unrelated DB writes.
+            accepted = self._computed_token
+            projection_only = (
+                self._computed_computer is not None
+                and self._computed_computer() is self.computer
+                and accepted
+                == (
+                    self._read_data_version(),
+                    self.db.total_changes,
+                    self.date,
+                    self.embedding_retention,
+                )
+            )
             backend = self._create_backend()
             session_date = self.date.strftime("%Y-%m-%d")
             try:
@@ -792,6 +864,9 @@ class Session:
                     )
                 raise
             self._backend = backend
+            self._backend_token = backend.projection_token
+            if projection_only and accepted is not None:
+                self._computed_token = (accepted[0], self.db.total_changes, *accepted[2:])
 
         return self._backend
 
@@ -806,76 +881,19 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     Returns:
         Cosine similarity in [-1, 1]
     """
-    # Calculate in float64. Squaring tiny float32 values in float32 can underflow
-    # to zero, making a non-zero vector appear orthogonal to itself. Preserve the
-    # caller's shape contract before flattening the equally shaped embeddings.
-    a_array = np.asarray(a, dtype=np.float64)
-    b_array = np.asarray(b, dtype=np.float64)
-    if a_array.shape != b_array.shape:
-        raise ValueError(f"embedding shapes must match, got {a.shape} and {b.shape}")
-    a64 = a_array.reshape(-1)
-    b64 = b_array.reshape(-1)
-    if not np.all(np.isfinite(a64)) or not np.all(np.isfinite(b64)):
-        raise ValueError("embeddings must contain only finite values")
-
-    # Scale each vector before its norm. This avoids underflow for subnormals and
-    # overflow for large-but-finite float64 inputs without changing direction.
-    scale_a = float(np.max(np.abs(a64))) if a64.size else 0.0
-    scale_b = float(np.max(np.abs(b64))) if b64.size else 0.0
-
-    if scale_a == 0 or scale_b == 0:
-        return 0.0
-    scaled_a = a64 / scale_a
-    scaled_b = b64 / scale_b
-    scaled_norm_a = float(np.linalg.norm(scaled_a))
-    scaled_norm_b = float(np.linalg.norm(scaled_b))
-    norm_a = scale_a * scaled_norm_a
-    norm_b = scale_b * scaled_norm_b
-
-    # Fast path: for unit-norm vectors, cosine similarity is just the dot
-    # product. NOTE: production embeddings do NOT take this path - encode()
-    # is called without normalize_embeddings=True, the stored 387-dim
-    # temporal embeddings (semantic*0.9 concatenated with temporal*0.1) have
-    # norms around 0.90-1.04, and the 384-dim meaning vectors that are
-    # actually compared (semantic*0.9) have norms near 0.9. The branch only
-    # fires for vectors that happen to be unit-norm (e.g. the normalised test
-    # stubs). Do not rely on a unit-norm invariant anywhere in this codebase.
-    if SKLEARN_OPTIMIZATIONS["fast_path"]:
-        # Check if both vectors are approximately normalised (norm ≈ 1.0)
-        if abs(norm_a - 1.0) < 1e-6 and abs(norm_b - 1.0) < 1e-6:
-            similarity = float(np.dot(a64, b64))
-            return max(-1.0, min(1.0, similarity))
-
-    # Avoid sklearn's near-zero normalisation cutoff: any mathematically non-zero
-    # vector has self-similarity one, regardless of magnitude. Floating-point
-    # accumulation can drift a few ulps outside the range, so clamp the result.
-    similarity = float(np.dot(scaled_a, scaled_b) / (scaled_norm_a * scaled_norm_b))
-    return max(-1.0, min(1.0, similarity))
+    left, right = np.asarray(a), np.asarray(b)
+    if left.shape != right.shape:
+        raise ValueError(f"embedding shapes must match, got {left.shape} and {right.shape}")
+    return float(cosine_matrix(left.reshape(1, -1), right.reshape(1, -1))[0, 0])
 
 
 def cosine_similarity_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Compute pairwise cosine similarity between the rows of two matrices.
+    """Canonical float64 pairwise cosine, identical to the scalar path.
 
-    Vectorised counterpart of :func:`cosine_similarity`, shared by every
-    VaultContext similarity matrix (``batch_similarity`` and
-    ``unlinked_pairs``). Computed in float64; a zero row has similarity 0.0
-    with every row (never NaN), and results are clamped to [-1, 1].
-
-    Args:
-        a: (N, d) matrix
-        b: (M, d) matrix
-
-    Returns:
-        (N, M) matrix where element [i, j] is cosine(a[i], b[j])
+    Finite nonzero vectors retain their direction at every supported magnitude.
+    Equal nonzero directions score exactly one; zero rows score zero.
     """
-    a64 = np.asarray(a, dtype=np.float64)
-    b64 = np.asarray(b, dtype=np.float64)
-    norms_a = np.linalg.norm(a64, axis=1, keepdims=True)
-    norms_b = np.linalg.norm(b64, axis=1, keepdims=True)
-    unit_a = a64 / np.where(norms_a == 0, 1.0, norms_a)
-    unit_b = b64 / np.where(norms_b == 0, 1.0, norms_b)
-    result: np.ndarray = np.clip(unit_a @ unit_b.T, -1.0, 1.0)
-    return result
+    return cosine_matrix(a, b)
 
 
 def find_similar_notes(
@@ -908,7 +926,7 @@ def find_similar_notes(
     embedding_matrix = np.vstack([embeddings[p] for p in filtered_paths])
 
     query_reshaped = query_embedding.reshape(1, -1)
-    similarity_scores = sklearn_cosine(query_reshaped, embedding_matrix)[0]
+    similarity_scores = cosine_matrix(query_reshaped, embedding_matrix)[0]
 
     # Create (path, similarity) tuples
     similarities = [

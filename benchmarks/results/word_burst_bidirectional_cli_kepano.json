@@ -1,0 +1,40 @@
+{
+  "profile": "kepano",
+  "synthetic": false,
+  "source_markdown_files": 10,
+  "source_manifest_sha256": "53b8f8f2e0f9534f143c15055bf0a437420505966711b6a95d3ae753afc2cecf",
+  "commands": [
+    {
+      "arguments": [
+        "init",
+        "/workspace/bidirectional-cli-checks/kepano"
+      ],
+      "seconds": 29.167604618996847,
+      "exit_code": 0,
+      "stdout": "Warning: No .obsidian directory found in /workspace/bidirectional-cli-checks/kepano\nThis doesn't appear to be an Obsidian vault, but continuing anyway...\n\nInitialising GeistFabrik in: /workspace/bidirectional-cli-checks/kepano\n\nGeistFabrik will:\n   - Read all markdown files in your vault\n   - Create a database at _geistfabrik/vault.db\n   - Compute embeddings for all notes (stored locally)\n   - Create session notes in 'geist journal/' when you invoke with --write\n\nGeistFabrik's engine will NEVER:\n   - Modify your existing source notes (read-only access)\n   - Upload vault content or analytics\n   - Delete your source notes\n\nNetwork and plugin trust boundaries:\n   - A missing bundled model may be downloaded from HuggingFace\n   - Set GEISTFABRIK_OFFLINE=1 to prohibit network fallback\n   - Installed Python geists/modules are trusted arbitrary code, not sandboxed\n\nCreated _geistfabrik/geists/code\nCreated _geistfabrik/geists/tracery\nCreated _geistfabrik/metadata_inference\nCreated _geistfabrik/vault_functions\nCreated _geistfabrik/config.yaml\n\nInitialising database...\nSynced 10 notes to database\n\nVault Summary:\n   Notes found: 10\n   Database size: 0.22 MB\n\n============================================================\nGeistFabrik initialised successfully!\n============================================================\n\nVault: /workspace/bidirectional-cli-checks/kepano\nConfiguration: _geistfabrik\n\n45 default geists are bundled and ready to use:\n   - 42 code geists (temporal_drift, assumption_challenger, creation_burst, etc.)\n   - 3 Tracery geists (contradictor, hub_explorer, what_if, etc.)\n\n   Configure in: _geistfabrik/config.yaml\n\nNext steps:\n   geistfabrik invoke /workspace/bidirectional-cli-checks/kepano\n   # or just: geistfabrik invoke (from within the vault)\n\n",
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "invoke",
+        "/workspace/bidirectional-cli-checks/kepano",
+        "--geist",
+        "word_burst",
+        "--date",
+        "2023-09-30",
+        "--full"
+      ],
+      "seconds": 8.846534734009765,
+      "exit_code": 0,
+      "stdout": "Loading vault: /workspace/bidirectional-cli-checks/kepano\nSynced 0 notes\n\n============================================================\nGeistFabrik Configuration Audit\n============================================================\nVault: /workspace/bidirectional-cli-checks/kepano\nGeists directory: /workspace/bidirectional-cli-checks/kepano/_geistfabrik/geists\nLoaded geists: 45\n  - Code geists: 42 (42 enabled)\n  - Tracery geists: 3 (3 enabled)\nFiltering: ENABLED (4-stage pipeline)\nSampling: DISABLED (--full or --no-filter)\nMode: Filtered output\n============================================================\n\nExecuting 1 geist...\nExecution summary:\n  - Code geists: 0 produced output, 1 healthy empty, 0 failed, 0 skipped, 0 unknown\nGenerated 0 raw suggestions\nFiltered to 0 suggestions\nSelected 0 final suggestions\n\n================================================================================\nGeistFabrik Session - 2023-09-30\n================================================================================\n\nNo suggestions to display.\n",
+      "stderr": ""
+    }
+  ],
+  "ngram_max": 2,
+  "directions": [
+    "rising",
+    "declining"
+  ],
+  "offline_required": true,
+  "source_unchanged": true
+}

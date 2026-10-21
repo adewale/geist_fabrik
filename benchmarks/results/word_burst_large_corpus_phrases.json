@@ -1,0 +1,52 @@
+{
+  "python": "3.12.14",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "files": 10000,
+  "bytes": 46635807,
+  "source_manifest_sha256": "d361aa39ae4c4db4bad9adc96bb22be50db77d21fec36543bf149b6bf6c8235a",
+  "ngram_max": 3,
+  "trials": [
+    {
+      "trial": 0,
+      "cold_sync_seconds": 178.69811626599403,
+      "warm_sync_seconds": 2.8232063339673914,
+      "warm_lexical_stats": {
+        "extracted": 0,
+        "changed": 0
+      },
+      "raw_analysis_seconds": 0.0006795639637857676,
+      "raw_diagnostics": {
+        "documents": 0,
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "cache_hit": false,
+        "reason": "insufficient_documents"
+      },
+      "raw_findings": 0,
+      "analysis_seconds": 102.4885289670201,
+      "diagnostics": {
+        "documents": 10000,
+        "candidates": 1229147,
+        "decoded": 180309,
+        "pruned": 1048838,
+        "cache_hit": false,
+        "reason": "burst"
+      },
+      "findings": 3661,
+      "cached_seconds": 0.03095486800884828,
+      "result_sha256": "4f0552fe795dd315ac173e8944ceb12d406afc0921768d66962fd72c727c59be",
+      "edit_100_sync_seconds": 5.153095750021748,
+      "edit_lexical_stats": {
+        "extracted": 100,
+        "changed": 100
+      },
+      "dictionary_terms": 1229148,
+      "database_bytes": 415027200,
+      "process_peak_rss_kib": 1649336
+    }
+  ],
+  "synthetic_date_overlay": true,
+  "embedding_inference": false,
+  "source_unchanged": true
+}

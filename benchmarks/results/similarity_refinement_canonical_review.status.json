@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "reviewer_unavailable",
+  "exit_code": 1,
+  "engine": "codex",
+  "report_produced": false,
+  "reason": "engine_failed",
+  "reviewer_exit_code": 1,
+  "timed_out": false,
+  "usage": {
+    "attempts": 1,
+    "reported_attempts": 0,
+    "unknown_attempts": 1,
+    "partial_attempts": 0,
+    "complete": false,
+    "tokens": null
+  }
+}

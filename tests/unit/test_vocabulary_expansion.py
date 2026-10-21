@@ -15,10 +15,12 @@ and ten cards with unique bodies are spread out (coverage ~0.85).
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import numpy as np
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from geistfabrik.config import SEMANTIC_DIM, TOTAL_DIM
 from geistfabrik.default_geists.code import vocabulary_expansion
@@ -196,3 +198,23 @@ def test_vocabulary_expansion_reports_semantic_spread_in_the_same_shape():
 
     assert_valid_suggestions(suggestions, "vocabulary_expansion")
     assert suggestions[0].text.startswith(HIGHER)
+
+
+@given(seed=st.integers(0, 2**64 - 1), count=st.integers(min_value=10))
+@settings(max_examples=100, deadline=None)
+def test_repeating_identical_meaning_vectors_cannot_invent_dispersion(seed, count):
+    vector = np.random.default_rng(seed).standard_normal(SEMANTIC_DIM).astype(np.float32)
+    vector /= np.linalg.norm(vector)
+    vector *= np.float32(0.9)
+    # Materialize bounded snapshots; the repetition identity is independent of population size.
+    counts = [10, 10, min(count, 2000), min(count, 2000)]
+    sessions = [
+        (i, f"2026-01-0{i + 1}", [vector] * population) for i, population in enumerate(counts)
+    ]
+    context = SimpleNamespace(
+        session_embeddings_by_session=lambda: sessions,
+        get_all_embeddings=lambda: {f"Note {i}": vector for i in range(10)},
+        get_note=lambda path: SimpleNamespace(link_text=path),
+        sample=lambda values, count: values[:count],
+    )
+    assert vocabulary_expansion.suggest(cast(VaultContext, context)) == []

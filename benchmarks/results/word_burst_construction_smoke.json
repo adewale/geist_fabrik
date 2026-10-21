@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-17",
+  "source_commit": "abfdec672edaaf0b3ad5a647ed80552f6616aca9",
+  "initial_notes": 128,
+  "snapshots": 32,
+  "real_bundled_offline_model": true,
+  "ngram_max": 2,
+  "errors": [],
+  "stable_meaning_changes": [],
+  "execution_path": "GeistExecutor",
+  "modes": {
+    "dated_cohorts": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 31,
+      "finding_occurrences_by_category": {
+        "declining_words": 333,
+        "declining_phrases": 310,
+        "rising_words": 1007,
+        "rising_phrases": 1560
+      },
+      "first_planted_rising_snapshot": {
+        "aurora": 8,
+        "quasar": 22
+      }
+    },
+    "observed_additions": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 23,
+      "finding_occurrences_by_category": {
+        "declining_words": 54,
+        "declining_phrases": 54,
+        "rising_words": 32,
+        "rising_phrases": 32
+      },
+      "first_planted_rising_snapshot": {
+        "aurora": 9,
+        "quasar": 23
+      }
+    }
+  },
+  "geists": {
+    "word_burst": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 31,
+      "max_seconds": 0.03297859395388514
+    },
+    "concept_drift": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 28,
+      "max_seconds": 0.18199850001838058
+    },
+    "attention_shift": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 27,
+      "max_seconds": 0.0364831859478727
+    },
+    "temporal_drift": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 32,
+      "max_seconds": 0.4434024499496445
+    },
+    "recent_focus": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 32,
+      "max_seconds": 0.022719717933796346
+    },
+    "seasonal_patterns": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 0,
+      "max_seconds": 0.005838396027684212
+    },
+    "temporal_clustering": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 28,
+      "max_seconds": 0.008022426976822317
+    },
+    "this_time_last_year": {
+      "executor_calls": 32,
+      "statuses": [
+        "success"
+      ],
+      "snapshots_with_questions": 11,
+      "max_seconds": 0.0007171389879658818
+    }
+  },
+  "raw_archive": "word_burst_construction_smoke.json.xz",
+  "raw_sha256": "6773e530d3c3b00969c4d2a5bc8a9978e6b345f737387cdd273d77c51742d4d6",
+  "archive_sha256": "692c24ee3d18e06d9977ab54c89e4fc6c106585217120f5811831168c39fd1bf",
+  "raw_bytes": 9019922,
+  "archive_bytes": 64776,
+  "total_executor_calls": 288
+}

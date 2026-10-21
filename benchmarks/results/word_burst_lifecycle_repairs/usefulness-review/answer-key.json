@@ -1,0 +1,74 @@
+[
+  {
+    "id": "case-01",
+    "mode": "dated_cohorts",
+    "A": "linked_note",
+    "B": "word_burst"
+  },
+  {
+    "id": "case-02",
+    "mode": "dated_cohorts",
+    "A": "word_burst",
+    "B": "linked_note"
+  },
+  {
+    "id": "case-03",
+    "mode": "dated_cohorts",
+    "A": "word_burst",
+    "B": "linked_note"
+  },
+  {
+    "id": "case-04",
+    "mode": "dated_cohorts",
+    "A": "linked_note",
+    "B": "word_burst"
+  },
+  {
+    "id": "case-05",
+    "mode": "dated_cohorts",
+    "A": "word_burst",
+    "B": "linked_note"
+  },
+  {
+    "id": "case-06",
+    "mode": "dated_cohorts",
+    "A": "linked_note",
+    "B": "word_burst"
+  },
+  {
+    "id": "case-07",
+    "mode": "observed_additions",
+    "A": "word_burst",
+    "B": "linked_note"
+  },
+  {
+    "id": "case-08",
+    "mode": "observed_additions",
+    "A": "word_burst",
+    "B": "linked_note"
+  },
+  {
+    "id": "case-09",
+    "mode": "observed_additions",
+    "A": "word_burst",
+    "B": "linked_note"
+  },
+  {
+    "id": "case-10",
+    "mode": "observed_additions",
+    "A": "word_burst",
+    "B": "linked_note"
+  },
+  {
+    "id": "case-11",
+    "mode": "observed_additions",
+    "A": "linked_note",
+    "B": "word_burst"
+  },
+  {
+    "id": "case-12",
+    "mode": "observed_additions",
+    "A": "linked_note",
+    "B": "word_burst"
+  }
+]

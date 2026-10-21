@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "kepano": {
+    "repository": "https://github.com/kepano/kepano-obsidian",
+    "source_ref_kind": "git_commit",
+    "source_commit": "473697347a0eaac790a6596229c741b3915f3b77",
+    "source_tree_sha": "6eed29397758731b7f3723b21fbcc3bf408ad079",
+    "tree_response_sha": "473697347a0eaac790a6596229c741b3915f3b77",
+    "verified_subtrees": 9,
+    "commit_tree_matches_reconstructed_tree": true,
+    "interpretation": "The Trees response sha echoes the supplied commit reference; canonical Git tree hash was reconstructed and matched to the Git commit object.",
+    "verified_files": 104,
+    "verified_markdown_files": 103,
+    "verified_bytes": 37060,
+    "verified_manifest_sha256": "d520b160485cd15d796f28b93ca93deabf3d9e1105d38924df24c2156034b3b1",
+    "all_git_blob_hashes_match": true,
+    "tree_truncated": false
+  },
+  "blue_book": {
+    "repository": "https://github.com/lyz-code/blue-book",
+    "source_ref_kind": "git_commit",
+    "source_commit": "e494de6c0d30b338b3117025819be35bdf1e5af6",
+    "source_tree_sha": "8df1ac21a1edffa7438218bb0a1403f42bef596a",
+    "tree_response_sha": "e494de6c0d30b338b3117025819be35bdf1e5af6",
+    "verified_subtrees": 39,
+    "commit_tree_matches_reconstructed_tree": true,
+    "verified_files": 1124,
+    "verified_markdown_files": 1123,
+    "verified_bytes": 10914973,
+    "verified_manifest_sha256": "e9a42d19dbbe2c06f7cbd44ea8a7986740fa12ee217968b799ae09b5dac80583",
+    "all_git_blob_hashes_match": true,
+    "tree_truncated": false
+  }
+}

@@ -50,9 +50,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     # Sample some notes and find their neighbourhoods
     seed_notes = vault.sample(notes, count=5)
 
-    for seed in seed_notes:
-        # Get neighbours of this note
-        neighbours = vault.neighbours(seed, count=5)
+    for seed, found in zip(seed_notes, vault.neighbours_many(seed_notes, count=5)):
+        neighbours = [note for note, _score in found]
 
         if len(neighbours) < 3:
             continue
@@ -64,18 +63,7 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         if cluster_key in reported:
             continue
 
-        # Calculate average pairwise similarity within cluster
-        # Use individual similarity() calls to benefit from session cache
-        similarities = []
-        for i in range(len(cluster_notes)):
-            for j in range(i + 1, len(cluster_notes)):
-                sim = vault.similarity(cluster_notes[i], cluster_notes[j])
-                similarities.append(sim)
-
-        avg_similarity = sum(similarities) / len(similarities) if similarities else 0
-
-        # If average similarity is high, this is a real cluster
-        if avg_similarity > SimilarityLevel.HIGH:
+        if vault.mean_similarity_matches(cluster_notes, SimilarityLevel.HIGH, inclusive=False):
             reported.add(cluster_key)
             clusters.append(cluster_notes)
 

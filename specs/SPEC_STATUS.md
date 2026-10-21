@@ -18,6 +18,34 @@ Status vocabulary:
 
 ## config.yaml keys (geistfabrik_spec.md ~880-960)
 
+The word-burst rebuild adds `lexical_analysis` and `word_burst` configuration
+sections, both **BUILT**. Exact binomial detection, atomic incremental lexical
+capture, declared-date cohorts, observed additions, persistent caching and the
+linked-question geist are **BUILT**; see `docs/WORD_BURST.md`. Git/backup imports,
+retained historical prose, exact old-text replay and alternative rolling baselines
+are **DEFERRED**. `docs/WORD_BURST_ORIGINAL_SPEC.md` is an archival proposal whose
+different data structures/defaults are not current promises.
+
+The same geist now includes declining lower-rate episodes, default two-word phrases and optional three-word
+phrases, bounded current-prose passages, and persisted interval identity for
+episode-level novelty (schema v12). Declines require established prior use and
+later observed exposure. Reader-feedback controls, semantic terminology-change
+detection and inferred contradictions remain deferred.
+
+Narrative-evaluation repairs are **BUILT**: shared template/privacy source
+eligibility, entry-date wording for virtual recency, cross-season-year tag
+evidence, content-bearing lexical question lenses, durable saved factual
+identities, and cached abstention/population explanations. Additive schema v13
+indexes evidence history and preserves diagnostic metadata; it invalidates only
+derived result caches. These contracts do not establish reader usefulness.
+
+Exact cross-day reuse and compact lexical presence are **BUILT** in additive
+schema v14. Reuse requires the same selected sources, weekly frame, generation
+and settings; date presentation is refreshed separately. Preparation and shared
+series caches are bounded. Existing JSON frequencies and captured history are
+retained. Optional trigram value remains an evaluation question; see
+`docs/word_burst_phrases.md` for primary research and matched corpus results.
+
 | key | status | note |
 |---|---|---|
 | `vault.path` | BUILT-DIFFERENTLY | CLI vault argument / auto-detect, not config |

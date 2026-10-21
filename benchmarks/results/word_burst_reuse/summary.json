@@ -1,0 +1,2881 @@
+{
+  "implementation_commit": "8fb86e3dcdcd8cd8bd95dd02448b289d8173e86d",
+  "baseline_commit": "6660bfa93b2a10f42d8228e9cea2d26924326785",
+  "measurements": {
+    "baseline_commit": "6660bfa93b2a10f42d8228e9cea2d26924326785",
+    "capacity_trials_per_phase": 2,
+    "sync_trials_per_phase": 1,
+    "capacity": {
+      "pairs": {
+        "metrics": {
+          "fresh": {
+            "before": {
+              "seconds": {
+                "median": 14.270043664000696,
+                "minimum": 12.295309139000892,
+                "maximum": 16.2447781890005,
+                "values": [
+                  16.2447781890005,
+                  12.295309139000892
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1241.072265625,
+                "minimum": 1240.703125,
+                "maximum": 1241.44140625,
+                "values": [
+                  1240.703125,
+                  1241.44140625
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 12.205912172998069,
+                "minimum": 12.105478780002159,
+                "maximum": 12.306345565993979,
+                "values": [
+                  12.105478780002159,
+                  12.306345565993979
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 901.82421875,
+                "minimum": 899.9765625,
+                "maximum": 903.671875,
+                "values": [
+                  903.671875,
+                  899.9765625
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "result_sha256": "4b4f7e4ba51e5f67db279844b90abf800e9527fab026105bcd1747c5c71f7e49",
+            "findings": 4257
+          },
+          "same_day": {
+            "before": {
+              "seconds": {
+                "median": 0.5333159639994847,
+                "minimum": 0.48479434099863283,
+                "maximum": 0.5818375870003365,
+                "values": [
+                  0.5818375870003365,
+                  0.48479434099863283
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1241.072265625,
+                "minimum": 1240.703125,
+                "maximum": 1241.44140625,
+                "values": [
+                  1240.703125,
+                  1241.44140625
+                ]
+              },
+              "cache_hit": [
+                true,
+                true
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 0.4836028624958999,
+                "minimum": 0.45668320799450157,
+                "maximum": 0.5105225169972982,
+                "values": [
+                  0.45668320799450157,
+                  0.5105225169972982
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 901.82421875,
+                "minimum": 899.9765625,
+                "maximum": 903.671875,
+                "values": [
+                  903.671875,
+                  899.9765625
+                ]
+              },
+              "cache_hit": [
+                true,
+                true
+              ]
+            },
+            "result_sha256": "4b4f7e4ba51e5f67db279844b90abf800e9527fab026105bcd1747c5c71f7e49",
+            "findings": 4257
+          },
+          "next_day_same_week": {
+            "before": {
+              "seconds": {
+                "median": 14.577387083998474,
+                "minimum": 14.282879589001823,
+                "maximum": 14.871894578995125,
+                "values": [
+                  14.871894578995125,
+                  14.282879589001823
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1295.8515625,
+                "minimum": 1295.22265625,
+                "maximum": 1296.48046875,
+                "values": [
+                  1295.22265625,
+                  1296.48046875
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 0.36977014349758974,
+                "minimum": 0.3617186579940608,
+                "maximum": 0.3778216290011187,
+                "values": [
+                  0.3778216290011187,
+                  0.3617186579940608
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 958.140625,
+                "minimum": 958.01953125,
+                "maximum": 958.26171875,
+                "values": [
+                  958.26171875,
+                  958.01953125
+                ]
+              },
+              "cache_hit": [
+                true,
+                true
+              ]
+            },
+            "result_sha256": "41737c14a8ed67255eadd57b9dd42523d38e5a16e667730b2405e8dab883bd3b",
+            "findings": 4257
+          },
+          "next_week": {
+            "before": {
+              "seconds": {
+                "median": 13.700968619999912,
+                "minimum": 13.63368978699873,
+                "maximum": 13.768247453001095,
+                "values": [
+                  13.768247453001095,
+                  13.63368978699873
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1295.8515625,
+                "minimum": 1295.22265625,
+                "maximum": 1296.48046875,
+                "values": [
+                  1295.22265625,
+                  1296.48046875
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 11.529662047501915,
+                "minimum": 11.03527067500545,
+                "maximum": 12.024053419998381,
+                "values": [
+                  11.03527067500545,
+                  12.024053419998381
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 988.767578125,
+                "minimum": 988.64453125,
+                "maximum": 988.890625,
+                "values": [
+                  988.64453125,
+                  988.890625
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "result_sha256": "1079b6bc2225d4ec6214787189799b6fd6489544e6d9662c0c74776d81abb24c",
+            "findings": 4269
+          }
+        },
+        "presence_backfill_seconds": {
+          "median": 6.847438472501381,
+          "minimum": 5.9008314780003275,
+          "maximum": 7.794045467002434,
+          "values": [
+            7.794045467002434,
+            5.9008314780003275
+          ]
+        },
+        "presence_bytes": 81133408,
+        "upgrade_used_page_delta_bytes": 88260608,
+        "whole_process_peak_rss_mib": {
+          "before": {
+            "median": 1295.8515625,
+            "minimum": 1295.22265625,
+            "maximum": 1296.48046875,
+            "values": [
+              1295.22265625,
+              1296.48046875
+            ]
+          },
+          "after": {
+            "median": 988.767578125,
+            "minimum": 988.64453125,
+            "maximum": 988.890625,
+            "values": [
+              988.64453125,
+              988.890625
+            ]
+          }
+        },
+        "same_questions": true,
+        "input": {
+          "files": 10000,
+          "bytes": 46637507,
+          "sha256": "69d9e6ca2fd46c130d79c4fba84fa27b9a20dba66485cf2bd8c3f219092b22ac"
+        }
+      },
+      "triples": {
+        "metrics": {
+          "fresh": {
+            "before": {
+              "seconds": {
+                "median": 46.02351842499775,
+                "minimum": 44.91244903199549,
+                "maximum": 47.134587818,
+                "values": [
+                  47.134587818,
+                  44.91244903199549
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 2059.189453125,
+                "minimum": 2058.8125,
+                "maximum": 2059.56640625,
+                "values": [
+                  2059.56640625,
+                  2058.8125
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 33.06386776600266,
+                "minimum": 30.602010848000646,
+                "maximum": 35.52572468400467,
+                "values": [
+                  35.52572468400467,
+                  30.602010848000646
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1196.201171875,
+                "minimum": 1194.421875,
+                "maximum": 1197.98046875,
+                "values": [
+                  1197.98046875,
+                  1194.421875
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "result_sha256": "f1f6d0f9c779d82abbab9b50a933bd143e72c9b718c37d16b8c6fc57deee7b11",
+            "findings": 6767
+          },
+          "same_day": {
+            "before": {
+              "seconds": {
+                "median": 0.22172331399997347,
+                "minimum": 0.2023232889987412,
+                "maximum": 0.24112333900120575,
+                "values": [
+                  0.2023232889987412,
+                  0.24112333900120575
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 2059.189453125,
+                "minimum": 2058.8125,
+                "maximum": 2059.56640625,
+                "values": [
+                  2059.56640625,
+                  2058.8125
+                ]
+              },
+              "cache_hit": [
+                true,
+                true
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 0.28738771199641633,
+                "minimum": 0.2823546309955418,
+                "maximum": 0.29242079299729085,
+                "values": [
+                  0.2823546309955418,
+                  0.29242079299729085
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1196.201171875,
+                "minimum": 1194.421875,
+                "maximum": 1197.98046875,
+                "values": [
+                  1197.98046875,
+                  1194.421875
+                ]
+              },
+              "cache_hit": [
+                true,
+                true
+              ]
+            },
+            "result_sha256": "f1f6d0f9c779d82abbab9b50a933bd143e72c9b718c37d16b8c6fc57deee7b11",
+            "findings": 6767
+          },
+          "next_day_same_week": {
+            "before": {
+              "seconds": {
+                "median": 42.58647077449859,
+                "minimum": 41.34426253599668,
+                "maximum": 43.82867901300051,
+                "values": [
+                  43.82867901300051,
+                  41.34426253599668
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 2115.55078125,
+                "minimum": 2115.0390625,
+                "maximum": 2116.0625,
+                "values": [
+                  2116.0625,
+                  2115.0390625
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 0.4028355439986626,
+                "minimum": 0.39790585300215753,
+                "maximum": 0.4077652349951677,
+                "values": [
+                  0.4077652349951677,
+                  0.39790585300215753
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1196.201171875,
+                "minimum": 1194.421875,
+                "maximum": 1197.98046875,
+                "values": [
+                  1197.98046875,
+                  1194.421875
+                ]
+              },
+              "cache_hit": [
+                true,
+                true
+              ]
+            },
+            "result_sha256": "52f6178bf1e4d35fe7b53c5eff21f89522302f0a8ab9577fe944c5070c901eae",
+            "findings": 6767
+          },
+          "next_week": {
+            "before": {
+              "seconds": {
+                "median": 39.6485448750027,
+                "minimum": 39.60689770900353,
+                "maximum": 39.690192041001865,
+                "values": [
+                  39.690192041001865,
+                  39.60689770900353
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 2115.55078125,
+                "minimum": 2115.0390625,
+                "maximum": 2116.0625,
+                "values": [
+                  2116.0625,
+                  2115.0390625
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "after": {
+              "seconds": {
+                "median": 32.10404404599831,
+                "minimum": 30.517651993999607,
+                "maximum": 33.69043609799701,
+                "values": [
+                  33.69043609799701,
+                  30.517651993999607
+                ]
+              },
+              "peak_rss_mib": {
+                "median": 1382.49609375,
+                "minimum": 1380.65625,
+                "maximum": 1384.3359375,
+                "values": [
+                  1384.3359375,
+                  1380.65625
+                ]
+              },
+              "cache_hit": [
+                false,
+                false
+              ]
+            },
+            "result_sha256": "4fcc50d9ebdd7262b72c7b08a7f63ee0f90bb2bbb3567964cc57bb72ddda88da",
+            "findings": 6775
+          }
+        },
+        "presence_backfill_seconds": {
+          "median": 20.944815912498598,
+          "minimum": 20.7130998109933,
+          "maximum": 21.176532014003897,
+          "values": [
+            21.176532014003897,
+            20.7130998109933
+          ]
+        },
+        "presence_bytes": 128409192,
+        "upgrade_used_page_delta_bytes": 175726592,
+        "whole_process_peak_rss_mib": {
+          "before": {
+            "median": 2115.55078125,
+            "minimum": 2115.0390625,
+            "maximum": 2116.0625,
+            "values": [
+              2116.0625,
+              2115.0390625
+            ]
+          },
+          "after": {
+            "median": 1382.49609375,
+            "minimum": 1380.65625,
+            "maximum": 1384.3359375,
+            "values": [
+              1384.3359375,
+              1380.65625
+            ]
+          }
+        },
+        "same_questions": true,
+        "input": {
+          "files": 10000,
+          "bytes": 46637507,
+          "sha256": "69d9e6ca2fd46c130d79c4fba84fa27b9a20dba66485cf2bd8c3f219092b22ac"
+        }
+      }
+    },
+    "sync": {
+      "pairs": {
+        "before": [
+          {
+            "label": "initial",
+            "seconds": 104.94988580900099,
+            "processed": 10000,
+            "lexical_stats": {
+              "extracted": 10000,
+              "changed": 10000
+            },
+            "database_bytes": 197693440,
+            "database_used_page_bytes": 197693440,
+            "whole_process_peak_rss_mib": 747.91015625,
+            "dictionary_terms": 42990
+          },
+          {
+            "label": "unchanged",
+            "seconds": 3.486298834999616,
+            "processed": 0,
+            "lexical_stats": {
+              "extracted": 0,
+              "changed": 0
+            },
+            "database_bytes": 197693440,
+            "database_used_page_bytes": 197693440,
+            "whole_process_peak_rss_mib": 747.92578125,
+            "dictionary_terms": 42990
+          },
+          {
+            "label": "edit_one",
+            "seconds": 3.8477828559989575,
+            "processed": 1,
+            "lexical_stats": {
+              "extracted": 1,
+              "changed": 1
+            },
+            "database_bytes": 197709824,
+            "database_used_page_bytes": 197693440,
+            "whole_process_peak_rss_mib": 747.92578125,
+            "dictionary_terms": 42995
+          },
+          {
+            "label": "edit_100",
+            "seconds": 4.931480070001271,
+            "processed": 100,
+            "lexical_stats": {
+              "extracted": 100,
+              "changed": 100
+            },
+            "database_bytes": 197779456,
+            "database_used_page_bytes": 197763072,
+            "whole_process_peak_rss_mib": 747.92578125,
+            "dictionary_terms": 42995
+          }
+        ],
+        "after": [
+          {
+            "label": "initial",
+            "seconds": 117.54963239500648,
+            "processed": 10000,
+            "lexical_stats": {
+              "extracted": 10000,
+              "changed": 10000
+            },
+            "database_bytes": 280764416,
+            "database_used_page_bytes": 280764416,
+            "whole_process_peak_rss_mib": 753.7421875,
+            "dictionary_terms": 42990
+          },
+          {
+            "label": "unchanged",
+            "seconds": 3.8727677470014896,
+            "processed": 0,
+            "lexical_stats": {
+              "extracted": 0,
+              "changed": 0
+            },
+            "database_bytes": 280764416,
+            "database_used_page_bytes": 280764416,
+            "whole_process_peak_rss_mib": 753.7421875,
+            "dictionary_terms": 42990
+          },
+          {
+            "label": "edit_one",
+            "seconds": 3.645954266001354,
+            "processed": 1,
+            "lexical_stats": {
+              "extracted": 1,
+              "changed": 1
+            },
+            "database_bytes": 280788992,
+            "database_used_page_bytes": 280764416,
+            "whole_process_peak_rss_mib": 753.7421875,
+            "dictionary_terms": 42995
+          },
+          {
+            "label": "edit_100",
+            "seconds": 5.432757688002312,
+            "processed": 100,
+            "lexical_stats": {
+              "extracted": 100,
+              "changed": 100
+            },
+            "database_bytes": 280932352,
+            "database_used_page_bytes": 280911872,
+            "whole_process_peak_rss_mib": 753.97265625,
+            "dictionary_terms": 42995
+          }
+        ]
+      },
+      "triples": {
+        "before": [
+          {
+            "label": "initial",
+            "seconds": 217.02911148800194,
+            "processed": 10000,
+            "lexical_stats": {
+              "extracted": 10000,
+              "changed": 10000
+            },
+            "database_bytes": 370745344,
+            "database_used_page_bytes": 370745344,
+            "whole_process_peak_rss_mib": 747.78125,
+            "dictionary_terms": 821665
+          },
+          {
+            "label": "unchanged",
+            "seconds": 4.1926913099960075,
+            "processed": 0,
+            "lexical_stats": {
+              "extracted": 0,
+              "changed": 0
+            },
+            "database_bytes": 370745344,
+            "database_used_page_bytes": 370745344,
+            "whole_process_peak_rss_mib": 747.80859375,
+            "dictionary_terms": 821665
+          },
+          {
+            "label": "edit_one",
+            "seconds": 3.8020396630017785,
+            "processed": 1,
+            "lexical_stats": {
+              "extracted": 1,
+              "changed": 1
+            },
+            "database_bytes": 370774016,
+            "database_used_page_bytes": 370745344,
+            "whole_process_peak_rss_mib": 747.8203125,
+            "dictionary_terms": 821671
+          },
+          {
+            "label": "edit_100",
+            "seconds": 7.455849325997406,
+            "processed": 100,
+            "lexical_stats": {
+              "extracted": 100,
+              "changed": 100
+            },
+            "database_bytes": 370847744,
+            "database_used_page_bytes": 370814976,
+            "whole_process_peak_rss_mib": 747.83984375,
+            "dictionary_terms": 821671
+          }
+        ],
+        "after": [
+          {
+            "label": "initial",
+            "seconds": 239.20396278100088,
+            "processed": 10000,
+            "lexical_stats": {
+              "extracted": 10000,
+              "changed": 10000
+            },
+            "database_bytes": 540782592,
+            "database_used_page_bytes": 540782592,
+            "whole_process_peak_rss_mib": 855.77734375,
+            "dictionary_terms": 821665
+          },
+          {
+            "label": "unchanged",
+            "seconds": 3.529735305994109,
+            "processed": 0,
+            "lexical_stats": {
+              "extracted": 0,
+              "changed": 0
+            },
+            "database_bytes": 540782592,
+            "database_used_page_bytes": 540782592,
+            "whole_process_peak_rss_mib": 855.77734375,
+            "dictionary_terms": 821665
+          },
+          {
+            "label": "edit_one",
+            "seconds": 3.35250902199914,
+            "processed": 1,
+            "lexical_stats": {
+              "extracted": 1,
+              "changed": 1
+            },
+            "database_bytes": 540827648,
+            "database_used_page_bytes": 540782592,
+            "whole_process_peak_rss_mib": 855.77734375,
+            "dictionary_terms": 821671
+          },
+          {
+            "label": "edit_100",
+            "seconds": 6.874387823998404,
+            "processed": 100,
+            "lexical_stats": {
+              "extracted": 100,
+              "changed": 100
+            },
+            "database_bytes": 541007872,
+            "database_used_page_bytes": 540962816,
+            "whole_process_peak_rss_mib": 855.77734375,
+            "dictionary_terms": 821671
+          }
+        ]
+      }
+    },
+    "source_equivalence": {
+      "sync_used_writer_ast_unchanged": true,
+      "interim_presence_sha256": "d2973811011dbbcf16e858736e79e4bfa06845385bea7bb3ebaceff5d283fa4c",
+      "current_presence_sha256": "957972b25336e91dd1e7a27cece4509d759e1a22ce8ce652c8c8387af879317e",
+      "analysis_source_sha256": "69a7a16627ec14c074509275cc01e3e7d1c3678b04f952603aa15d25a3d93467",
+      "sparse_source_sha256": "9518dd1e43bdeae8148bd63f6dd6933d7ded3441c9ba9d2242c34156cecf4d82"
+    },
+    "limitations": [
+      "Single Linux/Python3.12 host; warm imports/filesystem cache possible.",
+      "RSS is whole-process high-water memory, including imports and upgrade preparation, not isolated kernel allocation.",
+      "Initial indexing and edit costs are single trials; small differences are not causal estimates.",
+      "Capacity dates are synthetic; no inference occurs.",
+      "Intermediate after trials1/2 are excluded from final capacity comparisons.",
+      "Sync after trials predate selected-backfill-only helper additions; the invoked PresenceWriter AST and lexical_index/schema files are unchanged."
+    ],
+    "executor": {
+      "pairs": {
+        "kind": "pairs",
+        "legacy_database_first_use": true,
+        "timeout": 30,
+        "inference": false,
+        "source_sha256": {
+          "journal_writer.py": "956b8e1fd2599989cd7303e4016b75c2278842dbc5432ae1f9fbd18420c49ffc",
+          "clustering_analysis.py": "5e1ea454eca8dd9a98ab9c07803056d74996d4273f5550227d3dec54475c2944",
+          "config_loader.py": "448e09f04fb9ed4e644c757fadcb2f7439457af94f86776f3969c4f19e27be7f",
+          "bounded_yaml.py": "4ea56605e734a5c24051e166d5285096397f40fb1ed90728cd9d428aba39d82f",
+          "vector_math.py": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+          "word_burst_analysis.py": "69a7a16627ec14c074509275cc01e3e7d1c3678b04f952603aa15d25a3d93467",
+          "validator.py": "53f8c5393eb25f389c53323eb2d36c25e7f6c2452d8c0a44d468755c86291e1d",
+          "cluster_labeling.py": "23afd8281670e4203a10bd592037b435b5672a5dff4823fe37756b97ad8c3f6b",
+          "function_registry.py": "088135ca5935a8300fc49882a3fbb8111f74928ee5319d63b4a456f5282629e6",
+          "date_collection.py": "5fcb35fcabecb6c1b32109e53ea724193d800238391a6877602a8b6060cbaf40",
+          "embedding_metrics.py": "49db397f826ba056b092591366873e07b97afed7cfdbe8da795fc6c88ff91d3c",
+          "similarity_analysis.py": "ecdb9c8f90dff2abaa8f5d88fd8d8a45c1b48d5ec6dea762938fa6a8ae8f9985",
+          "stats.py": "95d20f3123d1315ae4ecfab30480b45048a55e610b083e9d50da1aff095db4a0",
+          "session_time.py": "de15e2f1dcbe4e82824da48d7c938d0be39cae153e28958f90bfb9a18b53839b",
+          "config.py": "199f9f6c6ad73c15e419c5b5d89c52a296f95f88e058e3a97e91a91dfb2fb315",
+          "lexical_candidacy.py": "e82075d3cafe59302692f15d4fd4ba88ee7fb4f82b3ac98b331f0ca447e7e7b1",
+          "sqlite_transaction.py": "eb6c5e76be05fbd578f4dfcbe2108d769ca11660c4dd171b2de64271067376fd",
+          "models.py": "da4cdbe64b9bdd4c7c6e6bb9b0d1be68b6fd0481acc634cdf7e867cac534e6ab",
+          "vector_search.py": "dd515e2cb012848347da7b8c15e0321f7c458de82f4318d819e7da0ad593e397",
+          "vault_context.py": "5cc09a47704b8e1b56170b8c8d53cc2689d5813262c85aba8ed047dedb107d6a",
+          "embeddings.py": "2d4df19c6ac5d23c7f424fc2ba7c13203db3b20a549be0686c9da8b0c912d8ff",
+          "metadata_system.py": "b08192743aad7e2d1adf3b5897fa113958fa8c80e9a08234d881ffa2f1dd5946",
+          "semantic_vectors.py": "7b54cfb25770b60bcdf8a9697de0ac731f53642daf43eef677376587a6a05589",
+          "word_burst_sparse.py": "9518dd1e43bdeae8148bd63f6dd6933d7ded3441c9ba9d2242c34156cecf4d82",
+          "stats_formatter.py": "fe10667a6c9982c6438a0ea29f2c9ca41a7339b5212199ed537cd410c3a51254",
+          "content_extraction.py": "65a553ae7bc5897bb21e560f3f8a921288dedbc52c15a214def76926dee1cdae",
+          "text_embeddings.py": "ddb94956f96f8daa4d039e607b165f6ca66fb27e71bcf686d736ef75a3060653",
+          "lexical_index.py": "7d4b7f4703445a4203e9cba7db01f718154089274faf81903882900c65e376b3",
+          "graph_analysis.py": "8e97c9fd231d30fa4cda83661d8132ce4583af587f084e725e8bef926c454550",
+          "evidence_identity.py": "9209f77217fa36b1e87ef4e9380992269aff50b615ba081372e6b51b02bb0381",
+          "path_safety.py": "dfca5b7a5382c178614ec6a2a205b16479a4d8fb71f31c4faf998273d05b31c6",
+          "suggestion_limits.py": "ef5e75d01126750335b379f630419fd9ec4fcd62416b26697790268795bfc498",
+          "__init__.py": "1c5c2a26644c65afe0c58ae776176139947d276844db03dd7b979576ad5e7207",
+          "geist_status.py": "63a97b3a687a0c85cfc4c2a1e2e65a44943e16a5db9adba810b6fc5f8689c2c1",
+          "markdown_parser.py": "c1f1dd928584724b260a516622fcefd1c01b9aa1c815f259ed06f8ee4e97eae8",
+          "voice_analysis.py": "2ed635646ea02948dad2ec17c3edd287bd87745e500c6548d37c86b6f12fff0b",
+          "schema.py": "cbea67aeac2dad977e7a1dd165355e5ae261135755c5545916abaf7c52b5340b",
+          "tracery.py": "030450918b0c714647fc08bcb83793ab76e10544c0d76f85dcfe50065907e155",
+          "word_burst.py": "4c631a13cdf8d8c8e7b90e255020d087ebc0807a75c19f4371a3a0ea1b7248f5",
+          "source_eligibility.py": "4cc71065f051f285ebcdc75e62916157bfffabc3ab63920c8ca4fc97ffe224ca",
+          "lexical_presence.py": "957972b25336e91dd1e7a27cece4509d759e1a22ce8ce652c8c8387af879317e",
+          "geist_executor.py": "05a8ec775111a2a93350c89d89cc9691c26dc98d6d446ecbdf8fbd7d21bb2fd6",
+          "execution_timeout.py": "6c439687ac79bbf44e9d41238f0783cc4697488871159d1001065a25e7b469ae",
+          "vault.py": "7277553e0ed3b74635b8f0809f8970e35f1dfa13aa0021e8c59d0dfaacc22ff6",
+          "temporal_analysis.py": "6578a5e01f58c6d940cd0c4dcfa93b28f1761823986a5d1d9bcbad3a2837952c",
+          "document_rate.py": "68e90198cbebfea489ceab87338135f70dbb9f35938807e7f6aecb9a97619ee4",
+          "filtering.py": "bb2d051f19ae4191ece2eae571b11e9b102fe229ce304b9d1c1719373a112006",
+          "cli.py": "d66d06a5554958406af6475f1ccf78ca3b801d84167df63b095c5f4b42082f5c",
+          "model_data/__init__.py": "54c5fc6bfa094b88027a15d5f00251eea069723eb351c2fdc20a78f616c6e74c",
+          "commands/invoke.py": "0c4d54a507fb37e85a122a373da37a8d966fd0392886111d4aabb18e7039cd84",
+          "commands/stats.py": "b110f0d6c78cf326a0627591d4c7272d23f5306b9db4043b9a1c286e7d3dcffb",
+          "commands/validate.py": "d8cb43fc88b082e0657a07eaecc6e1ab557bc7616e446b20489ee0c03da6aef2",
+          "commands/__init__.py": "20f64a146c939ec17c911992038e57e519a690275f5380c16263477aaec0ba32",
+          "commands/initialize.py": "4da554c76a4a30657079bab79e146e0e184181c676205391f94b1ac0a66deb59",
+          "commands/runner.py": "ef067425d250c72c665aaa0c5b5de687c1b2d4bdf70a83f25729c398b2a62fbc",
+          "commands/base.py": "959f4b8e2bc14a24f8dac4962331af561d12473529c4846ce0f798c64f0c5d1e",
+          "commands/batch_runner.py": "42282920c743c428a12c05048da6c1cba0d0b2520a12da213fe0d24256cd44cf",
+          "default_geists/__init__.py": "09e9698ab517785e4f13264d51c979f6937f4ee397400a01e7fc106636f096e3",
+          "default_geists/code/sentence_variance.py": "bedaac4fca6bc074194ac603de34827229685fe9331f4f9a9f1c7dd9f544e1d0",
+          "default_geists/code/voice_absence.py": "5db82b6f1280098b8388f09375989fae21343044b2713ecf0dd5991a54b6f515",
+          "default_geists/code/metadata_driven_discovery.py": "2e61093bfc28a2e9ee0aff40f7392004a288416348d5adb60da68a83f584f9c7",
+          "default_geists/code/uncertainty_mapper.py": "dd5efce96f603446c9821ac1a55612db5d3ecdc7e1e01cf6b753ffd916c32683",
+          "default_geists/code/orphan_connector.py": "8df7a5acca2dda741624ecf52a27318026d357dbfee2c332e3cadaec9319e9bd",
+          "default_geists/code/stub_expander.py": "e9f71ca36717b588cc2ef5aa7d63270bb83bb7b752f518f0f6cf0abd8b8dd3bb",
+          "default_geists/code/surprisal.py": "f8202fa10d3d29b7f69c762ed754104ea73b35b0f7f7dabbc796c09931383dc5",
+          "default_geists/code/divergent_evolution.py": "c66f51a308a8be558f074d0123ee24823efcda561dc786772f93ea8c82f9024e",
+          "default_geists/code/cyclical_thinking.py": "92cafd8b74a705a73c9084e60e9d71e80f74be72983340c2cde6143870ef0e41",
+          "default_geists/code/hidden_hub.py": "d4b455a18f01ba78f3609c3937d61d58eadd89b8a12be4703ced45001929bd4a",
+          "default_geists/code/question_generator.py": "08ff6701201c605b2af2b6adc03efa5fc75b82ccc81b2dc2d566e1efe134a410",
+          "default_geists/code/assumption_challenger.py": "06694b4e158e0a9cd16758e558eaf2661eb27d78b167e80937d6dfdb3fdb5193",
+          "default_geists/code/temporal_clustering.py": "b298eaefc8b003c7d32219c85b7f27e1c368982e994fc99a5f002c7f98d82172",
+          "default_geists/code/creative_collision.py": "b2c40d9438b0711a1b519276631cd3a6d53d7aaabeea16bcd4531f3a79c26cce",
+          "default_geists/code/creation_burst.py": "bed4fb01fb3d98c1d23428f468ceb339aac644482ff44193104ab2bcab51446f",
+          "default_geists/code/pattern_finder.py": "7cda687785dd7e0481a56db9d8fa4c846e66f054b8d3e8951023c26e96c5b4c3",
+          "default_geists/code/quote_harvester.py": "e28f1180cda42ea5e653b549b889da58dcf491e2d39b0d1eed6c5eac970ec563",
+          "default_geists/code/this_time_last_year.py": "ecd587cb468fc05034d3fbd111d11ba4f856ab9858406c7ab4f9e29b5d659144",
+          "default_geists/code/hypothesis_harvester.py": "b7dcd4e07601a0b22e630de336452bd908a417c94b2ea4ee945db312ff25bd12",
+          "default_geists/code/link_density_analyser.py": "1b0e21746e96ceec1607fe77e9e742a410bb04906e7044d9b2a562113a5cf399",
+          "default_geists/code/question_harvester.py": "00d3ab93bdc3a7073ac95c6d721b10eed815fb967d105ba526afb2b52543fc98",
+          "default_geists/code/definition_harvester.py": "cfd1f175aa27b7f6f46cf2d557478ae3633d48e6fc46918168982ad1a4a683b1",
+          "default_geists/code/concept_cluster.py": "6735e0c106a1b8fdd9b36364de7a9c55cafbb781ff3b65a31538e7d035e23190",
+          "default_geists/code/structure_diversity_checker.py": "84dab45ea2b5b1a94882eab26b934611bfbea4773043afe2c2e2a7249a5155a7",
+          "default_geists/code/attention_shift.py": "48a0809ffd7dd1f247351503814a7368312dee5329b5bddb4adfae0eabd42aa7",
+          "default_geists/code/vocabulary_expansion.py": "46477fc933a061c1dcf0a2f47f68455d7be24fa8b3c0354d41c8b8cf64a6de85",
+          "default_geists/code/temporal_drift.py": "900ef15c952d2ee58b4a0b9ea0a08fc649531d4c74ce53089a482c4691a7b221",
+          "default_geists/code/__init__.py": "c7fb33ba8474cdd7b0b9e017a7e072d64611b76b5ee798d0a49926af5679f4f7",
+          "default_geists/code/seasonal_patterns.py": "f72d2537566c49daf7f9df7a9aa0bda5fa250eb7ac32c4fc29293c3031d26702",
+          "default_geists/code/convergent_evolution.py": "7718f4da93db501f88c1ca520991a242e6a88cb94698e4a87b3d3c6b4479f6ca",
+          "default_geists/code/todo_harvester.py": "034d16d0258c82654b4996e0f4b762e20e310379876d91853655a72203b2b940",
+          "default_geists/code/word_burst.py": "e95cca4cf5248d1dc21c1b36b5e731fc14b5eb175564e79aa62704ab6c709fd2",
+          "default_geists/code/concept_drift.py": "832e120f55b1465c138ad6405eb4288b80febc574d7943131aa5e9e6cb9fdb41",
+          "default_geists/code/method_scrambler.py": "a44a21ebb73ad84176cd234d8522ad482769687a01d82206da5d0f7390cbd0fb",
+          "default_geists/code/density_inversion.py": "d1dd0b4e3be700dc938a82a348bca38ef748a394e9050ae7a326930bcceaca9c",
+          "default_geists/code/scale_shifter.py": "7e66f56410696bc22cccf0c5272c148d06b8cd6b87bc06b28763211c91dd27c8",
+          "default_geists/code/self_and_other.py": "e0e7893b564e4e959e0821cfab7814e51acfd453f66403f43e643b1f253b6310",
+          "default_geists/code/recent_focus.py": "ec7a65bbe7e2fdfd3be8b2e2c84425601db619bb77174766992e71e5ba7a0af1",
+          "default_geists/code/task_archaeology.py": "0c0ad622d36b86a6893c4b334fed07ee3dfac403337c7f75c5e4080ec18c9e0d",
+          "default_geists/code/claim_harvester.py": "9132f7a5107ed4db2afa37f884b45b648c8fdbab9cbd02d5809d499a117effb9",
+          "default_geists/code/bridge_hunter.py": "699362529ca8e9c78b8097741442dc37bb2a868fef6088725c4d7095510efcea",
+          "default_geists/code/bridge_builder.py": "9a3760e2d9d2583165f2a057c17184ed435bfebc2d83919ebbd715f73d8648d2",
+          "default_geists/code/cluster_mirror.py": "fc5acbd2bc9fe2c53e95789879283598fba161708fdb5681243eb02ef5aa474f",
+          "default_geists/tracery/__init__.py": "59e6d36d9c296f2ad8e2eca95f5757acabe5afe766d984446bc43142ff4d48a1"
+        },
+        "fresh_seconds": 19.396683930994186,
+        "execution": {
+          "geist_id": "word_burst",
+          "status": "success",
+          "suggestion_count": 3
+        },
+        "questions": [
+          {
+            "text": "From 2026-06-15 to 2026-07-05, ‘the boots’ appeared in 3.82% of observations, compared with 8.4% during the earlier period 2024-10-14 to 2026-06-14, using current text grouped by declared dates. Current passages: [[bimotored indian chocolate|repeated the passage and]]: “HEARTHRUG NEAR **THE** BOOTS AND *SHOES”; [[audiometric closed-heart surgery|but there stood]]: “please go after waiting to settle the boots every day and talking to nurse”. Could the earlier use in [[bimotored indian chocolate|repeated the passage and]], [[audiometric closed-heart surgery|but there stood]], [[miry anadiplosis|about anxiously fixed on it]] offer a useful lens for what you are working on now, or has this language done its work?",
+            "notes": [
+              "bimotored indian chocolate|repeated the passage and",
+              "audiometric closed-heart surgery|but there stood",
+              "miry anadiplosis|about anxiously fixed on it",
+              "able-bodied automatic teller machine|Found IT DOES THE BOOTS",
+              "acrocarpous sura|ALICE'S LOVE.",
+              "adjustable apron|Advice from which case with",
+              "administrative pasta salad|After that they",
+              "adust ginger|Will the trouble yourself said",
+              "affixial collinsonia canadensis|Nothing said No indeed said",
+              "aftermost doctrinaire|Come here poor speaker said",
+              "aimless ranee|After a muchness did",
+              "airlike conduct|Of course had expected before",
+              "akimbo metal|I'd better to look",
+              "alar bedsitting room|Fetch me at",
+              "alcalescent winker|Beau ootiful Soo",
+              "alchemic american copper|Reeling and I",
+              "algoid terence rattigan|one only look like",
+              "alphabetic eurydice|And she be removed.",
+              "altricial anaplasmosis|Suddenly she at HIS",
+              "ambitionless mendicant|Back to work it added",
+              "amerciable laminariaceae|Hush.",
+              "amerciable storehouse|Some of having a",
+              "amphiprostyle hyper-eutectoid steel|Found WHAT things",
+              "analogical apollo program|Coming in existence and",
+              "annelidan bessemer|Once upon them a",
+              "annular garlic chive|Right as Alice found this",
+              "antemortem cub|Please your story for",
+              "antler-like simhat torah|I'LL soon left",
+              "antlered paul hindemith|fetch it thought it's",
+              "anuran closed book|Get to your walk.",
+              "aphanitic acular|Can you fellows",
+              "apheretic reveler|For really offended tone",
+              "apprehended columniation|Still she answered",
+              "arbitrative bomarea edulis|Once more if you'd",
+              "arboraceous snap roll|Seals turtles all mad.",
+              "archdiocesan specialty store|Silence.",
+              "argent catchphrase|Turn that first idea to",
+              "argent lilium|that there's an",
+              "argumentative image compression|Poor Alice joined the mushroom",
+              "at peace national liberation front of corsica|Once more As wet as",
+              "atonal allurement|Ugh Serpent.",
+              "auctorial rainstorm|My dear YOU said",
+              "audacious adhesiveness|ever be of very meekly",
+              "awake velvet ant|Turn that make SOME",
+              "award-winning psychiatric hospital|Dinah'll be at",
+              "awl-shaped psycholinguist|Edwin and went",
+              "awnless surveyors instrument|These words Yes.",
+              "axial theodicy|How puzzling it meant",
+              "azoic proctoplasty|Explain all turning purple.",
+              "backswept hyperactivity|thump.",
+              "bahamian wyeth|Never.",
+              "basidial bitt|No tie em",
+              "battle-scarred preliminary|Begin at this Fury I'll",
+              "belted thorstein bunde veblen|This question it as",
+              "benzoic anglican|All on second thing before",
+              "best-loved french lesson|Soles and help",
+              "bifoliate private detective|Right as ferrets",
+              "bilabial star divination|Besides SHE'S she",
+              "biographical omelette pan|Tis so kind to",
+              "bionomic high-vitamin diet|Pinch him declare",
+              "biotitic hiv|No never ONE.",
+              "black-coated tetrao|There's no.",
+              "black-grey senescence|Soup so.",
+              "blastospheric combustible material|Two.",
+              "blest oka|Stuff and holding and tremulous",
+              "blood-filled knife thrust|cried.",
+              "blooming diplopterygium|There's PLENTY of more than",
+              "boisterous gardenia augusta|She'd soon began nursing it",
+              "boisterous quellung reaction|Consider your head",
+              "bone-idle nursing care|Edwin and get",
+              "bossy written communication|persisted the Hatter went down",
+              "brainy fern seed|Reeling and off writing on",
+              "brash agonus|An invitation from",
+              "brassbound border patrol|Next came jumping about four",
+              "brasslike refractivity|No no doubt for turns",
+              "brazen eero saarinen|Shan't said Get up",
+              "breakneck black spruce|Twinkle twinkle twinkle little girls",
+              "bridal lalthyrus tingitanus|asked triumphantly.",
+              "bristle-pointed home office|Either the bones and",
+              "brittle kingdom of god|Do bats I.",
+              "bronchoscopic pewter|so large canvas bag",
+              "bulbaceous chloral hydrate|Stolen.",
+              "bully billy sunday|That'll be treated",
+              "bumbling felis tigrina|Our family always to",
+              "butterfingered ferdinand ii|Nobody seems to hear",
+              "caliginous congridae|for YOU said",
+              "cambial muffle|One indeed to",
+              "candid slag code|Hush.",
+              "canonical lester willis young|Did you that begins I",
+              "carousing countermand|for serpents do that person",
+              "carunculate fletcher|Can't remember where.",
+              "cathodic five-finger|Now I fancied",
+              "cationic self-loader|so useful it's pleased",
+              "celibate suksdorfia|Beautiful Soup does.",
+              "censorious dusk|Would YOU are waiting for",
+              "center drosophyllum|Get to be patted",
+              "certain muscle system|Those whom she",
+              "certified stamping ground|With no harm",
+              "cholinergic stakes|Good-bye feet at",
+              "choreographic trinitrotoluene|Sure I shan't go"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:7de3a5370b57467da1741b733fe7318412ae909b27bb39bf9045834a75a5fe9c:2026-06-15:2026-07-05"
+          },
+          {
+            "text": "From 2025-11-24 to 2025-12-07, ‘nearer is’ appeared in 9.38% of observations, compared with 4.16% across the window, using current text grouped by declared dates. Current passages: [[undamaged jib|She took down]]: “like the oldest rule and swam nearer is sure to go in before but”; [[al dente downside|He only things in]]: “muttered to undo it may go nearer is such things went off from being”. What changes if you read [[undamaged jib|She took down]], [[al dente downside|He only things in]], [[adsorbent fragility|Give your interesting]] beside one another through ‘nearer is’?",
+            "notes": [
+              "undamaged jib|She took down",
+              "al dente downside|He only things in",
+              "adsorbent fragility|Give your interesting",
+              "bolographic duck-billed platypus|Stop this must sugar my",
+              "certified costochondritis|When we used and",
+              "controllable himmler|Either the name signed at",
+              "curly-grained regular hexagon|exclaimed Alice or",
+              "farseeing chincapin|Stuff and whiskers",
+              "fire-resisting new york strip|Poor little pattering of Mercia",
+              "frostian x|Hand it myself about.",
+              "hydrodynamic alnico|Really now my arm",
+              "seventy-four penstemon cyananthus|Call it say what",
+              "slovakian bailment|She'll get out in",
+              "stigmatic genus addax|I'm afraid said nothing of",
+              "theological blood count|Off with me giddy.",
+              "two-leafed pointed arch|Down the shock of them",
+              "unionised awayness|It matters a Long Tale",
+              "unvulcanized arabidopsis thaliana|Sing her lessons"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:01868573e7e52c49a5e8f29ff130edd28c4ae47dcbb0a216726b679809a976e2:2025-11-24:2025-12-07"
+          },
+          {
+            "text": "From 2025-09-29 to 2025-10-26, ‘picked’ appeared in 4.17% of observations, compared with 8.76% during the earlier period 2024-10-14 to 2025-09-28, using current text grouped by declared dates. Current passages: [[three-petalled hearing dog|One side and loving]]: “nothing better finish my mind she picked her”; [[uneventful relational database|exclaimed.]]: “Suppress him when you've been picked her best”. Could the earlier use in [[three-petalled hearing dog|One side and loving]], [[uneventful relational database|exclaimed.]], [[specified order temnospondyli|Run home thought at]] offer a useful lens for what you are working on now, or has this language done its work?",
+            "notes": [
+              "three-petalled hearing dog|One side and loving",
+              "uneventful relational database|exclaimed.",
+              "specified order temnospondyli|Run home thought at",
+              "aberrant suspiciousness|muttered the master says",
+              "abreast princeton university|Up lazy thing she if",
+              "absolvitory tipulidae|Why what he hasn't one",
+              "acanthous gorge|Nobody moved on",
+              "acquisitive professional organization|Nothing whatever said",
+              "actinomycetal jacqueline cochran|Alice turned crimson with",
+              "active absoluteness|A large she",
+              "acyclic loblolly|Seven jogged my ears have",
+              "adagio enclave|Read them I almost",
+              "addicted nylghai|Of course to",
+              "addled flatbed|Certainly not help bursting out",
+              "addlepated chloranthaceae|here I sleep these words",
+              "adjudicative tycoon|RABBIT engraved upon",
+              "administrative pine tree|There was considering how",
+              "agape barunduki|Indeed she ought",
+              "agaze spectrometry|Fetch me at your",
+              "age-related genus sitophylus|quite enough under it",
+              "agglomerated licensing agreement|Cheshire Puss she tucked it",
+              "agglutinate auditory ossicle|Soup of what work shaking",
+              "agreed upon protrusion|Their heads downward.",
+              "aguish trimmer arch|Can you goose.",
+              "alleviated tiffany|To begin.",
+              "allophonic phalacrocorax|That he shook both",
+              "aloof ignatius|Take care where",
+              "ambagious temperateness|shouted at tea-time.",
+              "analphabetic xenotime|Now we shall sing.",
+              "anaphylactic overcomer|Let's go back",
+              "andantino southern triangle|which way through into her",
+              "androgenic insurability|But they sat silent.",
+              "anechoic dr. seuss|so nicely straightened",
+              "anemometrical tie tack|Twinkle twinkle and drew",
+              "angiomatous hog|Suppose we shall.",
+              "angry stowage|wow.",
+              "anguished aid station|as its arms took",
+              "anguished wale|_I_ don't speak to twenty",
+              "antifertility gangrene|Serpent.",
+              "antique coffee rose|Behead that attempt proved a",
+              "antitank weightiness|Oh I've kept",
+              "anuric superfamily tineoidea|Nothing can kick",
+              "aortal mourning cloak butterfly|Either the unjust things to",
+              "apetalous gee-gee|that he shook his belt",
+              "apiculate tropopause|Stop this and loving",
+              "apish strangler fig|UNimportant of gloves",
+              "arced hieracium venosum|Let's go and those",
+              "argent drive-by killing|Be what had happened.",
+              "argillaceous genus templetonia|However this as far",
+              "aroused eastern standard time|Pepper For you",
+              "assuring ice field|Never imagine yourself some",
+              "astrophysical setter|They couldn't afford",
+              "asyndetic bowling league|Off Nonsense.",
+              "attenuate batfish|Sure it's getting the",
+              "aversive nooks and crannies|THAT you must",
+              "awake velvet ant|Turn that make SOME",
+              "awestricken genus argyreia|Sure then they're making",
+              "basal pouched mole|THAT like this",
+              "basidial bitt|No tie em",
+              "batter-fried pinniped|it does very cautiously replied",
+              "bearded blasphemer|Anything you seen them all",
+              "beautiful platen|In which seemed not remember",
+              "bedraggled homogeneousness|Hold your shoes",
+              "bicylindrical josiah willard gibbs|That WAS a",
+              "biedermeier knight templar|Or would become very",
+              "bifurcated astacus|However jury-men would die.",
+              "bluish black brown lacewing|Keep your jaws.",
+              "boxed-in sri lanka rupee|Give your waist the spot.",
+              "braggart practician|All the exact",
+              "brainy fern seed|Reeling and off writing on",
+              "breech-loading spiral|Of the bank",
+              "buddhist canadian hemlock|Nor I begin lessons you'd",
+              "bullish chemical property|There was playing",
+              "calyceal howe|Seals turtles salmon and bawled",
+              "calycled bloomsbury group|Let the reason and",
+              "capitulary oreortyx|Bill's to have imitated",
+              "carbonic suborder sauria|that cats nasty",
+              "card-playing genus mesembryanthemum|when Alice remained",
+              "cardiovascular moral|Please your cat which",
+              "catty-corner limacidae|It's by talking",
+              "celibate burthen|Nearly two and and cried",
+              "censorial parthenium argentatum|There were resting",
+              "centralised beggary|Said the small",
+              "centrical lady friend|about anxiously.",
+              "centrifugal sinapis alba|Only a queer-shaped little",
+              "cephalopod scombroid|Prizes.",
+              "chichi italian bread|as usual.",
+              "chirpy blackpoll|Pig.",
+              "chirpy ramjet engine|Ten hours to work very",
+              "chlorophyllose toea|or fig.",
+              "chondritic tachypleus|An invitation for this mouse",
+              "choosy hosiery|RABBIT engraved upon pegs.",
+              "choreographic trinitrotoluene|Sure I shan't go",
+              "chthonic family squillidae|I've got a chorus Yes.",
+              "chylaceous gateau|Suppose it sounds uncommon nonsense",
+              "clouded designer drug|Those whom she ran the",
+              "cloudy rheum palmatum|Explain all come and",
+              "commanding genus tripleurospermum|Luckily for repeating YOU",
+              "comparable order podicipediformes|CHORUS.",
+              "compassionate operations|Down the story."
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:fe6580207374d425a00943094ccc26c2ed307aef495ee8360eab2e23b4e94380:2025-09-29:2025-10-26"
+          }
+        ],
+        "findings": 4257,
+        "result_sha256": "41737c14a8ed67255eadd57b9dd42523d38e5a16e667730b2405e8dab883bd3b",
+        "diagnostics": {
+          "documents": 10000,
+          "populated_bins": 104,
+          "min_documents": 50,
+          "min_populated_bins": 8,
+          "history_mode": "dated_cohorts",
+          "candidates": 28239,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": true,
+          "reason": "burst",
+          "collection_seconds": 0.0,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "cached_seconds": 0.702618335999432,
+        "whole_process_peak_rss_mib": 944.26953125
+      },
+      "triples": {
+        "kind": "triples",
+        "legacy_database_first_use": true,
+        "timeout": 120,
+        "inference": false,
+        "source_sha256": {
+          "journal_writer.py": "956b8e1fd2599989cd7303e4016b75c2278842dbc5432ae1f9fbd18420c49ffc",
+          "clustering_analysis.py": "5e1ea454eca8dd9a98ab9c07803056d74996d4273f5550227d3dec54475c2944",
+          "config_loader.py": "448e09f04fb9ed4e644c757fadcb2f7439457af94f86776f3969c4f19e27be7f",
+          "bounded_yaml.py": "4ea56605e734a5c24051e166d5285096397f40fb1ed90728cd9d428aba39d82f",
+          "vector_math.py": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+          "word_burst_analysis.py": "69a7a16627ec14c074509275cc01e3e7d1c3678b04f952603aa15d25a3d93467",
+          "validator.py": "53f8c5393eb25f389c53323eb2d36c25e7f6c2452d8c0a44d468755c86291e1d",
+          "cluster_labeling.py": "23afd8281670e4203a10bd592037b435b5672a5dff4823fe37756b97ad8c3f6b",
+          "function_registry.py": "088135ca5935a8300fc49882a3fbb8111f74928ee5319d63b4a456f5282629e6",
+          "date_collection.py": "5fcb35fcabecb6c1b32109e53ea724193d800238391a6877602a8b6060cbaf40",
+          "embedding_metrics.py": "49db397f826ba056b092591366873e07b97afed7cfdbe8da795fc6c88ff91d3c",
+          "similarity_analysis.py": "ecdb9c8f90dff2abaa8f5d88fd8d8a45c1b48d5ec6dea762938fa6a8ae8f9985",
+          "stats.py": "95d20f3123d1315ae4ecfab30480b45048a55e610b083e9d50da1aff095db4a0",
+          "session_time.py": "de15e2f1dcbe4e82824da48d7c938d0be39cae153e28958f90bfb9a18b53839b",
+          "config.py": "199f9f6c6ad73c15e419c5b5d89c52a296f95f88e058e3a97e91a91dfb2fb315",
+          "lexical_candidacy.py": "e82075d3cafe59302692f15d4fd4ba88ee7fb4f82b3ac98b331f0ca447e7e7b1",
+          "sqlite_transaction.py": "eb6c5e76be05fbd578f4dfcbe2108d769ca11660c4dd171b2de64271067376fd",
+          "models.py": "da4cdbe64b9bdd4c7c6e6bb9b0d1be68b6fd0481acc634cdf7e867cac534e6ab",
+          "vector_search.py": "dd515e2cb012848347da7b8c15e0321f7c458de82f4318d819e7da0ad593e397",
+          "vault_context.py": "5cc09a47704b8e1b56170b8c8d53cc2689d5813262c85aba8ed047dedb107d6a",
+          "embeddings.py": "2d4df19c6ac5d23c7f424fc2ba7c13203db3b20a549be0686c9da8b0c912d8ff",
+          "metadata_system.py": "b08192743aad7e2d1adf3b5897fa113958fa8c80e9a08234d881ffa2f1dd5946",
+          "semantic_vectors.py": "7b54cfb25770b60bcdf8a9697de0ac731f53642daf43eef677376587a6a05589",
+          "word_burst_sparse.py": "9518dd1e43bdeae8148bd63f6dd6933d7ded3441c9ba9d2242c34156cecf4d82",
+          "stats_formatter.py": "fe10667a6c9982c6438a0ea29f2c9ca41a7339b5212199ed537cd410c3a51254",
+          "content_extraction.py": "65a553ae7bc5897bb21e560f3f8a921288dedbc52c15a214def76926dee1cdae",
+          "text_embeddings.py": "ddb94956f96f8daa4d039e607b165f6ca66fb27e71bcf686d736ef75a3060653",
+          "lexical_index.py": "7d4b7f4703445a4203e9cba7db01f718154089274faf81903882900c65e376b3",
+          "graph_analysis.py": "8e97c9fd231d30fa4cda83661d8132ce4583af587f084e725e8bef926c454550",
+          "evidence_identity.py": "9209f77217fa36b1e87ef4e9380992269aff50b615ba081372e6b51b02bb0381",
+          "path_safety.py": "dfca5b7a5382c178614ec6a2a205b16479a4d8fb71f31c4faf998273d05b31c6",
+          "suggestion_limits.py": "ef5e75d01126750335b379f630419fd9ec4fcd62416b26697790268795bfc498",
+          "__init__.py": "1c5c2a26644c65afe0c58ae776176139947d276844db03dd7b979576ad5e7207",
+          "geist_status.py": "63a97b3a687a0c85cfc4c2a1e2e65a44943e16a5db9adba810b6fc5f8689c2c1",
+          "markdown_parser.py": "c1f1dd928584724b260a516622fcefd1c01b9aa1c815f259ed06f8ee4e97eae8",
+          "voice_analysis.py": "2ed635646ea02948dad2ec17c3edd287bd87745e500c6548d37c86b6f12fff0b",
+          "schema.py": "cbea67aeac2dad977e7a1dd165355e5ae261135755c5545916abaf7c52b5340b",
+          "tracery.py": "030450918b0c714647fc08bcb83793ab76e10544c0d76f85dcfe50065907e155",
+          "word_burst.py": "4c631a13cdf8d8c8e7b90e255020d087ebc0807a75c19f4371a3a0ea1b7248f5",
+          "source_eligibility.py": "4cc71065f051f285ebcdc75e62916157bfffabc3ab63920c8ca4fc97ffe224ca",
+          "lexical_presence.py": "957972b25336e91dd1e7a27cece4509d759e1a22ce8ce652c8c8387af879317e",
+          "geist_executor.py": "05a8ec775111a2a93350c89d89cc9691c26dc98d6d446ecbdf8fbd7d21bb2fd6",
+          "execution_timeout.py": "6c439687ac79bbf44e9d41238f0783cc4697488871159d1001065a25e7b469ae",
+          "vault.py": "7277553e0ed3b74635b8f0809f8970e35f1dfa13aa0021e8c59d0dfaacc22ff6",
+          "temporal_analysis.py": "6578a5e01f58c6d940cd0c4dcfa93b28f1761823986a5d1d9bcbad3a2837952c",
+          "document_rate.py": "68e90198cbebfea489ceab87338135f70dbb9f35938807e7f6aecb9a97619ee4",
+          "filtering.py": "bb2d051f19ae4191ece2eae571b11e9b102fe229ce304b9d1c1719373a112006",
+          "cli.py": "d66d06a5554958406af6475f1ccf78ca3b801d84167df63b095c5f4b42082f5c",
+          "model_data/__init__.py": "54c5fc6bfa094b88027a15d5f00251eea069723eb351c2fdc20a78f616c6e74c",
+          "commands/invoke.py": "0c4d54a507fb37e85a122a373da37a8d966fd0392886111d4aabb18e7039cd84",
+          "commands/stats.py": "b110f0d6c78cf326a0627591d4c7272d23f5306b9db4043b9a1c286e7d3dcffb",
+          "commands/validate.py": "d8cb43fc88b082e0657a07eaecc6e1ab557bc7616e446b20489ee0c03da6aef2",
+          "commands/__init__.py": "20f64a146c939ec17c911992038e57e519a690275f5380c16263477aaec0ba32",
+          "commands/initialize.py": "4da554c76a4a30657079bab79e146e0e184181c676205391f94b1ac0a66deb59",
+          "commands/runner.py": "ef067425d250c72c665aaa0c5b5de687c1b2d4bdf70a83f25729c398b2a62fbc",
+          "commands/base.py": "959f4b8e2bc14a24f8dac4962331af561d12473529c4846ce0f798c64f0c5d1e",
+          "commands/batch_runner.py": "42282920c743c428a12c05048da6c1cba0d0b2520a12da213fe0d24256cd44cf",
+          "default_geists/__init__.py": "09e9698ab517785e4f13264d51c979f6937f4ee397400a01e7fc106636f096e3",
+          "default_geists/code/sentence_variance.py": "bedaac4fca6bc074194ac603de34827229685fe9331f4f9a9f1c7dd9f544e1d0",
+          "default_geists/code/voice_absence.py": "5db82b6f1280098b8388f09375989fae21343044b2713ecf0dd5991a54b6f515",
+          "default_geists/code/metadata_driven_discovery.py": "2e61093bfc28a2e9ee0aff40f7392004a288416348d5adb60da68a83f584f9c7",
+          "default_geists/code/uncertainty_mapper.py": "dd5efce96f603446c9821ac1a55612db5d3ecdc7e1e01cf6b753ffd916c32683",
+          "default_geists/code/orphan_connector.py": "8df7a5acca2dda741624ecf52a27318026d357dbfee2c332e3cadaec9319e9bd",
+          "default_geists/code/stub_expander.py": "e9f71ca36717b588cc2ef5aa7d63270bb83bb7b752f518f0f6cf0abd8b8dd3bb",
+          "default_geists/code/surprisal.py": "f8202fa10d3d29b7f69c762ed754104ea73b35b0f7f7dabbc796c09931383dc5",
+          "default_geists/code/divergent_evolution.py": "c66f51a308a8be558f074d0123ee24823efcda561dc786772f93ea8c82f9024e",
+          "default_geists/code/cyclical_thinking.py": "92cafd8b74a705a73c9084e60e9d71e80f74be72983340c2cde6143870ef0e41",
+          "default_geists/code/hidden_hub.py": "d4b455a18f01ba78f3609c3937d61d58eadd89b8a12be4703ced45001929bd4a",
+          "default_geists/code/question_generator.py": "08ff6701201c605b2af2b6adc03efa5fc75b82ccc81b2dc2d566e1efe134a410",
+          "default_geists/code/assumption_challenger.py": "06694b4e158e0a9cd16758e558eaf2661eb27d78b167e80937d6dfdb3fdb5193",
+          "default_geists/code/temporal_clustering.py": "b298eaefc8b003c7d32219c85b7f27e1c368982e994fc99a5f002c7f98d82172",
+          "default_geists/code/creative_collision.py": "b2c40d9438b0711a1b519276631cd3a6d53d7aaabeea16bcd4531f3a79c26cce",
+          "default_geists/code/creation_burst.py": "bed4fb01fb3d98c1d23428f468ceb339aac644482ff44193104ab2bcab51446f",
+          "default_geists/code/pattern_finder.py": "7cda687785dd7e0481a56db9d8fa4c846e66f054b8d3e8951023c26e96c5b4c3",
+          "default_geists/code/quote_harvester.py": "e28f1180cda42ea5e653b549b889da58dcf491e2d39b0d1eed6c5eac970ec563",
+          "default_geists/code/this_time_last_year.py": "ecd587cb468fc05034d3fbd111d11ba4f856ab9858406c7ab4f9e29b5d659144",
+          "default_geists/code/hypothesis_harvester.py": "b7dcd4e07601a0b22e630de336452bd908a417c94b2ea4ee945db312ff25bd12",
+          "default_geists/code/link_density_analyser.py": "1b0e21746e96ceec1607fe77e9e742a410bb04906e7044d9b2a562113a5cf399",
+          "default_geists/code/question_harvester.py": "00d3ab93bdc3a7073ac95c6d721b10eed815fb967d105ba526afb2b52543fc98",
+          "default_geists/code/definition_harvester.py": "cfd1f175aa27b7f6f46cf2d557478ae3633d48e6fc46918168982ad1a4a683b1",
+          "default_geists/code/concept_cluster.py": "6735e0c106a1b8fdd9b36364de7a9c55cafbb781ff3b65a31538e7d035e23190",
+          "default_geists/code/structure_diversity_checker.py": "84dab45ea2b5b1a94882eab26b934611bfbea4773043afe2c2e2a7249a5155a7",
+          "default_geists/code/attention_shift.py": "48a0809ffd7dd1f247351503814a7368312dee5329b5bddb4adfae0eabd42aa7",
+          "default_geists/code/vocabulary_expansion.py": "46477fc933a061c1dcf0a2f47f68455d7be24fa8b3c0354d41c8b8cf64a6de85",
+          "default_geists/code/temporal_drift.py": "900ef15c952d2ee58b4a0b9ea0a08fc649531d4c74ce53089a482c4691a7b221",
+          "default_geists/code/__init__.py": "c7fb33ba8474cdd7b0b9e017a7e072d64611b76b5ee798d0a49926af5679f4f7",
+          "default_geists/code/seasonal_patterns.py": "f72d2537566c49daf7f9df7a9aa0bda5fa250eb7ac32c4fc29293c3031d26702",
+          "default_geists/code/convergent_evolution.py": "7718f4da93db501f88c1ca520991a242e6a88cb94698e4a87b3d3c6b4479f6ca",
+          "default_geists/code/todo_harvester.py": "034d16d0258c82654b4996e0f4b762e20e310379876d91853655a72203b2b940",
+          "default_geists/code/word_burst.py": "e95cca4cf5248d1dc21c1b36b5e731fc14b5eb175564e79aa62704ab6c709fd2",
+          "default_geists/code/concept_drift.py": "832e120f55b1465c138ad6405eb4288b80febc574d7943131aa5e9e6cb9fdb41",
+          "default_geists/code/method_scrambler.py": "a44a21ebb73ad84176cd234d8522ad482769687a01d82206da5d0f7390cbd0fb",
+          "default_geists/code/density_inversion.py": "d1dd0b4e3be700dc938a82a348bca38ef748a394e9050ae7a326930bcceaca9c",
+          "default_geists/code/scale_shifter.py": "7e66f56410696bc22cccf0c5272c148d06b8cd6b87bc06b28763211c91dd27c8",
+          "default_geists/code/self_and_other.py": "e0e7893b564e4e959e0821cfab7814e51acfd453f66403f43e643b1f253b6310",
+          "default_geists/code/recent_focus.py": "ec7a65bbe7e2fdfd3be8b2e2c84425601db619bb77174766992e71e5ba7a0af1",
+          "default_geists/code/task_archaeology.py": "0c0ad622d36b86a6893c4b334fed07ee3dfac403337c7f75c5e4080ec18c9e0d",
+          "default_geists/code/claim_harvester.py": "9132f7a5107ed4db2afa37f884b45b648c8fdbab9cbd02d5809d499a117effb9",
+          "default_geists/code/bridge_hunter.py": "699362529ca8e9c78b8097741442dc37bb2a868fef6088725c4d7095510efcea",
+          "default_geists/code/bridge_builder.py": "9a3760e2d9d2583165f2a057c17184ed435bfebc2d83919ebbd715f73d8648d2",
+          "default_geists/code/cluster_mirror.py": "fc5acbd2bc9fe2c53e95789879283598fba161708fdb5681243eb02ef5aa474f",
+          "default_geists/tracery/__init__.py": "59e6d36d9c296f2ad8e2eca95f5757acabe5afe766d984446bc43142ff4d48a1"
+        },
+        "fresh_seconds": 53.62390601600055,
+        "execution": {
+          "geist_id": "word_burst",
+          "status": "success",
+          "suggestion_count": 3
+        },
+        "questions": [
+          {
+            "text": "From 2025-07-07 to 2025-09-07, ‘by mistake about’ appeared in 0.926% of observations, compared with 2.54% during the earlier period 2024-10-14 to 2025-07-06, using current text grouped by declared dates. Current passages: [[basiscopic autumn|Off with large]]: “appeared but alas for going back by mistake about by his toes”; [[ataraxic trespass de bonis asportatis|HEARTHRUG NEAR THE]]: “head first verdict **he** got back by mistake about it up at your feelings may”. Could the earlier use in [[basiscopic autumn|Off with large]], [[ataraxic trespass de bonis asportatis|HEARTHRUG NEAR THE]], [[lucrative diplococcus pneumoniae|Pennyworth only one side to]] offer a useful lens for what you are working on now, or has this language done its work?",
+            "notes": [
+              "basiscopic autumn|Off with large",
+              "ataraxic trespass de bonis asportatis|HEARTHRUG NEAR THE",
+              "lucrative diplococcus pneumoniae|Pennyworth only one side to",
+              "anatomic plectorrhiza|on treacle out",
+              "antifungal ossicle|Alice began a",
+              "antiphonary frat|about half hoping she considered",
+              "antlered paul hindemith|fetch it thought it's",
+              "archidiaconal dds|ever said So you",
+              "awful relativity|Can't remember said this",
+              "bicameral jersey knapweed|Idiot.",
+              "bicylindrical josiah willard gibbs|That WAS a",
+              "blate fringe|Call the OUTSIDE.",
+              "branchiopodan ecstasy|Thank you a rule at",
+              "bucolic senility|Dinah at applause which",
+              "calligraphic clon|added to lose YOUR",
+              "capacious plectrophenax|Sure it's generally",
+              "caucasic order parietales|you thinking I",
+              "caudated voting machine|Whoever lives there ought.",
+              "ceaseless irrationality|CHORUS.",
+              "chiromantic village|Pennyworth only the words",
+              "coal-burning marlinspike|Boots and giving it directed",
+              "complemental romanesque|IT TO BE",
+              "contemptuous 10000|YOU do nothing seems",
+              "cross-town keflex|but I and conquest.",
+              "darling watering hole|it meant the locks were",
+              "demonstrated onslaught|I hope I believe there's",
+              "discoidal wine-makers yeast|Would YOU sing Twinkle twinkle",
+              "dizzy southern tai|UNimportant of finding that",
+              "dud intercommunion|Two began smoking again very",
+              "dwarfish lead time|She's under its dinner",
+              "elderly calliphora|Down the two reasons.",
+              "elicited solute|Five in custody and",
+              "flexile joseph pulitzer|Of the look for",
+              "fourth passiflora mollissima|Hold up into her",
+              "gaelic shedder|thought of Tears Curiouser and",
+              "gamy cordwood|Can you mayn't believe.",
+              "good-for-nothing genus collinsonia|Perhaps not so there MUST",
+              "high-stepping acromikria|Why should like said aloud",
+              "horrific legal proceeding|Anything you talking",
+              "in the public eye forceps|ALL he checked himself",
+              "in their right minds genus heteranthera|muttered the kitchen.",
+              "influential fleet street|You've no doubt",
+              "intelligible drying agent|Bill's got a pity.",
+              "intermolecular old world hop hornbeam|Behead that followed him",
+              "isolable shutting|Of course the middle",
+              "low-grade plaster of paris|Behead that only",
+              "maledict sickle alfalfa|No no time",
+              "mirky tack hammer|Luckily for bringing",
+              "mismated inkpad|Soles and unlocking",
+              "nasty moneses uniflora|Silence all know",
+              "nine-membered photolithograph|While she crossed her dream",
+              "nonpasserine potato fern|Leave off like",
+              "nutritive bucephela clangula|Nearly two sobs choked and",
+              "open-minded quartering|for repeating YOU must be",
+              "paramount uncle joe|Everything's got a",
+              "pennate top of the line|And she's so long",
+              "pentavalent non-catholic|Twinkle twinkle twinkle",
+              "photogenic book of hosea|CHORUS.",
+              "pre-columbian bellman|ever to France Then",
+              "precipitating mistletoe cactus|There seemed inclined",
+              "projectile alluvion|Or would be said",
+              "pug-faced manidae|She'll get to pocket",
+              "pulchritudinous ragpicker|about reminding her sharp bark",
+              "purgatorial united states border patrol|CHORUS.",
+              "purple penstemon palmeri|Down down down",
+              "rimless shock wave|Everybody says come to",
+              "semiotic difference limen|Boots and mouths",
+              "senegalese stocking stuffer|Or would like",
+              "siouan-speaking genus sison|Does the March",
+              "skeletal lamb|Stupid things I",
+              "specialized genus hypopachus|Suppress him the treacle",
+              "spectroscopic co-worker|Or would seem",
+              "starving gypsum|There seemed to nurse.",
+              "stearic methodology|Said he poured a",
+              "terete red maple|or fig.",
+              "terrene upstager|when it's no more conversation",
+              "three-petalled hearing dog|One side and loving",
+              "thyrotoxic granddaughter|Soles and hurried back",
+              "tough-minded vena scapularis dorsalis|Really now for any",
+              "trusty chukchi sea|Come up Dormouse say Who",
+              "turbinate tulostoma|RABBIT engraved upon Alice three",
+              "unambitious thrombopenia|She'd soon as himself upon",
+              "unelaborated versicle|Digging for two to others",
+              "ungual gossypium|That would cost them",
+              "unsurpassed blue wall of silence|Or would NOT be",
+              "unsympathising gee|they don't want YOURS",
+              "utterable honeycreeper|Idiot.",
+              "valid incense|Soon her reach",
+              "well thought out kw-hr|Hadn't time she listened",
+              "well-fed nature study|or I'll never went",
+              "well-mannered freewheel|Wouldn't it pointed to disobey",
+              "womanly butt pack|later.",
+              "wordless rapid|Tell us and Rome"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:44d40626448978a738529d412036a9c3778d9a09cc1ca948b9aac8a010fd1f96:2025-07-07:2025-09-07"
+          },
+          {
+            "text": "From 2025-03-10 to 2025-04-13, ‘help thinking’ appeared in 5.83% of observations, compared with 2.96% across the window, using current text grouped by declared dates. Current passages: [[manipulable battle of little bighorn|I'd hardly room for.]]: “hardly enough to kill it can't help thinking it her about like changing the”; [[aloof ignatius|Take care where]]: “stupidest tea-party I ought not help thinking there could see said”. What changes if you read [[manipulable battle of little bighorn|I'd hardly room for.]], [[aloof ignatius|Take care where]], [[sensible genus bowiea|Not a lesson]] beside one another through ‘help thinking’?",
+            "notes": [
+              "manipulable battle of little bighorn|I'd hardly room for.",
+              "aloof ignatius|Take care where",
+              "sensible genus bowiea|Not a lesson",
+              "adaptational hijinks|What day said.",
+              "at sea actors assistant|they in with blacking I",
+              "battlemented genus lewisia|asked with his father",
+              "beady cystopteris montana|Who's to stand down stupid",
+              "bloodless stuff and nonsense|Pepper mostly Kings and you've",
+              "brainy fern seed|Reeling and off writing on",
+              "electrostatic icon|I've seen a",
+              "evil-minded moghul|Well I'd taken",
+              "factor analytic easel|My name is",
+              "fiducial comoros|later editions continued",
+              "haunted fawn lily|either but I",
+              "high-stepping acromikria|Why should like said aloud",
+              "isomorphic sesquicentennial|Good-bye feet.",
+              "kittenish ancistrodon|Good-bye feet ran",
+              "moravian labor coach|screamed the hall which is",
+              "onerous avocado pear|Suddenly she meant",
+              "pentasyllabic retailer|Visit either question.",
+              "pie-eyed side of beef|as serpents night and",
+              "politic baldy|Begin at dinn she shook",
+              "prohibitive pericallis hybrida|Half-past one Alice Well it",
+              "shopsoiled ticket booth|Half-past one place on then",
+              "short solubleness|At last.",
+              "traditionalistic inverted hang|Tis so managed.",
+              "uneconomical naval tactical data system|Perhaps it for asking.",
+              "unsaid enfilade|Fetch me thought they in"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:8e2b2b999915a0ac6c4f1973e3670982f2ec7ebb6b5ada56aca70a45c3c991d5:2025-03-10:2025-04-13"
+          },
+          {
+            "text": "From 2026-03-09 to 2026-04-05, ‘twinkle little’ appeared in 1.82% of observations, compared with 6.36% during the earlier period 2024-10-14 to 2026-03-08, using current text grouped by declared dates. Current passages: [[addressed object code|Hush.]]: “Twinkle twinkle little wider”; [[sublimated fishing net|added them of beautiful Soup]]: “Twinkle twinkle little bright-eyed terrier you had somehow”. Could the earlier use in [[addressed object code|Hush.]], [[sublimated fishing net|added them of beautiful Soup]], [[wooden-headed cupronickel|Mind that lay]] offer a useful lens for what you are working on now, or has this language done its work?",
+            "notes": [
+              "addressed object code|Hush.",
+              "sublimated fishing net|added them of beautiful Soup",
+              "wooden-headed cupronickel|Mind that lay",
+              "abolitionary christmas holly|Her first then unrolled",
+              "absolved smacker|Stolen.",
+              "according cinclus|Everybody says come",
+              "acrogenic family streptomycetaceae|Mind that said for life",
+              "acrophobic negative reinforcer|Mary Ann.",
+              "activist saint andrew the apostle|Suppose it they gave",
+              "addible brass buttons|It'll be trampled",
+              "adequate to helen|Not yet it's asleep",
+              "adjectival swamp candleberry|So he found that.",
+              "adored callirhoe involucrata|ever said in her",
+              "adrenocortical aristotelian|CHORUS.",
+              "albuminuric uigur|Who's to me",
+              "allomerous mouth hole|Sure then the creature and",
+              "allophonic phalacrocorax|That he shook both",
+              "alphanumerical genus porphyra|one for Alice caught it",
+              "amalgamative lignum|Give your hat the Rabbit",
+              "anal retentive count ferdinand von zeppelin|Silence.",
+              "andalusian gook|won't have wanted leaders and",
+              "angled intimate|Dinah'll miss me very truthful",
+              "anglo-jewish alternanthera|Let's go on to",
+              "annelidan bessemer|Once upon them a",
+              "antiphonary frat|about half hoping she considered",
+              "antonymous prolapsus|Last came upon Bill",
+              "apheretic reveler|For really offended tone",
+              "apostate hydrochloride|If you're at each time",
+              "appalled antisocial personality disorder|Will the experiment tried her",
+              "appellate spalacidae|for any rules in",
+              "appetizing robber fly|Their heads off that",
+              "aramean red tide|Have you usually see she",
+              "arcadian feldspar|I'LL soon.",
+              "arrow-shaped family labiatae|However the executioner",
+              "aryan bench mark|Once more if something",
+              "aseptic computer graphic|Sure it's marked",
+              "atrophic police|said poor animal's feelings may",
+              "attentional william mckinley|Perhaps it means.",
+              "audile osmunda cinnamonea|That's nothing being rather shyly",
+              "audio-lingual greatness|Prizes.",
+              "awed paramagnetism|for fish Game",
+              "awful hydroxymethyl|Chorus again it altogether for",
+              "awful relativity|Can't remember said this",
+              "baneful lather|By-the bye what",
+              "barytic greengage plum|later.",
+              "basiscopic musophobia|Can't remember ever be patted",
+              "bats genus chelonia|I thought they",
+              "belittling ginkgophytina|she bore it uneasily at",
+              "biconcave orange yellow|Would YOU must",
+              "biggish corkscrew|Heads below her pet Dinah's",
+              "biographical omelette pan|Tis so kind to",
+              "blown handiwork|I'LL soon make out",
+              "brachiopodous schuller-christian disease|Mary Ann.",
+              "braggart practician|All the exact",
+              "brainwashed onion plant|Run home.",
+              "brasslike refractivity|No no doubt for turns",
+              "braw zinc sulfide|Ah.",
+              "breakneck black spruce|Twinkle twinkle twinkle little girls",
+              "bristlelike horst|Pepper For instance",
+              "brittle kingdom of god|Do bats I.",
+              "broadloom belles-lettres|That's nothing being held",
+              "buddhist skin-diver|Twinkle twinkle little histories",
+              "bumptious segno|here poor animal's feelings.",
+              "byzantine anatidae|And welcome little.",
+              "calycine insanity|Shy they WILL",
+              "calycular smoke alarm|Hadn't time you all day",
+              "canaliculate universal veil|Pig and skurried",
+              "cancerous fluke|For you should have dropped",
+              "capacious plectrophenax|Sure it's generally",
+              "capillary mesh topology|Sentence first said Five in",
+              "carbonated nightwear|Consider my wife",
+              "cardboard gendarmery|Give your pocket",
+              "carolean fritz w. meissner|Are you might",
+              "carpal stalemate|his shining tail",
+              "caudated voting machine|Whoever lives there ought.",
+              "cenogenetic tribal chief|later.",
+              "centralized james abraham garfield|they in getting",
+              "ceric childs body|Said he repeated her pet",
+              "chilean dynamite|Certainly not gone",
+              "chondritic tachypleus|An invitation for this mouse",
+              "choreographic trinitrotoluene|Sure I shan't go",
+              "chylaceous okra plant|I'll take a hurry",
+              "circumscribed lepus californicus|Twinkle twinkle little",
+              "clincher-built uub|Mind that assembled on",
+              "close together longbeard|Alice whispered She's in",
+              "close-packed exoderm|he poured a telescope that",
+              "closed-door xxy-syndrome|After these three pairs",
+              "cod steamship line|For the earls",
+              "coercive converter|Ten hours I said",
+              "coeval mohican|Digging for really have",
+              "cognitive libertine|Whoever lives a",
+              "cognoscible vermiform process|An enormous puppy was",
+              "commendable crock|persisted the works.",
+              "communicative suborder thyreophora|Soo oop.",
+              "conceptual rosa eglanteria|Nothing whatever said tossing the",
+              "conciliative gayness|for showing off to them",
+              "conditioned screen door|Sing her spectacles and low-spirited.",
+              "contested republic of ghana|for showing off",
+              "continent cassock|Who in them",
+              "contraceptive ms|This sounded hoarse"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:01e58281f6bf40bcf6a12ac01df42b788ed0b43b653443ea4af27626798066d8:2026-03-09:2026-04-05"
+          }
+        ],
+        "findings": 6767,
+        "result_sha256": "52f6178bf1e4d35fe7b53c5eff21f89522302f0a8ab9577fe944c5070c901eae",
+        "diagnostics": {
+          "documents": 10000,
+          "populated_bins": 104,
+          "min_documents": 50,
+          "min_populated_bins": 8,
+          "history_mode": "dated_cohorts",
+          "candidates": 407696,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": true,
+          "reason": "burst",
+          "collection_seconds": 0.0,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "cached_seconds": 0.7777323440022883,
+        "whole_process_peak_rss_mib": 1199.28515625
+      }
+    }
+  },
+  "validation": {
+    "exit_code": 0,
+    "wall_seconds": 533.6081136720022
+  },
+  "canonical_review": {
+    "schema_version": 1,
+    "status": "reviewer_unavailable",
+    "exit_code": 1,
+    "engine": "codex",
+    "report_produced": false,
+    "reason": "engine_failed",
+    "reviewer_exit_code": 1,
+    "timed_out": false,
+    "usage": {
+      "attempts": 1,
+      "reported_attempts": 0,
+      "unknown_attempts": 1,
+      "partial_attempts": 0,
+      "complete": false,
+      "tokens": null
+    }
+  },
+  "canonical_scope": "implementation commit only, not the earlier PR",
+  "independent_review": {
+    "reviewed_source_sha256": {
+      "src/geistfabrik/word_burst_analysis.py": "69a7a16627ec14c074509275cc01e3e7d1c3678b04f952603aa15d25a3d93467",
+      "src/geistfabrik/word_burst_sparse.py": "9518dd1e43bdeae8148bd63f6dd6933d7ded3441c9ba9d2242c34156cecf4d82",
+      "src/geistfabrik/lexical_presence.py": "957972b25336e91dd1e7a27cece4509d759e1a22ce8ce652c8c8387af879317e",
+      "src/geistfabrik/lexical_index.py": "7d4b7f4703445a4203e9cba7db01f718154089274faf81903882900c65e376b3",
+      "src/geistfabrik/schema.py": "cbea67aeac2dad977e7a1dd165355e5ae261135755c5545916abaf7c52b5340b"
+    },
+    "default_caps": {
+      "ordered_full_finding_comparisons": 240,
+      "cached_fresh_date_comparisons": 960,
+      "status": "passed"
+    },
+    "forced_small_caps": {
+      "decode_batch": 2,
+      "series_cache_entries": 3,
+      "series_cache_coordinates": 5,
+      "prepared_coordinates": 3,
+      "source_coordinates": 3,
+      "source_rows": 2,
+      "ordered_full_finding_comparisons": 240,
+      "cached_fresh_date_comparisons": 960,
+      "status": "passed"
+    },
+    "sparse_oracle": {
+      "source_rows": 1100,
+      "unique_week_bodies": 864,
+      "max_stable_id": 9223372036854775807,
+      "dense_columns": 4,
+      "counts_total": 1932,
+      "candidate_order": [
+        "alpha",
+        "theory of mind",
+        "zebra",
+        "Ωμέγα"
+      ],
+      "status": "passed"
+    },
+    "calendar_extremes": [
+      {
+        "end": "0001-01-01",
+        "mode": "dated_cohorts",
+        "findings": 0,
+        "status": "passed"
+      },
+      {
+        "end": "0001-01-01",
+        "mode": "observed_additions",
+        "findings": 0,
+        "status": "passed"
+      },
+      {
+        "end": "0001-01-03",
+        "mode": "dated_cohorts",
+        "findings": 0,
+        "status": "passed"
+      },
+      {
+        "end": "0001-01-03",
+        "mode": "observed_additions",
+        "findings": 0,
+        "status": "passed"
+      },
+      {
+        "end": "0001-02-11",
+        "mode": "dated_cohorts",
+        "findings": 3,
+        "status": "passed"
+      },
+      {
+        "end": "0001-02-11",
+        "mode": "observed_additions",
+        "findings": 3,
+        "status": "passed"
+      },
+      {
+        "end": "9999-12-23",
+        "mode": "dated_cohorts",
+        "findings": 3,
+        "status": "passed"
+      },
+      {
+        "end": "9999-12-23",
+        "mode": "observed_additions",
+        "findings": 3,
+        "status": "passed"
+      },
+      {
+        "end": "9999-12-31",
+        "mode": "dated_cohorts",
+        "findings": 3,
+        "status": "passed"
+      },
+      {
+        "end": "9999-12-31",
+        "mode": "observed_additions",
+        "findings": 3,
+        "status": "passed"
+      }
+    ],
+    "storage_api": {
+      "status": "passed",
+      "known_only_at_exhausted_max": true,
+      "unknown_overflow_before_insert": true,
+      "unicode_distinct_and_duplicates_deduplicated": true,
+      "empty_projection": true,
+      "lookup_batch_boundaries_existing_terms": 1003,
+      "rollback_and_new_writer": true
+    },
+    "repository_test_contents_read": false,
+    "unresolved_substantive_correctness_findings": [],
+    "evidence_sha256": {
+      "baseline_analysis.py": "1e37bd56bde44c23eb3e924643b4a9f4402f5a198072f4a9c1bb7e90705f1288",
+      "date_probe.py": "98195fc9a381fb6bfaab9f46d96317f4edac3fda33254da5dc85dc0ce286855a",
+      "date_results.json": "e74b73041db1a0dd86c97f7184cb4097839dddb7e546998fd7414091a638b531",
+      "final-default/baseline_analysis.py": "1e37bd56bde44c23eb3e924643b4a9f4402f5a198072f4a9c1bb7e90705f1288",
+      "final-default/parity_probe.py": "078baecc11c4be2acabdac8b55bac77b4272441a35acfd8d812be49a751c0010",
+      "final-default/parity_results.json": "4e6900b20a46bd927d58321bec4a06122351dd857b21351eb20100b68ca7612e",
+      "final-tiny/baseline_analysis.py": "1e37bd56bde44c23eb3e924643b4a9f4402f5a198072f4a9c1bb7e90705f1288",
+      "final-tiny/parity_probe.py": "078baecc11c4be2acabdac8b55bac77b4272441a35acfd8d812be49a751c0010",
+      "final-tiny/parity_results.json": "4e6900b20a46bd927d58321bec4a06122351dd857b21351eb20100b68ca7612e",
+      "parity_probe.py": "078baecc11c4be2acabdac8b55bac77b4272441a35acfd8d812be49a751c0010",
+      "parity_results.json": "4e6900b20a46bd927d58321bec4a06122351dd857b21351eb20100b68ca7612e",
+      "sparse_probe.py": "b7a34802ae4a09ee5f26aef6e3ebb0a3473f7c5d98cb84b6ca14a9472ed06623",
+      "sparse_results.json": "b1053d0c2629220eb43d36ae59d11805d0f13136cc4ac44fb19c486171b0c5d6",
+      "storage_probe.py": "6dfffbb71c1c07ee852ce0b485063968aa1e30df6b9774e02a1926f9a6fd9206",
+      "storage_results.json": "6cbed8b465cfca10d696c74ff30f505ebcadaf14cf4e48e1ff3179d327183893"
+    }
+  },
+  "trigram_value": {
+    "scope": "Matched lexical-only candidates and actual word_burst.suggest outputs, not full invocation or saved questions. Fictional corpus, no owner judgments.",
+    "runtime_source_commit": "6660bfa93b2a10f42d8228e9cea2d26924326785",
+    "runtime_package": "/workspace/verification-tools/trigram-reuse/baseline/src/geistfabrik/__init__.py",
+    "protocol_sha256": "87750517c4eaaf87a9f44d7b54f8d90a54acee2f6155d70b3adf4ee705259073",
+    "manifest_sha256": "4dfd127db8611992eed861f237f4a170a018c17dda4d94be39daa8a4c266424b",
+    "ledger_sha256": "edb0dfa178c95dbdcda40506b31c568bc33702f3ea7aa82ad79b81684edbf169",
+    "completed": true,
+    "contexts": 48,
+    "analyses": 96,
+    "modes": {
+      "dated_cohorts": {
+        "common_findings_identical": true,
+        "added_trigram_finding_appearances": 8,
+        "unique_trigram_terms": [
+          "the repair cafe"
+        ],
+        "unique_trigram_term_direction_interval_identities": 4,
+        "same_evidence_nested_appearances": 4,
+        "other_evidence_appearances": 4,
+        "selected_trigram_questions": 5,
+        "identical_selected_question_texts_in_same_context": 29,
+        "arms": {
+          "2": {
+            "finding_appearances": 146,
+            "question_appearances": 41,
+            "active_question_contexts": 19,
+            "unique_question_texts": 41,
+            "unique_lenses": [
+              "cafe",
+              "keep",
+              "repair cafe",
+              "supported"
+            ],
+            "abstention_reasons": {
+              "burst": 19,
+              "insufficient_documents": 5
+            }
+          },
+          "3": {
+            "finding_appearances": 154,
+            "question_appearances": 41,
+            "active_question_contexts": 19,
+            "unique_question_texts": 41,
+            "unique_lenses": [
+              "cafe",
+              "keep",
+              "repair cafe",
+              "supported",
+              "the repair cafe"
+            ],
+            "abstention_reasons": {
+              "burst": 19,
+              "insufficient_documents": 5
+            }
+          }
+        }
+      },
+      "observed_additions": {
+        "common_findings_identical": true,
+        "added_trigram_finding_appearances": 0,
+        "unique_trigram_terms": [],
+        "unique_trigram_term_direction_interval_identities": 0,
+        "same_evidence_nested_appearances": 0,
+        "other_evidence_appearances": 0,
+        "selected_trigram_questions": 0,
+        "identical_selected_question_texts_in_same_context": 0,
+        "arms": {
+          "2": {
+            "finding_appearances": 0,
+            "question_appearances": 0,
+            "active_question_contexts": 0,
+            "unique_question_texts": 0,
+            "unique_lenses": [],
+            "abstention_reasons": {
+              "insufficient_documents": 24
+            }
+          },
+          "3": {
+            "finding_appearances": 0,
+            "question_appearances": 0,
+            "active_question_contexts": 0,
+            "unique_question_texts": 0,
+            "unique_lenses": [],
+            "abstention_reasons": {
+              "insufficient_documents": 24
+            }
+          }
+        }
+      }
+    },
+    "artifacts_sha256": {
+      "protocol.md": "87750517c4eaaf87a9f44d7b54f8d90a54acee2f6155d70b3adf4ee705259073",
+      "baseline-evaluator.py": "996cf677d35e4da3ce5bea0ed45eefda05bfb89a16fd2b811553dd2153b3a15a",
+      "protocol-tests.py": "f76541b76812f75b5ca0db08633df9fe6857dca96d9d27f7350d772706cddfa5",
+      "baseline-value.json": "382c89277990d42f07f9a23fe2878f28d703aaac27a3795016a2be94086c6f97",
+      "baseline-value.review-packets.json": "8f157994717a1562ab9d1b15339078bc202c91489c18c128d786018afdb7525d",
+      "baseline-value.answer-key.json": "e81a46f59f2584c236c601dfd37cfdec037cf66b1fe2aed872e0daff28359a30",
+      "baseline-value.log": "959044be0cb45cfb0dfb4c521c1a76e940683220453fc5594ff9075ba34fea19",
+      "focused-tests.log": "85025cbe066cf5513abf7974496f6b39ae938d7d7347668ce3689b365268ff18",
+      "REPORT.md": "2af70392f88cc4e0191e009b1470a47b23f9302de133975a9d074e376801a638",
+      "code-assessments.py": "d0d817a558e87845b9f32dedb2ad24bc8cd9c185eaea696704d76e78803fd6ee",
+      "qualitative-assessments.json": "8d48d2625ac5ebe144da8309a74bbb737d58e6f019f7793a4b643ff9bda74903",
+      "static-public-value.py": "1b29a4fb43715c6797993ee5509bb27f7f3c42cd5c08f79ecade683d5f601972",
+      "static-public-value.json": "e6ab931dc8a0b5a2c4a6b2867e03a81279d13cb50e4bfcb7f029a948ea1c50e9",
+      "static-public-value.log": "f37fdea070805c8a89bd5d491ba4398184db8102eff8d25463eb16f78b6d98ec",
+      "static-public-assessments.json": "6c1951cbb3f5ac770cb2cb635bea9c5a2eeb64ac8f5ce6cbdb8a080b18027a20",
+      "independent-review/masked-review-report.md": "20f5c4b5e905cb8a0b426ad8986ba44375cbec270eea34c89acbc825184490f0",
+      "independent-review/masked-assessments.json": "39782ea2e8287ce5836c1e8b828bb4d35a4578dd626a8d7996945958cd2c1aa0",
+      "independent-review/unmasked-results.json": "6022b19ab52e4a80dfcd9cbc59503d58c638c3f3587aa293024bab2e40f18efd",
+      "independent-review/SHA256SUMS": "b9492078eaee032932e60db2629850dbb76033cd5f70901ecb2f2e6979282467",
+      "optimized-value.json": "d9773a8a76c40eb45769b242fe030cded525c89579e905ad716675e93fc6a1dc",
+      "optimized-value.review-packets.json": "8f157994717a1562ab9d1b15339078bc202c91489c18c128d786018afdb7525d",
+      "optimized-value.answer-key.json": "e81a46f59f2584c236c601dfd37cfdec037cf66b1fe2aed872e0daff28359a30",
+      "optimized-runtime-attestation.json": "a5827ce57134ac1ca2aea40bfe2a5277178b491e788a31880570394d482d81c2",
+      "optimized-parity.json": "9646e7dcf8dbb3f84affcff3ca2ea68b21c5decbfac49366a275915c0ad3888f",
+      "optimized-value.log": "66df8b2b0fffaa7daefca0b8714cec47e63d568b9480c822ead5af19663d5e73"
+    },
+    "public_static": {
+      "scope": "Static exact document-frequency comparator; no dates, burst model or owner-usefulness judgments.",
+      "public_source_commit": "e494de6c0d30b338b3117025819be35bdf1e5af6",
+      "license": "CC0-1.0",
+      "runtime_source_commit": "6660bfa93b2a10f42d8228e9cea2d26924326785",
+      "extraction_version": 6,
+      "include_quotes": false,
+      "source_manifest_sha256": "42f8b147ae32b19a33a8b8955df7884df15ad0630d347efc9144ea265d815f3b",
+      "source_markdown_files": 1123,
+      "source_markdown_bytes": 10907925,
+      "excluded_paths": [],
+      "processed_notes": 1123,
+      "dictionary_statistics": {
+        "1": {
+          "distinct": 19026,
+          "df_ge3": 7300
+        },
+        "2": {
+          "distinct": 143074,
+          "df_ge3": 20779
+        },
+        "3": {
+          "distinct": 228461,
+          "df_ge3": 14582
+        }
+      },
+      "trigrams_eligible_by_question_lens": 13565,
+      "trigrams_with_grammatical_boundary": 9688,
+      "sampling": "First32 SHA256(trigram-value-protocol-v1:+term) among all3-word terms with document presence>=3; independent of judged quality.",
+      "script_sha256": "1b29a4fb43715c6797993ee5509bb27f7f3c42cd5c08f79ecade683d5f601972"
+    },
+    "qualitative_review": {
+      "scope": "One agent assessor, fixed fictional ledger, all53 deduplicated same-context sampled question packets; not owner ratings, reader study, causal benefit or statistically independent observations.",
+      "masking_limit": "Arm metadata and answer key were excluded from the packet review. The assessor had already inspected aggregate experiment results; expression lengths remain visible in question text. This is not a blind independent trial.",
+      "assessor_authorship": "This assessment agent did not write the narrative corpus or ledger; the parent assistant thread authored that fixture. No human vault owner is involved.",
+      "packet_sha256": "8f157994717a1562ab9d1b15339078bc202c91489c18c128d786018afdb7525d",
+      "counts": {
+        "generic_or_weak": 24,
+        "already_known": 29
+      },
+      "unanswered": "Whether a real owner finds a particular note combination useful, and whether domain-specific three-word terminology improves delivery on another vault."
+    },
+    "independent_partial_masked_review": {
+      "assessment_sha256": "39782ea2e8287ce5836c1e8b828bb4d35a4578dd626a8d7996945958cd2c1aa0",
+      "masking_limit": "Arm metadata and answer key were not read. Phrase length remains inferable from question wording, so this review is partially masked, not fully blinded.",
+      "reviewer_limit": "Independent agent did not author the fictional corpus. This remains a fictional-persona judgment, not actual owner usefulness or a causal benefit estimate.",
+      "per_arm_question_counts": {
+        "2": {
+          "generic_or_weak": 21,
+          "already_known": 15,
+          "useful_candidate": 5
+        },
+        "3": {
+          "generic_or_weak": 20,
+          "already_known": 17,
+          "useful_candidate": 4
+        }
+      },
+      "trigram_questions": [
+        {
+          "id": "Q015",
+          "lens": "the repair cafe",
+          "label": "already_known",
+          "arms": [
+            "3"
+          ],
+          "reason": "The cancellation list already extends waiting time back to rearranging the day; the first session already calls for intake refusal criteria; the incomplete lamp already records a chosen next step. The topic prompt adds no concrete lens beyond these explicit visitor-choice and waiting lessons."
+        },
+        {
+          "id": "Q018",
+          "lens": "the repair cafe",
+          "label": "already_known",
+          "arms": [
+            "3"
+          ],
+          "reason": "A small service with a clear edge explicitly rejects unlimited obligation, the cancellation list permits declining a slot, and the pause note announces closure while alternatives remain. The prompt repeats their established practice of explaining limits before commitment."
+        },
+        {
+          "id": "Q029",
+          "lens": "the repair cafe",
+          "label": "already_known",
+          "arms": [
+            "3"
+          ],
+          "reason": "The cancellation list gives people a way to decline, the unfinished lamp leaves its next action chosen by the owner, and the borrowed-name note refuses an overbroad campaign promise. Choice and bounded expectations are explicit in each; the topic prompt adds no new condition to test."
+        },
+        {
+          "id": "Q030",
+          "lens": "the repair cafe",
+          "label": "already_known",
+          "arms": [
+            "3"
+          ],
+          "reason": "Who carries the unfinished decision already states that tasks can be distributed without authority and instructs Mara to draw the decision route separately. Adding a cancellable slot and an electrician-approved lamp does not ask a new concrete decision-right question beyond that explicit synthesis."
+        },
+        {
+          "id": "Q033",
+          "lens": "the repair cafe",
+          "label": "already_known",
+          "arms": [
+            "3"
+          ],
+          "reason": "A measure that ignores the refusal already asks for safe diagnosis to count and warns about rewarding unsafe attempts; the first session explicitly says the tally misses learning. The lamp repeats the stated safety boundary. The prompt revisits an existing critique of throughput measures."
+        }
+      ]
+    },
+    "optimized_parity": {
+      "scope": "Exact old/new JSON receipt findings and actual sampled question/source payloads; time/work counters excluded. Both runs replay original snapshots independently per arm. Initial driver compared JSON lists with in-memory dataclass tuples and raised; this comparison loads BOTH saved JSON receipts, preserving all fields and values.",
+      "baseline_sha256": "382c89277990d42f07f9a23fe2878f28d703aaac27a3795016a2be94086c6f97",
+      "optimized_sha256": "d9773a8a76c40eb45769b242fe030cded525c89579e905ad716675e93fc6a1dc",
+      "all_findings_identical": true,
+      "all_questions_and_sources_identical": true,
+      "contexts": 96
+    }
+  },
+  "archive": {
+    "file": "receipts.json.xz",
+    "sha256": "63b9a3b8ea00a3bc8fb1c1ed846d65bb6f0dc0ef3db40154bf484915f5e41598",
+    "bytes": 268412,
+    "files": 173
+  },
+  "receipts": {
+    "baseline_analysis.py": {
+      "sha256": "1e37bd56bde44c23eb3e924643b4a9f4402f5a198072f4a9c1bb7e90705f1288",
+      "bytes": 21472
+    },
+    "budget-checks-status.json": {
+      "sha256": "4e296b03c78ec0fa7eb79df69a37ca80931d8d3a3a56e8cd20e514f2feb2b712",
+      "bytes": 299
+    },
+    "canonical-invocation.json": {
+      "sha256": "876a156aafd7ef68b3518eb550c99f8cd186e15a230d7de6a2a47802524aee76",
+      "bytes": 2108
+    },
+    "canonical-review.log": {
+      "sha256": "0a4fc266ae579699a664d8b60bb89ed7754d5cf721e6fbbb8e183db2e485b674",
+      "bytes": 754
+    },
+    "canonical-status.json": {
+      "sha256": "3c4ee4e095483aed832be7661030635ca10cc9764ebefbe42259bca09386a19c",
+      "bytes": 368
+    },
+    "capacity/pairs-after-1.json": {
+      "sha256": "ced9592683e54195587beb92aed94154cf5bbedeb0fd00ece97651d08a94e0d3",
+      "bytes": 29423
+    },
+    "capacity/pairs-after-2.json": {
+      "sha256": "83c5eb740c281b059b1ce93a1ad4e66f2b3cda9178a667ae3f41c36053f41b55",
+      "bytes": 29429
+    },
+    "capacity/pairs-after-3.json": {
+      "sha256": "8fa1ce2dc73799af3eff9764d01f41e76c6c34143693b20682c35d4f79c8e65f",
+      "bytes": 29432
+    },
+    "capacity/pairs-after-4.json": {
+      "sha256": "703a02a2f4125a3ae85504d3fc904ddfc172484028795399c0ce740e796f4cf3",
+      "bytes": 29431
+    },
+    "capacity/pairs-before-1.json": {
+      "sha256": "3777bfbaecb753d7341b786540a7110e6886ce9a1ff6ab2f98056ff66cfb736a",
+      "bytes": 29215
+    },
+    "capacity/pairs-before-2.json": {
+      "sha256": "506c5d46d5ea289c09c3a66d3ba1979ef52bd43b3960abdbe9fa2b8ef52a5ab9",
+      "bytes": 29219
+    },
+    "capacity/triples-after-1.json": {
+      "sha256": "2b52de0fcac4245a2886e9cad51294cf872ff5bf22750369219574c39634c285",
+      "bytes": 29839
+    },
+    "capacity/triples-after-2.json": {
+      "sha256": "8fd641360e505ad032931a7fe562ef5e7b60c1a4bf5a68d7a44aed42755ead72",
+      "bytes": 29846
+    },
+    "capacity/triples-after-3.json": {
+      "sha256": "420a3435cd68fcc98a9c2dadb573ddf3145e56339cb71726c05e5daef2d22d9e",
+      "bytes": 29842
+    },
+    "capacity/triples-after-4.json": {
+      "sha256": "cb334b61622beb72c3eea8d266d3bbd153c845223a98280161f787d0e939c12e",
+      "bytes": 29833
+    },
+    "capacity/triples-before-1.json": {
+      "sha256": "826ddb7798121adac83e644dada839bf9dc15f0c84eca7e9fbee220c80b87386",
+      "bytes": 29606
+    },
+    "capacity/triples-before-2.json": {
+      "sha256": "5a3905dfa748d6aac7cd919cb120963943d7763c6c92ca990d900d5d39ef10c2",
+      "bytes": 29618
+    },
+    "capacity-before-1-retry.log": {
+      "sha256": "07ca1eda0166949a6711d4518bee68abdf9eb1d7deb04d99bb6cb84c8abfd742",
+      "bytes": 4437
+    },
+    "capacity-before-1.log": {
+      "sha256": "89ba873648052f20f0237ea970a367be08d38cdcebc6fd4fd295672abdcfd800",
+      "bytes": 271
+    },
+    "capacity-pairs-after-1.log": {
+      "sha256": "43bd0c59a8e1888faca2cb684f503bf306b8e1d4e0af3d7e902d39a67e8a922a",
+      "bytes": 4454
+    },
+    "capacity-pairs-after-2.log": {
+      "sha256": "f85fe34e52ff63cb1a4963dbe952a81bdaec957124eabba769a6642732156f16",
+      "bytes": 4460
+    },
+    "capacity-pairs-after-3.log": {
+      "sha256": "574c6fdf2d84b190b5fef23a44c83bead141b87d221dae960f8dde293805cb61",
+      "bytes": 4463
+    },
+    "capacity-pairs-before-1.log": {
+      "sha256": "fbafbf354b374e81d5ae921f2e8be71f4da7c486c401c990bb24714a03047846",
+      "bytes": 4437
+    },
+    "capacity-pairs-before-2.log": {
+      "sha256": "ef53545bd97fe89e8d0f9ec9d0a70cdda73af26c6119f6edf60e2b2af943fc27",
+      "bytes": 4441
+    },
+    "capacity-triples-after-1.log": {
+      "sha256": "abb544c559050944b4e1baf027072143a7d3863f9fc540d9b8a912290a606832",
+      "bytes": 4479
+    },
+    "capacity-triples-after-2.log": {
+      "sha256": "81df5335ea98ecbcea753479132005e1acdbc129a4ae3245655c9860229a9640",
+      "bytes": 4486
+    },
+    "capacity-triples-after-3.log": {
+      "sha256": "0b2c11ad25c5395e7c81f7e17c08083c5b78fcce6fe2cd5c46f9c1ab68b39e03",
+      "bytes": 4482
+    },
+    "capacity-triples-after-4.log": {
+      "sha256": "08d4f9518a0e93cffe280b268619d3844b3adae9bf45145aaecda1a567b45240",
+      "bytes": 4473
+    },
+    "capacity-triples-before-2.log": {
+      "sha256": "3edafa21bdcf48cd65f74989a498977cb4d0271f052b4675f387d47212aacae7",
+      "bytes": 4449
+    },
+    "compare_narrative_replay.py": {
+      "sha256": "2499e2b0a8e01ddd4359a5887d47718e9aee16618254294440eeda33372e1a94",
+      "bytes": 3277
+    },
+    "executor-pairs.json": {
+      "sha256": "50dfddfbb1850a8353f7150c87e0333c78fd19896005ec1811355c0852fc2fcd",
+      "bytes": 25785
+    },
+    "executor-pairs.log": {
+      "sha256": "678f6c0a25eb5c17bf794690c57886f550216d0055fdefbf20771426e378a714",
+      "bytes": 816
+    },
+    "executor-triples.json": {
+      "sha256": "baaa79e47da08ffe52cc3d4fe495a2d3a837dcbcef72f5049091e16b1b2adf96",
+      "bytes": 26181
+    },
+    "executor-triples.log": {
+      "sha256": "88bd025dec25d10d3bd89142df87ad5d5690b7fa955eaf71cac99f45ba8b261d",
+      "bytes": 821
+    },
+    "final-measurements-status.json": {
+      "sha256": "6bbee2573ddb7286f3da724802dff7904f2d6e2aca550fd3f5eec715dad851cd",
+      "bytes": 320
+    },
+    "interim-runtime/lexical_presence.py": {
+      "sha256": "d2973811011dbbcf16e858736e79e4bfa06845385bea7bb3ebaceff5d283fa4c",
+      "bytes": 5836
+    },
+    "interim-runtime/word_burst_analysis.py": {
+      "sha256": "dfa7c4d6300934644df8941fd263a84e7308f373b1d14da9a493904fc18efc58",
+      "bytes": 23810
+    },
+    "interim-runtime/word_burst_sparse.py": {
+      "sha256": "9518dd1e43bdeae8148bd63f6dd6933d7ded3441c9ba9d2242c34156cecf4d82",
+      "bytes": 5313
+    },
+    "literature/claim_ledger.json": {
+      "sha256": "4de2442f5444dc0b77a2008e4a84a19066f7c3e191b2c74a1d8c13912f3e79f2",
+      "bytes": 5325
+    },
+    "literature/report.md": {
+      "sha256": "4df2517871bd0a136c23a31a6b4719b862c9cb4fe1349c85cf274bc54f7cc4df",
+      "bytes": 15141
+    },
+    "literature/source_manifest.json": {
+      "sha256": "22fdd03374b91c7698013db4616f9176e648c9d8b7b52dde30bbbab4f19c19ef",
+      "bytes": 43739
+    },
+    "literature/verify_claims.py": {
+      "sha256": "571245773737dcc5131382f0205b08a72f5fdc54eafa366ef4b0477b2bd88198",
+      "bytes": 3264
+    },
+    "measure_capacity.py": {
+      "sha256": "2013c29ef025382c52a7e78de71411b6148e700fb5f85929c2d4a8d8ab00ecb0",
+      "bytes": 5635
+    },
+    "measure_sync.py": {
+      "sha256": "ef44b15f04067283c5146c4da9ac390c110d23a227527d6c66ad22f1b61ef3ba",
+      "bytes": 2805
+    },
+    "measurement-summary.json": {
+      "sha256": "064197449aa080b080c62bd962f81313d57884898dcdff819a3641e8e5cb0c84",
+      "bytes": 76750
+    },
+    "measurements-status.json": {
+      "sha256": "32178c6c114194f4ef9705c96eb4ca37950000d31b2f560d3b12a253b1d98784",
+      "bytes": 2065
+    },
+    "narrative-dated.json": {
+      "sha256": "2a316c9bdd952efbf803f884fb1eefd3aa99080b0a348eb9a4189373ae823a6e",
+      "bytes": 2036350
+    },
+    "narrative-dated.log": {
+      "sha256": "1a0ba700d734831be2a845c16a100de2d66ce25d48eb59d85524c233f12ddf2b",
+      "bytes": 1407
+    },
+    "narrative-dated.logs/00.log": {
+      "sha256": "99a15da7364561d4e7151f0d21c2c354fd351b254ecc943036aae5a58fe63b01",
+      "bytes": 4539
+    },
+    "narrative-dated.logs/01.log": {
+      "sha256": "659f0f50a656b635ea3a89bafef0b500238358438ea37b39ac22ba942f3b1e72",
+      "bytes": 5010
+    },
+    "narrative-dated.logs/02.log": {
+      "sha256": "a0d73cbe18fad3b6a77d8bad3a447df379e598b9fa5e638787892125254a1af0",
+      "bytes": 4837
+    },
+    "narrative-dated.logs/03.log": {
+      "sha256": "3a6b997d3df0af33d8284c31ccf2fb1b5122de1995c4a5e0aafc7eb381e125b2",
+      "bytes": 4706
+    },
+    "narrative-dated.logs/04.log": {
+      "sha256": "2b2b36a5b1cfb4c49a02419bcf8fe596a61b5aaae032dc87489ee4014f1ff311",
+      "bytes": 4535
+    },
+    "narrative-dated.logs/05.log": {
+      "sha256": "63a21ccf2be869cd42bb75468545b2f3063cd696de28a459522fd5ed404f4a51",
+      "bytes": 5044
+    },
+    "narrative-dated.logs/06.log": {
+      "sha256": "f1d6fbb9b0cf07a15faf222577cb76e95899920656d0942cd2c40d16d5b0c1fe",
+      "bytes": 4744
+    },
+    "narrative-dated.logs/07.log": {
+      "sha256": "e6c2a4548f5839d526b298bd36fccb0d87c3fd233b8beb55967c7f2c33a2535b",
+      "bytes": 5167
+    },
+    "narrative-dated.logs/08.log": {
+      "sha256": "662bfc98aa307073bd38bb0410b7a4d6a79972d09614ea5ed3086ceb55ab3fbc",
+      "bytes": 5308
+    },
+    "narrative-dated.logs/09.log": {
+      "sha256": "4fc725a8e8c2732eee8d96533cb397db81399ecf494a4839b77debb85377d84c",
+      "bytes": 4612
+    },
+    "narrative-dated.logs/10.log": {
+      "sha256": "be0134c91e897f8b814915c0f971dee1537f09a0db1a0a19e31a0367c584c9fb",
+      "bytes": 5058
+    },
+    "narrative-dated.logs/11.log": {
+      "sha256": "4796494d247f8030e11eb3ea52af53234445322f4a4b1707862532b7282e8820",
+      "bytes": 4596
+    },
+    "narrative-dated.logs/12.log": {
+      "sha256": "b6f9cab661ba3dbf922bcb56472e74ba6082ca0c728a44732055b28dfb469235",
+      "bytes": 5581
+    },
+    "narrative-dated.logs/13.log": {
+      "sha256": "0e6f826c4678cfcbd2477c614b3cdcce3d4b627df7abba13ceb6e5478563b9c8",
+      "bytes": 5515
+    },
+    "narrative-dated.logs/14.log": {
+      "sha256": "ea9e3e5f91013f343e28f4e45ea1f802bbaf62b60ca0f1178984e0323c4ff059",
+      "bytes": 4530
+    },
+    "narrative-dated.logs/15.log": {
+      "sha256": "d81b913602f93fba52e990c1d89df19a0f50471ae3f619d89b73dfc1b3426721",
+      "bytes": 4682
+    },
+    "narrative-dated.logs/16.log": {
+      "sha256": "8f65ebce76d4e24650bded02550fdf1c6fdfa5839c7bbeb2014414cb77b92942",
+      "bytes": 4893
+    },
+    "narrative-dated.logs/17.log": {
+      "sha256": "ca96330394099b4adc9df748e1fe94253e2bddfa5a5460f81ad84d73db58ce66",
+      "bytes": 5328
+    },
+    "narrative-dated.logs/18.log": {
+      "sha256": "408eb61e3f08258ecd553b067c3d8942f6d626581cbc5256055aabafb23d4ec9",
+      "bytes": 6034
+    },
+    "narrative-dated.logs/19.log": {
+      "sha256": "c0e20eb305c5c78135317584be7e08da6e92f4318a351e85b6aaca777878d977",
+      "bytes": 5428
+    },
+    "narrative-dated.logs/20.log": {
+      "sha256": "8f56ebd4cc67ef878acadd16c95e905cb9bba0195ca2f03980a3aba9dc886f24",
+      "bytes": 4649
+    },
+    "narrative-dated.logs/21.log": {
+      "sha256": "86d1d938b04245b5459d82e167b0146d9a593e21c359630ce14e1e055e612be8",
+      "bytes": 4564
+    },
+    "narrative-dated.logs/22.log": {
+      "sha256": "97df3e5d3b0d82c6ffc1de227b69e0c8e5bb7fd358e79e2da908edf6ea9a1508",
+      "bytes": 5429
+    },
+    "narrative-dated.logs/23.log": {
+      "sha256": "e36add868a33b18dadab9070d1d7ab4c537fc32c8c28c25faebbfc92024bdc7e",
+      "bytes": 4646
+    },
+    "narrative-driver-status.json": {
+      "sha256": "3a743d44f5346c8153267789f101941934487f6cb70427b85cbe983fee836937",
+      "bytes": 122
+    },
+    "narrative-observed.json": {
+      "sha256": "5fd753df449318f23350a2db366dc2c518e73ea2d2dc29bfcbbc296ccf1642f0",
+      "bytes": 1656964
+    },
+    "narrative-observed.log": {
+      "sha256": "71e5745473e62dfb80bcdc2a97c1a34726f6c9f4f9a4276a03c5b551c1e73c76",
+      "bytes": 1527
+    },
+    "narrative-observed.logs/00.log": {
+      "sha256": "800c81685f2f5451f9dd20d6856cb16ec208ebc12ce316580b79460e08b7b03e",
+      "bytes": 4543
+    },
+    "narrative-observed.logs/01.log": {
+      "sha256": "c78f6d2840ed07b0c354c7b7728b0abf8c65b59cda6b18de1360502388ec36c8",
+      "bytes": 5014
+    },
+    "narrative-observed.logs/02.log": {
+      "sha256": "1f38cceb330cf337f0a54f612eafc271a738e24cfb8c7ddd2e941a8498ee6e7d",
+      "bytes": 4841
+    },
+    "narrative-observed.logs/03.log": {
+      "sha256": "7d9c7b7b12c1bbf7224bb34eaf6460ec5be6e1d3b508e4c1db2a9aabc3026262",
+      "bytes": 4710
+    },
+    "narrative-observed.logs/04.log": {
+      "sha256": "a94a03da8acaba5f25e18762d24f48d2ed160cf7bf83815df50db3ab1d5d3418",
+      "bytes": 4539
+    },
+    "narrative-observed.logs/05.log": {
+      "sha256": "c47f83c9e8d9a7fa668c32d1da2741f69f471a9cd529f85655790edfa8bec2ec",
+      "bytes": 5009
+    },
+    "narrative-observed.logs/06.log": {
+      "sha256": "833b2213b21fc4b27c3c9a7084f3d6ee88bea127f7c44216e4364a197e03e6cf",
+      "bytes": 4709
+    },
+    "narrative-observed.logs/07.log": {
+      "sha256": "907939acc6dde847e946f4b9f7af192523c60473db50cf0108985d746f3bd7fb",
+      "bytes": 5132
+    },
+    "narrative-observed.logs/08.log": {
+      "sha256": "2ee9549005bac8ece4a30658b8e8b9a1a45f81edae61e5b75e787102a0f8bf28",
+      "bytes": 5083
+    },
+    "narrative-observed.logs/09.log": {
+      "sha256": "d9cfede53b6b9659b3b21324613e3478c486506a1e0569758cf6ba7b6842db14",
+      "bytes": 4544
+    },
+    "narrative-observed.logs/10.log": {
+      "sha256": "ac834b435e338253d184dab0cf7ed88e5230c5664c344f0f5a1e095f3f6812d7",
+      "bytes": 4973
+    },
+    "narrative-observed.logs/11.log": {
+      "sha256": "d6859097509afbec4fb5752712c176839f5f96c9d96d4bff77f457ca4e82787c",
+      "bytes": 4561
+    },
+    "narrative-observed.logs/12.log": {
+      "sha256": "546cbd85ee96cc62d43a93b00486f5ce1a55caf7885acdf68b621d98f9f8f730",
+      "bytes": 4830
+    },
+    "narrative-observed.logs/13.log": {
+      "sha256": "aa07b70333da865ef0336bf612eb6224f4f4c2db595c75c2b8c0bdc95f130d8e",
+      "bytes": 5479
+    },
+    "narrative-observed.logs/14.log": {
+      "sha256": "68f966deb7d98fa2b2a83850c23fe7555f55cd3d156574aeb9f7856f6aaa0411",
+      "bytes": 4494
+    },
+    "narrative-observed.logs/15.log": {
+      "sha256": "4d0fd77a259e500a2f1e583699cfec6c1a9cb75476e0f5a0802c5aa7db2316cb",
+      "bytes": 4646
+    },
+    "narrative-observed.logs/16.log": {
+      "sha256": "24017c25f64eb76e10be4c18f1fc180d9ac452fe968bffb36ae09318166533ac",
+      "bytes": 4857
+    },
+    "narrative-observed.logs/17.log": {
+      "sha256": "a981e1c4e3518e7614d8941d0e2d0a7359e297cf23daefbfce84a2049319e646",
+      "bytes": 4421
+    },
+    "narrative-observed.logs/18.log": {
+      "sha256": "1cebfb734202d4d70870e8420ecdf618254e680b87c1d3aa50f77e4c78de23a4",
+      "bytes": 5160
+    },
+    "narrative-observed.logs/19.log": {
+      "sha256": "d0a5497229c72554fb7df65b212845253aab4c8f3cb141c8665e6467ce67dea5",
+      "bytes": 5392
+    },
+    "narrative-observed.logs/20.log": {
+      "sha256": "64b650e821112d738b6251b4fadbb2b5d592665df1ea9463f84b455df34ea8de",
+      "bytes": 4613
+    },
+    "narrative-observed.logs/21.log": {
+      "sha256": "e047a29d1fa82278e277fed3c48aeb7a83e7f18fc01bf32e799a2816065e11d2",
+      "bytes": 4528
+    },
+    "narrative-observed.logs/22.log": {
+      "sha256": "783202c408e1267ab27f9899ddca0148207662c51e4b2f04d2a2c57888ad049d",
+      "bytes": 4855
+    },
+    "narrative-observed.logs/23.log": {
+      "sha256": "99b57705ccc39ce3568d3ba9fe998154da6328cd61d591ef774e5ba51f04df30",
+      "bytes": 4609
+    },
+    "narrative-parity.json": {
+      "sha256": "6bb200a28d5bb40b5606ee4728e4f2618897c0c91482f5c06f696806b63f31fe",
+      "bytes": 7964
+    },
+    "narrative-receipt-bindings.json": {
+      "sha256": "437a18470418d9c70d86cd40bd2b27210fc259a94666ffccaff4bdf9b5a0a020",
+      "bytes": 900
+    },
+    "package_receipts.py": {
+      "sha256": "f834b67bcdb590ca170ad4f238eef736f748fc4c306bc060eedf4e59a91c90cf",
+      "bytes": 2659
+    },
+    "pairs-final-4.log": {
+      "sha256": "d3dbc40268506240740abea10bb862c0b63089b53e25bbc8ac286c4317166b7d",
+      "bytes": 4462
+    },
+    "pr-writing-review.json": {
+      "sha256": "fb2973c4e2d8030c6ab087ff5a654369695220fe5bf453416dbbdaebb25cff05",
+      "bytes": 1376
+    },
+    "presence-writer-ast-proof.json": {
+      "sha256": "b8f1c67cbfc3c29274ea407ff58bbe304f0c606357dce811de4f004bb7230026",
+      "bytes": 668
+    },
+    "review/baseline_analysis.py": {
+      "sha256": "1e37bd56bde44c23eb3e924643b4a9f4402f5a198072f4a9c1bb7e90705f1288",
+      "bytes": 21472
+    },
+    "review/date_probe.py": {
+      "sha256": "98195fc9a381fb6bfaab9f46d96317f4edac3fda33254da5dc85dc0ce286855a",
+      "bytes": 3084
+    },
+    "review/date_results.json": {
+      "sha256": "e74b73041db1a0dd86c97f7184cb4097839dddb7e546998fd7414091a638b531",
+      "bytes": 1077
+    },
+    "review/final_review_receipt.json": {
+      "sha256": "fda79aeebe15151e3601f9886dd5de17db0d64805219b01479582c7368bf318c",
+      "bytes": 4483
+    },
+    "review/parity_probe.py": {
+      "sha256": "078baecc11c4be2acabdac8b55bac77b4272441a35acfd8d812be49a751c0010",
+      "bytes": 5412
+    },
+    "review/parity_results.json": {
+      "sha256": "4e6900b20a46bd927d58321bec4a06122351dd857b21351eb20100b68ca7612e",
+      "bytes": 18197
+    },
+    "review/review.md": {
+      "sha256": "7bd4c0ced5449b9004f1e17b5d7a29be7c56e0e9cf4f940580f5640b4df5ada7",
+      "bytes": 4501
+    },
+    "review/review_receipt.json": {
+      "sha256": "50f4f9ca3705ea204ae406f814e0fb8a7cc1d0ab2451d303ebd4ca8ca3fe04a5",
+      "bytes": 1049
+    },
+    "review/sparse_probe.py": {
+      "sha256": "b7a34802ae4a09ee5f26aef6e3ebb0a3473f7c5d98cb84b6ca14a9472ed06623",
+      "bytes": 2376
+    },
+    "review/sparse_results.json": {
+      "sha256": "b1053d0c2629220eb43d36ae59d11805d0f13136cc4ac44fb19c486171b0c5d6",
+      "bytes": 275
+    },
+    "review/storage_probe.py": {
+      "sha256": "6dfffbb71c1c07ee852ce0b485063968aa1e30df6b9774e02a1926f9a6fd9206",
+      "bytes": 2160
+    },
+    "review/storage_results.json": {
+      "sha256": "6cbed8b465cfca10d696c74ff30f505ebcadaf14cf4e48e1ff3179d327183893",
+      "bytes": 274
+    },
+    "run_budget_checks.py": {
+      "sha256": "20aeffb04708f4f35f9c853176faead92c0057ec150f0ddf3d789cfc32d40d74",
+      "bytes": 1423
+    },
+    "run_canonical_review.py": {
+      "sha256": "8d74a18e518862c933665e24de3daac20778b33808a00131467626b61b3c9c74",
+      "bytes": 2261
+    },
+    "run_final_measurements.py": {
+      "sha256": "3528a8e0d2fa43451fdd11032e76c92baa930b63b0302fada0a0af67649dc5e9",
+      "bytes": 1395
+    },
+    "run_measurements.py": {
+      "sha256": "d72b45d845b9e09ec28416945c60811a234c1fa184f4a01bd55561e6dbc70960",
+      "bytes": 1545
+    },
+    "run_validation.py": {
+      "sha256": "8e1441a28d588237c41a2e5b04c0092cf62c441d1fb97fa277ea690006a5d854",
+      "bytes": 1039
+    },
+    "summarize_measurements.py": {
+      "sha256": "0afc62c9546b8f40f459335f34545e79b77324c0425d99cfaa39b14ce8dab0e0",
+      "bytes": 4779
+    },
+    "sync/pairs-after-1.json": {
+      "sha256": "6dd5ecfb60c16327d3a9c590ca9f993185429695a4f9c746dd7169df13b5e6a9",
+      "bytes": 12142
+    },
+    "sync/pairs-before-1.json": {
+      "sha256": "fb35327615b1e527e7b715bf55f4b4f151c8f2b47b35fcda39760f980db4c3a9",
+      "bytes": 11984
+    },
+    "sync/triples-after-1.json": {
+      "sha256": "889d9000ef3d0649a68b9a239e1bab32ca5b1e519b59c2afb2634722ef5e5d47",
+      "bytes": 12149
+    },
+    "sync/triples-before-1.json": {
+      "sha256": "466aa90102a020fed443d3621f8fe4c86caa5016fc6092166f81fa54c6c49783",
+      "bytes": 11987
+    },
+    "sync-pairs-after-1.log": {
+      "sha256": "ae025966566796d0805cada8e280ce3b36d5925b15a103da5861ecb8770d19c7",
+      "bytes": 1272
+    },
+    "sync-pairs-before-1.log": {
+      "sha256": "a0d89420d8c8b263819407b74ac2b73bb9d0cdc2fd7d38cd89c6a3a1251b9915",
+      "bytes": 1275
+    },
+    "sync-triples-after-1.log": {
+      "sha256": "dbb4ca765df4b1ec6c124408cafc11610afa9834392646c0fce378ce3e784d79",
+      "bytes": 1277
+    },
+    "sync-triples-before-1.log": {
+      "sha256": "c8209d540e7f0d4db3bc8d7a2569edbd3a4a044cb27f0d6991de262e1e7b29a6",
+      "bytes": 1276
+    },
+    "test-audit/baseline-regressions.json": {
+      "sha256": "73ae04ce811e3d846426106cf5513c151d7f6c2526db9a49153d8bf36ade4ce1",
+      "bytes": 2627
+    },
+    "test-audit/baseline-regressions.log": {
+      "sha256": "87b4d20f841fdb36b09656b6a99c02e6f00a4868ffc7e74ca47de6f703f4008a",
+      "bytes": 2587
+    },
+    "test-audit/final-focused.log": {
+      "sha256": "c73590b320e29081f782dea54593e9a192cc51cd02177c627ca6bff75af0ede7",
+      "bytes": 99
+    },
+    "test-audit/focused.log": {
+      "sha256": "b13fffbb156bffff87d64a604a75033e1b0edc677213d6ec15cd99ffd49de082",
+      "bytes": 98
+    },
+    "test-audit/full-scan-mutation.json": {
+      "sha256": "ae485aa456a8efc3ac65e06255053401ca6c21b117e7ed3e9fd2627d6d684797",
+      "bytes": 1440
+    },
+    "test-audit/full-scan-mutation.log": {
+      "sha256": "95cfac8ce1ab7fde654d57289be1485098a7803e40ca3d1dc2e04069e4f189eb",
+      "bytes": 1335
+    },
+    "test-audit/report.md": {
+      "sha256": "f97576889a6d6034ed89abed4893d62b799f262ee75ac2f119ceda79bbba168d",
+      "bytes": 10956
+    },
+    "test-audit/run_baseline_regressions.py": {
+      "sha256": "d309f406b61467ce2920e639e78a1b0cce15b8319f7dea64270d77b77fbc55f7",
+      "bytes": 2033
+    },
+    "test-audit/run_full_scan_mutation.py": {
+      "sha256": "8167f8f3ea617cd03d31c5627b31650659faa3de4b8caf30f6891196183fba3a",
+      "bytes": 2420
+    },
+    "test_baseline_parity.py": {
+      "sha256": "6d668e61f83a5b14aae608208254b9cd17686efce7843f529eac0902c2413251",
+      "bytes": 2034
+    },
+    "validate-initial-aborted.log": {
+      "sha256": "e9254bb6f559330b42dc397a7889c97ed0752e8334bab078d793f194c148c48f",
+      "bytes": 104696
+    },
+    "validate.log": {
+      "sha256": "8165bf35e3fdb4ef74dead648639b4ed827584939051873af34e60ef22b5cf9c",
+      "bytes": 360854
+    },
+    "validation-initial-abort.json": {
+      "sha256": "411ff6e90738dc514d0439c23c1197ab3482c71bcd03c1c01ee9a6c1c08cfdd9",
+      "bytes": 240
+    },
+    "validation-status.json": {
+      "sha256": "663f459081df8c977a55436ddc0102a99cbf5258ebc25469404397042e618f84",
+      "bytes": 58
+    },
+    "value/REPORT.md": {
+      "sha256": "2af70392f88cc4e0191e009b1470a47b23f9302de133975a9d074e376801a638",
+      "bytes": 10846
+    },
+    "value/baseline-evaluator.py": {
+      "sha256": "996cf677d35e4da3ce5bea0ed45eefda05bfb89a16fd2b811553dd2153b3a15a",
+      "bytes": 14525
+    },
+    "value/baseline-value.answer-key.json": {
+      "sha256": "e81a46f59f2584c236c601dfd37cfdec037cf66b1fe2aed872e0daff28359a30",
+      "bytes": 16096
+    },
+    "value/baseline-value.json": {
+      "sha256": "382c89277990d42f07f9a23fe2878f28d703aaac27a3795016a2be94086c6f97",
+      "bytes": 1965510
+    },
+    "value/baseline-value.log": {
+      "sha256": "959044be0cb45cfb0dfb4c521c1a76e940683220453fc5594ff9075ba34fea19",
+      "bytes": 639
+    },
+    "value/baseline-value.review-packets.json": {
+      "sha256": "8f157994717a1562ab9d1b15339078bc202c91489c18c128d786018afdb7525d",
+      "bytes": 910362
+    },
+    "value/code-assessments.py": {
+      "sha256": "d0d817a558e87845b9f32dedb2ad24bc8cd9c185eaea696704d76e78803fd6ee",
+      "bytes": 4030
+    },
+    "value/focused-tests.log": {
+      "sha256": "85025cbe066cf5513abf7974496f6b39ae938d7d7347668ce3689b365268ff18",
+      "bytes": 98
+    },
+    "value/independent-review/SHA256SUMS": {
+      "sha256": "b9492078eaee032932e60db2629850dbb76033cd5f70901ecb2f2e6979282467",
+      "bytes": 180
+    },
+    "value/independent-review/masked-assessments.json": {
+      "sha256": "39782ea2e8287ce5836c1e8b828bb4d35a4578dd626a8d7996945958cd2c1aa0",
+      "bytes": 128950
+    },
+    "value/independent-review/masked-review-report.md": {
+      "sha256": "20f5c4b5e905cb8a0b426ad8986ba44375cbec270eea34c89acbc825184490f0",
+      "bytes": 2493
+    },
+    "value/independent-review/unmasked-results.json": {
+      "sha256": "6022b19ab52e4a80dfcd9cbc59503d58c638c3f3587aa293024bab2e40f18efd",
+      "bytes": 137655
+    },
+    "value/optimized-parity.json": {
+      "sha256": "9646e7dcf8dbb3f84affcff3ca2ea68b21c5decbfac49366a275915c0ad3888f",
+      "bytes": 17208
+    },
+    "value/optimized-runtime-attestation.json": {
+      "sha256": "a5827ce57134ac1ca2aea40bfe2a5277178b491e788a31880570394d482d81c2",
+      "bytes": 1830
+    },
+    "value/optimized-value.answer-key.json": {
+      "sha256": "e81a46f59f2584c236c601dfd37cfdec037cf66b1fe2aed872e0daff28359a30",
+      "bytes": 16096
+    },
+    "value/optimized-value.json": {
+      "sha256": "d9773a8a76c40eb45769b242fe030cded525c89579e905ad716675e93fc6a1dc",
+      "bytes": 1964738
+    },
+    "value/optimized-value.log": {
+      "sha256": "66df8b2b0fffaa7daefca0b8714cec47e63d568b9480c822ead5af19663d5e73",
+      "bytes": 728
+    },
+    "value/optimized-value.review-packets.json": {
+      "sha256": "8f157994717a1562ab9d1b15339078bc202c91489c18c128d786018afdb7525d",
+      "bytes": 910362
+    },
+    "value/protocol-tests.py": {
+      "sha256": "f76541b76812f75b5ca0db08633df9fe6857dca96d9d27f7350d772706cddfa5",
+      "bytes": 5202
+    },
+    "value/protocol.md": {
+      "sha256": "87750517c4eaaf87a9f44d7b54f8d90a54acee2f6155d70b3adf4ee705259073",
+      "bytes": 3969
+    },
+    "value/qualitative-assessments.json": {
+      "sha256": "8d48d2625ac5ebe144da8309a74bbb737d58e6f019f7793a4b643ff9bda74903",
+      "bytes": 20917
+    },
+    "value/static-public-assessments.json": {
+      "sha256": "6c1951cbb3f5ac770cb2cb635bea9c5a2eeb64ac8f5ce6cbdb8a080b18027a20",
+      "bytes": 4390
+    },
+    "value/static-public-value.json": {
+      "sha256": "e6ab931dc8a0b5a2c4a6b2867e03a81279d13cb50e4bfcb7f029a948ea1c50e9",
+      "bytes": 20692
+    },
+    "value/static-public-value.log": {
+      "sha256": "f37fdea070805c8a89bd5d491ba4398184db8102eff8d25463eb16f78b6d98ec",
+      "bytes": 5492
+    },
+    "value/static-public-value.py": {
+      "sha256": "1b29a4fb43715c6797993ee5509bb27f7f3c42cd5c08f79ecade683d5f601972",
+      "bytes": 3370
+    },
+    "value/summary.json": {
+      "sha256": "058e4c58bcbfeaecc45d376d4a8241688be3e56decdecc25ab9bd61005a89f67",
+      "bytes": 11545
+    },
+    "value/unmask_independent_review.py": {
+      "sha256": "79c97f793dcba7c6759c4e16f63b4921cd48502a1f834d40add31e3ba0916396",
+      "bytes": 1403
+    },
+    "verify_executor.py": {
+      "sha256": "bf077f30155961d6a4ac88416f42c6c35e1b782353f97ce640658dfd7d8d4042",
+      "bytes": 2999
+    }
+  },
+  "narrative_parity": {
+    "scope": "Exact full invocation replay behavior and exact word-burst findings/population; elapsed time, resource and actual-work/cache fields excluded. Real offline embeddings; no timing comparison during concurrent validation.",
+    "modes": {
+      "dated": {
+        "baseline_sha256": "a8bbfc59d909a3c5c4a879a79a789e5f54c738fc15a56609cccb5038521f7095",
+        "optimized_sha256": "2a316c9bdd952efbf803f884fb1eefd3aa99080b0a348eb9a4189373ae823a6e",
+        "source_commit": "8fb86e3dcdcd8cd8bd95dd02448b289d8173e86d",
+        "completed": true,
+        "errors": [],
+        "manifest_identical": true,
+        "ledger_identical": true,
+        "real_embeddings": true,
+        "snapshots": [
+          {
+            "date": "2024-01-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-02-29",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-03-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-04-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-05-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-06-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-07-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-08-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-09-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-10-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-11-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-12-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-01-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-02-28",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-03-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-04-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-05-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-06-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-07-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-08-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-09-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-10-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-11-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-12-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          }
+        ],
+        "saved_questions": 120,
+        "executor_calls": 1080,
+        "successful_calls": 1080,
+        "raw_questions": 877,
+        "filtered_questions": 814,
+        "selected_questions": 120
+      },
+      "observed": {
+        "baseline_sha256": "7fbe11f96178ad6c65c383082a9376cc26d1b3738a2caa7fbe2d5be1c39d9dd5",
+        "optimized_sha256": "5fd753df449318f23350a2db366dc2c518e73ea2d2dc29bfcbbc296ccf1642f0",
+        "source_commit": "8fb86e3dcdcd8cd8bd95dd02448b289d8173e86d",
+        "completed": true,
+        "errors": [],
+        "manifest_identical": true,
+        "ledger_identical": true,
+        "real_embeddings": true,
+        "snapshots": [
+          {
+            "date": "2024-01-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-02-29",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-03-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-04-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-05-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-06-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-07-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-08-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-09-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-10-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-11-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2024-12-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-01-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-02-28",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-03-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-04-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-05-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-06-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-07-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-08-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-09-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-10-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-11-30",
+            "behavioral_differences": [],
+            "population_differences": []
+          },
+          {
+            "date": "2025-12-31",
+            "behavioral_differences": [],
+            "population_differences": []
+          }
+        ],
+        "saved_questions": 120,
+        "executor_calls": 1080,
+        "successful_calls": 1080,
+        "raw_questions": 836,
+        "filtered_questions": 793,
+        "selected_questions": 120
+      }
+    },
+    "errors": [],
+    "saved_questions": 240,
+    "successful_executor_calls": 2160,
+    "behavior_identical": true
+  }
+}

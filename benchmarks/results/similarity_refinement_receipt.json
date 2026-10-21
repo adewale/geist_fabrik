@@ -1,0 +1,372 @@
+{
+  "baseline_commit": "201acf98162ee03272783143249106425cf19836",
+  "source_commit": "65f5b22a00d2390eeb3c6bab6e0253e6fcd0347c",
+  "source_commit_runtime_verified": true,
+  "scope": "17 isolated feature cases, five timed samples each; 32-snapshot smoke/standard; first two large snapshots; ABBA streamed-mean check; all persisted embedding channels and both word-burst history modes; test/review/validation evidence.",
+  "runtime_source_sha256": {
+    "src/geistfabrik/__init__.py": "1c5c2a26644c65afe0c58ae776176139947d276844db03dd7b979576ad5e7207",
+    "src/geistfabrik/bounded_yaml.py": "4ea56605e734a5c24051e166d5285096397f40fb1ed90728cd9d428aba39d82f",
+    "src/geistfabrik/cli.py": "d66d06a5554958406af6475f1ccf78ca3b801d84167df63b095c5f4b42082f5c",
+    "src/geistfabrik/cluster_labeling.py": "23afd8281670e4203a10bd592037b435b5672a5dff4823fe37756b97ad8c3f6b",
+    "src/geistfabrik/clustering_analysis.py": "5e1ea454eca8dd9a98ab9c07803056d74996d4273f5550227d3dec54475c2944",
+    "src/geistfabrik/commands/__init__.py": "20f64a146c939ec17c911992038e57e519a690275f5380c16263477aaec0ba32",
+    "src/geistfabrik/commands/base.py": "959f4b8e2bc14a24f8dac4962331af561d12473529c4846ce0f798c64f0c5d1e",
+    "src/geistfabrik/commands/batch_runner.py": "42282920c743c428a12c05048da6c1cba0d0b2520a12da213fe0d24256cd44cf",
+    "src/geistfabrik/commands/initialize.py": "4da554c76a4a30657079bab79e146e0e184181c676205391f94b1ac0a66deb59",
+    "src/geistfabrik/commands/invoke.py": "9b91fe9e208e76603d17e1a9f240ffa9afe2a9a27f5d2442ec2ef67d763ec08d",
+    "src/geistfabrik/commands/runner.py": "ef067425d250c72c665aaa0c5b5de687c1b2d4bdf70a83f25729c398b2a62fbc",
+    "src/geistfabrik/commands/stats.py": "b110f0d6c78cf326a0627591d4c7272d23f5306b9db4043b9a1c286e7d3dcffb",
+    "src/geistfabrik/commands/validate.py": "d8cb43fc88b082e0657a07eaecc6e1ab557bc7616e446b20489ee0c03da6aef2",
+    "src/geistfabrik/config.py": "199f9f6c6ad73c15e419c5b5d89c52a296f95f88e058e3a97e91a91dfb2fb315",
+    "src/geistfabrik/config_loader.py": "448e09f04fb9ed4e644c757fadcb2f7439457af94f86776f3969c4f19e27be7f",
+    "src/geistfabrik/content_extraction.py": "65a553ae7bc5897bb21e560f3f8a921288dedbc52c15a214def76926dee1cdae",
+    "src/geistfabrik/date_collection.py": "2ac1779e655ea2164240b85a35dee435cb7811ba9bb4862a67e7e45609b8031e",
+    "src/geistfabrik/default_geists/__init__.py": "09e9698ab517785e4f13264d51c979f6937f4ee397400a01e7fc106636f096e3",
+    "src/geistfabrik/default_geists/code/__init__.py": "c7fb33ba8474cdd7b0b9e017a7e072d64611b76b5ee798d0a49926af5679f4f7",
+    "src/geistfabrik/default_geists/code/assumption_challenger.py": "06694b4e158e0a9cd16758e558eaf2661eb27d78b167e80937d6dfdb3fdb5193",
+    "src/geistfabrik/default_geists/code/attention_shift.py": "48a0809ffd7dd1f247351503814a7368312dee5329b5bddb4adfae0eabd42aa7",
+    "src/geistfabrik/default_geists/code/bridge_builder.py": "9a3760e2d9d2583165f2a057c17184ed435bfebc2d83919ebbd715f73d8648d2",
+    "src/geistfabrik/default_geists/code/bridge_hunter.py": "699362529ca8e9c78b8097741442dc37bb2a868fef6088725c4d7095510efcea",
+    "src/geistfabrik/default_geists/code/claim_harvester.py": "9132f7a5107ed4db2afa37f884b45b648c8fdbab9cbd02d5809d499a117effb9",
+    "src/geistfabrik/default_geists/code/cluster_mirror.py": "fc5acbd2bc9fe2c53e95789879283598fba161708fdb5681243eb02ef5aa474f",
+    "src/geistfabrik/default_geists/code/concept_cluster.py": "6735e0c106a1b8fdd9b36364de7a9c55cafbb781ff3b65a31538e7d035e23190",
+    "src/geistfabrik/default_geists/code/concept_drift.py": "832e120f55b1465c138ad6405eb4288b80febc574d7943131aa5e9e6cb9fdb41",
+    "src/geistfabrik/default_geists/code/convergent_evolution.py": "7718f4da93db501f88c1ca520991a242e6a88cb94698e4a87b3d3c6b4479f6ca",
+    "src/geistfabrik/default_geists/code/creation_burst.py": "bed4fb01fb3d98c1d23428f468ceb339aac644482ff44193104ab2bcab51446f",
+    "src/geistfabrik/default_geists/code/creative_collision.py": "b2c40d9438b0711a1b519276631cd3a6d53d7aaabeea16bcd4531f3a79c26cce",
+    "src/geistfabrik/default_geists/code/cyclical_thinking.py": "92cafd8b74a705a73c9084e60e9d71e80f74be72983340c2cde6143870ef0e41",
+    "src/geistfabrik/default_geists/code/definition_harvester.py": "cfd1f175aa27b7f6f46cf2d557478ae3633d48e6fc46918168982ad1a4a683b1",
+    "src/geistfabrik/default_geists/code/density_inversion.py": "d1dd0b4e3be700dc938a82a348bca38ef748a394e9050ae7a326930bcceaca9c",
+    "src/geistfabrik/default_geists/code/divergent_evolution.py": "c66f51a308a8be558f074d0123ee24823efcda561dc786772f93ea8c82f9024e",
+    "src/geistfabrik/default_geists/code/hidden_hub.py": "d4b455a18f01ba78f3609c3937d61d58eadd89b8a12be4703ced45001929bd4a",
+    "src/geistfabrik/default_geists/code/hypothesis_harvester.py": "b7dcd4e07601a0b22e630de336452bd908a417c94b2ea4ee945db312ff25bd12",
+    "src/geistfabrik/default_geists/code/link_density_analyser.py": "1b0e21746e96ceec1607fe77e9e742a410bb04906e7044d9b2a562113a5cf399",
+    "src/geistfabrik/default_geists/code/metadata_driven_discovery.py": "2e61093bfc28a2e9ee0aff40f7392004a288416348d5adb60da68a83f584f9c7",
+    "src/geistfabrik/default_geists/code/method_scrambler.py": "a44a21ebb73ad84176cd234d8522ad482769687a01d82206da5d0f7390cbd0fb",
+    "src/geistfabrik/default_geists/code/orphan_connector.py": "8df7a5acca2dda741624ecf52a27318026d357dbfee2c332e3cadaec9319e9bd",
+    "src/geistfabrik/default_geists/code/pattern_finder.py": "32417612a50fe2e61d40f9286f54ffc64e8d11c5ab971ac77b1307b8042e4dbd",
+    "src/geistfabrik/default_geists/code/question_generator.py": "08ff6701201c605b2af2b6adc03efa5fc75b82ccc81b2dc2d566e1efe134a410",
+    "src/geistfabrik/default_geists/code/question_harvester.py": "00d3ab93bdc3a7073ac95c6d721b10eed815fb967d105ba526afb2b52543fc98",
+    "src/geistfabrik/default_geists/code/quote_harvester.py": "e28f1180cda42ea5e653b549b889da58dcf491e2d39b0d1eed6c5eac970ec563",
+    "src/geistfabrik/default_geists/code/recent_focus.py": "cc0f075af5c4400b384c8f0fe037583878948fac43e076b4b8b130bca5b27a85",
+    "src/geistfabrik/default_geists/code/scale_shifter.py": "7e66f56410696bc22cccf0c5272c148d06b8cd6b87bc06b28763211c91dd27c8",
+    "src/geistfabrik/default_geists/code/seasonal_patterns.py": "6dba8ff218c7c0300d1f7ce5b8ba8fcf3cbaceb8d34d2fec205d33c32f22bb59",
+    "src/geistfabrik/default_geists/code/self_and_other.py": "e0e7893b564e4e959e0821cfab7814e51acfd453f66403f43e643b1f253b6310",
+    "src/geistfabrik/default_geists/code/sentence_variance.py": "bedaac4fca6bc074194ac603de34827229685fe9331f4f9a9f1c7dd9f544e1d0",
+    "src/geistfabrik/default_geists/code/structure_diversity_checker.py": "84dab45ea2b5b1a94882eab26b934611bfbea4773043afe2c2e2a7249a5155a7",
+    "src/geistfabrik/default_geists/code/stub_expander.py": "e9f71ca36717b588cc2ef5aa7d63270bb83bb7b752f518f0f6cf0abd8b8dd3bb",
+    "src/geistfabrik/default_geists/code/surprisal.py": "f8202fa10d3d29b7f69c762ed754104ea73b35b0f7f7dabbc796c09931383dc5",
+    "src/geistfabrik/default_geists/code/task_archaeology.py": "0c0ad622d36b86a6893c4b334fed07ee3dfac403337c7f75c5e4080ec18c9e0d",
+    "src/geistfabrik/default_geists/code/temporal_clustering.py": "b298eaefc8b003c7d32219c85b7f27e1c368982e994fc99a5f002c7f98d82172",
+    "src/geistfabrik/default_geists/code/temporal_drift.py": "900ef15c952d2ee58b4a0b9ea0a08fc649531d4c74ce53089a482c4691a7b221",
+    "src/geistfabrik/default_geists/code/this_time_last_year.py": "ecd587cb468fc05034d3fbd111d11ba4f856ab9858406c7ab4f9e29b5d659144",
+    "src/geistfabrik/default_geists/code/todo_harvester.py": "034d16d0258c82654b4996e0f4b762e20e310379876d91853655a72203b2b940",
+    "src/geistfabrik/default_geists/code/uncertainty_mapper.py": "7acae7c5ee3d678cce950a4c5bed2c5fe6a5e5a549aeb8218e975f95585d7cdd",
+    "src/geistfabrik/default_geists/code/vocabulary_expansion.py": "46477fc933a061c1dcf0a2f47f68455d7be24fa8b3c0354d41c8b8cf64a6de85",
+    "src/geistfabrik/default_geists/code/voice_absence.py": "5db82b6f1280098b8388f09375989fae21343044b2713ecf0dd5991a54b6f515",
+    "src/geistfabrik/default_geists/code/word_burst.py": "c658581d5c7ad8db0a5e2079a035537a2e53d39bc926502598e2917583fa0855",
+    "src/geistfabrik/default_geists/tracery/__init__.py": "59e6d36d9c296f2ad8e2eca95f5757acabe5afe766d984446bc43142ff4d48a1",
+    "src/geistfabrik/document_rate.py": "68e90198cbebfea489ceab87338135f70dbb9f35938807e7f6aecb9a97619ee4",
+    "src/geistfabrik/embedding_metrics.py": "49db397f826ba056b092591366873e07b97afed7cfdbe8da795fc6c88ff91d3c",
+    "src/geistfabrik/embeddings.py": "2d4df19c6ac5d23c7f424fc2ba7c13203db3b20a549be0686c9da8b0c912d8ff",
+    "src/geistfabrik/evidence_identity.py": "520599fd76556b0fda82de6effab2137f1cc4e32f0f390e89e42d2705d28d34b",
+    "src/geistfabrik/execution_timeout.py": "e107ccfef1733ada0e07b59c4a341f6d4019c8b1372c71c0891bc4e4de75da5d",
+    "src/geistfabrik/filtering.py": "3d795d963357d59a97c4335897238db47172d29cba6b49102a33278c672d7df1",
+    "src/geistfabrik/function_registry.py": "088135ca5935a8300fc49882a3fbb8111f74928ee5319d63b4a456f5282629e6",
+    "src/geistfabrik/geist_executor.py": "05a8ec775111a2a93350c89d89cc9691c26dc98d6d446ecbdf8fbd7d21bb2fd6",
+    "src/geistfabrik/geist_status.py": "63a97b3a687a0c85cfc4c2a1e2e65a44943e16a5db9adba810b6fc5f8689c2c1",
+    "src/geistfabrik/graph_analysis.py": "8e97c9fd231d30fa4cda83661d8132ce4583af587f084e725e8bef926c454550",
+    "src/geistfabrik/journal_writer.py": "956b8e1fd2599989cd7303e4016b75c2278842dbc5432ae1f9fbd18420c49ffc",
+    "src/geistfabrik/lexical_index.py": "3dbdb56ad4c05d262553989d05d637f117fca753776ab512aa36e39a0b975435",
+    "src/geistfabrik/markdown_parser.py": "c1f1dd928584724b260a516622fcefd1c01b9aa1c815f259ed06f8ee4e97eae8",
+    "src/geistfabrik/metadata_system.py": "b08192743aad7e2d1adf3b5897fa113958fa8c80e9a08234d881ffa2f1dd5946",
+    "src/geistfabrik/model_data/__init__.py": "54c5fc6bfa094b88027a15d5f00251eea069723eb351c2fdc20a78f616c6e74c",
+    "src/geistfabrik/models.py": "da4cdbe64b9bdd4c7c6e6bb9b0d1be68b6fd0481acc634cdf7e867cac534e6ab",
+    "src/geistfabrik/path_safety.py": "dfca5b7a5382c178614ec6a2a205b16479a4d8fb71f31c4faf998273d05b31c6",
+    "src/geistfabrik/schema.py": "dca3cec278b627bc0ff0876aecee208769e43752ff150db2314629d532ed01b0",
+    "src/geistfabrik/semantic_vectors.py": "7b54cfb25770b60bcdf8a9697de0ac731f53642daf43eef677376587a6a05589",
+    "src/geistfabrik/session_time.py": "de15e2f1dcbe4e82824da48d7c938d0be39cae153e28958f90bfb9a18b53839b",
+    "src/geistfabrik/similarity_analysis.py": "ecdb9c8f90dff2abaa8f5d88fd8d8a45c1b48d5ec6dea762938fa6a8ae8f9985",
+    "src/geistfabrik/sqlite_transaction.py": "eb6c5e76be05fbd578f4dfcbe2108d769ca11660c4dd171b2de64271067376fd",
+    "src/geistfabrik/stats.py": "95d20f3123d1315ae4ecfab30480b45048a55e610b083e9d50da1aff095db4a0",
+    "src/geistfabrik/stats_formatter.py": "fe10667a6c9982c6438a0ea29f2c9ca41a7339b5212199ed537cd410c3a51254",
+    "src/geistfabrik/suggestion_limits.py": "ef5e75d01126750335b379f630419fd9ec4fcd62416b26697790268795bfc498",
+    "src/geistfabrik/temporal_analysis.py": "6578a5e01f58c6d940cd0c4dcfa93b28f1761823986a5d1d9bcbad3a2837952c",
+    "src/geistfabrik/text_embeddings.py": "ddb94956f96f8daa4d039e607b165f6ca66fb27e71bcf686d736ef75a3060653",
+    "src/geistfabrik/tracery.py": "030450918b0c714647fc08bcb83793ab76e10544c0d76f85dcfe50065907e155",
+    "src/geistfabrik/validator.py": "53f8c5393eb25f389c53323eb2d36c25e7f6c2452d8c0a44d468755c86291e1d",
+    "src/geistfabrik/vault.py": "0c41204a029e7acf806e5a266a6739d958adf631365cbcba7620ec80cb49350d",
+    "src/geistfabrik/vault_context.py": "158da54ca2a6ab8d4c8910ec17b22de476ede8c16a3558b77e1e8543369d2ebf",
+    "src/geistfabrik/vector_math.py": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+    "src/geistfabrik/vector_search.py": "dd515e2cb012848347da7b8c15e0321f7c458de82f4318d819e7da0ad593e397",
+    "src/geistfabrik/voice_analysis.py": "2ed635646ea02948dad2ec17c3edd287bd87745e500c6548d37c86b6f12fff0b",
+    "src/geistfabrik/word_burst.py": "289a3ef74de5fa1ac3f6af995fafeaff30c1e81cb8e2ffe3456e318d1480365f",
+    "src/geistfabrik/word_burst_analysis.py": "9cb77c11a4851f6b1c16495ccd50b88b406371c9dc8e953fbf52f22011c2d871"
+  },
+  "harness_sha256": "7f5b823c60e84fb7b52a8f0ba5fb9a3f87d5aa1c4a0e3a819f9707c28d822cd3",
+  "regression_provenance": {
+    "baseline_red_commit": "201acf98162ee03272783143249106425cf19836",
+    "close_red_embeddings_sha256": "b784835cf26c8464d1ad6fe73b0f3e0f3c1d825d4376ff387b42e0daa42453ea",
+    "close_red_reconstruction": "Archived pre-projection-guard embeddings.py with two Session.close manifest/token cleanup assignments removed; reconstructed bytes verified against the pre-cleanup measured runtime manifest.",
+    "projection_red_embeddings_sha256": "4e172097648ea6b7af9df4c7a67ca578b4d3ea874ae70364199cd343e12154ba",
+    "computer_red_embeddings_sha256": "4a0ba6936be5b9b60ad40bff423edf32081a08d936669c6aafd2c77aa93bd05f"
+  },
+  "archives": [
+    {
+      "path": "benchmarks/results/similarity_refinement_before.json.xz",
+      "raw_file": "refinement-before.json",
+      "raw_bytes": 1525253,
+      "raw_sha256": "0bb13f05596dcb16b0167d67ac83da5a05ea6f4cb844c63400d4260e0ead9cd4",
+      "archive_bytes": 224304,
+      "archive_sha256": "b6f540a0a4ae434feaf9de56f89731436f79e12c2a41e56e027f0031ecfeaddf",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_after.json.xz",
+      "raw_file": "refinement-after.json",
+      "raw_bytes": 1525277,
+      "raw_sha256": "a9b3887fa0fa2b3789d731c59f0573c27333858cb6de5b20636f007ad9f25c79",
+      "archive_bytes": 224416,
+      "archive_sha256": "82919f878f58ee61284bf6afc244f24845f1f4b6be876de2242d16c973bfc99e",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_mean_abba.json.xz",
+      "raw_file": "refinement-mean-abba.json",
+      "raw_bytes": 3801,
+      "raw_sha256": "19bfcc027a774167f3676f88632d69d770d0c8312346202dc455b7d98a563e68",
+      "archive_bytes": 940,
+      "archive_sha256": "6d205235ae9b447544e3c24dea794de270c451d5e42e4ae07e56d0025b0fc9d9",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_fresh_session.json.xz",
+      "raw_file": "refinement-fresh-session.json",
+      "raw_bytes": 53906,
+      "raw_sha256": "aa54d31e2547cf1c90c82e8b70339d3711b346f00193eed1be0160453bc9f14b",
+      "archive_bytes": 5860,
+      "archive_sha256": "038f2a78de740d30b7edb83fe8ad9461a642be0332112bb2e126385a405fbc2d",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_fresh_session_probe.py.xz",
+      "raw_file": "refinement-fresh-session-probe.py",
+      "raw_bytes": 3155,
+      "raw_sha256": "97448fcf575872691241bf2d8efcf76d1b681a39c42f4777375cab862a98ad5a",
+      "archive_bytes": 1432,
+      "archive_sha256": "e2ef3884126680666a9b3dd654aba29e32fb4e184b1699fb80e9335cf2ad5338",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_variance_abba.json.xz",
+      "raw_file": "refinement-variance-abba.json",
+      "raw_bytes": 154721,
+      "raw_sha256": "a4803e197ef77f7320a25b8d958cd8b7f438600b9d6ce3bd0b608cf56048c4f6",
+      "archive_bytes": 7128,
+      "archive_sha256": "d57a7268de6dd9dd4cbfa695f9fe6bf08d91bc7096859c9933dfff8b80ae9fe4",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_variance_probe.py.xz",
+      "raw_file": "refinement-variance-probe.py",
+      "raw_bytes": 1382,
+      "raw_sha256": "a2dc363cc910ac961c7d032254629b699e9b9c00b4c2ff9428a7f25a34cc0333",
+      "archive_bytes": 776,
+      "archive_sha256": "28a47ce27cf2852d874cb484ae9d97d769b2ec864ba758d891283c3956cfcd4c",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_compare_refinement_vectors.py.xz",
+      "raw_file": "compare-refinement-vectors.py",
+      "raw_bytes": 2402,
+      "raw_sha256": "787379fdebc8b65a7e4004abca23da15edc863f2360faaf90410dc7b8842f34e",
+      "archive_bytes": 1048,
+      "archive_sha256": "4f60512f2f2e38e5b5540486b86a60bbd53ee71fc05ad31d53cc260da5bd663e",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_before_smoke.json.xz",
+      "raw_file": "refinement-before-smoke.json",
+      "raw_bytes": 9234541,
+      "raw_sha256": "7b8b23823f9db61b53320fd017751e63db35acbb236254af97d575d2dc58c752",
+      "archive_bytes": 79884,
+      "archive_sha256": "ddea331d711fb49091f8c8281fc5a0b6dbc84a696f1337f866fed32e21760d3f",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_after_smoke.json.xz",
+      "raw_file": "refinement-after-smoke.json",
+      "raw_bytes": 9234555,
+      "raw_sha256": "4d1f2753f4a9c5a0ce828c0b02305e260996af07a84f451bfc5cc2126566ea41",
+      "archive_bytes": 79836,
+      "archive_sha256": "f6a6a1489a34fc01cc118d73873e3f9a2aede49765a11402754e7972e31cc352",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_before_standard.json.xz",
+      "raw_file": "refinement-before-standard.json",
+      "raw_bytes": 70135589,
+      "raw_sha256": "1586c3fb96b1d60fdf55980d1a943218db68ceecdb8925648e9ab89d0fb5fda2",
+      "archive_bytes": 233976,
+      "archive_sha256": "0ffd1e9f14aaa4064e03d0bbe008fb694206b105d56d85cdea2f2df43a3c7c67",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_after_standard.json.xz",
+      "raw_file": "refinement-after-standard.json",
+      "raw_bytes": 70135575,
+      "raw_sha256": "afac7a26b04f7f8f431da99135866fdeefff02c814cc209a27663fd13ecb94e3",
+      "archive_bytes": 234176,
+      "archive_sha256": "52c5a485fb5e11601d8736ac13baf55926fc0674819c8ee6d6de09845a4135ff",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_before_large.json.xz",
+      "raw_file": "refinement-before-large.json",
+      "raw_bytes": 8173020,
+      "raw_sha256": "da7551325cd2a16dafdfd3442efefdee2b0b6ba427082835cf83708541d25c1d",
+      "archive_bytes": 15760,
+      "archive_sha256": "e71c67a280e42d82f211d1a7903594cfbbfd0311ad70c62ed0897abf80670eb6",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_after_large.json.xz",
+      "raw_file": "refinement-after-large.json",
+      "raw_bytes": 8173016,
+      "raw_sha256": "bfd3b4bff23738d9bc8347ed68c2d475443a0cf507116a9d79fb61424a2c17be",
+      "archive_bytes": 15728,
+      "archive_sha256": "578217b5f6548ecf479b4f459093a806ef1f612f55cba3bdc2f9e19250c09dc4",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_baseline_red.log.xz",
+      "raw_file": "refinement-baseline-red.log",
+      "raw_bytes": 17504,
+      "raw_sha256": "d17f259960386160fe8bc51f9b179ed8451f9db81da5287eaaecad501ea5fc06",
+      "archive_bytes": 2388,
+      "archive_sha256": "f94f1681bf28a158fd342f3d8fbac1bae5d8fc63e6f152018336f7f70f21f546",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_close_red.log.xz",
+      "raw_file": "refinement-close-red.log",
+      "raw_bytes": 2029,
+      "raw_sha256": "7d6cc8842ada24e4855f1ad173da7090e910715db46b1de264941621ab44efd5",
+      "archive_bytes": 872,
+      "archive_sha256": "2d0551da2e3acb462ed1ff6e5146d06986e58eb7a4d6755c804ddaa3d52a8fb3",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_projection_red.log.xz",
+      "raw_file": "refinement-projection-red.log",
+      "raw_bytes": 7167,
+      "raw_sha256": "9bcb295113202006a623bcddd332b8f277af8a4c9b9b01ecb8b521b5f1706d84",
+      "archive_bytes": 1136,
+      "archive_sha256": "5296de46971630ad902b6a842c1139dbbab211c59067e0a20c93b39141b3c9d2",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_computer_red.log.xz",
+      "raw_file": "refinement-computer-red.log",
+      "raw_bytes": 3297,
+      "raw_sha256": "1d02957ca02d57a0b987e4144461ca84c2c47a835b81b3fda62768696545f102",
+      "archive_bytes": 1240,
+      "archive_sha256": "06c8222d6abf25c237a6e1383784a7a8a33f71974a8c5fdf7d818bfbf292c1eb",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_embeddings_pre_guard.py.xz",
+      "raw_file": "refinement-embeddings-pre-guard.py",
+      "raw_bytes": 34638,
+      "raw_sha256": "4e172097648ea6b7af9df4c7a67ca578b4d3ea874ae70364199cd343e12154ba",
+      "archive_bytes": 9348,
+      "archive_sha256": "5f8c12fe556d3c452d2a7661ef38aec3150fab2b2f7b72be1b5ef06c3db1deb8",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_embeddings_before_computer.py.xz",
+      "raw_file": "refinement-embeddings-before-computer.py",
+      "raw_bytes": 35131,
+      "raw_sha256": "4a0ba6936be5b9b60ad40bff423edf32081a08d936669c6aafd2c77aa93bd05f",
+      "archive_bytes": 9408,
+      "archive_sha256": "c6e4d7e8f94a602193c7bc82f1a25bc2dc641cd5349a5e6875eac1f71404a60f",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_test_embeddings.log.xz",
+      "raw_file": "refinement-test_embeddings.log",
+      "raw_bytes": 99,
+      "raw_sha256": "c5eab85150996f76f93b812ae51d5e93e776ca10b076c139df842f314f479486",
+      "archive_bytes": 96,
+      "archive_sha256": "9d07f8033c294920766e897993b22f47b72e7e132837b2f0709121050a1e120d",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_test_vector_primitives.log.xz",
+      "raw_file": "refinement-test_vector_primitives.log",
+      "raw_bytes": 99,
+      "raw_sha256": "327a1c0cc6b9d04843d7ec7c0a5ba9af8e8e248b26ef87b2421bb1d9ecc8f029",
+      "archive_bytes": 96,
+      "archive_sha256": "adece4ef10357080ae7cc8124b458330040aa28c2c390129aac9a9ab0a9c1372",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_validate_similarity_refinement.log.xz",
+      "raw_file": "validate-similarity-refinement.log",
+      "raw_bytes": 338571,
+      "raw_sha256": "42df9f9095e464d8406ec29724849fb0e04a85a852474994f3aaefe1554518c8",
+      "archive_bytes": 32392,
+      "archive_sha256": "1748c06afce467390cbe942e24025bf05e7cfcded6d846c9c9f470d322f23750",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_initial_validate_similarity_refinement.log.xz",
+      "raw_file": "initial-validate-similarity-refinement.log",
+      "raw_bytes": 334181,
+      "raw_sha256": "4428b436b46eb8c370936e645dda5356dd077a64ac4b3306ae47b7ae750dd748",
+      "archive_bytes": 31564,
+      "archive_sha256": "9def38a362fe47e8c300baa63df2f9a8bdd8118eedbf6419253e1313229e7f4b",
+      "lossless_verified": true
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_summary.json",
+      "raw_bytes": 31168,
+      "sha256": "997dcd02ecd808f693b921a2fcb5a42b1a9614f5f2cfb432e10ea274f0b7502f"
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_vector_comparison.json",
+      "raw_bytes": 648,
+      "sha256": "6f953f879a922f1b7f41afc94741abb13021fbdc4442ca1d44d02201dd77d1ac"
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_owner_costs.json",
+      "raw_bytes": 396,
+      "sha256": "3311b9932461d6ea412015735de6606ee297973d4e6a53b6cef40d35b6b7b6ff"
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_validation_status.json",
+      "raw_bytes": 58,
+      "sha256": "115e8dd92d3c0807469c2ceeef0d0e56d3314bd3c36152862ca4056174d549a6"
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_public_review_proof.json",
+      "raw_bytes": 8074,
+      "sha256": "d08138b7c2ded8ca2b42cddaa5ccd4bd75ec253094ee9ac3cd5bca7cb658fb3e"
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_canonical_review.status.json",
+      "raw_bytes": 368,
+      "sha256": "3c4ee4e095483aed832be7661030635ca10cc9764ebefbe42259bca09386a19c"
+    },
+    {
+      "path": "benchmarks/results/similarity_refinement_review.json",
+      "raw_bytes": 610,
+      "sha256": "f38c56b2da03a297b223ca344e15306f0ccc59174e4a4bb8b49c85bc640b02d6"
+    },
+    {
+      "path": "benchmarks/results/similarity_initial_refinement_validation_status.json",
+      "raw_bytes": 59,
+      "sha256": "d28aab982107a99be1901c1496d770fd557918e726994aaa6f349b1d0246cbdb"
+    }
+  ]
+}

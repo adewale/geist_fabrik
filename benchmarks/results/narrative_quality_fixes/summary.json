@@ -1,0 +1,2207 @@
+{
+  "synthetic": true,
+  "comparison": "Frozen narrative v1, same 48 session contexts and all 45 geists; one unreplicated local run per mode. Raw lexical findings must match exactly. No new subjective utility score inferred.",
+  "frozen_manifest_sha256": "4dfd127db8611992eed861f237f4a170a018c17dda4d94be39daa8a4c266424b",
+  "ledger_sha256": "edb0dfa178c95dbdcda40506b31c568bc33702f3ea7aa82ad79b81684edbf169",
+  "modes": {
+    "dated": {
+      "before": {
+        "sessions": 24,
+        "executor_calls": 1080,
+        "executor_failures": 0,
+        "raw": 906,
+        "filtered": 882,
+        "selected": 120,
+        "saved": 120,
+        "nonempty_geists": 31,
+        "per_geist": {
+          "assumption_challenger": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "attention_shift": {
+            "sessions_with_output": 22,
+            "raw": 22,
+            "selected": 4
+          },
+          "bridge_builder": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "bridge_hunter": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 8
+          },
+          "claim_harvester": {
+            "sessions_with_output": 4,
+            "raw": 4,
+            "selected": 1
+          },
+          "cluster_mirror": {
+            "sessions_with_output": 23,
+            "raw": 23,
+            "selected": 4
+          },
+          "concept_cluster": {
+            "sessions_with_output": 8,
+            "raw": 10,
+            "selected": 3
+          },
+          "concept_drift": {
+            "sessions_with_output": 16,
+            "raw": 28,
+            "selected": 0
+          },
+          "contradictor": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 3
+          },
+          "convergent_evolution": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 0
+          },
+          "creation_burst": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "creative_collision": {
+            "sessions_with_output": 24,
+            "raw": 70,
+            "selected": 11
+          },
+          "cyclical_thinking": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "definition_harvester": {
+            "sessions_with_output": 12,
+            "raw": 12,
+            "selected": 1
+          },
+          "density_inversion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "divergent_evolution": {
+            "sessions_with_output": 3,
+            "raw": 4,
+            "selected": 1
+          },
+          "hidden_hub": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "hub_explorer": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 9
+          },
+          "hypothesis_harvester": {
+            "sessions_with_output": 20,
+            "raw": 21,
+            "selected": 2
+          },
+          "link_density_analyser": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "metadata_driven_discovery": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "method_scrambler": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 6
+          },
+          "orphan_connector": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 3
+          },
+          "pattern_finder": {
+            "sessions_with_output": 5,
+            "raw": 5,
+            "selected": 0
+          },
+          "question_generator": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 8
+          },
+          "question_harvester": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 2
+          },
+          "quote_harvester": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 1
+          },
+          "recent_focus": {
+            "sessions_with_output": 23,
+            "raw": 62,
+            "selected": 11
+          },
+          "scale_shifter": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "seasonal_patterns": {
+            "sessions_with_output": 16,
+            "raw": 17,
+            "selected": 1
+          },
+          "self_and_other": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 1
+          },
+          "sentence_variance": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "structure_diversity_checker": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "stub_expander": {
+            "sessions_with_output": 8,
+            "raw": 8,
+            "selected": 0
+          },
+          "surprisal": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 3
+          },
+          "task_archaeology": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "temporal_clustering": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 0
+          },
+          "temporal_drift": {
+            "sessions_with_output": 23,
+            "raw": 69,
+            "selected": 8
+          },
+          "this_time_last_year": {
+            "sessions_with_output": 16,
+            "raw": 16,
+            "selected": 3
+          },
+          "todo_harvester": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "uncertainty_mapper": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 5
+          },
+          "vocabulary_expansion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "voice_absence": {
+            "sessions_with_output": 19,
+            "raw": 19,
+            "selected": 3
+          },
+          "what_if": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 14
+          },
+          "word_burst": {
+            "sessions_with_output": 19,
+            "raw": 57,
+            "selected": 4
+          }
+        },
+        "template_raw": 19,
+        "template_selected": 8,
+        "word_burst_raw": 57,
+        "word_burst_terms": {
+          "before": 2,
+          "for": 13,
+          "with": 7,
+          "keep": 8,
+          "is": 1,
+          "do": 3,
+          "of": 2,
+          "of a": 2,
+          "but": 8,
+          "the repair cafe": 3,
+          "supported": 4,
+          "repair cafe": 2,
+          "without": 1,
+          "cafe": 1
+        },
+        "function_only_word_burst_raw": 39,
+        "old_virtual_work_claims": [
+          {
+            "date": "2024-04-30",
+            "path": "Journal.md/2024-02-26"
+          },
+          {
+            "date": "2024-07-31",
+            "path": "Journal.md/2024-05-26"
+          },
+          {
+            "date": "2024-10-31",
+            "path": "Journal.md/2024-08-26"
+          },
+          {
+            "date": "2025-02-28",
+            "path": "Journal.md/2024-11-26"
+          },
+          {
+            "date": "2025-03-31",
+            "path": "Journal.md/2024-09-26"
+          },
+          {
+            "date": "2025-04-30",
+            "path": "Journal.md/2025-02-26"
+          },
+          {
+            "date": "2025-06-30",
+            "path": "Journal.md/2024-08-26"
+          },
+          {
+            "date": "2025-06-30",
+            "path": "Journal.md/2025-01-26"
+          },
+          {
+            "date": "2025-07-31",
+            "path": "Journal.md/2024-09-26"
+          },
+          {
+            "date": "2025-07-31",
+            "path": "Journal.md/2025-03-26"
+          },
+          {
+            "date": "2025-08-31",
+            "path": "Journal.md/2025-06-26"
+          },
+          {
+            "date": "2025-08-31",
+            "path": "Journal.md/2025-03-26"
+          },
+          {
+            "date": "2025-09-30",
+            "path": "Journal.md/2024-09-26"
+          },
+          {
+            "date": "2025-10-31",
+            "path": "Journal.md/2024-01-26"
+          },
+          {
+            "date": "2025-10-31",
+            "path": "Journal.md/2025-02-26"
+          },
+          {
+            "date": "2025-11-30",
+            "path": "Journal.md/2024-05-26"
+          },
+          {
+            "date": "2025-11-30",
+            "path": "Journal.md/2024-01-26"
+          }
+        ],
+        "clippings_seasonal_claims": 16,
+        "selected_overlapping_saved_episodes": [
+          {
+            "date": "2025-11-30",
+            "evidence_key": "interval:v1:2fd319722a295d15f04a9207b34770ecb8909167e1e8511185ccbcd044a44dea:2024-12-30:2025-06-08"
+          }
+        ],
+        "selected_repair_hedge_prompts": 5,
+        "selected_word_bursts": [
+          {
+            "date": "2024-11-30",
+            "text": "From 2023-12-04 to 2024-01-14, \u2018of a\u2019 appeared in 50% of observations, compared with 7.78% across the window, using current text grouped by declared dates (with unobserved weeks between evidence). Current passages: [[Field methods]]: \u201cA photograph of a busy table does not establish how\u201d; [[Tuesday bus connections]]: \u201ca ten-minute consultation occupies most of a morning\u201d. What changes if you read [[Field methods]], [[Tuesday bus connections]], [[Maintenance]] beside one another through \u2018of a\u2019?",
+            "notes": [
+              "Field methods",
+              "Tuesday bus connections",
+              "Maintenance",
+              "Repair ideas",
+              "Garden notebook",
+              "Exhibition plan",
+              "Pottery"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:e65077a2d15b7da402a17dea2059e74dfa10505c67325eb67247f1393dc45609:2023-12-04:2024-01-14"
+          },
+          {
+            "date": "2025-02-28",
+            "text": "From 2023-11-27 to 2023-12-10, \u2018of\u2019 appeared in 100% of observations, compared with 40.5% across the window, using current text grouped by declared dates (already elevated at the observation boundary). Current passages: [[Volunteer handbook]]: \u201cattendance alone is not a record of what a person has practised\u201d; [[Field methods]]: \u201cA photograph of a busy table does not establish\u201d. What changes if you read [[Volunteer handbook]], [[Field methods]], [[Care arrangements]] beside one another through \u2018of\u2019?",
+            "notes": [
+              "Volunteer handbook",
+              "Field methods",
+              "Care arrangements",
+              "Garden notebook",
+              "Listening",
+              "Maintenance",
+              "Exhibition plan",
+              "Pottery"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:42fe0fb0539cd758bc2f9af33c0b84a609ac7a0e8e2626a0ec1c849c4460b5a8:2023-11-27:2023-12-10"
+          },
+          {
+            "date": "2025-09-30",
+            "text": "From 2024-12-30 to 2025-06-08, \u2018supported\u2019 appeared in 27% of observations, compared with 7.5% across the window, using current text grouped by declared dates. Current passages: [[A mentor can learn the wrong lesson]]: \u201cDuring supported practice the mentor apologized for a\u201d; [[A first shift should include a pause]]: \u201cWe will trial supported practice: an experienced person stays beside\u201d. What changes if you read [[A mentor can learn the wrong lesson]], [[A first shift should include a pause]], [[Two kinds of competence record]] beside one another through \u2018supported\u2019?",
+            "notes": [
+              "A mentor can learn the wrong lesson",
+              "A first shift should include a pause",
+              "Two kinds of competence record",
+              "Journal#2025-04-26",
+              "Learning beside someone who can intervene",
+              "The burden of saying no repeatedly",
+              "An induction handbook with fewer pages",
+              "Supported practice at the admissions desk",
+              "The supported practice review card",
+              "When supported practice becomes a shift"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:2fd319722a295d15f04a9207b34770ecb8909167e1e8511185ccbcd044a44dea:2024-12-30:2025-06-08"
+          },
+          {
+            "date": "2025-11-30",
+            "text": "From 2024-12-30 to 2025-06-08, \u2018supported\u2019 appeared in 27% of observations, compared with 7.51% across the window, using current text grouped by declared dates. Current passages: [[Learning beside someone who can intervene]]: \u201cSupported practice works when help is close\u201d; [[Two kinds of competence record]]: \u201cSupported practice could record a demonstrated task\u201d. What changes if you read [[Learning beside someone who can intervene]], [[Two kinds of competence record]], [[Journal#2025-04-26]] beside one another through \u2018supported\u2019?",
+            "notes": [
+              "Learning beside someone who can intervene",
+              "Two kinds of competence record",
+              "Journal#2025-04-26",
+              "The burden of saying no repeatedly",
+              "A first shift should include a pause",
+              "A mentor can learn the wrong lesson",
+              "An induction handbook with fewer pages",
+              "Supported practice at the admissions desk",
+              "The supported practice review card",
+              "When supported practice becomes a shift"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:2fd319722a295d15f04a9207b34770ecb8909167e1e8511185ccbcd044a44dea:2024-12-30:2025-06-08"
+          }
+        ],
+        "stable_meaning_changes": 0,
+        "future_note_dates": 0,
+        "invoke_seconds": {
+          "median": 3.3965158720020554,
+          "max": 5.274450719996821
+        },
+        "peak_whole_process_rss_mib": 1071.16015625,
+        "final_db_bytes": 8994816,
+        "last_word_burst_diagnostics": {
+          "documents": 0,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": true,
+          "reason": "cached",
+          "collection_seconds": 0.0,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "last_execution_diagnostics": null
+      },
+      "after": {
+        "sessions": 24,
+        "executor_calls": 1080,
+        "executor_failures": 0,
+        "raw": 877,
+        "filtered": 814,
+        "selected": 120,
+        "saved": 120,
+        "nonempty_geists": 29,
+        "per_geist": {
+          "assumption_challenger": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "attention_shift": {
+            "sessions_with_output": 22,
+            "raw": 22,
+            "selected": 4
+          },
+          "bridge_builder": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "bridge_hunter": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 10
+          },
+          "claim_harvester": {
+            "sessions_with_output": 3,
+            "raw": 3,
+            "selected": 1
+          },
+          "cluster_mirror": {
+            "sessions_with_output": 23,
+            "raw": 23,
+            "selected": 2
+          },
+          "concept_cluster": {
+            "sessions_with_output": 9,
+            "raw": 11,
+            "selected": 3
+          },
+          "concept_drift": {
+            "sessions_with_output": 16,
+            "raw": 28,
+            "selected": 0
+          },
+          "contradictor": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 6
+          },
+          "convergent_evolution": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "creation_burst": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "creative_collision": {
+            "sessions_with_output": 24,
+            "raw": 70,
+            "selected": 9
+          },
+          "cyclical_thinking": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "definition_harvester": {
+            "sessions_with_output": 11,
+            "raw": 11,
+            "selected": 1
+          },
+          "density_inversion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "divergent_evolution": {
+            "sessions_with_output": 3,
+            "raw": 3,
+            "selected": 2
+          },
+          "hidden_hub": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "hub_explorer": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 8
+          },
+          "hypothesis_harvester": {
+            "sessions_with_output": 21,
+            "raw": 21,
+            "selected": 2
+          },
+          "link_density_analyser": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "metadata_driven_discovery": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "method_scrambler": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 8
+          },
+          "orphan_connector": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 4
+          },
+          "pattern_finder": {
+            "sessions_with_output": 5,
+            "raw": 5,
+            "selected": 1
+          },
+          "question_generator": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 7
+          },
+          "question_harvester": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 4
+          },
+          "quote_harvester": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 0
+          },
+          "recent_focus": {
+            "sessions_with_output": 23,
+            "raw": 68,
+            "selected": 9
+          },
+          "scale_shifter": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "seasonal_patterns": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "self_and_other": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 3
+          },
+          "sentence_variance": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "structure_diversity_checker": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "stub_expander": {
+            "sessions_with_output": 8,
+            "raw": 8,
+            "selected": 1
+          },
+          "surprisal": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 2
+          },
+          "task_archaeology": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "temporal_clustering": {
+            "sessions_with_output": 2,
+            "raw": 2,
+            "selected": 0
+          },
+          "temporal_drift": {
+            "sessions_with_output": 23,
+            "raw": 69,
+            "selected": 10
+          },
+          "this_time_last_year": {
+            "sessions_with_output": 16,
+            "raw": 16,
+            "selected": 2
+          },
+          "todo_harvester": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "uncertainty_mapper": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 1
+          },
+          "vocabulary_expansion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "voice_absence": {
+            "sessions_with_output": 19,
+            "raw": 19,
+            "selected": 3
+          },
+          "what_if": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 12
+          },
+          "word_burst": {
+            "sessions_with_output": 19,
+            "raw": 41,
+            "selected": 5
+          }
+        },
+        "template_raw": 0,
+        "template_selected": 0,
+        "word_burst_raw": 41,
+        "word_burst_terms": {
+          "keep": 22,
+          "cafe": 7,
+          "supported": 5,
+          "the repair cafe": 4,
+          "repair cafe": 3
+        },
+        "function_only_word_burst_raw": 0,
+        "old_virtual_work_claims": [],
+        "clippings_seasonal_claims": 0,
+        "selected_overlapping_saved_episodes": [],
+        "selected_repair_hedge_prompts": 1,
+        "selected_word_bursts": [
+          {
+            "date": "2024-09-30",
+            "text": "From 2023-12-04 to 2024-01-21, \u2018keep\u2019 appeared in 80% of observations, compared with 27.3% across the window, using current text grouped by declared dates (with unobserved weeks between evidence). Current passages: [[Care arrangements]]: \u201cMum wants to keep choosing her own appointments and collecting\u201d; [[Field methods]]: \u201cKeep exclusions visible and preserve the cases\u201d. What changes if you read [[Care arrangements]], [[Field methods]], [[Repair ideas]] beside one another through \u2018keep\u2019?",
+            "notes": [
+              "Care arrangements",
+              "Field methods",
+              "Repair ideas",
+              "Tuesday bus connections",
+              "A seed order is a weather forecast",
+              "Garden notebook",
+              "Maintenance",
+              "Permission to stop",
+              "Exhibition plan",
+              "Whose voice survives a transcript",
+              "Pottery",
+              "Routes"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:fb754e6eabb80d2a8c1e544d7599ae32533aee4067f02f9a25cbd93b04d619c4:2023-12-04:2024-01-21"
+          },
+          {
+            "date": "2025-01-31",
+            "text": "From 2024-02-05 to 2024-11-24, \u2018keep\u2019 appeared in 11.8% of observations, compared with 65% during the earlier period 2023-02-06 to 2024-02-04, using current text grouped by declared dates. Current passages: [[Tuesday bus connections]]: \u201cI keep trying to solve it with a\u201d; [[The harbour archive consent table]]: \u201cKeep permission attached to each extract rather\u201d. Could the earlier use in [[Tuesday bus connections]], [[The harbour archive consent table]], [[Whose voice survives a transcript]] offer a useful lens for what you are working on now, or has this language done its work?",
+            "notes": [
+              "Tuesday bus connections",
+              "The harbour archive consent table",
+              "Whose voice survives a transcript",
+              "Care arrangements",
+              "Repair ideas",
+              "A seed order is a weather forecast",
+              "Garden notebook",
+              "Field methods",
+              "Maintenance",
+              "Permission to stop",
+              "Exhibition plan",
+              "Pottery",
+              "Routes"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:5862e3a696f044b92d139f0a5bc03bc1bf3cf7ffdd99dad01aa8a5117d8fa862:2024-02-05:2024-11-24"
+          },
+          {
+            "date": "2025-06-30",
+            "text": "From 2025-01-06 to 2025-06-22, \u2018the repair cafe\u2019 appeared in 28.2% of observations, compared with 7.91% across the window, using current text grouped by declared dates. Current passages: [[Repair cafe intake on a postcard]]: \u201cThe repair cafe postcard asks what the object does\u201d; [[A measure that ignores the refusal]]: \u201cThe repair cafe spreadsheet counts repairs, so a careful\u201d. What changes if you read [[Repair cafe intake on a postcard]], [[A measure that ignores the refusal]], [[A small service with a clear edge]] beside one another through \u2018the repair cafe\u2019?",
+            "notes": [
+              "Repair cafe intake on a postcard",
+              "A measure that ignores the refusal",
+              "A small service with a clear edge",
+              "A name for the repair cafe",
+              "Repair cafe before the summer pause",
+              "Repair cafe under a borrowed name",
+              "The first repair cafe ran late",
+              "The repair cafe cancellation list",
+              "Who carries the unfinished decision",
+              "A lamp for the first repair cafe",
+              "A useful repair we did not complete"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:060a8d48ebc36d8f4ca8ae28740dcdf143dabc8ea81e75c2dcd16a6c61530034:2025-01-06:2025-06-22"
+          },
+          {
+            "date": "2025-07-31",
+            "text": "From 2025-01-06 to 2025-07-13, \u2018cafe\u2019 appeared in 29.5% of observations, compared with 8.9% across the window, using current text grouped by declared dates. Current passages: [[Journal#2025-03-26]]: \u201cThe first cafe was tiring and mostly good\u201d; [[Repair cafe parts in the wrong cupboard]]: \u201cRepair cafe parts in the wrong cupboard\u201d. What changes if you read [[Journal#2025-03-26]], [[Repair cafe parts in the wrong cupboard]], [[Repair cafe under a borrowed name]] beside one another through \u2018cafe\u2019?",
+            "notes": [
+              "Journal#2025-03-26",
+              "Repair cafe parts in the wrong cupboard",
+              "Repair cafe under a borrowed name",
+              "A name for the repair cafe",
+              "Repair cafe before the summer pause",
+              "Repair cafe intake on a postcard",
+              "The first repair cafe ran late",
+              "The repair cafe cancellation list",
+              "A measure that ignores the refusal",
+              "A small service with a clear edge",
+              "Who carries the unfinished decision",
+              "A lamp for the first repair cafe",
+              "A useful repair we did not complete"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:7d50e8a9b59dfa57504a5a5eee776ae9358c8f1588cd7b7f3a0cc7b01b8bc8b1:2025-01-06:2025-07-13"
+          },
+          {
+            "date": "2025-11-30",
+            "text": "From 2024-12-30 to 2025-06-08, \u2018supported\u2019 appeared in 27% of observations, compared with 7.51% across the window, using current text grouped by declared dates. Current passages: [[An induction handbook with fewer pages]]: \u201cRemoved duplicate instructions after the supported practice trial\u201d; [[A mentor can learn the wrong lesson]]: \u201cDuring supported practice the mentor apologized for a\u201d. What changes if you read [[An induction handbook with fewer pages]], [[A mentor can learn the wrong lesson]], [[Learning beside someone who can intervene]] beside one another through \u2018supported\u2019?",
+            "notes": [
+              "An induction handbook with fewer pages",
+              "A mentor can learn the wrong lesson",
+              "Learning beside someone who can intervene",
+              "Journal#2025-04-26",
+              "The burden of saying no repeatedly",
+              "Two kinds of competence record",
+              "A first shift should include a pause",
+              "Supported practice at the admissions desk",
+              "The supported practice review card",
+              "When supported practice becomes a shift"
+            ],
+            "geist_id": "word_burst",
+            "title": null,
+            "evidence_key": "interval:v1:2fd319722a295d15f04a9207b34770ecb8909167e1e8511185ccbcd044a44dea:2024-12-30:2025-06-08"
+          }
+        ],
+        "stable_meaning_changes": 0,
+        "future_note_dates": 0,
+        "invoke_seconds": {
+          "median": 2.9719978380016983,
+          "max": 3.6469392949948087
+        },
+        "peak_whole_process_rss_mib": 1028.51953125,
+        "final_db_bytes": 9011200,
+        "last_word_burst_diagnostics": {
+          "documents": 168,
+          "populated_bins": 103,
+          "min_documents": 50,
+          "min_populated_bins": 8,
+          "history_mode": "dated_cohorts",
+          "candidates": 1216,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": true,
+          "reason": "burst",
+          "collection_seconds": 0.0,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "last_execution_diagnostics": {
+          "word_burst": "supported burst episodes found: 168 dated-cohort observations across 103 populated weekly bins"
+        }
+      },
+      "raw_model_findings_identical_all_sessions": true,
+      "source_commit": "5cff8faf1977dd30d2b0add962d325f1e1ec0265",
+      "exact_current_lexical_population_unchanged": true,
+      "lexical_population_sha256": "7a0f17f9ff00dc1a09dd6fac10656059e6b5e2ddbce434f3b40570a5b0d59894"
+    },
+    "observed": {
+      "before": {
+        "sessions": 24,
+        "executor_calls": 1080,
+        "executor_failures": 0,
+        "raw": 849,
+        "filtered": 826,
+        "selected": 120,
+        "saved": 120,
+        "nonempty_geists": 30,
+        "per_geist": {
+          "assumption_challenger": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "attention_shift": {
+            "sessions_with_output": 22,
+            "raw": 22,
+            "selected": 4
+          },
+          "bridge_builder": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "bridge_hunter": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 8
+          },
+          "claim_harvester": {
+            "sessions_with_output": 4,
+            "raw": 4,
+            "selected": 1
+          },
+          "cluster_mirror": {
+            "sessions_with_output": 23,
+            "raw": 23,
+            "selected": 4
+          },
+          "concept_cluster": {
+            "sessions_with_output": 8,
+            "raw": 10,
+            "selected": 3
+          },
+          "concept_drift": {
+            "sessions_with_output": 16,
+            "raw": 28,
+            "selected": 0
+          },
+          "contradictor": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 3
+          },
+          "convergent_evolution": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 0
+          },
+          "creation_burst": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "creative_collision": {
+            "sessions_with_output": 24,
+            "raw": 70,
+            "selected": 12
+          },
+          "cyclical_thinking": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "definition_harvester": {
+            "sessions_with_output": 12,
+            "raw": 12,
+            "selected": 1
+          },
+          "density_inversion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "divergent_evolution": {
+            "sessions_with_output": 3,
+            "raw": 4,
+            "selected": 1
+          },
+          "hidden_hub": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "hub_explorer": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 9
+          },
+          "hypothesis_harvester": {
+            "sessions_with_output": 20,
+            "raw": 21,
+            "selected": 2
+          },
+          "link_density_analyser": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "metadata_driven_discovery": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "method_scrambler": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 7
+          },
+          "orphan_connector": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 3
+          },
+          "pattern_finder": {
+            "sessions_with_output": 5,
+            "raw": 5,
+            "selected": 0
+          },
+          "question_generator": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 8
+          },
+          "question_harvester": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 2
+          },
+          "quote_harvester": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 1
+          },
+          "recent_focus": {
+            "sessions_with_output": 23,
+            "raw": 62,
+            "selected": 11
+          },
+          "scale_shifter": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "seasonal_patterns": {
+            "sessions_with_output": 16,
+            "raw": 17,
+            "selected": 1
+          },
+          "self_and_other": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 2
+          },
+          "sentence_variance": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "structure_diversity_checker": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "stub_expander": {
+            "sessions_with_output": 8,
+            "raw": 8,
+            "selected": 0
+          },
+          "surprisal": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 3
+          },
+          "task_archaeology": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "temporal_clustering": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 0
+          },
+          "temporal_drift": {
+            "sessions_with_output": 23,
+            "raw": 69,
+            "selected": 8
+          },
+          "this_time_last_year": {
+            "sessions_with_output": 16,
+            "raw": 16,
+            "selected": 3
+          },
+          "todo_harvester": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "uncertainty_mapper": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 5
+          },
+          "vocabulary_expansion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "voice_absence": {
+            "sessions_with_output": 19,
+            "raw": 19,
+            "selected": 4
+          },
+          "what_if": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 14
+          },
+          "word_burst": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          }
+        },
+        "template_raw": 19,
+        "template_selected": 8,
+        "word_burst_raw": 0,
+        "word_burst_terms": {},
+        "function_only_word_burst_raw": 0,
+        "old_virtual_work_claims": [
+          {
+            "date": "2024-04-30",
+            "path": "Journal.md/2024-02-26"
+          },
+          {
+            "date": "2024-07-31",
+            "path": "Journal.md/2024-05-26"
+          },
+          {
+            "date": "2024-10-31",
+            "path": "Journal.md/2024-08-26"
+          },
+          {
+            "date": "2025-02-28",
+            "path": "Journal.md/2024-11-26"
+          },
+          {
+            "date": "2025-03-31",
+            "path": "Journal.md/2024-09-26"
+          },
+          {
+            "date": "2025-04-30",
+            "path": "Journal.md/2025-02-26"
+          },
+          {
+            "date": "2025-06-30",
+            "path": "Journal.md/2024-08-26"
+          },
+          {
+            "date": "2025-06-30",
+            "path": "Journal.md/2025-01-26"
+          },
+          {
+            "date": "2025-07-31",
+            "path": "Journal.md/2024-09-26"
+          },
+          {
+            "date": "2025-07-31",
+            "path": "Journal.md/2025-03-26"
+          },
+          {
+            "date": "2025-08-31",
+            "path": "Journal.md/2025-06-26"
+          },
+          {
+            "date": "2025-08-31",
+            "path": "Journal.md/2025-03-26"
+          },
+          {
+            "date": "2025-09-30",
+            "path": "Journal.md/2024-09-26"
+          },
+          {
+            "date": "2025-10-31",
+            "path": "Journal.md/2024-01-26"
+          },
+          {
+            "date": "2025-10-31",
+            "path": "Journal.md/2025-02-26"
+          },
+          {
+            "date": "2025-11-30",
+            "path": "Journal.md/2024-05-26"
+          },
+          {
+            "date": "2025-11-30",
+            "path": "Journal.md/2024-01-26"
+          }
+        ],
+        "clippings_seasonal_claims": 16,
+        "selected_overlapping_saved_episodes": [],
+        "selected_repair_hedge_prompts": 5,
+        "selected_word_bursts": [],
+        "stable_meaning_changes": 0,
+        "future_note_dates": 0,
+        "invoke_seconds": {
+          "median": 2.7906617549997463,
+          "max": 3.962354965005943
+        },
+        "peak_whole_process_rss_mib": 1064.8046875,
+        "final_db_bytes": 8990720,
+        "last_word_burst_diagnostics": {
+          "documents": 0,
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": true,
+          "reason": "cached",
+          "collection_seconds": 0.0,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "last_execution_diagnostics": null
+      },
+      "after": {
+        "sessions": 24,
+        "executor_calls": 1080,
+        "executor_failures": 0,
+        "raw": 836,
+        "filtered": 793,
+        "selected": 120,
+        "saved": 120,
+        "nonempty_geists": 28,
+        "per_geist": {
+          "assumption_challenger": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "attention_shift": {
+            "sessions_with_output": 22,
+            "raw": 22,
+            "selected": 4
+          },
+          "bridge_builder": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "bridge_hunter": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 11
+          },
+          "claim_harvester": {
+            "sessions_with_output": 3,
+            "raw": 3,
+            "selected": 1
+          },
+          "cluster_mirror": {
+            "sessions_with_output": 23,
+            "raw": 23,
+            "selected": 2
+          },
+          "concept_cluster": {
+            "sessions_with_output": 9,
+            "raw": 11,
+            "selected": 3
+          },
+          "concept_drift": {
+            "sessions_with_output": 16,
+            "raw": 28,
+            "selected": 0
+          },
+          "contradictor": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 6
+          },
+          "convergent_evolution": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "creation_burst": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "creative_collision": {
+            "sessions_with_output": 24,
+            "raw": 70,
+            "selected": 10
+          },
+          "cyclical_thinking": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "definition_harvester": {
+            "sessions_with_output": 11,
+            "raw": 11,
+            "selected": 1
+          },
+          "density_inversion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "divergent_evolution": {
+            "sessions_with_output": 3,
+            "raw": 3,
+            "selected": 2
+          },
+          "hidden_hub": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "hub_explorer": {
+            "sessions_with_output": 24,
+            "raw": 48,
+            "selected": 7
+          },
+          "hypothesis_harvester": {
+            "sessions_with_output": 21,
+            "raw": 21,
+            "selected": 2
+          },
+          "link_density_analyser": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "metadata_driven_discovery": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "method_scrambler": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 8
+          },
+          "orphan_connector": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 4
+          },
+          "pattern_finder": {
+            "sessions_with_output": 5,
+            "raw": 5,
+            "selected": 1
+          },
+          "question_generator": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 7
+          },
+          "question_harvester": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 4
+          },
+          "quote_harvester": {
+            "sessions_with_output": 1,
+            "raw": 1,
+            "selected": 0
+          },
+          "recent_focus": {
+            "sessions_with_output": 23,
+            "raw": 68,
+            "selected": 9
+          },
+          "scale_shifter": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "seasonal_patterns": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "self_and_other": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 4
+          },
+          "sentence_variance": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "structure_diversity_checker": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "stub_expander": {
+            "sessions_with_output": 8,
+            "raw": 8,
+            "selected": 1
+          },
+          "surprisal": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 2
+          },
+          "task_archaeology": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "temporal_clustering": {
+            "sessions_with_output": 2,
+            "raw": 2,
+            "selected": 0
+          },
+          "temporal_drift": {
+            "sessions_with_output": 23,
+            "raw": 69,
+            "selected": 12
+          },
+          "this_time_last_year": {
+            "sessions_with_output": 16,
+            "raw": 16,
+            "selected": 2
+          },
+          "todo_harvester": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "uncertainty_mapper": {
+            "sessions_with_output": 24,
+            "raw": 24,
+            "selected": 1
+          },
+          "vocabulary_expansion": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          },
+          "voice_absence": {
+            "sessions_with_output": 19,
+            "raw": 19,
+            "selected": 3
+          },
+          "what_if": {
+            "sessions_with_output": 24,
+            "raw": 72,
+            "selected": 13
+          },
+          "word_burst": {
+            "sessions_with_output": 0,
+            "raw": 0,
+            "selected": 0
+          }
+        },
+        "template_raw": 0,
+        "template_selected": 0,
+        "word_burst_raw": 0,
+        "word_burst_terms": {},
+        "function_only_word_burst_raw": 0,
+        "old_virtual_work_claims": [],
+        "clippings_seasonal_claims": 0,
+        "selected_overlapping_saved_episodes": [],
+        "selected_repair_hedge_prompts": 1,
+        "selected_word_bursts": [],
+        "stable_meaning_changes": 0,
+        "future_note_dates": 0,
+        "invoke_seconds": {
+          "median": 2.707499103998998,
+          "max": 9.33768681899528
+        },
+        "peak_whole_process_rss_mib": 1028.82421875,
+        "final_db_bytes": 8998912,
+        "last_word_burst_diagnostics": {
+          "documents": 9,
+          "populated_bins": 8,
+          "min_documents": 50,
+          "min_populated_bins": 8,
+          "history_mode": "observed_additions",
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": true,
+          "reason": "insufficient_documents",
+          "collection_seconds": 0.0,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "last_execution_diagnostics": {
+          "word_burst": "abstained: 9 captured observations; minimum 50 required"
+        }
+      },
+      "raw_model_findings_identical_all_sessions": true,
+      "source_commit": "5cff8faf1977dd30d2b0add962d325f1e1ec0265",
+      "exact_current_lexical_population_unchanged": true,
+      "lexical_population_sha256": "7a0f17f9ff00dc1a09dd6fac10656059e6b5e2ddbce434f3b40570a5b0d59894"
+    }
+  },
+  "repeat": {
+    "scope": "Separate complete 24-session replay to investigate first observed-mode9.34s outlier, without changing source, history, thresholds or corpus. Both runs retained.",
+    "sessions": 24,
+    "executor_calls": 1080,
+    "errors": [],
+    "same_source_hashes": true,
+    "raw_by_geist_identical": true,
+    "filtered_identical": true,
+    "selected_identical": true,
+    "invoke_seconds": {
+      "median": 3.025220896000974,
+      "max": 5.459732424002141
+    },
+    "peak_whole_process_rss_mib": 1015.33984375,
+    "november_seconds": 3.3574521970003843
+  },
+  "extra_checks": {
+    "dated": {
+      "durable_index_bytes": 4096,
+      "schema_version": 13,
+      "saved_evidence_count": 6,
+      "lexical_events": 9,
+      "last_invocation_explanation": {
+        "word_burst": "supported burst episodes found: 168 dated-cohort observations across 103 populated weekly bins"
+      },
+      "last_cached_diagnostics": {
+        "documents": 168,
+        "populated_bins": 103,
+        "min_documents": 50,
+        "min_populated_bins": 8,
+        "history_mode": "dated_cohorts",
+        "candidates": 1216,
+        "decoded": 0,
+        "pruned": 0,
+        "series_reused": 0,
+        "cache_hit": true,
+        "reason": "burst",
+        "collection_seconds": 0.0,
+        "decoding_seconds": 0.0,
+        "evidence_seconds": 0.0
+      },
+      "selected_diagnostic_examples": [
+        {
+          "date": "2024-05-31",
+          "text": "[[Repair ideas]] hedges 3 times in 120 words. What are you not ready to commit to?",
+          "geist_id": "uncertainty_mapper"
+        },
+        {
+          "date": "2024-06-30",
+          "text": "[[Cycling the longer flat route]], which you've worked on lately, resembles [[Routes]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2024-09-30",
+          "text": "From 2023-12-04 to 2024-01-21, \u2018keep\u2019 appeared in 80% of observations, compared with 27.3% across the window, using current text grouped by declared dates (with unobserved weeks between evidence). Current passages: [[Care arrangements]]: \u201cMum wants to keep choosing her own appointments and collecting\u201d; [[Field methods]]: \u201cKeep exclusions visible and preserve the cases\u201d. What changes if you read [[Care arrangements]], [[Field methods]], [[Repair ideas]] beside one another through \u2018keep\u2019?",
+          "geist_id": "word_burst"
+        },
+        {
+          "date": "2024-11-30",
+          "text": "[[An orientation session in the wrong room]], which you've worked on lately, resembles [[Volunteer handbook]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2024-12-31",
+          "text": "[[The label update nobody owns]], which you've worked on lately, resembles [[Harbour archive handover receipt]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2024-12-31",
+          "text": "[[Winter rides need an exit option]], which you've worked on lately, resembles [[Journal#2024-10-26]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-01-31",
+          "text": "From 2024-02-05 to 2024-11-24, \u2018keep\u2019 appeared in 11.8% of observations, compared with 65% during the earlier period 2023-02-06 to 2024-02-04, using current text grouped by declared dates. Current passages: [[Tuesday bus connections]]: \u201cI keep trying to solve it with a\u201d; [[The harbour archive consent table]]: \u201cKeep permission attached to each extract rather\u201d. Could the earlier use in [[Tuesday bus connections]], [[The harbour archive consent table]], [[Whose voice survives a transcript]] offer a useful lens for what you are working on now, or has this language done its work?",
+          "geist_id": "word_burst"
+        },
+        {
+          "date": "2025-03-31",
+          "text": "[[The spare key review]], which you've worked on lately, resembles [[What Mum wants me to remember]] (written 1 year earlier) more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-05-31",
+          "text": "[[The supported practice review card]], which you've worked on lately, resembles [[Volunteer handbook]] (written 1 year earlier) more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-06-30",
+          "text": "[[A year after the exhibition opening]], which you've worked on lately, resembles [[Exhibition plan]] (written 1 year earlier) more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-06-30",
+          "text": "From 2025-01-06 to 2025-06-22, \u2018the repair cafe\u2019 appeared in 28.2% of observations, compared with 7.91% across the window, using current text grouped by declared dates. Current passages: [[Repair cafe intake on a postcard]]: \u201cThe repair cafe postcard asks what the object does\u201d; [[A measure that ignores the refusal]]: \u201cThe repair cafe spreadsheet counts repairs, so a careful\u201d. What changes if you read [[Repair cafe intake on a postcard]], [[A measure that ignores the refusal]], [[A small service with a clear edge]] beside one another through \u2018the repair cafe\u2019?",
+          "geist_id": "word_burst"
+        },
+        {
+          "date": "2025-07-31",
+          "text": "[[Volunteer handbook]], which you've worked on lately, resembles [[Maintenance]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-07-31",
+          "text": "From 2025-01-06 to 2025-07-13, \u2018cafe\u2019 appeared in 29.5% of observations, compared with 8.9% across the window, using current text grouped by declared dates. Current passages: [[Journal#2025-03-26]]: \u201cThe first cafe was tiring and mostly good\u201d; [[Repair cafe parts in the wrong cupboard]]: \u201cRepair cafe parts in the wrong cupboard\u201d. What changes if you read [[Journal#2025-03-26]], [[Repair cafe parts in the wrong cupboard]], [[Repair cafe under a borrowed name]] beside one another through \u2018cafe\u2019?",
+          "geist_id": "word_burst"
+        },
+        {
+          "date": "2025-08-31",
+          "text": "[[A path that fits two people talking]], which you've worked on lately, resembles [[A shaded place to sort seedlings]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-11-30",
+          "text": "From 2024-12-30 to 2025-06-08, \u2018supported\u2019 appeared in 27% of observations, compared with 7.51% across the window, using current text grouped by declared dates. Current passages: [[An induction handbook with fewer pages]]: \u201cRemoved duplicate instructions after the supported practice trial\u201d; [[A mentor can learn the wrong lesson]]: \u201cDuring supported practice the mentor apologized for a\u201d. What changes if you read [[An induction handbook with fewer pages]], [[A mentor can learn the wrong lesson]], [[Learning beside someone who can intervene]] beside one another through \u2018supported\u2019?",
+          "geist_id": "word_burst"
+        }
+      ]
+    },
+    "observed": {
+      "durable_index_bytes": 4096,
+      "schema_version": 13,
+      "saved_evidence_count": 1,
+      "lexical_events": 9,
+      "last_invocation_explanation": {
+        "word_burst": "abstained: 9 captured observations; minimum 50 required"
+      },
+      "last_cached_diagnostics": {
+        "documents": 9,
+        "populated_bins": 8,
+        "min_documents": 50,
+        "min_populated_bins": 8,
+        "history_mode": "observed_additions",
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "series_reused": 0,
+        "cache_hit": true,
+        "reason": "insufficient_documents",
+        "collection_seconds": 0.0,
+        "decoding_seconds": 0.0,
+        "evidence_seconds": 0.0
+      },
+      "selected_diagnostic_examples": [
+        {
+          "date": "2024-05-31",
+          "text": "[[Repair ideas]] hedges 3 times in 120 words. What are you not ready to commit to?",
+          "geist_id": "uncertainty_mapper"
+        },
+        {
+          "date": "2024-06-30",
+          "text": "[[Cycling the longer flat route]], which you've worked on lately, resembles [[Routes]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2024-11-30",
+          "text": "[[An orientation session in the wrong room]], which you've worked on lately, resembles [[Volunteer handbook]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2024-12-31",
+          "text": "[[The label update nobody owns]], which you've worked on lately, resembles [[Harbour archive handover receipt]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2024-12-31",
+          "text": "[[Winter rides need an exit option]], which you've worked on lately, resembles [[Journal#2024-10-26]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-03-31",
+          "text": "[[The spare key review]], which you've worked on lately, resembles [[What Mum wants me to remember]] (written 1 year earlier) more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-05-31",
+          "text": "[[The supported practice review card]], which you've worked on lately, resembles [[Volunteer handbook]] (written 1 year earlier) more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-06-30",
+          "text": "[[A year after the exhibition opening]], which you've worked on lately, resembles [[Exhibition plan]] (written 1 year earlier) more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-07-31",
+          "text": "[[Volunteer handbook]], which you've worked on lately, resembles [[Maintenance]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        },
+        {
+          "date": "2025-08-31",
+          "text": "[[A path that fits two people talking]], which you've worked on lately, resembles [[A shaded place to sort seedlings]] more than any other recent note in the last 60 days. Circling back to an old idea?",
+          "geist_id": "recent_focus"
+        }
+      ]
+    },
+    "model_snapshot_matches_baseline": true
+  },
+  "temporal_smoke": {
+    "snapshots": 32,
+    "real_embeddings": true,
+    "errors": [],
+    "stable_meaning_changes": [],
+    "executor_calls": 448,
+    "per_geist": {
+      "concept_drift": {
+        "calls": 32,
+        "nonempty": 28,
+        "questions": 56
+      },
+      "attention_shift": {
+        "calls": 32,
+        "nonempty": 27,
+        "questions": 27
+      },
+      "temporal_drift": {
+        "calls": 32,
+        "nonempty": 32,
+        "questions": 96
+      },
+      "recent_focus": {
+        "calls": 32,
+        "nonempty": 32,
+        "questions": 84
+      },
+      "seasonal_patterns": {
+        "calls": 32,
+        "nonempty": 0,
+        "questions": 0
+      },
+      "temporal_clustering": {
+        "calls": 32,
+        "nonempty": 27,
+        "questions": 30
+      },
+      "this_time_last_year": {
+        "calls": 32,
+        "nonempty": 11,
+        "questions": 11
+      },
+      "density_inversion": {
+        "calls": 32,
+        "nonempty": 0,
+        "questions": 0
+      },
+      "concept_cluster": {
+        "calls": 32,
+        "nonempty": 32,
+        "questions": 64
+      },
+      "bridge_builder": {
+        "calls": 32,
+        "nonempty": 32,
+        "questions": 96
+      },
+      "method_scrambler": {
+        "calls": 32,
+        "nonempty": 32,
+        "questions": 96
+      },
+      "surprisal": {
+        "calls": 32,
+        "nonempty": 28,
+        "questions": 28
+      }
+    },
+    "word_burst": {
+      "dated_cohorts": {
+        "calls": 32,
+        "nonempty": 31,
+        "finding_occurrences_by_category": {
+          "declining_word": 333,
+          "declining_phrase": 558,
+          "rising_word": 1007,
+          "rising_phrase": 3024
+        }
+      },
+      "observed_additions": {
+        "calls": 32,
+        "nonempty": 23,
+        "finding_occurrences_by_category": {
+          "declining_word": 54,
+          "declining_phrase": 108,
+          "rising_word": 32,
+          "rising_phrase": 64
+        }
+      }
+    },
+    "unchanged_sync_extractions": 0,
+    "unchanged_embedding_texts": 0,
+    "unchanged_embedding_db_changes": 0,
+    "all_64_ordered_model_analyses_identical_to_prior_archive": true
+  },
+  "test_audit": {
+    "baseline_head": "abf90517a263e088ab51240e42abc90a210ab24a",
+    "fixed_source_checkpoint": "5cff8faf1977dd30d2b0add962d325f1e1ec0265",
+    "baseline_result": "9 failed, 1 passed in 0.88s",
+    "fixed_result": "10 passed in 0.85s",
+    "baseline_failures_are_intended_behavioral_assertions": true,
+    "conservation_test_passes_both_versions": true,
+    "archive_file": "test-audit-receipts.json.xz",
+    "archive_bytes": 9748,
+    "archive_sha256": "a21d2a09e1cb54a1787ca1a3b525c8afc5d86ae03d5e2b9f01de487dbb2697b5",
+    "raw_sha256": "320f8541d367aebc70ea11819c347a8a85e01f9d766c06aba1cb9696e9b03acf",
+    "tracked_new_test": "tests/unit/test_quality_fix_audit.py",
+    "test_only_followup": "test_observation_novelty.py query plan contract avoids exact count/index name",
+    "limitation": "Focused test audit; full gates, platforms, real corpus, canonical review owned by parent"
+  },
+  "capacity": {
+    "pairs": {
+      "scope": "Matched copied prior current-policy database and source files; synthetic 104-week chronology, no inference or full CLI, one trial per phase. Both actual fresh executor and cached executor measured.",
+      "input": {
+        "files": 10000,
+        "bytes": 46637507,
+        "manifest_sha256": "69d9e6ca2fd46c130d79c4fba84fa27b9a20dba66485cf2bd8c3f219092b22ac"
+      },
+      "findings_identical": true,
+      "result_sha256": "41737c14a8ed67255eadd57b9dd42523d38e5a16e667730b2405e8dab883bd3b",
+      "measurements": {
+        "before": {
+          "timeout": 30,
+          "context_seconds": 0.00019099399651167914,
+          "fresh_executor_seconds": 12.666987134994997,
+          "cached_executor_seconds": 0.5350728400007938,
+          "findings": 4257,
+          "dictionary_terms": 42990,
+          "database_bytes": 219996160,
+          "peak_whole_process_rss_mib": 1240.2578125,
+          "fresh_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          }
+        },
+        "after": {
+          "timeout": 30,
+          "context_seconds": 0.000230617995839566,
+          "fresh_executor_seconds": 12.873731022002175,
+          "cached_executor_seconds": 0.5904771060013445,
+          "findings": 4257,
+          "dictionary_terms": 42990,
+          "database_bytes": 220000256,
+          "peak_whole_process_rss_mib": 1241.51953125,
+          "fresh_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          }
+        }
+      }
+    },
+    "triples": {
+      "scope": "Matched copied prior current-policy database and source files; synthetic 104-week chronology, no inference or full CLI, one trial per phase. Both actual fresh executor and cached executor measured.",
+      "input": {
+        "files": 10000,
+        "bytes": 46637507,
+        "manifest_sha256": "69d9e6ca2fd46c130d79c4fba84fa27b9a20dba66485cf2bd8c3f219092b22ac"
+      },
+      "findings_identical": true,
+      "result_sha256": "52f6178bf1e4d35fe7b53c5eff21f89522302f0a8ab9577fe944c5070c901eae",
+      "measurements": {
+        "before": {
+          "timeout": 120,
+          "context_seconds": 0.00022877000446897,
+          "fresh_executor_seconds": 37.68783813199843,
+          "cached_executor_seconds": 0.4306718399966485,
+          "findings": 6767,
+          "dictionary_terms": 821665,
+          "database_bytes": 398147584,
+          "peak_whole_process_rss_mib": 2059.34765625,
+          "fresh_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          }
+        },
+        "after": {
+          "timeout": 120,
+          "context_seconds": 0.00037908599915681407,
+          "fresh_executor_seconds": 37.43147695800144,
+          "cached_executor_seconds": 0.48048092799581354,
+          "findings": 6767,
+          "dictionary_terms": 821665,
+          "database_bytes": 398151680,
+          "peak_whole_process_rss_mib": 2056.9609375,
+          "fresh_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          }
+        }
+      }
+    }
+  },
+  "kepano": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+    "files": 10,
+    "bytes": 3294,
+    "source_manifest_sha256": "53b8f8f2e0f9534f143c15055bf0a437420505966711b6a95d3ae753afc2cecf",
+    "ngram_max": 3,
+    "trials": [
+      {
+        "trial": 0,
+        "cold_sync_seconds": 0.05263225000089733,
+        "warm_sync_seconds": 0.003340404997288715,
+        "warm_lexical_stats": {
+          "extracted": 0,
+          "changed": 0
+        },
+        "raw_analysis_seconds": 0.0010406960063846782,
+        "raw_diagnostics": {
+          "documents": 4,
+          "populated_bins": 2,
+          "min_documents": 50,
+          "min_populated_bins": 8,
+          "history_mode": "dated_cohorts",
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 0.0006238779969862662,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "raw_findings": 0,
+        "source_chronology": {
+          "notes": 10,
+          "dated_notes": 4,
+          "declared_date_range": [
+            "2023-09-12",
+            "2023-09-30"
+          ]
+        },
+        "synthetic_overlay_seconds": 4.070800059707835e-05,
+        "analysis_seconds": 0.00039511200156994164,
+        "diagnostics": {
+          "documents": 4,
+          "populated_bins": 2,
+          "min_documents": 50,
+          "min_populated_bins": 8,
+          "history_mode": "dated_cohorts",
+          "candidates": 0,
+          "decoded": 0,
+          "pruned": 0,
+          "series_reused": 0,
+          "cache_hit": false,
+          "reason": "insufficient_documents",
+          "collection_seconds": 0.00023962900013430044,
+          "decoding_seconds": 0.0,
+          "evidence_seconds": 0.0
+        },
+        "findings": 0,
+        "finding_categories": {
+          "rising_words": 0,
+          "rising_phrases": 0,
+          "declining_words": 0,
+          "declining_phrases": 0
+        },
+        "cached_seconds": 7.109199941623956e-05,
+        "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "executor_seconds": 0.0003221750012016855,
+        "executor_status": "success",
+        "suggestions": [],
+        "largest_episode_support": 0,
+        "fresh_executor_seconds": 0.0008423910039709881,
+        "fresh_executor_status": "success",
+        "fresh_executor_suggestions": [],
+        "edit_100_sync_seconds": 0.05093133600166766,
+        "edit_lexical_stats": {
+          "extracted": 10,
+          "changed": 10
+        },
+        "dictionary_terms": 718,
+        "database_bytes": 270336,
+        "process_peak_rss_kib": 720176
+      }
+    ],
+    "synthetic_date_overlay": false,
+    "end_day": "2023-09-30",
+    "embedding_inference": false,
+    "executor_timeout": 30,
+    "source_unchanged": true
+  },
+  "verification_limits": [
+    "Canonical autoreview previously401/no report; no restored authentication.",
+    "Owner-rated real-vault usefulness not established.",
+    "English grammatical policy does not detect language or judge meaning.",
+    "Generic or already-known content and related expressions may remain.",
+    "Optional large trigrams require explicit capacity budget; no universal latency guarantee."
+  ],
+  "run_status": {
+    "run-status.json": {
+      "source_commit": "5cff8faf1977dd30d2b0add962d325f1e1ec0265",
+      "runs": [
+        {
+          "name": "dated",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "-m",
+            "scripts.evaluate_narrative_vault",
+            "/workspace/verification-tools/narrative-v1/corpus",
+            "/workspace/verification-tools/narrative-quality-fixes/dated-vault",
+            "--mode",
+            "dated_cohorts",
+            "--output",
+            "/workspace/verification-tools/narrative-quality-fixes/dated.json"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 81.43162550099805
+        },
+        {
+          "name": "observed",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "-m",
+            "scripts.evaluate_narrative_vault",
+            "/workspace/verification-tools/narrative-v1/corpus",
+            "/workspace/verification-tools/narrative-quality-fixes/observed-vault",
+            "--mode",
+            "observed_additions",
+            "--output",
+            "/workspace/verification-tools/narrative-quality-fixes/observed.json"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 86.27508630800003
+        },
+        {
+          "name": "temporal-smoke",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "-m",
+            "scripts.benchmark_temporal_geists",
+            "/workspace/temporal-benchmark-corpus/smoke",
+            "/workspace/verification-tools/narrative-quality-fixes/temporal-smoke-vault",
+            "--real-embeddings",
+            "--similarity-suite",
+            "--ngram-max",
+            "3",
+            "--output",
+            "/workspace/verification-tools/narrative-quality-fixes/temporal-smoke.json"
+          ],
+          "exit_code": 1,
+          "wall_seconds": 0.1757305599967367
+        },
+        {
+          "name": "kepano",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "-m",
+            "scripts.benchmark_word_burst",
+            "/workspace/geist_fabrik/testdata/kepano-obsidian-main",
+            "--trials",
+            "1",
+            "--ngram-max",
+            "3",
+            "--real-dates",
+            "--end-day",
+            "2023-09-30",
+            "--output",
+            "/workspace/verification-tools/narrative-quality-fixes/kepano.json"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 5.97411152299901
+        },
+        {
+          "name": "capacity-pairs",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "-m",
+            "scripts.benchmark_word_burst",
+            "/workspace/benchmark-corpora/10000-markdown-files",
+            "--trials",
+            "1",
+            "--ngram-max",
+            "2",
+            "--output",
+            "/workspace/verification-tools/narrative-quality-fixes/capacity-pairs.json"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 156.11797863699758
+        }
+      ]
+    },
+    "followup-run-status.json": {
+      "source_commit": "5cff8faf1977dd30d2b0add962d325f1e1ec0265",
+      "scope_note": "Earlier capacity root included repository README/prefix; retained as unmatched supplemental pairs measurement, triples interrupted. This run uses exact prior frozen runtime dictionaries/files. Earlier temporal -m entry point failed before loading any corpus; corrected documented script entry point used here.",
+      "runs": [
+        {
+          "name": "matched-pairs-before",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "pairs",
+            "before"
+          ],
+          "exit_code": 1,
+          "wall_seconds": 8.883331491997524
+        },
+        {
+          "name": "matched-pairs-after",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "pairs",
+            "after"
+          ],
+          "exit_code": 1,
+          "wall_seconds": 7.9785456329991575
+        },
+        {
+          "name": "matched-triples-after",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "triples",
+            "after"
+          ],
+          "exit_code": 1,
+          "wall_seconds": 7.997987542003102
+        },
+        {
+          "name": "matched-triples-before",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "triples",
+            "before"
+          ],
+          "exit_code": 1,
+          "wall_seconds": 7.907876880002732
+        },
+        {
+          "name": "temporal-smoke",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "scripts/benchmark_temporal_geists.py",
+            "/workspace/temporal-benchmark-corpus/smoke",
+            "/workspace/verification-tools/narrative-quality-fixes/temporal-smoke-vault",
+            "--real-embeddings",
+            "--similarity-suite",
+            "--ngram-max",
+            "3",
+            "--output",
+            "/workspace/verification-tools/narrative-quality-fixes/temporal-smoke.json"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 79.67553356199642
+        },
+        {
+          "name": "observed-repeat",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "-m",
+            "scripts.evaluate_narrative_vault",
+            "/workspace/verification-tools/narrative-v1/corpus",
+            "/workspace/verification-tools/narrative-quality-fixes/observed-repeat-vault",
+            "--mode",
+            "observed_additions",
+            "--output",
+            "/workspace/verification-tools/narrative-quality-fixes/observed-repeat.json"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 85.98495116100094
+        }
+      ]
+    },
+    "matched-run-status.json": {
+      "source_commit": "5cff8faf1977dd30d2b0add962d325f1e1ec0265",
+      "correction": "The earlier preflight compared different manifest encodings. This version checks prior file/byte totals, full current source/runtime file manifest equality, and exact model-result digest equality with archived prior executions. No thresholds, code or corpus changed.",
+      "runs": [
+        {
+          "name": "matched-pairs-before",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "pairs",
+            "before"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 25.890543761001027
+        },
+        {
+          "name": "matched-pairs-after",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "pairs",
+            "after"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 25.195534687001782
+        },
+        {
+          "name": "matched-triples-after",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "triples",
+            "after"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 53.07497605999379
+        },
+        {
+          "name": "matched-triples-before",
+          "command": [
+            "/workspace/geist_fabrik/.venv/bin/python",
+            "/workspace/verification-tools/narrative-quality-fixes/measure_capacity.py",
+            "triples",
+            "before"
+          ],
+          "exit_code": 0,
+          "wall_seconds": 51.33152613799757
+        }
+      ]
+    }
+  },
+  "validation": {
+    "exit_code": 0,
+    "wall_seconds": 488.0925734800039
+  },
+  "validation_details": {
+    "unit_passed": 2063,
+    "unit_skipped": 1,
+    "unit_deselected": 8,
+    "integration_passed": 81,
+    "integration_deselected": 8,
+    "branch_covered": 3474,
+    "branch_total": 4154,
+    "branch_percent": 83.63,
+    "automated_criteria_passed": 155,
+    "automated_criteria_total": 155,
+    "bundled_geist_firing_contracts": 45,
+    "installed_wheel_offline_inference": "passed",
+    "strict_typing_lint_security_workflow_checks": "passed"
+  },
+  "archive_notes": "Initial temporal -m entry-point failure occurred before corpus load; corrected script succeeds. Unmatched root capacity pairs include repository README/path prefix and are supplemental only; triple attempt was stopped. Initial matched preflight compared different manifest encodings; corrected run checks per-file source/runtime equality, totals and exact prior model-result hashes. All logs retained; no functional failure removed.",
+  "archive": {
+    "format": "Concatenate parts in order, XZ-decompress, parse JSON object mapping relative filename to exact UTF-8 content; encode values to recover original bytes.",
+    "files": 126,
+    "raw_bytes": 20894616,
+    "raw_sha256": "92c3839c42598d59e106ee5235fd8103834b3fcbf6a55fcf267c48c8607d68ca",
+    "xz_bytes": 255672,
+    "xz_sha256": "9e4b148b9bd42fb101dadfd7f9b26cf12b60021d5190d8d408da40f49ca94336",
+    "parts": [
+      {
+        "file": "receipts.json.xz",
+        "bytes": 255672,
+        "sha256": "9e4b148b9bd42fb101dadfd7f9b26cf12b60021d5190d8d408da40f49ca94336"
+      }
+    ],
+    "byte_recovery_verified": true
+  },
+  "validation_archive": {
+    "file": "validation.log.xz",
+    "raw_sha256": "5f174e6b6e4d9593a0613636be500470c02a92d37a9ccf9502545b7dc839f5f5",
+    "xz_sha256": "75ad02401903d93877444fa1afbe76fdcd3540b2162cc51bdb633cfd22f999d7",
+    "xz_bytes": 34416
+  }
+}

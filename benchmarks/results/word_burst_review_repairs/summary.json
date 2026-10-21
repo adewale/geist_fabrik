@@ -1,0 +1,582 @@
+{
+  "date": "2026-10-18",
+  "repair_base_commit": "b036e47754ac699f40816317623ef6744970fb44",
+  "runtime_source_commit": "88a1bd3062178950321eb8c816b718c0191e3a8e",
+  "later_changes": "d432f84 strengthened the migration fixture and archived evidence without runtime changes. A subsequent host-alarm dispatcher correction is recorded in alarm_followup.json; measured detector/aggregation modules remain unchanged.",
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux x86_64",
+    "timing_samples_per_phase": 2,
+    "inference_in_capacity_benchmarks": false
+  },
+  "matched_analysis": {
+    "pairs": {
+      "scope": "matched file-backed version-5 dictionary; only detector/analysis modules change",
+      "synthetic_date_overlay": true,
+      "findings": 4257,
+      "result_sha256": "41737c14a8ed67255eadd57b9dd42523d38e5a16e667730b2405e8dab883bd3b",
+      "phases": {
+        "before": {
+          "seconds": [
+            17.631381076000253,
+            18.00405600399972
+          ],
+          "median_seconds": 17.817718539999987,
+          "peak_rss_mib": [
+            1243.36328125,
+            1243.16015625
+          ],
+          "median_peak_rss_mib": 1243.26171875,
+          "cached_seconds": [
+            0.16510438399927807,
+            0.1392483079998783
+          ]
+        },
+        "after": {
+          "seconds": [
+            10.969987886001036,
+            11.198044553000727
+          ],
+          "median_seconds": 11.084016219500882,
+          "peak_rss_mib": [
+            1241.89453125,
+            1241.984375
+          ],
+          "median_peak_rss_mib": 1241.939453125,
+          "cached_seconds": [
+            0.14556758099934086,
+            0.1482606779991329
+          ]
+        }
+      }
+    },
+    "triples": {
+      "scope": "matched file-backed version-5 dictionary; only detector/analysis modules change",
+      "synthetic_date_overlay": true,
+      "findings": 6767,
+      "result_sha256": "52f6178bf1e4d35fe7b53c5eff21f89522302f0a8ab9577fe944c5070c901eae",
+      "phases": {
+        "before": {
+          "seconds": [
+            52.41397167300056,
+            48.95314645899998
+          ],
+          "median_seconds": 50.68355906600027,
+          "peak_rss_mib": [
+            2274.73046875,
+            2258.0
+          ],
+          "median_peak_rss_mib": 2266.365234375,
+          "cached_seconds": [
+            0.42323580700031016,
+            0.4307113020004181
+          ]
+        },
+        "after": {
+          "seconds": [
+            30.42127927799993,
+            29.2088778010002
+          ],
+          "median_seconds": 29.815078539500064,
+          "peak_rss_mib": [
+            2059.87890625,
+            2057.25
+          ],
+          "median_peak_rss_mib": 2058.564453125,
+          "cached_seconds": [
+            0.20902593900063948,
+            0.19596463400011999
+          ]
+        }
+      }
+    }
+  },
+  "current_policy_runtime": {
+    "pairs": {
+      "prepare": {
+        "cold_sync_seconds": 103.71437317100026,
+        "warm_sync_seconds": 3.0744160060003196,
+        "warm_lexical_stats": {
+          "extracted": 0,
+          "changed": 0
+        },
+        "notes": 10000,
+        "dictionary_terms": 42990,
+        "database_bytes": 198025216,
+        "process_peak_rss_kib": 753808
+      },
+      "executions": [
+        {
+          "timeout_seconds": 30,
+          "fresh_executor_seconds": 11.58123647299908,
+          "fresh_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          },
+          "cached_executor_seconds": 0.5128912119998859,
+          "cached_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          },
+          "findings": 4257,
+          "result_sha256": "41737c14a8ed67255eadd57b9dd42523d38e5a16e667730b2405e8dab883bd3b",
+          "process_peak_rss_kib": 1269856,
+          "database_bytes": 219996160
+        }
+      ]
+    },
+    "triples": {
+      "prepare": {
+        "cold_sync_seconds": 182.32920015299896,
+        "warm_sync_seconds": 2.674507725001604,
+        "warm_lexical_stats": {
+          "extracted": 0,
+          "changed": 0
+        },
+        "notes": 10000,
+        "dictionary_terms": 821665,
+        "database_bytes": 371085312,
+        "process_peak_rss_kib": 753380
+      },
+      "executions": [
+        {
+          "timeout_seconds": 30,
+          "fresh_executor_seconds": 30.38598048199856,
+          "fresh_executor_log": {
+            "geist_id": "word_burst",
+            "status": "error",
+            "error_type": "timeout",
+            "error": "Execution timed out (>30s)\n  \u2192 Test with longer timeout: geistfabrik test word_burst <vault>\n  \u2192 Check for infinite loops or expensive operations in /workspace/geist_fabrik/src/geistfabrik/default_geists/code/word_burst.py",
+            "failure_count": 1
+          },
+          "cached_executor_seconds": 0.475955318999695,
+          "cached_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          },
+          "findings": 6767,
+          "result_sha256": "52f6178bf1e4d35fe7b53c5eff21f89522302f0a8ab9577fe944c5070c901eae",
+          "process_peak_rss_kib": 2095712,
+          "database_bytes": 398147584
+        },
+        {
+          "timeout_seconds": 120,
+          "fresh_executor_seconds": 30.456286485999954,
+          "fresh_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          },
+          "cached_executor_seconds": 0.4373799549994146,
+          "cached_executor_log": {
+            "geist_id": "word_burst",
+            "status": "success",
+            "suggestion_count": 3
+          },
+          "findings": 6767,
+          "result_sha256": "52f6178bf1e4d35fe7b53c5eff21f89522302f0a8ab9577fe944c5070c901eae",
+          "process_peak_rss_kib": 2108620,
+          "database_bytes": 398147584
+        }
+      ]
+    }
+  },
+  "temporal_replays": {
+    "smoke": {
+      "initial_notes": 128,
+      "snapshots": 32,
+      "real_embeddings": false,
+      "ngram_max": 3,
+      "execution_path": "GeistExecutor",
+      "errors": [],
+      "stable_meaning_changes": [],
+      "modes": {
+        "dated_cohorts": {
+          "executor_calls": 32,
+          "statuses": [
+            "success"
+          ],
+          "snapshots_with_questions": 31,
+          "finding_occurrences_by_category": {
+            "declining_words": 333,
+            "declining_phrases": 558,
+            "rising_words": 1007,
+            "rising_phrases": 3024
+          }
+        },
+        "observed_additions": {
+          "executor_calls": 32,
+          "statuses": [
+            "success"
+          ],
+          "snapshots_with_questions": 23,
+          "finding_occurrences_by_category": {
+            "declining_words": 54,
+            "declining_phrases": 108,
+            "rising_words": 32,
+            "rising_phrases": 64
+          }
+        }
+      },
+      "archive": {
+        "raw_bytes": 12702223,
+        "raw_sha256": "ca83fb502637bbedc851d8bc0dd2d1015a226a0b906eeb357e8bce2cb3bd86f8",
+        "xz_bytes": 64800,
+        "xz_sha256": "e4d3a341d2149f1a89b11ce7114da4ca80b6112d54ff32263dc84af11ab031f8",
+        "parts": [
+          {
+            "file": "temporal-smoke.json.xz",
+            "bytes": 64800,
+            "sha256": "e4d3a341d2149f1a89b11ce7114da4ca80b6112d54ff32263dc84af11ab031f8"
+          }
+        ]
+      }
+    },
+    "standard": {
+      "initial_notes": 1000,
+      "snapshots": 32,
+      "real_embeddings": false,
+      "ngram_max": 3,
+      "execution_path": "GeistExecutor",
+      "errors": [],
+      "stable_meaning_changes": [],
+      "modes": {
+        "dated_cohorts": {
+          "executor_calls": 32,
+          "statuses": [
+            "success"
+          ],
+          "snapshots_with_questions": 31,
+          "finding_occurrences_by_category": {
+            "declining_words": 1004,
+            "declining_phrases": 2839,
+            "rising_words": 834,
+            "rising_phrases": 2596
+          }
+        },
+        "observed_additions": {
+          "executor_calls": 32,
+          "statuses": [
+            "success"
+          ],
+          "snapshots_with_questions": 23,
+          "finding_occurrences_by_category": {
+            "declining_words": 4031,
+            "declining_phrases": 8164,
+            "rising_words": 32,
+            "rising_phrases": 64
+          }
+        }
+      },
+      "archive": {
+        "raw_bytes": 102723482,
+        "raw_sha256": "32fa6dfd84777d32eebfd91c6aa11fd3c687150e7c89be834c54d902d65d7ff4",
+        "xz_bytes": 254108,
+        "xz_sha256": "04a478e02a754afb79d2f506aa3cd06ef797c873ff4d148a1ea4a55c75c5d75c",
+        "parts": [
+          {
+            "file": "temporal-standard.json.xz",
+            "bytes": 254108,
+            "sha256": "04a478e02a754afb79d2f506aa3cd06ef797c873ff4d148a1ea4a55c75c5d75c"
+          }
+        ]
+      }
+    },
+    "large": {
+      "initial_notes": 10000,
+      "snapshots": 32,
+      "real_embeddings": false,
+      "ngram_max": 3,
+      "execution_path": "GeistExecutor",
+      "errors": [],
+      "stable_meaning_changes": [],
+      "modes": {
+        "dated_cohorts": {
+          "executor_calls": 32,
+          "statuses": [
+            "success"
+          ],
+          "snapshots_with_questions": 31,
+          "finding_occurrences_by_category": {
+            "declining_words": 1206,
+            "declining_phrases": 3536,
+            "rising_words": 184,
+            "rising_phrases": 464
+          }
+        },
+        "observed_additions": {
+          "executor_calls": 32,
+          "statuses": [
+            "success"
+          ],
+          "snapshots_with_questions": 23,
+          "finding_occurrences_by_category": {
+            "declining_words": 4376,
+            "declining_phrases": 8896,
+            "rising_words": 32,
+            "rising_phrases": 64
+          }
+        }
+      },
+      "archive": {
+        "raw_bytes": 763302705,
+        "raw_sha256": "2e7573f8fa180582049b4b98037c1b999f98177773d7db8b20009cffddb90570",
+        "xz_bytes": 1053360,
+        "xz_sha256": "1ed88a88b34b5834441ca80228d8d1820e5379892549b983b634498359aa63fb",
+        "parts": [
+          {
+            "file": "temporal-large.json.xz.part000",
+            "bytes": 400000,
+            "sha256": "09ed735cf1b90e81612a03891809c7882aa552bbd795732e965d7f8c0550c348"
+          },
+          {
+            "file": "temporal-large.json.xz.part001",
+            "bytes": 400000,
+            "sha256": "497dd193388246b54656067ab3404123622390bedacff4bb6558251649ac38f8"
+          },
+          {
+            "file": "temporal-large.json.xz.part002",
+            "bytes": 253360,
+            "sha256": "c1bdb5ae44c385ae3a00a7082f1099d71b25767634ba98bab929b60896e6813c"
+          }
+        ]
+      }
+    }
+  },
+  "canonical_review": {
+    "schema_version": 1,
+    "status": "reviewer_unavailable",
+    "exit_code": 1,
+    "engine": "codex",
+    "report_produced": false,
+    "reason": "engine_failed",
+    "reviewer_exit_code": 1,
+    "timed_out": false,
+    "usage": {
+      "attempts": 1,
+      "reported_attempts": 0,
+      "unknown_attempts": 1,
+      "partial_attempts": 0,
+      "complete": false,
+      "tokens": null
+    },
+    "scope": "b036e47754ac699f40816317623ef6744970fb44..88a1bd3062178950321eb8c816b718c0191e3a8e",
+    "http_status": 401,
+    "message": "Could not parse your authentication token. Please try signing in again.",
+    "interpretation": "No report; not a clean verdict. Requires valid provider authentication."
+  },
+  "real_vault_evaluation": {
+    "available_fixture": {
+      "python": "3.12.14",
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+      "files": 10,
+      "bytes": 3294,
+      "source_manifest_sha256": "53b8f8f2e0f9534f143c15055bf0a437420505966711b6a95d3ae753afc2cecf",
+      "ngram_max": 2,
+      "trials": [
+        {
+          "trial": 0,
+          "cold_sync_seconds": 0.05323765200046182,
+          "warm_sync_seconds": 0.003556652000042959,
+          "warm_lexical_stats": {
+            "extracted": 0,
+            "changed": 0
+          },
+          "raw_analysis_seconds": 0.0008336669998243451,
+          "raw_diagnostics": {
+            "documents": 4,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "series_reused": 0,
+            "cache_hit": false,
+            "reason": "insufficient_documents",
+            "collection_seconds": 0.00040049000017461367,
+            "decoding_seconds": 0.0,
+            "evidence_seconds": 0.0
+          },
+          "raw_findings": 0,
+          "source_chronology": {
+            "notes": 10,
+            "dated_notes": 4,
+            "declared_date_range": [
+              "2023-09-12",
+              "2023-09-30"
+            ]
+          },
+          "synthetic_overlay_seconds": 0.00020476699864957482,
+          "analysis_seconds": 0.0013863380008842796,
+          "diagnostics": {
+            "documents": 4,
+            "candidates": 0,
+            "decoded": 0,
+            "pruned": 0,
+            "series_reused": 0,
+            "cache_hit": false,
+            "reason": "insufficient_documents",
+            "collection_seconds": 0.0007338560008065542,
+            "decoding_seconds": 0.0,
+            "evidence_seconds": 0.0
+          },
+          "findings": 0,
+          "finding_categories": {
+            "rising_words": 0,
+            "rising_phrases": 0,
+            "declining_words": 0,
+            "declining_phrases": 0
+          },
+          "cached_seconds": 8.169200009433553e-05,
+          "result_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "executor_seconds": 0.0004884559984930092,
+          "executor_status": "success",
+          "suggestions": [],
+          "largest_episode_support": 0,
+          "fresh_executor_seconds": 0.0005972039998596301,
+          "fresh_executor_status": "success",
+          "fresh_executor_suggestions": [],
+          "edit_100_sync_seconds": 0.0451966500004346,
+          "edit_lexical_stats": {
+            "extracted": 10,
+            "changed": 10
+          },
+          "dictionary_terms": 461,
+          "database_bytes": 233472,
+          "process_peak_rss_kib": 720336
+        }
+      ],
+      "synthetic_date_overlay": false,
+      "end_day": "2023-09-30",
+      "embedding_inference": false,
+      "executor_timeout": 30,
+      "source_unchanged": true
+    },
+    "owner_rated_usefulness": "not evaluated; adequate corpus and owner judgments unavailable"
+  },
+  "validation": {
+    "exit_code": 0,
+    "wall_seconds": 384.1876666850003
+  },
+  "ci_source": {
+    "run_url": "https://github.com/adewale/geist_fabrik/actions/runs/39080482479",
+    "conclusion": "success",
+    "head_sha": "88a1bd3062178950321eb8c816b718c0191e3a8e",
+    "jobs": [
+      {
+        "name": "package-smoke (3.11)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.12)",
+        "conclusion": "success"
+      },
+      {
+        "name": "package-smoke (3.12)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.11)",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.11)",
+        "conclusion": "success"
+      },
+      {
+        "name": "release",
+        "conclusion": "skipped"
+      }
+    ]
+  },
+  "test_owner_costs": {
+    "owner-test_embeddings": {
+      "tests": "56",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.608"
+    },
+    "owner-test_vector_search_backends": {
+      "tests": "69",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "1",
+      "time": "0.453"
+    },
+    "owner-test_word_burst": {
+      "tests": "53",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "22.713"
+    },
+    "owner-test_word_burst_integration": {
+      "tests": "137",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "8.889"
+    }
+  },
+  "archives": {
+    "raw_receipts_and_harnesses": {
+      "raw_bytes": 931699,
+      "raw_sha256": "334a4a8ef458bbe5bbb88b399671f02ea37fd75328d2740b62b1468b1ea186a7",
+      "xz_bytes": 64512,
+      "xz_sha256": "02cb0d1b190de369350d764d87e786fd6aac26f1b0f47b19d68b5b773fbc51a2",
+      "parts": [
+        {
+          "file": "receipts.json.xz",
+          "bytes": 64512,
+          "sha256": "02cb0d1b190de369350d764d87e786fd6aac26f1b0f47b19d68b5b773fbc51a2"
+        }
+      ]
+    }
+  },
+  "frozen_input_databases": {
+    "pairs": {
+      "file": "before-pairs.db.xz",
+      "compressed_bytes": 50621932,
+      "compressed_sha256": "de19927a56f79f1794f47e7409ff1087b35d35913b1cdad2bcc22fef89aaf506",
+      "archived_in_git": false,
+      "policy": 5
+    },
+    "triples": {
+      "file": "before-triples.db.xz",
+      "compressed_bytes": 100381448,
+      "compressed_sha256": "e5b8b0532984544a770d585197090eb9769c9e6cc72fbf160fe5fe6848ba7b82",
+      "archived_in_git": false,
+      "policy": 5
+    }
+  },
+  "capacity_source_manifests": {
+    "pairs": {
+      "source": {
+        "files": 10000,
+        "bytes": 46637507,
+        "manifest_sha256": "b6cdc6613f361ff3f09b1b36f4b07167a4cd336241edb996820bf700609f8b20"
+      },
+      "runtime_copy": {
+        "files": 10000,
+        "bytes": 46637507,
+        "manifest_sha256": "b6cdc6613f361ff3f09b1b36f4b07167a4cd336241edb996820bf700609f8b20"
+      }
+    },
+    "triples": {
+      "source": {
+        "files": 10000,
+        "bytes": 46637507,
+        "manifest_sha256": "b6cdc6613f361ff3f09b1b36f4b07167a4cd336241edb996820bf700609f8b20"
+      },
+      "runtime_copy": {
+        "files": 10000,
+        "bytes": 46637507,
+        "manifest_sha256": "b6cdc6613f361ff3f09b1b36f4b07167a4cd336241edb996820bf700609f8b20"
+      }
+    }
+  },
+  "temporal_replay_scope": "Lexical-only; other geists and real embedding inference skipped. Both history modes pass through the actual executor after analysis priming; these replay timings are not uncached executor capacity measurements.",
+  "alarm_followup": "alarm_followup.json"
+}

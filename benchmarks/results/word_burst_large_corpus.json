@@ -1,0 +1,130 @@
+{
+  "python": "3.12.14",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "files": 10000,
+  "bytes": 46635807,
+  "source_manifest_sha256": "d361aa39ae4c4db4bad9adc96bb22be50db77d21fec36543bf149b6bf6c8235a",
+  "ngram_max": 1,
+  "trials": [
+    {
+      "trial": 0,
+      "cold_sync_seconds": 34.827550957968924,
+      "warm_sync_seconds": 5.685668860969599,
+      "warm_lexical_stats": {
+        "extracted": 0,
+        "changed": 0
+      },
+      "raw_analysis_seconds": 0.009828970010858029,
+      "raw_diagnostics": {
+        "documents": 0,
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "cache_hit": false,
+        "reason": "insufficient_documents"
+      },
+      "raw_findings": 0,
+      "analysis_seconds": 4.305807409982663,
+      "diagnostics": {
+        "documents": 10000,
+        "candidates": 7422,
+        "decoded": 1870,
+        "pruned": 5552,
+        "cache_hit": false,
+        "reason": "burst"
+      },
+      "findings": 204,
+      "cached_seconds": 0.002688070002477616,
+      "result_sha256": "f425d809fb8593f07dbd34c6483e1c359ab7e5f242bcba1e992d1a64aaefd9a5",
+      "edit_100_sync_seconds": 3.6806880210060626,
+      "edit_lexical_stats": {
+        "extracted": 100,
+        "changed": 100
+      },
+      "dictionary_terms": 7423,
+      "database_bytes": 105426944,
+      "process_peak_rss_kib": 914376
+    },
+    {
+      "trial": 1,
+      "cold_sync_seconds": 36.3871253770194,
+      "warm_sync_seconds": 2.861222001956776,
+      "warm_lexical_stats": {
+        "extracted": 0,
+        "changed": 0
+      },
+      "raw_analysis_seconds": 0.0005515189841389656,
+      "raw_diagnostics": {
+        "documents": 0,
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "cache_hit": false,
+        "reason": "insufficient_documents"
+      },
+      "raw_findings": 0,
+      "analysis_seconds": 5.246313748997636,
+      "diagnostics": {
+        "documents": 10000,
+        "candidates": 7422,
+        "decoded": 1870,
+        "pruned": 5552,
+        "cache_hit": false,
+        "reason": "burst"
+      },
+      "findings": 204,
+      "cached_seconds": 0.0022173100151121616,
+      "result_sha256": "f425d809fb8593f07dbd34c6483e1c359ab7e5f242bcba1e992d1a64aaefd9a5",
+      "edit_100_sync_seconds": 3.8223975909641013,
+      "edit_lexical_stats": {
+        "extracted": 100,
+        "changed": 100
+      },
+      "dictionary_terms": 7423,
+      "database_bytes": 105426944,
+      "process_peak_rss_kib": 916192
+    },
+    {
+      "trial": 2,
+      "cold_sync_seconds": 30.622757609002292,
+      "warm_sync_seconds": 3.3800862799980678,
+      "warm_lexical_stats": {
+        "extracted": 0,
+        "changed": 0
+      },
+      "raw_analysis_seconds": 0.0005645409692078829,
+      "raw_diagnostics": {
+        "documents": 0,
+        "candidates": 0,
+        "decoded": 0,
+        "pruned": 0,
+        "cache_hit": false,
+        "reason": "insufficient_documents"
+      },
+      "raw_findings": 0,
+      "analysis_seconds": 4.481613812036812,
+      "diagnostics": {
+        "documents": 10000,
+        "candidates": 7422,
+        "decoded": 1870,
+        "pruned": 5552,
+        "cache_hit": false,
+        "reason": "burst"
+      },
+      "findings": 204,
+      "cached_seconds": 0.0022494769655168056,
+      "result_sha256": "f425d809fb8593f07dbd34c6483e1c359ab7e5f242bcba1e992d1a64aaefd9a5",
+      "edit_100_sync_seconds": 3.3596587799838744,
+      "edit_lexical_stats": {
+        "extracted": 100,
+        "changed": 100
+      },
+      "dictionary_terms": 7423,
+      "database_bytes": 105426944,
+      "process_peak_rss_kib": 916388
+    }
+  ],
+  "synthetic_date_overlay": true,
+  "embedding_inference": false,
+  "source_unchanged": true
+}

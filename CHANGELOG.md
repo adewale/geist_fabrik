@@ -7,7 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Schema v15 retains captured evidence across operational pauses and extraction
+  changes, establishes confirmed baselines on resume, and captures newly seen
+  notes after bootstrap. Disabled word-burst geists skip lexical indexing.
+- Word-burst populations exclude private sources before statistical analysis.
+  Questions refill rejected or already-saved candidates, prefer content phrases
+  over leading-article variants, and report gaps in decline reference periods.
+- Optional large phrase analyses save exact decoding progress across invocations,
+  report deferred work, and avoid disabling the geist for budget exhaustion.
+  Source collection and indivisible operations can still require a larger budget.
+- Lexical extraction policy 7 excludes hidden HTML syntax and non-prose elements
+  from both counts and current excerpts. Escaped Markdown labels remain literal
+  text, and code/quote filtering preserves HTML closing syntax without admitting
+  excluded prose. Upgrading an earlier PR build rebuilds lexical baselines and
+  archives incompatible captured observations; notes, embeddings and saved
+  questions remain intact. Trigrams remain opt-in with `ngram_max: 3`.
+- Canonical vector normalization and scores now share an explicit adjacent-pair
+  float64 tree. Scalar, batch and refinement decisions agree above NumPy's
+  previous reduction-buffer boundary. Some final score bits change from earlier
+  PR builds; stored embeddings and the certified BLAS decision interface remain.
+- Word-burst analysis reuses unchanged selected observations across days within
+  the same weekly frame, refreshing displayed dates and provisional flags.
+  Schema v14 adds compact stable-ID presence vectors without resetting captured
+  history. Source collection, prepared series and exact-series reuse have explicit
+  memory bounds; frequencies and ordered findings retain their exact semantics.
+  See [phrase research and evaluation](docs/word_burst_phrases.md).
+- All geist idea queries and final citation checks now exclude root `Templates/`
+  sources and honor enabled privacy boundaries, including virtual entries and
+  ambiguous aliases. Recent-focus questions use entry dates for virtual notes;
+  seasonal tag questions require evidence across distinct season-years.
+- Word-burst questions reject function-word-only lenses without changing exact
+  extraction or model findings. Saved factual identities survive the short
+  novelty window; changed hedging evidence and disjoint later episodes remain
+  eligible. Generic prompts retain the configured novelty window.
+- Automatic additive schema v13 preserves cached word-burst abstention reasons
+  and population counts for `invoke --explain`, and indexes durable evidence
+  lookups. Only the derived result cache is invalidated; lexical observations,
+  notes, embeddings and saved questions are preserved.
+- Shared prepared-vector primitives now support certified BLAS threshold and
+  mean decisions, exact batched top-k, corresponding pairs and streamed pair
+  matches. Session inference, filtering and labels share a bounded exact-text
+  cache; in-memory snapshots invalidate on same-length replacements. Surprisal
+  and churn now use canonical scores and stable ties, so ambiguous neighbour
+  membership and derived values can change. See
+  [semantic primitive contracts](docs/SIMILARITY_PRIMITIVES.md) and
+  [matched measurements](docs/SIMILARITY_PRIMITIVES_BENCHMARK.md).
+
 ### Breaking Changes
+- **Word and phrase changes in one geist:** `word_burst` now samples rising and
+  declining episodes, with two-word phrases enabled by default and optional
+  three-word phrases. Existing
+  explicit `ngram_max: 1` settings remain words-only. Extraction version 5 adds
+  parser-owned link/image and quote boundaries, shared Unicode word spans, and
+  host-independent declared calendar days; the next
+  sync rebuilds incompatible lexical baselines and archives captured observations.
+  Observed phrase history starts at that baseline; old prose is not reconstructed.
+  Core notes, embeddings and saved session questions remain intact. Automatic
+  additive schema v12 adds optional episode identities to saved suggestions and
+  avoids frequency rewrites for chronology-only edits. Overlapping episodes are
+  suppressed across wording/window changes by the normal novelty-history policy.
+  Large-count likelihood decisions and pruning now use conservative error bounds
+  with adaptive exact-log comparisons for ambiguous cases, including exact ties.
+  Prevalence and cached findings retain integer counts, compare exact ratios,
+  and display distinct percentages at sufficient precision.
+- **Shared semantic arithmetic:** scalar, batch, in-memory neighbour search,
+  temporal comparisons and suggestion filters share scale-safe float64 cosine
+  arithmetic with exact nonzero direction identity. In-memory searches cache
+  immutable normalized directions; optional sqlite-vec search scores remain
+  native float32. Duplicate text is suppressed even for zero embeddings. Centroid
+  dispersion uses shifted float64 offsets so repeated identical vectors cannot
+  invent vocabulary expansion. Stored embeddings remain float32.
+- **Lexical schema v11:** automatic additive migration preserves existing notes
+  and embeddings. No rebuild is required. The new word-burst geist indexes prose
+  incrementally and supports reconstructed dated cohorts and prospective observed
+  additions. Extraction-policy changes retain inactive histories separately. PR extraction
+  version 2 repairs source/native-path exclusions and rebuilds earlier PR lexical
+  baselines. Full-evidence boundary checks precede bounded suggestion references;
+  skipped reads retain conservative observation bounds, and near-one likelihood
+  ratios avoid cancellation.
 - **Duplicate geists merged.** Geists whose job duplicated another's were
   merged into the one truest to the vision (claims that are true of the named
   notes, grounded in the user's notes, sampling rather than ranking). The full

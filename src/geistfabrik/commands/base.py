@@ -398,6 +398,7 @@ class BaseCommand(ABC):
             session,
             metadata_loader=metadata_loader,
             function_registry=function_registry,
+            filtering_enabled=not getattr(self.args, "no_filter", False),
         )
 
         return ExecutionContext(

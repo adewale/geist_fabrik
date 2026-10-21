@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-16",
+  "source_commit": "f9d934932c2cac3a899bfc98df2ef1b12812d868",
+  "scope": "Fresh 32-snapshot smoke replay, default words plus pairs, both history modes. Lexical-only run; semantic inference was not repeated.",
+  "snapshots": 32,
+  "executor_calls": 64,
+  "executor_statuses": {
+    "dated_cohorts": [
+      "success"
+    ],
+    "observed_additions": [
+      "success"
+    ]
+  },
+  "errors": [],
+  "raw_archive": "word_burst_audit_fixes_smoke.json.xz",
+  "archive_sha256": "bb7c5e390fa0e7135e98c3d14060042b7f96df17d731846cf7c9ad43e81f4812",
+  "raw_sha256": "cc5e1d021ebb337ec8d82918289e60168cd73602cccf913c986802cb1e2ce80f",
+  "raw_bytes": 7899874,
+  "archive_bytes": 51068,
+  "modes": {
+    "dated_cohorts": {
+      "finding_occurrences_by_category": {
+        "declining_words": 333,
+        "declining_phrases": 310,
+        "rising_words": 1007,
+        "rising_phrases": 1560
+      },
+      "first_planted_rising_snapshot": {
+        "aurora": 8,
+        "quasar": 22
+      },
+      "snapshots_with_questions": 31
+    },
+    "observed_additions": {
+      "finding_occurrences_by_category": {
+        "declining_words": 54,
+        "declining_phrases": 54,
+        "rising_words": 32,
+        "rising_phrases": 32
+      },
+      "first_planted_rising_snapshot": {
+        "aurora": 9,
+        "quasar": 23
+      },
+      "snapshots_with_questions": 23
+    }
+  }
+}

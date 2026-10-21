@@ -20,6 +20,7 @@ from .models import Link, Note, Suggestion
 from .vault import Vault
 from .vault_context import ChurnResult, VaultContext
 from .voice_analysis import VoiceMetadata
+from .word_burst_analysis import WordBurstFinding
 
 __version__ = "0.11.0"
 
@@ -32,6 +33,7 @@ __all__ = [
     "VaultContext",
     "ChurnResult",
     "VoiceMetadata",
+    "WordBurstFinding",
     "EmbeddingComputer",
     "Session",
     "cosine_similarity",

@@ -1,0 +1,7 @@
+{
+  "raw_corpus": "/workspace/verification-tools/pr97-repairs/runtime-triples/vault",
+  "raw_corpus_unchanged": true,
+  "date_overlay": "cohort_day copied from retained synthetic_overlay metadata, never claimed as real source dates",
+  "counts": "production extractor7 from actual full sync; source6 legacy counts rebuilt",
+  "failed_exploratory_run": "Sync removed DB-only artificial dates. Reapplied controlled date overlay for analysis benchmarks; zero-findings run excluded from analysis success/performance claims."
+}

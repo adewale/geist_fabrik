@@ -683,6 +683,20 @@ sampled = vault.sample(notes, count=sample_size)
 
 ## VaultContext API Patterns
 
+Idea queries use a shared eligible population. Root `Templates/` sources and
+enabled `filtering.boundary.exclude_paths` are excluded before semantic, graph
+and clustering selection. This also checks the physical source of a virtual
+entry and fails closed when a link alias also names an excluded note. Raw Vault
+storage and embedding history remain intact. Lexical-specific exclusions do
+not automatically become exclusions for other geists. Historical cluster labels
+carry the source-policy identity so incompatible populations are not compared.
+
+A virtual entry's `modified` value belongs to its parent file. An append does
+not prove that an older entry was edited. Use `entry_date` for explicitly dated
+cohort wording, or require entry-level change evidence for claims about recent
+work. Likewise, a seasonal concentration within one year does not prove a
+recurring annual pattern.
+
 ### 1. `vault.sample(items, k)` - Universal Randomization
 
 Used universally for deterministic sampling.

@@ -1,0 +1,40 @@
+"""Actual bundled inference and JournalWriter -> novelty endpoint verification."""
+
+import json
+import os
+import subprocess
+from contextlib import closing
+from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from geistfabrik import EmbeddingComputer, Vault
+from geistfabrik.embeddings import cosine_similarity
+from geistfabrik.filtering import SuggestionFilter
+from geistfabrik.journal_writer import JournalWriter
+from geistfabrik.models import Suggestion
+
+os.environ["GEISTFABRIK_OFFLINE"] = "1"
+report = {"source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(), "real_bundled_offline_model": True}
+text = "What might orchard experiment number 7 teach us about changing observations?"
+with TemporaryDirectory(prefix="construction-novelty-", dir="/workspace") as directory:
+    root = Path(directory)
+    (root / "Orchards.md").write_text("# Orchards\nChanging observations in orchard experiments.")
+    with closing(Vault(root)) as vault, closing(EmbeddingComputer()) as computer:
+        computer.device = "cpu"
+        vault.sync()
+        vector = computer.compute_semantic(text)
+        report["self_cosine"] = cosine_similarity(vector, vector)
+        suggestion = Suggestion(text=text, notes=["Orchards"], geist_id="word_burst")
+        journal = JournalWriter(root, vault.db).write_session(datetime(2026, 10, 14), [suggestion])
+        report["journal_written"] = journal.is_file()
+        report["persisted_history_rows"] = vault.db.execute("SELECT COUNT(*) FROM session_suggestions").fetchone()[0]
+        report["surviving_repeats"] = {}
+        for threshold in (1.0, 0.85):
+            filtering = SuggestionFilter(vault.db, computer, config={"strategies": ["novelty"], "novelty": {"enabled": True, "window_days": 60, "threshold": threshold}})
+            report["surviving_repeats"][str(threshold)] = len(filtering.filter_all([suggestion], datetime(2026, 10, 16)))
+assert report["self_cosine"] == 1.0
+assert report["journal_written"] and report["persisted_history_rows"] == 1
+assert report["surviving_repeats"] == {"1.0": 0, "0.85": 0}
+Path("/workspace/verification-tools/word-burst-construction-real-novelty.json").write_text(json.dumps(report, indent=2) + "\n")
+print(json.dumps(report, indent=2))

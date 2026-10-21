@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-13",
+  "command": "scripts/validate.sh",
+  "exit_code": 0,
+  "tested_commit": "eea41cfa56d8e4f4151b56b0af74121e014166c9",
+  "unit": {
+    "passed": 1661,
+    "skipped": 1,
+    "deselected": 8
+  },
+  "integration": {
+    "passed": 81,
+    "deselected": 8
+  },
+  "automated_acceptance": {
+    "passed": 152,
+    "total": 152,
+    "manual_not_verified": 83
+  },
+  "branch_coverage": {
+    "covered": 2893,
+    "total": 3570,
+    "percent": 81.04,
+    "required_percent": 70.0
+  },
+  "checks": [
+    "dependency sync",
+    "ruff",
+    "mypy",
+    "ty",
+    "unused SQL tables",
+    "bandit",
+    "unit",
+    "integration",
+    "branch coverage",
+    "acceptance",
+    "actionlint",
+    "package smoke"
+  ],
+  "geist_firing": {
+    "fired": 45,
+    "allowlisted": 0
+  },
+  "package_smoke": {
+    "real_offline_model": true,
+    "shape": [
+      3,
+      384
+    ],
+    "related_similarity": 0.676,
+    "unrelated_similarity": -0.006
+  },
+  "raw_archive": "word_burst_validation.raw.log.xz",
+  "raw_sha256": "0825c6811c97cbc05449bc0c928092007cc27a0d939094e85e70df302c09547b",
+  "canonical_autoreview": {
+    "candidate": "aea57856c52253bd31e8d8ed41986d891b5df1cf",
+    "status": {
+      "schema_version": 1,
+      "status": "reviewer_unavailable",
+      "exit_code": 1,
+      "engine": "codex",
+      "report_produced": false,
+      "reason": "engine_failed",
+      "reviewer_exit_code": 1,
+      "timed_out": false,
+      "usage": {
+        "attempts": 1,
+        "reported_attempts": 0,
+        "unknown_attempts": 1,
+        "partial_attempts": 0,
+        "complete": false,
+        "tokens": null
+      }
+    },
+    "authentication_http_status": 401
+  },
+  "independent_hegel_review": "Completed before final repairs; confirmed defects reproduced and fixed. This is separate from canonical autoreview.",
+  "capture_order_replay": {
+    "snapshots": 32,
+    "history_modes": 2,
+    "exact_finding_comparisons": 64,
+    "all_equal": true
+  },
+  "ci": "Not yet run against the final published branch."
+}

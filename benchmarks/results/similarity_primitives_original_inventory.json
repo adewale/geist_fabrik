@@ -1,0 +1,9 @@
+{
+  "source_root": "/workspace/benchmark-corpora/10000-markdown-files/10000 markdown files",
+  "files": 10000,
+  "bytes": 46635807,
+  "source_manifest_sha256": "d361aa39ae4c4db4bad9adc96bb22be50db77d21fec36543bf149b6bf6c8235a",
+  "extra_file": "../README.md",
+  "extra_bytes": 91,
+  "matches_previous_10000_manifest": true
+}

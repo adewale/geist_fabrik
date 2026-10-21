@@ -15,6 +15,8 @@ from typing import Any, NoReturn
 class GeistTimeoutError(Exception):
     """Raised when trusted plugin code exceeds its configured deadline."""
 
+    _deadline_owner: object | None = None
+
 
 @dataclass
 class _AlarmState:
@@ -28,6 +30,21 @@ class _AlarmState:
 
 
 _active_state: _AlarmState | None = None
+
+
+def execution_deadline() -> float | None:
+    """The current plugin's monotonic deadline, for cooperative bounded work."""
+    state = _active_state if threading.current_thread() is threading.main_thread() else None
+    return None if state is None or not state.deadlines else state.started + min(state.deadlines)
+
+
+def is_execution_timeout(error: GeistTimeoutError) -> bool:
+    """Recognize only an exception issued for this active plugin budget."""
+    return (
+        threading.current_thread() is threading.main_thread()
+        and _active_state is not None
+        and error._deadline_owner is _active_state
+    )
 
 
 def timeout_handler(signum: int, frame: FrameType | None) -> NoReturn:
@@ -57,31 +74,50 @@ def _dispatch_alarm(signum: int, frame: FrameType | None) -> None:
     if state.host_deadline <= elapsed + epsilon:
         handler = state.previous_handler
         if callable(handler):
-            # Recreate the host's periodic schedule before callback delivery so
-            # changes made by the handler (including cancellation) are visible.
+            # Preserve the original periodic phase, coalescing missed ticks.
+            # Dispatch can be slightly early within epsilon; that still consumes
+            # this tick rather than immediately scheduling it a second time.
             if state.host_interval > 0:
+                until_due = state.host_deadline - elapsed
+                remaining = (
+                    until_due + state.host_interval
+                    if until_due > 0
+                    else state.host_interval - ((-until_due) % state.host_interval)
+                )
                 signal.setitimer(
                     signal.ITIMER_REAL,
-                    state.host_interval,
+                    max(1e-6, remaining),
                     state.host_interval,
                 )
             else:
                 signal.setitimer(signal.ITIMER_REAL, 0.0)
-            handler(signum, frame)
-            host_remaining, host_interval = signal.getitimer(signal.ITIMER_REAL)
-            elapsed = time.monotonic() - state.started
-            if host_remaining > 0:
-                state.host_deadline = elapsed + host_remaining
-                state.host_interval = host_interval
-            else:
-                state.host_deadline = float("inf")
-                state.host_interval = 0.0
+            callback_returned = False
+            try:
+                handler(signum, frame)
+                callback_returned = True
+            finally:
+                # Read back cancellation/rearming even when the callback raises,
+                # so context cleanup cannot restore an already-expired deadline.
+                host_remaining, host_interval = signal.getitimer(signal.ITIMER_REAL)
+                elapsed = time.monotonic() - state.started
+                if host_remaining > 0:
+                    state.host_deadline = elapsed + host_remaining
+                    state.host_interval = host_interval
+                else:
+                    state.host_deadline = float("inf")
+                    state.host_interval = 0.0
+                if not callback_returned:
+                    # The plugin may catch the host exception inside its body.
+                    # Keep its own deadline armed before propagating the error.
+                    _arm_next(state)
         else:
             state.host_deadline = float("inf")
             state.host_interval = 0.0
 
     if state.deadlines and min(state.deadlines) <= elapsed + epsilon:
-        raise GeistTimeoutError("Geist execution timed out")
+        error = GeistTimeoutError("Geist execution timed out")
+        error._deadline_owner = state
+        raise error
     _arm_next(state)
 
 

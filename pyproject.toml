@@ -26,6 +26,7 @@ dependencies = [
     # local_files_only is part of the SentenceTransformer constructor from 3.0.
     "sentence-transformers>=3.0.0",
     "pyyaml>=6.0",
+    "markdown-it-py>=4,<5",
     "scipy>=1.11.0",
     # scikit-learn is imported unconditionally (embeddings, vector_search,
     # cluster_labeling, temporal_analysis), so it is a core dependency, not

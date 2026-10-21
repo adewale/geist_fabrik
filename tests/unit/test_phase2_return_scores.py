@@ -3,15 +3,40 @@
 Tests the return_scores parameter, its caching and its scores.
 """
 
+import math
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+from geistfabrik.config import SEMANTIC_DIM
 from geistfabrik.embeddings import Session
 from geistfabrik.models import Note
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
+
+
+def independent_scores(context: VaultContext, query: Note) -> dict[str, float]:
+    """Scalar cosine oracle over stored meaning dimensions, independent of backend code."""
+    vectors = {
+        path: np.frombuffer(blob, dtype=np.float32, count=SEMANTIC_DIM).astype(np.float64)
+        for path, blob in context.db.execute(
+            "SELECT note_path,embedding FROM session_embeddings WHERE session_id=?",
+            (context.session.session_id,),
+        )
+    }
+    a = vectors[query.path]
+    result = {}
+    for path, b in vectors.items():
+        if path == query.path:
+            continue
+        denominator = math.sqrt(math.fsum(float(x * x) for x in a)) * math.sqrt(
+            math.fsum(float(x * x) for x in b)
+        )
+        score = math.fsum(float(x * y) for x, y in zip(a, b, strict=True)) / denominator
+        result[path] = min(1.0, max(0.0, score))
+    return result
 
 
 @pytest.fixture
@@ -156,67 +181,62 @@ class TestReturnScoresParameter:
 
 
 class TestReturnScoresCaching:
-    """Test that return_scores uses separate cache keys."""
+    """Both neighbour return formats share their ranked search."""
 
-    def test_return_scores_cached_separately(self, context_with_embeddings: VaultContext):
-        """Test that return_scores=True and False have separate cache entries."""
+    def test_return_formats_share_search(self, context_with_embeddings: VaultContext, monkeypatch):
+        """Changing return format reuses the same ranked search and scores."""
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
+        searches = []
+        original = context_with_embeddings._backend.find_similar_batch
+
+        def counted(queries, count=10):
+            searches.append(len(queries))
+            return original(queries, count=count)
+
+        monkeypatch.setattr(context_with_embeddings._backend, "find_similar_batch", counted)
         # Call with return_scores=False
         neighbours1 = context_with_embeddings.neighbours(note, count=3, return_scores=False)
 
         # Call with return_scores=True
         neighbours2 = context_with_embeddings.neighbours(note, count=3, return_scores=True)
 
-        # Both should be cached independently
-        assert isinstance(neighbours1, list)
-        assert isinstance(neighbours2, list)
-        assert all(isinstance(n, Note) for n in neighbours1)
-        assert all(isinstance(item, tuple) for item in neighbours2)
-
-        # Verify cache contains both
-        cache_key_false = (note.path, 3, False)
-        cache_key_true = (note.path, 3, True)
-
-        assert cache_key_false in context_with_embeddings._neighbours_cache
-        assert cache_key_true in context_with_embeddings._neighbours_cache
+        assert neighbours1 == [item for item, _score in neighbours2]
+        assert [score for _item, score in neighbours2] == [
+            context_with_embeddings.similarity(note, item) for item in neighbours1
+        ]
+        assert searches == [1]
 
 
 class TestReturnScoresPerformance:
     """Test that return_scores avoids redundant similarity computations."""
 
-    def test_return_scores_avoids_recomputation(self, context_with_embeddings: VaultContext):
+    def test_return_scores_avoids_recomputation(
+        self, context_with_embeddings: VaultContext, monkeypatch
+    ):
         """Test that using return_scores=True avoids calling similarity() again."""
         note = context_with_embeddings.vault.get_note("python.md")
         assert note is not None
 
-        # Clear similarity cache to measure fresh computations
-        context_with_embeddings._similarity_cache.clear()
+        calls = []
+        original = context_with_embeddings._backend.get_similarity
 
-        # Get neighbours with scores
+        def pair_similarity(a, b):
+            calls.append((a, b))
+            return original(a, b)
+
+        monkeypatch.setattr(context_with_embeddings._backend, "get_similarity", pair_similarity)
         neighbours_with_scores = context_with_embeddings.neighbours(
             note, count=3, return_scores=True
         )
-
-        # Extract neighbours and scores
-        neighbours = [n for n, _ in neighbours_with_scores]
-        scores_from_neighbours = {n.path: s for n, s in neighbours_with_scores}
-
-        # Count similarity cache entries BEFORE calling similarity()
-        cache_before = len(context_with_embeddings._similarity_cache)
-
-        # Now if we call similarity() on these neighbours, it should be cached
-        for neighbour in neighbours:
-            score = context_with_embeddings.similarity(note, neighbour)
-            # Should match the score we got from neighbours()
-            assert abs(score - scores_from_neighbours[neighbour.path]) < 1e-6
-
-        # Cache should have grown (similarity was cached during neighbours call)
-        cache_after = len(context_with_embeddings._similarity_cache)
-
-        # The similarity() calls should have used cached values from neighbours()
-        assert cache_after >= cache_before
+        assert len(neighbours_with_scores) == 3
+        assert calls == []
+        expected = independent_scores(context_with_embeddings, note)
+        assert expected["java.md"] > 0
+        assert {n.path: score for n, score in neighbours_with_scores} == pytest.approx(
+            {n.path: expected[n.path] for n, _ in neighbours_with_scores}, abs=1e-6
+        )
 
 
 @pytest.mark.benchmark
@@ -226,7 +246,7 @@ class TestReturnScoresBenchmark:
     Run with: pytest -m benchmark -v -s
     """
 
-    def test_return_scores_benchmark(self, context_with_embeddings: VaultContext):
+    def test_return_scores_benchmark(self, context_with_embeddings: VaultContext, monkeypatch):
         """Benchmark return_scores=True vs calling similarity() separately."""
         import time
 
@@ -267,13 +287,34 @@ class TestReturnScoresBenchmark:
         print("=" * 70)
         print("K neighbours: 5")
         print(
-            f"Without return_scores: {avg_without * 1000:.3f}ms (neighbours + {5} similarity calls)"
+            f"Without return_scores: {avg_without * 1000:.3f}ms "
+            f"(neighbours + {len(neighbours)} similarity calls)"
         )
         print(f"With return_scores:    {avg_with * 1000:.3f}ms (neighbours only)")
         print(f"Speedup:               {speedup:.2f}x")
-        print("Redundant calls avoided: 5")
+        print(f"Redundant calls avoided: {len(neighbours)}")
         print("=" * 70)
 
-        # With return_scores should be faster (avoids 5 redundant similarity computations)
-        # Conservative estimate: at least 1.2x faster
-        assert speedup >= 1.2, f"return_scores should be faster (got {speedup:.2f}x)"
+        # Timings remain measurements; gate the actual avoided backend work.
+        calls = []
+        original = context_with_embeddings._backend.get_similarity
+
+        def pair_similarity(a, b):
+            calls.append((a, b))
+            return original(a, b)
+
+        monkeypatch.setattr(context_with_embeddings._backend, "get_similarity", pair_similarity)
+        context_with_embeddings._neighbours_cache.clear()
+        context_with_embeddings._similarity_cache.clear()
+        neighbours = context_with_embeddings.neighbours(note, count=5)
+        for neighbour in neighbours:
+            context_with_embeddings.similarity(note, neighbour)
+        assert len(calls) == len(neighbours) == 4
+        calls.clear()
+        context_with_embeddings._neighbours_cache.clear()
+        context_with_embeddings._similarity_cache.clear()
+        scored = context_with_embeddings.neighbours(note, count=5, return_scores=True)
+        assert calls == []
+        assert {n.path: score for n, score in scored} == pytest.approx(
+            independent_scores(context_with_embeddings, note), abs=1e-6
+        )

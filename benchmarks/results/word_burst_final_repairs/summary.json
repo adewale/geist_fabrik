@@ -1,0 +1,422 @@
+{
+  "schema_version": 1,
+  "audited_base": "36e5e59795b636a29406cf014b617b68c493eb6a",
+  "repair_source_head": "0fbd6cd6ff239a0d110ca985221572b4353849f1",
+  "scope": "Repairs two P2 audit findings. Trigrams remain optional; no merge performed.",
+  "validation": {
+    "exit_code": 0,
+    "seconds": 564.6382628729916,
+    "unit_passed": 2142,
+    "unit_skipped": 1,
+    "integration_passed": 81,
+    "automated_criteria_passed": 158,
+    "branch_coverage_percent": 83.67,
+    "firing_geists": 45,
+    "installed_wheel_real_offline_inference": true,
+    "source_unchanged": true,
+    "binding": "Gate ran on candidate bytes then committed as repair_source_head; every validated Python file still matches its hash."
+  },
+  "runtime_hashes": {
+    "src/geistfabrik/lexical_html.py": "af512970cc058b6b5b7200db2fa716afeea1672459b296d1de4f7f1d7193f59d",
+    "src/geistfabrik/lexical_index.py": "c6af7ae03a17d6d877a05070b406c24ac3c8ca98e1f4f093df50b92bec603ef3",
+    "src/geistfabrik/vector_math.py": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+    "tests/unit/test_word_burst_integration.py": "c15214545d7669d2ae8781d50a8c969a1a6a3b182c085d0a4948bcbe83d42711",
+    "tests/unit/test_vector_primitives.py": "8ddd074ef5e7f67682e03c69602f0e3a8b869d802a4baa85bfa113afcae5c422"
+  },
+  "regression_proof": {
+    "original_before_failed": 7,
+    "original_after_passed": 9,
+    "final_focused_passed": 289,
+    "memory_mutation": "Synthetic removal of per-chunk buffer release fails public paired-scoring memory regression; not historical baseline proof."
+  },
+  "independent_reviews": {
+    "numerical": "Scoped clean; explicit arithmetic/tree/error-bound/payload lifetime probes; historical lowbits differ.",
+    "html": "Scoped clean after resolving follow-up escape, multiline, closing and fenced-tag cases; 72-note public output and policy6-to7 reset probes pass.",
+    "test_audit": "Independent value oracles retained; original stale einsum hooks replaced; phrase/quote boundary and lifecycle proof reused."
+  },
+  "canonical_review": {
+    "schema_version": 1,
+    "status": "reviewer_unavailable",
+    "exit_code": 1,
+    "engine": "codex",
+    "report_produced": false,
+    "reason": "engine_failed",
+    "reviewer_exit_code": 1,
+    "timed_out": false,
+    "usage": {
+      "attempts": 1,
+      "reported_attempts": 0,
+      "unknown_attempts": 1,
+      "partial_attempts": 0,
+      "complete": false,
+      "tokens": null
+    }
+  },
+  "performance": {
+    "protocol": "Single-thread BLAS; separate subprocess per mode/workload; warmup then five timings; separate tracemalloc call; process RSS includes imports; lexical source read-only sorted first100 stress notes; metrics are microbenchmarks, not end-to-end predictions. The first paired workload used self-pairs; those records are explicitly relabelled self_pairs (original label retained). Added distinct paired workloads use independent seeded peers and the same source; raw logs are retained. Distinct paired trials were repeated with explicit single-thread settings; the prior unconfigured-thread files are excluded.",
+    "results": [
+      {
+        "source_sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+        "case": "prepare",
+        "mode": "before",
+        "shape": [
+          10000,
+          384
+        ],
+        "median_seconds": 0.09334897399821784,
+        "timings_seconds": [
+          0.1216712710011052,
+          0.09334897399821784,
+          0.10263144399505109,
+          0.08923353199497797,
+          0.08592839499760885
+        ],
+        "peak_traced_bytes": 65535470,
+        "retained_traced_bytes": 32763606,
+        "process_peak_rss_kib": 132528
+      },
+      {
+        "source_sha256": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+        "case": "prepare",
+        "mode": "after",
+        "shape": [
+          10000,
+          384
+        ],
+        "median_seconds": 0.09378084899799433,
+        "timings_seconds": [
+          0.11053216599975713,
+          0.09249609601101838,
+          0.10080819598806556,
+          0.09378084899799433,
+          0.09021168999606743
+        ],
+        "peak_traced_bytes": 65535518,
+        "retained_traced_bytes": 32763654,
+        "process_peak_rss_kib": 132732
+      },
+      {
+        "source_sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+        "case": "canonical",
+        "mode": "before",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.048522212004172616,
+        "timings_seconds": [
+          0.04649127699667588,
+          0.0534101809898857,
+          0.04537229400011711,
+          0.054062503011664376,
+          0.048522212004172616
+        ],
+        "peak_traced_bytes": 1604041,
+        "retained_traced_bytes": 1600216,
+        "process_peak_rss_kib": 124448
+      },
+      {
+        "source_sha256": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+        "case": "canonical",
+        "mode": "after",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.2683226189983543,
+        "timings_seconds": [
+          0.26272031100234017,
+          0.2683226189983543,
+          0.28296808899904136,
+          0.26145311100117397,
+          0.31964185400283895
+        ],
+        "peak_traced_bytes": 2661640,
+        "retained_traced_bytes": 1600336,
+        "process_peak_rss_kib": 124556
+      },
+      {
+        "source_sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+        "case": "self_pairs",
+        "mode": "before",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.0313852510007564,
+        "timings_seconds": [
+          0.0313852510007564,
+          0.029403726002783515,
+          0.028444344003219157,
+          0.038821943002403714,
+          0.031489920991589315
+        ],
+        "peak_traced_bytes": 82318,
+        "retained_traced_bytes": 80216,
+        "process_peak_rss_kib": 124532,
+        "original_case_label": "paired"
+      },
+      {
+        "source_sha256": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+        "case": "self_pairs",
+        "mode": "after",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.034791181999025866,
+        "timings_seconds": [
+          0.032874593991436996,
+          0.03503976699721534,
+          0.034791181999025866,
+          0.03365708400087897,
+          0.03761801800283138
+        ],
+        "peak_traced_bytes": 1061344,
+        "retained_traced_bytes": 80272,
+        "process_peak_rss_kib": 124216,
+        "original_case_label": "paired"
+      },
+      {
+        "source_sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+        "case": "compare",
+        "mode": "before",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.0165602979977848,
+        "timings_seconds": [
+          0.01793326200277079,
+          0.0165602979977848,
+          0.01705106400186196,
+          0.015993196997442283,
+          0.01499461599451024
+        ],
+        "peak_traced_bytes": 440432,
+        "retained_traced_bytes": 200448,
+        "process_peak_rss_kib": 124296
+      },
+      {
+        "source_sha256": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+        "case": "compare",
+        "mode": "after",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.021819177010911517,
+        "timings_seconds": [
+          0.021819177010911517,
+          0.0255831950053107,
+          0.021138930998858996,
+          0.023761909993481822,
+          0.02122012700419873
+        ],
+        "peak_traced_bytes": 440432,
+        "retained_traced_bytes": 200448,
+        "process_peak_rss_kib": 124424
+      },
+      {
+        "source_sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+        "case": "topk",
+        "mode": "before",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.01195948499662336,
+        "timings_seconds": [
+          0.013349683009437285,
+          0.012914659004309215,
+          0.01195948499662336,
+          0.010868118013604544,
+          0.010066025002743118
+        ],
+        "peak_traced_bytes": 4330372,
+        "retained_traced_bytes": 11920,
+        "process_peak_rss_kib": 124680
+      },
+      {
+        "source_sha256": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+        "case": "topk",
+        "mode": "after",
+        "shape": [
+          20,
+          10000,
+          384
+        ],
+        "median_seconds": 0.014101552005740814,
+        "timings_seconds": [
+          0.014433385003940202,
+          0.014101552005740814,
+          0.017622507002670318,
+          0.011320713994791731,
+          0.014043246992514469
+        ],
+        "peak_traced_bytes": 4440656,
+        "retained_traced_bytes": 12056,
+        "process_peak_rss_kib": 124524
+      },
+      {
+        "source_sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+        "case": "wide",
+        "mode": "before",
+        "shape": [
+          3,
+          3,
+          8193
+        ],
+        "median_seconds": 9.94260044535622e-05,
+        "timings_seconds": [
+          0.00014898699009791017,
+          9.722700633574277e-05,
+          0.00019029500253964216,
+          9.94260044535622e-05,
+          7.86989985499531e-05
+        ],
+        "peak_traced_bytes": 137364,
+        "retained_traced_bytes": 601,
+        "process_peak_rss_kib": 60776
+      },
+      {
+        "source_sha256": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+        "case": "wide",
+        "mode": "after",
+        "shape": [
+          3,
+          3,
+          8193
+        ],
+        "median_seconds": 0.0001268399937544018,
+        "timings_seconds": [
+          0.00017869900329969823,
+          0.0001646730088395998,
+          0.0001268399937544018,
+          0.00012066499039065093,
+          0.00011418800568208098
+        ],
+        "peak_traced_bytes": 234564,
+        "retained_traced_bytes": 697,
+        "process_peak_rss_kib": 60728
+      },
+      {
+        "source_sha256": "7d4b7f4703445a4203e9cba7db01f718154089274faf81903882900c65e376b3",
+        "case": "lexical",
+        "mode": "before",
+        "shape": {
+          "notes": 100,
+          "utf8_bytes": 455960
+        },
+        "median_seconds": 0.6152047240029788,
+        "timings_seconds": [
+          0.8924631630070508,
+          0.6519972660025815,
+          0.6152047240029788,
+          0.6083386899990728,
+          0.5802210949914297
+        ],
+        "peak_traced_bytes": 7550853,
+        "retained_traced_bytes": 7525434,
+        "process_peak_rss_kib": 742164
+      },
+      {
+        "source_sha256": "c6af7ae03a17d6d877a05070b406c24ac3c8ca98e1f4f093df50b92bec603ef3",
+        "case": "lexical",
+        "mode": "after",
+        "shape": {
+          "notes": 100,
+          "utf8_bytes": 455960
+        },
+        "median_seconds": 0.5734647669887636,
+        "timings_seconds": [
+          0.5634398109978065,
+          0.5444619160116417,
+          0.5734647669887636,
+          0.6150100320082856,
+          0.6509856490010861
+        ],
+        "peak_traced_bytes": 7550438,
+        "retained_traced_bytes": 7526641,
+        "process_peak_rss_kib": 741936
+      },
+      {
+        "source_sha256": "dc390d70caa90bdef86e03840f09658f89b9ce9ca7ff9f865f26a9d000229672",
+        "case": "paired",
+        "mode": "before",
+        "shape": [
+          10000,
+          384
+        ],
+        "median_seconds": 0.004600561005645432,
+        "timings_seconds": [
+          0.007308022992219776,
+          0.00550665199989453,
+          0.004600561005645432,
+          0.004175363996182568,
+          0.003809460991760716
+        ],
+        "peak_traced_bytes": 81545,
+        "retained_traced_bytes": 80216,
+        "process_peak_rss_kib": 186808
+      },
+      {
+        "source_sha256": "e9e5fb5622f5336bf42dcaf4e92d50d0eaa99f80a4eeec972c55a3e6914f10b9",
+        "case": "paired",
+        "mode": "after",
+        "shape": [
+          10000,
+          384
+        ],
+        "median_seconds": 0.011375330010196194,
+        "timings_seconds": [
+          0.011834570002974942,
+          0.011329073007800616,
+          0.012074982005287893,
+          0.011370149004505947,
+          0.011375330010196194
+        ],
+        "peak_traced_bytes": 1061344,
+        "retained_traced_bytes": 80272,
+        "process_peak_rss_kib": 186876
+      }
+    ]
+  },
+  "excluded_measurements": "performance-exploratory files overlapped development/probes and used 1000 notes; paired-*-unconfigured files lacked explicit single-thread settings. Retained for traceability only; final metrics come from performance.json.",
+  "generated_output": {
+    "fixture": "72 dated notes,12weeks,6notes/week; last24 contain span class=orchard. Exact fixture/protocol in archived audit/lexical/probe_visible_prose.py. Real Vault+Session+VaultContext+bundled suggest, no replacement renderer.",
+    "base_sha": "36e5e59795b636a29406cf014b617b68c493eb6a",
+    "source_head_sha": "0fbd6cd6ff239a0d110ca985221572b4353849f1",
+    "before": {
+      "path": "before.md",
+      "sha256": "3c94afa20825987a9069cd56a14284e82cd815a3f84934428a50834588b2a0ae",
+      "questions": 3
+    },
+    "after": {
+      "path": "after.md",
+      "sha256": "7bb29883f0f0c8e61d298c99f53c29602537d28055ac022d80f8781d53a862f8",
+      "questions": 2
+    },
+    "limitation": "Fictional targeted correctness fixture, not owner usefulness or complete browser/CSS rendering proof."
+  },
+  "archive": {
+    "path": "receipts.json.xz",
+    "sha256": "482f6d8275657645d6adf2432279afa747c802541c599665ba4d194b7c0e7404",
+    "files": 71,
+    "bytes": 103360,
+    "exclusions": "No vault databases, model weights, binary NPZ files, credentials or paper downloads. Seeds and exact scripts reproduce numeric arrays."
+  },
+  "measurement_environment": {
+    "python": "3.12.14",
+    "numpy": "2.3.4",
+    "platform": "Linux",
+    "blas_threads": 1
+  }
+}

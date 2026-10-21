@@ -37,6 +37,11 @@ def validate_suggestion(suggestion: Suggestion, *, index: int | None = None) -> 
         raise TypeError(f"{label}.title must be a string or None")
     if suggestion.title is not None and len(suggestion.title) > MAX_SUGGESTION_TITLE_CHARS:
         raise ValueError(f"{label}.title exceeds {MAX_SUGGESTION_TITLE_CHARS} characters")
+    if suggestion.evidence_key is not None:
+        if not isinstance(suggestion.evidence_key, str) or not suggestion.evidence_key:
+            raise TypeError(f"{label}.evidence_key must be a non-empty string or None")
+        if len(suggestion.evidence_key) > 128:
+            raise ValueError(f"{label}.evidence_key exceeds 128 characters")
 
 
 def validate_geist_suggestions(suggestions: list[Suggestion]) -> None:

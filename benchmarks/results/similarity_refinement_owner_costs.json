@@ -1,0 +1,20 @@
+[
+  {
+    "file": "tests/unit/test_embeddings.py",
+    "wall_seconds": 7.340544622973539,
+    "suite_seconds": 0.703,
+    "tests": 56,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  {
+    "file": "tests/unit/test_vector_primitives.py",
+    "wall_seconds": 11.096007218933664,
+    "suite_seconds": 4.66,
+    "tests": 54,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  }
+]

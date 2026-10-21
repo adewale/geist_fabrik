@@ -17,6 +17,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _centroid_distances(matrix: np.ndarray) -> np.ndarray:
+    """Centre float64 offsets so identical vectors have exactly zero dispersion."""
+    values = np.asarray(matrix, dtype=np.float64)
+    offsets = values - values[0]
+    centred = offsets - offsets.mean(axis=0, dtype=np.float64)
+    distances: np.ndarray = np.linalg.norm(centred, axis=1)
+    return distances
+
+
 def _edge_notes(vault: "VaultContext", *, nearest: bool) -> list["Note"]:
     """Two of the five notes nearest to (or farthest from) the current centroid.
 
@@ -29,7 +38,7 @@ def _edge_notes(vault: "VaultContext", *, nearest: bool) -> list["Note"]:
         return []
     paths = sorted(vectors)
     matrix = np.array([vectors[path] for path in paths])
-    distances = np.linalg.norm(matrix - matrix.mean(axis=0), axis=1)
+    distances = _centroid_distances(matrix)
     order = np.argsort(distances, kind="stable")
     if not nearest:
         order = order[::-1]
@@ -62,16 +71,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
             if len(embeddings) < 10:
                 continue
 
-            embeddings_array = np.array(
-                [semantic_component(embedding) for embedding in embeddings]
-            )
-            centroid = np.mean(embeddings_array, axis=0)
-
-            # Use scipy for Euclidean distance calculation
-            from scipy.spatial.distance import euclidean  # type: ignore[import-untyped]
-
-            distances = [euclidean(emb, centroid) for emb in embeddings_array]
-            coverage = float(np.mean(distances))
+            embeddings_array = np.array([semantic_component(embedding) for embedding in embeddings])
+            coverage = float(_centroid_distances(embeddings_array).mean(dtype=np.float64))
 
             coverage_by_session.append((session_date_str, coverage))
 

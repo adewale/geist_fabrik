@@ -1,0 +1,84 @@
+"""Run with /workspace/geist_fabrik/.venv/bin/python; no models or DB writes."""
+
+from datetime import datetime
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine
+
+from geistfabrik.default_geists.code import vocabulary_expansion
+from geistfabrik.embeddings import cosine_similarity
+from geistfabrik.models import Note
+from geistfabrik.vault_context import VaultContext
+
+
+def note(path):
+    when = datetime(2020, 1, 1)
+    return Note(path=path, title=path, content="same", links=[], tags=[], created=when, modified=when)
+
+
+vector = np.random.default_rng(7).standard_normal(384).astype(np.float32)
+vector /= np.linalg.norm(vector)
+vector *= np.float32(0.9)
+notes = [note(f"n{i}.md") for i in range(10)]
+
+
+class DispersionContext:
+    def session_embeddings_by_session(self):
+        return [
+            (i, f"2025-0{i}-01", [vector.copy() for _ in range(count)])
+            for i, count in enumerate([10, 10, 1000, 1000], 1)
+        ]
+
+    def get_all_embeddings(self):
+        return {n.path: vector.copy() for n in notes}
+
+    def get_note(self, path):
+        return next(n for n in notes if n.path == path)
+
+    def sample(self, items, count):
+        return items[:count]
+
+
+print("IDENTICAL VECTOR DISPERSION (ground truth zero)")
+for count in [10, 100, 1000, 10000]:
+    matrix = np.repeat(vector[None, :], count, axis=0)
+    print(
+        count,
+        "float32:",
+        float(np.linalg.norm(matrix - matrix.mean(axis=0), axis=1).mean()),
+        "float64:",
+        float(np.linalg.norm(matrix.astype(np.float64) - matrix.mean(axis=0, dtype=np.float64), axis=1).mean()),
+    )
+print("actual suggest():", [s.text for s in vocabulary_expansion.suggest(DispersionContext())])
+
+scale = 0.9999995
+a = np.array([1.0, 0.0], dtype=np.float32) * scale
+b = np.array([0.8000004, np.sqrt(1.0 - 0.8000004**2)], dtype=np.float32) * scale
+
+
+class ArrayBackend:
+    def get_embedding(self, path):
+        return {"a.md": a, "b.md": b}[path]
+
+    def get_similarity(self, path_a, path_b):
+        return cosine_similarity(self.get_embedding(path_a), self.get_embedding(path_b))
+
+
+def context():
+    ctx = VaultContext.__new__(VaultContext)
+    ctx._backend = ArrayBackend()
+    ctx._similarity_cache = {}
+    return ctx
+
+
+pair = [note("a.md"), note("b.md")]
+print("SCALAR / BATCH CALL ORDER")
+ctx = context()
+print("scalar first:", ctx.similarity(*pair), ctx.batch_similarity(pair[:1], pair[1:])[0, 0])
+ctx = context()
+print("batch first:", ctx.batch_similarity(pair[:1], pair[1:])[0, 0], ctx.similarity(*pair))
+
+print("IDENTICAL NORMALIZED FLOAT32 VECTORS AT FILTER THRESHOLD 1")
+duplicate = np.random.default_rng(3).standard_normal(384).astype(np.float32)
+duplicate /= np.linalg.norm(duplicate)
+print("norm:", float(np.linalg.norm(duplicate)), "cosine:", float(sklearn_cosine(np.stack([duplicate, duplicate]))[0, 1]))

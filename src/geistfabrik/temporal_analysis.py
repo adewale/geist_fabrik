@@ -17,6 +17,7 @@ import numpy as np
 
 from .config import SEMANTIC_DIM
 from .semantic_vectors import decode_meaning_vector, meaning_vector
+from .vector_math import cosine_matrix
 
 if TYPE_CHECKING:
     from geistfabrik.models import Note
@@ -37,29 +38,16 @@ semantic_component = meaning_vector
 def cosine_to_rows(reference: np.ndarray, rows: Sequence[np.ndarray]) -> np.ndarray:
     """Cosine similarity of ``reference`` with each of ``rows`` (float64).
 
-    Matches ``sklearn.metrics.pairwise.cosine_similarity`` (zero vectors have
-    similarity 0, non-finite input raises ValueError) without its per-call
-    input validation, which cost ~0.6 ms per snapshot pair and dominated the
-    trajectory helpers on large vaults. One matrix-vector product per
-    trajectory replaces one sklearn call per pair.
+    Uses the shared scale-safe kernel with the same per-pair reduction as
+    scalar and batch calls. Zero vectors have similarity zero; non-finite
+    input raises ValueError. Equal nonzero directions have similarity one.
     """
     if len(rows) == 0:
         return np.zeros(0, dtype=np.float64)
-    ref = np.asarray(reference, dtype=np.float64).ravel()
-    matrix = np.vstack([np.asarray(row, dtype=np.float64).ravel() for row in rows])
-    if matrix.shape[1] != ref.shape[0]:
-        raise ValueError(
-            f"Incompatible dimension for X and Y matrices: {ref.shape[0]} != {matrix.shape[1]}"
-        )
-    if not (np.isfinite(ref).all() and np.isfinite(matrix).all()):
-        raise ValueError("Input contains NaN or infinity.")
-    ref_norm = float(np.linalg.norm(ref))
-    row_norms = np.linalg.norm(matrix, axis=1)
-    # sklearn's normalize() leaves zero vectors at zero (scale 1), so their
-    # similarity is 0 rather than NaN.
-    ref_unit = ref / (ref_norm if ref_norm != 0.0 else 1.0)
-    row_norms[row_norms == 0.0] = 1.0
-    return np.asarray((matrix / row_norms[:, None]) @ ref_unit, dtype=np.float64)
+    ref = np.asarray(reference).reshape(1, -1)
+    matrix = np.vstack([np.asarray(row).ravel() for row in rows])
+    result: np.ndarray = cosine_matrix(ref, matrix)[0]
+    return result
 
 
 def cosine(a: np.ndarray, b: np.ndarray) -> float:

@@ -8,13 +8,16 @@ overall):
    its best cross-year pair has similarity > 0.65.
 2. Seasonal tag: in a season with >= 10 notes, a tag used >= 5 times there
    whose share of all uses of the tag is > 0.6 and at least MIN_TAG_LIFT
-   (1.5) times the season's share of all notes.
+   (1.5) times the season's share of all notes, across at least two actual
+   occurrences of that season. December/January share one winter year.
 
 Fillers have unique vocabulary (similarity ~0) and no tags.
 """
 
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import pytest
 
 from geistfabrik.default_geists.code import seasonal_patterns
 from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
@@ -52,6 +55,7 @@ def _tag_vault(
     off_season: int = 2,
     winter_notes: int = 12,
     tags: tuple[str, ...] = ("skiing",),
+    winter_dates: tuple[datetime, ...] = (datetime(2022, 1, 2), datetime(2023, 1, 2)),
 ) -> VaultBuilder:
     """``winter_notes`` winter notes, the first ``in_season`` carrying each tag;
     ``off_season`` summer notes carrying each tag; summer fillers up to 50."""
@@ -60,7 +64,11 @@ def _tag_vault(
     for i in range(winter_notes):
         body = f"winter{i}alpha winter{i}bravo" + (f" {tag_text}" if i < in_season else "")
         # Jan 2 onwards; a long run continues into February (still winter)
-        builder.note(f"Winter {i}", body, created=datetime(2023, 1, 2) + timedelta(days=i))
+        builder.note(
+            f"Winter {i}",
+            body,
+            created=winter_dates[i % len(winter_dates)] + timedelta(days=i // len(winter_dates)),
+        )
     for i in range(off_season):
         builder.note(f"Summer Tagged {i}", f"summer{i}alpha {tag_text}", created=SUMMER)
     _fillers(builder, 50 - winter_notes - off_season, SUMMER, "Filler")
@@ -128,10 +136,13 @@ def test_seasonal_patterns_finds_tag_concentrated_in_one_season(tmp_path):
     assert_valid_suggestions(suggestions, "seasonal_patterns", must_reference=["Winter"])
     [suggestion] = suggestions
     assert suggestion.text.startswith(
-        "You write about #skiing predominantly in winter (6 out of 8 notes). Examples: "
+        "#skiing appears predominantly in notes dated in winter "
+        "(6 out of 8 notes), across 2 winter seasons. Examples: "
     )
     assert len(suggestion.notes) == 3
     assert all(ref.startswith("Winter ") and int(ref.split()[1]) < 6 for ref in suggestion.notes)
+    examples = [ctx.get_note(f"{name}.md") for name in suggestion.notes]
+    assert {note.created.year for note in examples if note is not None} == {2022, 2023}
 
 
 def test_seasonal_patterns_tag_share_must_exceed_sixty_percent(tmp_path):
@@ -178,7 +189,7 @@ def test_seasonal_patterns_tag_needs_lift_over_the_seasons_base_rate(tmp_path):
 
     assert seasonal_patterns.suggest(mostly_winter) == []
     assert [s.text.split(" (")[0] for s in seasonal_patterns.suggest(winter_minority)] == [
-        "You write about #skiing predominantly in winter"
+        "#skiing appears predominantly in notes dated in winter"
     ]
 
 
@@ -190,7 +201,7 @@ def test_seasonal_patterns_caps_at_two(tmp_path):
 
     assert len(suggestions) == 2
     assert_valid_suggestions(suggestions, "seasonal_patterns")
-    assert suggestions[0].text.split()[3] != suggestions[1].text.split()[3]
+    assert suggestions[0].text.split()[0] != suggestions[1].text.split()[0]
 
 
 def test_seasonal_patterns_excludes_geist_journal(tmp_path):
@@ -224,3 +235,36 @@ def test_seasonal_patterns_is_deterministic_for_a_seed(tmp_path):
 
     assert len(first) == 2
     assert [s.text for s in first] == [s.text for s in second]
+
+
+def test_seasonal_patterns_does_not_call_one_import_batch_a_recurring_interest(tmp_path):
+    """The narrative clipping batch: strong concentration, only one winter."""
+    ctx = _tag_vault(tmp_path, winter_dates=(datetime(2023, 1, 2),)).build()
+
+    assert seasonal_patterns.suggest(ctx) == []
+
+
+@pytest.mark.parametrize(
+    ("dates", "recurs"),
+    [
+        ((datetime(2022, 12, 5), datetime(2023, 1, 5)), False),
+        ((datetime(2023, 1, 5), datetime(2023, 12, 5)), True),
+        ((datetime(2022, 12, 5), datetime(2023, 12, 5)), True),
+    ],
+    ids=("same-winter-across-new-year", "different-winters-same-calendar-year", "two-decembers"),
+)
+def test_seasonal_patterns_uses_actual_winter_occurrences(tmp_path, dates, recurs):
+    ctx = _tag_vault(tmp_path, winter_dates=dates).build()
+
+    suggestions = seasonal_patterns.suggest(ctx)
+
+    if recurs:
+        assert_valid_suggestions(suggestions, "seasonal_patterns")
+        assert "across 2 winter seasons" in suggestions[0].text
+        by_link = {note.link_text: note for note in ctx.notes()}
+        examples = [by_link[ref] for ref in suggestions[0].notes]
+        # December belongs to the winter ending the following calendar year.
+        winters = {note.created.year + (1 if note.created.month == 12 else 0) for note in examples}
+        assert len(winters) == 2
+    else:
+        assert suggestions == []
