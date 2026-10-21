@@ -1,5 +1,8 @@
 # Word-burst and temporal-corpus recovery record
 
+Historical implementation and measurements: current history retention, execution
+budgets and compatibility rules are in [Word bursts](WORD_BURST.md).
+
 Recorded 2026-10-10 from the retained session record while the execution
 environment was offline. This document preserves project context; it is not
 a substitute for the implementation, raw benchmark artifacts, or test logs.

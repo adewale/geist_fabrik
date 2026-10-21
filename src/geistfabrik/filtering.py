@@ -27,7 +27,7 @@ from .config import (
     get_default_filter_config,
 )
 from .embeddings import EmbeddingComputer
-from .evidence_identity import evidence_interval
+from .evidence_identity import evidence_was_seen
 from .models import NoteLinkIndex, Suggestion
 from .source_eligibility import SourceEligibility
 from .vector_math import UnitRows
@@ -212,43 +212,9 @@ class SuggestionFilter:
         for this observation. Saved future/same-day runs are excluded so replay
         and repeated previews preserve their existing deterministic behavior.
         """
-        key = suggestion.evidence_key
-        if key is None:
-            return False
-        before = session_date.date().isoformat()
-        if self.db.execute(
-            "SELECT 1 FROM session_suggestions "
-            "WHERE geist_id = ? AND evidence_key = ? AND session_date < ? LIMIT 1",
-            (suggestion.geist_id, key, before),
-        ).fetchone():
-            return True
-
-        interval = evidence_interval(key)
-        if interval is None:
-            return False
-        identity, first, last = interval
-        prefix = f"interval:v1:{identity}:"
-        # Valid keys sort by their first ISO day. ';' follows ':' and therefore
-        # includes every interval starting on `last` while excluding later days.
-        # The final-day predicate avoids fetching disjoint older episodes.
-        cursor = self.db.execute(
-            "SELECT evidence_key FROM session_suggestions "
-            "WHERE geist_id = ? AND evidence_key >= ? AND evidence_key < ? "
-            "AND session_date < ? AND substr(evidence_key, -10) >= ?",
-            (
-                suggestion.geist_id,
-                prefix,
-                prefix + last.isoformat() + ";",
-                before,
-                first.isoformat(),
-            ),
+        return evidence_was_seen(
+            self.db, suggestion.geist_id, suggestion.evidence_key, session_date.date().isoformat()
         )
-        for (old_key,) in cursor:
-            old = evidence_interval(old_key)
-            # Treat opaque/malformed persisted keys as exact-only identities.
-            if old is not None and old[0] == identity and first <= old[2] and old[1] <= last:
-                return True
-        return False
 
     def filter_novelty(
         self, suggestions: list[Suggestion], session_date: datetime

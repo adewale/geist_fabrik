@@ -111,7 +111,9 @@ class Vault:
             try:
                 with owned_transaction(self.db, "Vault.sync"):
                     lexical = LexicalIndex(self.db, self.config.lexical_analysis, datetime.now(UTC))
-                    rebuild_lexical = lexical.prepare()
+                    rebuild_lexical = (
+                        lexical.prepare() if self.config.lexical_analysis_enabled else False
+                    )
                     md_files = self._discover_markdown_files()
                     processed_count = self._sync_discovered_files(md_files)
                     self._delete_missing_notes(md_files)
@@ -120,7 +122,7 @@ class Vault:
                     lexical.observed_at = datetime.now(UTC)
                     # Process only source rows changed by this sync. A policy upgrade
                     # reads existing prose once; an unchanged sync reads none.
-                    if self.config.lexical_analysis.enabled:
+                    if self.config.lexical_analysis_enabled:
                         # A skipped source retains its old core note, but cannot
                         # establish a fresh lexical observation or policy baseline.
                         # Virtual entries share their physical source's status.
@@ -130,13 +132,18 @@ class Vault:
                             "LEFT JOIN lexical_notes l ON l.path = n.path "
                             "WHERE NOT EXISTS (SELECT 1 FROM _lexical_unconfirmed_sources u "
                             "WHERE u.path = n.path OR u.path = n.source_file) "
-                            "AND (? OR l.path IS NULL OR n.source_fingerprint IN "
+                            "AND (? OR l.path IS NULL OR n.path IN "
+                            "(SELECT path FROM lexical_baseline_pending) "
+                            "OR n.source_fingerprint IN "
                             "(SELECT fingerprint FROM _lexical_changed_sources))",
                             (rebuild_lexical,),
                         )
                         for row in rows:
                             lexical.sync_note(self._build_note_from_row(row, [], []))
-                    lexical.finish()
+                    if self.config.lexical_analysis_enabled:
+                        lexical.finish()
+                    else:
+                        lexical.pause()
                     # Lexical capture can be expensive. Validate immediately before
                     # commit so edits during that work roll back and retry everything.
                     if not self._snapshot_is_current(md_files):
@@ -535,6 +542,12 @@ class Vault:
             "DELETE FROM embeddings WHERE note_path = ? AND model_version != ?",
             (note.path, semantic_cache_key(note.content)),
         )
+        if self.config.lexical_analysis_enabled:
+            self.db.execute(
+                "INSERT OR IGNORE INTO _lexical_new_sources "
+                "SELECT ? WHERE NOT EXISTS (SELECT 1 FROM notes WHERE path=?)",
+                (note.path, note.path),
+            )
         self.db.execute(
             """
             INSERT INTO notes (

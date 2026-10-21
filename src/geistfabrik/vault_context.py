@@ -5,6 +5,7 @@ import json
 import logging
 import random
 import re
+import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -22,6 +23,8 @@ import numpy as np
 from .clustering_analysis import Cluster, format_cluster_label
 from .config import GEIST_JOURNAL_DIR, SEMANTIC_DIM
 from .embeddings import Session
+from .evidence_identity import evidence_was_seen
+from .execution_timeout import GeistTimeoutError, execution_deadline, is_execution_timeout
 from .lexical_index import lexical_excerpt
 from .markdown_parser import parse_frontmatter
 from .models import Link, Note, NoteLinkIndex
@@ -219,9 +222,33 @@ class VaultContext:
     def word_bursts(self) -> list[WordBurstFinding]:
         """Lexical episodes up to this session's date, with explicit provenance."""
         diagnostics = WordBurstDiagnostics()
-        findings = analyze_word_bursts(
-            self.vault, end_day=self.session.date.date(), diagnostics=diagnostics
+        limit = execution_deadline()
+        # Leave room for source binding, excerpts and the executor's own cleanup.
+        deadline = (
+            None if limit is None else limit - min(5.0, max(0.0, limit - time.monotonic()) / 4)
         )
+        try:
+            findings = analyze_word_bursts(
+                self.vault,
+                end_day=self.session.date.date(),
+                diagnostics=diagnostics,
+                deadline=deadline,
+            )
+        except GeistTimeoutError as exc:
+            if not is_execution_timeout(exc):
+                raise
+            # An unexpectedly expensive batch rolls back. Prior committed progress
+            # remains resumable; a supported optional workload is not a broken plugin.
+            self.record_deferred(
+                "word_burst",
+                "analysis exceeded this execution budget; retry or increase the budget; "
+                "prior committed progress is retained",
+            )
+            return []
+        self.deferred_analyses.discard("word_burst")
+        if diagnostics.reason == "in_progress":
+            self.record_deferred("word_burst", diagnostics.explanation())
+            return []
         self.record_diagnostic("word_burst", diagnostics.explanation())
         return findings
 
@@ -229,10 +256,21 @@ class VaultContext:
         """Keep a geist's explanation alongside this invocation's results."""
         self.execution_diagnostics[geist_id] = message
 
+    def record_deferred(self, geist_id: str, message: str) -> None:
+        """Report resumable work separately from an absence of evidence."""
+        self.deferred_analyses.add(geist_id)
+        self.record_diagnostic(geist_id, message)
+
     def word_burst_excerpt(self, note: Note, term: str) -> str | None:
         """Current visible wording for a lexical comparison, never historical text."""
         return lexical_excerpt(
             self.read(note), term, include_quotes=self.vault.config.lexical_analysis.include_quotes
+        )
+
+    def evidence_seen(self, geist_id: str, key: str) -> bool:
+        """Avoid spending a generation slot on an already saved observation."""
+        return self.filtering_enabled and evidence_was_seen(
+            self.db, geist_id, key, self.session.date.date().isoformat()
         )
 
     def __init__(
@@ -242,6 +280,7 @@ class VaultContext:
         seed: int | None = None,
         metadata_loader: MetadataProvider | None = None,
         function_registry: "FunctionRegistry | None" = None,
+        filtering_enabled: bool = True,
     ):
         """Initialise vault context.
 
@@ -253,9 +292,11 @@ class VaultContext:
             function_registry: Optional function registry for vault functions
         """
         self.vault = vault
+        self.filtering_enabled = filtering_enabled
         self.session = session
         self.db = vault.db
         self.execution_diagnostics: dict[str, str] = {}
+        self.deferred_analyses: set[str] = set()
         boundary = vault.config.filtering
         self.source_eligibility = SourceEligibility(
             tuple(boundary.exclude_paths) if boundary.boundary_enabled else ()

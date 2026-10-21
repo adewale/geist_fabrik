@@ -401,7 +401,7 @@ class SessionConfig:
 
 @dataclass
 class LexicalAnalysisConfig:
-    """Versioned extraction policy; changing it resets the observation baseline."""
+    """Extraction settings and independent controls for indexing and capture."""
 
     enabled: bool = True
     ngram_max: int = 2
@@ -503,6 +503,11 @@ class GeistFabrikConfig:
     session: SessionConfig = field(default_factory=SessionConfig)
     lexical_analysis: LexicalAnalysisConfig = field(default_factory=LexicalAnalysisConfig)
     word_burst: WordBurstConfig = field(default_factory=WordBurstConfig)
+
+    @property
+    def lexical_analysis_enabled(self) -> bool:
+        """Pause unused lexical work with its bundled consumer, retaining history."""
+        return self.lexical_analysis.enabled and self.is_geist_enabled("word_burst")
 
     def is_geist_enabled(self, geist_id: str) -> bool:
         """Check if a geist is enabled.

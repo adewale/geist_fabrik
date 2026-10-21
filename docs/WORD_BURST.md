@@ -32,7 +32,9 @@ Editing today's text can change a reconstructed earlier cohort. This mode does
 not recover the text that existed on the date assigned to it.
 
 `observed_additions` measures positive additions captured during successful
-vault syncs. First discovery establishes a baseline. Edits are observed at actual
+vault syncs. The first sync establishes a baseline. Notes first discovered after
+that bootstrap contribute newly observed text, never a claim about when it was
+written. Edits and discoveries are observed at actual
 UTC synchronization times, independently of the CLI replay date. Repeated
 additions in a note/week coalesce into one observation with unioned terms,
 revision evidence, and observation bounds. Removing a word later does not erase
@@ -45,9 +47,13 @@ lexical history. This is not a secure physical erasure guarantee.
 
 A coalesced row whose final addition was observed after a replay cutoff is
 omitted in full. Historical quoting, exact old-text replay and Git/backup import
-are deferred. Changing extraction policy clears incompatible observations and
-establishes a fresh baseline. Sources skipped during that sync cannot establish
-the new baseline from stale stored prose; recovery starts their confirmed history.
+are deferred. Changing extraction policy archives incompatible observations and
+establishes a fresh baseline. Returning to the same extraction policy restores
+its retained observations; another policy never borrows their absence counts.
+Pausing capture, disabling the index or geist, and reordering equivalent exclusion
+prefixes preserve history. Resuming establishes a confirmed baseline before
+capturing further additions. Unreadable sources retain that pending baseline
+across later syncs. Deleting a note purges its active and archived observations.
 Extraction version 7 uses parser-owned fence and inline-code boundaries, including
 list-contained fences and separate paragraphs. It retains link/image spans,
 blockquote line maps and Unicode word spans shared by counting and excerpts.
@@ -59,7 +65,7 @@ Virtual entries preserve source indentation; parser revision 7 refreshes existin
 entries that an earlier splitter stripped. Declared creation
 dates retain their written calendar day, independent of the host timezone;
 observed instants continue to use UTC. Upgrading an earlier PR build rebuilds lexical baselines and
-clears incompatible captured observations. Core notes and saved questions are
+archives incompatible captured observations. Core notes and saved questions are
 retained. A virtual entry whose corrected whitespace changes its stored text
 invalidates its own cached embeddings; unchanged note bodies retain theirs.
 A replay against changed, unsynchronized extraction
@@ -69,7 +75,28 @@ Document prevalence is stored as integer mentions and observations, including
 cached findings. Exact rational comparisons decide whether a decline is real;
 floating values exposed by the reporting API are derived projections. Paired
 percentages increase precision together until distinct rates display differently.
-Analysis version 7 invalidates older cached results.
+Analysis version 8 invalidates older cached results. Declines show the first and
+last actually observed reference weeks, the count of observed weeks and any
+interior gaps; missing weeks are never evidence of absence.
+
+## Execution budget
+
+With a supported executor deadline, analysis saves its completed candidate cursor
+and exact partial episodes before returning a deferred result. Invoke again to
+resume, or set a larger explicit timeout. No partial statistical finding is
+presented as complete. Changed source evidence, dates, eligibility or model
+settings invalidate the work. Completed findings match uninterrupted analysis.
+Ordinary invocation and `--explain` report deferred work; `--quiet` suppresses the
+status message. Budget exhaustion does not increment the geist failure counter.
+An unrelated host alarm still propagates. Schema v15 stores this work and
+inactive extraction-policy observations.
+
+The budget is cooperative between prepared batches. Collection, presence
+backfill, final evidence binding and an indivisible model operation can still
+outgrow a very small budget; the hard executor deadline rolls back that attempt.
+Previously committed progress survives. A larger explicit budget may still be
+needed for those phases or unusually costly model settings. This mechanism
+bounds an invocation; it does not guarantee less total computation.
 
 ## Configuration
 
@@ -100,8 +127,9 @@ paths are excluded. Visible link labels count as prose; resolved reference-link
 identifiers, definitions and destinations do not. CommonMark parsing identifies
 those source spans without changing the remaining extraction policy. Caret-label
 Obsidian footnotes retain the existing footnote policy. Quotes are excluded by
-default. Three-word phrases can need a larger configured execution budget on large
-vocabularies. Phrases never cross sentence, semicolon, line or removed-region
+default. Disabling `word_burst` also skips construction and maintenance of its
+unused lexical dictionary. Existing observations remain retained. Three-word
+phrases remain optional. Phrases never cross sentence, semicolon, line or removed-region
 boundaries. Explicit existing `ngram_max: 1` configurations stay words-only until
 changed. Quotes include conservative exclusion of lazy continuation lines.
 The extractor is a conservative lexical parser, not a complete
@@ -220,8 +248,8 @@ accumulates. Sparse or undated vaults abstain rather than invent chronology.
 Engineering choices follow the repository's practices: local SQLite ownership,
 atomic sync, no vocabulary sampling, exact safe pruning, policy/versioned caching,
 strict resource limits, complete-evidence boundary checks, independent property
-oracles and benchmarks that use the actual executor. Words and two-word phrases are the default; larger vocabularies can outgrow
-the default timeout.
+oracles and benchmarks that use the actual executor. Words and two-word phrases are the default. Large optional vocabularies use
+resumable decoding under the execution budget, as described below.
 
 A word spike does not establish importance, intent or a change in beliefs. A
 presentation gate excludes expressions made entirely of English grammatical
@@ -240,7 +268,10 @@ links are sampled and included in the bounded payload. Nested word/phrase
 variants with identical episode dates and complete evidence are collapsed to the
 more specific expression; remaining candidates are sampled rather than ranked
 by frequency or gain. When the budget permits and both are available, the geist
-samples both rising and declining candidates.
+samples both rising and declining candidates. Validation and saved-episode checks
+happen before a question consumes a slot, so another usable episode can replace
+a rejected candidate. A leading article does not displace an existing shorter
+content phrase with the same complete evidence.
 
 Saved suggestions have an optional interval evidence key (automatic additive
 schema v12 migration, indexed by additive schema v13). The normal novelty filter suppresses an overlapping
@@ -250,7 +281,10 @@ remains eligible. Evidence identities survive the ordinary 60-day novelty window
 same-day and future saved runs do not affect historical replay. Previews do not
 add history. Old saved suggestions without keys still use the
 existing text/embedding novelty checks. Identity is observation-level, not a
-model of what the reader knows; feedback controls remain deferred.
+model of what the reader knows; feedback controls remain deferred. Generation
+uses the same indexed evidence lookup as the downstream filter and refills
+from remaining candidates. `--no-filter` retains raw previews, including saved
+episodes.
 
 `invoke --explain` reports the lexical population and abstention reason from the
 actual invocation, including cached empty results. A cached result retains its

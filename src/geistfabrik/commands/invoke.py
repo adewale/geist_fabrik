@@ -100,6 +100,9 @@ class InvokeCommand(BaseCommand):
         results = self._execute_geists(exec_ctx, code_executor, tracery_geists)
         if results is None:
             return 1
+        if not self.quiet and not getattr(self.args, "explain", False):
+            for geist_id in sorted(exec_ctx.vault_context.deferred_analyses):
+                self.print(f"{geist_id}: {exec_ctx.vault_context.execution_diagnostics[geist_id]}")
 
         # Show execution summary
         self._print_execution_summary(results, code_executor)

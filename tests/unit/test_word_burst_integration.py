@@ -40,7 +40,7 @@ def word(number: int) -> str:
     return "identity" + chr(97 + number // 26) + chr(97 + number % 26)
 
 
-def planted_vault(root: Path) -> Vault:
+def planted_vault(root: Path, *, db_path: Path | None = None) -> Vault:
     start = date(2026, 1, 5)
     for week in range(12):
         for i in range(10):
@@ -50,7 +50,7 @@ def planted_vault(root: Path) -> Vault:
             (root / f"note-{week}-{i}.md").write_text(
                 f"---\ncreated: {start + timedelta(weeks=week)}\n---\n{body}", encoding="utf-8"
             )
-    vault = Vault(root)
+    vault = Vault(root, db_path=db_path)
     vault.sync()
     return vault
 
@@ -105,7 +105,9 @@ def test_large_episode_passes_executor_and_checks_evidence_beyond_output_limit(
             (tmp_path / f"copy-{i:03d}.md").write_bytes(original)
         if private_tail:
             (tmp_path / "z-private").mkdir()
-            (tmp_path / "z-private/hidden.md").write_bytes(original)
+            (tmp_path / "z-private/hidden.md").write_text(
+                "---\ncreated: 2027-01-01\n---\n# note-9-5\nprivate prose"
+            )
             vault.config.filtering.exclude_paths = ["z-private/"]
         vault.sync()
         evidence = next(
@@ -113,14 +115,18 @@ def test_large_episode_passes_executor_and_checks_evidence_beyond_output_limit(
         )
         assert len(evidence.support_paths) > 100
         if private_tail:
-            assert evidence.support_paths.index("z-private/hidden.md") >= 100
+            assert "z-private/hidden.md" not in evidence.support_paths
+            assert evidence.support_paths.index("note-9-5.md") >= 100
         status_store = GeistStatusStore(vault.db)
         executor = GeistExecutor(tmp_path / "geists", status_store=status_store)
         executor.register_geist("word_burst", Path(suggest.__code__.co_filename), suggest)
         with Session(datetime(2026, 3, 29), vault.db) as session:
             for _ in range(3):
                 output = executor.execute_geist("word_burst", VaultContext(vault, session))
-                assert bool(output) is not private_tail
+                if private_tail:
+                    assert output == []
+                else:
+                    assert output
                 assert all(len(item.notes) <= 100 for item in output)
                 assert executor.execution_log[-1]["status"] == "success"
         assert status_store.load() == {}
@@ -1421,3 +1427,538 @@ def test_invoke_explain_uses_execution_diagnostics_once_and_preserves_cached_abs
         assert ("cached analysis" in output) is cached
         assert len(calls) == (2 if cached else 1)
         assert calls[-1].cache_hit is cached
+
+
+@pytest.mark.parametrize("operation", ["capture", "index", "geist", "reorder"])
+def test_operational_controls_preserve_captured_history(tmp_path, monkeypatch, operation):
+    """Pausing work or reordering equivalent prefixes cannot destroy evidence."""
+    path = tmp_path / "note.md"
+    path.write_text("ordinary baseline")
+    config = GeistFabrikConfig()
+    config.lexical_analysis.exclude_paths = ["Templates/", "Archive/"]
+    with closing(Vault(tmp_path, config=config)) as vault:
+        freeze(monkeypatch, 5)
+        vault.sync()
+        freeze(monkeypatch, 6)
+        path.write_text("ordinary baseline new observation")
+        vault.sync()
+        before = list(vault.db.execute("SELECT * FROM lexical_events"))
+        assert len(before) == 1
+        if operation == "capture":
+            config.lexical_analysis.capture_observed = False
+        elif operation == "index":
+            config.lexical_analysis.enabled = False
+        elif operation == "geist":
+            config.default_geists["word_burst"] = False
+        else:
+            config.lexical_analysis.exclude_paths.reverse()
+        freeze(monkeypatch, 7)
+        vault.sync()
+        assert list(vault.db.execute("SELECT * FROM lexical_events")) == before
+
+
+def test_switching_extraction_back_restores_compatible_captured_history(tmp_path, monkeypatch):
+    path = tmp_path / "note.md"
+    path.write_text("ordinary baseline")
+    with closing(Vault(tmp_path)) as vault:
+        freeze(monkeypatch, 5)
+        vault.sync()
+        freeze(monkeypatch, 6)
+        path.write_text("ordinary baseline new observation")
+        vault.sync()
+        before = list(
+            vault.db.execute("SELECT path, terms_json, evidence_hash FROM lexical_events")
+        )
+        assert len(before) == 1
+        vault.config.lexical_analysis.ngram_max = 3
+        vault.sync()
+        assert vault.db.execute("SELECT count(*) FROM lexical_events").fetchone() == (0,)
+        vault.config.lexical_analysis.ngram_max = 2
+        vault.sync()
+        assert (
+            list(vault.db.execute("SELECT path, terms_json, evidence_hash FROM lexical_events"))
+            == before
+        )
+
+
+def test_excluded_sources_cannot_change_burst_population_or_findings(tmp_path):
+    with closing(planted_vault(tmp_path)) as vault:
+        vault.config.filtering.exclude_paths = ["Private/"]
+        stats = WordBurstDiagnostics()
+        expected = analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        population = stats.documents
+        folder = tmp_path / "Private"
+        folder.mkdir()
+        for i in range(30):
+            (folder / f"hidden-{i}.md").write_text(
+                f"---\ncreated: 2026-03-23\n---\nconfidential writing {word(i)}"
+            )
+        vault.sync()
+        actual = analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert stats.documents == population
+        assert actual == expected
+        # Boundary changes must also invalidate an already cached population.
+        vault.config.filtering.boundary_enabled = False
+        analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert stats.documents == population + 30 and not stats.cache_hit
+
+
+def test_new_sources_after_bootstrap_capture_discovery_not_their_declared_date(
+    tmp_path, monkeypatch
+):
+    with closing(Vault(tmp_path)) as vault:
+        freeze(monkeypatch, 5)
+        vault.sync()
+        freeze(monkeypatch, 6)
+        (tmp_path / "2000-01-01.md").write_text("newly discovered orchard")
+        vault.sync()
+        event = vault.db.execute(
+            "SELECT bin_start, observed_at, terms_json FROM lexical_events"
+        ).fetchone()
+        assert event is not None
+        assert event[0] == "2026-01-05" and event[1].startswith("2026-01-06")
+        assert set(json.loads(event[2])) == {
+            "newly",
+            "discovered",
+            "orchard",
+            "newly discovered",
+            "discovered orchard",
+        }
+
+
+def test_disabled_geist_skips_lexical_index_and_resume_establishes_baseline(tmp_path, monkeypatch):
+    (tmp_path / "note.md").write_text("ordinary corpus writing")
+    config = GeistFabrikConfig()
+    config.default_geists["word_burst"] = False
+    with closing(Vault(tmp_path, config=config)) as vault:
+        freeze(monkeypatch, 5)
+        vault.sync()
+        assert vault.last_lexical_stats == {"extracted": 0, "changed": 0}
+        assert vault.db.execute("SELECT count(*) FROM lexical_terms").fetchone() == (0,)
+        config.default_geists["word_burst"] = True
+        freeze(monkeypatch, 6)
+        vault.sync()
+        assert vault.last_lexical_stats["extracted"] == 1
+        assert vault.db.execute("SELECT count(*) FROM lexical_events").fetchone() == (0,)
+
+
+@pytest.mark.parametrize("control", ["index", "geist", "capture"])
+def test_unreadable_source_keeps_resume_baseline_pending(tmp_path, monkeypatch, control):
+    path = tmp_path / "note.md"
+    path.write_text("alpha")
+    with closing(Vault(tmp_path)) as vault:
+        freeze(monkeypatch, 5)
+        vault.sync()
+        if control == "index":
+            vault.config.lexical_analysis.enabled = False
+        elif control == "geist":
+            vault.config.default_geists["word_burst"] = False
+        else:
+            vault.config.lexical_analysis.capture_observed = False
+        path.write_bytes(b"\xff")
+        freeze(monkeypatch, 12)
+        vault.sync()
+        vault.config.lexical_analysis.enabled = True
+        vault.config.lexical_analysis.capture_observed = True
+        vault.config.default_geists["word_burst"] = True
+        freeze(monkeypatch, 19)
+        vault.sync()
+        freeze(monkeypatch, 26)
+        path.write_text("alpha pausednebula")
+        vault.sync()
+        assert vault.db.execute("SELECT count(*) FROM lexical_events").fetchone() == (0,)
+        freeze(monkeypatch, 27)
+        path.write_text("alpha pausednebula resumedaurora")
+        vault.sync()
+        terms = json.loads(vault.db.execute("SELECT terms_json FROM lexical_events").fetchone()[0])
+        assert "resumedaurora" in terms and "pausednebula" not in terms
+
+
+def test_discovered_source_cannot_backdate_an_observation_when_clock_regresses(
+    tmp_path, monkeypatch
+):
+    with closing(Vault(tmp_path)) as vault:
+        freeze(monkeypatch, 12)
+        vault.sync()
+        freeze(monkeypatch, 5)
+        path = tmp_path / "new.md"
+        path.write_text("nebula")
+        vault.sync()
+        assert vault.db.execute("SELECT count(*) FROM lexical_events").fetchone() == (0,)
+        freeze(monkeypatch, 19)
+        path.write_text("nebula aurora")
+        vault.sync()
+        previous, observed = vault.db.execute(
+            "SELECT previous_at, observed_at FROM lexical_events"
+        ).fetchone()
+        assert previous <= observed and observed.startswith("2026-01-19")
+
+
+def test_source_provenance_change_invalidates_cached_population(tmp_path):
+    with closing(planted_vault(tmp_path)) as vault:
+        stats = WordBurstDiagnostics()
+        expected = analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert stats.documents == 120
+        vault.db.execute(
+            "UPDATE notes SET is_virtual=1,source_file='Templates/journal.md' "
+            "WHERE path='note-8-0.md'"
+        )
+        vault.db.commit()
+        analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert stats.documents == 119 and not stats.cache_hit
+        vault.db.execute(
+            "UPDATE notes SET source_file='Public/journal.md' WHERE path='note-8-0.md'"
+        )
+        vault.db.commit()
+        assert analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats) == expected
+        assert stats.documents == 120 and not stats.cache_hit
+
+
+def test_decline_reports_observed_reference_coverage_and_gaps(tmp_path):
+    for week in range(12):
+        if week == 2:
+            continue
+        for i in range(6):
+            day = date(2026, 1, 5) + timedelta(weeks=week)
+            text = "orchard stewardship" if week < 6 else "ordinary weather"
+            (tmp_path / f"source-{week}-{i}.md").write_text(
+                f"---\ncreated: {day}\n---\n{text}. {word(week * 6 + i)}"
+            )
+    with closing(Vault(tmp_path)) as vault:
+        vault.config.word_burst.directions = ["declining"]
+        vault.sync()
+        finding = next(
+            f
+            for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29))
+            if f.term == "orchard" and f.direction == "declining"
+        )
+        assert finding.reference_start == "2026-01-05"
+        assert finding.reference_end == "2026-02-15"
+        assert finding.reference_gaps == ("2026-01-19",)
+        assert finding.reference_bins == 5
+        with Session(datetime(2026, 3, 29), vault.db) as session:
+            questions = suggest(VaultContext(vault, session))
+            assert questions and all("5 observed weeks" in q.text for q in questions)
+
+
+def test_budgeted_analysis_resumes_to_uninterrupted_exact_findings(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from geistfabrik import word_burst_analysis as analysis
+
+    with closing(planted_vault(tmp_path)) as vault:
+        expected = analyze_word_bursts(vault, end_day=date(2026, 3, 29))
+        vault.db.execute("DELETE FROM word_burst_cache")
+        vault.db.commit()
+        clock = [0.0]
+        original = analysis.BurstModel.detect_many
+
+        def consume_budget(self, *args, **kwargs):
+            result = original(self, *args, **kwargs)
+            if any(item.intervals for item in result):
+                clock[0] = 100.0
+            return result
+
+        stats = WordBurstDiagnostics()
+        with monkeypatch.context() as patcher:
+            patcher.setattr(
+                analysis,
+                "time",
+                SimpleNamespace(monotonic=lambda: clock[0], perf_counter=time.perf_counter),
+            )
+            patcher.setattr(analysis.BurstModel, "detect_many", consume_budget)
+            assert (
+                analyze_word_bursts(
+                    vault, end_day=date(2026, 3, 29), diagnostics=stats, deadline=100.0
+                )
+                == []
+            )
+        assert stats.reason == "in_progress" and stats.candidates > 0
+        assert json.loads(
+            vault.db.execute("SELECT episodes_json FROM word_burst_work").fetchone()[0]
+        )
+        assert vault.db.execute("SELECT count(*) FROM word_burst_cache").fetchone() == (0,)
+        resumed = analyze_word_bursts(vault, end_day=date(2026, 3, 29), diagnostics=stats)
+        assert resumed == expected and stats.resumed
+        assert vault.db.execute("SELECT count(*) FROM word_burst_work").fetchone() == (0,)
+
+
+@given(operations=st.lists(st.sampled_from(["capture", "index", "geist", "reorder"])))
+@settings(max_examples=30, deadline=None)
+def test_operational_pause_sequences_preserve_captured_evidence(operations):
+    with TemporaryDirectory() as directory, pytest.MonkeyPatch.context() as patcher:
+        root = Path(directory)
+        path = root / "note.md"
+        path.write_text("ordinary baseline")
+        config = GeistFabrikConfig()
+        config.lexical_analysis.exclude_paths = ["Templates/", "Archive/"]
+        with closing(Vault(root, config=config)) as vault:
+            freeze(patcher, 5)
+            vault.sync()
+            freeze(patcher, 6)
+            path.write_text("ordinary baseline newly observed aurora")
+            vault.sync()
+            evidence = list(vault.db.execute("SELECT * FROM lexical_events"))
+            assert len(evidence) == 1
+            freeze(patcher, 7)
+            # Bound materialized filesystem work, preserving the generated domain.
+            for operation in operations[:16]:
+                if operation == "capture":
+                    config.lexical_analysis.capture_observed ^= True
+                elif operation == "index":
+                    config.lexical_analysis.enabled ^= True
+                elif operation == "geist":
+                    config.default_geists["word_burst"] = not config.is_geist_enabled("word_burst")
+                else:
+                    config.lexical_analysis.exclude_paths.reverse()
+                vault.sync()
+                assert list(vault.db.execute("SELECT * FROM lexical_events")) == evidence
+
+
+@pytest.mark.parametrize("rejection", ["saved", "ambiguous"])
+def test_rejected_episode_does_not_consume_question_budget(tmp_path, rejection):
+    with closing(planted_vault(tmp_path)) as vault:
+        for week in (4, 5):
+            for i in range(6):
+                path = tmp_path / f"note-{week}-{i}.md"
+                path.write_text(path.read_text() + " nebula")
+        vault.config.word_burst.directions = ["rising"]
+        vault.config.word_burst.max_suggestions = 1
+        if rejection == "ambiguous":
+            (tmp_path / "Private").mkdir()
+            (tmp_path / "Private/hidden.md").write_text(
+                "---\ncreated: 2027-01-01\n---\n# note-8-0\nprivate prose"
+            )
+            vault.config.filtering.exclude_paths = ["Private/"]
+        vault.sync()
+        if rejection == "saved":
+            finding = next(
+                f
+                for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29))
+                if f.term == "aurora"
+            )
+            key = interval_evidence_key(
+                ["word_burst", finding.history_mode, finding.direction, finding.term],
+                finding.start,
+                finding.end,
+            )
+            JournalWriter(tmp_path, vault.db).write_session(
+                datetime(2026, 3, 28),
+                [
+                    Suggestion(
+                        text="An earlier question",
+                        notes=["note-8-0"],
+                        geist_id="word_burst",
+                        evidence_key=key,
+                    )
+                ],
+            )
+        with Session(datetime(2026, 3, 29), vault.db) as session:
+            for seed in range(8):
+                output = suggest(VaultContext(vault, session, seed=seed))
+                assert len(output) == 1 and "‘nebula’" in output[0].text
+            if rejection == "saved":
+                raw = [
+                    q
+                    for seed in range(8)
+                    for q in suggest(
+                        VaultContext(vault, session, seed=seed, filtering_enabled=False)
+                    )
+                ]
+                assert any("‘aurora’" in q.text for q in raw)
+
+
+def test_article_variant_does_not_displace_existing_content_phrase(tmp_path):
+    with closing(planted_vault(tmp_path)) as vault:
+        vault.config.lexical_analysis.ngram_max = 3
+        vault.config.word_burst.directions = ["rising"]
+        for week in (8, 9):
+            for i in range(6):
+                path = tmp_path / f"note-{week}-{i}.md"
+                path.write_text(path.read_text().replace("aurora", "the repair cafe"))
+        vault.sync()
+        terms = {f.term for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29))}
+        assert {"repair cafe", "the repair cafe"} <= terms
+        with Session(datetime(2026, 3, 29), vault.db) as session:
+            output = suggest(VaultContext(vault, session))
+        assert len(output) == 1 and "‘repair cafe’" in output[0].text
+
+
+def test_oversized_optional_analysis_does_not_disable_geist(tmp_path, monkeypatch):
+    import signal
+    from types import SimpleNamespace
+
+    from geistfabrik import execution_timeout, vault_context, word_burst_analysis
+    from geistfabrik.word_burst import BurstModel
+
+    if not hasattr(signal, "SIGALRM"):
+        pytest.skip("SIGALRM unavailable")
+    with closing(planted_vault(tmp_path)) as vault:
+        clock = [0.0]
+        timer = SimpleNamespace(monotonic=lambda: clock[0], perf_counter=time.perf_counter)
+        for module in (execution_timeout, vault_context, word_burst_analysis):
+            monkeypatch.setattr(module, "time", timer)
+
+        def oversized_batch(*args, **kwargs):
+            clock[0] = 2.0
+            signal.raise_signal(signal.SIGALRM)
+            pytest.fail("the executor deadline must interrupt this batch")
+
+        monkeypatch.setattr(BurstModel, "detect_many", oversized_batch)
+        store = GeistStatusStore(vault.db)
+        executor = GeistExecutor(tmp_path / "geists", timeout=1, max_failures=1, status_store=store)
+        executor.register_geist("word_burst", Path(suggest.__code__.co_filename), suggest)
+        with Session(datetime(2026, 3, 29), vault.db) as session:
+            context = VaultContext(vault, session)
+            assert executor.execute_geist("word_burst", context) == []
+            assert "word_burst" in context.deferred_analyses
+        assert executor.execution_log[-1]["status"] == "success"
+        assert all(not s.disabled and s.failure_count == 0 for s in store.load().values())
+
+
+def test_word_burst_does_not_swallow_host_timeout(tmp_path, monkeypatch):
+    import signal
+    from types import SimpleNamespace
+
+    from geistfabrik import execution_timeout, vault_context, word_burst_analysis
+    from geistfabrik.execution_timeout import GeistTimeoutError, alarm_timeout, timeout_handler
+    from geistfabrik.word_burst import BurstModel
+
+    if not hasattr(signal, "SIGALRM"):
+        pytest.skip("SIGALRM unavailable")
+    with closing(planted_vault(tmp_path)) as vault:
+        clock = [0.0]
+        timer = SimpleNamespace(monotonic=lambda: clock[0], perf_counter=time.perf_counter)
+        for module in (execution_timeout, vault_context, word_burst_analysis):
+            monkeypatch.setattr(module, "time", timer)
+
+        def oversized_batch(*args, **kwargs):
+            clock[0] = 61.0
+            signal.raise_signal(signal.SIGALRM)
+            pytest.fail("the host deadline must interrupt this batch")
+
+        monkeypatch.setattr(BurstModel, "detect_many", oversized_batch)
+        previous_handler = signal.getsignal(signal.SIGALRM)
+        previous_timer = signal.getitimer(signal.ITIMER_REAL)
+        try:
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.setitimer(signal.ITIMER_REAL, 60.0)
+            with Session(datetime(2026, 3, 29), vault.db) as session:
+                context = VaultContext(vault, session)
+                with pytest.raises(GeistTimeoutError), alarm_timeout(100):
+                    context.word_bursts()
+                assert "word_burst" not in context.deferred_analyses
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0.0)
+            signal.signal(signal.SIGALRM, previous_handler)
+            signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+
+
+def test_reused_histories_cannot_spend_budget_on_an_oversized_unseen_batch(monkeypatch):
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    from geistfabrik import word_burst_analysis as analysis
+    from geistfabrik.word_burst_sparse import SparsePopulation
+
+    weeks, terms = 16, 4096
+    counts = np.random.default_rng(91019).integers(1, 50, size=(terms, weeks), dtype=np.int64)
+    counts[:2048] = 1  # A cheap cached prefix followed by unrelated histories.
+    population = SparsePopulation(
+        np.arange(1, terms + 1, dtype=np.uint64),
+        np.arange(terms, dtype=np.intp),
+        np.arange(0, (terms + 1) * weeks, weeks, dtype=np.intp),
+        np.tile(np.arange(weeks, dtype=np.intp), terms),
+        counts.ravel(),
+    )
+    clock = [0.0]
+    original = analysis.BurstModel.detect_many
+
+    def account_for_work(self, series, **kwargs):
+        result = original(self, series, **kwargs)
+        clock[0] += len(series) * 0.01
+        return result
+
+    monkeypatch.setattr(analysis, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(analysis.BurstModel, "detect_many", account_for_work)
+    config = SimpleNamespace(
+        s=2.0,
+        gamma=0.0,
+        max_states=2,
+        min_support=3,
+        min_support_bins=2,
+        directions=["rising", "declining"],
+    )
+    stats = WordBurstDiagnostics()
+    _, offset = analysis._decode_population(population, [1000] * weeks, config, stats, deadline=1.0)
+    assert 2048 < offset < terms
+    # At most one indivisible series may cross a cooperative deadline.
+    assert clock[0] <= 1.01
+
+
+def test_invoke_no_filter_keeps_previously_saved_episode_in_preview(tmp_path, capsys):
+    with closing(planted_vault(tmp_path, db_path=tmp_path / "_geistfabrik/vault.db")) as vault:
+        finding = next(
+            f for f in analyze_word_bursts(vault, end_day=date(2026, 3, 29)) if f.term == "aurora"
+        )
+        JournalWriter(tmp_path, vault.db).write_session(
+            datetime(2026, 3, 28),
+            [
+                Suggestion(
+                    "An earlier question",
+                    ["note-8-0"],
+                    "word_burst",
+                    evidence_key=interval_evidence_key(
+                        ["word_burst", finding.history_mode, finding.direction, finding.term],
+                        finding.start,
+                        finding.end,
+                    ),
+                )
+            ],
+        )
+    for flags, expected in [([], False), (["--no-filter"], True)]:
+        args = create_parser().parse_args(
+            [
+                "invoke",
+                str(tmp_path),
+                "--geist",
+                "word_burst",
+                "--date",
+                "2026-03-29",
+                "--full",
+                *flags,
+            ]
+        )
+        assert InvokeCommand(args).run() == 0
+        assert ("‘aurora’" in capsys.readouterr().out) is expected
+
+
+@pytest.mark.parametrize("flags", [[], ["--explain"], ["--quiet"]])
+def test_invoke_reports_deferred_analysis_without_explain(tmp_path, monkeypatch, capsys, flags):
+    from types import SimpleNamespace
+
+    from geistfabrik import execution_timeout, vault_context, word_burst_analysis
+    from geistfabrik.word_burst import BurstModel
+
+    with closing(planted_vault(tmp_path)):
+        pass
+    clock = [0.0]
+    timer = SimpleNamespace(monotonic=lambda: clock[0], perf_counter=time.perf_counter)
+    for module in (execution_timeout, vault_context, word_burst_analysis):
+        monkeypatch.setattr(module, "time", timer)
+    original = BurstModel.detect_many
+
+    def consume_budget(self, series, **kwargs):
+        result = original(self, series, **kwargs)
+        if series:
+            clock[0] = 30.0
+        return result
+
+    monkeypatch.setattr(BurstModel, "detect_many", consume_budget)
+    args = create_parser().parse_args(
+        ["invoke", str(tmp_path), "--geist", "word_burst", "--date", "2026-03-29", *flags]
+    )
+    assert InvokeCommand(args).run() == 0
+    output = capsys.readouterr().out
+    assert output.count("analysis paused") == (0 if "--quiet" in flags else 1)

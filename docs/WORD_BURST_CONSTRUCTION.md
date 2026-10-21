@@ -1,5 +1,8 @@
 # Correctness by construction: audit repairs, 2026-10-17
 
+Historical implementation and measurements: current history retention, execution
+budgets and compatibility rules are in [Word bursts](WORD_BURST.md).
+
 This closes the findings recorded in the
 [2026-10-16 audit](WORD_BURST_NUMERIC_AUDIT_2026-10-16.md). That report remains
 an historical record of the audited head, rather than being rewritten to look clean.

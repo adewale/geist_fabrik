@@ -7,6 +7,7 @@ therefore do not manufacture novelty. Non-interval keys retain exact matching.
 
 import hashlib
 import json
+import sqlite3
 from collections.abc import Sequence
 from datetime import date
 
@@ -48,3 +49,42 @@ def evidence_interval(key: str) -> tuple[str, date, date] | None:
     if first > last:
         return None
     return identity, first, last
+
+
+def evidence_was_seen(db: sqlite3.Connection, geist_id: str, key: str | None, before: str) -> bool:
+    """Indexed exact/overlapping evidence lookup, shared by generation and filtering."""
+    if key is None:
+        return False
+    if db.execute(
+        "SELECT 1 FROM session_suggestions "
+        "WHERE geist_id = ? AND evidence_key = ? AND session_date < ? LIMIT 1",
+        (geist_id, key, before),
+    ).fetchone():
+        return True
+
+    interval = evidence_interval(key)
+    if interval is None:
+        return False
+    identity, first, last = interval
+    prefix = f"interval:v1:{identity}:"
+    # Valid keys sort by their first ISO day. ';' follows ':' and therefore
+    # includes every interval starting on `last` while excluding later days.
+    # The final-day predicate avoids fetching disjoint older episodes.
+    cursor = db.execute(
+        "SELECT evidence_key FROM session_suggestions "
+        "WHERE geist_id = ? AND evidence_key >= ? AND evidence_key < ? "
+        "AND session_date < ? AND substr(evidence_key, -10) >= ?",
+        (
+            geist_id,
+            prefix,
+            prefix + last.isoformat() + ";",
+            before,
+            first.isoformat(),
+        ),
+    )
+    for (old_key,) in cursor:
+        old = evidence_interval(old_key)
+        # Treat opaque/malformed persisted keys as exact-only identities.
+        if old is not None and old[0] == identity and first <= old[2] and old[1] <= last:
+            return True
+    return False

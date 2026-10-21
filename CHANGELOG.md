@@ -8,11 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Schema v15 retains captured evidence across operational pauses and extraction
+  changes, establishes confirmed baselines on resume, and captures newly seen
+  notes after bootstrap. Disabled word-burst geists skip lexical indexing.
+- Word-burst populations exclude private sources before statistical analysis.
+  Questions refill rejected or already-saved candidates, prefer content phrases
+  over leading-article variants, and report gaps in decline reference periods.
+- Optional large phrase analyses save exact decoding progress across invocations,
+  report deferred work, and avoid disabling the geist for budget exhaustion.
+  Source collection and indivisible operations can still require a larger budget.
 - Lexical extraction policy 7 excludes hidden HTML syntax and non-prose elements
   from both counts and current excerpts. Escaped Markdown labels remain literal
   text, and code/quote filtering preserves HTML closing syntax without admitting
   excluded prose. Upgrading an earlier PR build rebuilds lexical baselines and
-  resets incompatible captured observations; notes, embeddings and saved
+  archives incompatible captured observations; notes, embeddings and saved
   questions remain intact. Trigrams remain opt-in with `ngram_max: 3`.
 - Canonical vector normalization and scores now share an explicit adjacent-pair
   float64 tree. Scalar, batch and refinement decisions agree above NumPy's
@@ -52,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   explicit `ngram_max: 1` settings remain words-only. Extraction version 5 adds
   parser-owned link/image and quote boundaries, shared Unicode word spans, and
   host-independent declared calendar days; the next
-  sync rebuilds incompatible lexical baselines and clears captured observations.
+  sync rebuilds incompatible lexical baselines and archives captured observations.
   Observed phrase history starts at that baseline; old prose is not reconstructed.
   Core notes, embeddings and saved session questions remain intact. Automatic
   additive schema v12 adds optional episode identities to saved suggestions and
@@ -72,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Lexical schema v11:** automatic additive migration preserves existing notes
   and embeddings. No rebuild is required. The new word-burst geist indexes prose
   incrementally and supports reconstructed dated cohorts and prospective observed
-  additions. Extraction-policy changes deliberately reset lexical history. PR extraction
+  additions. Extraction-policy changes retain inactive histories separately. PR extraction
   version 2 repairs source/native-path exclusions and rebuilds earlier PR lexical
   baselines. Full-evidence boundary checks precede bounded suggestion references;
   skipped reads retain conservative observation bounds, and near-one likelihood

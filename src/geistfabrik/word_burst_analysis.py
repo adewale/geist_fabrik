@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import time
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field, fields, replace
@@ -11,8 +12,9 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 
 from .document_rate import DocumentRate
-from .lexical_index import EXTRACTION_VERSION, week_start
+from .lexical_index import extraction_policy, week_start
 from .lexical_presence import ensure_selected_presence
+from .source_eligibility import SourceEligibility
 from .sqlite_transaction import owned_transaction
 from .word_burst import BurstInterval, BurstModel, PreparedBurstSeries
 from .word_burst_sparse import SparsePopulation, collect_population, selected_presence
@@ -20,7 +22,7 @@ from .word_burst_sparse import SparsePopulation, collect_population, selected_pr
 if TYPE_CHECKING:
     from .vault import Vault
 
-ANALYSIS_VERSION = 7
+ANALYSIS_VERSION = 8
 
 _DECODE_BATCH = 1024
 _SERIES_CACHE = 8192
@@ -49,6 +51,8 @@ class WordBurstFinding:
     reference: DocumentRate | None = None
     reference_start: str | None = None
     reference_end: str | None = None
+    reference_gaps: tuple[str, ...] = ()
+    reference_bins: int = 0
 
     @property
     def rate(self) -> float:
@@ -90,6 +94,7 @@ class WordBurstDiagnostics:
     collection_seconds: float = 0.0
     decoding_seconds: float = 0.0
     evidence_seconds: float = 0.0
+    resumed: bool = False
 
     def explanation(self) -> str:
         """Explain evidence limits without confusing a cache hit with an outcome."""
@@ -97,6 +102,11 @@ class WordBurstDiagnostics:
             return "abstained: lexical analysis is disabled"
         if self.reason == "requires_sync":
             return "abstained: lexical index policy requires sync"
+        if self.reason == "in_progress":
+            return (
+                f"analysis paused safely after {self.candidates} candidates; "
+                "invoke again to resume while the selected population is unchanged"
+            )
         population = (
             "captured observations"
             if self.history_mode == "observed_additions"
@@ -170,6 +180,8 @@ def _decode_cached(payload: str, end_day: date, canonical_end: date) -> list[Wor
             None if item["reference"] is None else DocumentRate(**item["reference"]),
             item["reference_start"],
             item["reference_end"],
+            tuple(item.get("reference_gaps", ())),
+            item.get("reference_bins", 0),
         )
         findings.append(finding)
     return findings
@@ -201,9 +213,13 @@ def _decode_population(
     exposure: list[int],
     config: Any,
     stats: WordBurstDiagnostics,
-) -> dict[int, list[_Episode]]:
+    *,
+    offset: int = 0,
+    episodes: dict[int, list[_Episode]] | None = None,
+    deadline: float | None = None,
+) -> tuple[dict[int, list[_Episode]], int]:
     """Prepare only a batch at a time; retain a bounded exact-series cache."""
-    episodes: dict[int, list[_Episode]] = {}
+    episodes = {} if episodes is None else episodes
     model = BurstModel(exposure, s=config.s, gamma=config.gamma, max_states=config.max_states)
     batched = config.max_states == 2 and config.s - 1 > 1e-8
     decoded: OrderedDict[tuple[tuple[tuple[int, int], ...], str], tuple[BurstInterval, ...]] = (
@@ -211,10 +227,15 @@ def _decode_population(
     )
     screens: dict[int, set[str]] = {}
     cached_points = 0
-    offset = 0
+    batch_size = _DECODE_BATCH if deadline is None else 1
+    new_series_limit = _DECODE_BATCH if deadline is None else 1
+    seconds_per_series = 0.0
     while offset < len(population.order):
+        if deadline is not None and time.monotonic() >= deadline:
+            break
+        batch_started = time.monotonic()
         limit, points = offset, 0
-        while limit < min(offset + _DECODE_BATCH, len(population.order)):
+        while limit < min(offset + batch_size, len(population.order)):
             column = int(population.order[limit])
             size = int(population.indptr[column + 1] - population.indptr[column])
             if limit > offset and points + size > _PREPARED_POINTS:
@@ -229,7 +250,10 @@ def _decode_population(
         # A batch may contain more keys than the long-lived LRU's remaining
         # space. Evict only after assigning its episodes, never pending work.
         current: dict[tuple[tuple[tuple[int, int], ...], str], tuple[BurstInterval, ...]] = {}
-        for candidate in population.order[offset:limit]:
+        for position, candidate in enumerate(population.order[offset:limit]):
+            if deadline is not None and time.monotonic() >= deadline:
+                limit = offset + position
+                break
             term_id = int(candidate)
             sparse = population.column(term_id)
             stats.candidates += 1
@@ -244,10 +268,27 @@ def _decode_population(
                     for direction in config.directions
                     if not model.cannot_burst_total(relevant, direction=direction)
                 }
-            stats.pruned += len(config.directions) - len(viable)
             if not viable:
+                stats.pruned += len(config.directions)
                 continue
             vector = tuple(sparse.items())
+            if (
+                deadline is not None
+                and vector not in prepared
+                and len(prepared) >= new_series_limit
+                and any(
+                    direction in viable
+                    and (vector, direction) not in current
+                    and (vector, direction) not in decoded
+                    for direction in config.directions
+                )
+            ):
+                # Cached repetitions may be cheap; they cannot authorize a large
+                # batch of unseen vectors. Leave this candidate for the next batch.
+                limit = offset + position
+                stats.candidates -= 1
+                break
+            stats.pruned += len(config.directions) - len(viable)
             vectors[term_id] = vector
             for direction in config.directions:
                 cache_key = (vector, direction)
@@ -310,12 +351,56 @@ def _decode_population(
         while len(decoded) > _SERIES_CACHE or cached_points > _SERIES_CACHE_POINTS:
             evicted, _ = decoded.popitem(last=False)
             cached_points -= len(evicted[0])
+        completed = limit - offset
         offset = limit
+        if deadline is not None:
+            elapsed = max(time.monotonic() - batch_started, 1e-9)
+            remaining = max(0.0, deadline - time.monotonic())
+            # Start with one series, then grow conservatively from measured work.
+            # Checking preparation per candidate prevents slow grids from spending
+            # the entire hard budget before the first resumable cursor exists.
+            batch_size = min(
+                _DECODE_BATCH,
+                batch_size * 2,
+                max(1, int(completed * remaining / (4 * elapsed))),
+            )
+            if prepared:
+                seconds_per_series = max(seconds_per_series, elapsed / len(prepared))
+                new_series_limit = min(
+                    _DECODE_BATCH,
+                    new_series_limit * 2,
+                    max(1, int(remaining / (4 * seconds_per_series))),
+                )
+    return episodes, offset
+
+
+def _encode_work(episodes: dict[int, list[_Episode]]) -> str:
+    """Only exact decoded intervals are retained; source evidence is rebound later."""
+    return json.dumps(
+        [
+            [column, episode.direction, asdict(episode.interval)]
+            for column, items in episodes.items()
+            for episode in items
+        ]
+    )
+
+
+def _decode_work(payload: str) -> dict[int, list[_Episode]]:
+    episodes: dict[int, list[_Episode]] = {}
+    for column, direction, interval in json.loads(payload):
+        interval["gaps"] = tuple(interval["gaps"])
+        episodes.setdefault(column, []).append(
+            _Episode(column, BurstInterval(**interval), direction)
+        )
     return episodes
 
 
 def analyze_word_bursts(
-    vault: "Vault", *, end_day: date, diagnostics: WordBurstDiagnostics | None = None
+    vault: "Vault",
+    *,
+    end_day: date,
+    diagnostics: WordBurstDiagnostics | None = None,
+    deadline: float | None = None,
 ) -> list[WordBurstFinding]:
     """Decode exact document prevalence using one consistent database snapshot.
 
@@ -325,6 +410,8 @@ def analyze_word_bursts(
     Changes to generation, policy, settings, rolling frame or selected membership
     invalidate reuse. Current prose and captured additions retain distinct history.
     """
+    if deadline is not None and (isinstance(deadline, bool) or not math.isfinite(deadline)):
+        raise ValueError("analysis deadline must be a finite monotonic time")
     stats = diagnostics if diagnostics is not None else WordBurstDiagnostics()
     empty = WordBurstDiagnostics()
     for diagnostic_field in fields(stats):
@@ -333,14 +420,12 @@ def analyze_word_bursts(
     stats.history_mode = config.history_mode
     stats.min_documents = config.min_documents
     stats.min_populated_bins = config.min_populated_bins
-    if not vault.config.lexical_analysis.enabled:
+    if not vault.config.lexical_analysis_enabled:
         stats.reason = "disabled"
         return []
     with owned_transaction(vault.db, "word-burst analysis"):
         metadata = dict(vault.db.execute("SELECT key, value FROM lexical_meta"))
-        expected_policy = json.dumps(
-            [EXTRACTION_VERSION, vault.config.lexical_analysis.to_dict()], sort_keys=True
-        )
+        expected_policy = extraction_policy(vault.config.lexical_analysis)
         if metadata.get("policy") != expected_policy:
             stats.reason = "requires_sync"
             return []
@@ -353,11 +438,20 @@ def analyze_word_bursts(
             ANALYSIS_VERSION,
             metadata.get("generation"),
             metadata.get("policy"),
-            vault.config.lexical_analysis.to_dict(),
             config.to_dict(),
             first.isoformat(),
             weeks,
         ]
+        boundary = vault.config.filtering
+        eligibility = SourceEligibility(
+            tuple(boundary.exclude_paths) if boundary.boundary_enabled else ()
+        )
+        identity.append(sorted(set(eligibility.exclude_paths)))
+        vault.db.create_function("geist_source_allowed", 2, eligibility.allows, deterministic=True)
+        allowed = (
+            " AND path IN (SELECT path FROM notes WHERE "
+            "geist_source_allowed(path, CASE WHEN is_virtual THEN source_file END)) "
+        )
         exact_key = _cache_key(["cutoff", identity, end_day.isoformat()])
         cached = vault.db.execute(
             "SELECT result_json, diagnostics_json FROM word_burst_cache WHERE cache_key=?",
@@ -372,8 +466,7 @@ def analyze_word_bursts(
             source = (
                 "FROM lexical_notes WHERE cohort_day BETWEEN ? AND ? "
                 "AND CASE WHEN presence IS NULL OR length(presence) = 0 "
-                "THEN counts_json != '{}' ELSE 1 END "
-                "ORDER BY path"
+                "THEN counts_json != '{}' ELSE 1 END " + allowed + "ORDER BY path"
             )
             metadata_query = "SELECT path, cohort_day, body_hash " + source
             presence_query = "SELECT path, cohort_day, presence, body_hash " + source
@@ -381,7 +474,8 @@ def analyze_word_bursts(
         else:
             source = (
                 "FROM lexical_events WHERE bin_start >= ? AND observed_at <= ? "
-                "ORDER BY path, bin_start"
+                + allowed
+                + "ORDER BY path, bin_start"
             )
             metadata_query = "SELECT path, bin_start, evidence_hash " + source
             presence_query = "SELECT path, bin_start, presence, evidence_hash " + source
@@ -439,8 +533,37 @@ def analyze_word_bursts(
                 )
                 stats.collection_seconds = time.perf_counter() - started
                 started = time.perf_counter()
-                episodes = _decode_population(population, exposure, config, stats)
+                progress = vault.db.execute(
+                    "SELECT next_offset, episodes_json FROM word_burst_work WHERE cache_key=?",
+                    (population_key,),
+                ).fetchone()
+                offset = int(progress[0]) if progress else 0
+                stats.resumed = progress is not None
+                stats.candidates = offset
+                episodes, offset = _decode_population(
+                    population,
+                    exposure,
+                    config,
+                    stats,
+                    offset=offset,
+                    episodes=_decode_work(progress[1]) if progress else None,
+                    deadline=deadline,
+                )
                 stats.decoding_seconds = time.perf_counter() - started
+                if offset < len(population.order) or (
+                    deadline is not None and time.monotonic() >= deadline
+                ):
+                    vault.db.execute(
+                        "INSERT OR REPLACE INTO word_burst_work VALUES (?, ?, ?)",
+                        (population_key, offset, _encode_work(episodes)),
+                    )
+                    vault.db.execute(
+                        "DELETE FROM word_burst_work WHERE rowid NOT IN "
+                        "(SELECT rowid FROM word_burst_work ORDER BY rowid DESC LIMIT 8)"
+                    )
+                    stats.reason = "in_progress"
+                    return []
+                vault.db.execute("DELETE FROM word_burst_work WHERE cache_key=?", (population_key,))
                 started = time.perf_counter()
                 # Evidence is streamed a second time only for detected columns;
                 # full-vault document vectors do not survive collection.
@@ -487,6 +610,8 @@ def analyze_word_bursts(
                         )
                         denominator = sum(exposure[interval.start : interval.end + 1])
                         reference, reference_start, reference_end = None, None, None
+                        reference_gaps: tuple[str, ...] = ()
+                        reference_bins = 0
                         prevalence = DocumentRate(numerator, denominator)
                         if episode.direction == "declining":
                             if (
@@ -502,10 +627,19 @@ def analyze_word_bursts(
                             )
                             if prevalence.fraction >= reference.fraction:
                                 continue
-                            reference_start = first.isoformat()
-                            reference_end = (
-                                first + timedelta(weeks=interval.start) - timedelta(days=1)
+                            observed_prior = [i for i in range(interval.start) if exposure[i]]
+                            reference_bins = len(observed_prior)
+                            reference_start = (
+                                first + timedelta(weeks=observed_prior[0])
                             ).isoformat()
+                            reference_end = (
+                                first + timedelta(weeks=observed_prior[-1] + 1) - timedelta(days=1)
+                            ).isoformat()
+                            reference_gaps = tuple(
+                                (first + timedelta(weeks=i)).isoformat()
+                                for i in range(observed_prior[0], observed_prior[-1] + 1)
+                                if not exposure[i]
+                            )
                         start = first + timedelta(weeks=interval.start)
                         end = date.fromordinal(
                             min(date.max.toordinal(), first.toordinal() + interval.end * 7 + 6)
@@ -531,6 +665,8 @@ def analyze_word_bursts(
                                 reference,
                                 reference_start,
                                 reference_end,
+                                reference_gaps,
+                                reference_bins,
                             )
                         )
                 stats.evidence_seconds = time.perf_counter() - started

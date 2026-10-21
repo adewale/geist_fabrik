@@ -1,5 +1,8 @@
 # Reusing exact word-burst analysis
 
+Historical implementation and measurements: current history retention, execution
+budgets and compatibility rules are in [Word bursts](WORD_BURST.md).
+
 This change applies three improvements to `word_burst`: reuse unchanged selected
 observations across days, persist compact term presence, and bound preparation
 memory. It preserves extraction, thresholds, evidence populations, complete

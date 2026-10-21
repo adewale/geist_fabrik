@@ -195,6 +195,30 @@ def _digest(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def extraction_policy(options: LexicalAnalysisConfig) -> str:
+    """Identify semantic extraction settings, independent of capture controls."""
+    return _canonical_policy(json.dumps([EXTRACTION_VERSION, options.to_dict()]))
+
+
+def _canonical_policy(payload: str) -> str:
+    version, settings = json.loads(payload)
+    # Retain the old envelope so previous PR installations migrate without a
+    # rebuild. Prefix order and duplicates cannot change extraction semantics.
+    return json.dumps(
+        [
+            version,
+            {
+                "ngram_max": settings["ngram_max"],
+                "include_quotes": settings["include_quotes"],
+                "exclude_paths": sorted(
+                    {_normalise_vault_path(p) for p in settings["exclude_paths"]}
+                ),
+            },
+        ],
+        sort_keys=True,
+    )
+
+
 def week_start(day: date) -> date:
     """Monday of a calendar date's UTC/declared weekly bin."""
     return day - timedelta(days=day.weekday())
@@ -356,6 +380,9 @@ class LexicalIndex:
     extracted: int = 0
     changed: int = 0
     _presence_writer: PresenceWriter | None = field(default=None, init=False, repr=False)
+    _capture: bool = field(default=False, init=False, repr=False)
+    _policy: str = field(default="", init=False, repr=False)
+    _restore: bool = field(default=False, init=False, repr=False)
 
     def _presence(self, terms: Collection[str]) -> bytes:
         if self._presence_writer is None:
@@ -363,22 +390,63 @@ class LexicalIndex:
         return self._presence_writer.encode(terms)
 
     def prepare(self) -> bool:
-        """Reset incompatible extraction/history and return whether a rebuild is needed."""
-        policy = json.dumps([EXTRACTION_VERSION, self.options.to_dict()], sort_keys=True)
+        """Rebaseline incompatible extraction while retaining policy-scoped evidence."""
+        policy = self._policy = extraction_policy(self.options)
         row = self.db.execute("SELECT value FROM lexical_meta WHERE key = 'policy'").fetchone()
-        if row and row[0] == policy:
-            return False
+        state = dict(self.db.execute("SELECT key, value FROM lexical_meta"))
+        self.db.execute(
+            "CREATE TEMP TABLE IF NOT EXISTS _lexical_new_sources (path TEXT PRIMARY KEY)"
+        )
+        self.db.execute("DELETE FROM _lexical_new_sources")
+        previous = _canonical_policy(row[0]) if row else None
+        legacy_capture = bool(
+            row and all(json.loads(row[0])[1].get(k, True) for k in ("enabled", "capture_observed"))
+        )
+        self._capture = (
+            previous == policy
+            and self.options.capture_observed
+            and state.get("capture_active", "1" if legacy_capture else "0") == "1"
+            and state.get("index_active", "1") == "1"
+        )
+        resuming = state.get("index_active") == "0" or (
+            self.options.capture_observed and state.get("capture_active") == "0"
+        )
+        if resuming:
+            self.db.execute(
+                "INSERT OR IGNORE INTO lexical_baseline_pending SELECT path FROM lexical_notes"
+            )
+        if previous == policy:
+            if row and row[0] != policy:
+                self.db.execute("UPDATE lexical_meta SET value=? WHERE key='policy'", (policy,))
+            return resuming
+        if previous is not None:
+            self.db.execute(
+                "INSERT OR REPLACE INTO lexical_event_archive "
+                "SELECT ?, path, bin_start, previous_at, observed_at, terms_json, "
+                "revisions_json, evidence_hash FROM lexical_events",
+                (previous,),
+            )
+        self._restore = True
         self.db.execute("DELETE FROM lexical_notes")
         self.db.execute("DELETE FROM lexical_terms")
         self.db.execute("DELETE FROM lexical_presence_terms")
         self._presence_writer = None
         self.db.execute("DELETE FROM word_burst_cache")
+        self.db.execute("DELETE FROM word_burst_work")
         self.db.execute(
             "INSERT INTO lexical_meta(key, value) VALUES ('policy', ?) "
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (policy,),
         )
         return True
+
+    def pause(self) -> None:
+        """Stop indexing without deleting observations or advancing their baseline."""
+        self.db.executemany(
+            "INSERT INTO lexical_meta(key, value) VALUES (?, '0') "
+            "ON CONFLICT(key) DO UPDATE SET value='0'",
+            [("index_active",), ("capture_active",)],
+        )
 
     def sync_note(self, note: Note) -> None:
         """Capture one processed note and positive additions since its last observation."""
@@ -390,7 +458,13 @@ class LexicalIndex:
             (note.path,),
         ).fetchone()
         raw_hash = _digest(note.content)
-        if old and old[0] == raw_hash:
+        needs_baseline = (
+            self.db.execute(
+                "SELECT 1 FROM lexical_baseline_pending WHERE path=?", (note.path,)
+            ).fetchone()
+            is not None
+        )
+        if old and old[0] == raw_hash and not needs_baseline:
             return
         paths = {_normalise_vault_path(note.path)}
         if note.source_file:
@@ -424,13 +498,10 @@ class LexicalIndex:
         watermark = self.db.execute(
             "SELECT value FROM lexical_meta WHERE key = 'last_sync_at'"
         ).fetchone()
-        previous_at = (
-            max(str(old[2]), str(watermark[0]) if watermark else str(old[2])) if old else now
-        )
+        previous_at = max(str(old[2]) if old else "", str(watermark[0]) if watermark else "") or now
         # Clock regressions must not create backdated events or move the baseline backwards.
-        clock_regressed = old is not None and now < previous_at
-        if old:
-            now = max(now, previous_at)
+        clock_regressed = now < previous_at
+        now = max(now, previous_at)
         additions = counts - Counter(json.loads(old[1])) if old else Counter()
         presence = (
             old[3] if old and old[1] == encoded and old[3] is not None else self._presence(counts)
@@ -461,8 +532,34 @@ class LexicalIndex:
             "UPDATE lexical_notes SET presence=? WHERE path=? AND presence IS NULL",
             (presence, note.path),
         )
+        if self._restore or old is None:
+            self.db.execute(
+                "INSERT OR REPLACE INTO lexical_events "
+                "(path, bin_start, previous_at, observed_at, terms_json, "
+                "revisions_json, evidence_hash) "
+                "SELECT path, bin_start, previous_at, observed_at, terms_json, revisions_json, "
+                "evidence_hash FROM lexical_event_archive WHERE policy=? AND path=?",
+                (self._policy, note.path),
+            )
+            self.db.execute(
+                "DELETE FROM lexical_event_archive WHERE policy=? AND path=?",
+                (self._policy, note.path),
+            )
         self.changed += bool(not old or old[1] != encoded)
-        if old and self.options.capture_observed and not clock_regressed and additions:
+        # First discovery bootstraps. Later new sources are newly observed text,
+        # including imports; their original writing date remains unknown.
+        newly_seen = (
+            self._capture
+            and old is None
+            and self.db.execute(
+                "SELECT 1 FROM _lexical_new_sources WHERE path=?", (note.path,)
+            ).fetchone()
+            is not None
+        )
+        if newly_seen and self._capture:
+            additions = counts
+        self.db.execute("DELETE FROM lexical_baseline_pending WHERE path=?", (note.path,))
+        if self._capture and not needs_baseline and not clock_regressed and additions:
             bin_start = week_start(datetime.fromisoformat(now).date()).isoformat()
             event = self.db.execute(
                 "SELECT terms_json, revisions_json, previous_at FROM lexical_events "
@@ -472,7 +569,7 @@ class LexicalIndex:
             terms = set(json.loads(event[0])) if event else set()
             terms.update(additions)
             revisions = list(json.loads(event[1])) if event else []
-            revisions.append(_digest(str(old[1]) + encoded))
+            revisions.append(_digest((str(old[1]) if old else "newly_observed:") + encoded))
             evidence = _digest(json.dumps(revisions, separators=(",", ":")))
             presence = self._presence(terms)
             self.db.execute(
@@ -513,3 +610,8 @@ class LexicalIndex:
             (now,),
         )
         self.db.execute("DELETE FROM lexical_terms WHERE documents = 0")
+        self.db.executemany(
+            "INSERT INTO lexical_meta(key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [("index_active", "1"), ("capture_active", str(int(self.options.capture_observed)))],
+        )

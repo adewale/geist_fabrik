@@ -1,5 +1,8 @@
 # Trigram capacity and the missing narrative vault
 
+Historical implementation and measurements: current history retention, execution
+budgets and compatibility rules are in [Word bursts](WORD_BURST.md).
+
 This investigation follows runtime checkpoint
 `8b1cde5afee1fffe21e995a691938e3463953b5a`. It changes no detector, extraction or
 timeout behavior. [Feature receipts and source/probe provenance](../benchmarks/results/word_burst_trigram_risk/summary.json)

@@ -1,5 +1,8 @@
 # PR 97 audit repairs and phrase capacity
 
+Historical implementation and measurements: current history retention, execution
+budgets and compatibility rules are in [Word bursts](WORD_BURST.md).
+
 Lexical repair and benchmark source: `88a1bd3062178950321eb8c816b718c0191e3a8e`.
 Repair baseline: `b036e47754ac699f40816317623ef6744970fb44`.
 Evidence checkpoint `d432f84924fca94b1ac4e8dcbfb6fe8bfb6b57f7` strengthens one

@@ -16,7 +16,8 @@ from pathlib import Path
 # Version 12: Optional suggestion evidence identity for episode-level novelty
 # Version 13: Cached lexical evidence diagnostics and durable evidence lookup
 # Version 14: Compact stable-ID lexical presence projections
-SCHEMA_VERSION = 14
+# Version 15: Retain incompatible observation policies and resumable burst work
+SCHEMA_VERSION = 15
 MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
@@ -183,6 +184,34 @@ CREATE TABLE IF NOT EXISTS lexical_events (
     PRIMARY KEY(path, bin_start)
 );
 CREATE INDEX IF NOT EXISTS idx_lexical_events_bin ON lexical_events(bin_start);
+-- Inactive extraction policies retain their evidence without borrowing its
+-- absence counts for a different tokenizer. Deleting a source still purges it.
+CREATE TABLE IF NOT EXISTS lexical_event_archive (
+    policy TEXT NOT NULL,
+    path TEXT NOT NULL REFERENCES notes(path) ON DELETE CASCADE,
+    bin_start TEXT NOT NULL,
+    previous_at TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    terms_json TEXT NOT NULL,
+    revisions_json TEXT NOT NULL,
+    evidence_hash TEXT NOT NULL,
+    PRIMARY KEY(policy, path, bin_start)
+);
+CREATE TABLE IF NOT EXISTS word_burst_work (
+    cache_key TEXT PRIMARY KEY,
+    next_offset INTEGER NOT NULL CHECK(next_offset >= 0),
+    episodes_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS lexical_baseline_pending (
+    path TEXT PRIMARY KEY REFERENCES notes(path) ON DELETE CASCADE
+);
+CREATE TRIGGER IF NOT EXISTS lexical_source_identity_update
+AFTER UPDATE OF source_file, is_virtual ON notes
+WHEN OLD.source_file IS NOT NEW.source_file OR OLD.is_virtual IS NOT NEW.is_virtual BEGIN
+    UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key='generation';
+    DELETE FROM word_burst_cache;
+    DELETE FROM word_burst_work;
+END;
 CREATE TABLE IF NOT EXISTS word_burst_cache (
     cache_key TEXT PRIMARY KEY,
     result_json TEXT NOT NULL,
@@ -194,12 +223,14 @@ CREATE TRIGGER IF NOT EXISTS lexical_note_insert AFTER INSERT ON lexical_notes B
         ON CONFLICT(term) DO UPDATE SET documents = documents + 1;
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
+    DELETE FROM word_burst_work;
 END;
 CREATE TRIGGER IF NOT EXISTS lexical_note_delete AFTER DELETE ON lexical_notes BEGIN
     UPDATE lexical_terms SET documents = documents - 1
         WHERE term IN (SELECT key FROM json_each(OLD.counts_json));
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
+    DELETE FROM word_burst_work;
 END;
 CREATE TRIGGER IF NOT EXISTS lexical_note_update AFTER UPDATE ON lexical_notes
 WHEN OLD.body_hash != NEW.body_hash OR OLD.cohort_day IS NOT NEW.cohort_day
@@ -212,6 +243,7 @@ WHEN OLD.body_hash != NEW.body_hash OR OLD.cohort_day IS NOT NEW.cohort_day
         ON CONFLICT(term) DO UPDATE SET documents = documents + 1;
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
+    DELETE FROM word_burst_work;
 END;
 CREATE TRIGGER IF NOT EXISTS lexical_note_presence_invalid AFTER UPDATE OF counts_json
 ON lexical_notes WHEN OLD.counts_json != NEW.counts_json BEGIN
@@ -220,6 +252,7 @@ END;
 CREATE TRIGGER IF NOT EXISTS lexical_event_insert AFTER INSERT ON lexical_events BEGIN
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
+    DELETE FROM word_burst_work;
 END;
 CREATE TRIGGER IF NOT EXISTS lexical_event_update AFTER UPDATE ON lexical_events
 WHEN OLD.path != NEW.path OR OLD.bin_start != NEW.bin_start
@@ -228,10 +261,12 @@ WHEN OLD.path != NEW.path OR OLD.bin_start != NEW.bin_start
     OR OLD.evidence_hash != NEW.evidence_hash BEGIN
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
+    DELETE FROM word_burst_work;
 END;
 CREATE TRIGGER IF NOT EXISTS lexical_event_delete AFTER DELETE ON lexical_events BEGIN
     UPDATE lexical_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'generation';
     DELETE FROM word_burst_cache;
+    DELETE FROM word_burst_work;
 END;
 CREATE TRIGGER IF NOT EXISTS lexical_event_presence_invalid AFTER UPDATE OF terms_json
 ON lexical_events WHEN OLD.terms_json != NEW.terms_json BEGIN
@@ -416,6 +451,17 @@ def _apply_ordered_migrations(conn: sqlite3.Connection, current_version: int) ->
     if current_version < 14:
         # Compact derived projections do not change captured historical evidence.
         conn.execute("DROP TRIGGER IF EXISTS lexical_event_update")
+    if current_version < 15:
+        for trigger in (
+            "lexical_note_insert",
+            "lexical_note_delete",
+            "lexical_note_update",
+            "lexical_event_insert",
+            "lexical_event_delete",
+            "lexical_event_update",
+        ):
+            conn.execute(f"DROP TRIGGER IF EXISTS {trigger}")
+
     if current_version < 4:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
         if "is_virtual" not in columns:

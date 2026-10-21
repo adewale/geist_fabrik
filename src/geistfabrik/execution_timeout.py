@@ -15,6 +15,8 @@ from typing import Any, NoReturn
 class GeistTimeoutError(Exception):
     """Raised when trusted plugin code exceeds its configured deadline."""
 
+    _deadline_owner: object | None = None
+
 
 @dataclass
 class _AlarmState:
@@ -28,6 +30,21 @@ class _AlarmState:
 
 
 _active_state: _AlarmState | None = None
+
+
+def execution_deadline() -> float | None:
+    """The current plugin's monotonic deadline, for cooperative bounded work."""
+    state = _active_state if threading.current_thread() is threading.main_thread() else None
+    return None if state is None or not state.deadlines else state.started + min(state.deadlines)
+
+
+def is_execution_timeout(error: GeistTimeoutError) -> bool:
+    """Recognize only an exception issued for this active plugin budget."""
+    return (
+        threading.current_thread() is threading.main_thread()
+        and _active_state is not None
+        and error._deadline_owner is _active_state
+    )
 
 
 def timeout_handler(signum: int, frame: FrameType | None) -> NoReturn:
@@ -98,7 +115,9 @@ def _dispatch_alarm(signum: int, frame: FrameType | None) -> None:
             state.host_interval = 0.0
 
     if state.deadlines and min(state.deadlines) <= elapsed + epsilon:
-        raise GeistTimeoutError("Geist execution timed out")
+        error = GeistTimeoutError("Geist execution timed out")
+        error._deadline_owner = state
+        raise error
     _arm_next(state)
 
 
