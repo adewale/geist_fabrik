@@ -1,0 +1,65 @@
+{
+  "description": "Frozen source-first model annotations for eight synthetic personal notes. This is a model-labelled development sample, not human annotation or an independent human quality study.",
+  "provenance": {
+    "annotation_author": "OpenAI model",
+    "human_reviewed": false,
+    "source_kind": "Synthetic personal notes authored and annotated together",
+    "method": "Read the topic specification, then author representative personal notes and select their central subjects from visible prose, short headings, and visible link wording. Freeze labels and thresholds before inspecting extractor implementation or output.",
+    "extractor_implementation_inspected": false,
+    "extractor_output_inspected": false,
+    "annotation_policy": "Each expected group represents one required central subject; alternatives must be useful wording observed in the eligible source. Acceptable labels include central subjects and useful secondary labels. Exclude frontmatter, code, link destinations, generic headings, boilerplate, and verb-led sentences. Empty/stub sources require abstention."
+  },
+  "limit": 5,
+  "minimum_precision": 0.45,
+  "minimum_recall": 0.6,
+  "notes": [
+    {
+      "id": "rainwater-project",
+      "content": "# Rainwater harvesting\n\nRainwater harvesting could supply the garden during dry weeks. A first-flush diverter keeps roof debris out of the storage barrel. I want to compare the first-flush diverter options before buying the barrel.\n",
+      "expected": [["Rainwater harvesting"], ["first-flush diverter"]],
+      "acceptable": ["Rainwater harvesting", "first-flush diverter", "storage barrel", "roof debris"]
+    },
+    {
+      "id": "short-rare-singleton",
+      "content": "Cyanotype photograms.\n",
+      "expected": [["Cyanotype photograms"]],
+      "acceptable": ["Cyanotype photograms"]
+    },
+    {
+      "id": "learning-phrase-variants",
+      "content": "# Spaced repetition\n\nSpaced repetition helps me schedule French vocabulary reviews. Active recall means answering before looking at the solution; I also call this retrieval practice. Retrieval practice exposes gaps that rereading hides. My spaced repetition cards should require active recall.\n",
+      "expected": [["Spaced repetition"], ["Active recall", "retrieval practice"]],
+      "acceptable": ["Spaced repetition", "Active recall", "retrieval practice", "French vocabulary", "vocabulary reviews"]
+    },
+    {
+      "id": "home-networking",
+      "content": "# WireGuard\n\nWireGuard connects my laptop to the home server. Split tunneling keeps ordinary browsing outside the VPN. I need to test split tunneling on the train before relying on WireGuard for remote backups.\n",
+      "expected": [["WireGuard"], ["Split tunneling"]],
+      "acceptable": ["WireGuard", "Split tunneling", "home server", "VPN", "remote backups"]
+    },
+    {
+      "id": "frontmatter-code-and-link-noise",
+      "content": "---\ntags: [astronomy, machine-learning]\nproject: Orbital mechanics\n---\n# Sourdough fermentation\n\nSourdough fermentation was slower in the cold kitchen. Starter hydration changed the texture more than the flour blend did. I will compare starter hydration at the same temperature next weekend.\n\n```python\nquantum_entanglement = 'galactic dynamics'\nprint(quantum_entanglement)\n```\n\n[Temperature chart](https://example.test/neural-networks/stellar-evolution)\n",
+      "expected": [["Sourdough fermentation"], ["Starter hydration"]],
+      "acceptable": ["Sourdough fermentation", "Starter hydration", "flour blend", "Temperature chart"]
+    },
+    {
+      "id": "wikilink-visible-alias",
+      "content": "# Balcony tomatoes\n\nThe [[Plants/Heirloom varieties|heirloom tomatoes]] wilted during the heatwave. Drip irrigation would keep the soil damp while I am away. I want to compare drip irrigation with watering by hand for the balcony tomatoes.\n",
+      "expected": [["Balcony tomatoes"], ["Drip irrigation"]],
+      "acceptable": ["Balcony tomatoes", "heirloom tomatoes", "Drip irrigation", "heatwave"]
+    },
+    {
+      "id": "generic-heading-boilerplate",
+      "content": "# Bike maintenance\n\n## Notes\n\nChain lubrication stopped the squeak on my commute. Tire pressure dropped again after the weekend ride. Bike maintenance needs a regular slot in my calendar.\n\n## Next steps\n\n- Check tire pressure before the next ride.\n- Repeat chain lubrication after wet rides.\n\n## Notes\n\nSee also: see also.\n\n## Next steps\n\nTo do.\n",
+      "expected": [["Bike maintenance"], ["Chain lubrication"], ["Tire pressure"]],
+      "acceptable": ["Bike maintenance", "Chain lubrication", "Tire pressure", "wet rides", "commute"]
+    },
+    {
+      "id": "metadata-code-and-daily-stub",
+      "content": "---\ntags: [neuroscience, finance]\nproject: Consciousness research\n---\n## Notes\n\n![[Daily.base]]\n\n```text\nPortfolio optimization\nNeural plasticity\n```\n",
+      "expected": [],
+      "acceptable": []
+    }
+  ]
+}

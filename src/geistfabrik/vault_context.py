@@ -32,6 +32,7 @@ from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
 from .source_eligibility import SourceEligibility
 from .sqlite_transaction import owned_transaction
+from .topics import TopicIndex, TopicState, TopicTag
 from .vault import Vault
 from .vector_math import SCORE_BLOCK_BYTES, UnitRows, _threshold
 from .vector_search import InMemoryVectorBackend
@@ -463,6 +464,53 @@ class VaultContext:
         if not self._idea_source_allowed(path):
             return None
         return self.vault.get_note(path)
+
+    def _topic_index(self) -> TopicIndex:
+        return TopicIndex(self.vault.db, self.vault.config.filtering.exclude_paths)
+
+    def _topic_path(self, note: Note | str) -> str:
+        if isinstance(note, Note):
+            return note.path
+        target = note.strip()
+        if target.startswith("[[") and target.endswith("]]"):
+            target = target[2:-2].split("|", 1)[0]
+        resolved = self.vault.get_note(target) or self.vault.resolve_link_target(target)
+        return resolved.path if resolved is not None else target
+
+    def topics_for_note(self, note: Note | str) -> list[TopicTag]:
+        """Derived labels with source evidence; incomplete extraction raises."""
+        index = self._topic_index()
+        with index.read_snapshot():
+            return index.tags(self._topic_path(note))
+
+    def topic_state(self, note: Note | str) -> TopicState:
+        """Distinguish complete empty extraction from pending/error/exclusion."""
+        index = self._topic_index()
+        with index.read_snapshot():
+            return index.state(self._topic_path(note))
+
+    def notes_for_topic(self, topic: str) -> list[Note]:
+        """Source notes for an exact conservative topic identity, in path order."""
+        index = self._topic_index()
+        with index.read_snapshot():
+            paths = index.paths(topic)
+            loaded = self.vault.get_notes_batch(paths)
+            return [note for path in paths if (note := loaded[path]) is not None]
+
+    def topic_catalog(self) -> list[tuple[str, int]]:
+        """Alphabetical topic identities and eligible membership counts."""
+        return self._topic_index().catalog()
+
+    def _derived_topic_metadata(self, path: str) -> dict[str, Any]:
+        index = self._topic_index()
+        with index.read_snapshot():
+            state = index.state(path)
+            return {
+                "derived_topics_status": state.status,
+                "derived_topics": (
+                    [tag.key for tag in index.tags(path)] if state.status == "complete" else None
+                ),
+            }
 
     def get_embedding(self, path: str) -> np.ndarray | None:
         """Get the embedding vector for a note by path.
@@ -1786,6 +1834,7 @@ class VaultContext:
             Dictionary of metadata properties
         """
         if note.path in self._metadata_cache:
+            self._metadata_cache[note.path].update(self._derived_topic_metadata(note.path))
             return self._metadata_cache[note.path]
 
         # Built-in metadata. "Now" is the session date, not wall-clock, so
@@ -1849,6 +1898,7 @@ class VaultContext:
                     extra={"note_path": note.path},
                 )
 
+        metadata.update(self._derived_topic_metadata(note.path))
         self._metadata_cache[note.path] = metadata
         return metadata
 

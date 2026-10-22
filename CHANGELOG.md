@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Automatic local YAKE topic extraction and derived note tags, with source evidence,
+  VaultContext/Tracery queries and `geistfabrik topics` inspection.
+- Additive schema v16 preserves main's lexical history and adds rebuildable topic data.
+  Notes and authored tags remain unchanged; verification remains in progress.
+
 ### Changed
 - Schema v15 retains captured evidence across operational pauses and extraction
   changes, establishes confirmed baselines on resume, and captures newly seen
