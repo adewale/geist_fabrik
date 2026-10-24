@@ -56,6 +56,12 @@ a representative study, or an untouched holdout after tuning. The specification'
 representative human-reviewed quality gate remains open; these results do not
 justify a production accuracy claim or removing draft status.
 
+The [human review packet](TOPIC_QUALITY_REVIEW.md) contains every current real
+source and both prediction sets. Its response record is explicitly pending. The
+exact-label model score can reject supported phrase variants; it is not a human
+judgment that half the assigned labels are useless. Neither the frozen oracle nor
+its thresholds has been changed to address that measurement limitation.
+
 Single-run benchmark on repeated synthetic 141-character notes:
 
 | Notes | Cold sync | Warm sync | Catalog | Positive membership query |

@@ -1,0 +1,566 @@
+{
+  "status": "awaiting_human_review",
+  "reviewer": null,
+  "reviewed_at": null,
+  "corpus_representative": null,
+  "corpus_scope": "All ten checked-in public kepano starter-vault notes; three empty/stub cases. Not an untouched holdout or a general personal-vault sample.",
+  "implementation_commit": "32db958961e4a5ddbc9b61b44fd0cdc961df52fb",
+  "verified_pr_commit": "722a546818cdf071b1565eeebed4c0d6f08eb079",
+  "prediction_report_path": "benchmarks/results/topics/quality.json",
+  "prediction_report_sha256": "7a3baf41d729144073b76f29ded2be0ce27bbc48b06e12599a45d0dba18c8e0f",
+  "fixture_path": "tests/fixtures/topic_real_gold.json",
+  "fixture_sha256": "0d358cb89e9b8ec7f743cf0b9b1d6ff67e64e9da112c4babfa936d77fb6d14c0",
+  "limit": 5,
+  "minimum_precision": 0.5,
+  "minimum_recall": 0.6,
+  "gate_passed": null,
+  "instructions": [
+    "Leave reviewer and review_complete unset until a human actually reviews. AI assessments do not satisfy this requirement.",
+    "Before viewing predictions, record expected_groups: a list of central-subject labels, or [] for an empty/stub source. Use visible prose, not filenames/frontmatter/hidden content.",
+    "Then judge each prediction from both extractors with useful true/false, a reason, and covers_expected_groups as zero-based indexes into expected_groups. A useful secondary label can cover no central group.",
+    "Source-supported phrase variants may cover the same expected group through explicit human adjudication. Do not change runtime topic identities or the frozen calibration fixtures.",
+    "Mark review_complete only when all judgments for that note are resolved. Null is pending, never approval.",
+    "Precision is the per-substantive-note fraction of useful assigned labels; recall is the fraction of expected groups covered by useful labels, macro-averaged across substantive notes. Use every assigned label and the same rubric for both extractors.",
+    "Empty cases must abstain. Both existing numeric thresholds must pass. Corpus representativeness and human reviewer completion must also be established before closing the delivery gate."
+  ],
+  "notes": [
+    {
+      "id": "japan-trip-metadata-only",
+      "source_path": "testdata/kepano-obsidian-main/2023 Japan Trip.md",
+      "source_sha256": "5ca2c825c82ec4f8b5f906a821a34ff78657f474f44dd1a76d7fc586be041542",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      },
+      "review_complete": false
+    },
+    {
+      "id": "meeting-emergence",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-12 Meeting with Steph.md",
+      "source_sha256": "ef32b9eec86e95582b36d22623e2e5732f4dd3beb07dbae059171695724bc435",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [
+          {
+            "label": "emergence",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "out of control",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "book",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "topic",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "book",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "control",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "discussed",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "emergence",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "topic",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      },
+      "review_complete": false
+    },
+    {
+      "id": "daily-2023-09-12-stub",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-12.md",
+      "source_sha256": "d2b39819b63832bf6300634cfebde2b6e24d97af03fd03e69b1739504bd95b7d",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      },
+      "review_complete": false
+    },
+    {
+      "id": "daily-2023-09-30-stub",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-30.md",
+      "source_sha256": "d2b39819b63832bf6300634cfebde2b6e24d97af03fd03e69b1739504bd95b7d",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      },
+      "review_complete": false
+    },
+    {
+      "id": "evergreen-notes",
+      "source_path": "testdata/kepano-obsidian-main/Evergreen notes turn ideas into objects that you can manipulate.md",
+      "source_sha256": "d7ec083b3c9a66dea05245bbc89febbaf3e187f7a9fe8fb23a2175966dfa4215",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [
+          {
+            "label": "cross the chasm",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "evergreen",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "writing is telepathy",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "evergreen",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ideas",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "creativity",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      },
+      "review_complete": false
+    },
+    {
+      "id": "isolated-thought",
+      "source_path": "testdata/kepano-obsidian-main/Isolated thought.md",
+      "source_sha256": "c0edc383fcb28ea15872cc92903b3fdfeb9da604de5dcb88e60187678b5c7831",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [
+          {
+            "label": "isolated thought",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "standalone note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "links",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "exists in isolation",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge graph",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "exists",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "graph",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "isolated",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "isolation",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      },
+      "review_complete": false
+    },
+    {
+      "id": "minimal-theme",
+      "source_path": "testdata/kepano-obsidian-main/Minimal Theme.md",
+      "source_sha256": "16d99bfd0fdf5dd80eaa043e2d4b41a98670abf13445cf7d6830f9057d4f10ad",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "usability",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "minimalism",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "theme",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "color schemes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "color",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "focused",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ink",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "minimalism",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      },
+      "review_complete": false
+    },
+    {
+      "id": "obsidian-application",
+      "source_path": "testdata/kepano-obsidian-main/Obsidian.md",
+      "source_sha256": "a9889fbf6bae2a8109c065803043c0b523c018823e946cdf57d1eb920443c1bf",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [
+          {
+            "label": "minimal theme",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "note-taking application",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge management",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "related",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "evergreen notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "application",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "evergreen",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ideas",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "management",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      },
+      "review_complete": false
+    },
+    {
+      "id": "product-usage-analysis",
+      "source_path": "testdata/kepano-obsidian-main/Product usage analysis.md",
+      "source_sha256": "3b7d468fff01f1ad6f6f3424c97dc0130712c613a6a4c75e82e0c51ca173cbc8",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [
+          {
+            "label": "buy wisely",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "product usage patterns",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "track product usage",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "analysis of cost",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "analysis",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "buy",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cost",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "patterns",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      },
+      "review_complete": false
+    },
+    {
+      "id": "vault-template-readme",
+      "source_path": "testdata/kepano-obsidian-main/Readme.md",
+      "source_sha256": "c32b01b5b152b7613ac39b57cba6746f415015e1598e95145dfcb938d4788120",
+      "expected_groups": null,
+      "predictions": {
+        "yake": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "vault template",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "personal",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "folder",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "approach to note-taking",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "vault",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "folder",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "use",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "approach",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      },
+      "review_complete": false
+    }
+  ]
+}
