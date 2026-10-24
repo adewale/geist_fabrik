@@ -1,8 +1,11 @@
 # Adversarial audit of PR #96
 
+Historical report for the immutable commit below. The findings were subsequently
+repaired; see [root causes, regressions and current verification](TOPICS_VERIFICATION.md).
+
 Audited commit: `16d0adba380c306b3ff19f455ae3f4787aa78e68`.
 Base: `657f85675bc05d3f353ed88940f36efe604b0367`.
-Verdict: **do not merge**. The findings below are present in the published code,
+Verdict at the audited commit: **do not merge**. The findings below are present in the published code,
 regardless of fixes prepared in a different local working tree.
 
 Three agents completed independent privacy, extraction, and interface/verification

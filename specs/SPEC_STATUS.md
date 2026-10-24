@@ -95,7 +95,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 
 | item | spec | status |
 |---|---|---|
-| Automatic topic extraction and derived note tags | [TOPIC_EVIDENCE_SPEC.md](TOPIC_EVIDENCE_SPEC.md) | BUILT — implementation in draft PR #96; verification and material audit repairs remain open in docs/TOPICS_VERIFICATION.md; generative uses require separate evaluation |
+| Automatic topic extraction and derived note tags | [TOPIC_EVIDENCE_SPEC.md](TOPIC_EVIDENCE_SPEC.md) | BUILT — local index and inspection APIs; adversarial repairs and focused gates complete; verification in docs/TOPICS_VERIFICATION.md; representative human-reviewed quality remains open; generative uses require separate evaluation |
 | `geist_status` failure-persistence table | geistfabrik_spec.md (Database Schema; `increment_failure_count`) | BUILT (schema v8) |
 | `session_embeddings.cluster_label` | (cluster_evolution_tracker, retired 2026-10) | BUILT (schema v7); API kept for comparing cluster membership across sessions |
 | GraphPatternFinder showcase geists (structural holes / path length / bridges) | reuse_abstractions_spec.md:1120 | BUILT (examples/geists/code/) |
