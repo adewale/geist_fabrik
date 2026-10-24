@@ -92,9 +92,7 @@ def main() -> int:
         for name, (fixture, source_root) in fixtures.items():
             reports[name] = {}
             for policy, options in policies.items():
-                with patch.object(
-                    evaluation, "extract_topics", partial(selected, **options)
-                ):
+                with patch.object(evaluation, "extract_topics", partial(selected, **options)):
                     reports[name][policy] = evaluation.evaluate_gold(
                         fixture, source_root=source_root
                     )
