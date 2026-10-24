@@ -87,6 +87,19 @@ representative human-review gate.
 
 ## Reproduction and full validation
 
+The final runtime `e0c4ecbfaab773c8ebe69390b5d347441be39cc9` passed
+[focused and canonical validation](https://github.com/adewale/geist_fabrik/actions/runs/40108166879):
+151 focused tests, 2,318 unit tests, 86 integration tests, 84.07% branch coverage,
+all 158 automatic acceptance criteria, hooks, lint, both type checkers, security
+and workflow checks, and offline package smoke with the real model and YAKE.
+The 83 manual acceptance criteria are not certified by this automatic run.
+The [platform matrix](https://github.com/adewale/geist_fabrik/actions/runs/40108166883)
+passed Linux/Python 3.11 and 3.12, macOS/Python 3.11, and offline package smoke
+on both Python versions. The strengthened corpus verifier also passed all six
+corpora; its final source-bound reports and failed broader relevance scores are
+linked in the corpus evaluation above. Functional validation is complete for
+this runtime; quality remains insufficient for a merge recommendation.
+
 ```sh
 uv sync --locked --extra vector-search
 uv run --frozen pytest tests/unit/test_topic*.py tests/unit/test_dependency_validation.py tests/integration/test_topics.py --no-cov -q

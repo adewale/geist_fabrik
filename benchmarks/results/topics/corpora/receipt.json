@@ -11,7 +11,7 @@
     "job_id": 120903295876,
     "index": "property-mask-probe/index.json"
   },
-  "phase": "Historical measured inputs and outputs; final strengthened-verifier run pending.",
+  "phase": "Final strengthened-verifier run completed; functional checks pass, broader model relevance proxies fail.",
   "annotations_sha256": {
     "benchmarks/corpora/topic_lyt_proxy_gold.json": "d9d63d5d8339794b1ac8202a407ee73424ab07bd6afda6b4a3a401985ab0f0c6",
     "benchmarks/corpora/topic_narrative_proxy_gold.json": "c17493ecde7165165ba2922573f51a9cab3dedce9091c0b52e6eb8423a9e95be"
@@ -22,5 +22,90 @@
     "Single CI wall times include raw sync plus topics with lexical capture disabled; no causal speedup or whole-invocation cost is claimed."
   ],
   "human_reviewed": false,
-  "merge_recommended": false
+  "merge_recommended": false,
+  "final": {
+    "source_commit": "e0c4ecbfaab773c8ebe69390b5d347441be39cc9",
+    "workflow_run": 40108166872,
+    "job_id": 120914095476,
+    "index": "final/index.json",
+    "all_historical_snapshot_inventories_match": true,
+    "source_hashes_verified": true,
+    "positive_queries_nonvacuous": true,
+    "snapshots": 90,
+    "static_corpora": 2
+  },
+  "validation": {
+    "source_commit": "e0c4ecbfaab773c8ebe69390b5d347441be39cc9",
+    "canonical_run": 40108166879,
+    "canonical_job": 120915337172,
+    "focused_tests": 151,
+    "unit_tests_passed": 2318,
+    "integration_tests_passed": 86,
+    "branch_coverage_percent": 84.07,
+    "automatic_acceptance_passed": 158,
+    "manual_acceptance_unverified": 83,
+    "platform_and_package_run": 40108166883,
+    "platforms": [
+      "Linux Python 3.11",
+      "Linux Python 3.12",
+      "macOS Python 3.11"
+    ],
+    "offline_package_python": [
+      "3.11",
+      "3.12"
+    ]
+  },
+  "quality": {
+    "narrative-mara-v1": {
+      "passed": false,
+      "metrics": {
+        "yake": {
+          "precision": 0.44761904761904764,
+          "recall": 0.6666666666666666
+        },
+        "frequency": {
+          "precision": 0.23809523809523808,
+          "recall": 0.3333333333333333
+        }
+      },
+      "empty_violations": []
+    },
+    "lyt-kit-mirror": {
+      "passed": false,
+      "metrics": {
+        "yake": {
+          "precision": 0.48166666666666663,
+          "recall": 0.625
+        },
+        "frequency": {
+          "precision": 0.24,
+          "recall": 0.425
+        }
+      },
+      "empty_violations": [
+        {
+          "id": "lyt-11",
+          "extractor": "yake",
+          "labels": [
+            "action items today",
+            "important action items",
+            "today i accomplished",
+            "today i spoke",
+            "medium"
+          ]
+        },
+        {
+          "id": "lyt-11",
+          "extractor": "frequency",
+          "labels": [
+            "today",
+            "accomplished",
+            "action",
+            "big",
+            "grateful"
+          ]
+        }
+      ]
+    }
+  }
 }

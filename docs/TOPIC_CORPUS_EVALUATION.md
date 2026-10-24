@@ -83,6 +83,43 @@ the fixed thresholds. The [receipt](../benchmarks/results/topics/corpora/receipt
 keeps this failure visible and distinguishes those historical runs from the final
 strengthened proof. No score or annotation is presented as a human judgment.
 
+## Final measured result
+
+Runtime `e0c4ecbfaab773c8ebe69390b5d347441be39cc9` passed the
+[complete corpus workflow](https://github.com/adewale/geist_fabrik/actions/runs/40108166872).
+The [final reports](../benchmarks/results/topics/corpora/final/index.json) bind
+the measured Git commit, six source-file hashes, manifest and dependency versions.
+All 90 replay snapshots and both static corpora passed source preservation,
+exact evidence, nonempty positive-query and zero-extraction warm-sync checks.
+All four edited/replayed corpora passed complete fresh-rebuild and stable-source
+comparisons. Every snapshot inventory also matches the historical baseline.
+
+| Frozen model proxy | Final precision / recall | Frequency baseline | Result |
+| --- | --- | --- | --- |
+| Narrative, 21 substantive notes | 0.448 / 0.667 | 0.238 / 0.333 | Fails precision. |
+| LYT, 20 substantive notes plus three empty/stub controls | 0.482 / 0.625 | 0.240 / 0.425 | Fails precision; one empty-form violation. |
+
+The property repair improves the LYT proxy without changing annotations or
+thresholds. It does not resolve sentence fragments or unfilled-form labels.
+For example, an unfilled daily form still yields `action items today` and
+`today i accomplished`. No corpus-specific word blacklist, frequency floor or
+semantic merging was added to suppress these failures. Quality remains a merge
+blocker; the human-review gate is also open.
+
+| Corpus | Initial cold sync | Final warm sync |
+| --- | --- | --- |
+| Narrative | 0.349 s | 0.085 s |
+| Temporal 128 | 0.970 s | 0.093 s |
+| Temporal 1,000 | 7.487 s | 0.609 s |
+| Temporal 10,000 | 76.115 s | 5.016 s |
+| Original 10,000 files | 740.370 s | 5.182 s |
+| LYT mirror | 7.780 s | 0.150 s |
+
+These are single CI observations with lexical capture disabled, not a causal
+performance comparison. Initial and final replay populations differ. The larger
+original corpus contains 46.6 MB of scrambled prose; its successful indexing
+establishes robustness and measured cost, not useful topics.
+
 ## Executable checks
 
 `scripts/benchmark_topic_corpora.py` uses real `Vault.sync` and `TopicIndex` with
@@ -114,8 +151,8 @@ The work destination must not exist. It owns all generated/replay data. External
 source corpora are read without importing their plugins, and source bytes must
 remain unchanged. Reports retain provenance, snapshot counts, extraction counts,
 query timings, evidence checks and unrated sample labels. Human usefulness fields
-remain unset. Measured historical results are retained above; the final audit-repaired run is
-pending. External repositories must match their pinned Git commit and have clean
+remain unset. Historical and final measured results are retained above.
+External repositories must match their pinned Git commit and have clean
 tracked sources. Reports record the measured project commit and relevant source
 file hashes in addition to the requested PR revision.
 
