@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 from geistfabrik import GeistFabrikConfig, Vault
 from geistfabrik.topics import TopicIndex, extract_topics
+from scripts.evaluate_topics import evaluate_gold
 from scripts.generate_narrative_corpus import generate_narrative_corpus
 from scripts.generate_temporal_corpus import apply_snapshot, generate_corpus
 
@@ -182,6 +183,10 @@ def run_corpus(
         report["warm_observation"] = observe(vault)
         selection = spec.get("quality_sample", [])
         report["unrated_quality_sample"] = samples(vault, root, selection, spec)
+        if spec.get("quality_proxy_fixture"):
+            report["model_quality_proxy"] = evaluate_gold(
+                REPO / spec["quality_proxy_fixture"], source_root=root
+            )
         if replay is not None:
             with closing(Vault(root, config=config)) as rebuilt:
                 rebuilt.sync()

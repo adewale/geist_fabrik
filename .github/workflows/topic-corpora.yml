@@ -57,7 +57,7 @@ jobs:
         working-directory: project
         run: |
           uv run --frozen ruff check scripts/benchmark_topic_corpora.py
-          uv run --frozen ruff format --check scripts/benchmark_topic_corpora.py
+          uv run --frozen ruff format --diff scripts/benchmark_topic_corpora.py
       - name: Replay the existing corpora through production topic indexing
         working-directory: project
         run: |

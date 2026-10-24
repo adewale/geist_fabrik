@@ -19,6 +19,22 @@ selected and its source Git blob hashes checked before viewing extractor output.
 It covers short notes, empty notes, navigation notes, essays, dated notes and
 configured templates. No private-owner ratings are inferred from public examples.
 
+## Source-first relevance proxy
+
+The [new LYT proxy annotations](../benchmarks/corpora/topic_lyt_proxy_gold.json)
+were frozen after reading the selected sources but before viewing their extractor
+outputs. The annotator is a model already familiar with the implementation; these
+are not independent human ratings or an untouched validation holdout. Twenty
+substantive sources and three empty/stub controls are scored with the existing
+0.50 precision / 0.60 recall thresholds. One underspecified diary entry remains
+ungraded for human adjudication; four templates are checked as excluded sources.
+These choices were made before predictions, not by discarding failed outputs.
+
+The report evaluates every assigned label and the same frequency baseline using
+the existing evaluator. This proxy reports its own pass/fail result. Functional
+corpus validation does not certify semantic usefulness or close the human gate;
+a failing relevance proxy must remain visible even if indexing checks pass.
+
 ## Executable checks
 
 `scripts/benchmark_topic_corpora.py` uses real `Vault.sync` and `TopicIndex` with

@@ -227,7 +227,8 @@
           "size": 26,
           "stratum": "excluded-template"
         }
-      ]
+      ],
+      "quality_proxy_fixture": "benchmarks/corpora/topic_lyt_proxy_gold.json"
     }
   ]
 }
