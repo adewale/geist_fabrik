@@ -16,7 +16,7 @@ permissions:
 jobs:
   corpora:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       UV_PYTHON: '3.12'
       UV_LOCKED: '1'
