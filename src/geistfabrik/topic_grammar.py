@@ -12,14 +12,20 @@ import unicodedata
 from importlib.metadata import version
 from typing import cast
 
+from nltk.tokenize import (  # type: ignore[import-untyped]
+    PunktSentenceTokenizer,
+    TreebankWordTokenizer,
+)
 from textblob._text import find_tags  # type: ignore[import-untyped]
-from textblob.en import lexicon, tokenize  # type: ignore[import-untyped]
+from textblob.en import lexicon  # type: ignore[import-untyped]
 
 WORD = re.compile(r"[^\W_]+(?:['’\-][^\W_]+)*", re.UNICODE)
 # Bare VB is ambiguous with subjects such as "Use cases". Finite inflections
 # and personal/relative clauses provide stronger evidence than that base form.
 _CLAUSE = frozenset({"VBD", "VBP", "VBZ", "MD", "PRP", "WP", "WRB"})
 _Token = tuple[int, int, str, str]
+_TOKENIZER = TreebankWordTokenizer()
+_SENTENCES = PunktSentenceTokenizer()  # Data-free parameters; no Punkt resource lookup.
 
 
 def _words(text: str) -> list[str]:
@@ -29,6 +35,7 @@ def _words(text: str) -> list[str]:
 def grammar_identity() -> str:
     """Version the actual packaged grammar code and data used by the topic cache."""
     digest = hashlib.sha256(version("textblob").encode())
+    digest.update(version("nltk").encode())
     root = importlib.resources.files("textblob")
     for path in (
         "_text.py",
@@ -39,17 +46,32 @@ def grammar_identity() -> str:
         "en/en-entities.txt",
     ):
         digest.update(root.joinpath(path).read_bytes())
+    nltk_root = importlib.resources.files("nltk")
+    for path in (
+        "tokenize/treebank.py",
+        "tokenize/punkt.py",
+        "tokenize/api.py",
+        "tokenize/util.py",
+    ):
+        digest.update(nltk_root.joinpath(path).read_bytes())
     return digest.hexdigest()
 
 
 def _tag_block(block: str) -> list[list[tuple[str, str]]]:
     # TextBlob's convenience parser does not forward these packaged rules.
     # Use the pinned Pattern implementation explicitly, without NLTK corpora.
+    sentences: list[list[str]] = []
+    try:
+        for start, end in _SENTENCES.span_tokenize(block):
+            sentence = block[start:end]
+            sentences.append([sentence[a:b] for a, b in _TOKENIZER.span_tokenize(sentence)])
+    except ValueError:
+        return []  # Unsupported source alignment supplies no reliable grammatical context.
     return [
         cast(
             list[tuple[str, str]],
             find_tags(
-                sentence.split(),
+                sentence,
                 lexicon=lexicon,
                 morphology=lexicon.morphology,
                 context=lexicon.context,
@@ -57,7 +79,7 @@ def _tag_block(block: str) -> list[list[tuple[str, str]]]:
                 language="en",
             ),
         )
-        for sentence in tokenize(block)
+        for sentence in sentences
     ]
 
 
@@ -119,6 +141,10 @@ class CandidateGrammar:
             return True
         return (
             bool(tags)
-            and (tags[-1].startswith("NN") or tags[-1] == "CD" or tokens[-1][2].isdecimal())
+            and (
+                tags[-1].startswith(("NN", "JJ"))
+                or tags[-1] == "CD"
+                or tokens[-1][2].isdecimal()
+            )
             and any(tag.startswith("NN") for tag in tags)
         )
