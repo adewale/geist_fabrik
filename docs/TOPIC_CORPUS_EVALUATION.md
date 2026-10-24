@@ -9,7 +9,7 @@ thresholds are changed merely to improve a score.
 | --- | --- | --- |
 | Mara narrative vault | Merged PR #97; checked-in authored fiction | All 24 snapshots; diverse prose, dated entries, edits, deletion and stable controls. |
 | Temporal smoke and standard | Merged PR #97; deterministic synthetic generator | All 32 snapshots at 128 and 1,000 initial notes. |
-| Temporal large | Merged PR #97; same generator | First two snapshots at 10,000 initial notes, matching the prior large-probe scope. |
+| Temporal large | Merged PR #97; same generator | All 32 snapshots at 10,000 initial notes. The earlier probe covered only the first two. |
 | Original 10,000 files | Historical benchmark and PR #97; Zettelkasten-Method/10000-markdown-files at `40c11a4bb9b96dbcf1cd3c109d32f50dbc8b61a2` | Exact 10,000-note, 46,635,807-byte population; cold/warm sync, exact evidence, positive query and source-preservation checks. Text is scrambled, so its size is not evidence of semantic usefulness. |
 | LYT Kit | Historical 235-note benchmark removed in merged PR #61; recovered public mirror thebrianbug/LYT-Kit at `e191473fcb326df78cca8a6c49b29420ab318e46` | This mirror has 272 notes; it is not claimed to be the same snapshot. Run the full index and retain a frozen 28-note, length-stratified source-first quality sample, including four excluded-template controls. |
 
@@ -83,7 +83,7 @@ the fixed thresholds. The [receipt](../benchmarks/results/topics/corpora/receipt
 keeps this failure visible and distinguishes those historical runs from the final
 strengthened proof. No score or annotation is presented as a human judgment.
 
-## Final measured result
+## Earlier completed 90-snapshot run
 
 Runtime `e0c4ecbfaab773c8ebe69390b5d347441be39cc9` passed the
 [complete corpus workflow](https://github.com/adewale/geist_fabrik/actions/runs/40108166872).
@@ -119,6 +119,46 @@ These are single CI observations with lexical capture disabled, not a causal
 performance comparison. Initial and final replay populations differ. The larger
 original corpus contains 46.6 MB of scrambled prose; its successful indexing
 establishes robustness and measured cost, not useful topics.
+
+## Full coverage: all corpora and all snapshots
+
+Revision `45aff5021c184229e6861ef1b47142f8be5226eb` removes the large-profile
+two-snapshot limit. The [full run](https://github.com/adewale/geist_fabrik/actions/runs/40110002076)
+completed successfully. Its [retained reports](../benchmarks/results/topics/corpora/all-snapshots/index.json)
+contain every requested observation, with no skipped snapshot indices:
+
+| Corpus | Observations tested | Final indexed note/entry states |
+| --- | ---: | ---: |
+| Mara narrative | 24 | 189 |
+| Temporal 128 | 32 | 211 |
+| Temporal 1,000 | 32 | 1,252 |
+| Temporal 10,000 | 32 | 12,232 |
+| Original 10,000 files | Full static population | 10,000 |
+| LYT mirror | Full static population | 272 |
+
+This covers 120 replay snapshots and both complete static populations. Every
+observation passed completeness, exact evidence and nonempty positive-query
+checks. All six preserved Markdown and reused the warm index without extraction;
+all four changing corpora matched a complete fresh final-state rebuild and
+preserved stable-source evidence. The large profile includes 6,000 stable
+controls, the week-16 rewrite and 1,000 deletions at week 24. Its final source
+inventory (12,201 Markdown files, 5,005,176 bytes) matches a separate generator
+run exactly. All snapshot inventories shared with the earlier run also match.
+
+The large-profile syncs totalled 798.530 seconds across 32 snapshots; its final
+sync took 26.829 seconds and the unchanged warm sync took 6.419 seconds with zero
+extractions. The original stress corpus took 810.691 seconds cold and 5.363
+seconds warm. These remain single-run raw-sync-plus-topics measurements with
+lexical capture disabled; source generation and verification add further cost.
+
+The extraction source and frozen annotation hashes are unchanged. Both broader
+proxy reports are identical to the preceding run: narrative 0.448 / 0.667 and
+LYT 0.482 / 0.625 precision/recall, with the unfilled-form violation still present.
+Indexing every note does not make these annotated subsets an all-note relevance
+assessment or a human judgment. Quality continues to block merge. The separate
+focused workflow also passed both original calibration gates, including all ten
+public starter notes. The [receipt](../benchmarks/results/topics/corpora/receipt.json)
+binds this full coverage to its actual commit, source hashes and CI jobs.
 
 ## Executable checks
 

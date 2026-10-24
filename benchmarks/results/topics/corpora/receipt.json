@@ -11,7 +11,7 @@
     "job_id": 120903295876,
     "index": "property-mask-probe/index.json"
   },
-  "phase": "Final strengthened-verifier run completed; functional checks pass, broader model relevance proxies fail.",
+  "phase": "All six recovered corpora completed in full: 120 replay snapshots and two complete static populations; broader model relevance proxies still fail.",
   "annotations_sha256": {
     "benchmarks/corpora/topic_lyt_proxy_gold.json": "d9d63d5d8339794b1ac8202a407ee73424ab07bd6afda6b4a3a401985ab0f0c6",
     "benchmarks/corpora/topic_narrative_proxy_gold.json": "c17493ecde7165165ba2922573f51a9cab3dedce9091c0b52e6eb8423a9e95be"
@@ -107,5 +107,53 @@
         }
       ]
     }
+  },
+  "all_snapshots": {
+    "source_commit": "45aff5021c184229e6861ef1b47142f8be5226eb",
+    "workflow_run": 40110002076,
+    "job_id": 120919544275,
+    "index": "all-snapshots/index.json",
+    "snapshot_counts": {
+      "narrative-mara-v1": 24,
+      "temporal-smoke": 32,
+      "temporal-standard": 32,
+      "temporal-large": 32,
+      "original-10000": 1,
+      "lyt-kit-mirror": 1
+    },
+    "replay_snapshots": 120,
+    "static_corpora": 2,
+    "every_requested_snapshot_present": true,
+    "prior_snapshot_inventories_match": true,
+    "runtime_source_hashes_match_e0": true,
+    "source_and_annotation_hashes_verified": true,
+    "large_final_inventory_matches_separate_generator_run": true,
+    "large_final_states": 12232,
+    "large_stable_control_sources": 6000,
+    "large_week24_deleted_sources": 1000
+  },
+  "all_snapshots_validation": {
+    "source_commit": "45aff5021c184229e6861ef1b47142f8be5226eb",
+    "canonical_run": 40110002074,
+    "canonical_job": 120920912600,
+    "focused_tests": 151,
+    "unit_tests_passed": 2318,
+    "integration_tests_passed": 86,
+    "branch_coverage_percent": 84.07,
+    "automatic_acceptance_passed": 158,
+    "manual_acceptance_unverified": 83,
+    "platform_and_package_run": 40110002075,
+    "platforms": [
+      "Linux Python 3.11",
+      "Linux Python 3.12",
+      "macOS Python 3.11"
+    ],
+    "offline_package_python": [
+      "3.11",
+      "3.12"
+    ],
+    "focused_job": 120919543888,
+    "public_starter_notes": 10,
+    "frozen_calibration_gates_passed": true
   }
 }

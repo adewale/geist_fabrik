@@ -87,7 +87,7 @@ representative human-review gate.
 
 ## Reproduction and full validation
 
-The final runtime `e0c4ecbfaab773c8ebe69390b5d347441be39cc9` passed
+The audited runtime `e0c4ecbfaab773c8ebe69390b5d347441be39cc9` passed
 [focused and canonical validation](https://github.com/adewale/geist_fabrik/actions/runs/40108166879):
 151 focused tests, 2,318 unit tests, 86 integration tests, 84.07% branch coverage,
 all 158 automatic acceptance criteria, hooks, lint, both type checkers, security
@@ -99,6 +99,18 @@ on both Python versions. The strengthened corpus verifier also passed all six
 corpora; its final source-bound reports and failed broader relevance scores are
 linked in the corpus evaluation above. Functional validation is complete for
 this runtime; quality remains insufficient for a merge recommendation.
+
+Revision `45aff5021c184229e6861ef1b47142f8be5226eb` expands the temporal large
+profile from two to all 32 snapshots. [Full corpus validation](https://github.com/adewale/geist_fabrik/actions/runs/40110002076)
+passed all six corpora: 120 replay snapshots plus both full static populations.
+[Focused/canonical validation](https://github.com/adewale/geist_fabrik/actions/runs/40110002074)
+and the [platform/package matrix](https://github.com/adewale/geist_fabrik/actions/runs/40110002075)
+also passed on this revision, with the same test counts and coverage above.
+The extraction source and annotations remain unchanged. The final large-profile
+inventory matches a separate generation, and every requested snapshot index is
+present in the [retained reports](../benchmarks/results/topics/corpora/all-snapshots/index.json).
+Broader relevance proxies still fail; complete corpus execution does not close
+that quality gate.
 
 ```sh
 uv sync --locked --extra vector-search
