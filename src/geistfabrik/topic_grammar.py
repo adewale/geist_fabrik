@@ -65,7 +65,9 @@ def _tag_block(block: str) -> list[list[tuple[str, str]]]:
     try:
         for start, end in _SENTENCES.span_tokenize(scored):
             sentence = scored[start:end]
-            sentences.append([(start + a, start + b) for a, b in _TOKENIZER.span_tokenize(sentence)])
+            sentences.append(
+                [(start + a, start + b) for a, b in _TOKENIZER.span_tokenize(sentence)]
+            )
     except ValueError:
         return []  # Unsupported source alignment supplies no reliable grammatical context.
     result = []
