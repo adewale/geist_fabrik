@@ -74,6 +74,16 @@ def test_possessive_tokenization_does_not_turn_the_next_noun_into_a_verb(
     assert tags[0].start == source.index("knowledge graph")
 
 
+def test_typographic_grammar_copy_does_not_merge_topic_identities() -> None:
+    source = (
+        "The vault's knowledge graph contains research. "
+        "The vault’s knowledge graph contains projects."
+    )
+    tags = extract_topics(source, _Candidates("vault's knowledge graph", "vault’s knowledge graph"))
+    assert {tag.key for tag in tags} == {"vault's knowledge graph", "vault’s knowledge graph"}
+    assert all(source[tag.start : tag.end] == tag.text for tag in tags)
+
+
 def test_authored_heading_and_link_labels_keep_their_independent_evidence() -> None:
     source = "# Game over\n\nConsider [[Use cases]] before making a decision."
     keys = {tag.key for tag in extract_topics(source, _Candidates())}

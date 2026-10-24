@@ -60,18 +60,21 @@ def grammar_identity() -> str:
 def _tag_block(block: str) -> list[list[tuple[str, str]]]:
     # TextBlob's convenience parser does not forward these packaged rules.
     # Use the pinned Pattern implementation explicitly, without NLTK corpora.
-    sentences: list[list[str]] = []
+    scored = block.translate(str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"'}))
+    sentences: list[list[tuple[int, int]]] = []
     try:
-        for start, end in _SENTENCES.span_tokenize(block):
-            sentence = block[start:end]
-            sentences.append([sentence[a:b] for a, b in _TOKENIZER.span_tokenize(sentence)])
+        for start, end in _SENTENCES.span_tokenize(scored):
+            sentence = scored[start:end]
+            sentences.append([(start + a, start + b) for a, b in _TOKENIZER.span_tokenize(sentence)])
     except ValueError:
         return []  # Unsupported source alignment supplies no reliable grammatical context.
-    return [
-        cast(
+    result = []
+    for spans in sentences:
+        words = [scored[start:end] for start, end in spans]
+        tagged = cast(
             list[tuple[str, str]],
             find_tags(
-                sentence,
+                words,
                 lexicon=lexicon,
                 morphology=lexicon.morphology,
                 context=lexicon.context,
@@ -79,8 +82,12 @@ def _tag_block(block: str) -> list[list[tuple[str, str]]]:
                 language="en",
             ),
         )
-        for sentence in sentences
-    ]
+        if len(tagged) != len(spans) or any(row[0] != word for row, word in zip(tagged, words)):
+            return []
+        result.append(
+            [(block[start:end], tag) for (start, end), (_, tag) in zip(spans, tagged)]
+        )
+    return result
 
 
 class CandidateGrammar:
@@ -141,10 +148,6 @@ class CandidateGrammar:
             return True
         return (
             bool(tags)
-            and (
-                tags[-1].startswith(("NN", "JJ"))
-                or tags[-1] == "CD"
-                or tokens[-1][2].isdecimal()
-            )
+            and (tags[-1].startswith(("NN", "JJ")) or tags[-1] == "CD" or tokens[-1][2].isdecimal())
             and any(tag.startswith("NN") for tag in tags)
         )
