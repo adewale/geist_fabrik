@@ -2,6 +2,30 @@
 
 **Status: awaiting human review; no merge recommendation or approval is recorded.**
 
+The current repair has a [source-first packet](../benchmarks/reviews/topics/grammar-repair/sources.md),
+[all predictions](../benchmarks/reviews/topics/grammar-repair/predictions.md) and
+[new pending response record](../benchmarks/reviews/topics/grammar-repair/pending.json).
+It covers all ten starter notes and all 28 frozen LYT selections: 24 eligible
+sources and four excluded controls. Every assigned label is included: 122 YAKE
+and 142 baseline labels. Runtime/source/report hashes bind the packet to the
+validated `427afee5` repair. The previously ungraded diary source is included
+without a model-supplied relevance judgment. Its supplemental baseline is
+explicitly source-only; the other 33 baseline lists match retained CI output.
+
+Read sources and record subjects before opening the predictions or response
+record. Judge all labels, missed subjects and useful phrase variants, then assess
+whether these public PKM demonstration notes represent the intended vaults.
+Completing this packet cannot establish general real-owner usefulness by itself.
+The original 23-case model proxy and all thresholds remain unchanged. Fictional
+narrative and scrambled stress corpora are separate evidence.
+
+The 83 manual acceptance entries reported by canonical validation are
+repository-wide prose checks, not 83 outstanding topic-specific reviews. The
+remaining topic delivery gates are the known empty-form failure and genuine
+representative human relevance adjudication. No AI assessment fills that gate.
+
+## Historical pre-grammar packet
+
 This is a historical pre-grammar packet. Its prediction hashes and counts below
 belong to the stated older revision. Current outputs and source checksums are in
 the [grammar comparison reports](../benchmarks/results/topics/quality-repair/probe/index.json)

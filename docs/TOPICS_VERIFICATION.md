@@ -134,6 +134,15 @@ All numeric thresholds pass; LYT still fails its empty-form case on
 `important action items`. [Repair decisions and counterexamples](TOPIC_QUALITY_REPAIR.md)
 explain why no corpus-specific deletion was added. Human review remains open.
 
+The [current human packet](../benchmarks/reviews/topics/grammar-repair/sources.md)
+now covers every frozen starter and LYT selection, including the ungraded diary
+case and all excluded controls. It binds unchanged repair outputs to source and
+report hashes; all judgments remain unset. A further independent review exposed
+an ancestor-caption gap in the rare-outline regression. The new parent-caption
+test protects a substantive relation-properties outline above empty colon-ended
+children; no runtime policy, annotation or threshold changes to force a pass.
+The repository-wide 83 manual criteria are not 83 separate topic review tasks.
+
 ```sh
 uv sync --locked --extra vector-search
 uv run --frozen pytest tests/unit/test_topic*.py tests/unit/test_dependency_validation.py tests/integration/test_topics.py --no-cov -q

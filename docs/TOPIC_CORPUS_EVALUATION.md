@@ -19,6 +19,12 @@ selected and its source Git blob hashes checked before viewing extractor output.
 It covers short notes, empty notes, navigation notes, essays, dated notes and
 configured templates. No private-owner ratings are inferred from public examples.
 
+The [current source-first human packet](../benchmarks/reviews/topics/grammar-repair/sources.md)
+covers all ten starter notes and all 28 LYT selections. It retains the previously
+ungraded diary source, every assigned label and all four excluded controls.
+Source subjects, usefulness, omissions and representativeness remain unrated;
+the historical model-proxy population and thresholds are not changed.
+
 ## Source-first relevance proxy
 
 The [new LYT proxy annotations](../benchmarks/corpora/topic_lyt_proxy_gold.json)

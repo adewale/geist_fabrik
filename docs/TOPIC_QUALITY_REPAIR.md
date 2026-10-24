@@ -83,6 +83,32 @@ form evidence or an assessed semantic policy would be needed to close that case.
 The empty-case gate remains failed. Human usefulness is also unreviewed; a higher
 model proxy score does not close the representative human-review requirement.
 
+A further independent adversarial review found that even suppressing only the
+parent caption above empty colon-ended children loses substantive subjects:
+
+```markdown
+- Three important relation properties today
+    - Reflexive:
+    - Symmetric:
+    - Transitive:
+- Wind Down
+    - I am grateful for:
+```
+
+`important relation properties` is observed topical evidence. The earlier
+rare-outline regression protected separate leaf labels; it did not exercise this
+ancestor-caption loss. A new regression protects this parent candidate and exact
+source evidence. This closes a gap in the counterexamples, not the empty-form
+quality failure. Syntax and nominal grammar do not encode the missing distinction
+between a form caption and an authored subject category.
+
+The pinned LYT mirror also has [six eligible daily notes](../benchmarks/reviews/topics/grammar-repair/ambiguity-evidence.json) with the same unfilled
+form after their date property. Repetition alone cannot establish boilerplate:
+a repeated substantive outline would satisfy the same rule. Excluded templates
+remain outside extraction, and no frequency-based topic suppression is added.
+The [current source-first human packet](../benchmarks/reviews/topics/grammar-repair/sources.md)
+provides the remaining reviewable work without inventing judgments.
+
 ## Verification
 
 The [package-verified probe](../benchmarks/results/topics/quality-repair/probe/index.json)

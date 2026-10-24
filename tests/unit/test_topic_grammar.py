@@ -153,3 +153,18 @@ def test_empty_fields_do_not_erase_a_substantive_rare_topic_outline() -> None:
     )
     tags = extract_topics(source, _Candidates("Cyanotypes", "Photograms", "Causal inference"))
     assert {tag.key for tag in tags} == {"cyanotypes", "photograms", "causal inference"}
+
+
+def test_empty_children_do_not_erase_their_substantive_parent_caption() -> None:
+    source = (
+        "- Three important relation properties today\n"
+        "\t- Reflexive:\n\t- Symmetric:\n\t- Transitive:\n"
+        "- Wind Down\n\t- I am grateful for:\n"
+    )
+    tags = extract_topics(source, _Candidates("important relation properties"))
+    assert len(tags) == 1
+    assert tags[0].key == "important relation properties"
+    assert tags[0].text == "important relation properties"
+    assert tags[0].start == source.index("important relation properties")
+    assert tags[0].text == source[tags[0].start : tags[0].end]
+    assert tags[0].line == 1

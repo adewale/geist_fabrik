@@ -1,0 +1,4218 @@
+{
+  "status": "awaiting_human_review",
+  "runtime_source_commit": "427afee5a4c7ae5df044441f4f105c288a75c671",
+  "source_review_packet_sha256": "e6a2c72bce7b5c1c85a9d982b7f0edf1a99f4e0fd54c36f1ebd0064d5dc94668",
+  "prediction_review_packet_sha256": "446542c23826c2a0cac05a176a2bd34c0b212ba3d5bf7a41ffd71964e2c03d16",
+  "reviewer": null,
+  "reviewed_at": null,
+  "corpus_representative": null,
+  "representation_notes": null,
+  "gate_passed": null,
+  "limit": 5,
+  "minimum_precision": 0.5,
+  "minimum_recall": 0.6,
+  "counts": {
+    "starter": 10,
+    "lyt_eligible": 24,
+    "lyt_excluded_controls": 4,
+    "assigned_yake_labels": 122,
+    "assigned_frequency_labels": 142,
+    "retained_ci_baselines_reproduced": 33
+  },
+  "input_files_sha256": {
+    "benchmarks/results/topics/corpora/grammar-repair/lyt-kit-mirror.json": "64b08c9978050b6714815f3b9705434d308e649e74dad6883506f25dfff0dcbb",
+    "benchmarks/results/topics/corpora/grammar-repair/index.json": "4382f41026636c7f5fd92274a0b73d55688444057bc8e189083b4ace41a60fc7",
+    "benchmarks/corpora/topic_corpora.json": "1493edf23093f3eedf60a8715d742a94b78f2cb392ca61af49d51b842b8a7da1",
+    "tests/fixtures/topic_real_gold.json": "0d358cb89e9b8ec7f743cf0b9b1d6ff67e64e9da112c4babfa936d77fb6d14c0",
+    "benchmarks/corpora/topic_lyt_proxy_gold.json": "d9d63d5d8339794b1ac8202a407ee73424ab07bd6afda6b4a3a401985ab0f0c6",
+    "benchmarks/results/topics/quality-repair/probe/public-starter.json": "2ff215df455fd045e87f18c4449201ec493e71996513ca247e1befa243b3c6cd",
+    "benchmarks/results/topics/quality-repair/probe/lyt.json": "ddcc504e09bde2bb1221434084262dab6eae2a5e71cb1c6be0a30554d544c148",
+    "uv.lock": "72159a0d36bf418b74b905732f04e8412f9c888c7de8147f9e47e4000107da12"
+  },
+  "runtime_source_files_sha256": {
+    "src/geistfabrik/topics.py": "f62b28eb130cfba3b8a639e8af440bdc8b35f93307c5a318b42f0a96d57ac89b",
+    "src/geistfabrik/topic_text.py": "6b11ca0ea56b0499222ac5693a68ac3b677c7fb737c9a4ae217ccb729828b217",
+    "src/geistfabrik/topic_grammar.py": "9b2fe0bbfab6b775f6eb9eb8a4f99a115d057a9922d851f9d67805b16251b1dc",
+    "src/geistfabrik/vault.py": "5a3e45c24efc76e55e3a36d9c72e2b95e9cae39f639f77ee9766e0302207f473",
+    "scripts/benchmark_topic_corpora.py": "d55fadcd3e53ae20037b6de352460ba44a8854d3e7b579ad1d33e1f0de14c327",
+    "scripts/generate_temporal_corpus.py": "093d61a17b950a65029f7c1f0f8249544a743ce897f9c4045b988df2548a0356",
+    "scripts/generate_narrative_corpus.py": "52ab3270898e028647c3365e550b0130775483bb37c9f2947cca2b2e40c54724"
+  },
+  "prediction_provenance": {
+    "current_probe_runtime_commit": "427afee5a4c7ae5df044441f4f105c288a75c671",
+    "current_probe_workflow_run": 40123416947,
+    "current_probe_job": 120959654375,
+    "current_probe_diagnostics_and_contextual_reports_equal_retained_f2d58_reports": true,
+    "stored_lyt_report": "benchmarks/results/topics/corpora/grammar-repair/lyt-kit-mirror.json",
+    "stored_lyt_workflow_run": 40123416962,
+    "stored_lyt_job": 120959890887,
+    "supplemental_baseline": "Only the ungraded diary source needs new baseline replay. It uses actual source topic_prose with source-only MarkdownIt4.2.0; all 33 retained baseline lists match. No installed-package or new CI extraction claim."
+  },
+  "instructions": [
+    "Human source subjects first, all predictions second. AI cannot supply human reviewer identity or judgments.",
+    "Set expected_groups to central-subject strings, or [] when none; leave undecidable source subjects pending with an explanation.",
+    "Every assigned label from both extractors needs useful true/false, reason, and covers_expected_groups indexes. Useful secondary labels can cover none.",
+    "Record omissions and useful phrase variants separately; do not alter frozen model gold or delete an inconvenient label.",
+    "Score each corpus separately: macro precision over human-substantive notes, macro recall of central groups; include every label and independently report false topics on empty/stub notes. Compare baseline at limit5.",
+    "Apply unchanged .50 precision/.60 recall and zero false topics on empty cases. Excluded controls remain boundary evidence, not a relevance denominator.",
+    "The extra diary case belongs to this human review even though it has no existing model score. Never silently drop it from human results.",
+    "A complete score does not alone establish corpus representativeness. Do not claim a fresh holdout or general real-owner usefulness.",
+    "Null and incomplete reviews are pending, never approval. No review or merge approval is supplied by this packet."
+  ],
+  "notes": [
+    {
+      "id": "starter/sample-01",
+      "fixture_id": "japan-trip-metadata-only",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/2023 Japan Trip.md",
+      "source_sha256": "5ca2c825c82ec4f8b5f906a821a34ff78657f474f44dd1a76d7fc586be041542",
+      "bytes": 123,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/2023%20Japan%20Trip.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [],
+      "frequency": [],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      }
+    },
+    {
+      "id": "starter/sample-02",
+      "fixture_id": "meeting-emergence",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-12 Meeting with Steph.md",
+      "source_sha256": "ef32b9eec86e95582b36d22623e2e5732f4dd3beb07dbae059171695724bc435",
+      "bytes": 251,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/2023-09-12%20Meeting%20with%20Steph.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "emergence",
+          "label": "Emergence",
+          "score": 0.001,
+          "start": 239,
+          "end": 248,
+          "text": "Emergence",
+          "line": 17,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "out of control",
+          "label": "Out of Control",
+          "score": 0.001,
+          "start": 204,
+          "end": 218,
+          "text": "Out of Control",
+          "line": 17,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "book",
+          "label": "book",
+          "score": 0.15831692877998726,
+          "start": 197,
+          "end": 201,
+          "text": "book",
+          "line": 17,
+          "provenance": "yake"
+        },
+        {
+          "key": "topic",
+          "label": "topic",
+          "score": 0.15831692877998726,
+          "start": 228,
+          "end": 233,
+          "text": "topic",
+          "line": 17,
+          "provenance": "yake"
+        }
+      ],
+      "frequency": [
+        "book",
+        "control",
+        "discussed",
+        "emergence",
+        "topic"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "emergence",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "out of control",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "book",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "topic",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "book",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "control",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "discussed",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "emergence",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "topic",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "starter/sample-03",
+      "fixture_id": "daily-2023-09-12-stub",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-12.md",
+      "source_sha256": "d2b39819b63832bf6300634cfebde2b6e24d97af03fd03e69b1739504bd95b7d",
+      "bytes": 50,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/2023-09-12.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [],
+      "frequency": [],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      }
+    },
+    {
+      "id": "starter/sample-04",
+      "fixture_id": "daily-2023-09-30-stub",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/2023-09-30.md",
+      "source_sha256": "d2b39819b63832bf6300634cfebde2b6e24d97af03fd03e69b1739504bd95b7d",
+      "bytes": 50,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/2023-09-30.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [],
+      "frequency": [],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      }
+    },
+    {
+      "id": "starter/sample-05",
+      "fixture_id": "evergreen-notes",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/Evergreen notes turn ideas into objects that you can manipulate.md",
+      "source_sha256": "d7ec083b3c9a66dea05245bbc89febbaf3e187f7a9fe8fb23a2175966dfa4215",
+      "bytes": 1391,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/Evergreen%20notes%20turn%20ideas%20into%20objects%20that%20you%20can%20manipulate.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "cross the chasm",
+          "label": "Cross the chasm",
+          "score": 0.001,
+          "start": 704,
+          "end": 719,
+          "text": "Cross the chasm",
+          "line": 29,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "evergreen",
+          "label": "evergreen",
+          "score": 0.001,
+          "start": 261,
+          "end": 270,
+          "text": "evergreen",
+          "line": 18,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "obsidian",
+          "label": "Obsidian",
+          "score": 0.001,
+          "start": 284,
+          "end": 292,
+          "text": "Obsidian",
+          "line": 18,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "writing is telepathy",
+          "label": "Writing is telepathy",
+          "score": 0.001,
+          "start": 754,
+          "end": 774,
+          "text": "Writing is telepathy",
+          "line": 31,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "notes",
+          "label": "notes",
+          "score": 0.09209590238371475,
+          "start": 273,
+          "end": 278,
+          "text": "notes",
+          "line": 18,
+          "provenance": "yake"
+        }
+      ],
+      "frequency": [
+        "evergreen",
+        "notes",
+        "ideas",
+        "note",
+        "creativity"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "cross the chasm",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "evergreen",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "writing is telepathy",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "evergreen",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ideas",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "creativity",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "starter/sample-06",
+      "fixture_id": "isolated-thought",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/Isolated thought.md",
+      "source_sha256": "c0edc383fcb28ea15872cc92903b3fdfeb9da604de5dcb88e60187678b5c7831",
+      "bytes": 161,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/Isolated%20thought.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "isolated thought",
+          "label": "Isolated thought",
+          "score": 0,
+          "start": 2,
+          "end": 18,
+          "text": "Isolated thought",
+          "line": 1,
+          "provenance": "heading"
+        },
+        {
+          "key": "standalone note",
+          "label": "standalone note",
+          "score": 0.07541768859639163,
+          "start": 30,
+          "end": 45,
+          "text": "standalone note",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "links",
+          "label": "links",
+          "score": 0.23342178605055275,
+          "start": 54,
+          "end": 59,
+          "text": "links",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "knowledge graph",
+          "label": "knowledge graph",
+          "score": 0.23717973302929607,
+          "start": 144,
+          "end": 159,
+          "text": "knowledge graph",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "notes",
+          "label": "notes",
+          "score": 0.3004378564200643,
+          "start": 77,
+          "end": 82,
+          "text": "notes",
+          "line": 3,
+          "provenance": "yake"
+        }
+      ],
+      "frequency": [
+        "exists",
+        "graph",
+        "isolated",
+        "isolation",
+        "knowledge"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "isolated thought",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "standalone note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "links",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge graph",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "exists",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "graph",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "isolated",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "isolation",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "starter/sample-07",
+      "fixture_id": "minimal-theme",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/Minimal Theme.md",
+      "source_sha256": "16d99bfd0fdf5dd80eaa043e2d4b41a98670abf13445cf7d6830f9057d4f10ad",
+      "bytes": 319,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/Minimal%20Theme.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "obsidian",
+          "label": "Obsidian",
+          "score": 0.001,
+          "start": 179,
+          "end": 187,
+          "text": "Obsidian",
+          "line": 16,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "usability",
+          "label": "usability",
+          "score": 0.1352746169433193,
+          "start": 216,
+          "end": 225,
+          "text": "usability",
+          "line": 16,
+          "provenance": "yake"
+        },
+        {
+          "key": "minimalism",
+          "label": "minimalism",
+          "score": 0.19642056113018055,
+          "start": 201,
+          "end": 211,
+          "text": "minimalism",
+          "line": 16,
+          "provenance": "yake"
+        },
+        {
+          "key": "theme",
+          "label": "theme",
+          "score": 0.19642056113018055,
+          "start": 167,
+          "end": 172,
+          "text": "theme",
+          "line": 16,
+          "provenance": "yake"
+        },
+        {
+          "key": "color schemes",
+          "label": "Color schemes",
+          "score": 0.21973563964703718,
+          "start": 244,
+          "end": 257,
+          "text": "Color schemes",
+          "line": 20,
+          "provenance": "yake"
+        }
+      ],
+      "frequency": [
+        "obsidian",
+        "color",
+        "focused",
+        "ink",
+        "minimalism"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "usability",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "minimalism",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "theme",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "color schemes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "color",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "focused",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ink",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "minimalism",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "starter/sample-08",
+      "fixture_id": "obsidian-application",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/Obsidian.md",
+      "source_sha256": "a9889fbf6bae2a8109c065803043c0b523c018823e946cdf57d1eb920443c1bf",
+      "bytes": 205,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/Obsidian.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "minimal theme",
+          "label": "Minimal Theme",
+          "score": 0.001,
+          "start": 120,
+          "end": 133,
+          "text": "Minimal Theme",
+          "line": 10,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "note-taking application",
+          "label": "note-taking application",
+          "score": 0.07796891081290885,
+          "start": 83,
+          "end": 106,
+          "text": "note-taking application",
+          "line": 8,
+          "provenance": "yake"
+        },
+        {
+          "key": "knowledge management",
+          "label": "knowledge management",
+          "score": 0.1495930091794576,
+          "start": 58,
+          "end": 78,
+          "text": "knowledge management",
+          "line": 8,
+          "provenance": "yake"
+        },
+        {
+          "key": "related",
+          "label": "Related",
+          "score": 0.17881754828257995,
+          "start": 109,
+          "end": 116,
+          "text": "Related",
+          "line": 10,
+          "provenance": "yake"
+        },
+        {
+          "key": "evergreen notes",
+          "label": "Evergreen notes",
+          "score": 0.21949168971147553,
+          "start": 139,
+          "end": 154,
+          "text": "Evergreen notes",
+          "line": 10,
+          "provenance": "yake"
+        }
+      ],
+      "frequency": [
+        "application",
+        "evergreen",
+        "ideas",
+        "knowledge",
+        "management"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "minimal theme",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "note-taking application",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge management",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "related",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "evergreen notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "application",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "evergreen",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ideas",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "knowledge",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "management",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "starter/sample-09",
+      "fixture_id": "product-usage-analysis",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/Product usage analysis.md",
+      "source_sha256": "3b7d468fff01f1ad6f6f3424c97dc0130712c613a6a4c75e82e0c51ca173cbc8",
+      "bytes": 131,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/Product%20usage%20analysis.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "buy wisely",
+          "label": "Buy wisely",
+          "score": 0.001,
+          "start": 32,
+          "end": 42,
+          "text": "Buy wisely",
+          "line": 1,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "obsidian",
+          "label": "Obsidian",
+          "score": 0.001,
+          "start": 54,
+          "end": 62,
+          "text": "Obsidian",
+          "line": 3,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "product usage patterns",
+          "label": "product usage patterns",
+          "score": 0.03356262313410168,
+          "start": 74,
+          "end": 96,
+          "text": "product usage patterns",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "track product usage",
+          "label": "track product usage",
+          "score": 0.06672462416318604,
+          "start": 68,
+          "end": 87,
+          "text": "track product usage",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "analysis of cost",
+          "label": "Analysis of cost",
+          "score": 0.07796891081290885,
+          "start": 0,
+          "end": 16,
+          "text": "Analysis of cost",
+          "line": 1,
+          "provenance": "yake"
+        }
+      ],
+      "frequency": [
+        "analysis",
+        "buy",
+        "cost",
+        "obsidian",
+        "patterns"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "buy wisely",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "product usage patterns",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "track product usage",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "analysis of cost",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "analysis",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "buy",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cost",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "patterns",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "starter/sample-10",
+      "fixture_id": "vault-template-readme",
+      "corpus": "public-starter",
+      "source_path": "testdata/kepano-obsidian-main/Readme.md",
+      "source_sha256": "c32b01b5b152b7613ac39b57cba6746f415015e1598e95145dfcb938d4788120",
+      "bytes": 613,
+      "source_url": "https://github.com/adewale/geist_fabrik/blob/427afee5a4c7ae5df044441f4f105c288a75c671/testdata/kepano-obsidian-main/Readme.md",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Direct CI extraction; no stored-index claim.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "obsidian",
+          "label": "Obsidian",
+          "score": 0.001,
+          "start": 14,
+          "end": 22,
+          "text": "Obsidian",
+          "line": 1,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "vault template",
+          "label": "vault template",
+          "score": 0.1291699571087174,
+          "start": 25,
+          "end": 39,
+          "text": "vault template",
+          "line": 1,
+          "provenance": "yake"
+        },
+        {
+          "key": "personal",
+          "label": "personal",
+          "score": 0.23433020788170683,
+          "start": 3,
+          "end": 11,
+          "text": "personal",
+          "line": 1,
+          "provenance": "yake"
+        },
+        {
+          "key": "folder",
+          "label": "folder",
+          "score": 0.3321393741541426,
+          "start": 521,
+          "end": 527,
+          "text": "folder",
+          "line": 8,
+          "provenance": "yake"
+        },
+        {
+          "key": "bottom-up approach",
+          "label": "bottom-up approach",
+          "score": 0.36143757064117693,
+          "start": 43,
+          "end": 61,
+          "text": "bottom-up approach",
+          "line": 1,
+          "provenance": "yake"
+        }
+      ],
+      "frequency": [
+        "obsidian",
+        "vault",
+        "folder",
+        "use",
+        "approach"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "in_existing_model_proxy": true,
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "vault template",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "personal",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "folder",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "bottom-up approach",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "obsidian",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "vault",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "folder",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "use",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "approach",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-01",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Calendar/2020-06-01.md",
+      "source_sha256": "643f26b19b9038d0899b6c7e353f2feb2e67a92b2eb6cbdac43b4a7122011401",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "people",
+          "label": "people",
+          "score": 0.15831692877998726,
+          "start": 34,
+          "end": 40,
+          "text": "people",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "stuff",
+          "label": "stuff",
+          "score": 0.15831692877998726,
+          "start": 70,
+          "end": 75,
+          "text": "stuff",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "working",
+          "label": "working",
+          "score": 0.15831692877998726,
+          "start": 86,
+          "end": 93,
+          "text": "working",
+          "line": 3,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": false,
+      "bytes": 97,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Calendar/2020-06-01.md",
+      "frequency": [
+        "got",
+        "people",
+        "showed",
+        "stuff",
+        "ve"
+      ],
+      "frequency_provenance": "Supplemental source-only frequency replay; not part of the frozen 23-case proxy or an installed-package result.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "people",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "stuff",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "working",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "got",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "people",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "showed",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "stuff",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ve",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-02",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Calendar/2023-04-22.md",
+      "source_sha256": "6af7584bf7f4eca1d38e9547e819c0ad91132cfe9648a8a5e644a387b82c1ca0",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "custom pkm universe",
+          "label": "custom PKM universe",
+          "score": 0.015042304599106411,
+          "start": 65,
+          "end": 84,
+          "text": "custom PKM universe",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "develop a custom",
+          "label": "develop a custom",
+          "score": 3.1041277717037565,
+          "start": 55,
+          "end": 71,
+          "text": "develop a custom",
+          "line": 3,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 94,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Calendar/2023-04-22.md",
+      "frequency": [
+        "believe",
+        "custom",
+        "develop",
+        "hit",
+        "kayne"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "custom pkm universe",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "develop a custom",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "believe",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "custom",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "develop",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "hit",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "kayne",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-03",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Sense of Control.md",
+      "source_sha256": "10bc483755c1a6029b787cddc9e7894cdb3ecd7903d7a6f28f12de629933a64f",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "sense of control",
+          "label": "Sense of Control",
+          "score": 0,
+          "start": 29,
+          "end": 45,
+          "text": "Sense of Control",
+          "line": 4,
+          "provenance": "heading"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 50,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Sense%20of%20Control.md",
+      "frequency": [
+        "control",
+        "sense"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "sense of control",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "control",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "sense",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-04",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "+ Encounters/English Language MOC.md",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [],
+      "in_existing_model_proxy": true,
+      "bytes": 0,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/%2B%20Encounters/English%20Language%20MOC.md",
+      "frequency": [],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      }
+    },
+    {
+      "id": "lyt/sample-05",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "+ Encounters/LOL.md",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [],
+      "in_existing_model_proxy": true,
+      "bytes": 0,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/%2B%20Encounters/LOL.md",
+      "frequency": [],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [],
+        "frequency": []
+      }
+    },
+    {
+      "id": "lyt/sample-06",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Folgezettel - 100a.1a But Also How It.md",
+      "source_sha256": "9bd27357938211ddfeb813e504e6fb1c9f3d85fd3ff26e22a882d3bd06a39cf2",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "folgezettel",
+          "label": "Folgezettel",
+          "score": 0.08596317751626563,
+          "start": 39,
+          "end": 50,
+          "text": "Folgezettel",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "things",
+          "label": "things",
+          "score": 0.15831692877998726,
+          "start": 74,
+          "end": 80,
+          "text": "things",
+          "line": 3,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 85,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Folgezettel%20-%20100a.1a%20But%20Also%20How%20It.md",
+      "frequency": [
+        "adds",
+        "certain",
+        "doesn",
+        "easily",
+        "folgezettel"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "folgezettel",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "things",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "adds",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "certain",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "doesn",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "easily",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "folgezettel",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-07",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "+ Encounters/sound sensory sensitivity.md",
+      "source_sha256": "c5d03e3aaeb4151a9b445bf95480ecf684af975f9e7e4c7d3b8b3adc5d5f1398",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "thinking process",
+          "label": "thinking process",
+          "score": 0.04995033586331827,
+          "start": 156,
+          "end": 172,
+          "text": "thinking process",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "pkm space",
+          "label": "PKM space",
+          "score": 0.14571823832548778,
+          "start": 262,
+          "end": 271,
+          "text": "PKM space",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "sound",
+          "label": "sound",
+          "score": 0.17044196707299666,
+          "start": 229,
+          "end": 234,
+          "text": "sound",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "experiences",
+          "label": "experiences",
+          "score": 0.21811464566203717,
+          "start": 210,
+          "end": 221,
+          "text": "experiences",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "average",
+          "label": "average",
+          "score": 0.3827394409120013,
+          "start": 312,
+          "end": 319,
+          "text": "average",
+          "line": 4,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 354,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/%2B%20Encounters/sound%20sensory%20sensitivity.md",
+      "frequency": [
+        "sound",
+        "average",
+        "enjoyed",
+        "experiences",
+        "hope"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "thinking process",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "pkm space",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "sound",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "experiences",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "average",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "sound",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "average",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "enjoyed",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "experiences",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "hope",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-08",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Recognize there is a problem and seek solutions..md",
+      "source_sha256": "b8b4ecfd50a1d4baff4cdb89e8caff6bd03b63c130fbf0a5c8ec0ab86b10b38c",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "lyt kit",
+          "label": "LYT Kit",
+          "score": 0.004748624402272153,
+          "start": 47,
+          "end": 54,
+          "text": "LYT Kit",
+          "line": 1,
+          "provenance": "yake"
+        },
+        {
+          "key": "droids answers",
+          "label": "droids answers",
+          "score": 0.19613242932716538,
+          "start": 85,
+          "end": 101,
+          "text": "droids~~ answers",
+          "line": 1,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 204,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Recognize%20there%20is%20a%20problem%20and%20seek%20solutions..md",
+      "frequency": [
+        "answers",
+        "droids",
+        "interwebs",
+        "intrigued",
+        "just"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "lyt kit",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "droids answers",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "answers",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "droids",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "interwebs",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "intrigued",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "just",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-09",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Signal to Noise Ratio.md",
+      "source_sha256": "d1858b87eb75bef2d89c4f3b85b52d07096b29da8afdbf9f53a07acfcfeb079d",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "signal to noise ratio",
+          "label": "Signal to Noise Ratio",
+          "score": 0,
+          "start": 56,
+          "end": 77,
+          "text": "Signal to Noise Ratio",
+          "line": 4,
+          "provenance": "heading"
+        },
+        {
+          "key": "stuff",
+          "label": "stuff",
+          "score": 0.5969591345278488,
+          "start": 220,
+          "end": 225,
+          "text": "stuff",
+          "line": 8,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 253,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Signal%20to%20Noise%20Ratio.md",
+      "frequency": [
+        "doesn",
+        "good",
+        "just",
+        "mean",
+        "noise"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "signal to noise ratio",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "stuff",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "doesn",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "good",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "just",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "mean",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "noise",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-10",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Use it or Lose it.md",
+      "source_sha256": "1ad11684e5120a8c89928560fe9d3a8528856cd8e9a3f5914509d3d34d7d4863",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "use it or lose it",
+          "label": "Use it or Lose it",
+          "score": 0,
+          "start": 55,
+          "end": 72,
+          "text": "Use it or Lose it",
+          "line": 4,
+          "provenance": "heading"
+        },
+        {
+          "key": "selfish gene",
+          "label": "Selfish Gene",
+          "score": 0.001,
+          "start": 112,
+          "end": 124,
+          "text": "Selfish Gene",
+          "line": 5,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "habit formation",
+          "label": "Habit formation",
+          "score": 0.11131154445048982,
+          "start": 146,
+          "end": 161,
+          "text": "Habit formation",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "acting",
+          "label": "acting",
+          "score": 0.13331262590011725,
+          "start": 130,
+          "end": 136,
+          "text": "acting",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "evolutionary advantage",
+          "label": "evolutionary advantage",
+          "score": 0.23312090159253102,
+          "start": 174,
+          "end": 196,
+          "text": "evolutionary advantage",
+          "line": 5,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 508,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Use%20it%20or%20Lose%20it.md",
+      "frequency": [
+        "apply",
+        "does",
+        "acting",
+        "adjusting",
+        "advantage"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "use it or lose it",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "selfish gene",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "habit formation",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "acting",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "evolutionary advantage",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "apply",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "does",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "acting",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "adjusting",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "advantage",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-11",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Heterarchy.md",
+      "source_sha256": "c7f3af949b58ebe27886f786961e5f5b26c44f941305e38d31dda8c91c267d07",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "heterarchy",
+          "label": "Heterarchy",
+          "score": 0,
+          "start": 70,
+          "end": 80,
+          "text": "Heterarchy",
+          "line": 4,
+          "provenance": "heading"
+        },
+        {
+          "key": "lyt glossary",
+          "label": "LYT Glossary",
+          "score": 0.001,
+          "start": 317,
+          "end": 329,
+          "text": "LYT Glossary",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "system of organization",
+          "label": "system of organization",
+          "score": 0.01811237340152579,
+          "start": 128,
+          "end": 150,
+          "text": "system of organization",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "ranked a number",
+          "label": "ranked a number",
+          "score": 0.034033289348878164,
+          "start": 194,
+          "end": 209,
+          "text": "ranked a number",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "wikipedia",
+          "label": "Wikipedia",
+          "score": 0.14317121124439475,
+          "start": 230,
+          "end": 239,
+          "text": "Wikipedia",
+          "line": 5,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 331,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Heterarchy.md",
+      "frequency": [
+        "heterarchy",
+        "different",
+        "digital",
+        "example",
+        "glossary"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "heterarchy",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "lyt glossary",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "system of organization",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "ranked a number",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "wikipedia",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "heterarchy",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "different",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "digital",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "example",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "glossary",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-12",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Calendar/2022-11-21.md",
+      "source_sha256": "d95607d46220446ed72100ef13f621af7abffb97776da3f7275209ad62cf2db6",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "important action items",
+          "label": "important action items",
+          "score": 0.0029569280021228997,
+          "start": 28,
+          "end": 50,
+          "text": "important action items",
+          "line": 3,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 186,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Calendar/2022-11-21.md",
+      "frequency": [
+        "today",
+        "accomplished",
+        "action",
+        "big",
+        "grateful"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "important action items",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "today",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "accomplished",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "action",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "big",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "grateful",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-13",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/+ About Cards.md",
+      "source_sha256": "37e9675bb9f98ba27dc1224ab87dd131bdc7208969668e98baec01c0a09c3c15",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "apparently umami",
+          "label": "Apparently umami",
+          "score": 0.015243132259587655,
+          "start": 108,
+          "end": 124,
+          "text": "Apparently umami",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "basic tastes",
+          "label": "basic tastes",
+          "score": 0.03081585309360365,
+          "start": 144,
+          "end": 156,
+          "text": "basic tastes",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "favorite places",
+          "label": "favorite places",
+          "score": 0.035755609909095244,
+          "start": 68,
+          "end": 83,
+          "text": "favorite places",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "folder",
+          "label": "folder",
+          "score": 0.10323815515871533,
+          "start": 318,
+          "end": 324,
+          "text": "folder",
+          "line": 6,
+          "provenance": "yake"
+        },
+        {
+          "key": "oddball umami",
+          "label": "oddball Umami",
+          "score": 0.11785032020602565,
+          "start": 221,
+          "end": 234,
+          "text": "oddball Umami",
+          "line": 4,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 1523,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/%2B%20About%20Cards.md",
+      "frequency": [
+        "folder",
+        "umami",
+        "cards",
+        "exercises",
+        "kit"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "apparently umami",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "basic tastes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "favorite places",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "folder",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "oddball umami",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "folder",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "umami",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cards",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "exercises",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "kit",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-14",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Forcing Function.md",
+      "source_sha256": "a3d5889aada5bff40a219dc3c432fa5f588b9ff2d76341af7d2525502abfde5a",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "forcing function",
+          "label": "Forcing Function",
+          "score": 0,
+          "start": 58,
+          "end": 74,
+          "text": "Forcing Function",
+          "line": 4,
+          "provenance": "heading"
+        },
+        {
+          "key": "bowling ball",
+          "label": "bowling ball",
+          "score": 0.02326324916501521,
+          "start": 128,
+          "end": 140,
+          "text": "bowling ball",
+          "line": 6,
+          "provenance": "yake"
+        },
+        {
+          "key": "personal development",
+          "label": "personal development",
+          "score": 0.07748874287603529,
+          "start": 397,
+          "end": 417,
+          "text": "personal development",
+          "line": 13,
+          "provenance": "yake"
+        },
+        {
+          "key": "bumper guards",
+          "label": "bumper guards",
+          "score": 0.07767976069883807,
+          "start": 106,
+          "end": 119,
+          "text": "bumper guards",
+          "line": 6,
+          "provenance": "yake"
+        },
+        {
+          "key": "related keywords",
+          "label": "Related Keywords",
+          "score": 0.09943641013535229,
+          "start": 480,
+          "end": 496,
+          "text": "Related Keywords",
+          "line": 18,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 899,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Forcing%20Function.md",
+      "frequency": [
+        "forcing",
+        "function",
+        "behavior",
+        "bumper",
+        "common"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "forcing function",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "bowling ball",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "personal development",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "bumper guards",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "related keywords",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "forcing",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "function",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "behavior",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "bumper",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "common",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-15",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/The truest habit metaphors are additive - v1.md",
+      "source_sha256": "30e0b50b8da75191e3b1bbcdcb93e6c46e31230959e3916a0426ef66212251ec",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "additive",
+          "label": "additive",
+          "score": 0.05913300089332366,
+          "start": 131,
+          "end": 139,
+          "text": "additive",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "truest habit metaphors",
+          "label": "truest habit metaphors",
+          "score": 0.10079639717976581,
+          "start": 36,
+          "end": 58,
+          "text": "truest habit metaphors",
+          "line": 3,
+          "provenance": "yake"
+        },
+        {
+          "key": "subtractive",
+          "label": "subtractive",
+          "score": 0.1163879826112201,
+          "start": 160,
+          "end": 171,
+          "text": "Subtractive",
+          "line": 6,
+          "provenance": "yake"
+        },
+        {
+          "key": "truest metaphor",
+          "label": "truest metaphor",
+          "score": 0.17678156302910017,
+          "start": 456,
+          "end": 471,
+          "text": "truest metaphor",
+          "line": 12,
+          "provenance": "yake"
+        },
+        {
+          "key": "action",
+          "label": "action",
+          "score": 0.1809406637350073,
+          "start": 199,
+          "end": 205,
+          "text": "action",
+          "line": 7,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 1062,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/The%20truest%20habit%20metaphors%20are%20additive%20-%20v1.md",
+      "frequency": [
+        "additive",
+        "subtractive",
+        "action",
+        "connect",
+        "eventually"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "additive",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "truest habit metaphors",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "subtractive",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "truest metaphor",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "action",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "additive",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "subtractive",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "action",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "connect",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "eventually",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-16",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Reps.md",
+      "source_sha256": "5bd16c0676f4abb32221f72898d3bc4a30003c99cd722a15ee82892400cf68b5",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "reps",
+          "label": "Reps",
+          "score": 0,
+          "start": 169,
+          "end": 173,
+          "text": "Reps",
+          "line": 8,
+          "provenance": "heading"
+        },
+        {
+          "key": "cobwebs into cables",
+          "label": "Cobwebs into Cables",
+          "score": 0.001,
+          "start": 641,
+          "end": 660,
+          "text": "Cobwebs into Cables",
+          "line": 15,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "deliberate practice",
+          "label": "Deliberate Practice",
+          "score": 0.001,
+          "start": 861,
+          "end": 880,
+          "text": "Deliberate Practice",
+          "line": 17,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "actual note",
+          "label": "actual note",
+          "score": 0.020944084977529635,
+          "start": 106,
+          "end": 117,
+          "text": "actual note",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "sanitized version",
+          "label": "sanitized version",
+          "score": 0.05346193616186568,
+          "start": 82,
+          "end": 99,
+          "text": "sanitized version",
+          "line": 5,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 1266,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Reps.md",
+      "frequency": [
+        "reps",
+        "getting",
+        "note",
+        "craft",
+        "deliberate"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "reps",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cobwebs into cables",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "deliberate practice",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "actual note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "sanitized version",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "reps",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "getting",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "craft",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "deliberate",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-17",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Habits MOC - Gather.md",
+      "source_sha256": "4ee726864e37aa333e20f3c8efe4075cb7cd2d258879fdc492a8068cee6df79e",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "2013-03-10 habit planning",
+          "label": "2013-03-10 Habit Planning",
+          "score": 0.001,
+          "start": 678,
+          "end": 703,
+          "text": "2013-03-10 Habit Planning",
+          "line": 11,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "2019-01-25 resiliency routines",
+          "label": "2019-01-25 Resiliency Routines",
+          "score": 0.001,
+          "start": 829,
+          "end": 859,
+          "text": "2019-01-25 Resiliency Routines",
+          "line": 15,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "incubate your ideas",
+          "label": "incubate your ideas",
+          "score": 0.0365293161675598,
+          "start": 170,
+          "end": 190,
+          "text": "incubate* your ideas",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "gather phase",
+          "label": "Gather Phase",
+          "score": 0.041848860451710775,
+          "start": 73,
+          "end": 85,
+          "text": "Gather Phase",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "habits moc",
+          "label": "Habits MOC",
+          "score": 0.08046469448075175,
+          "start": 970,
+          "end": 980,
+          "text": "Habits MOC",
+          "line": 20,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 1046,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Habits%20MOC%20-%20Gather.md",
+      "frequency": [
+        "habits",
+        "habit",
+        "moc",
+        "new",
+        "notes"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "2013-03-10 habit planning",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "2019-01-25 resiliency routines",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "incubate your ideas",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "gather phase",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "habits moc",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "habits",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "habit",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "moc",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "new",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-18",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Home.md",
+      "source_sha256": "6f8e4201448219f8ef5af43d5dc4ee459a09721bfc33939e726c3c4158d0cf14",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "concepts moc",
+          "label": "Concepts MOC",
+          "score": 0.001,
+          "start": 376,
+          "end": 388,
+          "text": "Concepts MOC",
+          "line": 18,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "daily notes",
+          "label": "Daily Notes",
+          "score": 0.001,
+          "start": 275,
+          "end": 286,
+          "text": "Daily Notes",
+          "line": 13,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "efforts",
+          "label": "Efforts",
+          "score": 0.001,
+          "start": 425,
+          "end": 432,
+          "text": "Efforts",
+          "line": 20,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "finance moc",
+          "label": "Finance MOC",
+          "score": 0.001,
+          "start": 529,
+          "end": 540,
+          "text": "Finance MOC",
+          "line": 23,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "health moc",
+          "label": "Health MOC",
+          "score": 0.001,
+          "start": 510,
+          "end": 520,
+          "text": "Health MOC",
+          "line": 23,
+          "provenance": "wikilink"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 644,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Home.md",
+      "frequency": [
+        "moc",
+        "home",
+        "life",
+        "action",
+        "atlas"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "concepts moc",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "daily notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "efforts",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "finance moc",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "health moc",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "moc",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "home",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "life",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "action",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "atlas",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-19",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Charting out habit cycles in my life circa 2013.md",
+      "source_sha256": "470cef5c441dd9617533b64bc2136ecd81fe3a54040fb39af04b320d2aca8219",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "charting out habit",
+          "label": "Charting out habit",
+          "score": 0.018647436657576663,
+          "start": 53,
+          "end": 71,
+          "text": "Charting out habit",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "cues",
+          "label": "cues",
+          "score": 0.03506466977783253,
+          "start": 160,
+          "end": 164,
+          "text": "cues",
+          "line": 5,
+          "provenance": "yake"
+        },
+        {
+          "key": "day",
+          "label": "day",
+          "score": 0.043994290911590274,
+          "start": 612,
+          "end": 615,
+          "text": "day",
+          "line": 14,
+          "provenance": "yake"
+        },
+        {
+          "key": "prepare greek yogurt",
+          "label": "Prepare Greek Yogurt",
+          "score": 0.04489880962686117,
+          "start": 811,
+          "end": 831,
+          "text": "Prepare Greek Yogurt",
+          "line": 19,
+          "provenance": "yake"
+        },
+        {
+          "key": "lucia stance",
+          "label": "Lucia Stance",
+          "score": 0.05316438933353037,
+          "start": 1768,
+          "end": 1780,
+          "text": "Lucia Stance",
+          "line": 35,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 2831,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Charting%20out%20habit%20cycles%20in%20my%20life%20circa%202013.md",
+      "frequency": [
+        "day",
+        "cues",
+        "reward",
+        "routine",
+        "sense"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "charting out habit",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cues",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "day",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "prepare greek yogurt",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "lucia stance",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "day",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cues",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "reward",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "routine",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "sense",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-20",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Benefits of LYT frameworks.md",
+      "source_sha256": "42bea2b12988a3137a44b0473f404938d84fd9aae78463fdb225989241923de7",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "benefits of lyt frameworks",
+          "label": "Benefits of LYT frameworks",
+          "score": 0,
+          "start": 36,
+          "end": 62,
+          "text": "Benefits of LYT frameworks",
+          "line": 4,
+          "provenance": "heading"
+        },
+        {
+          "key": "cobwebs into cables",
+          "label": "Cobwebs into Cables",
+          "score": 0.001,
+          "start": 3235,
+          "end": 3254,
+          "text": "Cobwebs into Cables",
+          "line": 47,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "fluid frameworks",
+          "label": "Fluid Frameworks",
+          "score": 0.001,
+          "start": 631,
+          "end": 647,
+          "text": "Fluid Frameworks",
+          "line": 16,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "main maps",
+          "label": "main maps",
+          "score": 0.001,
+          "start": 1955,
+          "end": 1964,
+          "text": "main maps",
+          "line": 36,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "mocs overview",
+          "label": "MOCs Overview",
+          "score": 0.001,
+          "start": 1376,
+          "end": 1389,
+          "text": "MOCs Overview",
+          "line": 30,
+          "provenance": "wikilink"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 5292,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Benefits%20of%20LYT%20frameworks.md",
+      "frequency": [
+        "like",
+        "digital",
+        "note",
+        "home",
+        "maps"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "benefits of lyt frameworks",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cobwebs into cables",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "fluid frameworks",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "main maps",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "mocs overview",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "like",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "digital",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "home",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "maps",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-21",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Some Greek Allusions.md",
+      "source_sha256": "3123d15e00e851877695480b1a7a5765bd9359d74f63967b83eaae600e0b4680",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "some greek allusions",
+          "label": "Some Greek Allusions",
+          "score": 0,
+          "start": 152,
+          "end": 172,
+          "text": "Some Greek Allusions",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "cassandra",
+          "label": "Cassandra",
+          "score": 0.001,
+          "start": 677,
+          "end": 686,
+          "text": "Cassandra",
+          "line": 16,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "mnemosyne",
+          "label": "Mnemosyne",
+          "score": 0.001,
+          "start": 1199,
+          "end": 1208,
+          "text": "Mnemosyne",
+          "line": 21,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "actual note",
+          "label": "actual note",
+          "score": 0.011157906174709834,
+          "start": 89,
+          "end": 100,
+          "text": "actual note",
+          "line": 4,
+          "provenance": "yake"
+        },
+        {
+          "key": "sanitized version",
+          "label": "sanitized version",
+          "score": 0.0344179970270569,
+          "start": 65,
+          "end": 82,
+          "text": "sanitized version",
+          "line": 4,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 2625,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Some%20Greek%20Allusions.md",
+      "frequency": [
+        "love",
+        "named",
+        "god",
+        "greek",
+        "long"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "some greek allusions",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cassandra",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "mnemosyne",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "actual note",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "sanitized version",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "love",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "named",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "god",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "greek",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "long",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-22",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Conditions of Flow.md",
+      "source_sha256": "cb12db1bbb742d26e0026f715b5232f0eb2d38447d88c75185aca6b9297d471d",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "conditions of flow",
+          "label": "Conditions of Flow",
+          "score": 0,
+          "start": 29,
+          "end": 47,
+          "text": "Conditions of Flow",
+          "line": 3,
+          "provenance": "heading"
+        },
+        {
+          "key": "detailed conditions",
+          "label": "Detailed Conditions",
+          "score": 0.01873387220604662,
+          "start": 284,
+          "end": 303,
+          "text": "Detailed Conditions",
+          "line": 11,
+          "provenance": "yake"
+        },
+        {
+          "key": "enthusiasm",
+          "label": "Enthusiasm",
+          "score": 0.03613283841898617,
+          "start": 508,
+          "end": 518,
+          "text": "Enthusiasm",
+          "line": 14,
+          "provenance": "yake"
+        },
+        {
+          "key": "clear",
+          "label": "Clear",
+          "score": 0.04161332423286548,
+          "start": 151,
+          "end": 156,
+          "text": "Clear",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "mihaly",
+          "label": "Mihaly",
+          "score": 0.050512914888201546,
+          "start": 133,
+          "end": 139,
+          "text": "Mihaly",
+          "line": 5,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 2390,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Conditions%20of%20Flow.md",
+      "frequency": [
+        "flow",
+        "clear",
+        "conditions",
+        "direction",
+        "enthusiasm"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "conditions of flow",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "detailed conditions",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "enthusiasm",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "clear",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "mihaly",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "flow",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "clear",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "conditions",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "direction",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "enthusiasm",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-23",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Atlas/Habits MOC.md",
+      "source_sha256": "6ef17646316ffce8da70281ee77071bedd46970442d8dcfdedb813754859fd98",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "habits moc",
+          "label": "Habits MOC",
+          "score": 0,
+          "start": 863,
+          "end": 873,
+          "text": "Habits MOC",
+          "line": 18,
+          "provenance": "heading"
+        },
+        {
+          "key": "cobwebs into cables",
+          "label": "Cobwebs into Cables",
+          "score": 0.001,
+          "start": 2141,
+          "end": 2160,
+          "text": "Cobwebs into Cables",
+          "line": 51,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "defining a habit",
+          "label": "Defining a habit",
+          "score": 0.001,
+          "start": 977,
+          "end": 993,
+          "text": "Defining a habit",
+          "line": 22,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "feedback loop",
+          "label": "Feedback Loop",
+          "score": 0.001,
+          "start": 2101,
+          "end": 2114,
+          "text": "Feedback Loop",
+          "line": 50,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "flywheel effect",
+          "label": "Flywheel Effect",
+          "score": 0.001,
+          "start": 2266,
+          "end": 2281,
+          "text": "Flywheel Effect",
+          "line": 53,
+          "provenance": "wikilink"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 3301,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Atlas/Habits%20MOC.md",
+      "frequency": [
+        "habits",
+        "habit",
+        "important",
+        "notes",
+        "like"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "habits moc",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "cobwebs into cables",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "defining a habit",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "feedback loop",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "flywheel effect",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "habits",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "habit",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "important",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "notes",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "like",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-24",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Cards/Flow Map.md",
+      "source_sha256": "38e0abc49950e44c95ea21251bc5719334390d1b69bf0c8636bb2358406364af",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": true,
+      "yake": [
+        {
+          "key": "flow map",
+          "label": "Flow Map",
+          "score": 0,
+          "start": 89,
+          "end": 97,
+          "text": "Flow Map",
+          "line": 5,
+          "provenance": "heading"
+        },
+        {
+          "key": "conditions of flow",
+          "label": "Conditions of Flow",
+          "score": 0.001,
+          "start": 867,
+          "end": 885,
+          "text": "Conditions of Flow",
+          "line": 16,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "flowcreation theory",
+          "label": "FlowCreation Theory",
+          "score": 0.001,
+          "start": 891,
+          "end": 910,
+          "text": "FlowCreation Theory",
+          "line": 16,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "mihaly csikszentmihalyi",
+          "label": "Mihaly Csikszentmihalyi",
+          "score": 0.022799223663186166,
+          "start": 122,
+          "end": 145,
+          "text": "Mihaly Csikszentmihalyi",
+          "line": 6,
+          "provenance": "yake"
+        },
+        {
+          "key": "state of mind",
+          "label": "state of mind",
+          "score": 0.02981241649796771,
+          "start": 819,
+          "end": 832,
+          "text": "state of mind",
+          "line": 16,
+          "provenance": "yake"
+        }
+      ],
+      "in_existing_model_proxy": true,
+      "bytes": 2191,
+      "source_url": "https://github.com/thebrianbug/LYT-Kit/blob/e191473fcb326df78cca8a6c49b29420ab318e46/Cards/Flow%20Map.md",
+      "frequency": [
+        "flow",
+        "map",
+        "mind",
+        "state",
+        "theory"
+      ],
+      "frequency_provenance": "Retained current-revision CI quality probe.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": false,
+      "predictions": {
+        "yake": [
+          {
+            "label": "flow map",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "conditions of flow",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "flowcreation theory",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "mihaly csikszentmihalyi",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "state of mind",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ],
+        "frequency": [
+          {
+            "label": "flow",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "map",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "mind",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "state",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          },
+          {
+            "label": "theory",
+            "useful": null,
+            "covers_expected_groups": null,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "lyt/sample-25",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Extras/Templates/Template, Daily Note (kit).md",
+      "source_sha256": "65b247c01fe616e0d2098f731846b18a4647f23479b12083ac5f4a36630f8f0f",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "excluded",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": false,
+      "yake": [],
+      "in_existing_model_proxy": false,
+      "bytes": null,
+      "source_url": null,
+      "frequency": null,
+      "frequency_provenance": "Not run: excluded before extraction. Source body is not used by this packet.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": null,
+      "predictions": {
+        "yake": [],
+        "frequency": null
+      }
+    },
+    {
+      "id": "lyt/sample-26",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Extras/Templates/Template, Dates dates dates (kit).md",
+      "source_sha256": "0e07db1a49e7e186f1086cee0c2a8d716bc334f3f3da1edbe9a4f223fd586614",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "excluded",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": false,
+      "yake": [],
+      "in_existing_model_proxy": false,
+      "bytes": null,
+      "source_url": null,
+      "frequency": null,
+      "frequency_provenance": "Not run: excluded before extraction. Source body is not used by this packet.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": null,
+      "predictions": {
+        "yake": [],
+        "frequency": null
+      }
+    },
+    {
+      "id": "lyt/sample-27",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Extras/Templates/Template, Meeting (kit).md",
+      "source_sha256": "1a4cde5a826ef5f0cf10a84b2d8d4894ef8b5290a0dbfb87a232ea96caa67586",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "excluded",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": false,
+      "yake": [],
+      "in_existing_model_proxy": false,
+      "bytes": null,
+      "source_url": null,
+      "frequency": null,
+      "frequency_provenance": "Not run: excluded before extraction. Source body is not used by this packet.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": null,
+      "predictions": {
+        "yake": [],
+        "frequency": null
+      }
+    },
+    {
+      "id": "lyt/sample-28",
+      "corpus": "lyt-kit-mirror",
+      "source_path": "Extras/Templates/Template, Note (kit).md",
+      "source_sha256": "d41b81254b6dd08ea7710a57a7619553d5dc78b5db1b45c369c8fec8cb6085e4",
+      "source_repository": "thebrianbug/LYT-Kit",
+      "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "state": {
+        "status": "excluded",
+        "error": null
+      },
+      "state_provenance": "Stored TopicIndex in full-corpus CI replay.",
+      "review_required": false,
+      "yake": [],
+      "in_existing_model_proxy": false,
+      "bytes": null,
+      "source_url": null,
+      "frequency": null,
+      "frequency_provenance": "Not run: excluded before extraction. Source body is not used by this packet.",
+      "expected_groups": null,
+      "missed_subjects": null,
+      "useful_phrase_variants": null,
+      "source_uncertainty": null,
+      "review_complete": null,
+      "predictions": {
+        "yake": [],
+        "frequency": null
+      }
+    }
+  ]
+}
