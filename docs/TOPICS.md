@@ -1,0 +1,67 @@
+# Automatic derived topics
+
+Normal vault sync extracts up to five English topic labels per eligible note or
+dated entry using local YAKE, short primary headings, and visible wikilink names.
+Topics and exact evidence live in SQLite, separate from authored tags; Markdown
+and frontmatter are never rewritten. Schema v16 migrates automatically.
+
+```
+geistfabrik topics /path/to/vault
+geistfabrik topics /path/to/vault --note '[[My note]]' --json
+geistfabrik topics /path/to/vault --topic 'paper folding'
+geistfabrik topics /path/to/vault --rebuild
+```
+
+Exit 0 means complete, 1 command error, 2 incomplete. Incomplete corpus queries
+return unavailable counts/memberships rather than false zeroes. Empty successful
+extraction remains distinct from pending/error/excluded work. Failed physical
+sources are recorded even when parsing could not create a note row. Unreadable
+directory traversal aborts sync and preserves the previous database; it cannot
+publish an empty complete index. Diagnostics
+use stderr so JSON stdout remains readable. Inspection loads no embedding model
+or user plugins.
+
+VaultContext exposes `topics_for_note`, `topic_state`, `notes_for_topic`, and
+`topic_catalog`. Metadata contains `derived_topics` and `derived_topics_status`.
+Tracery functions `note_topics(note)` return label text and `topic_notes(topic,
+count=5)` return deterministically sampled, bracketed links. Suggestions retain
+the existing sampling, filtering, preview, and explicit `--write` controls.
+
+Keys normalize Unicode, case and whitespace only; no stemming, semantic merging,
+public-topic threshold, corpus frequency floor, or popularity ranking. Singleton
+topics remain valid. Scores rank labels, not provocations, and are not calibrated
+probabilities. Five is a maximum, not a quota: a large relative score gap can
+exclude weak standalone words; explicit labels and multiword phrases remain
+eligible under their own evidence rules. This policy is corpus-independent and
+permits isolated subjects.
+Membership is textual evidence, never stance, emotion or intention.
+
+Statistical candidates also pass a local English grammar guard using packaged
+TextBlob rules and data-free NLTK tokenizers. It can reject clause fragments while
+preserving authored priors, isolated subjects and nominal outlines. It keeps
+uncertain alignments and reports model failures through the existing incomplete
+handling. Typographic scoring copies do not rewrite source evidence or merge
+topic identities. Grammar is a heuristic: useful subjects can be missed and
+noun-like boilerplate can remain. Complete means extraction finished, not that
+every meaningful subject was found. See the [repair decisions](TOPIC_QUALITY_REPAIR.md).
+
+Frontmatter, code, comments, transclusions, authored tags, link destinations and
+reference metadata and hidden HTML bodies are excluded using parser-owned spans.
+Property-only paragraphs such as `up:: ...` or `tags:: ...` are structural metadata,
+including their visible link values. Headings, code, namespace expressions and
+mixed prose remain distinct document roles; no property-name stoplist is used.
+Visible link wording remains continuous with surrounding prose. Structurally
+ambiguous comment processing is bounded at 32 reparses and reports an error when
+that work limit is exhausted. Shared source boundaries (including Templates/),
+configured prefixes, the geist journal and managed-state directory are excluded
+before extraction/counts even when
+suggestion boundary filtering is disabled. Logical, dated-entry and resolved
+physical identities must all be eligible, including cached reads after reopen.
+Raw inputs over 100,000 characters
+produce explicit errors, never silently truncated labels. Content/parser/extractor/
+settings/boundary and packaged grammar-data changes invalidate cached results;
+edits and deletions reconcile
+memberships during normal sync. Related reads share one database snapshot.
+
+See [verification status](TOPICS_VERIFICATION.md) and the
+[guiding principles](../specs/TOPIC_EVIDENCE_SPEC.md).

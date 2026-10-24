@@ -1,0 +1,593 @@
+{
+  "description": "Source-first model proxy on the preselected LYT mirror sample. Not owner judgments or a production-quality estimate. No threshold or existing oracle change.",
+  "provenance": {
+    "annotation_author": "OpenAI model",
+    "human_reviewed": false,
+    "extractor_implementation_inspected": true,
+    "extractor_output_inspected": false,
+    "source_repository": "thebrianbug/LYT-Kit",
+    "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+    "selection_policy": "Frozen length-stratified path-hash sample before prediction inspection.",
+    "annotation_policy": "Observe source subjects and useful secondary labels. Author property/tag lines, navigation-only metadata, generic instructions and hidden/non-prose content are not topical evidence. Phrase alternatives must remain supported by visible wording. Exact-label scoring is a proxy; preserve uncertain and excluded cases separately."
+  },
+  "limit": 5,
+  "minimum_precision": 0.5,
+  "minimum_recall": 0.6,
+  "notes": [
+    {
+      "id": "lyt-01",
+      "source_path": "Calendar/2023-04-22.md",
+      "source_sha256": "6af7584bf7f4eca1d38e9547e819c0ad91132cfe9648a8a5e644a387b82c1ca0",
+      "stratum": "empty-short",
+      "expected": [
+        [
+          "custom PKM universe",
+          "PKM universe",
+          "PKM"
+        ]
+      ],
+      "acceptable": [
+        "custom PKM universe",
+        "PKM universe",
+        "PKM",
+        "Kayne"
+      ]
+    },
+    {
+      "id": "lyt-02",
+      "source_path": "Cards/Sense of Control.md",
+      "source_sha256": "10bc483755c1a6029b787cddc9e7894cdb3ecd7903d7a6f28f12de629933a64f",
+      "stratum": "empty-short",
+      "expected": [
+        [
+          "Sense of Control"
+        ]
+      ],
+      "acceptable": [
+        "Sense of Control"
+      ]
+    },
+    {
+      "id": "lyt-03",
+      "source_path": "+ Encounters/English Language MOC.md",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stratum": "empty-short",
+      "expected": [],
+      "acceptable": []
+    },
+    {
+      "id": "lyt-04",
+      "source_path": "+ Encounters/LOL.md",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stratum": "empty-short",
+      "expected": [],
+      "acceptable": []
+    },
+    {
+      "id": "lyt-05",
+      "source_path": "Cards/Folgezettel - 100a.1a But Also How It.md",
+      "source_sha256": "9bd27357938211ddfeb813e504e6fb1c9f3d85fd3ff26e22a882d3bd06a39cf2",
+      "stratum": "empty-short",
+      "expected": [
+        [
+          "Folgezettel"
+        ]
+      ],
+      "acceptable": [
+        "Folgezettel"
+      ]
+    },
+    {
+      "id": "lyt-06",
+      "source_path": "+ Encounters/sound sensory sensitivity.md",
+      "source_sha256": "c5d03e3aaeb4151a9b445bf95480ecf684af975f9e7e4c7d3b8b3adc5d5f1398",
+      "stratum": "short",
+      "expected": [
+        [
+          "sound",
+          "sensitive to sound",
+          "sensory quietness"
+        ]
+      ],
+      "acceptable": [
+        "sound",
+        "sensitive to sound",
+        "sensory quietness",
+        "thinking process",
+        "PKM space",
+        "sound radars",
+        "PKM"
+      ]
+    },
+    {
+      "id": "lyt-07",
+      "source_path": "Cards/Recognize there is a problem and seek solutions..md",
+      "source_sha256": "b8b4ecfd50a1d4baff4cdb89e8caff6bd03b63c130fbf0a5c8ec0ab86b10b38c",
+      "stratum": "short",
+      "expected": [
+        [
+          "LYT Kit"
+        ]
+      ],
+      "acceptable": [
+        "LYT Kit",
+        "answers",
+        "learn more"
+      ]
+    },
+    {
+      "id": "lyt-08",
+      "source_path": "Cards/Signal to Noise Ratio.md",
+      "source_sha256": "d1858b87eb75bef2d89c4f3b85b52d07096b29da8afdbf9f53a07acfcfeb079d",
+      "stratum": "short",
+      "expected": [
+        [
+          "Signal to Noise Ratio",
+          "signal",
+          "noise"
+        ]
+      ],
+      "acceptable": [
+        "Signal to Noise Ratio",
+        "signal",
+        "noise"
+      ]
+    },
+    {
+      "id": "lyt-09",
+      "source_path": "Cards/Use it or Lose it.md",
+      "source_sha256": "1ad11684e5120a8c89928560fe9d3a8528856cd8e9a3f5914509d3d34d7d4863",
+      "stratum": "short",
+      "expected": [
+        [
+          "habit formation",
+          "Habit formation provides an evolutionary advantage"
+        ],
+        [
+          "spaced repetition",
+          "strength training"
+        ]
+      ],
+      "acceptable": [
+        "habit formation",
+        "Habit formation provides an evolutionary advantage",
+        "spaced repetition",
+        "strength training",
+        "Use it or Lose it",
+        "Selfish Gene",
+        "evolutionary advantage",
+        "habit",
+        "habits"
+      ]
+    },
+    {
+      "id": "lyt-10",
+      "source_path": "Cards/Heterarchy.md",
+      "source_sha256": "c7f3af949b58ebe27886f786961e5f5b26c44f941305e38d31dda8c91c267d07",
+      "stratum": "short",
+      "expected": [
+        [
+          "Heterarchy"
+        ]
+      ],
+      "acceptable": [
+        "Heterarchy",
+        "unranked",
+        "non-hierarchical",
+        "system of organization",
+        "digital library",
+        "MOCs"
+      ]
+    },
+    {
+      "id": "lyt-11",
+      "source_path": "Calendar/2022-11-21.md",
+      "source_sha256": "d95607d46220446ed72100ef13f621af7abffb97776da3f7275209ad62cf2db6",
+      "stratum": "short",
+      "expected": [],
+      "acceptable": []
+    },
+    {
+      "id": "lyt-12",
+      "source_path": "Cards/+ About Cards.md",
+      "source_sha256": "37e9675bb9f98ba27dc1224ab87dd131bdc7208969668e98baec01c0a09c3c15",
+      "stratum": "medium",
+      "expected": [
+        [
+          "cards",
+          "cards folder"
+        ]
+      ],
+      "acceptable": [
+        "cards",
+        "cards folder",
+        "knowledge",
+        "insights and ideas",
+        "concepts and connections",
+        "umami",
+        "digital library"
+      ]
+    },
+    {
+      "id": "lyt-13",
+      "source_path": "Cards/Forcing Function.md",
+      "source_sha256": "a3d5889aada5bff40a219dc3c432fa5f588b9ff2d76341af7d2525502abfde5a",
+      "stratum": "medium",
+      "expected": [
+        [
+          "Forcing Function",
+          "forcing function"
+        ],
+        [
+          "behavior-shaping constraint",
+          "behavioral constraint",
+          "poka-yoke"
+        ]
+      ],
+      "acceptable": [
+        "Forcing Function",
+        "forcing function",
+        "behavior-shaping constraint",
+        "behavioral constraint",
+        "poka-yoke",
+        "error-tolerant design",
+        "personal development",
+        "interaction design",
+        "guard rails",
+        "training wheels",
+        "bumper guards",
+        "error",
+        "errors"
+      ]
+    },
+    {
+      "id": "lyt-14",
+      "source_path": "Cards/The truest habit metaphors are additive - v1.md",
+      "source_sha256": "30e0b50b8da75191e3b1bbcdcb93e6c46e31230959e3916a0426ef66212251ec",
+      "stratum": "medium",
+      "expected": [
+        [
+          "habit formation",
+          "habits"
+        ],
+        [
+          "additive",
+          "additive and subtractive"
+        ]
+      ],
+      "acceptable": [
+        "habit formation",
+        "habits",
+        "additive",
+        "additive and subtractive",
+        "metaphor",
+        "metaphors",
+        "neurons",
+        "dendrites",
+        "spines",
+        "subtractive"
+      ]
+    },
+    {
+      "id": "lyt-15",
+      "source_path": "Cards/Reps.md",
+      "source_sha256": "5bd16c0676f4abb32221f72898d3bc4a30003c99cd722a15ee82892400cf68b5",
+      "stratum": "medium",
+      "expected": [
+        [
+          "Reps",
+          "repetitions"
+        ],
+        [
+          "Deliberate Practice"
+        ]
+      ],
+      "acceptable": [
+        "Reps",
+        "repetitions",
+        "Deliberate Practice",
+        "learning",
+        "improving",
+        "neural pathways",
+        "craft",
+        "Reps from questions",
+        "technical reps"
+      ]
+    },
+    {
+      "id": "lyt-16",
+      "source_path": "Cards/Habits MOC - Gather.md",
+      "source_sha256": "4ee726864e37aa333e20f3c8efe4075cb7cd2d258879fdc492a8068cee6df79e",
+      "stratum": "medium",
+      "expected": [
+        [
+          "Habits MOC",
+          "habits"
+        ],
+        [
+          "Gather Phase",
+          "gather",
+          "gathered"
+        ]
+      ],
+      "acceptable": [
+        "Habits MOC",
+        "habits",
+        "Gather Phase",
+        "gather",
+        "gathered",
+        "MOCs",
+        "digital workbench",
+        "workbench",
+        "curate",
+        "ideas",
+        "Habit Formation Research Article",
+        "Habit Concepts and Theory",
+        "Atomic Habits"
+      ]
+    },
+    {
+      "id": "lyt-17",
+      "source_path": "Home.md",
+      "source_sha256": "6f8e4201448219f8ef5af43d5dc4ee459a09721bfc33939e726c3c4158d0cf14",
+      "stratum": "medium",
+      "expected": [
+        [
+          "Home",
+          "home base"
+        ],
+        [
+          "Sensemaking",
+          "Main Sensemaking"
+        ]
+      ],
+      "acceptable": [
+        "Home",
+        "home base",
+        "Sensemaking",
+        "Main Sensemaking",
+        "Atlas",
+        "Thinking MOC",
+        "Daily Notes",
+        "Concepts MOC",
+        "Plan and Review",
+        "Life Map",
+        "Library",
+        "People MOC",
+        "Sources MOC",
+        "Health MOC",
+        "Finance MOC",
+        "LYT Kit",
+        "Meta PKM"
+      ]
+    },
+    {
+      "id": "lyt-18",
+      "source_path": "Cards/Charting out habit cycles in my life circa 2013.md",
+      "source_sha256": "470cef5c441dd9617533b64bc2136ecd81fe3a54040fb39af04b320d2aca8219",
+      "stratum": "long",
+      "expected": [
+        [
+          "habit cycles",
+          "habitual cues"
+        ]
+      ],
+      "acceptable": [
+        "habit cycles",
+        "habitual cues",
+        "Mini Workout",
+        "Workout",
+        "Breakfast",
+        "Reflect and Plan",
+        "Stretch",
+        "Yoga Stretch",
+        "Visualization",
+        "Routine",
+        "Cues",
+        "Reward",
+        "self-control",
+        "Lucia Stance",
+        "willpower",
+        "sense of purpose",
+        "priorities and energy",
+        "Journal"
+      ]
+    },
+    {
+      "id": "lyt-19",
+      "source_path": "Cards/Benefits of LYT frameworks.md",
+      "source_sha256": "42bea2b12988a3137a44b0473f404938d84fd9aae78463fdb225989241923de7",
+      "stratum": "long",
+      "expected": [
+        [
+          "LYT frameworks",
+          "LYT framework",
+          "fluid frameworks"
+        ],
+        [
+          "Maps of Content",
+          "Home note"
+        ]
+      ],
+      "acceptable": [
+        "LYT frameworks",
+        "LYT framework",
+        "fluid frameworks",
+        "Maps of Content",
+        "Home note",
+        "note retrieval",
+        "digital library",
+        "memory",
+        "spatial context",
+        "reliability",
+        "flexibility",
+        "conceptual thinking",
+        "classification system",
+        "relational",
+        "positional thinking"
+      ]
+    },
+    {
+      "id": "lyt-20",
+      "source_path": "Cards/Some Greek Allusions.md",
+      "source_sha256": "3123d15e00e851877695480b1a7a5765bd9359d74f63967b83eaae600e0b4680",
+      "stratum": "long",
+      "expected": [
+        [
+          "Greek Allusions",
+          "Greek Gods"
+        ]
+      ],
+      "acceptable": [
+        "Greek Allusions",
+        "Greek Gods",
+        "allusions",
+        "Greek",
+        "Achilles",
+        "Adonis",
+        "Apollo",
+        "Cassandra",
+        "Erotic",
+        "Harpy",
+        "Helen",
+        "Morphine",
+        "Muse",
+        "Mnemosyne",
+        "Narcissism",
+        "Odyssey",
+        "Pandora",
+        "Phoenix",
+        "Psyche",
+        "Pygmalion",
+        "Sibyl",
+        "Tantalize",
+        "Titanic",
+        "Volcanoes"
+      ]
+    },
+    {
+      "id": "lyt-21",
+      "source_path": "Cards/Conditions of Flow.md",
+      "source_sha256": "cb12db1bbb742d26e0026f715b5232f0eb2d38447d88c75185aca6b9297d471d",
+      "stratum": "long",
+      "expected": [
+        [
+          "Conditions of Flow",
+          "flow"
+        ],
+        [
+          "Clear proximal goals",
+          "Clear and immediate feedback",
+          "challenge and skill"
+        ]
+      ],
+      "acceptable": [
+        "Conditions of Flow",
+        "flow",
+        "Clear proximal goals",
+        "Clear and immediate feedback",
+        "challenge and skill",
+        "Direction",
+        "Enthusiasm",
+        "Attention",
+        "Energy",
+        "Balancing Challenge and Skill",
+        "Four Factors of Flow",
+        "feedback",
+        "goals",
+        "challenge",
+        "skill"
+      ]
+    },
+    {
+      "id": "lyt-22",
+      "source_path": "Atlas/Habits MOC.md",
+      "source_sha256": "6ef17646316ffce8da70281ee77071bedd46970442d8dcfdedb813754859fd98",
+      "stratum": "long",
+      "expected": [
+        [
+          "Habits MOC",
+          "habits"
+        ],
+        [
+          "habit design",
+          "Designing Habits",
+          "Understanding Habits"
+        ]
+      ],
+      "acceptable": [
+        "Habits MOC",
+        "habits",
+        "habit design",
+        "Designing Habits",
+        "Understanding Habits",
+        "habit cycle",
+        "habitual cues",
+        "Sense of Control",
+        "Feedback Loop",
+        "Reps",
+        "Selfish Gene",
+        "Natural Selection",
+        "Survival of the Fittest",
+        "Flywheel Effect",
+        "Journaling",
+        "mental clarity",
+        "routine"
+      ]
+    },
+    {
+      "id": "lyt-23",
+      "source_path": "Cards/Flow Map.md",
+      "source_sha256": "38e0abc49950e44c95ea21251bc5719334390d1b69bf0c8636bb2358406364af",
+      "stratum": "long",
+      "expected": [
+        [
+          "Flow Map",
+          "Flow"
+        ],
+        [
+          "Challenge",
+          "Skill"
+        ]
+      ],
+      "acceptable": [
+        "Flow Map",
+        "Flow",
+        "Challenge",
+        "Skill",
+        "Conditions of Flow",
+        "FlowCreation Theory",
+        "State of Mind",
+        "state of mind",
+        "optimal experience",
+        "Flow Theory",
+        "Mihaly",
+        "Mihaly Csikszentmihalyi"
+      ]
+    }
+  ],
+  "unscored_cases": [
+    {
+      "source_path": "Calendar/2020-06-01.md",
+      "reason": "Underspecified diary question; no clear named subject in its prose. Preserve for human adjudication instead of inventing a required topic."
+    }
+  ],
+  "excluded_controls": [
+    {
+      "source_path": "Extras/Templates/Template, Daily Note (kit).md",
+      "required_state": "excluded"
+    },
+    {
+      "source_path": "Extras/Templates/Template, Dates dates dates (kit).md",
+      "required_state": "excluded"
+    },
+    {
+      "source_path": "Extras/Templates/Template, Meeting (kit).md",
+      "required_state": "excluded"
+    },
+    {
+      "source_path": "Extras/Templates/Template, Note (kit).md",
+      "required_state": "excluded"
+    }
+  ]
+}

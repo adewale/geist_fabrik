@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build and verify release artifacts in isolation, including real offline inference.
 set -euo pipefail
+export UV_LOCKED=1
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 if [ -n "${PACKAGE_SMOKE_WORKDIR:-}" ]; then
@@ -29,8 +30,8 @@ SDIST=$(find "$DIST" -maxdepth 1 -name '*.tar.gz' -print -quit)
 export GEISTFABRIK_WHEEL="$WHEEL"
 export GEISTFABRIK_SDIST="$SDIST"
 
-uv run pytest tests/artifact/test_wheel_artifact.py -v --timeout=300
-uv run twine check "$WHEEL" "$SDIST"
+uv run --frozen pytest tests/artifact/test_wheel_artifact.py -v --timeout=300
+uv run --frozen twine check "$WHEEL" "$SDIST"
 
 printf 'wheel: %s bytes (%s)\n' "$(stat -f%z "$WHEEL" 2>/dev/null || stat -c%s "$WHEEL")" "$WHEEL"
 printf 'sdist: %s bytes (%s)\n' "$(stat -f%z "$SDIST" 2>/dev/null || stat -c%s "$SDIST")" "$SDIST"
@@ -42,7 +43,7 @@ SOURCE_ROOT=$(find "$WORK/sdist-source" -mindepth 1 -maxdepth 1 -type d -print -
 uv build --wheel "$SOURCE_ROOT" --out-dir "$WORK/rebuilt"
 export GEISTFABRIK_WHEEL
 GEISTFABRIK_WHEEL=$(find "$WORK/rebuilt" -maxdepth 1 -name '*.whl' -print -quit)
-uv run pytest tests/artifact/test_wheel_artifact.py -v --timeout=300
+uv run --frozen pytest tests/artifact/test_wheel_artifact.py -v --timeout=300
 
 # Install only the built wheel into a fresh environment and run away from the checkout.
 VENV="$WORK/wheel-venv"

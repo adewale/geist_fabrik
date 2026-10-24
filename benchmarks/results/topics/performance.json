@@ -1,0 +1,24 @@
+[
+  {
+    "corpus": "synthetic repeated short prose",
+    "notes": 100,
+    "characters_per_note": 141,
+    "cold_sync_seconds": 0.3007344920000037,
+    "warm_sync_seconds": 0.0340356510000106,
+    "catalog_seconds": 0.001443913999992219,
+    "positive_lookup_seconds": 0.0010289580000062415,
+    "matches": 100,
+    "vocabulary": 5
+  },
+  {
+    "corpus": "synthetic repeated short prose",
+    "notes": 1000,
+    "characters_per_note": 141,
+    "cold_sync_seconds": 3.029045778000011,
+    "warm_sync_seconds": 0.33088050599999974,
+    "catalog_seconds": 0.013130047000004197,
+    "positive_lookup_seconds": 0.009875649999997904,
+    "matches": 1000,
+    "vocabulary": 5
+  }
+]

@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Automatic local YAKE topic extraction, derived tags and source evidence in SQLite.
+  Inspect with `geistfabrik topics`; query through VaultContext and Tracery.
+- Schema v16 migrates automatically and additively. Source notes and authored tags
+  remain unchanged; extraction/source errors explicitly block complete corpus queries.
+
+
 ### Changed
+- Topic indexing now shares source eligibility, persists physical provenance,
+  preserves discovery failures, and rejects hidden Markdown/HTML metadata.
+  Validation enforces the committed dependency lock and frozen quality gates.
 - Schema v15 retains captured evidence across operational pauses and extraction
   changes, establishes confirmed baselines on resume, and captures newly seen
   notes after bootstrap. Disabled word-burst geists skip lexical indexing.

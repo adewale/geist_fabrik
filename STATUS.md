@@ -1,7 +1,7 @@
 # GeistFabrik Implementation Status
 
 **Last Updated**: 2026-10-21
-**Version**: 0.11.0 (Beta, Schema v15)
+**Version**: 0.11.0 (Beta, Schema v16)
 **Overall Progress**: Release-candidate hardening
 
 ---
@@ -14,7 +14,7 @@
 | **Source inventory** | Derived from the tree; avoid freezing counts in documentation |
 | **Type Checking** | Mypy strict |
 | **Linting** | Ruff |
-| **Database Schema** | v15 (retained lexical policies, pending baselines and resumable analysis) |
+| **Database Schema** | v16 (derived topics and source evidence; retained lexical history) |
 | **Default Geists** | Bundled in `src/geistfabrik/default_geists/`; counts come from `geistfabrik.default_geists` |
 | **Example Modules** | Code and Tracery geists, metadata modules and vault functions - examples/ |
 
@@ -89,9 +89,11 @@ geist_fabrik/
 
 ### Database Schema
 
-**Current Version**: v15
+**Current Version**: v16
 
 **Tables**:
+- `topics`, `note_topics`, `note_topic_state` - Rebuildable derived labels and exact evidence
+- `topic_source_errors`, `topic_source_identity` - Explicit failures and physical source boundaries
 - `notes` - Note content, metadata, timestamps
 - `links` - Wikilinks between notes (with composite index)
 - `tags` - Tag assignments

@@ -1,0 +1,28 @@
+{
+  "runtime_source_commit": "427afee5a4c7ae5df044441f4f105c288a75c671",
+  "measured_git_commit": "427afee5a4c7ae5df044441f4f105c288a75c671",
+  "source_files_sha256": {
+    "src/geistfabrik/topics.py": "f62b28eb130cfba3b8a639e8af440bdc8b35f93307c5a318b42f0a96d57ac89b",
+    "src/geistfabrik/topic_text.py": "6b11ca0ea56b0499222ac5693a68ac3b677c7fb737c9a4ae217ccb729828b217",
+    "src/geistfabrik/topic_grammar.py": "9b2fe0bbfab6b775f6eb9eb8a4f99a115d057a9922d851f9d67805b16251b1dc",
+    "src/geistfabrik/vault.py": "5a3e45c24efc76e55e3a36d9c72e2b95e9cae39f639f77ee9766e0302207f473",
+    "scripts/benchmark_topic_corpora.py": "d55fadcd3e53ae20037b6de352460ba44a8854d3e7b579ad1d33e1f0de14c327",
+    "scripts/generate_temporal_corpus.py": "093d61a17b950a65029f7c1f0f8249544a743ce897f9c4045b988df2548a0356",
+    "scripts/generate_narrative_corpus.py": "52ab3270898e028647c3365e550b0130775483bb37c9f2947cca2b2e40c54724"
+  },
+  "python": "3.12.15",
+  "sqlite": "3.45.1",
+  "yake": "0.7.3",
+  "markdown_it": "4.2.0",
+  "textblob": "0.19.0",
+  "manifest_sha256": "1493edf23093f3eedf60a8715d742a94b78f2cb392ca61af49d51b842b8a7da1",
+  "limitation": "Functional/scale evidence and unrated authored-note samples; not human usefulness ratings.",
+  "reports": [
+    "narrative-mara-v1.json",
+    "temporal-smoke.json",
+    "temporal-standard.json",
+    "temporal-large.json",
+    "original-10000.json",
+    "lyt-kit-mirror.json"
+  ]
+}

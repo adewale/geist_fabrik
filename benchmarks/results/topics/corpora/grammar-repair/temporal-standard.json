@@ -1,0 +1,1604 @@
+{
+  "corpus": {
+    "name": "temporal-standard",
+    "origin_pr": 97,
+    "generator": "scripts/generate_temporal_corpus.py",
+    "initial_notes": 1000,
+    "snapshots": 32,
+    "provenance": "Synthetic planted topics and dates."
+  },
+  "source_checkout_commit": null,
+  "lexical_capture_enabled": false,
+  "snapshots": [
+    {
+      "seconds": 7.367577592999993,
+      "raw_processed": 1011,
+      "topic_extractions": 1011,
+      "notes": 1011,
+      "virtual_entries": 0,
+      "states": {
+        "complete": 1011
+      },
+      "assigned_labels": 5055,
+      "vocabulary": 43,
+      "catalog_seconds": 0.009930620000005774,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.007744663000011087
+        },
+        {
+          "topic": "algorithms",
+          "matches": 1,
+          "seconds": 0.007410740000011629
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.00771561900000961
+        },
+        {
+          "topic": "astronomy",
+          "matches": 126,
+          "seconds": 0.007395956999999953
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 2,
+          "seconds": 0.007637020000004213
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 0,
+      "source_inventory": {
+        "files": 1011,
+        "bytes": 294272,
+        "sha256": "85520e0c8e743941dd39990419823e264238404fdd77d53fb7631d9ad8d49332"
+      }
+    },
+    {
+      "seconds": 1.2481311649999896,
+      "raw_processed": 112,
+      "topic_extractions": 112,
+      "notes": 1022,
+      "virtual_entries": 2,
+      "states": {
+        "complete": 1022
+      },
+      "assigned_labels": 5110,
+      "vocabulary": 43,
+      "catalog_seconds": 0.01012862900000755,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.007895351000001938
+        },
+        {
+          "topic": "algorithms",
+          "matches": 2,
+          "seconds": 0.00763692000001015
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.007786326000001509
+        },
+        {
+          "topic": "astronomy",
+          "matches": 127,
+          "seconds": 0.007543139000006249
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 5,
+          "seconds": 0.007455666999987898
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 1,
+      "source_inventory": {
+        "files": 1021,
+        "bytes": 301990,
+        "sha256": "1145b45ebf631aec48ed8a6eec6eeafcb390594b977cf8df3c1b3f6cba5c8e04"
+      }
+    },
+    {
+      "seconds": 1.3390855370000168,
+      "raw_processed": 113,
+      "topic_extractions": 111,
+      "notes": 1033,
+      "virtual_entries": 3,
+      "states": {
+        "complete": 1033
+      },
+      "assigned_labels": 5165,
+      "vocabulary": 42,
+      "catalog_seconds": 0.010194267999992235,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008382466000000477
+        },
+        {
+          "topic": "algorithms",
+          "matches": 3,
+          "seconds": 0.18138642799999616
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008322116000016422
+        },
+        {
+          "topic": "astronomy",
+          "matches": 128,
+          "seconds": 0.007615310000005593
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 7,
+          "seconds": 0.007483010000015611
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 2,
+      "source_inventory": {
+        "files": 1031,
+        "bytes": 309713,
+        "sha256": "b8fbfe2cd15324c86c93d86ce97113f4776bc3991c6f9377769f41d1cdd9c620"
+      }
+    },
+    {
+      "seconds": 1.4255402979999872,
+      "raw_processed": 114,
+      "topic_extractions": 111,
+      "notes": 1044,
+      "virtual_entries": 4,
+      "states": {
+        "complete": 1044
+      },
+      "assigned_labels": 5220,
+      "vocabulary": 44,
+      "catalog_seconds": 0.010329635000005055,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008028091999989329
+        },
+        {
+          "topic": "algorithms",
+          "matches": 5,
+          "seconds": 0.007670563000004904
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008261393999987376
+        },
+        {
+          "topic": "astronomy",
+          "matches": 129,
+          "seconds": 0.0076999069999885705
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 9,
+          "seconds": 0.007632445000012922
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 3,
+      "source_inventory": {
+        "files": 1041,
+        "bytes": 317438,
+        "sha256": "07553fbb414a84212beef01725e1f350b39e41a49f94abb88ff1525d433ba1f9"
+      }
+    },
+    {
+      "seconds": 2.2108058389999883,
+      "raw_processed": 215,
+      "topic_extractions": 211,
+      "notes": 1055,
+      "virtual_entries": 5,
+      "states": {
+        "complete": 1055
+      },
+      "assigned_labels": 5275,
+      "vocabulary": 44,
+      "catalog_seconds": 0.010482315999979619,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008198249000002988
+        },
+        {
+          "topic": "algorithms",
+          "matches": 6,
+          "seconds": 0.0077523459999895294
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008022092999993902
+        },
+        {
+          "topic": "astronomy",
+          "matches": 130,
+          "seconds": 0.007762180999975499
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 11,
+          "seconds": 0.007689021000004459
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 4,
+      "source_inventory": {
+        "files": 1051,
+        "bytes": 325168,
+        "sha256": "c5a15f1cafc3269ffa9bd330dbdd08f02280d3ba248214fa0d3e15e13e7064d0"
+      }
+    },
+    {
+      "seconds": 1.615175980999993,
+      "raw_processed": 116,
+      "topic_extractions": 111,
+      "notes": 1066,
+      "virtual_entries": 6,
+      "states": {
+        "complete": 1066
+      },
+      "assigned_labels": 5330,
+      "vocabulary": 44,
+      "catalog_seconds": 0.010731190999990758,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.00830498999999918
+        },
+        {
+          "topic": "algorithms",
+          "matches": 7,
+          "seconds": 0.007907499999987522
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008157307000004721
+        },
+        {
+          "topic": "astronomy",
+          "matches": 119,
+          "seconds": 0.007906208999997943
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 13,
+          "seconds": 0.00786080999998262
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 5,
+      "source_inventory": {
+        "files": 1061,
+        "bytes": 332890,
+        "sha256": "e0724dadb73e88d7e51d06686d8f11982e977ba368525d8e0f9fdf78689a3951"
+      }
+    },
+    {
+      "seconds": 1.7044867280000062,
+      "raw_processed": 117,
+      "topic_extractions": 111,
+      "notes": 1077,
+      "virtual_entries": 7,
+      "states": {
+        "complete": 1077
+      },
+      "assigned_labels": 5385,
+      "vocabulary": 44,
+      "catalog_seconds": 0.011371134999990318,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008344688999983418
+        },
+        {
+          "topic": "algorithms",
+          "matches": 8,
+          "seconds": 0.00796694899997874
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008278329000006579
+        },
+        {
+          "topic": "astronomy",
+          "matches": 120,
+          "seconds": 0.007985196999982236
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 15,
+          "seconds": 0.007950373999989324
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 6,
+      "source_inventory": {
+        "files": 1071,
+        "bytes": 340608,
+        "sha256": "0c868e58fd30e48da291a35841468963372b334835a08d8f1ef207542e5f8c72"
+      }
+    },
+    {
+      "seconds": 1.9641453039999988,
+      "raw_processed": 118,
+      "topic_extractions": 111,
+      "notes": 1088,
+      "virtual_entries": 8,
+      "states": {
+        "complete": 1088
+      },
+      "assigned_labels": 5440,
+      "vocabulary": 45,
+      "catalog_seconds": 0.010879533999997193,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008429006000000072
+        },
+        {
+          "topic": "algorithms",
+          "matches": 9,
+          "seconds": 0.008234101999988752
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008668657999976404
+        },
+        {
+          "topic": "astronomy",
+          "matches": 122,
+          "seconds": 0.008122924999980796
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 17,
+          "seconds": 0.007957555000018601
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 7,
+      "source_inventory": {
+        "files": 1081,
+        "bytes": 348330,
+        "sha256": "d073cf827fcea73492343df8b6466c4027f0ed72b1ec8b0db7b49a36eaf68859"
+      }
+    },
+    {
+      "seconds": 2.609535318000013,
+      "raw_processed": 219,
+      "topic_extractions": 211,
+      "notes": 1099,
+      "virtual_entries": 9,
+      "states": {
+        "complete": 1099
+      },
+      "assigned_labels": 5495,
+      "vocabulary": 45,
+      "catalog_seconds": 0.010950049000001627,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008541276000016751
+        },
+        {
+          "topic": "algorithms",
+          "matches": 10,
+          "seconds": 0.008125008000007483
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008385841999995591
+        },
+        {
+          "topic": "astronomy",
+          "matches": 123,
+          "seconds": 0.008080671000016082
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 20,
+          "seconds": 0.008249946000006503
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 8,
+      "source_inventory": {
+        "files": 1091,
+        "bytes": 355604,
+        "sha256": "53fa7420c6496609a05bb2536fa1618a78782b98ae3d44a4d1942738fae11ddf"
+      }
+    },
+    {
+      "seconds": 2.004311109999975,
+      "raw_processed": 120,
+      "topic_extractions": 111,
+      "notes": 1110,
+      "virtual_entries": 10,
+      "states": {
+        "complete": 1110
+      },
+      "assigned_labels": 5550,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011217944000009084,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008643589999991264
+        },
+        {
+          "topic": "algorithms",
+          "matches": 11,
+          "seconds": 0.008281363999998348
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.00856447000001026
+        },
+        {
+          "topic": "astronomy",
+          "matches": 124,
+          "seconds": 0.00848093499999436
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 22,
+          "seconds": 0.00820703200000139
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 9,
+      "source_inventory": {
+        "files": 1101,
+        "bytes": 362882,
+        "sha256": "396d4ed4c05ee6d4c8bef9899843ce95d396b310f70fe233f707e6e54be94f3f"
+      }
+    },
+    {
+      "seconds": 2.090755008000002,
+      "raw_processed": 121,
+      "topic_extractions": 111,
+      "notes": 1121,
+      "virtual_entries": 11,
+      "states": {
+        "complete": 1121
+      },
+      "assigned_labels": 5605,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011294706000001042,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.00865043700000001
+        },
+        {
+          "topic": "algorithms",
+          "matches": 12,
+          "seconds": 0.00859317100000112
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008635024000000158
+        },
+        {
+          "topic": "astronomy",
+          "matches": 125,
+          "seconds": 0.008318206999973654
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 24,
+          "seconds": 0.00817786499999329
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 10,
+      "source_inventory": {
+        "files": 1111,
+        "bytes": 370165,
+        "sha256": "e83db4e58b3c3033453d9c26830b94e8d6f15a821a2207b527ccbef25ac47c9c"
+      }
+    },
+    {
+      "seconds": 2.344497243999996,
+      "raw_processed": 122,
+      "topic_extractions": 111,
+      "notes": 1132,
+      "virtual_entries": 12,
+      "states": {
+        "complete": 1132
+      },
+      "assigned_labels": 5660,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011752575999992132,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008849518000005219
+        },
+        {
+          "topic": "algorithms",
+          "matches": 14,
+          "seconds": 0.008452569000013455
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.00874221600000169
+        },
+        {
+          "topic": "astronomy",
+          "matches": 126,
+          "seconds": 0.008434983000000784
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 26,
+          "seconds": 0.008374900999996271
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 11,
+      "source_inventory": {
+        "files": 1121,
+        "bytes": 377450,
+        "sha256": "ebfec5c40d8057e6695a9f0458b30f8b06adad04a1136b20187cbe38732af4a3"
+      }
+    },
+    {
+      "seconds": 2.9460279219999848,
+      "raw_processed": 223,
+      "topic_extractions": 211,
+      "notes": 1143,
+      "virtual_entries": 13,
+      "states": {
+        "complete": 1143
+      },
+      "assigned_labels": 5715,
+      "vocabulary": 45,
+      "catalog_seconds": 0.01142662499998437,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.008824359000016102
+        },
+        {
+          "topic": "algorithms",
+          "matches": 15,
+          "seconds": 0.008549614999992627
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.00876226599999086
+        },
+        {
+          "topic": "astronomy",
+          "matches": 127,
+          "seconds": 0.008553401000000349
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 28,
+          "seconds": 0.008560581999972783
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 12,
+      "source_inventory": {
+        "files": 1131,
+        "bytes": 385165,
+        "sha256": "398be75ad40a27a7bb079cee6c8479b024c074686bc98a1cd199d2acdab77b9e"
+      }
+    },
+    {
+      "seconds": 2.344802133999991,
+      "raw_processed": 124,
+      "topic_extractions": 111,
+      "notes": 1154,
+      "virtual_entries": 14,
+      "states": {
+        "complete": 1154
+      },
+      "assigned_labels": 5770,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011595161999991888,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.00902673699999923
+        },
+        {
+          "topic": "algorithms",
+          "matches": 16,
+          "seconds": 0.008776469999986602
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008990722999982381
+        },
+        {
+          "topic": "astronomy",
+          "matches": 128,
+          "seconds": 0.008929761000018743
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 30,
+          "seconds": 0.008561565999997356
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 13,
+      "source_inventory": {
+        "files": 1141,
+        "bytes": 392887,
+        "sha256": "c6a0f038a05f920ad7b17cc19a052ffb3b1273adf6aa39f645f2e1ace1c78a51"
+      }
+    },
+    {
+      "seconds": 2.5894879999999887,
+      "raw_processed": 125,
+      "topic_extractions": 111,
+      "notes": 1165,
+      "virtual_entries": 15,
+      "states": {
+        "complete": 1165
+      },
+      "assigned_labels": 5825,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011576152999992928,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.0088942369999927
+        },
+        {
+          "topic": "algorithms",
+          "matches": 17,
+          "seconds": 0.008654755999998542
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.008930663000001005
+        },
+        {
+          "topic": "astronomy",
+          "matches": 129,
+          "seconds": 0.008692332999999053
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 32,
+          "seconds": 0.008497508999994352
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 14,
+      "source_inventory": {
+        "files": 1151,
+        "bytes": 400605,
+        "sha256": "e42621c3d4792c2419b712139acc8a8aa3891729592de1a30e1eb53c8bbe9936"
+      }
+    },
+    {
+      "seconds": 2.493727370000016,
+      "raw_processed": 126,
+      "topic_extractions": 111,
+      "notes": 1176,
+      "virtual_entries": 16,
+      "states": {
+        "complete": 1176
+      },
+      "assigned_labels": 5880,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011842826000020068,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.00916265200001476
+        },
+        {
+          "topic": "algorithms",
+          "matches": 18,
+          "seconds": 0.00875561899999866
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.00929543300000546
+        },
+        {
+          "topic": "astronomy",
+          "matches": 131,
+          "seconds": 0.008828768000000764
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 34,
+          "seconds": 0.008783870000002025
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 15,
+      "source_inventory": {
+        "files": 1161,
+        "bytes": 408327,
+        "sha256": "b18e2374697db1bc882f383639947be815bff01667c6d0e3e52ce439e1353aea"
+      }
+    },
+    {
+      "seconds": 3.967687577000021,
+      "raw_processed": 327,
+      "topic_extractions": 312,
+      "notes": 1187,
+      "virtual_entries": 17,
+      "states": {
+        "complete": 1187
+      },
+      "assigned_labels": 5935,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011881259999995564,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.009133456000000706
+        },
+        {
+          "topic": "algorithms",
+          "matches": 19,
+          "seconds": 0.00886788399998295
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.009098692999998548
+        },
+        {
+          "topic": "astronomy",
+          "matches": 132,
+          "seconds": 0.008876608000008446
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 36,
+          "seconds": 0.00873199899999122
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 16,
+      "source_inventory": {
+        "files": 1171,
+        "bytes": 416038,
+        "sha256": "aeb66f41a7269ba76e27e648fddaec4a9f1a65f0fd1051eb4cde9dd62483334c"
+      }
+    },
+    {
+      "seconds": 2.8380688099999816,
+      "raw_processed": 128,
+      "topic_extractions": 111,
+      "notes": 1198,
+      "virtual_entries": 18,
+      "states": {
+        "complete": 1198
+      },
+      "assigned_labels": 5990,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011966658000005737,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.009641641000001755
+        },
+        {
+          "topic": "algorithms",
+          "matches": 20,
+          "seconds": 0.00892784499998811
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.00917361599999822
+        },
+        {
+          "topic": "astronomy",
+          "matches": 133,
+          "seconds": 0.008959852999993245
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 38,
+          "seconds": 0.00878060299999106
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 17,
+      "source_inventory": {
+        "files": 1181,
+        "bytes": 423766,
+        "sha256": "cbfdabf8f907840cde70bb6d67c816b6a4eb593726458a18445c9fcfad711ef1"
+      }
+    },
+    {
+      "seconds": 2.7207422360000066,
+      "raw_processed": 129,
+      "topic_extractions": 111,
+      "notes": 1209,
+      "virtual_entries": 19,
+      "states": {
+        "complete": 1209
+      },
+      "assigned_labels": 6045,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012150962999982085,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.00934333600000059
+        },
+        {
+          "topic": "algorithms",
+          "matches": 21,
+          "seconds": 0.009074180999988357
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.009177426000007927
+        },
+        {
+          "topic": "astronomy",
+          "matches": 134,
+          "seconds": 0.008883101999998644
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 40,
+          "seconds": 0.008823572000011382
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 18,
+      "source_inventory": {
+        "files": 1191,
+        "bytes": 431499,
+        "sha256": "537c241ff4a25a37a341f06ac27f4b63d8de6dc89870011671894267ba1689bd"
+      }
+    },
+    {
+      "seconds": 2.813345966000014,
+      "raw_processed": 130,
+      "topic_extractions": 111,
+      "notes": 1220,
+      "virtual_entries": 20,
+      "states": {
+        "complete": 1220
+      },
+      "assigned_labels": 6100,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012371274999992465,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.009570628999995279
+        },
+        {
+          "topic": "algorithms",
+          "matches": 23,
+          "seconds": 0.009473063000001503
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.009432731999993393
+        },
+        {
+          "topic": "astronomy",
+          "matches": 135,
+          "seconds": 0.009097686000018257
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 42,
+          "seconds": 0.009052357999991045
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 19,
+      "source_inventory": {
+        "files": 1201,
+        "bytes": 439234,
+        "sha256": "283e1d6e41c23c6a4b65bd40bdfd0875af88a5682ac5b8fc7f9c931c0175404a"
+      }
+    },
+    {
+      "seconds": 3.7641985369999986,
+      "raw_processed": 231,
+      "topic_extractions": 211,
+      "notes": 1231,
+      "virtual_entries": 21,
+      "states": {
+        "complete": 1231
+      },
+      "assigned_labels": 6155,
+      "vocabulary": 45,
+      "catalog_seconds": 0.01240063900002042,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.009576900000013211
+        },
+        {
+          "topic": "algorithms",
+          "matches": 24,
+          "seconds": 0.009257165999997596
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.009587995999993382
+        },
+        {
+          "topic": "astronomy",
+          "matches": 136,
+          "seconds": 0.009226801000011164
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 44,
+          "seconds": 0.00914931400001251
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 20,
+      "source_inventory": {
+        "files": 1211,
+        "bytes": 446954,
+        "sha256": "58d619c8b9b2088c40683c5992d9d1ac17bd8709182934fc02a36391c57c588f"
+      }
+    },
+    {
+      "seconds": 2.970861886000023,
+      "raw_processed": 132,
+      "topic_extractions": 111,
+      "notes": 1242,
+      "virtual_entries": 22,
+      "states": {
+        "complete": 1242
+      },
+      "assigned_labels": 6210,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012618207000002712,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.009593082999998614
+        },
+        {
+          "topic": "algorithms",
+          "matches": 25,
+          "seconds": 0.009265569999996615
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.009514966000011782
+        },
+        {
+          "topic": "astronomy",
+          "matches": 137,
+          "seconds": 0.009438729999999396
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 46,
+          "seconds": 0.009217325999998138
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 21,
+      "source_inventory": {
+        "files": 1221,
+        "bytes": 454686,
+        "sha256": "4a584bd39464b40597324503685d86ed9a6adfe2fad2e9a6866722094e18e9b3"
+      }
+    },
+    {
+      "seconds": 3.0624561770000014,
+      "raw_processed": 133,
+      "topic_extractions": 111,
+      "notes": 1253,
+      "virtual_entries": 23,
+      "states": {
+        "complete": 1253
+      },
+      "assigned_labels": 6265,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012644837999999936,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.009743280000009236
+        },
+        {
+          "topic": "algorithms",
+          "matches": 26,
+          "seconds": 0.009493081999977449
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.009676579000000629
+        },
+        {
+          "topic": "astronomy",
+          "matches": 138,
+          "seconds": 0.009481693999987328
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 48,
+          "seconds": 0.009347222000002375
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 22,
+      "source_inventory": {
+        "files": 1231,
+        "bytes": 461974,
+        "sha256": "ae3f43697c2ab3133b2fff3a1f4a38e896209a7bc79aac9fa06723fbbb91e548"
+      }
+    },
+    {
+      "seconds": 3.313935791000006,
+      "raw_processed": 134,
+      "topic_extractions": 111,
+      "notes": 1264,
+      "virtual_entries": 24,
+      "states": {
+        "complete": 1264
+      },
+      "assigned_labels": 6320,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012759860999977946,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.0097450419999916
+        },
+        {
+          "topic": "algorithms",
+          "matches": 27,
+          "seconds": 0.009473993000000291
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.009897871999982044
+        },
+        {
+          "topic": "astronomy",
+          "matches": 140,
+          "seconds": 0.009536097000022892
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 50,
+          "seconds": 0.009307872000022144
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 23,
+      "source_inventory": {
+        "files": 1241,
+        "bytes": 469266,
+        "sha256": "cb84ba1c5eb9f0b60c7d3527a5a6e28e5dcbd95a0e178b603201c062e065e17c"
+      }
+    },
+    {
+      "seconds": 3.8960206179999943,
+      "raw_processed": 235,
+      "topic_extractions": 211,
+      "notes": 1175,
+      "virtual_entries": 25,
+      "states": {
+        "complete": 1175
+      },
+      "assigned_labels": 5875,
+      "vocabulary": 45,
+      "catalog_seconds": 0.011972933999999213,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.00919653500000095
+        },
+        {
+          "topic": "algorithms",
+          "matches": 28,
+          "seconds": 0.008759174999994457
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.009048250999995844
+        },
+        {
+          "topic": "astronomy",
+          "matches": 128,
+          "seconds": 0.008800257000018519
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 53,
+          "seconds": 0.008702158000005511
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 24,
+      "source_inventory": {
+        "files": 1151,
+        "bytes": 447164,
+        "sha256": "318da5baca025a7044ad7b1d7e0f342d6ee8fc09c8d55b6489d6ddef58c6631e"
+      }
+    },
+    {
+      "seconds": 3.2919305380000026,
+      "raw_processed": 136,
+      "topic_extractions": 111,
+      "notes": 1186,
+      "virtual_entries": 26,
+      "states": {
+        "complete": 1186
+      },
+      "assigned_labels": 5930,
+      "vocabulary": 45,
+      "catalog_seconds": 0.01206376499999351,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.009265093999999863
+        },
+        {
+          "topic": "algorithms",
+          "matches": 29,
+          "seconds": 0.008981546000001117
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.009217401999990216
+        },
+        {
+          "topic": "astronomy",
+          "matches": 129,
+          "seconds": 0.00888066400000298
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 55,
+          "seconds": 0.008927024000001893
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 25,
+      "source_inventory": {
+        "files": 1161,
+        "bytes": 454452,
+        "sha256": "8fd5c3c98ef83e87ecef7e3e730701b183d468813115be066254a7915b2fcbc9"
+      }
+    },
+    {
+      "seconds": 3.54826807500001,
+      "raw_processed": 137,
+      "topic_extractions": 111,
+      "notes": 1197,
+      "virtual_entries": 27,
+      "states": {
+        "complete": 1197
+      },
+      "assigned_labels": 5985,
+      "vocabulary": 45,
+      "catalog_seconds": 0.01207223800000179,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.009331965000001219
+        },
+        {
+          "topic": "algorithms",
+          "matches": 30,
+          "seconds": 0.009049709000009898
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.00941367800001558
+        },
+        {
+          "topic": "astronomy",
+          "matches": 130,
+          "seconds": 0.008945291000003408
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 57,
+          "seconds": 0.009033764999998084
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 26,
+      "source_inventory": {
+        "files": 1171,
+        "bytes": 462285,
+        "sha256": "7a59e8e3539108c8e56e97064020c8ab38d72f682dce1961baba6dabb8e2cb1a"
+      }
+    },
+    {
+      "seconds": 3.444163006999986,
+      "raw_processed": 138,
+      "topic_extractions": 111,
+      "notes": 1208,
+      "virtual_entries": 28,
+      "states": {
+        "complete": 1208
+      },
+      "assigned_labels": 6040,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012279931999984228,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.009429436999994323
+        },
+        {
+          "topic": "algorithms",
+          "matches": 32,
+          "seconds": 0.009066420000010567
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.009433834000020624
+        },
+        {
+          "topic": "astronomy",
+          "matches": 131,
+          "seconds": 0.008985679000005575
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 59,
+          "seconds": 0.008963566000005585
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 27,
+      "source_inventory": {
+        "files": 1181,
+        "bytes": 470120,
+        "sha256": "c858cdb6c3b9673833327db6ed0757d2ba3cad1bc4387a13c4ec4c4c34c4f969"
+      }
+    },
+    {
+      "seconds": 4.22013467299999,
+      "raw_processed": 239,
+      "topic_extractions": 211,
+      "notes": 1219,
+      "virtual_entries": 29,
+      "states": {
+        "complete": 1219
+      },
+      "assigned_labels": 6095,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012271553999994467,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.009490378000009514
+        },
+        {
+          "topic": "algorithms",
+          "matches": 33,
+          "seconds": 0.009160350000001927
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.009476176000021042
+        },
+        {
+          "topic": "astronomy",
+          "matches": 132,
+          "seconds": 0.009070234000034816
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 61,
+          "seconds": 0.009191456999985803
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 28,
+      "source_inventory": {
+        "files": 1191,
+        "bytes": 477955,
+        "sha256": "5fb5423dbca9212e912d58d5f8862664b025c4ffa34ce352c9eb1ab888d4c795"
+      }
+    },
+    {
+      "seconds": 3.5967069429999583,
+      "raw_processed": 140,
+      "topic_extractions": 111,
+      "notes": 1230,
+      "virtual_entries": 30,
+      "states": {
+        "complete": 1230
+      },
+      "assigned_labels": 6150,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012826163999989149,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.009583474000010028
+        },
+        {
+          "topic": "algorithms",
+          "matches": 34,
+          "seconds": 0.00919651000003796
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.009342460000027586
+        },
+        {
+          "topic": "astronomy",
+          "matches": 133,
+          "seconds": 0.009156628999960503
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 63,
+          "seconds": 0.009080806000042685
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 29,
+      "source_inventory": {
+        "files": 1201,
+        "bytes": 485787,
+        "sha256": "b8720b91fd7a35234fcec71da900f347d0d88e4f91dfec217bbd53929fcb91b2"
+      }
+    },
+    {
+      "seconds": 3.6792832209999915,
+      "raw_processed": 141,
+      "topic_extractions": 111,
+      "notes": 1241,
+      "virtual_entries": 31,
+      "states": {
+        "complete": 1241
+      },
+      "assigned_labels": 6205,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012608675999956631,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.009735922999993818
+        },
+        {
+          "topic": "algorithms",
+          "matches": 35,
+          "seconds": 0.00931317599997783
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.009515581000016482
+        },
+        {
+          "topic": "astronomy",
+          "matches": 134,
+          "seconds": 0.009264914000027602
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 65,
+          "seconds": 0.009255649000010635
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 30,
+      "source_inventory": {
+        "files": 1211,
+        "bytes": 493615,
+        "sha256": "7ebf86b3e5b92a9f5511530191354b5e142933f5771a0f1743082f47c5e843df"
+      }
+    },
+    {
+      "seconds": 3.925686049000035,
+      "raw_processed": 142,
+      "topic_extractions": 111,
+      "notes": 1252,
+      "virtual_entries": 32,
+      "states": {
+        "complete": 1252
+      },
+      "assigned_labels": 6260,
+      "vocabulary": 45,
+      "catalog_seconds": 0.012627079000026242,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.009741376000022228
+        },
+        {
+          "topic": "algorithms",
+          "matches": 36,
+          "seconds": 0.009324066999965908
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.009569996999971409
+        },
+        {
+          "topic": "astronomy",
+          "matches": 136,
+          "seconds": 0.009454714000014519
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 67,
+          "seconds": 0.009260359999984757
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 31,
+      "source_inventory": {
+        "files": 1221,
+        "bytes": 501447,
+        "sha256": "dcba4cf9dcf714f2db239cbad2260f389f751612035661eb18fe6b43bf9ce148"
+      }
+    }
+  ],
+  "warm_sync": {
+    "seconds": 0.4252427510000416,
+    "raw_processed": 0,
+    "topic_extractions": 0
+  },
+  "warm_observation": {
+    "notes": 1252,
+    "virtual_entries": 32,
+    "states": {
+      "complete": 1252
+    },
+    "assigned_labels": 6260,
+    "vocabulary": 45,
+    "catalog_seconds": 0.01250734799998554,
+    "positive_queries": [
+      {
+        "topic": "a related record",
+        "matches": 900,
+        "seconds": 0.009601174000010815
+      },
+      {
+        "topic": "algorithms",
+        "matches": 36,
+        "seconds": 0.009298708000017086
+      },
+      {
+        "topic": "another related record",
+        "matches": 900,
+        "seconds": 0.009615326000016466
+      },
+      {
+        "topic": "astronomy",
+        "matches": 136,
+        "seconds": 0.009283775999961108
+      },
+      {
+        "topic": "biodiversity",
+        "matches": 67,
+        "seconds": 0.009215682999979435
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "unrated_quality_sample": [],
+  "rebuilt_observation": {
+    "notes": 1252,
+    "virtual_entries": 32,
+    "states": {
+      "complete": 1252
+    },
+    "assigned_labels": 6260,
+    "vocabulary": 45,
+    "catalog_seconds": 0.01262958099999878,
+    "positive_queries": [
+      {
+        "topic": "a related record",
+        "matches": 900,
+        "seconds": 0.009732481000014559
+      },
+      {
+        "topic": "algorithms",
+        "matches": 36,
+        "seconds": 0.009676486999978806
+      },
+      {
+        "topic": "another related record",
+        "matches": 900,
+        "seconds": 0.009628845000008823
+      },
+      {
+        "topic": "astronomy",
+        "matches": 136,
+        "seconds": 0.009365225999999893
+      },
+      {
+        "topic": "biodiversity",
+        "matches": 67,
+        "seconds": 0.009272467000016604
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "clean_rebuild_matches": true,
+  "source_unchanged": true,
+  "stable_controls_unchanged": true,
+  "final_digest": "f312245170bd7be896e2de9d3148cd5119982ebef11e802968bdbe5de6e8b270"
+}

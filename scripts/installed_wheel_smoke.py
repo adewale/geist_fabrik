@@ -6,14 +6,21 @@ from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 
+import nltk
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
 import geistfabrik
 from geistfabrik.embeddings import EmbeddingComputer, Session
+from geistfabrik.topics import TopicIndex, extract_topics
 from geistfabrik.vault import Vault
 
 package_file = Path(geistfabrik.__file__).resolve()
+# The topic grammar must use its packaged lexicon with no external NLTK corpus.
+nltk.data.path = []
+grammar_tags = extract_topics("The clinic moved the appointment. Appointment planning matters.")
+assert "clinic moved" not in {tag.key for tag in grammar_tags}
+assert any("appointment" in tag.key for tag in grammar_tags)
 assert ".venv" not in package_file.parts, package_file
 assert "site-packages" in package_file.parts, package_file
 assert version("geistfabrik") == geistfabrik.__version__
@@ -59,6 +66,7 @@ with tempfile.TemporaryDirectory() as temporary_directory:
     (vault_path / "unrelated.md").write_text(f"# Unrelated\n\n{phrases[2]}")
     vault = Vault(vault_path)
     assert vault.sync() == 3
+    assert "chocolate cake" in {tag.key for tag in TopicIndex(vault.db).tags("unrelated.md")}
     notes = vault.all_notes()
     session = Session(datetime(2026, 1, 15), vault.db, computer=computer)
     session.compute_embeddings(notes)

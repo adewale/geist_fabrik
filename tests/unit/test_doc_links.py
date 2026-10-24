@@ -13,6 +13,7 @@ their relative links must resolve even when their claims are explicitly dated.
 
 import re
 from pathlib import Path
+from urllib.parse import unquote
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -44,6 +45,7 @@ def _resolve(base: Path, target: str) -> Path | None:
     target = target.split("#", 1)[0].strip()  # drop anchors
     if not target or target.startswith(("http://", "https://", "mailto:")):
         return None
+    target = unquote(target)
     if not target.lower().endswith(".md"):
         return None
     if target.startswith("/"):
@@ -78,3 +80,17 @@ def test_no_dead_internal_doc_links():
     assert not broken, (
         "Dead internal doc links (create the file or fix the reference):\n" + "\n".join(broken)
     )
+
+
+def test_encoded_local_links_resolve_spaces_unicode_and_literal_hash(tmp_path: Path) -> None:
+    source = tmp_path / "Café #notes.md"
+    source.write_text("real source\n")
+    resolved = _resolve(tmp_path / "review.md", "Caf%C3%A9%20%23notes.md#heading")
+    assert resolved is not None
+    assert resolved.read_text() == "real source\n"
+
+
+def test_encoded_missing_link_remains_a_missing_local_file(tmp_path: Path) -> None:
+    resolved = _resolve(tmp_path / "review.md", "missing%20source.md#heading")
+    assert resolved is not None
+    assert not resolved.exists()

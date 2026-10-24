@@ -61,7 +61,7 @@ Pre-commit hooks run automatically on `git commit`:
 
 This script runs the **same checks as CI** (same tools, extra, marker filter,
 and timeouts):
-1. `uv sync --frozen --extra vector-search` - Locked dependencies
+1. `uv sync --locked --extra vector-search` - Reject stale lock metadata; subsequent checks use `uv run --frozen`
 2. `ruff check src/ tests/` - Linting
 3. `mypy src/ --strict` - Type checking (STRICT MODE)
 4. `ty check src tests --error-on-warning` - Additive whole-project type checking

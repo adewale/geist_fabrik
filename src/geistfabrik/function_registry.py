@@ -142,6 +142,17 @@ class FunctionRegistry:
         def vault_function(name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
             return _function_decorator(name, self.functions)
 
+        @vault_function("note_topics")
+        def note_topics(vault: "VaultContext", note: str) -> list[str]:
+            """Return derived topic display labels for a note reference."""
+            return [tag.label for tag in vault.topics_for_note(note)]
+
+        @vault_function("topic_notes")
+        def topic_notes(vault: "VaultContext", topic: str, count: int = 5) -> list[str]:
+            """Deterministically sample exact topic memberships as bracketed links."""
+            notes = vault.notes_for_topic(topic)
+            return [f"[[{note.link_text}]]" for note in vault.sample(notes, count)]
+
         @vault_function("sample_notes")
         def sample_notes(vault: "VaultContext", count: int = 5) -> list[str]:
             """Sample count random notes from vault.

@@ -1,0 +1,114 @@
+{
+  "corpus": {
+    "name": "original-10000",
+    "origin_prs": [
+      74,
+      97
+    ],
+    "repository": "Zettelkasten-Method/10000-markdown-files",
+    "commit": "40c11a4bb9b96dbcf1cd3c109d32f50dbc8b61a2",
+    "root": "10000 markdown files",
+    "expected_markdown_files": 10000,
+    "expected_bytes": 46635807,
+    "provenance": "Scrambled public stress text; robustness/capacity evidence, not representative semantic topic quality."
+  },
+  "source_checkout_commit": "40c11a4bb9b96dbcf1cd3c109d32f50dbc8b61a2",
+  "lexical_capture_enabled": false,
+  "snapshots": [
+    {
+      "seconds": 933.4365932240003,
+      "raw_processed": 10000,
+      "topic_extractions": 10000,
+      "notes": 10000,
+      "virtual_entries": 0,
+      "states": {
+        "complete": 10000
+      },
+      "assigned_labels": 50000,
+      "vocabulary": 14977,
+      "catalog_seconds": 0.17189152100036154,
+      "positive_queries": [
+        {
+          "topic": "a bird alice we change",
+          "matches": 1,
+          "seconds": 0.1379967289999513
+        },
+        {
+          "topic": "a bough of",
+          "matches": 1,
+          "seconds": 0.1383420560000559
+        },
+        {
+          "topic": "a cat may stand on",
+          "matches": 1,
+          "seconds": 0.13836884500005908
+        },
+        {
+          "topic": "a cat which seven said",
+          "matches": 1,
+          "seconds": 0.1407299489997058
+        },
+        {
+          "topic": "a caucus-race and",
+          "matches": 1,
+          "seconds": 0.13984075799999118
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 0,
+      "source_inventory": {
+        "files": 10000,
+        "bytes": 46635807,
+        "sha256": "38d7f37672b6199074965f162e10e55aede728819c4560e617d2c1b28d4e7bc3"
+      }
+    }
+  ],
+  "warm_sync": {
+    "seconds": 3.7306546179997895,
+    "raw_processed": 0,
+    "topic_extractions": 0
+  },
+  "warm_observation": {
+    "notes": 10000,
+    "virtual_entries": 0,
+    "states": {
+      "complete": 10000
+    },
+    "assigned_labels": 50000,
+    "vocabulary": 14977,
+    "catalog_seconds": 0.16284054500010825,
+    "positive_queries": [
+      {
+        "topic": "a bird alice we change",
+        "matches": 1,
+        "seconds": 0.13072220000003654
+      },
+      {
+        "topic": "a bough of",
+        "matches": 1,
+        "seconds": 0.12937984599966512
+      },
+      {
+        "topic": "a cat may stand on",
+        "matches": 1,
+        "seconds": 0.1293857340001523
+      },
+      {
+        "topic": "a cat which seven said",
+        "matches": 1,
+        "seconds": 0.13003038700026082
+      },
+      {
+        "topic": "a caucus-race and",
+        "matches": 1,
+        "seconds": 0.13284223799973915
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "unrated_quality_sample": [],
+  "clean_rebuild_matches": null,
+  "source_unchanged": true,
+  "stable_controls_unchanged": false,
+  "final_digest": "8dace08934d7d05f00af8c5ea1075a57d5d7288f1ad5ea4307677f655fd81e14"
+}

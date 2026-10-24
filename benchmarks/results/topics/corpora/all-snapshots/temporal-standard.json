@@ -1,0 +1,1604 @@
+{
+  "corpus": {
+    "name": "temporal-standard",
+    "origin_pr": 97,
+    "generator": "scripts/generate_temporal_corpus.py",
+    "initial_notes": 1000,
+    "snapshots": 32,
+    "provenance": "Synthetic planted topics and dates."
+  },
+  "source_checkout_commit": null,
+  "lexical_capture_enabled": false,
+  "snapshots": [
+    {
+      "seconds": 7.62478298100001,
+      "raw_processed": 1011,
+      "topic_extractions": 1011,
+      "notes": 1011,
+      "virtual_entries": 0,
+      "states": {
+        "complete": 1011
+      },
+      "assigned_labels": 5055,
+      "vocabulary": 43,
+      "catalog_seconds": 0.014095143000020016,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.011265892999972493
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.01067532500002244
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 126,
+          "seconds": 0.009982424999975592
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 2,
+          "seconds": 0.010069256999997833
+        },
+        {
+          "topic": "community spaces",
+          "matches": 126,
+          "seconds": 0.010113541000009718
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 0,
+      "source_inventory": {
+        "files": 1011,
+        "bytes": 294272,
+        "sha256": "85520e0c8e743941dd39990419823e264238404fdd77d53fb7631d9ad8d49332"
+      }
+    },
+    {
+      "seconds": 1.3973305909999567,
+      "raw_processed": 112,
+      "topic_extractions": 112,
+      "notes": 1022,
+      "virtual_entries": 2,
+      "states": {
+        "complete": 1022
+      },
+      "assigned_labels": 5110,
+      "vocabulary": 43,
+      "catalog_seconds": 0.013923481000006177,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.010999733999994987
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.01103810600000088
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 127,
+          "seconds": 0.01041330300000709
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 5,
+          "seconds": 0.010470230000009906
+        },
+        {
+          "topic": "community spaces",
+          "matches": 127,
+          "seconds": 0.010140451000040684
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 1,
+      "source_inventory": {
+        "files": 1021,
+        "bytes": 301990,
+        "sha256": "1145b45ebf631aec48ed8a6eec6eeafcb390594b977cf8df3c1b3f6cba5c8e04"
+      }
+    },
+    {
+      "seconds": 1.4587118090000217,
+      "raw_processed": 113,
+      "topic_extractions": 111,
+      "notes": 1033,
+      "virtual_entries": 3,
+      "states": {
+        "complete": 1033
+      },
+      "assigned_labels": 5165,
+      "vocabulary": 44,
+      "catalog_seconds": 0.014206772000022738,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.010941594999962945
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.01100350100000469
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 128,
+          "seconds": 0.010567893999962052
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 7,
+          "seconds": 0.010513661999993928
+        },
+        {
+          "topic": "community spaces",
+          "matches": 129,
+          "seconds": 0.010690994999947634
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 2,
+      "source_inventory": {
+        "files": 1031,
+        "bytes": 309713,
+        "sha256": "b8fbfe2cd15324c86c93d86ce97113f4776bc3991c6f9377769f41d1cdd9c620"
+      }
+    },
+    {
+      "seconds": 1.5247143380000239,
+      "raw_processed": 114,
+      "topic_extractions": 111,
+      "notes": 1044,
+      "virtual_entries": 4,
+      "states": {
+        "complete": 1044
+      },
+      "assigned_labels": 5220,
+      "vocabulary": 46,
+      "catalog_seconds": 0.014738188999956492,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.012064963000000262
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.011104660999990301
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 129,
+          "seconds": 0.010506947999999738
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 9,
+          "seconds": 0.010514051999962248
+        },
+        {
+          "topic": "community spaces",
+          "matches": 130,
+          "seconds": 0.010343723000005411
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 3,
+      "source_inventory": {
+        "files": 1041,
+        "bytes": 317438,
+        "sha256": "07553fbb414a84212beef01725e1f350b39e41a49f94abb88ff1525d433ba1f9"
+      }
+    },
+    {
+      "seconds": 2.3245993610000255,
+      "raw_processed": 215,
+      "topic_extractions": 211,
+      "notes": 1055,
+      "virtual_entries": 5,
+      "states": {
+        "complete": 1055
+      },
+      "assigned_labels": 5275,
+      "vocabulary": 47,
+      "catalog_seconds": 0.016473602000019127,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.012425773000018125
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.011842167999986941
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 130,
+          "seconds": 0.011857306000024437
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 11,
+          "seconds": 0.011081819999958498
+        },
+        {
+          "topic": "community spaces",
+          "matches": 131,
+          "seconds": 0.011304468999981054
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 4,
+      "source_inventory": {
+        "files": 1051,
+        "bytes": 325168,
+        "sha256": "c5a15f1cafc3269ffa9bd330dbdd08f02280d3ba248214fa0d3e15e13e7064d0"
+      }
+    },
+    {
+      "seconds": 1.6075050840000245,
+      "raw_processed": 116,
+      "topic_extractions": 111,
+      "notes": 1066,
+      "virtual_entries": 6,
+      "states": {
+        "complete": 1066
+      },
+      "assigned_labels": 5330,
+      "vocabulary": 49,
+      "catalog_seconds": 0.014208539999970071,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.011172270999963985
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.011026185999980953
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 131,
+          "seconds": 0.011183039999991706
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 13,
+          "seconds": 0.010633428999994976
+        },
+        {
+          "topic": "community spaces",
+          "matches": 119,
+          "seconds": 0.010551835999990544
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 5,
+      "source_inventory": {
+        "files": 1061,
+        "bytes": 332890,
+        "sha256": "e0724dadb73e88d7e51d06686d8f11982e977ba368525d8e0f9fdf78689a3951"
+      }
+    },
+    {
+      "seconds": 1.679942159999996,
+      "raw_processed": 117,
+      "topic_extractions": 111,
+      "notes": 1077,
+      "virtual_entries": 7,
+      "states": {
+        "complete": 1077
+      },
+      "assigned_labels": 5385,
+      "vocabulary": 50,
+      "catalog_seconds": 0.014566080000008697,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.011056193000001713
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.011206905999983974
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 132,
+          "seconds": 0.011044731000026786
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 15,
+          "seconds": 0.010587984000039796
+        },
+        {
+          "topic": "community spaces",
+          "matches": 120,
+          "seconds": 0.010519695000027696
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 6,
+      "source_inventory": {
+        "files": 1071,
+        "bytes": 340608,
+        "sha256": "0c868e58fd30e48da291a35841468963372b334835a08d8f1ef207542e5f8c72"
+      }
+    },
+    {
+      "seconds": 1.8751701260000004,
+      "raw_processed": 118,
+      "topic_extractions": 111,
+      "notes": 1088,
+      "virtual_entries": 8,
+      "states": {
+        "complete": 1088
+      },
+      "assigned_labels": 5440,
+      "vocabulary": 52,
+      "catalog_seconds": 0.014631694000001971,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.011252381000019795
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.011356727000020328
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 134,
+          "seconds": 0.010709122000037041
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 17,
+          "seconds": 0.010586611000007906
+        },
+        {
+          "topic": "community spaces",
+          "matches": 121,
+          "seconds": 0.010783080000010159
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 7,
+      "source_inventory": {
+        "files": 1081,
+        "bytes": 348330,
+        "sha256": "d073cf827fcea73492343df8b6466c4027f0ed72b1ec8b0db7b49a36eaf68859"
+      }
+    },
+    {
+      "seconds": 2.529626054000005,
+      "raw_processed": 219,
+      "topic_extractions": 211,
+      "notes": 1099,
+      "virtual_entries": 9,
+      "states": {
+        "complete": 1099
+      },
+      "assigned_labels": 5495,
+      "vocabulary": 53,
+      "catalog_seconds": 0.01591525300000285,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.01166429199997765
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.01171212200000582
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 135,
+          "seconds": 0.010892124000008607
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 20,
+          "seconds": 0.010765948000027947
+        },
+        {
+          "topic": "community spaces",
+          "matches": 122,
+          "seconds": 0.011319695999986834
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 8,
+      "source_inventory": {
+        "files": 1091,
+        "bytes": 355604,
+        "sha256": "53fa7420c6496609a05bb2536fa1618a78782b98ae3d44a4d1942738fae11ddf"
+      }
+    },
+    {
+      "seconds": 1.8349580729999957,
+      "raw_processed": 120,
+      "topic_extractions": 111,
+      "notes": 1110,
+      "virtual_entries": 10,
+      "states": {
+        "complete": 1110
+      },
+      "assigned_labels": 5550,
+      "vocabulary": 54,
+      "catalog_seconds": 0.015574017999995249,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.012729710000030536
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.011971185999982481
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 136,
+          "seconds": 0.01130569800000103
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 22,
+          "seconds": 0.011387972000022728
+        },
+        {
+          "topic": "community spaces",
+          "matches": 123,
+          "seconds": 0.01128074100000731
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 9,
+      "source_inventory": {
+        "files": 1101,
+        "bytes": 362882,
+        "sha256": "396d4ed4c05ee6d4c8bef9899843ce95d396b310f70fe233f707e6e54be94f3f"
+      }
+    },
+    {
+      "seconds": 1.879873281000016,
+      "raw_processed": 121,
+      "topic_extractions": 111,
+      "notes": 1121,
+      "virtual_entries": 11,
+      "states": {
+        "complete": 1121
+      },
+      "assigned_labels": 5605,
+      "vocabulary": 55,
+      "catalog_seconds": 0.015346200000010413,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.011931923000020106
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.01190756699998019
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 137,
+          "seconds": 0.011339330999987851
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 24,
+          "seconds": 0.011187836000033258
+        },
+        {
+          "topic": "community spaces",
+          "matches": 125,
+          "seconds": 0.011228723000044738
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 10,
+      "source_inventory": {
+        "files": 1111,
+        "bytes": 370165,
+        "sha256": "e83db4e58b3c3033453d9c26830b94e8d6f15a821a2207b527ccbef25ac47c9c"
+      }
+    },
+    {
+      "seconds": 1.9174327470000208,
+      "raw_processed": 122,
+      "topic_extractions": 111,
+      "notes": 1132,
+      "virtual_entries": 12,
+      "states": {
+        "complete": 1132
+      },
+      "assigned_labels": 5660,
+      "vocabulary": 56,
+      "catalog_seconds": 0.01546322600000849,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.011695040999995854
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.012212503000000652
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 138,
+          "seconds": 0.011274952000007943
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 26,
+          "seconds": 0.011148604999959844
+        },
+        {
+          "topic": "community spaces",
+          "matches": 126,
+          "seconds": 0.011213485999974182
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 11,
+      "source_inventory": {
+        "files": 1121,
+        "bytes": 377450,
+        "sha256": "ebfec5c40d8057e6695a9f0458b30f8b06adad04a1136b20187cbe38732af4a3"
+      }
+    },
+    {
+      "seconds": 2.6670255079999947,
+      "raw_processed": 223,
+      "topic_extractions": 211,
+      "notes": 1143,
+      "virtual_entries": 13,
+      "states": {
+        "complete": 1143
+      },
+      "assigned_labels": 5715,
+      "vocabulary": 57,
+      "catalog_seconds": 0.015322823000019525,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.011742520000041168
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.012036372000011397
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 139,
+          "seconds": 0.011502459000041654
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 28,
+          "seconds": 0.011639726999987943
+        },
+        {
+          "topic": "community spaces",
+          "matches": 126,
+          "seconds": 0.011957984000048327
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 12,
+      "source_inventory": {
+        "files": 1131,
+        "bytes": 385165,
+        "sha256": "398be75ad40a27a7bb079cee6c8479b024c074686bc98a1cd199d2acdab77b9e"
+      }
+    },
+    {
+      "seconds": 2.0035852530000398,
+      "raw_processed": 124,
+      "topic_extractions": 111,
+      "notes": 1154,
+      "virtual_entries": 14,
+      "states": {
+        "complete": 1154
+      },
+      "assigned_labels": 5770,
+      "vocabulary": 58,
+      "catalog_seconds": 0.016003511000008075,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.012193648000049961
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.012144785000032243
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 140,
+          "seconds": 0.011506155999995826
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 30,
+          "seconds": 0.011507679000033022
+        },
+        {
+          "topic": "community spaces",
+          "matches": 127,
+          "seconds": 0.011477151999997659
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 13,
+      "source_inventory": {
+        "files": 1141,
+        "bytes": 392887,
+        "sha256": "c6a0f038a05f920ad7b17cc19a052ffb3b1273adf6aa39f645f2e1ace1c78a51"
+      }
+    },
+    {
+      "seconds": 2.2035552989999587,
+      "raw_processed": 125,
+      "topic_extractions": 111,
+      "notes": 1165,
+      "virtual_entries": 15,
+      "states": {
+        "complete": 1165
+      },
+      "assigned_labels": 5825,
+      "vocabulary": 59,
+      "catalog_seconds": 0.016482597999981863,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.01233770999999706
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.012465700000007018
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 141,
+          "seconds": 0.011998904999984461
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 32,
+          "seconds": 0.011619753000047695
+        },
+        {
+          "topic": "community spaces",
+          "matches": 128,
+          "seconds": 0.011672091999969325
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 14,
+      "source_inventory": {
+        "files": 1151,
+        "bytes": 400605,
+        "sha256": "e42621c3d4792c2419b712139acc8a8aa3891729592de1a30e1eb53c8bbe9936"
+      }
+    },
+    {
+      "seconds": 2.078336001000025,
+      "raw_processed": 126,
+      "topic_extractions": 111,
+      "notes": 1176,
+      "virtual_entries": 16,
+      "states": {
+        "complete": 1176
+      },
+      "assigned_labels": 5880,
+      "vocabulary": 60,
+      "catalog_seconds": 0.017025307000039902,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.012276836000012281
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.012407291000045007
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 143,
+          "seconds": 0.01173215500000424
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 34,
+          "seconds": 0.011691137000013896
+        },
+        {
+          "topic": "community spaces",
+          "matches": 129,
+          "seconds": 0.011911751000013737
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 15,
+      "source_inventory": {
+        "files": 1161,
+        "bytes": 408327,
+        "sha256": "b18e2374697db1bc882f383639947be815bff01667c6d0e3e52ce439e1353aea"
+      }
+    },
+    {
+      "seconds": 3.7450396179999643,
+      "raw_processed": 327,
+      "topic_extractions": 312,
+      "notes": 1187,
+      "virtual_entries": 17,
+      "states": {
+        "complete": 1187
+      },
+      "assigned_labels": 5935,
+      "vocabulary": 61,
+      "catalog_seconds": 0.01783302100000128,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.013155945999983487
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.01288672100002941
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 144,
+          "seconds": 0.012277127000004384
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 36,
+          "seconds": 0.012051101999986713
+        },
+        {
+          "topic": "community spaces",
+          "matches": 131,
+          "seconds": 0.012268992000031176
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 16,
+      "source_inventory": {
+        "files": 1171,
+        "bytes": 416038,
+        "sha256": "aeb66f41a7269ba76e27e648fddaec4a9f1a65f0fd1051eb4cde9dd62483334c"
+      }
+    },
+    {
+      "seconds": 2.1455693949999954,
+      "raw_processed": 128,
+      "topic_extractions": 111,
+      "notes": 1198,
+      "virtual_entries": 18,
+      "states": {
+        "complete": 1198
+      },
+      "assigned_labels": 5990,
+      "vocabulary": 63,
+      "catalog_seconds": 0.01651846600003637,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.01300975300000573
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.013206362000005356
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 145,
+          "seconds": 0.012047276999965106
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 38,
+          "seconds": 0.011947138999971685
+        },
+        {
+          "topic": "community spaces",
+          "matches": 132,
+          "seconds": 0.011991983000029904
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 17,
+      "source_inventory": {
+        "files": 1181,
+        "bytes": 423766,
+        "sha256": "cbfdabf8f907840cde70bb6d67c816b6a4eb593726458a18445c9fcfad711ef1"
+      }
+    },
+    {
+      "seconds": 2.177939207999998,
+      "raw_processed": 129,
+      "topic_extractions": 111,
+      "notes": 1209,
+      "virtual_entries": 19,
+      "states": {
+        "complete": 1209
+      },
+      "assigned_labels": 6045,
+      "vocabulary": 64,
+      "catalog_seconds": 0.016683165000017652,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.012770863000014288
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.013518375999979071
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 146,
+          "seconds": 0.012410207000016271
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 40,
+          "seconds": 0.012432608999972672
+        },
+        {
+          "topic": "community spaces",
+          "matches": 134,
+          "seconds": 0.012213336999991498
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 18,
+      "source_inventory": {
+        "files": 1191,
+        "bytes": 431499,
+        "sha256": "537c241ff4a25a37a341f06ac27f4b63d8de6dc89870011671894267ba1689bd"
+      }
+    },
+    {
+      "seconds": 2.3948734939999667,
+      "raw_processed": 130,
+      "topic_extractions": 111,
+      "notes": 1220,
+      "virtual_entries": 20,
+      "states": {
+        "complete": 1220
+      },
+      "assigned_labels": 6100,
+      "vocabulary": 65,
+      "catalog_seconds": 0.01720169899999746,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.014289523999991616
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.013139937000005375
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 147,
+          "seconds": 0.012704558999985238
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 42,
+          "seconds": 0.01294057199999088
+        },
+        {
+          "topic": "community spaces",
+          "matches": 135,
+          "seconds": 0.013373374999957832
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 19,
+      "source_inventory": {
+        "files": 1201,
+        "bytes": 439234,
+        "sha256": "283e1d6e41c23c6a4b65bd40bdfd0875af88a5682ac5b8fc7f9c931c0175404a"
+      }
+    },
+    {
+      "seconds": 3.012783249999984,
+      "raw_processed": 231,
+      "topic_extractions": 211,
+      "notes": 1231,
+      "virtual_entries": 21,
+      "states": {
+        "complete": 1231
+      },
+      "assigned_labels": 6155,
+      "vocabulary": 66,
+      "catalog_seconds": 0.017441150999957244,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.013421787000027052
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.013534740000011425
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 148,
+          "seconds": 0.013131402999988495
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 44,
+          "seconds": 0.013010846999975456
+        },
+        {
+          "topic": "community spaces",
+          "matches": 136,
+          "seconds": 0.013105724000013197
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 20,
+      "source_inventory": {
+        "files": 1211,
+        "bytes": 446954,
+        "sha256": "58d619c8b9b2088c40683c5992d9d1ac17bd8709182934fc02a36391c57c588f"
+      }
+    },
+    {
+      "seconds": 2.3295762930000024,
+      "raw_processed": 132,
+      "topic_extractions": 111,
+      "notes": 1242,
+      "virtual_entries": 22,
+      "states": {
+        "complete": 1242
+      },
+      "assigned_labels": 6210,
+      "vocabulary": 67,
+      "catalog_seconds": 0.01744829500000833,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.013069447000020773
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.013435785000012856
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 149,
+          "seconds": 0.01301483399998915
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 46,
+          "seconds": 0.013056792999975642
+        },
+        {
+          "topic": "community spaces",
+          "matches": 137,
+          "seconds": 0.012849694000010459
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 21,
+      "source_inventory": {
+        "files": 1221,
+        "bytes": 454686,
+        "sha256": "4a584bd39464b40597324503685d86ed9a6adfe2fad2e9a6866722094e18e9b3"
+      }
+    },
+    {
+      "seconds": 2.36753566699997,
+      "raw_processed": 133,
+      "topic_extractions": 111,
+      "notes": 1253,
+      "virtual_entries": 23,
+      "states": {
+        "complete": 1253
+      },
+      "assigned_labels": 6265,
+      "vocabulary": 68,
+      "catalog_seconds": 0.0187232270000095,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.014562258000012207
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.01453511800002616
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 150,
+          "seconds": 0.014246846999981244
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 48,
+          "seconds": 0.013750275000006695
+        },
+        {
+          "topic": "community spaces",
+          "matches": 138,
+          "seconds": 0.013626041000009081
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 22,
+      "source_inventory": {
+        "files": 1231,
+        "bytes": 461974,
+        "sha256": "ae3f43697c2ab3133b2fff3a1f4a38e896209a7bc79aac9fa06723fbbb91e548"
+      }
+    },
+    {
+      "seconds": 2.4409898289999887,
+      "raw_processed": 134,
+      "topic_extractions": 111,
+      "notes": 1264,
+      "virtual_entries": 24,
+      "states": {
+        "complete": 1264
+      },
+      "assigned_labels": 6320,
+      "vocabulary": 69,
+      "catalog_seconds": 0.017849017000003187,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 1000,
+          "seconds": 0.01425153500002807
+        },
+        {
+          "topic": "another related record",
+          "matches": 1000,
+          "seconds": 0.014242378000005829
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 152,
+          "seconds": 0.013520544000016343
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 50,
+          "seconds": 0.013812400999995589
+        },
+        {
+          "topic": "community spaces",
+          "matches": 139,
+          "seconds": 0.013764040000012301
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 23,
+      "source_inventory": {
+        "files": 1241,
+        "bytes": 469266,
+        "sha256": "cb84ba1c5eb9f0b60c7d3527a5a6e28e5dcbd95a0e178b603201c062e065e17c"
+      }
+    },
+    {
+      "seconds": 3.384118123999997,
+      "raw_processed": 235,
+      "topic_extractions": 211,
+      "notes": 1175,
+      "virtual_entries": 25,
+      "states": {
+        "complete": 1175
+      },
+      "assigned_labels": 5875,
+      "vocabulary": 70,
+      "catalog_seconds": 0.017254110000010314,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.013155258000040249
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.01345186499997908
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 140,
+          "seconds": 0.01275904400000627
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 53,
+          "seconds": 0.012744637000025705
+        },
+        {
+          "topic": "community spaces",
+          "matches": 128,
+          "seconds": 0.013381762999983948
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 24,
+      "source_inventory": {
+        "files": 1151,
+        "bytes": 447164,
+        "sha256": "318da5baca025a7044ad7b1d7e0f342d6ee8fc09c8d55b6489d6ddef58c6631e"
+      }
+    },
+    {
+      "seconds": 2.4710952670000097,
+      "raw_processed": 136,
+      "topic_extractions": 111,
+      "notes": 1186,
+      "virtual_entries": 26,
+      "states": {
+        "complete": 1186
+      },
+      "assigned_labels": 5930,
+      "vocabulary": 71,
+      "catalog_seconds": 0.01710254699997904,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.012747243000035269
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.012825008999982401
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 141,
+          "seconds": 0.012417814000002636
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 55,
+          "seconds": 0.012327765999998519
+        },
+        {
+          "topic": "community spaces",
+          "matches": 129,
+          "seconds": 0.01241385700001274
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 25,
+      "source_inventory": {
+        "files": 1161,
+        "bytes": 454452,
+        "sha256": "8fd5c3c98ef83e87ecef7e3e730701b183d468813115be066254a7915b2fcbc9"
+      }
+    },
+    {
+      "seconds": 2.484009388000004,
+      "raw_processed": 137,
+      "topic_extractions": 111,
+      "notes": 1197,
+      "virtual_entries": 27,
+      "states": {
+        "complete": 1197
+      },
+      "assigned_labels": 5985,
+      "vocabulary": 72,
+      "catalog_seconds": 0.016759452999963287,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.013787045000015041
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.21575139600003013
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 142,
+          "seconds": 0.012879721999979665
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 57,
+          "seconds": 0.012055294999981925
+        },
+        {
+          "topic": "community spaces",
+          "matches": 131,
+          "seconds": 0.01217413699998815
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 26,
+      "source_inventory": {
+        "files": 1171,
+        "bytes": 462285,
+        "sha256": "7a59e8e3539108c8e56e97064020c8ab38d72f682dce1961baba6dabb8e2cb1a"
+      }
+    },
+    {
+      "seconds": 2.5036524119999513,
+      "raw_processed": 138,
+      "topic_extractions": 111,
+      "notes": 1208,
+      "virtual_entries": 28,
+      "states": {
+        "complete": 1208
+      },
+      "assigned_labels": 6040,
+      "vocabulary": 73,
+      "catalog_seconds": 0.01775737600002003,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.013325919000010344
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.013308526000002985
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 131,
+          "seconds": 0.01271743699999206
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 59,
+          "seconds": 0.01278570499999887
+        },
+        {
+          "topic": "community spaces",
+          "matches": 132,
+          "seconds": 0.012681799999995746
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 27,
+      "source_inventory": {
+        "files": 1181,
+        "bytes": 470120,
+        "sha256": "c858cdb6c3b9673833327db6ed0757d2ba3cad1bc4387a13c4ec4c4c34c4f969"
+      }
+    },
+    {
+      "seconds": 3.275088665999988,
+      "raw_processed": 239,
+      "topic_extractions": 211,
+      "notes": 1219,
+      "virtual_entries": 29,
+      "states": {
+        "complete": 1219
+      },
+      "assigned_labels": 6095,
+      "vocabulary": 74,
+      "catalog_seconds": 0.017225581999980477,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.013871515999994699
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.013273773999969762
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 132,
+          "seconds": 0.012577657999997882
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 61,
+          "seconds": 0.012415032000035353
+        },
+        {
+          "topic": "community spaces",
+          "matches": 134,
+          "seconds": 0.012664010000037251
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 28,
+      "source_inventory": {
+        "files": 1191,
+        "bytes": 477955,
+        "sha256": "5fb5423dbca9212e912d58d5f8862664b025c4ffa34ce352c9eb1ab888d4c795"
+      }
+    },
+    {
+      "seconds": 2.7539006020000443,
+      "raw_processed": 140,
+      "topic_extractions": 111,
+      "notes": 1230,
+      "virtual_entries": 30,
+      "states": {
+        "complete": 1230
+      },
+      "assigned_labels": 6150,
+      "vocabulary": 75,
+      "catalog_seconds": 0.016902696000045125,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.013296465999985685
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.013149821000013162
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 133,
+          "seconds": 0.012560675000031551
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 63,
+          "seconds": 0.012599028000011003
+        },
+        {
+          "topic": "community spaces",
+          "matches": 135,
+          "seconds": 0.012361070999986623
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 29,
+      "source_inventory": {
+        "files": 1201,
+        "bytes": 485787,
+        "sha256": "b8720b91fd7a35234fcec71da900f347d0d88e4f91dfec217bbd53929fcb91b2"
+      }
+    },
+    {
+      "seconds": 2.5926150889999917,
+      "raw_processed": 141,
+      "topic_extractions": 111,
+      "notes": 1241,
+      "virtual_entries": 31,
+      "states": {
+        "complete": 1241
+      },
+      "assigned_labels": 6205,
+      "vocabulary": 76,
+      "catalog_seconds": 0.0176331690000211,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.013256037000019205
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.013484047000019928
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 134,
+          "seconds": 0.012827903000015795
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 65,
+          "seconds": 0.012845976999983577
+        },
+        {
+          "topic": "community spaces",
+          "matches": 136,
+          "seconds": 0.012988124000003154
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 30,
+      "source_inventory": {
+        "files": 1211,
+        "bytes": 493615,
+        "sha256": "7ebf86b3e5b92a9f5511530191354b5e142933f5771a0f1743082f47c5e843df"
+      }
+    },
+    {
+      "seconds": 2.6662982579999834,
+      "raw_processed": 142,
+      "topic_extractions": 111,
+      "notes": 1252,
+      "virtual_entries": 32,
+      "states": {
+        "complete": 1252
+      },
+      "assigned_labels": 6260,
+      "vocabulary": 77,
+      "catalog_seconds": 0.018491995999966093,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 900,
+          "seconds": 0.013808496999956787
+        },
+        {
+          "topic": "another related record",
+          "matches": 900,
+          "seconds": 0.01383025800004134
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 136,
+          "seconds": 0.013122759999987466
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 67,
+          "seconds": 0.013419537000004311
+        },
+        {
+          "topic": "community spaces",
+          "matches": 137,
+          "seconds": 0.013780223000026126
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 31,
+      "source_inventory": {
+        "files": 1221,
+        "bytes": 501447,
+        "sha256": "dcba4cf9dcf714f2db239cbad2260f389f751612035661eb18fe6b43bf9ce148"
+      }
+    }
+  ],
+  "warm_sync": {
+    "seconds": 0.6220498299999804,
+    "raw_processed": 0,
+    "topic_extractions": 0
+  },
+  "warm_observation": {
+    "notes": 1252,
+    "virtual_entries": 32,
+    "states": {
+      "complete": 1252
+    },
+    "assigned_labels": 6260,
+    "vocabulary": 77,
+    "catalog_seconds": 0.017545218999998724,
+    "positive_queries": [
+      {
+        "topic": "a related record",
+        "matches": 900,
+        "seconds": 0.0132199620000506
+      },
+      {
+        "topic": "another related record",
+        "matches": 900,
+        "seconds": 0.013334526999983609
+      },
+      {
+        "topic": "astronomy observes galaxies",
+        "matches": 136,
+        "seconds": 0.012971445999994557
+      },
+      {
+        "topic": "biodiversity",
+        "matches": 67,
+        "seconds": 0.01259184399998503
+      },
+      {
+        "topic": "community spaces",
+        "matches": 137,
+        "seconds": 0.012590811999984908
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "unrated_quality_sample": [],
+  "rebuilt_observation": {
+    "notes": 1252,
+    "virtual_entries": 32,
+    "states": {
+      "complete": 1252
+    },
+    "assigned_labels": 6260,
+    "vocabulary": 77,
+    "catalog_seconds": 0.017012042000033034,
+    "positive_queries": [
+      {
+        "topic": "a related record",
+        "matches": 900,
+        "seconds": 0.013243919000046844
+      },
+      {
+        "topic": "another related record",
+        "matches": 900,
+        "seconds": 0.013109947000032207
+      },
+      {
+        "topic": "astronomy observes galaxies",
+        "matches": 136,
+        "seconds": 0.012486967999961962
+      },
+      {
+        "topic": "biodiversity",
+        "matches": 67,
+        "seconds": 0.012390596999978243
+      },
+      {
+        "topic": "community spaces",
+        "matches": 137,
+        "seconds": 0.01245959599998514
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "clean_rebuild_matches": true,
+  "source_unchanged": true,
+  "stable_controls_unchanged": true,
+  "final_digest": "0b48e42b97bac1cf39425559de19a900c0fd16692443e298296e417ccb7ed35c"
+}

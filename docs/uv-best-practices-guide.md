@@ -976,7 +976,7 @@ uv lock --upgrade-package pkg   # Upgrade specific package
 
 # Environment management
 uv sync                         # Sync environment with lock file
-uv sync --frozen                # Error if lock file out of date
+uv sync --locked                # Error if lock file out of date
 uv sync --no-dev                # Exclude dev dependencies
 uv sync --group test            # Install test group
 

@@ -799,3 +799,11 @@ YAML inputs are size-, depth-, node-, and alias-bounded. Tracery grammars also h
 Markdown sources and managed `_geistfabrik`/journal paths are resolved and checked for vault containment. Escaping or broken symlinks, Markdown files over 16 MiB, and structurally dense notes above fixed link/tag/date-section quotas are skipped/rejected. Journal commits also check managed-directory identity and use descriptor-relative replacement on supported POSIX systems. These checks reduce accidental path escape but are not an OS-level sandbox against a malicious concurrent local process; Windows lacks an equivalent stdlib hardening primitive.
 
 These hardening and packaging changes are included in version 0.11.0.
+
+### Derived topics
+
+Normal vault sync extracts local topic labels without changing authored notes or
+tags. Inspect with `geistfabrik topics /path/to/vault --note '[[My Note]]' --json`,
+or query exact topic memberships through VaultContext/Tracery. See
+[topic behavior and constraints](docs/TOPICS.md) and
+[verification status](docs/TOPICS_VERIFICATION.md).
