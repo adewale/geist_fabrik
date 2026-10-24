@@ -7,9 +7,11 @@ All assigned labels are scored at the existing maximum and fixed thresholds.
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 from dataclasses import asdict
 from functools import partial
+from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -28,7 +30,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lyt", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--grammar", action="store_true")
     args = parser.parse_args()
+    if args.grammar:
+        from scripts.topic_grammar_probe import CandidateGrammar
     observed = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=args.lyt, text=True
     ).strip()
@@ -53,13 +58,44 @@ def main() -> int:
         return (row for row in original_labels(content, prose) if row[3] != "wikilink")
 
     def selected(
-        content, *, budget=5, link_prior=True, predicate_penalty=True, block_sentences=False
+        content,
+        *,
+        budget=5,
+        link_prior=True,
+        predicate_penalty=True,
+        block_sentences=False,
+        grammar=False,
     ):
+        prose = topics.topic_prose(content)
+        boundaries = topics.topic_boundaries(content)
+        grammar_filter = CandidateGrammar(prose, boundaries) if grammar else None
+
         class BlockCandidates:
             def extract_keywords(self, text):
-                edges = sorted({0, len(text), *topics.topic_boundaries(content)})
-                scored = "\n.\n".join(text[a:b] for a, b in zip(edges, edges[1:]))
-                return extractor.extract_keywords(scored)
+                if block_sentences:
+                    edges = sorted({0, len(text), *boundaries})
+                    text = "\n.\n".join(text[a:b] for a, b in zip(edges, edges[1:]))
+                candidates = extractor.extract_keywords(text)
+                if grammar_filter is None:
+                    return candidates
+                result = []
+                for label, score in candidates:
+                    expression = (
+                        r"(?<!\w)"
+                        + r"\s+".join(re.escape(w) for w in label.split())
+                        + r"(?!\w)"
+                    )
+                    match = next(
+                        (
+                            m
+                            for m in re.finditer(expression, prose, re.IGNORECASE)
+                            if not any(m.start() < edge < m.end() for edge in boundaries)
+                        ),
+                        None,
+                    )
+                    if match is None or grammar_filter.allows(label, match.start(), match.end()):
+                        result.append((label, score))
+                return result
 
         with (
             patch.object(
@@ -72,7 +108,7 @@ def main() -> int:
             ),
         ):
             return original_extract(
-                content, extractor=BlockCandidates() if block_sentences else extractor
+                content, extractor=BlockCandidates() if block_sentences or grammar else extractor
             )[:budget]
 
     policies = {
@@ -86,6 +122,8 @@ def main() -> int:
         "without-link-prior-at-most-three": {"link_prior": False, "budget": 3},
         "block-sentence-scoring": {"block_sentences": True},
     }
+    if args.grammar:
+        policies["contextual-grammar"] = {"grammar": True}
     reports = {}
     diagnostics = {}
     with TemporaryDirectory(prefix="topic-quality-probe-") as directory:
@@ -134,6 +172,7 @@ def main() -> int:
             "limitation": (
                 "Model-labelled calibration ablations; no human or holdout quality claim."
             ),
+            "experimental_grammar_package": version("textblob") if args.grammar else None,
         }
         args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
         print("TOPIC_QUALITY_PROBE_BEGIN", flush=True)
