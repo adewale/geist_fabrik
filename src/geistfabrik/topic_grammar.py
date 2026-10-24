@@ -86,9 +86,7 @@ def _tag_block(block: str) -> list[list[tuple[str, str]]]:
         )
         if len(tagged) != len(spans) or any(row[0] != word for row, word in zip(tagged, words)):
             return []
-        result.append(
-            [(block[start:end], tag) for (start, end), (_, tag) in zip(spans, tagged)]
-        )
+        result.append([(block[start:end], tag) for (start, end), (_, tag) in zip(spans, tagged)])
     return result
 
 
