@@ -1,0 +1,19 @@
+{
+  "source_commit": "01c8c68b2f0fa5f39ef653cf067a8a9ea778abb6",
+  "run_url": "https://github.com/adewale/geist_fabrik/actions/runs/40086918849",
+  "job_id": 120851641735,
+  "observed_at_utc": "2026-10-24T10:45:26Z",
+  "python": "3.12.15",
+  "commands": [
+    "uv sync --locked --extra vector-search",
+    "uv run --frozen pytest tests/unit/test_topic*.py tests/unit/test_dependency_validation.py tests/integration/test_topics.py --no-cov -q",
+    "uv run --frozen python scripts/evaluate_topics.py",
+    "uv run --frozen python scripts/benchmark_topics.py"
+  ],
+  "focused_tests_passed": 113,
+  "repository_hooks": "passed; no uncommitted repairs",
+  "limitations": [
+    "Quality samples are small and model-annotated, not human-reviewed or an untouched holdout after tuning.",
+    "Performance is one CI run over repeated synthetic 141-character notes, not a representative real-vault benchmark."
+  ]
+}

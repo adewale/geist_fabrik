@@ -53,26 +53,6 @@ jobs:
       - name: Positive-query indexing benchmark
         if: always()
         run: uv run --frozen python scripts/benchmark_topics.py
-      - name: Calibration diagnostics
-        if: always()
-        run: |
-          uv run --frozen python - <<'PY'
-          import json
-          import yake
-          from scripts.evaluate_topics import REPO, FIXTURE_NAMES, _content
-          from geistfabrik.topics import _SETTINGS, topic_prose
-          extractor = yake.KeywordExtractor(**_SETTINGS)
-          reports = []
-          for name in FIXTURE_NAMES:
-              fixture = json.loads((REPO / 'tests/fixtures' / (name + '.json')).read_text())
-              for note in fixture['notes']:
-                  prose = topic_prose(_content(note, REPO))
-                  reports.append({'id': note['id'], 'prose': prose,
-                                  'candidates': extractor.extract_keywords(prose)})
-          print('TOPIC_CANDIDATE_DIAGNOSTICS_BEGIN')
-          print(json.dumps(reports))
-          print('TOPIC_CANDIDATE_DIAGNOSTICS_END')
-          PY
       - name: Reject and expose uncommitted hook repairs
         if: always()
         run: |

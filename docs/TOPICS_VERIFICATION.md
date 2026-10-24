@@ -1,33 +1,76 @@
-# Topic verification and rebase status
+# Topic verification
 
-This revision rebases the published implementation checkpoint onto main657f856 (schema15), preserving lexical capture and allocating additive schema16 for topics. The richer local repair/evaluation files became inaccessible when the workspace failed and are not included here. The recorded material audit findings remain open in this revision. Do not merge until they are fixed and the actual published revision passes the gates below.
+PR [#96](https://github.com/adewale/geist_fabrik/pull/96) is rebased onto main
+`657f85675bc05d3f353ed88940f36efe604b0367`. The implementation preserves the
+session's narrowed goal: automatic local topic extraction, derived tags and
+inspection APIs. It adds no new geist, source rewrite, dashboard, background
+monitor, public-topic threshold, aggressive merging or editorial ranking.
 
-## Session requirements
+## Root causes and regression coverage
 
-Automatic topic extraction and derived note tags are the first deliverable. Preserve source Markdown/frontmatter/authored tags, local user-invoked operation, singleton topics, conservative identities, exact evidence, shared VaultContext/Tracery APIs, and CLI inspection. Exclude protected sources before extraction/counts. Keep deterministic suggestion sampling, filtering, preview and explicit --write. Membership is textual evidence, never stance or intention. Do not import newsletter segmentation, public-topic thresholds, aggressive merging, editorial ranking, background/cloud machinery or speculative new geists from Flux/Bobbin.
+The [historical adversarial audit](TOPICS_ADVERSARIAL_AUDIT.md) describes the
+pre-repair source at `16d0adba380c306b3ff19f455ae3f4787aa78e68`.
+The following repairs address its causes rather than suppressing symptoms.
 
-## Fresh independent audit findings
+| Cause | Repair | Verification |
+| --- | --- | --- |
+| Logical names were trusted without their physical source identity. | Persist resolved identities; require both identities to pass the shared policy on sync and cached reads. Missing provenance is pending. | Protected aliases, virtual dated entries, database reopen and missing-provenance regressions. |
+| Topics duplicated and weakened the shared boundary policy. | Reuse SourceEligibility, retain logical and physical checks, always exclude managed state and journals. | Templates, configured prefixes, disabled suggestion filters and alias tests. |
+| Discovery failures and skipped files disappeared before completeness checks. | Maintain failed-source and observed-source manifests independently of parsed rows; validate all observed identities/stat signatures before committing. | Permission/stat failures, late oversized files and oversized alias retargeting tests. |
+| Regex cleaning confused hidden syntax with visible prose. | Markdown-owned block/inline spans and bounded HTML/comment ownership preserve offsets while masking metadata and hidden bodies. | Nested link titles, reference definitions, list fences, multiline code, HTML self-closing syntax and comment ownership tests. |
+| A stale lock was silently repaired by validation commands. | Commit the actual resolved YAKE dependency graph; locked sync, frozen execution and lock checksum enforcement. | Dependency graph coverage, lock-mutation rejection and offline installed-wheel extraction. |
+| Quality fixtures existed without executable release checks. | Evaluate every assigned label at the shipped maximum, check source hashes and fixed thresholds, wire both reports into tests/CI. | Noise injection, label-cap drift, checksum and empty-case regressions. |
 
-Storage review reproduced two material defects against the checkpoint with real Vault/SQLite and only the missing YAKE dependency stubbed:
+The quality run also exposed forced padding with weak standalone words. A relative
+score-gap abstention rule now treats five labels as a maximum; authored labels,
+phrases and an isolated subject remain eligible. The frozen oracle and thresholds
+were unchanged. Related topic/body/metadata reads use one SQLite snapshot.
+Schema v15-to-v16 migration tests preserve authored data and lexical history.
 
-- HIGH: excluded Private/hidden.md can leak its heading through public.md symlink. Persist physical source identities and enforce the shared SourceEligibility policy on sync and reads/reopen.
-- MEDIUM: containment/stat PermissionError skips discovery without a failure manifest; reconciliation removes previous rows and falsely reports a complete empty index. Persist eligible discovery failures before continuing.
-- MEDIUM: configured-prefix semantics differ from current main; reuse SourceEligibility, including Templates/, independently of suggestion filtering toggles.
+## Measured focused validation
 
-Quality review reproduced hidden balanced-link title leakage, comment-contained fences erasing later visible prose, and later H1 headings displacing the primary subject. Parser-owned source spans, physical block boundaries and first-visible-primary-heading evidence are required repairs.
+Source `01c8c68b2f0fa5f39ef653cf067a8a9ea778abb6` passed
+[the focused CI job](https://github.com/adewale/geist_fabrik/actions/runs/40086918849/job/120851641735):
+113 tests, repository hooks, locked dependencies, both quality gates and the
+positive-query benchmark. Hooks left no uncommitted repairs. This used real YAKE
+and MarkdownIt on Python 3.12.15. Reports and their source/run receipt are checked
+in under `benchmarks/results/topics/`.
 
-Fresh interface source review found no independent medium/high finding in snapshot scope, model/plugin-free CLI setup, clean JSON, incomplete-result reporting or deterministic bracketed-link sampling. Low: VaultContext.topic_state should apply the CLI's .md fallback for unparsed physical sources.
+| Fixed sample | YAKE precision / recall | Frequency baseline precision / recall | Required precision / recall |
+| --- | --- | --- | --- |
+| Synthetic: 8 cases, 7 with required subjects | 0.600 / 0.833 | 0.029 / 0.071 | 0.45 / 0.60 |
+| Bundled real notes: 10 cases, 7 with required subjects | 0.500 / 0.857 | 0.229 / 0.381 | 0.50 / 0.60 |
 
-Prepared local repairs preserve main's lexical transaction and insert topic publication before final filesystem snapshot validation. A local real-SQLite v15->v16 migration/reopen check preserved source content/authored tags. This does not certify the unpublished full revision.
+Both sets had no empty-case violations. Metrics average per substantive note and
+score every assigned label, up to five; real-source SHA256 checks bind the oracle
+to the source. An independent model annotated sources before seeing extraction
+code/output. These are small calibration/regression samples, not human annotations,
+a representative study, or an untouched holdout after tuning. The specification's
+representative human-reviewed quality gate remains open; these results do not
+justify a production accuracy claim or removing draft status.
 
-## Verification still required
+Single-run benchmark on repeated synthetic 141-character notes:
 
-- Commit the remaining audit repairs, executable evaluation and refreshed YAKE dependency lock.
-- Run ./scripts/validate.sh, full CI matrix and offline wheel/sdist smoke on the exact published revision. The execution sandbox has blocked package downloads; a local run completed with dependency-availability failures, not a passing result.
-- Restore executable quality evaluation: every assigned label at limit5, precision/recall and frequency baseline, real-source checksums, empty-case failures. Gold fixtures remain unchanged.
-- Measure cold/warm sync and positive member-query costs with corpus sizes stated. A synthetic141-character repeated-note benchmark is not representative-vault performance evidence.
-- Recheck audit reproductions after code publication and record actual results here.
+| Notes | Cold sync | Warm sync | Catalog | Positive membership query |
+| --- | --- | --- | --- | --- |
+| 100 | 0.296 s | 0.031 s | 1.42 ms | 1.04 ms |
+| 1,000 | 3.008 s | 0.294 s | 13.06 ms | 9.89 ms |
 
-The synthetic8-case and bundled-real10-case fixtures are source-first model annotations, not human-reviewed representative quality or an untouched holdout after tuning. Broader representative quality remains an open delivery gate.
+Membership queries returned all 100/1,000 expected sources. These costs are useful
+regression evidence, not representative real-vault latency measurements.
 
-Historical checkpoint Actions run38657954594 passed offline package smoke for Python3.11 and3.12. Its macOS unit lane had1611 passes and one stale-schema-status failure; other matrix lanes were canceled. This does not certify the rebased revision. The lost workspace's earlier38-test/three-agent results also do not certify current code.
+## Reproduction and full validation
+
+```sh
+uv sync --locked --extra vector-search
+uv run --frozen pytest tests/unit/test_topic*.py tests/unit/test_dependency_validation.py tests/integration/test_topics.py --no-cov -q
+uv run --frozen python scripts/evaluate_topics.py
+uv run --frozen python scripts/benchmark_topics.py
+./scripts/validate.sh
+```
+
+The dedicated workflow runs the exact canonical script after focused gates; the
+normal Test workflow supplies platform/Python lanes and offline installed-wheel
+smokes. The final PR description links their completed results. Local downloads
+are blocked in the execution sandbox, so local compilation and standalone SQLite
+probes are supplementary evidence, not a substitute for these real CI runs.

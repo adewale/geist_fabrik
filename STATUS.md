@@ -14,7 +14,7 @@
 | **Source inventory** | Derived from the tree; avoid freezing counts in documentation |
 | **Type Checking** | Mypy strict |
 | **Linting** | Ruff |
-| **Database Schema** | v16 (derived topics and retained lexical history) |
+| **Database Schema** | v16 (derived topics and source evidence; retained lexical history) |
 | **Default Geists** | Bundled in `src/geistfabrik/default_geists/`; counts come from `geistfabrik.default_geists` |
 | **Example Modules** | Code and Tracery geists, metadata modules and vault functions - examples/ |
 
@@ -92,6 +92,8 @@ geist_fabrik/
 **Current Version**: v16
 
 **Tables**:
+- `topics`, `note_topics`, `note_topic_state` - Rebuildable derived labels and exact evidence
+- `topic_source_errors`, `topic_source_identity` - Explicit failures and physical source boundaries
 - `notes` - Note content, metadata, timestamps
 - `links` - Wikilinks between notes (with composite index)
 - `tags` - Tag assignments

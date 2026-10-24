@@ -28,12 +28,21 @@ the existing sampling, filtering, preview, and explicit `--write` controls.
 Keys normalize Unicode, case and whitespace only; no stemming, semantic merging,
 public-topic threshold, corpus frequency floor, or popularity ranking. Singleton
 topics remain valid. Scores rank labels, not provocations, and are not calibrated
-probabilities. Membership is textual evidence, never stance, emotion or intention.
+probabilities. Five is a maximum, not a quota: a large relative score gap can
+exclude weak standalone words; explicit labels and multiword phrases remain
+eligible. This policy is corpus-independent and permits isolated subjects.
+Membership is textual evidence, never stance, emotion or intention.
 
 Frontmatter, code, comments, transclusions, authored tags, link destinations and
-reference metadata are excluded. Configured boundary prefixes, the geist journal
-and managed-state directory are excluded before extraction/counts even when
-suggestion boundary filtering is disabled. Raw inputs over 100,000 characters
+reference metadata and hidden HTML bodies are excluded using parser-owned spans.
+Visible link wording remains continuous with surrounding prose. Structurally
+ambiguous comment processing is bounded at 32 reparses and reports an error when
+that work limit is exhausted. Shared source boundaries (including Templates/),
+configured prefixes, the geist journal and managed-state directory are excluded
+before extraction/counts even when
+suggestion boundary filtering is disabled. Logical, dated-entry and resolved
+physical identities must all be eligible, including cached reads after reopen.
+Raw inputs over 100,000 characters
 produce explicit errors, never silently truncated labels. Content/parser/extractor/
 settings/boundary changes invalidate cached results; edits and deletions reconcile
 memberships during normal sync. Related reads share one database snapshot.
