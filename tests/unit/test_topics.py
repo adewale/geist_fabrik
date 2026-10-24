@@ -543,6 +543,16 @@ def test_statistical_abstention_does_not_suppress_later_authored_evidence() -> N
     assert [tag.key for tag in tags] == ["alpha", "rare topic"]
 
 
+class _PhraseAfterGap:
+    def extract_keywords(self, text: str) -> list[tuple[str, float]]:
+        return [("alpha", 0.1), ("beta", 0.11), ("gamma", 1.0), ("rare topic", 2.0)]
+
+
+def test_word_padding_abstention_preserves_phrase_evidence_after_a_gap() -> None:
+    tags = extract_topics("alpha beta gamma rare topic", _PhraseAfterGap())
+    assert [tag.key for tag in tags] == ["alpha", "beta", "rare topic"]
+
+
 @pytest.mark.parametrize("source", ["red\n\nblue", "red\n- blue", "red\n## blue"])
 def test_labels_cannot_join_distinct_prose_blocks(source: str) -> None:
     assert "red blue" not in {tag.key for tag in extract_topics(source, _JoinedExtractor())}
