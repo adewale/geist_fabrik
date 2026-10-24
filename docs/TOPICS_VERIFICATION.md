@@ -56,8 +56,9 @@ a representative study, or an untouched holdout after tuning. The specification'
 representative human-reviewed quality gate remains open; these results do not
 justify a production accuracy claim or removing draft status.
 
-The [human review packet](TOPIC_QUALITY_REVIEW.md) contains every current real
-source and both prediction sets. Its response record is explicitly pending. The
+The historical [human review packet](TOPIC_QUALITY_REVIEW.md) contains all ten
+starter sources and the earlier prediction sets. Its response record is explicitly
+pending. Current grammar outputs are retained in the repair reports below. The
 exact-label model score can reject supported phrase variants; it is not a human
 judgment that half the assigned labels are useless. Neither the frozen oracle nor
 its thresholds has been changed to address that measurement limitation.
@@ -78,11 +79,11 @@ Merged PRs already supplied a narrative vault, temporal profiles at 128/1,000/10
 notes and the original 10,000-file stress corpus. A public LYT Kit mirror extends
 authored-note coverage. The [corpus evaluation](TOPIC_CORPUS_EVALUATION.md) records
 the recovered provenance, frozen source-first sample and executable checks.
-These inputs have now been exercised before and during a targeted property-
-metadata repair. Both broader model relevance proxies remain below their fixed
-precision thresholds, and an unfilled-form violation remains. Their source-first
+These inputs have now been exercised before and during targeted property-
+metadata and grammar repairs. The latest grammar meets both broader proxies'
+numeric thresholds, while an unfilled-form violation remains. Their source-first
 annotations, measured reports and audit follow-ups are retained in the corpus
-evaluation. Merge readiness is blocked on this quality evidence as well as the
+evaluation. Merge readiness remains blocked on that violation and the
 representative human-review gate.
 
 ## Reproduction and full validation
@@ -111,6 +112,27 @@ inventory matches a separate generation, and every requested snapshot index is
 present in the [retained reports](../benchmarks/results/topics/corpora/all-snapshots/index.json).
 Broader relevance proxies still fail; complete corpus execution does not close
 that quality gate.
+
+The contextual grammar repair in
+`427afee5a4c7ae5df044441f4f105c288a75c671` passed
+[focused/canonical validation](https://github.com/adewale/geist_fabrik/actions/runs/40123416947):
+178 focused tests, 2,345 unit tests, 86 integration tests, 84.12% branch coverage,
+all 158 automatic acceptance criteria, hooks, lint, both type checkers,
+security/workflow checks and offline installed-package/model inference. The
+[platform/package matrix](https://github.com/adewale/geist_fabrik/actions/runs/40123416927)
+passed all three platform lanes and both Python package lanes. Empty NLTK
+resource paths do not prevent packaged grammar extraction.
+
+The [completed corpus run](https://github.com/adewale/geist_fabrik/actions/runs/40123416962)
+passed every requested observation across all six corpora and 120 replay
+snapshots. [Source-bound reports](../benchmarks/results/topics/corpora/grammar-repair/index.json)
+and the [receipt](../benchmarks/results/topics/corpora/receipt.json) retain exact
+inputs, source-file hashes and comparison checks. Stored sampled memberships
+match the quality scorer's predictions exactly. Frozen precision/recall is now
+0.629/0.881 synthetic, 0.529/0.857 starter, 0.571/0.857 narrative and 0.520/0.625 LYT.
+All numeric thresholds pass; LYT still fails its empty-form case on
+`important action items`. [Repair decisions and counterexamples](TOPIC_QUALITY_REPAIR.md)
+explain why no corpus-specific deletion was added. Human review remains open.
 
 ```sh
 uv sync --locked --extra vector-search

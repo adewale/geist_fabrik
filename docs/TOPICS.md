@@ -32,8 +32,18 @@ public-topic threshold, corpus frequency floor, or popularity ranking. Singleton
 topics remain valid. Scores rank labels, not provocations, and are not calibrated
 probabilities. Five is a maximum, not a quota: a large relative score gap can
 exclude weak standalone words; explicit labels and multiword phrases remain
-eligible. This policy is corpus-independent and permits isolated subjects.
+eligible under their own evidence rules. This policy is corpus-independent and
+permits isolated subjects.
 Membership is textual evidence, never stance, emotion or intention.
+
+Statistical candidates also pass a local English grammar guard using packaged
+TextBlob rules and data-free NLTK tokenizers. It can reject clause fragments while
+preserving authored priors, isolated subjects and nominal outlines. It keeps
+uncertain alignments and reports model failures through the existing incomplete
+handling. Typographic scoring copies do not rewrite source evidence or merge
+topic identities. Grammar is a heuristic: useful subjects can be missed and
+noun-like boilerplate can remain. Complete means extraction finished, not that
+every meaningful subject was found. See the [repair decisions](TOPIC_QUALITY_REPAIR.md).
 
 Frontmatter, code, comments, transclusions, authored tags, link destinations and
 reference metadata and hidden HTML bodies are excluded using parser-owned spans.
@@ -49,7 +59,8 @@ suggestion boundary filtering is disabled. Logical, dated-entry and resolved
 physical identities must all be eligible, including cached reads after reopen.
 Raw inputs over 100,000 characters
 produce explicit errors, never silently truncated labels. Content/parser/extractor/
-settings/boundary changes invalidate cached results; edits and deletions reconcile
+settings/boundary and packaged grammar-data changes invalidate cached results;
+edits and deletions reconcile
 memberships during normal sync. Related reads share one database snapshot.
 
 See [verification status](TOPICS_VERIFICATION.md) and the

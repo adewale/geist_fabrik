@@ -92,10 +92,18 @@ precision/recall; LYT improves from 0.482/0.625 to 0.520/0.625. Both original
 calibration gates pass, and the LYT empty-form gate still fails. All 178 focused
 tests passed; the focused job failed because its formatter changed one file.
 
-Final canonical, platform/package and all-six-corpus validation of this repair
-remains in progress. Completed source-bound results are retained in
-[topic verification](TOPICS_VERIFICATION.md) and the
-[corpus evaluation](TOPIC_CORPUS_EVALUATION.md); earlier runtime measurements do
-not certify this new revision. The required corpus scope is all 120 replay
-snapshots and both static vaults, checking source hashes, exact evidence,
-positive queries, zero-extraction warm sync and fresh final-state rebuilds.
+Runtime `427afee5a4c7ae5df044441f4f105c288a75c671` completed
+[canonical validation](https://github.com/adewale/geist_fabrik/actions/runs/40123416947),
+the [platform/package matrix](https://github.com/adewale/geist_fabrik/actions/runs/40123416927)
+and [all-six-corpus validation](https://github.com/adewale/geist_fabrik/actions/runs/40123416962).
+Results: 178 focused tests, 2,345 unit tests, 86 integration tests, 84.12% branch
+coverage and all 158 automatic acceptance criteria. The 83 manual criteria are
+not certified. Offline installed packages passed with an empty NLTK resource
+search path and real model inference.
+
+The [final corpus reports](../benchmarks/results/topics/corpora/grammar-repair/index.json)
+retain all 120 replay snapshots and both static vaults. Inputs match the previous
+full run exactly; every evidence span and positive query was checked, all warm
+runs extracted zero topics, all four changing corpora matched complete fresh
+rebuilds, and sampled stored labels exactly match the quality predictions.
+No human ratings or merge recommendation are inferred from these checks.

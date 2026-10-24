@@ -160,6 +160,59 @@ focused workflow also passed both original calibration gates, including all ten
 public starter notes. The [receipt](../benchmarks/results/topics/corpora/receipt.json)
 binds this full coverage to its actual commit, source hashes and CI jobs.
 
+## Completed grammar repair on the full corpus scope
+
+The [grammar repair](TOPIC_QUALITY_REPAIR.md) rejects statistical clause fragments
+using packaged local grammar, while preserving authored priors, rare subjects,
+nominal outlines and uncertain alignments. An independent review exposed
+possessive modifiers, numeric names and postpositive adjectives; regressions
+protect their entire grammatical classes. Runtime
+`427afee5a4c7ae5df044441f4f105c288a75c671` passed the
+[full corpus workflow](https://github.com/adewale/geist_fabrik/actions/runs/40123416962).
+
+The [new reports](../benchmarks/results/topics/corpora/grammar-repair/index.json)
+retain all 120 ordered replay snapshots and both complete static populations.
+Every source inventory is identical to the pre-grammar full run. All six preserve
+Markdown, exact evidence and positive memberships and extract zero topics when
+unchanged; all four changing corpora match complete fresh final-state rebuilds
+and retain stable-source evidence. The large final population remains 12,201
+Markdown files and 12,232 indexed note/entry states. Stored labels on every
+graded sample match the quality evaluator's predictions, with unchanged source
+and annotation hashes.
+
+| Frozen model proxy | Before grammar precision / recall | After grammar | Result |
+| --- | --- | --- | --- |
+| Narrative | 0.448 / 0.667 | 0.571 / 0.857 | Passes both numeric thresholds. |
+| LYT | 0.482 / 0.625 | 0.520 / 0.625 | Passes numeric thresholds; empty-form gate still fails. |
+
+The original synthetic and public-starter gates also pass unchanged, at
+0.629/0.881 and 0.529/0.857. Every pre-repair baseline prediction is reproduced by
+the diagnostic's grammar-disabled counterfactual. These remain model calibration
+results, not human ratings or an untouched holdout. The remaining LYT form emits
+`important action items`; neither the form nor its assigned label was removed
+from evaluation. A same-shaped rare-topic outline is preserved by regression.
+No frequency floor, domain word list, semantic merging or weakened oracle was
+used to close a gate. Merge readiness remains blocked.
+
+| Measured cost | Pre-grammar full run | Grammar repair |
+| --- | ---: | ---: |
+| Temporal large: sum of 32 syncs | 798.530 s | 929.478 s |
+| Temporal large: last changed sync | 26.829 s | 37.914 s |
+| Temporal large: final warm sync | 6.419 s | 4.464 s |
+| Original stress corpus: cold sync | 810.691 s | 933.437 s |
+| Original stress corpus: warm sync | 5.363 s | 3.731 s |
+
+Inputs are matched, but these are separate single CI trials with varying host
+costs; the differences are not isolated causal estimates. Lexical capture stays
+disabled. Generation, verification and whole invocation/embedding costs are
+outside these sync timings. Warm extraction counts are zero in both revisions.
+
+Canonical and platform/package checks also pass on this runtime: 178 focused,
+2,345 unit and 86 integration tests, 84.12% branch coverage and all 158 automatic
+acceptance criteria. The 83 manual criteria remain unverified. The
+[receipt](../benchmarks/results/topics/corpora/receipt.json) binds these results to
+the actual source, locked dependencies and CI jobs.
+
 ## Executable checks
 
 `scripts/benchmark_topic_corpora.py` uses real `Vault.sync` and `TopicIndex` with

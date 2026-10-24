@@ -2,6 +2,12 @@
 
 **Status: awaiting human review; no merge recommendation or approval is recorded.**
 
+This is a historical pre-grammar packet. Its prediction hashes and counts below
+belong to the stated older revision. Current outputs and source checksums are in
+the [grammar comparison reports](../benchmarks/results/topics/quality-repair/probe/index.json)
+and [corpus evaluation](TOPIC_CORPUS_EVALUATION.md). The existing response record
+remains unrated; it is not approval of the newer extraction policy.
+
 This packet makes the remaining [quality delivery gate](../specs/TOPIC_EVIDENCE_SPEC.md) reviewable. It freezes the existing ten real starter-vault sources and the assigned labels from the verified implementation. It adds no runtime policy and changes neither the calibration oracle nor its thresholds.
 
 Implementation: `32db958961e4a5ddbc9b61b44fd0cdc961df52fb`; fully validated PR revision: `722a546818cdf071b1565eeebed4c0d6f08eb079`. The [pending response record](../benchmarks/reviews/topics/pending.json) binds source and prediction hashes and contains no completed human judgments.
@@ -215,7 +221,7 @@ Human central subjects: **pending**.
 
 ### 9. product-usage-analysis
 
-[Original source](../testdata/kepano-obsidian-main/Product%20usage%20analysis.md) · SHA256 `3b7d468fff01f1ad6f6f3424c97dc013712c613a6a4c75e82e0c51ca173cbc8`
+[Original source](../testdata/kepano-obsidian-main/Product%20usage%20analysis.md) · SHA256 `3b7d468fff01f1ad6f6f3424c97dc0130712c613a6a4c75e82e0c51ca173cbc8`
 
 ````markdown
 Analysis of cost per use, see [[Buy wisely]]

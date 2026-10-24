@@ -1,0 +1,3385 @@
+{
+  "corpus": {
+    "name": "narrative-mara-v1",
+    "origin_pr": 97,
+    "generator": "scripts/generate_narrative_corpus.py",
+    "snapshots": 24,
+    "provenance": "Authored fiction; useful for diverse personal-note forms and lifecycle checks, not real-owner usefulness.",
+    "quality_proxy_fixture": "benchmarks/corpora/topic_narrative_proxy_gold.json",
+    "quality_sample": [
+      {
+        "path": "Care/A neighbour who needs a weekend off.md",
+        "source_fixture": "testdata/narrative_vault/notes/Care/A neighbour who needs a weekend off.md",
+        "stratum": "Care",
+        "source_sha256": "1b231b9c9325d94f6653e05e276f88774ab7f27a10cc46792d3564159a3ce694"
+      },
+      {
+        "path": "Care/The consultation Mum led.md",
+        "source_fixture": "testdata/narrative_vault/notes/Care/The consultation Mum led.md",
+        "stratum": "Care",
+        "source_sha256": "f7411a90c36139f2991a12c87d2b88900d98028ef2a733f2a02239ef0bd3d813"
+      },
+      {
+        "path": "Care/A change of appointment is two changes.md",
+        "source_fixture": "testdata/narrative_vault/notes/Care/A change of appointment is two changes.md",
+        "stratum": "Care",
+        "source_sha256": "0ce4993dcaae35c8c6ef20f4c3cc1928e9b4809315bd891c52343b5e58d7c771"
+      },
+      {
+        "path": "Clippings/Old ferry timetable.md",
+        "source_fixture": "testdata/narrative_vault/notes/Clippings/Old ferry timetable.md",
+        "stratum": "Clippings",
+        "source_sha256": "3a0632e5848ba1c488d8d39834adc5123c05e8ec14e15c80b95c032f18f8db4e"
+      },
+      {
+        "path": "Clippings/Clinic access leaflet draft.md",
+        "source_fixture": "testdata/narrative_vault/notes/Clippings/Clinic access leaflet draft.md",
+        "stratum": "Clippings",
+        "source_sha256": "e3cd9ebfa94179b9058b5706d79561f381097108a980ef3740bd621c2de70748"
+      },
+      {
+        "path": "Clippings/Old repair club minutes.md",
+        "source_fixture": "testdata/narrative_vault/notes/Clippings/Old repair club minutes.md",
+        "stratum": "Clippings",
+        "source_sha256": "a5e5ec34bd568db904017d1231ff8f3e6cdeae1ca7a4fe2970b55bdf39846c27"
+      },
+      {
+        "path": "Community/Repair cafe before the summer pause.md",
+        "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe before the summer pause.md",
+        "stratum": "Community",
+        "source_sha256": "fab91ca221811a7606dc6c021ed4931134d0a11bdaea48cbc8d48c0ef9135068"
+      },
+      {
+        "path": "Community/Waiting time in the borrowing queue.md",
+        "source_fixture": "testdata/narrative_vault/notes/Community/Waiting time in the borrowing queue.md",
+        "stratum": "Community",
+        "source_sha256": "23b65e152b95ab6dc7753db9a03777419038661c6cab630b2f80f26ae911acc4"
+      },
+      {
+        "path": "Community/Repair cafe refusal explained early.md",
+        "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe refusal explained early.md",
+        "stratum": "Community",
+        "source_sha256": "79d33ec66ac3f6a9852848618404cc52560c5805e268ec64a1d1ec0c2ed55bf5"
+      },
+      {
+        "path": "Garden/The barrel fills after the path floods.md",
+        "source_fixture": "testdata/narrative_vault/notes/Garden/The barrel fills after the path floods.md",
+        "stratum": "Garden",
+        "source_sha256": "6550b96347bc6b06ae5f72477f898c30da53a45d167349fb486bff4f048cf832"
+      },
+      {
+        "path": "Garden/Leaves over the bed for a second winter.md",
+        "source_fixture": "testdata/narrative_vault/notes/Garden/Leaves over the bed for a second winter.md",
+        "stratum": "Garden",
+        "source_sha256": "80e65538bd1fe22c248772a0dbe9d500ff9b1e60e7709e3334182ca7b839a30c"
+      },
+      {
+        "path": "Garden/The seed swap table has a queue.md",
+        "source_fixture": "testdata/narrative_vault/notes/Garden/The seed swap table has a queue.md",
+        "stratum": "Garden",
+        "source_sha256": "ebe4a0b93b014fc4d8b24d29cc9f0ef85ed9b6f425a8411221be8dc84298c84e"
+      },
+      {
+        "path": "Learning/When a project is allowed to end.md",
+        "source_fixture": "testdata/narrative_vault/notes/Learning/When a project is allowed to end.md",
+        "stratum": "Learning",
+        "source_sha256": "69eca9ba2c565cb58d85ede509ba57dc89c705b2eb17f09f42a2abaadc8f5982"
+      },
+      {
+        "path": "Learning/Availability is not access.md",
+        "source_fixture": "testdata/narrative_vault/notes/Learning/Availability is not access.md",
+        "stratum": "Learning",
+        "source_sha256": "7931e349acb154bad67fb686ade4c10ed602725918091412f86061e0da707f39"
+      },
+      {
+        "path": "Learning/A measure that ignores the refusal.md",
+        "source_fixture": "testdata/narrative_vault/notes/Learning/A measure that ignores the refusal.md",
+        "stratum": "Learning",
+        "source_sha256": "ac97146f10252cc9ab8641be7a559a3bd960aaab0b73744d82c852e1b33b4c7d"
+      },
+      {
+        "path": "Museum/A completed project can stay completed.md",
+        "source_fixture": "testdata/narrative_vault/notes/Museum/A completed project can stay completed.md",
+        "stratum": "Museum",
+        "source_sha256": "613b10dea15d692d3faeecf9654fb6c44eba40906295552758956812904180a6"
+      },
+      {
+        "path": "Museum/The supported practice review card.md",
+        "source_fixture": "testdata/narrative_vault/notes/Museum/The supported practice review card.md",
+        "stratum": "Museum",
+        "source_sha256": "069395f51e79daadc01b5bb9182a833b01c6d11dfc251b4a6818058141debbb1"
+      },
+      {
+        "path": "Museum/A sign for when the printer fails.md",
+        "source_fixture": "testdata/narrative_vault/notes/Museum/A sign for when the printer fails.md",
+        "stratum": "Museum",
+        "source_sha256": "b719d21cb417d16ecefdc74b4f7c0e33e235aa12679ad254c4eaf746135e03c5"
+      },
+      {
+        "path": "Personal/Packing less clay equipment.md",
+        "source_fixture": "testdata/narrative_vault/notes/Personal/Packing less clay equipment.md",
+        "stratum": "Personal",
+        "source_sha256": "45162b6630f1ace48cd163539c1a3953c2d7c9255b1ea8fa4e119fae742abf6c"
+      },
+      {
+        "path": "Personal/Routes.md",
+        "source_fixture": "testdata/narrative_vault/notes/Personal/Routes.md",
+        "stratum": "Personal",
+        "source_sha256": "77a8185c46abded93c25b138bf2f34dc416c75b7581bf58025c764f81ccfa13b"
+      },
+      {
+        "path": "Personal/Winter rides need an exit option.md",
+        "source_fixture": "testdata/narrative_vault/notes/Personal/Winter rides need an exit option.md",
+        "stratum": "Personal",
+        "source_sha256": "c415a00b290a18dab8d7f22bb9bc1d5cbd3b1d891591f7974fd09029a3d60cb0"
+      },
+      {
+        "path": "Templates/Reading template.md",
+        "source_fixture": "testdata/narrative_vault/notes/Templates/Reading template.md",
+        "stratum": "excluded-template",
+        "source_sha256": "578bd6e6ee518678a3a22988ac9e0a866bae94d7697bbd098985094e85814860"
+      },
+      {
+        "path": "Templates/Meeting template.md",
+        "source_fixture": "testdata/narrative_vault/notes/Templates/Meeting template.md",
+        "stratum": "excluded-template",
+        "source_sha256": "d6149c43ea47089eb0f6987395320b0b2cbaa078486c285cb2e54bb1f5563976"
+      }
+    ]
+  },
+  "source_checkout_commit": null,
+  "lexical_capture_enabled": false,
+  "snapshots": [
+    {
+      "seconds": 0.4154292180000141,
+      "raw_processed": 21,
+      "topic_extractions": 19,
+      "notes": 21,
+      "virtual_entries": 0,
+      "states": {
+        "complete": 19,
+        "excluded": 2
+      },
+      "assigned_labels": 95,
+      "vocabulary": 76,
+      "catalog_seconds": 0.0002926319999971838,
+      "positive_queries": [
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.000198029000017641
+        },
+        {
+          "topic": "base was thick",
+          "matches": 1,
+          "seconds": 0.00017498400001159098
+        },
+        {
+          "topic": "bowl cracks",
+          "matches": 1,
+          "seconds": 0.00016840399999296096
+        },
+        {
+          "topic": "broad beans",
+          "matches": 1,
+          "seconds": 0.0001633560000016132
+        },
+        {
+          "topic": "bus stop",
+          "matches": 1,
+          "seconds": 0.000176857000013797
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 0,
+      "source_inventory": {
+        "files": 21,
+        "bytes": 13163,
+        "sha256": "58deefe061dfa39136abe12d7f09d1ece7d1d175350cb4fa79c705634999012e"
+      }
+    },
+    {
+      "seconds": 0.11033575999999812,
+      "raw_processed": 8,
+      "topic_extractions": 8,
+      "notes": 28,
+      "virtual_entries": 2,
+      "states": {
+        "complete": 26,
+        "excluded": 2
+      },
+      "assigned_labels": 129,
+      "vocabulary": 101,
+      "catalog_seconds": 0.00031410500000106367,
+      "positive_queries": [
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0002513400000054844
+        },
+        {
+          "topic": "archive consent forms",
+          "matches": 1,
+          "seconds": 0.00022100300000715833
+        },
+        {
+          "topic": "base was thick",
+          "matches": 1,
+          "seconds": 0.00021601600002441046
+        },
+        {
+          "topic": "beautifully organized page",
+          "matches": 1,
+          "seconds": 0.0002111789999901248
+        },
+        {
+          "topic": "bicycle light",
+          "matches": 1,
+          "seconds": 0.00022098400000913898
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 1,
+      "source_inventory": {
+        "files": 27,
+        "bytes": 16638,
+        "sha256": "18b01f419049464bb35f37a179b3db87a7edf14fe15fb70e66882d595b574694"
+      }
+    },
+    {
+      "seconds": 0.10279709099998513,
+      "raw_processed": 9,
+      "topic_extractions": 7,
+      "notes": 35,
+      "virtual_entries": 3,
+      "states": {
+        "complete": 33,
+        "excluded": 2
+      },
+      "assigned_labels": 163,
+      "vocabulary": 129,
+      "catalog_seconds": 0.00039987299999211245,
+      "positive_queries": [
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0002834780000000592
+        },
+        {
+          "topic": "archive consent forms",
+          "matches": 1,
+          "seconds": 0.0002806630000122823
+        },
+        {
+          "topic": "base was thick",
+          "matches": 1,
+          "seconds": 0.0002801020000049448
+        },
+        {
+          "topic": "beautifully organized page",
+          "matches": 1,
+          "seconds": 0.00026630199999999604
+        },
+        {
+          "topic": "bench",
+          "matches": 1,
+          "seconds": 0.0002623560000074576
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 2,
+      "source_inventory": {
+        "files": 33,
+        "bytes": 19966,
+        "sha256": "9b3e289e3f2fbc45a9f1a1e78af03099bedf4eb36e079a4fbdbe9f52dd6f88f8"
+      }
+    },
+    {
+      "seconds": 0.10603317599998263,
+      "raw_processed": 10,
+      "topic_extractions": 7,
+      "notes": 42,
+      "virtual_entries": 4,
+      "states": {
+        "complete": 40,
+        "excluded": 2
+      },
+      "assigned_labels": 198,
+      "vocabulary": 153,
+      "catalog_seconds": 0.00047723999998083855,
+      "positive_queries": [
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.00033829099999138634
+        },
+        {
+          "topic": "archive consent forms",
+          "matches": 1,
+          "seconds": 0.00032461999998645297
+        },
+        {
+          "topic": "archive label draft",
+          "matches": 1,
+          "seconds": 0.0003265729999952782
+        },
+        {
+          "topic": "awkward handle",
+          "matches": 1,
+          "seconds": 0.00031427400000438865
+        },
+        {
+          "topic": "base was thick",
+          "matches": 1,
+          "seconds": 0.0003082149999897865
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 3,
+      "source_inventory": {
+        "files": 39,
+        "bytes": 23284,
+        "sha256": "52743f5287eb2b57235c4cf23c4928e68f9fbfd46ec6744f5833597556047088"
+      }
+    },
+    {
+      "seconds": 0.26329004499999087,
+      "raw_processed": 11,
+      "topic_extractions": 7,
+      "notes": 49,
+      "virtual_entries": 5,
+      "states": {
+        "complete": 47,
+        "excluded": 2
+      },
+      "assigned_labels": 233,
+      "vocabulary": 181,
+      "catalog_seconds": 0.0005451220000054491,
+      "positive_queries": [
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0003909100000214494
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.00037640799999394403
+        },
+        {
+          "topic": "appointment",
+          "matches": 1,
+          "seconds": 0.000384350000018685
+        },
+        {
+          "topic": "archive consent forms",
+          "matches": 1,
+          "seconds": 0.0003784710000047653
+        },
+        {
+          "topic": "archive label draft",
+          "matches": 1,
+          "seconds": 0.0003774889999874631
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 4,
+      "source_inventory": {
+        "files": 45,
+        "bytes": 26579,
+        "sha256": "b696e7d4e34b4cd7f8f081e036cde779cd74d745b128ef2ab841af9e4911575b"
+      }
+    },
+    {
+      "seconds": 0.15013218500001813,
+      "raw_processed": 14,
+      "topic_extractions": 9,
+      "notes": 56,
+      "virtual_entries": 6,
+      "states": {
+        "complete": 54,
+        "excluded": 2
+      },
+      "assigned_labels": 268,
+      "vocabulary": 207,
+      "catalog_seconds": 0.0006119630000114284,
+      "positive_queries": [
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0004637500000228556
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0004323119999867231
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0004350170000009257
+        },
+        {
+          "topic": "appointment",
+          "matches": 1,
+          "seconds": 0.00042156599999998434
+        },
+        {
+          "topic": "archive consent forms",
+          "matches": 1,
+          "seconds": 0.000423019000010072
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 5,
+      "source_inventory": {
+        "files": 51,
+        "bytes": 29711,
+        "sha256": "a2a248e90be324ed75cb3b6b647d847cfdb60f2bf51ad21ce7ffeab8a234cb4d"
+      }
+    },
+    {
+      "seconds": 0.11026601500000766,
+      "raw_processed": 13,
+      "topic_extractions": 7,
+      "notes": 63,
+      "virtual_entries": 7,
+      "states": {
+        "complete": 61,
+        "excluded": 2
+      },
+      "assigned_labels": 303,
+      "vocabulary": 233,
+      "catalog_seconds": 0.0007034710000084488,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0005060839999941891
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0004956679999850166
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.000475357999988546
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0004877359999966302
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0004748669999798949
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 6,
+      "source_inventory": {
+        "files": 57,
+        "bytes": 32865,
+        "sha256": "791884e1b317b50c743007633254be04cd9c463c134330f26a5afe13476ccafc"
+      }
+    },
+    {
+      "seconds": 0.13381638000001317,
+      "raw_processed": 16,
+      "topic_extractions": 9,
+      "notes": 72,
+      "virtual_entries": 8,
+      "states": {
+        "complete": 70,
+        "excluded": 2
+      },
+      "assigned_labels": 348,
+      "vocabulary": 267,
+      "catalog_seconds": 0.0007941590000086762,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0005605860000059693
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0005611069999815754
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0005406359999824417
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0005422079999846119
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0005399349999777314
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 7,
+      "source_inventory": {
+        "files": 65,
+        "bytes": 36778,
+        "sha256": "4367242e40b3b13347d8f3eec6f5c4af74e7d69b9d9489ebfb8d703a779eb04e"
+      }
+    },
+    {
+      "seconds": 0.20795478599998773,
+      "raw_processed": 22,
+      "topic_extractions": 14,
+      "notes": 85,
+      "virtual_entries": 9,
+      "states": {
+        "complete": 83,
+        "excluded": 2
+      },
+      "assigned_labels": 413,
+      "vocabulary": 314,
+      "catalog_seconds": 0.0009366639999939252,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0006799060000162171
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0006580629999746179
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0006378129999973225
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0006468759999904705
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0006410170000208382
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 8,
+      "source_inventory": {
+        "files": 77,
+        "bytes": 42168,
+        "sha256": "75778609054bffc0c9c732960ce3e0ef36d108e426c43e6e821ed267f6a2db6a"
+      }
+    },
+    {
+      "seconds": 0.11832066099998428,
+      "raw_processed": 16,
+      "topic_extractions": 7,
+      "notes": 91,
+      "virtual_entries": 10,
+      "states": {
+        "complete": 89,
+        "excluded": 2
+      },
+      "assigned_labels": 443,
+      "vocabulary": 336,
+      "catalog_seconds": 0.0010081719999845973,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0007273880000013833
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.00069576999999299
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0006965309999884539
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0007589749999965534
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0006908619999990151
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 9,
+      "source_inventory": {
+        "files": 82,
+        "bytes": 44990,
+        "sha256": "e64a58a98a462969cfe40a24b549ad99bf0769c7926f70ec405a2f12a28d8ab4"
+      }
+    },
+    {
+      "seconds": 0.11909335800001486,
+      "raw_processed": 17,
+      "topic_extractions": 7,
+      "notes": 98,
+      "virtual_entries": 11,
+      "states": {
+        "complete": 96,
+        "excluded": 2
+      },
+      "assigned_labels": 476,
+      "vocabulary": 360,
+      "catalog_seconds": 0.0010899050000148236,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0007748000000162847
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0007661360000099648
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0007528969999839319
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0007535769999833519
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0007466469999997116
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 10,
+      "source_inventory": {
+        "files": 88,
+        "bytes": 47990,
+        "sha256": "886c392f713f44276525e6edd044109175b5a30e0bad826fb4812e9fc3db550a"
+      }
+    },
+    {
+      "seconds": 0.12382296599997744,
+      "raw_processed": 18,
+      "topic_extractions": 7,
+      "notes": 105,
+      "virtual_entries": 12,
+      "states": {
+        "complete": 103,
+        "excluded": 2
+      },
+      "assigned_labels": 511,
+      "vocabulary": 387,
+      "catalog_seconds": 0.0011382579999974496,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0008288009999830592
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0008089410000025055
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0007969330000037189
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.000803892999982736
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0007969229999957861
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 11,
+      "source_inventory": {
+        "files": 94,
+        "bytes": 51047,
+        "sha256": "0442b0557aed7fd21e38b13dbbf793aabc3dd3da8aa2a5f89d24460797bdcd24"
+      }
+    },
+    {
+      "seconds": 0.1484874619999914,
+      "raw_processed": 20,
+      "topic_extractions": 8,
+      "notes": 112,
+      "virtual_entries": 13,
+      "states": {
+        "complete": 110,
+        "excluded": 2
+      },
+      "assigned_labels": 545,
+      "vocabulary": 413,
+      "catalog_seconds": 0.0012273620000087249,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0008711649999781912
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.000869061999992482
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0008629529999950591
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0008598569999946903
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0008552310000027319
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 12,
+      "source_inventory": {
+        "files": 100,
+        "bytes": 54299,
+        "sha256": "2270ebf5643026b24fc88ac491af89bc9b6e921a673718f69986bce80da3f6aa"
+      }
+    },
+    {
+      "seconds": 0.12417471800000612,
+      "raw_processed": 20,
+      "topic_extractions": 7,
+      "notes": 119,
+      "virtual_entries": 14,
+      "states": {
+        "complete": 117,
+        "excluded": 2
+      },
+      "assigned_labels": 579,
+      "vocabulary": 438,
+      "catalog_seconds": 0.0013293359999977383,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0009415410000030988
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.000921830999999429
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0009053359999882105
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0009002179999981763
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0008869490000051883
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 13,
+      "source_inventory": {
+        "files": 106,
+        "bytes": 57366,
+        "sha256": "0afd6be2625d3943f1cfafdebcd86a0bd33c1866d004028900b4a3a9b11fc81e"
+      }
+    },
+    {
+      "seconds": 0.14884402000001273,
+      "raw_processed": 22,
+      "topic_extractions": 8,
+      "notes": 126,
+      "virtual_entries": 15,
+      "states": {
+        "complete": 124,
+        "excluded": 2
+      },
+      "assigned_labels": 614,
+      "vocabulary": 462,
+      "catalog_seconds": 0.0013754960000085248,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0009960739999996804
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0009769849999941016
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0009738699999957134
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0009683220000056281
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.0009701339999992342
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 14,
+      "source_inventory": {
+        "files": 112,
+        "bytes": 60366,
+        "sha256": "981634738ce41aff21e2cd0055362609354458aecb76d3076e7b727e2c55b2ce"
+      }
+    },
+    {
+      "seconds": 0.1499025779999954,
+      "raw_processed": 23,
+      "topic_extractions": 8,
+      "notes": 133,
+      "virtual_entries": 16,
+      "states": {
+        "complete": 131,
+        "excluded": 2
+      },
+      "assigned_labels": 645,
+      "vocabulary": 483,
+      "catalog_seconds": 0.0014569289999997181,
+      "positive_queries": [
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0010554030000093917
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.001020479999993995
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0010169550000114214
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0010148119999939809
+        },
+        {
+          "topic": "active page",
+          "matches": 1,
+          "seconds": 0.001005487999975685
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 15,
+      "source_inventory": {
+        "files": 118,
+        "bytes": 63408,
+        "sha256": "e4f62961310a3bfedf54d91095344081ec8ba2a3150981fe52cfeea23d20cea9"
+      }
+    },
+    {
+      "seconds": 0.1476119209999922,
+      "raw_processed": 24,
+      "topic_extractions": 8,
+      "notes": 140,
+      "virtual_entries": 17,
+      "states": {
+        "complete": 138,
+        "excluded": 2
+      },
+      "assigned_labels": 679,
+      "vocabulary": 507,
+      "catalog_seconds": 0.001525702999998657,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.00110223400000109
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0010917470000038065
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0010823329999993803
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0010863189999952283
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.001068062000001646
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 16,
+      "source_inventory": {
+        "files": 124,
+        "bytes": 66159,
+        "sha256": "531aec6630689fefa403d3840470f032f8c0fffedcde120829bf9fbfbbf45a5a"
+      }
+    },
+    {
+      "seconds": 0.15784027899999842,
+      "raw_processed": 25,
+      "topic_extractions": 8,
+      "notes": 147,
+      "virtual_entries": 18,
+      "states": {
+        "complete": 145,
+        "excluded": 2
+      },
+      "assigned_labels": 713,
+      "vocabulary": 531,
+      "catalog_seconds": 0.0016045909999888863,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.001150696999985712
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0011436059999994086
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0011340319999817439
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0011178070000141815
+        },
+        {
+          "topic": "account",
+          "matches": 1,
+          "seconds": 0.0011181370000201696
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 17,
+      "source_inventory": {
+        "files": 130,
+        "bytes": 69281,
+        "sha256": "703094203457a5e1cea405b2fb70fd42b3efbb18487168b2f7b6da12c68a6552"
+      }
+    },
+    {
+      "seconds": 0.1351282699999956,
+      "raw_processed": 25,
+      "topic_extractions": 7,
+      "notes": 154,
+      "virtual_entries": 19,
+      "states": {
+        "complete": 152,
+        "excluded": 2
+      },
+      "assigned_labels": 748,
+      "vocabulary": 553,
+      "catalog_seconds": 0.0017265459999862287,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.0012147029999880488
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0011911779999991268
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0011820240000020021
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.001192180000003873
+        },
+        {
+          "topic": "a visit without coordinating anything",
+          "matches": 1,
+          "seconds": 0.0011843569999996362
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 18,
+      "source_inventory": {
+        "files": 136,
+        "bytes": 72288,
+        "sha256": "c22654700a4853f6c72261aee92078cf88610947629cf9a22b4c47858711639d"
+      }
+    },
+    {
+      "seconds": 0.1379257210000162,
+      "raw_processed": 26,
+      "topic_extractions": 7,
+      "notes": 161,
+      "virtual_entries": 20,
+      "states": {
+        "complete": 159,
+        "excluded": 2
+      },
+      "assigned_labels": 782,
+      "vocabulary": 578,
+      "catalog_seconds": 0.0017904020000116816,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.0013024760000064362
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0012542139999993651
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0012353350000182672
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0012340530000187755
+        },
+        {
+          "topic": "a visit without coordinating anything",
+          "matches": 1,
+          "seconds": 0.001224508000007063
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 19,
+      "source_inventory": {
+        "files": 142,
+        "bytes": 75221,
+        "sha256": "dd64fddaee26aee6d79b403c4abc260f3b55978450b727de298ce9c2eeeb864c"
+      }
+    },
+    {
+      "seconds": 0.13735637300001713,
+      "raw_processed": 27,
+      "topic_extractions": 7,
+      "notes": 168,
+      "virtual_entries": 21,
+      "states": {
+        "complete": 166,
+        "excluded": 2
+      },
+      "assigned_labels": 816,
+      "vocabulary": 602,
+      "catalog_seconds": 0.001950984999979255,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.0013223059999916131
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.001291379000008419
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.001295274999989715
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.001270999000013262
+        },
+        {
+          "topic": "a visit without coordinating anything",
+          "matches": 1,
+          "seconds": 0.0012716800000021067
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 20,
+      "source_inventory": {
+        "files": 148,
+        "bytes": 78155,
+        "sha256": "1569eb8661dafe442561478b27816a8e9ef5975095ec55daa675ba349641306b"
+      }
+    },
+    {
+      "seconds": 0.1420217339999965,
+      "raw_processed": 28,
+      "topic_extractions": 7,
+      "notes": 175,
+      "virtual_entries": 22,
+      "states": {
+        "complete": 173,
+        "excluded": 2
+      },
+      "assigned_labels": 851,
+      "vocabulary": 626,
+      "catalog_seconds": 0.0025268340000081935,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.0013796119999938128
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0013492570000153137
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0013397819999738658
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.001336205999990625
+        },
+        {
+          "topic": "a visit without coordinating anything",
+          "matches": 1,
+          "seconds": 0.00157688000001599
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 21,
+      "source_inventory": {
+        "files": 154,
+        "bytes": 81031,
+        "sha256": "ce9302fe5a4eadee9a09c72bbf3883e55396be79af58de33079b7c2f710c8423"
+      }
+    },
+    {
+      "seconds": 0.16238297500001408,
+      "raw_processed": 30,
+      "topic_extractions": 8,
+      "notes": 182,
+      "virtual_entries": 23,
+      "states": {
+        "complete": 180,
+        "excluded": 2
+      },
+      "assigned_labels": 886,
+      "vocabulary": 646,
+      "catalog_seconds": 0.0020285310000076606,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.0014411760000143659
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0013901179999891156
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.0013917310000124417
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0013814850000244405
+        },
+        {
+          "topic": "a visit without coordinating anything",
+          "matches": 1,
+          "seconds": 0.001375246000009156
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 22,
+      "source_inventory": {
+        "files": 160,
+        "bytes": 84019,
+        "sha256": "a2d5a33f14f3e3915d67386662f673029d3c87d314389618cd69bdbd8381d7ea"
+      }
+    },
+    {
+      "seconds": 0.14788242899999204,
+      "raw_processed": 30,
+      "topic_extractions": 7,
+      "notes": 189,
+      "virtual_entries": 24,
+      "states": {
+        "complete": 187,
+        "excluded": 2
+      },
+      "assigned_labels": 921,
+      "vocabulary": 670,
+      "catalog_seconds": 0.002095142000001715,
+      "positive_queries": [
+        {
+          "topic": "a pot left deliberately plain",
+          "matches": 1,
+          "seconds": 0.00149230200000261
+        },
+        {
+          "topic": "a quiet gallery at lunchtime",
+          "matches": 1,
+          "seconds": 0.0014751260000025468
+        },
+        {
+          "topic": "a ride interrupted by roadworks",
+          "matches": 1,
+          "seconds": 0.001475426999974161
+        },
+        {
+          "topic": "a shelf for useful failures",
+          "matches": 1,
+          "seconds": 0.0014669539999943026
+        },
+        {
+          "topic": "a visit without coordinating anything",
+          "matches": 1,
+          "seconds": 0.001445622000005642
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 23,
+      "source_inventory": {
+        "files": 166,
+        "bytes": 86977,
+        "sha256": "877f3f49be46772cf1ab32617ea050b5005028d03bcd809a2e3a9cfe1b8876f9"
+      }
+    }
+  ],
+  "warm_sync": {
+    "seconds": 0.05973282499999755,
+    "raw_processed": 0,
+    "topic_extractions": 0
+  },
+  "warm_observation": {
+    "notes": 189,
+    "virtual_entries": 24,
+    "states": {
+      "complete": 187,
+      "excluded": 2
+    },
+    "assigned_labels": 921,
+    "vocabulary": 670,
+    "catalog_seconds": 0.0020700439999927767,
+    "positive_queries": [
+      {
+        "topic": "a pot left deliberately plain",
+        "matches": 1,
+        "seconds": 0.0014892979999956424
+      },
+      {
+        "topic": "a quiet gallery at lunchtime",
+        "matches": 1,
+        "seconds": 0.001447365000018408
+      },
+      {
+        "topic": "a ride interrupted by roadworks",
+        "matches": 1,
+        "seconds": 0.0014507100000002993
+      },
+      {
+        "topic": "a shelf for useful failures",
+        "matches": 1,
+        "seconds": 0.0014277350000213573
+      },
+      {
+        "topic": "a visit without coordinating anything",
+        "matches": 1,
+        "seconds": 0.0014663030000008348
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "unrated_quality_sample": [
+    {
+      "path": "Care/A neighbour who needs a weekend off.md",
+      "stratum": "Care",
+      "source_sha256": "1b231b9c9325d94f6653e05e276f88774ab7f27a10cc46792d3564159a3ce694",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "care arrangements",
+          "label": "Care arrangements",
+          "score": 0.001,
+          "start": 310,
+          "end": 327,
+          "text": "Care arrangements",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "mum three saturdays",
+          "label": "Mum three Saturdays",
+          "score": 0.00347685365627646,
+          "start": 160,
+          "end": 179,
+          "text": "Mum three Saturdays",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "driven mum",
+          "label": "driven Mum",
+          "score": 0.006797204621203792,
+          "start": 153,
+          "end": 163,
+          "text": "driven Mum",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "usual driver",
+          "label": "usual driver",
+          "score": 0.18595097879336958,
+          "start": 263,
+          "end": 275,
+          "text": "usual driver",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "offer expires",
+          "label": "offer expires",
+          "score": 0.20916093390623616,
+          "start": 353,
+          "end": 366,
+          "text": "offer expires",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Care/The consultation Mum led.md",
+      "stratum": "Care",
+      "source_sha256": "f7411a90c36139f2991a12c87d2b88900d98028ef2a733f2a02239ef0bd3d813",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "the consultation mum led",
+          "label": "The consultation Mum led",
+          "score": 0,
+          "start": 96,
+          "end": 120,
+          "text": "The consultation Mum led",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "care arrangements",
+          "label": "Care arrangements",
+          "score": 0.001,
+          "start": 331,
+          "end": 348,
+          "text": "Care arrangements",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "question card",
+          "label": "question card",
+          "score": 0.07238163289660297,
+          "start": 139,
+          "end": 152,
+          "text": "question card",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "unanswered question",
+          "label": "unanswered question",
+          "score": 0.18718681099628676,
+          "start": 227,
+          "end": 246,
+          "text": "unanswered question",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "appointment",
+          "label": "appointment",
+          "score": 0.19681752837398103,
+          "start": 162,
+          "end": 173,
+          "text": "appointment",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Care/A change of appointment is two changes.md",
+      "stratum": "Care",
+      "source_sha256": "0ce4993dcaae35c8c6ef20f4c3cc1928e9b4809315bd891c52343b5e58d7c771",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "care arrangements",
+          "label": "Care arrangements",
+          "score": 0.001,
+          "start": 372,
+          "end": 389,
+          "text": "Care arrangements",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "appointment",
+          "label": "appointment",
+          "score": 0.05457193250382341,
+          "start": 122,
+          "end": 133,
+          "text": "appointment",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "mum",
+          "label": "Mum",
+          "score": 0.06054264614349163,
+          "start": 212,
+          "end": 215,
+          "text": "Mum",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "time",
+          "label": "time",
+          "score": 0.10356768395939045,
+          "start": 236,
+          "end": 240,
+          "text": "time",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "date in care",
+          "label": "date in Care",
+          "score": 0.11492663257184277,
+          "start": 362,
+          "end": 376,
+          "text": "date in [[Care",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Clippings/Old ferry timetable.md",
+      "stratum": "Clippings",
+      "source_sha256": "3a0632e5848ba1c488d8d39834adc5123c05e8ec14e15c80b95c032f18f8db4e",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "old ferry timetable",
+          "label": "Old ferry timetable",
+          "score": 0,
+          "start": 96,
+          "end": 115,
+          "text": "Old ferry timetable",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "field methods",
+          "label": "Field methods",
+          "score": 0.001,
+          "start": 365,
+          "end": 378,
+          "text": "Field methods",
+          "line": 15,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "fictional local-history booklet",
+          "label": "fictional local-history booklet",
+          "score": 0.0837629023052526,
+          "start": 241,
+          "end": 272,
+          "text": "fictional local-history booklet",
+          "line": 13,
+          "provenance": "yake"
+        },
+        {
+          "key": "tide",
+          "label": "tide",
+          "score": 0.12346261294192541,
+          "start": 146,
+          "end": 150,
+          "text": "tide",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "passenger",
+          "label": "passenger",
+          "score": 0.16862581006361538,
+          "start": 162,
+          "end": 171,
+          "text": "passenger",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Clippings/Clinic access leaflet draft.md",
+      "stratum": "Clippings",
+      "source_sha256": "e3cd9ebfa94179b9058b5706d79561f381097108a980ef3740bd621c2de70748",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "clinic access leaflet draft",
+          "label": "Clinic access leaflet draft",
+          "score": 0,
+          "start": 104,
+          "end": 131,
+          "text": "Clinic access leaflet draft",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "field methods",
+          "label": "Field methods",
+          "score": 0.001,
+          "start": 380,
+          "end": 393,
+          "text": "Field methods",
+          "line": 15,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "patient",
+          "label": "patient",
+          "score": 0.14566641402731229,
+          "start": 185,
+          "end": 192,
+          "text": "patient",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "overconfident fictional leaflet",
+          "label": "overconfident fictional leaflet",
+          "score": 0.15407262580321396,
+          "start": 233,
+          "end": 264,
+          "text": "overconfident fictional leaflet",
+          "line": 13,
+          "provenance": "yake"
+        },
+        {
+          "key": "appointment",
+          "label": "appointment",
+          "score": 0.21036686667467805,
+          "start": 141,
+          "end": 152,
+          "text": "appointment",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Clippings/Old repair club minutes.md",
+      "stratum": "Clippings",
+      "source_sha256": "a5e5ec34bd568db904017d1231ff8f3e6cdeae1ca7a4fe2970b55bdf39846c27",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "old repair club minutes",
+          "label": "Old repair club minutes",
+          "score": 0,
+          "start": 100,
+          "end": 123,
+          "text": "Old repair club minutes",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "field methods",
+          "label": "Field methods",
+          "score": 0.001,
+          "start": 377,
+          "end": 390,
+          "text": "Field methods",
+          "line": 15,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "fictional minute",
+          "label": "fictional minute",
+          "score": 0.20211024715435086,
+          "start": 229,
+          "end": 245,
+          "text": "fictional minute",
+          "line": 13,
+          "provenance": "yake"
+        },
+        {
+          "key": "previous club",
+          "label": "previous club",
+          "score": 0.20211024715435086,
+          "start": 253,
+          "end": 266,
+          "text": "previous club",
+          "line": 13,
+          "provenance": "yake"
+        },
+        {
+          "key": "room",
+          "label": "room",
+          "score": 0.20552911999396256,
+          "start": 153,
+          "end": 157,
+          "text": "room",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Community/Repair cafe before the summer pause.md",
+      "stratum": "Community",
+      "source_sha256": "fab91ca221811a7606dc6c021ed4931134d0a11bdaea48cbc8d48c0ef9135068",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "repair ideas",
+          "label": "Repair ideas",
+          "score": 0.001,
+          "start": 361,
+          "end": 373,
+          "text": "Repair ideas",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "close for august",
+          "label": "close for August",
+          "score": 0.00979751245231502,
+          "start": 170,
+          "end": 186,
+          "text": "close for August",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "repair cafe",
+          "label": "Repair cafe",
+          "score": 0.022227250410403812,
+          "start": 112,
+          "end": 123,
+          "text": "Repair cafe",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "summer pause",
+          "label": "summer pause",
+          "score": 0.059813150294945897,
+          "start": 135,
+          "end": 147,
+          "text": "summer pause",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "put the date",
+          "label": "Put the date",
+          "score": 0.1598560059445956,
+          "start": 188,
+          "end": 200,
+          "text": "Put the date",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Community/Waiting time in the borrowing queue.md",
+      "stratum": "Community",
+      "source_sha256": "23b65e152b95ab6dc7753db9a03777419038661c6cab630b2f80f26ae911acc4",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "volunteer handbook",
+          "label": "Volunteer handbook",
+          "score": 0.001,
+          "start": 379,
+          "end": 397,
+          "text": "Volunteer handbook",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "tool cupboard queue",
+          "label": "tool cupboard queue",
+          "score": 0.002468331341609906,
+          "start": 153,
+          "end": 172,
+          "text": "tool cupboard queue",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "waiting time",
+          "label": "Waiting time",
+          "score": 0.008192073320618472,
+          "start": 112,
+          "end": 124,
+          "text": "Waiting time",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "borrowing queue",
+          "label": "borrowing queue",
+          "score": 0.018773633258073956,
+          "start": 132,
+          "end": 147,
+          "text": "borrowing queue",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "confidence problem",
+          "label": "confidence problem",
+          "score": 0.09408915168713859,
+          "start": 281,
+          "end": 299,
+          "text": "confidence problem",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Community/Repair cafe refusal explained early.md",
+      "stratum": "Community",
+      "source_sha256": "79d33ec66ac3f6a9852848618404cc52560c5805e268ec64a1d1ec0c2ed55bf5",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "repair cafe refusal explained early",
+          "label": "Repair cafe refusal explained early",
+          "score": 0,
+          "start": 112,
+          "end": 147,
+          "text": "Repair cafe refusal explained early",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "repair ideas",
+          "label": "Repair ideas",
+          "score": 0.001,
+          "start": 349,
+          "end": 361,
+          "text": "Repair ideas",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "qualified repairer contact",
+          "label": "qualified repairer contact",
+          "score": 0.12077041039197771,
+          "start": 259,
+          "end": 285,
+          "text": "qualified repairer contact",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "scope",
+          "label": "scope",
+          "score": 0.14598347410709844,
+          "start": 201,
+          "end": 206,
+          "text": "scope",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "mains",
+          "label": "mains",
+          "score": 0.18874955885700448,
+          "start": 169,
+          "end": 174,
+          "text": "mains",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Garden/The barrel fills after the path floods.md",
+      "stratum": "Garden",
+      "source_sha256": "6550b96347bc6b06ae5f72477f898c30da53a45d167349fb486bff4f048cf832",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "field methods",
+          "label": "Field methods",
+          "score": 0.001,
+          "start": 469,
+          "end": 482,
+          "text": "Field methods",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "garden notebook",
+          "label": "Garden notebook",
+          "score": 0.001,
+          "start": 445,
+          "end": 460,
+          "text": "Garden notebook",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "downpipe barrel",
+          "label": "downpipe barrel",
+          "score": 0.012900786709813063,
+          "start": 156,
+          "end": 171,
+          "text": "downpipe barrel",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "path floods",
+          "label": "path floods",
+          "score": 0.02571031512241507,
+          "start": 139,
+          "end": 150,
+          "text": "path floods",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "capturing rain",
+          "label": "Capturing rain",
+          "score": 0.11702888239655909,
+          "start": 215,
+          "end": 229,
+          "text": "Capturing rain",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Garden/Leaves over the bed for a second winter.md",
+      "stratum": "Garden",
+      "source_sha256": "80e65538bd1fe22c248772a0dbe9d500ff9b1e60e7709e3334182ca7b839a30c",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "garden notebook",
+          "label": "Garden notebook",
+          "score": 0.001,
+          "start": 334,
+          "end": 349,
+          "text": "Garden notebook",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "foot traffic",
+          "label": "foot traffic",
+          "score": 0.0167935311323158,
+          "start": 182,
+          "end": 194,
+          "text": "foot traffic",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "leaf-covered soil",
+          "label": "leaf-covered soil",
+          "score": 0.0167935311323158,
+          "start": 203,
+          "end": 220,
+          "text": "leaf-covered soil",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "stepping stones",
+          "label": "stepping stones",
+          "score": 0.0167935311323158,
+          "start": 158,
+          "end": 173,
+          "text": "stepping stones",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "leaves",
+          "label": "Leaves",
+          "score": 0.052381588697674585,
+          "start": 113,
+          "end": 119,
+          "text": "Leaves",
+          "line": 7,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Garden/The seed swap table has a queue.md",
+      "stratum": "Garden",
+      "source_sha256": "ebe4a0b93b014fc4d8b24d29cc9f0ef85ed9b6f425a8411221be8dc84298c84e",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "garden notebook",
+          "label": "Garden notebook",
+          "score": 0.001,
+          "start": 347,
+          "end": 362,
+          "text": "Garden notebook",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "seed swap table",
+          "label": "seed swap table",
+          "score": 0.01577214394866732,
+          "start": 109,
+          "end": 124,
+          "text": "seed swap table",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "reach the envelopes",
+          "label": "reach the envelopes",
+          "score": 0.022838413266840007,
+          "start": 187,
+          "end": 206,
+          "text": "reach the envelopes",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "people",
+          "label": "People",
+          "score": 0.07169115071434967,
+          "start": 138,
+          "end": 144,
+          "text": "People",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "queue",
+          "label": "queue",
+          "score": 0.16739043217612534,
+          "start": 131,
+          "end": 136,
+          "text": "queue",
+          "line": 7,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Learning/When a project is allowed to end.md",
+      "stratum": "Learning",
+      "source_sha256": "69eca9ba2c565cb58d85ede509ba57dc89c705b2eb17f09f42a2abaadc8f5982",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "maintenance",
+          "label": "Maintenance",
+          "score": 0.001,
+          "start": 404,
+          "end": 415,
+          "text": "Maintenance",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "closing the harbour",
+          "label": "Closing the harbour",
+          "score": 0.013461574473143756,
+          "start": 142,
+          "end": 161,
+          "text": "Closing the harbour",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "decisions than opening",
+          "label": "decisions than opening",
+          "score": 0.03033030804392524,
+          "start": 184,
+          "end": 206,
+          "text": "decisions than opening",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "harbour archive",
+          "label": "harbour archive",
+          "score": 0.03033030804392524,
+          "start": 154,
+          "end": 169,
+          "text": "harbour archive",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "required more decisions",
+          "label": "required more decisions",
+          "score": 0.03033030804392524,
+          "start": 170,
+          "end": 193,
+          "text": "required more decisions",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Learning/Availability is not access.md",
+      "stratum": "Learning",
+      "source_sha256": "7931e349acb154bad67fb686ade4c10ed602725918091412f86061e0da707f39",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "availability is not access",
+          "label": "Availability is not access",
+          "score": 0,
+          "start": 102,
+          "end": 128,
+          "text": "Availability is not access",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "field methods",
+          "label": "Field methods",
+          "score": 0.001,
+          "start": 423,
+          "end": 436,
+          "text": "Field methods",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "listening",
+          "label": "Listening",
+          "score": 0.001,
+          "start": 405,
+          "end": 414,
+          "text": "Listening",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "unlocked catalogue",
+          "label": "unlocked catalogue",
+          "score": 0.022988213374765323,
+          "start": 133,
+          "end": 151,
+          "text": "unlocked catalogue",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "categories",
+          "label": "categories",
+          "score": 0.149905405948569,
+          "start": 185,
+          "end": 195,
+          "text": "categories",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Learning/A measure that ignores the refusal.md",
+      "stratum": "Learning",
+      "source_sha256": "ac97146f10252cc9ab8641be7a559a3bd960aaab0b73744d82c852e1b33b4c7d",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "field methods",
+          "label": "Field methods",
+          "score": 0.001,
+          "start": 384,
+          "end": 397,
+          "text": "Field methods",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "repair cafe spreadsheet",
+          "label": "repair cafe spreadsheet",
+          "score": 0.003697354451558685,
+          "start": 150,
+          "end": 173,
+          "text": "repair cafe spreadsheet",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "spreadsheet counts repairs",
+          "label": "spreadsheet counts repairs",
+          "score": 0.0036973544515586858,
+          "start": 162,
+          "end": 188,
+          "text": "spreadsheet counts repairs",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "cafe spreadsheet counts",
+          "label": "cafe spreadsheet counts",
+          "score": 0.003895108485805869,
+          "start": 157,
+          "end": 180,
+          "text": "cafe spreadsheet counts",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "careful refusal",
+          "label": "careful refusal",
+          "score": 0.023055512065085944,
+          "start": 195,
+          "end": 210,
+          "text": "careful refusal",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Museum/A completed project can stay completed.md",
+      "stratum": "Museum",
+      "source_sha256": "613b10dea15d692d3faeecf9654fb6c44eba40906295552758956812904180a6",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "exhibition plan",
+          "label": "Exhibition plan",
+          "score": 0.001,
+          "start": 366,
+          "end": 381,
+          "text": "Exhibition plan",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "correct contact details",
+          "label": "correct contact details",
+          "score": 0.006333782441590332,
+          "start": 176,
+          "end": 199,
+          "text": "correct contact details",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "withdrawal requests",
+          "label": "withdrawal requests",
+          "score": 0.02427904481391526,
+          "start": 217,
+          "end": 236,
+          "text": "withdrawal requests",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "harbour archive",
+          "label": "harbour archive",
+          "score": 0.03333523903815276,
+          "start": 156,
+          "end": 171,
+          "text": "harbour archive",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "owner for withdrawal",
+          "label": "owner for withdrawal",
+          "score": 0.03333523903815276,
+          "start": 207,
+          "end": 227,
+          "text": "owner for withdrawal",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Museum/The supported practice review card.md",
+      "stratum": "Museum",
+      "source_sha256": "069395f51e79daadc01b5bb9182a833b01c6d11dfc251b4a6818058141debbb1",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "the supported practice review card",
+          "label": "The supported practice review card",
+          "score": 0,
+          "start": 108,
+          "end": 142,
+          "text": "The supported practice review card",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "volunteer handbook",
+          "label": "Volunteer handbook",
+          "score": 0.001,
+          "start": 415,
+          "end": 433,
+          "text": "Volunteer handbook",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "shift",
+          "label": "shift",
+          "score": 0.1245669320465487,
+          "start": 219,
+          "end": 224,
+          "text": "shift",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "induction responsibility",
+          "label": "induction responsibility",
+          "score": 0.30698558023740996,
+          "start": 363,
+          "end": 387,
+          "text": "induction responsibility",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "answers",
+          "label": "answers",
+          "score": 0.392271241457145,
+          "start": 259,
+          "end": 266,
+          "text": "answers",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Museum/A sign for when the printer fails.md",
+      "stratum": "Museum",
+      "source_sha256": "b719d21cb417d16ecefdc74b4f7c0e33e235aa12679ad254c4eaf746135e03c5",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "maintenance",
+          "label": "Maintenance",
+          "score": 0.001,
+          "start": 381,
+          "end": 392,
+          "text": "Maintenance",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "ticket printer",
+          "label": "ticket printer",
+          "score": 0.014041534013782176,
+          "start": 146,
+          "end": 160,
+          "text": "ticket printer",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "handwritten tickets",
+          "label": "handwritten tickets",
+          "score": 0.01744855953548233,
+          "start": 225,
+          "end": 244,
+          "text": "handwritten tickets",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "blank cards",
+          "label": "blank cards",
+          "score": 0.12533098861596217,
+          "start": 296,
+          "end": 307,
+          "text": "blank cards",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "put the fallback",
+          "label": "Put the fallback",
+          "score": 0.12533098861596217,
+          "start": 246,
+          "end": 262,
+          "text": "Put the fallback",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Personal/Packing less clay equipment.md",
+      "stratum": "Personal",
+      "source_sha256": "45162b6630f1ace48cd163539c1a3953c2d7c9255b1ea8fa4e119fae742abf6c",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "packing less clay equipment",
+          "label": "Packing less clay equipment",
+          "score": 0,
+          "start": 103,
+          "end": 130,
+          "text": "Packing less clay equipment",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "pottery",
+          "label": "Pottery",
+          "score": 0.001,
+          "start": 339,
+          "end": 346,
+          "text": "Pottery",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "carried three tools",
+          "label": "Carried three tools",
+          "score": 0.011366975124696274,
+          "start": 132,
+          "end": 151,
+          "text": "Carried three tools",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "arranging my table",
+          "label": "arranging my table",
+          "score": 0.18233782659284806,
+          "start": 214,
+          "end": 232,
+          "text": "arranging my table",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "time",
+          "label": "time",
+          "score": 0.18977024098836762,
+          "start": 209,
+          "end": 213,
+          "text": "time",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Personal/Routes.md",
+      "stratum": "Personal",
+      "source_sha256": "77a8185c46abded93c25b138bf2f34dc416c75b7581bf58025c764f81ccfa13b",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "routes",
+          "label": "Routes",
+          "score": 0,
+          "start": 82,
+          "end": 88,
+          "text": "Routes",
+          "line": 7,
+          "provenance": "heading"
+        },
+        {
+          "key": "care arrangements",
+          "label": "Care arrangements",
+          "score": 0.001,
+          "start": 631,
+          "end": 648,
+          "text": "Care arrangements",
+          "line": 11,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "canal cycle path",
+          "label": "canal cycle path",
+          "score": 0.0030505867725175873,
+          "start": 116,
+          "end": 132,
+          "text": "canal cycle path",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "bus stop",
+          "label": "bus stop",
+          "score": 0.019645153832213887,
+          "start": 203,
+          "end": 211,
+          "text": "bus stop",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "flat walk",
+          "label": "flat walk",
+          "score": 0.02289340830929687,
+          "start": 170,
+          "end": 179,
+          "text": "flat walk",
+          "line": 9,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Personal/Winter rides need an exit option.md",
+      "stratum": "Personal",
+      "source_sha256": "c415a00b290a18dab8d7f22bb9bc1d5cbd3b1d891591f7974fd09029a3d60cb0",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "complete",
+        "error": null
+      },
+      "topics": [
+        {
+          "key": "routes",
+          "label": "Routes",
+          "score": 0.001,
+          "start": 335,
+          "end": 341,
+          "text": "Routes",
+          "line": 9,
+          "provenance": "wikilink"
+        },
+        {
+          "key": "shorter club ride",
+          "label": "shorter club ride",
+          "score": 0.013941842196148567,
+          "start": 153,
+          "end": 170,
+          "text": "shorter club ride",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "winter rides",
+          "label": "Winter rides",
+          "score": 0.01703383957467195,
+          "start": 108,
+          "end": 120,
+          "text": "Winter rides",
+          "line": 7,
+          "provenance": "yake"
+        },
+        {
+          "key": "turn for home",
+          "label": "turn for home",
+          "score": 0.036128343882787545,
+          "start": 200,
+          "end": 213,
+          "text": "turn for home",
+          "line": 9,
+          "provenance": "yake"
+        },
+        {
+          "key": "exit option",
+          "label": "exit option",
+          "score": 0.08992071912816675,
+          "start": 129,
+          "end": 140,
+          "text": "exit option",
+          "line": 7,
+          "provenance": "yake"
+        }
+      ],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Templates/Reading template.md",
+      "stratum": "excluded-template",
+      "source_sha256": "578bd6e6ee518678a3a22988ac9e0a866bae94d7697bbd098985094e85814860",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "excluded",
+        "error": null
+      },
+      "topics": [],
+      "human_reviewed": false,
+      "usefulness": null
+    },
+    {
+      "path": "Templates/Meeting template.md",
+      "stratum": "excluded-template",
+      "source_sha256": "d6149c43ea47089eb0f6987395320b0b2cbaa078486c285cb2e54bb1f5563976",
+      "source_repository": null,
+      "source_commit": null,
+      "state": {
+        "status": "excluded",
+        "error": null
+      },
+      "topics": [],
+      "human_reviewed": false,
+      "usefulness": null
+    }
+  ],
+  "model_quality_proxy": {
+    "passed": true,
+    "limit": 5,
+    "cases_with_required_topics": 21,
+    "minimum_precision": 0.5,
+    "minimum_recall": 0.6,
+    "metrics": {
+      "yake": {
+        "precision": 0.5714285714285714,
+        "recall": 0.8571428571428571
+      },
+      "frequency": {
+        "precision": 0.23809523809523808,
+        "recall": 0.3333333333333333
+      }
+    },
+    "cases": [
+      {
+        "id": "mara-00",
+        "predictions": {
+          "yake": [
+            "care arrangements",
+            "mum three saturdays",
+            "driven mum",
+            "usual driver",
+            "offer expires"
+          ],
+          "frequency": [
+            "arrangements",
+            "asked",
+            "backup",
+            "beautifully",
+            "calendar"
+          ]
+        },
+        "yake": {
+          "precision": 0.2,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.4,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-01",
+        "predictions": {
+          "yake": [
+            "the consultation mum led",
+            "care arrangements",
+            "question card",
+            "unanswered question",
+            "appointment"
+          ],
+          "frequency": [
+            "mum",
+            "question",
+            "appointment",
+            "arrangement",
+            "arrangements"
+          ]
+        },
+        "yake": {
+          "precision": 0.6,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.6,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-02",
+        "predictions": {
+          "yake": [
+            "care arrangements",
+            "appointment",
+            "mum",
+            "time",
+            "date in care"
+          ],
+          "frequency": [
+            "appointment",
+            "arrangements",
+            "alteration",
+            "answer",
+            "booking"
+          ]
+        },
+        "yake": {
+          "precision": 0.4,
+          "recall": 0.5
+        },
+        "frequency": {
+          "precision": 0.2,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-03",
+        "predictions": {
+          "yake": [
+            "old ferry timetable",
+            "field methods",
+            "fictional local-history booklet",
+            "tide",
+            "passenger"
+          ],
+          "frequency": [
+            "crossing",
+            "afford",
+            "arrives",
+            "attributed",
+            "booklet"
+          ]
+        },
+        "yake": {
+          "precision": 0.6,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.2,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-04",
+        "predictions": {
+          "yake": [
+            "clinic access leaflet draft",
+            "field methods",
+            "patient",
+            "overconfident fictional leaflet",
+            "appointment"
+          ],
+          "frequency": [
+            "access",
+            "leaflet",
+            "appointment",
+            "ask",
+            "clinic"
+          ]
+        },
+        "yake": {
+          "precision": 0.8,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.4,
+          "recall": 1
+        }
+      },
+      {
+        "id": "mara-05",
+        "predictions": {
+          "yake": [
+            "old repair club minutes",
+            "field methods",
+            "fictional minute",
+            "previous club",
+            "room"
+          ],
+          "frequency": [
+            "club",
+            "person",
+            "repair",
+            "explains",
+            "fictional"
+          ]
+        },
+        "yake": {
+          "precision": 0.4,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.4,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-06",
+        "predictions": {
+          "yake": [
+            "repair ideas",
+            "close for august",
+            "repair cafe",
+            "summer pause",
+            "put the date"
+          ],
+          "frequency": [
+            "repair",
+            "cafe",
+            "pause",
+            "added",
+            "alternatives"
+          ]
+        },
+        "yake": {
+          "precision": 0.6,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-07",
+        "predictions": {
+          "yake": [
+            "volunteer handbook",
+            "tool cupboard queue",
+            "waiting time",
+            "borrowing queue",
+            "confidence problem"
+          ],
+          "frequency": [
+            "problem",
+            "queue",
+            "tool",
+            "tray",
+            "added"
+          ]
+        },
+        "yake": {
+          "precision": 0.6,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-08",
+        "predictions": {
+          "yake": [
+            "repair cafe refusal explained early",
+            "repair ideas",
+            "qualified repairer contact",
+            "scope",
+            "mains"
+          ],
+          "frequency": [
+            "refusal",
+            "repair",
+            "explained",
+            "agreed",
+            "brought"
+          ]
+        },
+        "yake": {
+          "precision": 0.2,
+          "recall": 0.5
+        },
+        "frequency": {
+          "precision": 0.4,
+          "recall": 1
+        }
+      },
+      {
+        "id": "mara-09",
+        "predictions": {
+          "yake": [
+            "field methods",
+            "garden notebook",
+            "downpipe barrel",
+            "path floods",
+            "capturing rain"
+          ],
+          "frequency": [
+            "barrel",
+            "path",
+            "water",
+            "away",
+            "belongs"
+          ]
+        },
+        "yake": {
+          "precision": 0.8,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.6,
+          "recall": 1
+        }
+      },
+      {
+        "id": "mara-10",
+        "predictions": {
+          "yake": [
+            "garden notebook",
+            "foot traffic",
+            "leaf-covered soil",
+            "stepping stones",
+            "leaves"
+          ],
+          "frequency": [
+            "bed",
+            "causal",
+            "cause",
+            "changes",
+            "clean"
+          ]
+        },
+        "yake": {
+          "precision": 1,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-11",
+        "predictions": {
+          "yake": [
+            "garden notebook",
+            "seed swap table",
+            "reach the envelopes",
+            "people",
+            "queue"
+          ],
+          "frequency": [
+            "table",
+            "conversation",
+            "accidentally",
+            "activities",
+            "advice"
+          ]
+        },
+        "yake": {
+          "precision": 0.6,
+          "recall": 0.5
+        },
+        "frequency": {
+          "precision": 0,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-12",
+        "predictions": {
+          "yake": [
+            "maintenance",
+            "closing the harbour",
+            "decisions than opening",
+            "harbour archive",
+            "required more decisions"
+          ],
+          "frequency": [
+            "project",
+            "allowed",
+            "archive",
+            "argue",
+            "beginning"
+          ]
+        },
+        "yake": {
+          "precision": 0.4,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-13",
+        "predictions": {
+          "yake": [
+            "availability is not access",
+            "field methods",
+            "listening",
+            "unlocked catalogue",
+            "categories"
+          ],
+          "frequency": [
+            "access",
+            "add",
+            "alternative",
+            "availability",
+            "catalogue"
+          ]
+        },
+        "yake": {
+          "precision": 0.8,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.2,
+          "recall": 1
+        }
+      },
+      {
+        "id": "mara-14",
+        "predictions": {
+          "yake": [
+            "field methods",
+            "repair cafe spreadsheet",
+            "spreadsheet counts repairs",
+            "cafe spreadsheet counts",
+            "careful refusal"
+          ],
+          "frequency": [
+            "refusal",
+            "add",
+            "attempting",
+            "bigger",
+            "cafe"
+          ]
+        },
+        "yake": {
+          "precision": 0.2,
+          "recall": 0
+        },
+        "frequency": {
+          "precision": 0.2,
+          "recall": 0.5
+        }
+      },
+      {
+        "id": "mara-15",
+        "predictions": {
+          "yake": [
+            "exhibition plan",
+            "correct contact details",
+            "withdrawal requests",
+            "harbour archive",
+            "owner for withdrawal"
+          ],
+          "frequency": [
+            "completed",
+            "project",
+            "archive",
+            "archived",
+            "checklist"
+          ]
+        },
+        "yake": {
+          "precision": 0.6,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-16",
+        "predictions": {
+          "yake": [
+            "the supported practice review card",
+            "volunteer handbook",
+            "shift",
+            "induction responsibility",
+            "answers"
+          ],
+          "frequency": [
+            "card",
+            "practice",
+            "supported",
+            "volunteer",
+            "answers"
+          ]
+        },
+        "yake": {
+          "precision": 0.4,
+          "recall": 0.5
+        },
+        "frequency": {
+          "precision": 0.2,
+          "recall": 0
+        }
+      },
+      {
+        "id": "mara-17",
+        "predictions": {
+          "yake": [
+            "maintenance",
+            "ticket printer",
+            "handwritten tickets",
+            "blank cards",
+            "put the fallback"
+          ],
+          "frequency": [
+            "printer",
+            "volunteer",
+            "allowing",
+            "blank",
+            "box"
+          ]
+        },
+        "yake": {
+          "precision": 0.8,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.4,
+          "recall": 0.5
+        }
+      },
+      {
+        "id": "mara-18",
+        "predictions": {
+          "yake": [
+            "packing less clay equipment",
+            "pottery",
+            "carried three tools",
+            "arranging my table",
+            "time"
+          ],
+          "frequency": [
+            "pottery",
+            "time",
+            "access",
+            "arranging",
+            "borrowed"
+          ]
+        },
+        "yake": {
+          "precision": 0.4,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.2,
+          "recall": 1
+        }
+      },
+      {
+        "id": "mara-19",
+        "predictions": {
+          "yake": [
+            "routes",
+            "care arrangements",
+            "canal cycle path",
+            "bus stop",
+            "flat walk"
+          ],
+          "frequency": [
+            "clinic",
+            "journey",
+            "leaves",
+            "route",
+            "routes"
+          ]
+        },
+        "yake": {
+          "precision": 0.8,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.4,
+          "recall": 0.5
+        }
+      },
+      {
+        "id": "mara-20",
+        "predictions": {
+          "yake": [
+            "routes",
+            "shorter club ride",
+            "winter rides",
+            "turn for home",
+            "exit option"
+          ],
+          "frequency": [
+            "exit",
+            "begin",
+            "checking",
+            "choice",
+            "club"
+          ]
+        },
+        "yake": {
+          "precision": 0.8,
+          "recall": 1
+        },
+        "frequency": {
+          "precision": 0.2,
+          "recall": 0.5
+        }
+      }
+    ],
+    "empty_violations": [],
+    "annotation_provenance": {
+      "annotation_author": "OpenAI model",
+      "human_reviewed": false,
+      "extractor_implementation_inspected": true,
+      "extractor_output_inspected": false,
+      "source_kind": "Checked-in PR97 narrative vault, final snapshot; all dates and authorship are fictional.",
+      "selection_policy": "Before viewing predictions, rank final nondeleted paths in each source folder by SHA256 of geistfabrik-topics-narrative-v1 + NUL + path; take three per folder and retain both template controls.",
+      "annotation_policy": "Required groups describe central subjects using observed wording; acceptable secondary labels remain source-supported. Membership does not establish author stance or intent. Exact-label results remain a limited model proxy."
+    },
+    "limitation": "Small model-annotated calibration/regression set; broad quality unverified"
+  },
+  "rebuilt_observation": {
+    "notes": 189,
+    "virtual_entries": 24,
+    "states": {
+      "complete": 187,
+      "excluded": 2
+    },
+    "assigned_labels": 921,
+    "vocabulary": 670,
+    "catalog_seconds": 0.0020214899999757563,
+    "positive_queries": [
+      {
+        "topic": "a pot left deliberately plain",
+        "matches": 1,
+        "seconds": 0.0014552549999962139
+      },
+      {
+        "topic": "a quiet gallery at lunchtime",
+        "matches": 1,
+        "seconds": 0.0014268330000106744
+      },
+      {
+        "topic": "a ride interrupted by roadworks",
+        "matches": 1,
+        "seconds": 0.001422916999985091
+      },
+      {
+        "topic": "a shelf for useful failures",
+        "matches": 1,
+        "seconds": 0.0014065220000247791
+      },
+      {
+        "topic": "a visit without coordinating anything",
+        "matches": 1,
+        "seconds": 0.0014051500000107353
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "clean_rebuild_matches": true,
+  "source_unchanged": true,
+  "stable_controls_unchanged": true,
+  "final_digest": "ed601f3d4fd6e8b10592d7a40e1549813f0880c1d33ca387f3191642e7a459a6"
+}
