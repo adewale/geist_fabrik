@@ -1,0 +1,233 @@
+{
+  "version": 1,
+  "selection_policy": "Freeze before extractor output. Rank paths by SHA256 of geistfabrik-topics-review-v1 + NUL + path, then take six from each UTF-8 byte-length stratum (<=128, <=600, <=2000, >2000); separately include all four configured template controls.",
+  "corpora": [
+    {
+      "name": "narrative-mara-v1",
+      "origin_pr": 97,
+      "generator": "scripts/generate_narrative_corpus.py",
+      "snapshots": 24,
+      "provenance": "Authored fiction; useful for diverse personal-note forms and lifecycle checks, not real-owner usefulness."
+    },
+    {
+      "name": "temporal-smoke",
+      "origin_pr": 97,
+      "generator": "scripts/generate_temporal_corpus.py",
+      "initial_notes": 128,
+      "snapshots": 32,
+      "provenance": "Synthetic planted topics and dates."
+    },
+    {
+      "name": "temporal-standard",
+      "origin_pr": 97,
+      "generator": "scripts/generate_temporal_corpus.py",
+      "initial_notes": 1000,
+      "snapshots": 32,
+      "provenance": "Synthetic planted topics and dates."
+    },
+    {
+      "name": "temporal-large",
+      "origin_pr": 97,
+      "generator": "scripts/generate_temporal_corpus.py",
+      "initial_notes": 10000,
+      "snapshots": 2,
+      "generated_snapshots": 32,
+      "provenance": "Same generator/profile as PR97; replay first two snapshots, matching prior scale-probe scope."
+    },
+    {
+      "name": "original-10000",
+      "origin_prs": [
+        74,
+        97
+      ],
+      "repository": "Zettelkasten-Method/10000-markdown-files",
+      "commit": "40c11a4bb9b96dbcf1cd3c109d32f50dbc8b61a2",
+      "root": "10000 markdown files",
+      "expected_markdown_files": 10000,
+      "expected_bytes": 46635807,
+      "provenance": "Scrambled public stress text; robustness/capacity evidence, not representative semantic topic quality."
+    },
+    {
+      "name": "lyt-kit-mirror",
+      "historical_reference": "docs/LYT_KIT_BENCHMARK.md at b613dd71e8a565ab0587d9db1c6e7f49f625015f, removed in merged PR61",
+      "repository": "thebrianbug/LYT-Kit",
+      "commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "expected_markdown_files": 272,
+      "exclude_paths": [
+        ".obsidian/",
+        "Extras/Templates/"
+      ],
+      "provenance": "Public mirror of authored LYT demonstration notes. Related to the historical 235-note benchmark, but not proven byte-identical; this pinned mirror has272 notes. No source texts are redistributed by the review manifest. Not private-owner approval.",
+      "quality_sample": [
+        {
+          "path": "Calendar/2020-06-01.md",
+          "sha": "0de58eea8d7bfc9253bd00ebea210e8758ee02f5",
+          "size": 97,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "Calendar/2023-04-22.md",
+          "sha": "d2a58731aa1c8db2916efebc71abfae4f8762d61",
+          "size": 94,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "Cards/Sense of Control.md",
+          "sha": "14dfe2e2a7bb3fac1b9fcf044035a886c9f190ea",
+          "size": 50,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "+ Encounters/English Language MOC.md",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "size": 0,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "+ Encounters/LOL.md",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "size": 0,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "Cards/Folgezettel - 100a.1a But Also How It.md",
+          "sha": "0e8dd09287a9020f4a21ed58139a5d5b59f18cc7",
+          "size": 85,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "+ Encounters/sound sensory sensitivity.md",
+          "sha": "b238a382a27df9e49bf30be5b3977fccfec2cafc",
+          "size": 354,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Recognize there is a problem and seek solutions..md",
+          "sha": "422ed4709eba20b576c8ff4160464df0d9cadaa2",
+          "size": 204,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Signal to Noise Ratio.md",
+          "sha": "ce1806cd4925eb6d3ed7ff3d88feeebfd3e2a550",
+          "size": 253,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Use it or Lose it.md",
+          "sha": "03487dfc588c9d871ae2188b103dbc95d1b45ec4",
+          "size": 508,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Heterarchy.md",
+          "sha": "abc07f72b9532ea560559adf9326943a7643053e",
+          "size": 331,
+          "stratum": "short"
+        },
+        {
+          "path": "Calendar/2022-11-21.md",
+          "sha": "27e42845de5f263b6707c9af17dcf545862b981e",
+          "size": 186,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/+ About Cards.md",
+          "sha": "3aabaf187f14bde75b3faa1378df21ed2c1a584b",
+          "size": 1523,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Forcing Function.md",
+          "sha": "7a66e1d4f233e74e89be14e694b5868c9fec9845",
+          "size": 899,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/The truest habit metaphors are additive - v1.md",
+          "sha": "4e7c43ee4b9084343ef0feb7cf9b49d1be2f1920",
+          "size": 1062,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Reps.md",
+          "sha": "a1932adeff7284ecafb2ed7fcfbd62fa78533e99",
+          "size": 1266,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Habits MOC - Gather.md",
+          "sha": "24f8917e5944968fb36ecb82528892a442bba542",
+          "size": 1046,
+          "stratum": "medium"
+        },
+        {
+          "path": "Home.md",
+          "sha": "288ed7455bf89321b0ae7340b8b64e409fa8f6d2",
+          "size": 644,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Charting out habit cycles in my life circa 2013.md",
+          "sha": "db2a2761af7502ce3bc6fe42303f3c8b0751fbfd",
+          "size": 2831,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Benefits of LYT frameworks.md",
+          "sha": "80e06726f9d7ff62baa779c06b465245f9f4ac57",
+          "size": 5292,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Some Greek Allusions.md",
+          "sha": "857aca9d3a08dadaf7df1e45bfad23d0ad9eafb7",
+          "size": 2625,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Conditions of Flow.md",
+          "sha": "f65b9929175ad54c8b8779e60045cdddbf919a2c",
+          "size": 2390,
+          "stratum": "long"
+        },
+        {
+          "path": "Atlas/Habits MOC.md",
+          "sha": "dacd3d21535301a4473147867cfc3aee8047d43d",
+          "size": 3301,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Flow Map.md",
+          "sha": "9253a248c3e3423aae18e1b7319459e6ca0a6b53",
+          "size": 2191,
+          "stratum": "long"
+        },
+        {
+          "path": "Extras/Templates/Template, Daily Note (kit).md",
+          "sha": "ca39668fbcf01b60e14ce893188128f3cc77c178",
+          "size": 184,
+          "stratum": "excluded-template"
+        },
+        {
+          "path": "Extras/Templates/Template, Dates dates dates (kit).md",
+          "sha": "e555195074529385e12b3fd98da207652a833332",
+          "size": 405,
+          "stratum": "excluded-template"
+        },
+        {
+          "path": "Extras/Templates/Template, Meeting (kit).md",
+          "sha": "d6d3057209ca74f2982af8fccf8c2f1a3572585d",
+          "size": 89,
+          "stratum": "excluded-template"
+        },
+        {
+          "path": "Extras/Templates/Template, Note (kit).md",
+          "sha": "b5e6f3d86f5e014d7458e906b879fb8a418e1eed",
+          "size": 26,
+          "stratum": "excluded-template"
+        }
+      ]
+    }
+  ]
+}

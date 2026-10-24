@@ -1,0 +1,75 @@
+name: Topic corpus validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/benchmark_topic_corpora.py'
+      - 'benchmarks/corpora/topic_corpora.json'
+      - 'src/geistfabrik/topic*'
+      - 'src/geistfabrik/vault.py'
+      - '.github/workflows/topic-corpora.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  corpora:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      UV_PYTHON: '3.12'
+      UV_LOCKED: '1'
+      GEISTFABRIK_OFFLINE: '1'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      TOPIC_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: project
+          persist-credentials: false
+      - name: Recover the exact historical stress corpus
+        uses: actions/checkout@v7
+        with:
+          repository: Zettelkasten-Method/10000-markdown-files
+          ref: 40c11a4bb9b96dbcf1cd3c109d32f50dbc8b61a2
+          path: corpora/stress
+          persist-credentials: false
+      - name: Recover a pinned authored LYT Kit mirror
+        uses: actions/checkout@v7
+        with:
+          repository: thebrianbug/LYT-Kit
+          ref: e191473fcb326df78cca8a6c49b29420ab318e46
+          path: corpora/lyt
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Require committed dependencies
+        working-directory: project
+        run: uv sync --locked --extra vector-search
+      - name: Check the corpus runner before expensive work
+        working-directory: project
+        run: |
+          uv run --frozen ruff check scripts/benchmark_topic_corpora.py
+          uv run --frozen ruff format --check scripts/benchmark_topic_corpora.py
+      - name: Replay the existing corpora through production topic indexing
+        working-directory: project
+        run: |
+          uv run --frozen python -m scripts.benchmark_topic_corpora \
+            --work "$RUNNER_TEMP/topic-corpus-checks" \
+            --lyt ../corpora/lyt \
+            --stress '../corpora/stress/10000 markdown files'
+      - name: Retain reports without copying third-party vault bodies
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: topic-corpus-reports
+          path: ${{ runner.temp }}/topic-corpus-checks/*.json
+          if-no-files-found: ignore
+          retention-days: 7

@@ -10,7 +10,7 @@ Implementation: `32db958961e4a5ddbc9b61b44fd0cdc961df52fb`; fully validated PR r
 
 - Ten public starter notes: seven substantive notes and three metadata-only/stub cases. The extractor assigned 34 labels; the frequency baseline assigned 35. Every assigned label must be judged.
 - These notes concentrate on Obsidian and note-taking. They do not establish representativeness for a broader personal vault. The larger narrative corpus in this repo is fictional and cannot substitute for real-vault evidence.
-- This is human adjudication of an existing calibration set, not an untouched holdout. A representative real-vault path/repository is needed to extend coverage without claiming fictional notes are real.
+- This is human adjudication of an existing calibration set, not an untouched holdout. [Existing larger corpora from merged PRs](TOPIC_CORPUS_EVALUATION.md) are now being reused, including a pinned authored LYT Kit mirror. They extend the evidence without claiming fictional notes are real or fabricating human ratings.
 - Preserve the frozen thresholds: precision >= 0.50 and recall >= 0.60, with no false topics on empty cases. Do not lower these thresholds or rewrite the existing oracle to obtain a pass.
 
 ## Pass 1: read the sources before the predictions
@@ -215,12 +215,12 @@ Human central subjects: **pending**.
 
 ### 9. product-usage-analysis
 
-[Original source](../testdata/kepano-obsidian-main/Product%20usage%20analysis.md) · SHA256 `3b7d468fff01f1ad6f6f3424c97dc0130712c613a6a4c75e82e0c51ca173cbc8`
+[Original source](../testdata/kepano-obsidian-main/Product%20usage%20analysis.md) · SHA256 `3b7d468fff01f1ad6f6f3424c97dc013712c613a6a4c75e82e0c51ca173cbc8`
 
 ````markdown
 Analysis of cost per use, see [[Buy wisely]]
 
-Using [[Obsidian]] to tack product usage patterns.
+Using [[Obsidian]] to track product usage patterns.
 
 ![[Products.base#Cost per use]]
 ````

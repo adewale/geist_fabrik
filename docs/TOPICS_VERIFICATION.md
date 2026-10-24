@@ -72,6 +72,14 @@ Single-run benchmark on repeated synthetic 141-character notes:
 Membership queries returned all 100/1,000 expected sources. These costs are useful
 regression evidence, not representative real-vault latency measurements.
 
+## Existing large-corpus follow-up
+
+Merged PRs already supplied a narrative vault, temporal profiles at 128/1,000/10,000
+notes and the original 10,000-file stress corpus. A public LYT Kit mirror extends
+authored-note coverage. The [corpus evaluation](TOPIC_CORPUS_EVALUATION.md) records
+the recovered provenance, frozen source-first sample and executable checks.
+These inputs should be exercised before asking for additional vault data.
+
 ## Reproduction and full validation
 
 ```sh
