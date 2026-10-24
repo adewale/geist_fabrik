@@ -60,6 +60,8 @@ def test_property_values_cannot_own_later_public_prose(metadata: str) -> None:
         "%% hidden\n\nproperty:: ignored %%\n",
         "Visible <span hidden>secret\n\nproperty:: ignored </span>\n",
         "Visible <span hidden>secret\n\n%% ignored\n\n</span>\n",
+        "Visible <span hidden>secret\n\nproperty:: ignored </span><script>\n",
+        "Visible <span hidden>secret\n\nproperty:: ignored </span>hidden suffix\n",
     ],
 )
 def test_earlier_owners_retain_closing_syntax_across_property_blocks(opening: str) -> None:
@@ -67,6 +69,63 @@ def test_earlier_owners_retain_closing_syntax_across_property_blocks(opening: st
     prose = topic_prose(source)
     assert "Urban gardens" in prose
     assert "secret" not in prose and "ignored" not in prose and "hidden" not in prose
+
+
+def test_property_raw_text_cannot_disable_later_hidden_html() -> None:
+    source = "property:: <script>\n\nPublic <span hidden>secret</span> gardens.\n"
+    prose = topic_prose(source)
+    assert "Public" in prose and "gardens" in prose
+    assert "secret" not in prose
+
+
+def test_property_inside_hidden_html_preserves_nested_closing_order() -> None:
+    source = (
+        "Visible <div hidden>secret\n\nproperty:: <div>nested</div>\n\n"
+        "hidden suffix</div>\n\nPublic gardens.\n"
+    )
+    prose = topic_prose(source)
+    assert "Public gardens" in prose
+    assert "secret" not in prose and "nested" not in prose and "hidden" not in prose
+
+
+@pytest.mark.parametrize("new_tag", ["script", "div"])
+def test_unclosed_property_nesting_cannot_escape_earlier_hidden_html(new_tag: str) -> None:
+    source = (
+        f"Visible <div hidden>secret\n\nproperty:: <{new_tag}>\n\n"
+        "</div>\n\nPublic gardens.\n"
+    )
+    prose = topic_prose(source)
+    assert "Public gardens" in prose and "secret" not in prose
+
+
+@pytest.mark.parametrize("tag", ["script", "style", "textarea", "title"])
+def test_property_local_raw_text_cannot_close_an_earlier_html_owner(tag: str) -> None:
+    source = (
+        f"Visible <div hidden>secret\n\nproperty:: <{tag}> </div> ignored </{tag}>\n\n"
+        "hidden suffix</div>\n\nPublic gardens.\n"
+    )
+    prose = topic_prose(source)
+    assert "Public gardens" in prose
+    assert "secret" not in prose and "hidden" not in prose and "ignored" not in prose
+
+
+@pytest.mark.parametrize("tag", ["textarea", "title"])
+def test_selfclosing_property_raw_text_has_paragraph_local_lifetime(tag: str) -> None:
+    source = (
+        f"Visible <div hidden>secret\n\nproperty:: <{tag}/> </div> ignored </{tag}>\n\n"
+        "hidden suffix</div>\n\nPublic gardens.\n"
+    )
+    prose = topic_prose(source)
+    assert "Public gardens" in prose and "hidden suffix" not in prose
+
+
+def test_property_raw_text_closer_inside_literal_comment_retains_its_role() -> None:
+    source = (
+        "Visible <div hidden>secret\n\nproperty:: <script><!-- </script> --> </div>\n\n"
+        "Public gardens.\n"
+    )
+    prose = topic_prose(source)
+    assert "Public gardens" in prose and "secret" not in prose
 
 
 def test_many_property_values_have_bounded_comment_processing(

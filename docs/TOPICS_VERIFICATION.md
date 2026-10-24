@@ -78,7 +78,12 @@ Merged PRs already supplied a narrative vault, temporal profiles at 128/1,000/10
 notes and the original 10,000-file stress corpus. A public LYT Kit mirror extends
 authored-note coverage. The [corpus evaluation](TOPIC_CORPUS_EVALUATION.md) records
 the recovered provenance, frozen source-first sample and executable checks.
-These inputs should be exercised before asking for additional vault data.
+These inputs have now been exercised before and during a targeted property-
+metadata repair. Both broader model relevance proxies remain below their fixed
+precision thresholds, and an unfilled-form violation remains. Their source-first
+annotations, measured reports and audit follow-ups are retained in the corpus
+evaluation. Merge readiness is blocked on this quality evidence as well as the
+representative human-review gate.
 
 ## Reproduction and full validation
 

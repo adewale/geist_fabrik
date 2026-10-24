@@ -1,0 +1,26 @@
+{
+  "baseline": {
+    "source_commit": "52b25c556dbf731c66e25a139348dd01eacaafd3",
+    "workflow_run": 40102871532,
+    "job_id": 120898434140,
+    "index": "baseline/index.json"
+  },
+  "initial_property_mask_probe": {
+    "source_commit": "9cdf8c888e6537ef56b53a3558e8cef549865c6f",
+    "workflow_run": 40104511307,
+    "job_id": 120903295876,
+    "index": "property-mask-probe/index.json"
+  },
+  "phase": "Historical measured inputs and outputs; final strengthened-verifier run pending.",
+  "annotations_sha256": {
+    "benchmarks/corpora/topic_lyt_proxy_gold.json": "d9d63d5d8339794b1ac8202a407ee73424ab07bd6afda6b4a3a401985ab0f0c6",
+    "benchmarks/corpora/topic_narrative_proxy_gold.json": "c17493ecde7165165ba2922573f51a9cab3dedce9091c0b52e6eb8423a9e95be"
+  },
+  "limitations": [
+    "Model proxies are source-first but annotator knew implementation; no human review or untouched holdout is claimed.",
+    "Early harnesses compared membership-only rebuilds and count-only replay populations; these proof gaps were fault-injected, repaired and covered by regressions. Preserve historical outputs while revalidating with the stronger harness.",
+    "Single CI wall times include raw sync plus topics with lexical capture disabled; no causal speedup or whole-invocation cost is claimed."
+  ],
+  "human_reviewed": false,
+  "merge_recommended": false
+}

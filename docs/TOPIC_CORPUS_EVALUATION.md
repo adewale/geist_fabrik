@@ -58,6 +58,31 @@ the wrong later text. Existing and new proxy annotations remain frozen. Sentence
 fragments and unfilled-form noise are separate unresolved quality findings; they
 are not hidden by changing the oracle or corpus population.
 
+## Audit repairs to the proof boundaries
+
+Follow-up reviewers reproduced two verifier defects using real Vault/SQLite
+with injected faults: an incomplete empty-note rebuild could retain the same
+membership digest, and a same-count replacement path could pass the population
+check. The runner now requires rebuilt completeness, compares full note-state
+populations and memberships, and checks every replayed path and SHA256 against
+the snapshot manifest. New regressions retain a complete-empty positive control
+and reject extraction failure, renamed source and same-byte content corruption.
+
+The parser audit also exposed field-created HTML state escaping after an earlier
+owner closed, or consuming its closing syntax. Property-created nesting and raw
+text now have paragraph-local lifetime, while matching closes preserve earlier
+real HTML owners. The real helper probes and source-level regressions cover these
+cases; full committed-revision MarkdownIt tests remain required.
+
+The [baseline reports](../benchmarks/results/topics/corpora/baseline/index.json)
+and [initial property-mask probe](../benchmarks/results/topics/corpora/property-mask-probe/index.json)
+retain their exact measured revisions. That initial repair raised the LYT proxy
+from 0.377 / 0.575 to 0.482 / 0.625, with the empty-form violation remaining.
+Narrative relevance stayed at 0.448 / 0.667. Both relevance proxies still failed
+the fixed thresholds. The [receipt](../benchmarks/results/topics/corpora/receipt.json)
+keeps this failure visible and distinguishes those historical runs from the final
+strengthened proof. No score or annotation is presented as a human judgment.
+
 ## Executable checks
 
 `scripts/benchmark_topic_corpora.py` uses real `Vault.sync` and `TopicIndex` with
@@ -67,9 +92,10 @@ indexing cost; these are not whole-invocation or embedding timings.
 
 For each snapshot, it checks complete state and every stored evidence span/line,
 then verifies nonempty topic memberships against stored eligible source rows.
-It hashes Markdown before/after sync, asserts zero topic extractions and unchanged
+It compares complete replay path/hash maps, hashes Markdown before/after sync,
+asserts zero topic extractions and unchanged
 memberships on warm sync, and compares edited/replayed final state with a fresh
-index. Stable-source evidence must remain unchanged throughout each replay.
+index, including complete-empty states and note populations. Stable-source evidence must remain unchanged throughout each replay.
 The static stress corpus is indexed once and checked warm; no redundant cold
 rebuild is required when its source has never changed.
 
@@ -88,7 +114,10 @@ The work destination must not exist. It owns all generated/replay data. External
 source corpora are read without importing their plugins, and source bytes must
 remain unchanged. Reports retain provenance, snapshot counts, extraction counts,
 query timings, evidence checks and unrated sample labels. Human usefulness fields
-remain unset. Completed results will be recorded here after the actual run.
+remain unset. Measured historical results are retained above; the final audit-repaired run is
+pending. External repositories must match their pinned Git commit and have clean
+tracked sources. Reports record the measured project commit and relevant source
+file hashes in addition to the requested PR revision.
 
 Corpus execution can establish correctness and cost. Fiction, planted topics,
 scrambled stress prose and unrated public demonstration notes do not establish

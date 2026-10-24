@@ -1,0 +1,156 @@
+{
+  "corpus": {
+    "name": "temporal-large",
+    "origin_pr": 97,
+    "generator": "scripts/generate_temporal_corpus.py",
+    "initial_notes": 10000,
+    "snapshots": 2,
+    "generated_snapshots": 32,
+    "provenance": "Same generator/profile as PR97; replay first two snapshots, matching prior scale-probe scope."
+  },
+  "lexical_capture_enabled": false,
+  "snapshots": [
+    {
+      "seconds": 53.601105195,
+      "raw_processed": 10101,
+      "topic_extractions": 10101,
+      "notes": 10101,
+      "virtual_entries": 0,
+      "states": {
+        "complete": 10101
+      },
+      "assigned_labels": 50505,
+      "vocabulary": 54,
+      "catalog_seconds": 0.11161860999999362,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 10000,
+          "seconds": 0.08667204400001083
+        },
+        {
+          "topic": "another related record",
+          "matches": 10000,
+          "seconds": 0.08735199399995963
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 1262,
+          "seconds": 0.08217698300001075
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 13,
+          "seconds": 0.08117857999997113
+        },
+        {
+          "topic": "community spaces",
+          "matches": 1263,
+          "seconds": 0.08188416899997719
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 0,
+      "source_inventory": {
+        "files": 10101,
+        "bytes": 2954568,
+        "sha256": "3b50d00bb45802d026ee53ca53c9e44df410afdb7a0658a7a2d888a75410ea13"
+      }
+    },
+    {
+      "seconds": 9.782920914999977,
+      "raw_processed": 1102,
+      "topic_extractions": 1102,
+      "notes": 10202,
+      "virtual_entries": 2,
+      "states": {
+        "complete": 10202
+      },
+      "assigned_labels": 51010,
+      "vocabulary": 65,
+      "catalog_seconds": 0.11198436000000811,
+      "positive_queries": [
+        {
+          "topic": "a related record",
+          "matches": 10000,
+          "seconds": 0.2836327420000089
+        },
+        {
+          "topic": "another related record",
+          "matches": 10000,
+          "seconds": 0.088709386000005
+        },
+        {
+          "topic": "astronomy observes galaxies",
+          "matches": 1274,
+          "seconds": 0.08226129900003798
+        },
+        {
+          "topic": "biodiversity",
+          "matches": 27,
+          "seconds": 0.081991931999994
+        },
+        {
+          "topic": "community spaces",
+          "matches": 1276,
+          "seconds": 0.08295601099996475
+        }
+      ],
+      "exact_evidence_checked": true,
+      "snapshot": 1,
+      "source_inventory": {
+        "files": 10201,
+        "bytes": 3031132,
+        "sha256": "74f265f09da04e1423f55bef260c82bbb91d5f600253a38273d6f5b2775f2ee6"
+      }
+    }
+  ],
+  "warm_sync": {
+    "seconds": 3.5468879929999844,
+    "raw_processed": 0,
+    "topic_extractions": 0
+  },
+  "warm_observation": {
+    "notes": 10202,
+    "virtual_entries": 2,
+    "states": {
+      "complete": 10202
+    },
+    "assigned_labels": 51010,
+    "vocabulary": 65,
+    "catalog_seconds": 0.29759627300001057,
+    "positive_queries": [
+      {
+        "topic": "a related record",
+        "matches": 10000,
+        "seconds": 0.0890066360000219
+      },
+      {
+        "topic": "another related record",
+        "matches": 10000,
+        "seconds": 0.08759208399999352
+      },
+      {
+        "topic": "astronomy observes galaxies",
+        "matches": 1274,
+        "seconds": 0.08385215900000276
+      },
+      {
+        "topic": "biodiversity",
+        "matches": 27,
+        "seconds": 0.08287872500000049
+      },
+      {
+        "topic": "community spaces",
+        "matches": 1276,
+        "seconds": 0.08253567499997416
+      }
+    ],
+    "exact_evidence_checked": true
+  },
+  "unrated_quality_sample": [],
+  "clean_rebuild_matches": true,
+  "source_unchanged": true,
+  "stable_controls_unchanged": true,
+  "final_digest": "23d0d5bb4345d7b77027500446621845486ce9e0c6d5f5dae02451ec0bcaf258"
+}

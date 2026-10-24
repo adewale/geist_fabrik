@@ -10,6 +10,7 @@ import json
 import os
 import platform
 import sqlite3
+import subprocess
 from collections import Counter
 from contextlib import closing
 from dataclasses import asdict
@@ -28,7 +29,7 @@ REPO = Path(__file__).resolve().parents[1]
 MANIFEST = REPO / "benchmarks/corpora/topic_corpora.json"
 
 
-def inventory(root: Path) -> dict:
+def inventory(root: Path, expected: dict[str, str] | None = None) -> dict:
     """Hash every source before/after; do not include generated database state."""
     rows = []
     total = 0
@@ -38,6 +39,8 @@ def inventory(root: Path) -> dict:
         raw = path.read_bytes()
         total += len(raw)
         rows.append([str(path.relative_to(root)), hashlib.sha256(raw).hexdigest()])
+    if expected is not None and dict(rows) != expected:
+        raise AssertionError("replayed source manifest differs in paths or content")
     digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False).encode()).hexdigest()
     return {"files": len(rows), "bytes": total, "sha256": digest}
 
@@ -148,20 +151,31 @@ def samples(vault: Vault, root: Path, selection: list[dict], spec: dict) -> list
 def run_corpus(
     spec: dict, root: Path, output: Path, replay: tuple[Path, dict] | None = None
 ) -> dict:
+    checkout_commit = None
+    if spec.get("repository"):
+        checkout_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True
+        ).strip()
+        if checkout_commit != spec["commit"]:
+            raise AssertionError("external corpus checkout differs from its pinned commit")
+        subprocess.run(["git", "diff", "--quiet", "HEAD", "--", "."], cwd=root, check=True)
     config = GeistFabrikConfig()
     config.lexical_analysis.enabled = False
     config.filtering.exclude_paths = spec.get("exclude_paths", [])
     records = replay[1]["snapshots"][: spec["snapshots"]] if replay else [None]
-    report = {"corpus": spec, "lexical_capture_enabled": False, "snapshots": []}
+    report = {
+        "corpus": spec,
+        "source_checkout_commit": checkout_commit,
+        "lexical_capture_enabled": False,
+        "snapshots": [],
+    }
     stable = replay[1]["stable_paths"] if replay else None
     with closing(Vault(root, config=config)) as vault:
         first_stable = None
         for record in records:
             if record is not None:
                 apply_snapshot(replay[0], root, record["index"])
-            before = inventory(root)
-            if record is not None and before["files"] != len(record["files"]):
-                raise AssertionError("replayed corpus population is incomplete")
+            before = inventory(root, record["files"] if record is not None else None)
             run = sync_probe(vault)
             run.update(observe(vault))
             run["snapshot"] = record["index"] if record else 0
@@ -205,6 +219,11 @@ def run_corpus(
         if replay is not None:
             with closing(Vault(root, config=config)) as rebuilt:
                 rebuilt.sync()
+                report["rebuilt_observation"] = observe(rebuilt)
+                original_states = TopicIndex(vault.db, config.filtering.exclude_paths).states()
+                rebuilt_states = TopicIndex(rebuilt.db, config.filtering.exclude_paths).states()
+                if original_states != rebuilt_states:
+                    raise AssertionError("clean rebuild differs in note completeness or population")
                 if topic_digest(rebuilt) != digest:
                     raise AssertionError("incremental evidence differs from a clean rebuild")
         if inventory(root) != before_warm:
@@ -248,6 +267,20 @@ def main() -> int:
         reports.append(run_corpus(spec, root, args.work / (name + ".json"), (corpus, data)))
     bundle = {
         "runtime_source_commit": os.environ.get("TOPIC_SOURCE_COMMIT"),
+        "measured_git_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=REPO, text=True
+        ).strip(),
+        "source_files_sha256": {
+            relative: hashlib.sha256((REPO / relative).read_bytes()).hexdigest()
+            for relative in (
+                "src/geistfabrik/topics.py",
+                "src/geistfabrik/topic_text.py",
+                "src/geistfabrik/vault.py",
+                "scripts/benchmark_topic_corpora.py",
+                "scripts/generate_temporal_corpus.py",
+                "scripts/generate_narrative_corpus.py",
+            )
+        },
         "python": platform.python_version(),
         "sqlite": sqlite3.sqlite_version,
         "yake": version("yake"),

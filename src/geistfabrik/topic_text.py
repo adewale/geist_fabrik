@@ -8,6 +8,7 @@ place a sentence separator without changing the original newline coordinates.
 
 import re
 import unicodedata
+from bisect import bisect_right
 from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import lru_cache
@@ -217,12 +218,17 @@ def _inline_regions(
 class _HTMLRegions(HTMLParser):
     """Track HTML source spans without rendering or changing their coordinates."""
 
-    def __init__(self, source: str):
+    def __init__(self, source: str, properties: list[tuple[int, int]] | None = None):
         super().__init__(convert_charrefs=False)
         self.source = source
         self.offsets = _line_offsets(source)
         self.regions: list[tuple[int, int]] = []
         self.stack: list[tuple[str, bool]] = []
+        self.properties = properties or []
+        self.property_starts = [start for start, _ in self.properties]
+        self.active_property: int | None = None
+        self.property_stack: list[str] = []
+        self.property_raw_text: str | None = None
 
     def _position(self) -> int:
         line, column = self.getpos()
@@ -232,8 +238,42 @@ class _HTMLRegions(HTMLParser):
         start = self._position()
         self.regions.append((start, start + len(raw)))
 
+    def _property_index(self) -> int | None:
+        position = self._position()
+        index = bisect_right(self.property_starts, position) - 1
+        current = index if index >= 0 and position < self.properties[index][1] else None
+        if current != self.active_property:
+            self.property_stack.clear()
+            self.active_property = current
+        return current
+
+    def set_cdata_mode(self, elem: str, **kwargs: Any) -> None:
+        if self._property_index() is not None:
+            self.property_raw_text = elem
+        super().set_cdata_mode(elem, **kwargs)
+
+    def finish_property(self) -> None:
+        """End property-local raw text before feeding any later document text."""
+        if self.property_raw_text is not None:
+            # Unclosed local raw text may remain buffered. Flush only whitespace
+            # with identical coordinates, rather than parsing its apparent tags.
+            self.rawdata = "".join(char if char in "\r\n" else " " for char in self.rawdata)
+            self.clear_cdata_mode()
+            self.property_raw_text = None
+            self.feed("")
+        self.property_stack.clear()
+        self.active_property = None
+
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._markup(self.get_starttag_text() or "")
+        if self._property_index() is not None:
+            # Property-created nesting has paragraph-local lifetime. It can
+            # consume its own closers, but cannot own later document text.
+            if tag not in _VOID_HTML:
+                self.property_stack.append(tag)
+            if tag in {"title", "textarea"}:
+                self.set_cdata_mode(tag)
+            return
         attributes = dict(attrs)
         hidden = (
             tag in _NON_PROSE
@@ -242,6 +282,8 @@ class _HTMLRegions(HTMLParser):
         )
         if tag not in _VOID_HTML:
             self.stack.append((tag, hidden))
+        if tag in {"title", "textarea"}:
+            self.set_cdata_mode(tag)
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         # In HTML, a slash does not close non-void elements such as script/div.
@@ -255,6 +297,13 @@ class _HTMLRegions(HTMLParser):
         start = self._position()
         end = self.source.find(">", start)
         self.regions.append((start, end + 1 if end >= 0 else len(self.source)))
+        if self._property_index() is not None:
+            if self.property_raw_text == tag:
+                self.property_raw_text = None
+            for index in range(len(self.property_stack) - 1, -1, -1):
+                if self.property_stack[index] == tag:
+                    del self.property_stack[index:]
+                    return
         for index in range(len(self.stack) - 1, -1, -1):
             if self.stack[index][0] == tag:
                 del self.stack[index:]
@@ -356,16 +405,13 @@ def _syntax_ownership(
         if char == "<" and position not in html_openers:
             admitted[position] = " "
     html_source = "".join(admitted)
-    parser = _HTMLRegions(html_source)
-    metadata: list[tuple[int, int]] = []
+    metadata = sorted(properties)
+    parser = _HTMLRegions(html_source, metadata)
     cursor = 0
-    for start, end in sorted(properties):
+    for start, end in metadata:
         parser.feed(html_source[cursor:start])
-        if parser.rawdata or any(hidden for _, hidden in parser.stack):
-            parser.feed(html_source[start:end])
-        else:
-            metadata.append((start, end))
-            parser.feed("".join(char if char in "\r\n" else " " for char in html_source[start:end]))
+        parser.feed(html_source[start:end])
+        parser.finish_property()
         cursor = end
     parser.feed(html_source[cursor:])
     parser.close()

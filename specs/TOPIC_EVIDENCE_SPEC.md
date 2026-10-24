@@ -1,6 +1,6 @@
 # Automatic topics for GeistFabrik
 
-**Status**: Implemented in draft PR #96; adversarial findings repaired and focused regression gates pass. Full validation status is recorded separately. See [verification status](../docs/TOPICS_VERIFICATION.md). Representative human-reviewed quality remains an open delivery gate.
+**Status**: Implemented in draft PR #96. Broader corpus relevance proxies remain below their frozen quality thresholds; the index is not ready to ship. See [verification](../docs/TOPICS_VERIFICATION.md) and [corpus evidence](../docs/TOPIC_CORPUS_EVALUATION.md). Representative human-reviewed quality remains open.
 
 Automatically extract useful topics from notes and assign derived topic tags, following the [GeistFabrik vision](geistfabrik_vision.md). The first deliverable is a usable local topic index. Existing and future geists can consume it; new geists are not required to establish its value.
 
