@@ -1,0 +1,582 @@
+{
+  "description": "Source-first model relevance proxy on PR97 authored fiction across seven domains. Not real-owner ratings or an untouched human-reviewed validation set.",
+  "provenance": {
+    "annotation_author": "OpenAI model",
+    "human_reviewed": false,
+    "extractor_implementation_inspected": true,
+    "extractor_output_inspected": false,
+    "source_kind": "Checked-in PR97 narrative vault, final snapshot; all dates and authorship are fictional.",
+    "selection_policy": "Before viewing predictions, rank final nondeleted paths in each source folder by SHA256 of geistfabrik-topics-narrative-v1 + NUL + path; take three per folder and retain both template controls.",
+    "annotation_policy": "Required groups describe central subjects using observed wording; acceptable secondary labels remain source-supported. Membership does not establish author stance or intent. Exact-label results remain a limited model proxy."
+  },
+  "limit": 5,
+  "minimum_precision": 0.5,
+  "minimum_recall": 0.6,
+  "notes": [
+    {
+      "id": "mara-00",
+      "source_path": "Care/A neighbour who needs a weekend off.md",
+      "source_fixture": "testdata/narrative_vault/notes/Care/A neighbour who needs a weekend off.md",
+      "source_sha256": "1b231b9c9325d94f6653e05e276f88774ab7f27a10cc46792d3564159a3ce694",
+      "stratum": "Care",
+      "expected": [
+        [
+          "Care arrangements"
+        ]
+      ],
+      "acceptable": [
+        "Care arrangements",
+        "driver",
+        "backup",
+        "offer",
+        "Generosity",
+        "calendar"
+      ]
+    },
+    {
+      "id": "mara-01",
+      "source_path": "Care/The consultation Mum led.md",
+      "source_fixture": "testdata/narrative_vault/notes/Care/The consultation Mum led.md",
+      "source_sha256": "f7411a90c36139f2991a12c87d2b88900d98028ef2a733f2a02239ef0bd3d813",
+      "stratum": "Care",
+      "expected": [
+        [
+          "Care arrangements"
+        ]
+      ],
+      "acceptable": [
+        "Care arrangements",
+        "consultation",
+        "question card",
+        "appointment",
+        "Mum",
+        "question"
+      ]
+    },
+    {
+      "id": "mara-02",
+      "source_path": "Care/A change of appointment is two changes.md",
+      "source_fixture": "testdata/narrative_vault/notes/Care/A change of appointment is two changes.md",
+      "source_sha256": "0ce4993dcaae35c8c6ef20f4c3cc1928e9b4809315bd891c52343b5e58d7c771",
+      "stratum": "Care",
+      "expected": [
+        [
+          "Care arrangements"
+        ],
+        [
+          "transport booking",
+          "transport"
+        ]
+      ],
+      "acceptable": [
+        "Care arrangements",
+        "transport booking",
+        "transport",
+        "appointment",
+        "clinic",
+        "date",
+        "neighbour",
+        "dependencies"
+      ]
+    },
+    {
+      "id": "mara-03",
+      "source_path": "Clippings/Old ferry timetable.md",
+      "source_fixture": "testdata/narrative_vault/notes/Clippings/Old ferry timetable.md",
+      "source_sha256": "3a0632e5848ba1c488d8d39834adc5123c05e8ec14e15c80b95c032f18f8db4e",
+      "stratum": "Clippings",
+      "expected": [
+        [
+          "Old ferry timetable",
+          "ferry timetable"
+        ]
+      ],
+      "acceptable": [
+        "Old ferry timetable",
+        "ferry timetable",
+        "crossing",
+        "tide",
+        "local-history booklet",
+        "local-history",
+        "Field methods"
+      ]
+    },
+    {
+      "id": "mara-04",
+      "source_path": "Clippings/Clinic access leaflet draft.md",
+      "source_fixture": "testdata/narrative_vault/notes/Clippings/Clinic access leaflet draft.md",
+      "source_sha256": "e3cd9ebfa94179b9058b5706d79561f381097108a980ef3740bd621c2de70748",
+      "stratum": "Clippings",
+      "expected": [
+        [
+          "Clinic access leaflet draft",
+          "clinic access",
+          "access"
+        ]
+      ],
+      "acceptable": [
+        "Clinic access leaflet draft",
+        "clinic access",
+        "access",
+        "appointment",
+        "common time slot",
+        "equivalent journey",
+        "private place",
+        "Field methods",
+        "patient"
+      ]
+    },
+    {
+      "id": "mara-05",
+      "source_path": "Clippings/Old repair club minutes.md",
+      "source_fixture": "testdata/narrative_vault/notes/Clippings/Old repair club minutes.md",
+      "source_sha256": "a5e5ec34bd568db904017d1231ff8f3e6cdeae1ca7a4fe2970b55bdf39846c27",
+      "stratum": "Clippings",
+      "expected": [
+        [
+          "Old repair club minutes",
+          "repair club"
+        ]
+      ],
+      "acceptable": [
+        "Old repair club minutes",
+        "repair club",
+        "volunteering",
+        "repair",
+        "club",
+        "Field methods",
+        "rule"
+      ]
+    },
+    {
+      "id": "mara-06",
+      "source_path": "Community/Repair cafe before the summer pause.md",
+      "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe before the summer pause.md",
+      "source_sha256": "fab91ca221811a7606dc6c021ed4931134d0a11bdaea48cbc8d48c0ef9135068",
+      "stratum": "Community",
+      "expected": [
+        [
+          "repair cafe"
+        ]
+      ],
+      "acceptable": [
+        "repair cafe",
+        "summer pause",
+        "planned pause",
+        "August",
+        "booking confirmation",
+        "parts list",
+        "referral contacts",
+        "Repair ideas",
+        "rota",
+        "service"
+      ]
+    },
+    {
+      "id": "mara-07",
+      "source_path": "Community/Waiting time in the borrowing queue.md",
+      "source_fixture": "testdata/narrative_vault/notes/Community/Waiting time in the borrowing queue.md",
+      "source_sha256": "23b65e152b95ab6dc7753db9a03777419038661c6cab630b2f80f26ae911acc4",
+      "stratum": "Community",
+      "expected": [
+        [
+          "tool cupboard",
+          "borrowing queue"
+        ]
+      ],
+      "acceptable": [
+        "tool cupboard",
+        "borrowing queue",
+        "Volunteer handbook",
+        "pending state",
+        "uncertain items",
+        "sign-out tray",
+        "confidence problem",
+        "safe to borrow"
+      ]
+    },
+    {
+      "id": "mara-08",
+      "source_path": "Community/Repair cafe refusal explained early.md",
+      "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe refusal explained early.md",
+      "source_sha256": "79d33ec66ac3f6a9852848618404cc52560c5805e268ec64a1d1ec0c2ed55bf5",
+      "stratum": "Community",
+      "expected": [
+        [
+          "repair cafe",
+          "repair",
+          "Repair ideas"
+        ],
+        [
+          "refusal"
+        ]
+      ],
+      "acceptable": [
+        "repair cafe",
+        "repair",
+        "Repair ideas",
+        "refusal",
+        "mains heater",
+        "qualified repairer",
+        "clear limit",
+        "outcome category",
+        "agreed scope"
+      ]
+    },
+    {
+      "id": "mara-09",
+      "source_path": "Garden/The barrel fills after the path floods.md",
+      "source_fixture": "testdata/narrative_vault/notes/Garden/The barrel fills after the path floods.md",
+      "source_sha256": "6550b96347bc6b06ae5f72477f898c30da53a45d167349fb486bff4f048cf832",
+      "stratum": "Garden",
+      "expected": [
+        [
+          "downpipe barrel",
+          "barrel"
+        ],
+        [
+          "water",
+          "capturing rain"
+        ]
+      ],
+      "acceptable": [
+        "downpipe barrel",
+        "barrel",
+        "water",
+        "capturing rain",
+        "Garden notebook",
+        "Field methods",
+        "slope",
+        "path",
+        "low spot",
+        "shed",
+        "engineering drawing",
+        "redirect water"
+      ]
+    },
+    {
+      "id": "mara-10",
+      "source_path": "Garden/Leaves over the bed for a second winter.md",
+      "source_fixture": "testdata/narrative_vault/notes/Garden/Leaves over the bed for a second winter.md",
+      "source_sha256": "80e65538bd1fe22c248772a0dbe9d500ff9b1e60e7709e3334182ca7b839a30c",
+      "stratum": "Garden",
+      "expected": [
+        [
+          "leaf-covered soil",
+          "soil"
+        ]
+      ],
+      "acceptable": [
+        "leaf-covered soil",
+        "soil",
+        "Garden notebook",
+        "leaves",
+        "leaf",
+        "foot traffic",
+        "stepping stones",
+        "causal result",
+        "working practice",
+        "winter"
+      ]
+    },
+    {
+      "id": "mara-11",
+      "source_path": "Garden/The seed swap table has a queue.md",
+      "source_fixture": "testdata/narrative_vault/notes/Garden/The seed swap table has a queue.md",
+      "source_sha256": "ebe4a0b93b014fc4d8b24d29cc9f0ef85ed9b6f425a8411221be8dc84298c84e",
+      "stratum": "Garden",
+      "expected": [
+        [
+          "seed swap",
+          "seeds"
+        ],
+        [
+          "waiting time",
+          "queue",
+          "advice conversation"
+        ]
+      ],
+      "acceptable": [
+        "seed swap",
+        "seeds",
+        "waiting time",
+        "queue",
+        "advice conversation",
+        "Garden notebook",
+        "varieties",
+        "envelopes",
+        "labels",
+        "seed swap table"
+      ]
+    },
+    {
+      "id": "mara-12",
+      "source_path": "Learning/When a project is allowed to end.md",
+      "source_fixture": "testdata/narrative_vault/notes/Learning/When a project is allowed to end.md",
+      "source_sha256": "69eca9ba2c565cb58d85ede509ba57dc89c705b2eb17f09f42a2abaadc8f5982",
+      "stratum": "Learning",
+      "expected": [
+        [
+          "harbour archive",
+          "handover receipt",
+          "handover"
+        ]
+      ],
+      "acceptable": [
+        "harbour archive",
+        "handover receipt",
+        "handover",
+        "Maintenance",
+        "completion",
+        "obligations",
+        "withdrawal requests",
+        "project brief",
+        "volunteers"
+      ]
+    },
+    {
+      "id": "mara-13",
+      "source_path": "Learning/Availability is not access.md",
+      "source_fixture": "testdata/narrative_vault/notes/Learning/Availability is not access.md",
+      "source_sha256": "7931e349acb154bad67fb686ade4c10ed602725918091412f86061e0da707f39",
+      "stratum": "Learning",
+      "expected": [
+        [
+          "catalogue",
+          "index",
+          "alternative names",
+          "Availability is not access"
+        ]
+      ],
+      "acceptable": [
+        "catalogue",
+        "index",
+        "alternative names",
+        "Availability is not access",
+        "Listening",
+        "Field methods",
+        "spellings",
+        "categories",
+        "records",
+        "disagreement",
+        "old ferry name"
+      ]
+    },
+    {
+      "id": "mara-14",
+      "source_path": "Learning/A measure that ignores the refusal.md",
+      "source_fixture": "testdata/narrative_vault/notes/Learning/A measure that ignores the refusal.md",
+      "source_sha256": "ac97146f10252cc9ab8641be7a559a3bd960aaab0b73744d82c852e1b33b4c7d",
+      "stratum": "Learning",
+      "expected": [
+        [
+          "repair cafe",
+          "repairs"
+        ],
+        [
+          "refusal",
+          "safe diagnosis"
+        ]
+      ],
+      "acceptable": [
+        "repair cafe",
+        "repairs",
+        "refusal",
+        "safe diagnosis",
+        "Field methods",
+        "metric",
+        "spreadsheet",
+        "category",
+        "tools",
+        "competence"
+      ]
+    },
+    {
+      "id": "mara-15",
+      "source_path": "Museum/A completed project can stay completed.md",
+      "source_fixture": "testdata/narrative_vault/notes/Museum/A completed project can stay completed.md",
+      "source_sha256": "613b10dea15d692d3faeecf9654fb6c44eba40906295552758956812904180a6",
+      "stratum": "Museum",
+      "expected": [
+        [
+          "harbour archive"
+        ],
+        [
+          "withdrawal requests",
+          "stewardship",
+          "handover"
+        ]
+      ],
+      "acceptable": [
+        "harbour archive",
+        "withdrawal requests",
+        "stewardship",
+        "handover",
+        "Exhibition plan",
+        "contact details",
+        "owner",
+        "year-end review",
+        "launch checklist",
+        "completed project"
+      ]
+    },
+    {
+      "id": "mara-16",
+      "source_path": "Museum/The supported practice review card.md",
+      "source_fixture": "testdata/narrative_vault/notes/Museum/The supported practice review card.md",
+      "source_sha256": "069395f51e79daadc01b5bb9182a833b01c6d11dfc251b4a6818058141debbb1",
+      "stratum": "Museum",
+      "expected": [
+        [
+          "supported practice"
+        ],
+        [
+          "induction",
+          "induction responsibility"
+        ]
+      ],
+      "acceptable": [
+        "supported practice",
+        "induction",
+        "induction responsibility",
+        "Volunteer handbook",
+        "review card",
+        "volunteer",
+        "safety",
+        "uncertain",
+        "vocabulary"
+      ]
+    },
+    {
+      "id": "mara-17",
+      "source_path": "Museum/A sign for when the printer fails.md",
+      "source_fixture": "testdata/narrative_vault/notes/Museum/A sign for when the printer fails.md",
+      "source_sha256": "b719d21cb417d16ecefdc74b4f7c0e33e235aa12679ad254c4eaf746135e03c5",
+      "stratum": "Museum",
+      "expected": [
+        [
+          "ticket printer",
+          "printer"
+        ],
+        [
+          "handwritten tickets",
+          "fallback"
+        ]
+      ],
+      "acceptable": [
+        "ticket printer",
+        "printer",
+        "handwritten tickets",
+        "fallback",
+        "Maintenance",
+        "volunteer",
+        "blank cards",
+        "reversible decisions",
+        "visitors",
+        "manager"
+      ]
+    },
+    {
+      "id": "mara-18",
+      "source_path": "Personal/Packing less clay equipment.md",
+      "source_fixture": "testdata/narrative_vault/notes/Personal/Packing less clay equipment.md",
+      "source_sha256": "45162b6630f1ace48cd163539c1a3953c2d7c9255b1ea8fa4e119fae742abf6c",
+      "stratum": "Personal",
+      "expected": [
+        [
+          "Pottery",
+          "pottery class",
+          "clay equipment",
+          "Packing less clay equipment"
+        ]
+      ],
+      "acceptable": [
+        "Pottery",
+        "pottery class",
+        "clay equipment",
+        "Packing less clay equipment",
+        "tools",
+        "minimal kit",
+        "shared cupboard",
+        "constraint",
+        "rim"
+      ]
+    },
+    {
+      "id": "mara-19",
+      "source_path": "Personal/Routes.md",
+      "source_fixture": "testdata/narrative_vault/notes/Personal/Routes.md",
+      "source_sha256": "77a8185c46abded93c25b138bf2f34dc416c75b7581bf58025c764f81ccfa13b",
+      "stratum": "Personal",
+      "expected": [
+        [
+          "Routes",
+          "route"
+        ],
+        [
+          "clinic journey",
+          "canal cycle path",
+          "journey to the clinic"
+        ]
+      ],
+      "acceptable": [
+        "Routes",
+        "route",
+        "clinic journey",
+        "canal cycle path",
+        "journey to the clinic",
+        "Care arrangements",
+        "bus stop",
+        "steep kerbs",
+        "steps",
+        "heat",
+        "shaded option",
+        "temporary diversion",
+        "review date",
+        "timetable"
+      ]
+    },
+    {
+      "id": "mara-20",
+      "source_path": "Personal/Winter rides need an exit option.md",
+      "source_fixture": "testdata/narrative_vault/notes/Personal/Winter rides need an exit option.md",
+      "source_sha256": "c415a00b290a18dab8d7f22bb9bc1d5cbd3b1d891591f7974fd09029a3d60cb0",
+      "stratum": "Personal",
+      "expected": [
+        [
+          "Winter rides",
+          "club ride",
+          "Routes"
+        ],
+        [
+          "exit",
+          "exit option",
+          "leaving early"
+        ]
+      ],
+      "acceptable": [
+        "Winter rides",
+        "club ride",
+        "Routes",
+        "exit",
+        "exit option",
+        "leaving early",
+        "shorter club ride",
+        "group leader",
+        "route description",
+        "journey",
+        "home"
+      ]
+    }
+  ],
+  "excluded_controls": [
+    {
+      "source_path": "Templates/Reading template.md",
+      "required_state": "excluded"
+    },
+    {
+      "source_path": "Templates/Meeting template.md",
+      "required_state": "excluded"
+    }
+  ]
+}

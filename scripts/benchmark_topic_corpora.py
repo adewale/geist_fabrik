@@ -116,6 +116,8 @@ def samples(vault: Vault, root: Path, selection: list[dict], spec: dict) -> list
     for selected in selection:
         relative = selected["path"]
         raw = (root / relative).read_bytes()
+        if selected.get("source_sha256") not in (None, hashlib.sha256(raw).hexdigest()):
+            raise AssertionError("frozen narrative sample source changed")
         if "sha" in selected:
             git_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
             if git_blob != selected["sha"]:

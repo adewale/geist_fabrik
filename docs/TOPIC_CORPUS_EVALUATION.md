@@ -30,6 +30,12 @@ substantive sources and three empty/stub controls are scored with the existing
 ungraded for human adjudication; four templates are checked as excluded sources.
 These choices were made before predictions, not by discarding failed outputs.
 
+The [narrative proxy annotations](../benchmarks/corpora/topic_narrative_proxy_gold.json)
+freeze three final-snapshot notes from each of seven domains (21 substantive
+cases) plus two excluded-template controls. Source selection, reading and model
+annotations precede prediction inspection. This tests personal-note prose forms
+beyond the PKM demonstration vault, while retaining its fictional provenance.
+
 The report evaluates every assigned label and the same frequency baseline using
 the existing evaluator. This proxy reports its own pass/fail result. Functional
 corpus validation does not certify semantic usefulness or close the human gate;

@@ -7,7 +7,148 @@
       "origin_pr": 97,
       "generator": "scripts/generate_narrative_corpus.py",
       "snapshots": 24,
-      "provenance": "Authored fiction; useful for diverse personal-note forms and lifecycle checks, not real-owner usefulness."
+      "provenance": "Authored fiction; useful for diverse personal-note forms and lifecycle checks, not real-owner usefulness.",
+      "quality_proxy_fixture": "benchmarks/corpora/topic_narrative_proxy_gold.json",
+      "quality_sample": [
+        {
+          "path": "Care/A neighbour who needs a weekend off.md",
+          "source_fixture": "testdata/narrative_vault/notes/Care/A neighbour who needs a weekend off.md",
+          "stratum": "Care",
+          "source_sha256": "1b231b9c9325d94f6653e05e276f88774ab7f27a10cc46792d3564159a3ce694"
+        },
+        {
+          "path": "Care/The consultation Mum led.md",
+          "source_fixture": "testdata/narrative_vault/notes/Care/The consultation Mum led.md",
+          "stratum": "Care",
+          "source_sha256": "f7411a90c36139f2991a12c87d2b88900d98028ef2a733f2a02239ef0bd3d813"
+        },
+        {
+          "path": "Care/A change of appointment is two changes.md",
+          "source_fixture": "testdata/narrative_vault/notes/Care/A change of appointment is two changes.md",
+          "stratum": "Care",
+          "source_sha256": "0ce4993dcaae35c8c6ef20f4c3cc1928e9b4809315bd891c52343b5e58d7c771"
+        },
+        {
+          "path": "Clippings/Old ferry timetable.md",
+          "source_fixture": "testdata/narrative_vault/notes/Clippings/Old ferry timetable.md",
+          "stratum": "Clippings",
+          "source_sha256": "3a0632e5848ba1c488d8d39834adc5123c05e8ec14e15c80b95c032f18f8db4e"
+        },
+        {
+          "path": "Clippings/Clinic access leaflet draft.md",
+          "source_fixture": "testdata/narrative_vault/notes/Clippings/Clinic access leaflet draft.md",
+          "stratum": "Clippings",
+          "source_sha256": "e3cd9ebfa94179b9058b5706d79561f381097108a980ef3740bd621c2de70748"
+        },
+        {
+          "path": "Clippings/Old repair club minutes.md",
+          "source_fixture": "testdata/narrative_vault/notes/Clippings/Old repair club minutes.md",
+          "stratum": "Clippings",
+          "source_sha256": "a5e5ec34bd568db904017d1231ff8f3e6cdeae1ca7a4fe2970b55bdf39846c27"
+        },
+        {
+          "path": "Community/Repair cafe before the summer pause.md",
+          "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe before the summer pause.md",
+          "stratum": "Community",
+          "source_sha256": "fab91ca221811a7606dc6c021ed4931134d0a11bdaea48cbc8d48c0ef9135068"
+        },
+        {
+          "path": "Community/Waiting time in the borrowing queue.md",
+          "source_fixture": "testdata/narrative_vault/notes/Community/Waiting time in the borrowing queue.md",
+          "stratum": "Community",
+          "source_sha256": "23b65e152b95ab6dc7753db9a03777419038661c6cab630b2f80f26ae911acc4"
+        },
+        {
+          "path": "Community/Repair cafe refusal explained early.md",
+          "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe refusal explained early.md",
+          "stratum": "Community",
+          "source_sha256": "79d33ec66ac3f6a9852848618404cc52560c5805e268ec64a1d1ec0c2ed55bf5"
+        },
+        {
+          "path": "Garden/The barrel fills after the path floods.md",
+          "source_fixture": "testdata/narrative_vault/notes/Garden/The barrel fills after the path floods.md",
+          "stratum": "Garden",
+          "source_sha256": "6550b96347bc6b06ae5f72477f898c30da53a45d167349fb486bff4f048cf832"
+        },
+        {
+          "path": "Garden/Leaves over the bed for a second winter.md",
+          "source_fixture": "testdata/narrative_vault/notes/Garden/Leaves over the bed for a second winter.md",
+          "stratum": "Garden",
+          "source_sha256": "80e65538bd1fe22c248772a0dbe9d500ff9b1e60e7709e3334182ca7b839a30c"
+        },
+        {
+          "path": "Garden/The seed swap table has a queue.md",
+          "source_fixture": "testdata/narrative_vault/notes/Garden/The seed swap table has a queue.md",
+          "stratum": "Garden",
+          "source_sha256": "ebe4a0b93b014fc4d8b24d29cc9f0ef85ed9b6f425a8411221be8dc84298c84e"
+        },
+        {
+          "path": "Learning/When a project is allowed to end.md",
+          "source_fixture": "testdata/narrative_vault/notes/Learning/When a project is allowed to end.md",
+          "stratum": "Learning",
+          "source_sha256": "69eca9ba2c565cb58d85ede509ba57dc89c705b2eb17f09f42a2abaadc8f5982"
+        },
+        {
+          "path": "Learning/Availability is not access.md",
+          "source_fixture": "testdata/narrative_vault/notes/Learning/Availability is not access.md",
+          "stratum": "Learning",
+          "source_sha256": "7931e349acb154bad67fb686ade4c10ed602725918091412f86061e0da707f39"
+        },
+        {
+          "path": "Learning/A measure that ignores the refusal.md",
+          "source_fixture": "testdata/narrative_vault/notes/Learning/A measure that ignores the refusal.md",
+          "stratum": "Learning",
+          "source_sha256": "ac97146f10252cc9ab8641be7a559a3bd960aaab0b73744d82c852e1b33b4c7d"
+        },
+        {
+          "path": "Museum/A completed project can stay completed.md",
+          "source_fixture": "testdata/narrative_vault/notes/Museum/A completed project can stay completed.md",
+          "stratum": "Museum",
+          "source_sha256": "613b10dea15d692d3faeecf9654fb6c44eba40906295552758956812904180a6"
+        },
+        {
+          "path": "Museum/The supported practice review card.md",
+          "source_fixture": "testdata/narrative_vault/notes/Museum/The supported practice review card.md",
+          "stratum": "Museum",
+          "source_sha256": "069395f51e79daadc01b5bb9182a833b01c6d11dfc251b4a6818058141debbb1"
+        },
+        {
+          "path": "Museum/A sign for when the printer fails.md",
+          "source_fixture": "testdata/narrative_vault/notes/Museum/A sign for when the printer fails.md",
+          "stratum": "Museum",
+          "source_sha256": "b719d21cb417d16ecefdc74b4f7c0e33e235aa12679ad254c4eaf746135e03c5"
+        },
+        {
+          "path": "Personal/Packing less clay equipment.md",
+          "source_fixture": "testdata/narrative_vault/notes/Personal/Packing less clay equipment.md",
+          "stratum": "Personal",
+          "source_sha256": "45162b6630f1ace48cd163539c1a3953c2d7c9255b1ea8fa4e119fae742abf6c"
+        },
+        {
+          "path": "Personal/Routes.md",
+          "source_fixture": "testdata/narrative_vault/notes/Personal/Routes.md",
+          "stratum": "Personal",
+          "source_sha256": "77a8185c46abded93c25b138bf2f34dc416c75b7581bf58025c764f81ccfa13b"
+        },
+        {
+          "path": "Personal/Winter rides need an exit option.md",
+          "source_fixture": "testdata/narrative_vault/notes/Personal/Winter rides need an exit option.md",
+          "stratum": "Personal",
+          "source_sha256": "c415a00b290a18dab8d7f22bb9bc1d5cbd3b1d891591f7974fd09029a3d60cb0"
+        },
+        {
+          "path": "Templates/Reading template.md",
+          "source_fixture": "testdata/narrative_vault/notes/Templates/Reading template.md",
+          "stratum": "excluded-template",
+          "source_sha256": "578bd6e6ee518678a3a22988ac9e0a866bae94d7697bbd098985094e85814860"
+        },
+        {
+          "path": "Templates/Meeting template.md",
+          "source_fixture": "testdata/narrative_vault/notes/Templates/Meeting template.md",
+          "stratum": "excluded-template",
+          "source_sha256": "d6149c43ea47089eb0f6987395320b0b2cbaa078486c285cb2e54bb1f5563976"
+        }
+      ]
     },
     {
       "name": "temporal-smoke",
