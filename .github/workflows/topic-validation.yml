@@ -50,39 +50,14 @@ jobs:
       - name: Check diagnostic code
         working-directory: project
         run: |
-          uv run --frozen ruff check scripts/probe_topic_quality.py scripts/topic_grammar_probe.py
-          uv run --frozen ruff format --diff scripts/probe_topic_quality.py scripts/topic_grammar_probe.py
+          uv run --frozen ruff check scripts/probe_topic_quality.py
+          uv run --frozen ruff format --diff scripts/probe_topic_quality.py
       - name: Diagnose frozen quality failures with real YAKE
         if: always()
         working-directory: project
         run: |
-          uv run --frozen --with textblob==0.19.0 python -m scripts.probe_topic_quality \
+          uv run --frozen python -m scripts.probe_topic_quality \
             --grammar --lyt ../corpora/lyt --output "$RUNNER_TEMP/topic-quality-probes.json"
-      - name: Resolve an isolated candidate dependency graph
-        if: always()
-        working-directory: project
-        run: |
-          python - <<'PY'
-          import os
-          from pathlib import Path
-          target = Path(os.environ["RUNNER_TEMP"]) / "topic-candidate-lock"
-          target.mkdir()
-          for name in ("pyproject.toml", "uv.lock", "README.md"):
-              (target / name).write_bytes(Path(name).read_bytes())
-          project = target / "pyproject.toml"
-          content = project.read_text()
-          assert content.count('"yake>=0.7.3,<0.8",') == 1
-          project.write_text(content.replace('"yake>=0.7.3,<0.8",', '"yake>=0.7.3,<0.8",\n    "textblob==0.19.0",'))
-          PY
-          UV_LOCKED=0 uv lock --project "$RUNNER_TEMP/topic-candidate-lock"
-          python - <<'PY'
-          import base64, os
-          from pathlib import Path
-          data = (Path(os.environ["RUNNER_TEMP"]) / "topic-candidate-lock/uv.lock").read_bytes()
-          print("TOPIC_CANDIDATE_LOCK_BEGIN")
-          print(base64.b64encode(data).decode())
-          print("TOPIC_CANDIDATE_LOCK_END")
-          PY
       - name: Retain source-bound diagnostic report
         if: always()
         uses: actions/upload-artifact@v7

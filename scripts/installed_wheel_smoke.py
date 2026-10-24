@@ -6,15 +6,21 @@ from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 
+import nltk
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
 import geistfabrik
 from geistfabrik.embeddings import EmbeddingComputer, Session
-from geistfabrik.topics import TopicIndex
+from geistfabrik.topics import TopicIndex, extract_topics
 from geistfabrik.vault import Vault
 
 package_file = Path(geistfabrik.__file__).resolve()
+# The topic grammar must use its packaged lexicon with no external NLTK corpus.
+nltk.data.path = []
+grammar_tags = extract_topics("The clinic moved the appointment. Appointment planning matters.")
+assert "clinic moved" not in {tag.key for tag in grammar_tags}
+assert any("appointment" in tag.key for tag in grammar_tags)
 assert ".venv" not in package_file.parts, package_file
 assert "site-packages" in package_file.parts, package_file
 assert version("geistfabrik") == geistfabrik.__version__

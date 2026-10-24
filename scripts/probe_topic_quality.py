@@ -7,7 +7,6 @@ All assigned labels are scored at the existing maximum and fixed thresholds.
 import argparse
 import hashlib
 import json
-import re
 import subprocess
 from dataclasses import asdict
 from functools import partial
@@ -32,8 +31,6 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--grammar", action="store_true")
     args = parser.parse_args()
-    if args.grammar:
-        from scripts.topic_grammar_probe import CandidateGrammar
     observed = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=args.lyt, text=True
     ).strip()
@@ -42,7 +39,15 @@ def main() -> int:
     subprocess.run(["git", "diff", "--quiet", "HEAD", "--", "."], cwd=args.lyt, check=True)
     original_labels = topics._explicit_labels
     original_extract = topics.extract_topics
+    original_grammar = topics.CandidateGrammar
     candidate_cache = {}
+
+    class NoGrammar:
+        def __init__(self, prose, boundaries):
+            pass
+
+        def allows(self, label, start, end):
+            return True
 
     class CachedCandidates:
         def extract_keywords(self, text):
@@ -66,38 +71,17 @@ def main() -> int:
         block_sentences=False,
         grammar=False,
     ):
-        prose = topics.topic_prose(content)
         boundaries = topics.topic_boundaries(content)
-        grammar_filter = CandidateGrammar(prose, boundaries) if grammar else None
 
         class BlockCandidates:
             def extract_keywords(self, text):
                 if block_sentences:
                     edges = sorted({0, len(text), *boundaries})
                     text = "\n.\n".join(text[a:b] for a, b in zip(edges, edges[1:]))
-                candidates = extractor.extract_keywords(text)
-                if grammar_filter is None:
-                    return candidates
-                result = []
-                for label, score in candidates:
-                    expression = (
-                        r"(?<!\w)"
-                        + r"\s+".join(re.escape(w) for w in label.split())
-                        + r"(?!\w)"
-                    )
-                    match = next(
-                        (
-                            m
-                            for m in re.finditer(expression, prose, re.IGNORECASE)
-                            if not any(m.start() < edge < m.end() for edge in boundaries)
-                        ),
-                        None,
-                    )
-                    if match is None or grammar_filter.allows(label, match.start(), match.end()):
-                        result.append((label, score))
-                return result
+                return extractor.extract_keywords(text)
 
         with (
+            patch.object(topics, "CandidateGrammar", original_grammar if grammar else NoGrammar),
             patch.object(
                 topics, "_explicit_labels", original_labels if link_prior else without_link_prior
             ),
@@ -108,7 +92,7 @@ def main() -> int:
             ),
         ):
             return original_extract(
-                content, extractor=BlockCandidates() if block_sentences or grammar else extractor
+                content, extractor=BlockCandidates() if block_sentences else extractor
             )[:budget]
 
     policies = {
@@ -153,7 +137,7 @@ def main() -> int:
                     {
                         "id": note["id"],
                         "source_sha256": hashlib.sha256(content.encode()).hexdigest(),
-                        "assigned": [asdict(tag) for tag in selected(content)],
+                        "assigned": [asdict(tag) for tag in selected(content, grammar=True)],
                         "authored_candidates": list(original_labels(content, prose)),
                         "yake_candidates": extractor.extract_keywords(prose),
                     }

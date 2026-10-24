@@ -16,9 +16,11 @@ from typing import Any, Literal, Protocol, cast
 
 import yake  # type: ignore[import-untyped]
 
-from . import markdown_parser, source_eligibility, topic_text
+from . import markdown_parser, source_eligibility, topic_grammar, topic_text
 from .config import GEIST_JOURNAL_DIR
 from .source_eligibility import SourceEligibility
+from .topic_grammar import WORD as _WORD
+from .topic_grammar import CandidateGrammar
 from .topic_text import explicit_labels as _explicit_labels
 from .topic_text import topic_boundaries, topic_prose
 
@@ -34,7 +36,6 @@ _SETTINGS: dict[str, Any] = {
     "dedup_lim": 0.9,
     "window_size": 2,
 }
-_WORD = re.compile(r"[^\W_]+(?:['’\-][^\W_]+)*", re.UNICODE)
 # Ranking hints, never validity rules. Subjects such as "use cases" remain eligible.
 _PREDICATE_HINTS = frozenset(
     "need needs use uses using make makes made help helps improve improves "
@@ -88,6 +89,7 @@ def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> l
         return []
     if extractor is None:
         extractor = cast(KeywordExtractor, yake.KeywordExtractor(**_SETTINGS))
+    grammar = CandidateGrammar(prose, boundaries)
     tags: dict[str, TopicTag] = {}
     for label, start, end, provenance in _explicit_labels(content, prose):
         key = topic_key(label)
@@ -127,6 +129,7 @@ def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> l
                 candidate
                 for candidate in re.finditer(expression, prose, re.IGNORECASE)
                 if not any(candidate.start() < edge < candidate.end() for edge in boundaries)
+                and grammar.allows(label, candidate.start(), candidate.end())
             ),
             None,
         )
@@ -175,10 +178,12 @@ def _extractor_identity() -> str:
         Path(markdown_parser.__file__),
         Path(source_eligibility.__file__),
         Path(topic_text.__file__),
+        Path(topic_grammar.__file__),
     ):
         digest.update(path.read_bytes())
     digest.update(version("yake").encode())
     digest.update(version("markdown-it-py").encode())
+    digest.update(topic_grammar.grammar_identity().encode())
     digest.update(json.dumps(_SETTINGS, sort_keys=True).encode())
     return digest.hexdigest()
 

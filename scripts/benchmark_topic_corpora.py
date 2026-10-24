@@ -275,6 +275,7 @@ def main() -> int:
             for relative in (
                 "src/geistfabrik/topics.py",
                 "src/geistfabrik/topic_text.py",
+                "src/geistfabrik/topic_grammar.py",
                 "src/geistfabrik/vault.py",
                 "scripts/benchmark_topic_corpora.py",
                 "scripts/generate_temporal_corpus.py",
@@ -285,6 +286,7 @@ def main() -> int:
         "sqlite": sqlite3.sqlite_version,
         "yake": version("yake"),
         "markdown_it": version("markdown-it-py"),
+        "textblob": version("textblob"),
         "manifest_sha256": hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
         "reports": reports,
         "limitation": (
