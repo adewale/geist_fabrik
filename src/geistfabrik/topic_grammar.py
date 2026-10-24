@@ -26,6 +26,7 @@ _CLAUSE = frozenset({"VBD", "VBP", "VBZ", "MD", "PRP", "WP", "WRB"})
 _Token = tuple[int, int, str, str]
 _TOKENIZER = TreebankWordTokenizer()
 _SENTENCES = PunktSentenceTokenizer()  # Data-free parameters; no Punkt resource lookup.
+_SCORING_QUOTES = str.maketrans("’‘“”", "''\"\"")
 
 
 def _words(text: str) -> list[str]:
@@ -60,7 +61,7 @@ def grammar_identity() -> str:
 def _tag_block(block: str) -> list[list[tuple[str, str]]]:
     # TextBlob's convenience parser does not forward these packaged rules.
     # Use the pinned Pattern implementation explicitly, without NLTK corpora.
-    scored = block.translate(str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"'}))
+    scored = block.translate(_SCORING_QUOTES)
     sentences: list[list[tuple[int, int]]] = []
     try:
         for start, end in _SENTENCES.span_tokenize(scored):
