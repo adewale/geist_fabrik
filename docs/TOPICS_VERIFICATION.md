@@ -27,11 +27,18 @@ phrases and an isolated subject remain eligible. The frozen oracle and threshold
 were unchanged. Related topic/body/metadata reads use one SQLite snapshot.
 Schema v15-to-v16 migration tests preserve authored data and lexical history.
 
+Two independent post-fix reviewers rechecked parser and source completeness.
+Their additional findings prompted the raw-text and traversal regressions above.
+The source reviewer executed real permission failures with Vault/SQLite and empty
+notes, verified full-database rollback at both scan stages, and confirmed recovery.
+The parser reviewer executed the actual HTML helper on the adversarial input.
+Those isolated checks do not replace full YAKE/MarkdownIt execution below.
+
 ## Measured focused validation
 
-Source `01c8c68b2f0fa5f39ef653cf067a8a9ea778abb6` passed
-[the focused CI job](https://github.com/adewale/geist_fabrik/actions/runs/40086918849/job/120851641735):
-113 tests, repository hooks, locked dependencies, both quality gates and the
+Source `32db958961e4a5ddbc9b61b44fd0cdc961df52fb` passed
+[the focused CI job](https://github.com/adewale/geist_fabrik/actions/runs/40087616669/job/120853648723):
+117 tests, repository hooks, locked dependencies, both quality gates and the
 positive-query benchmark. Hooks left no uncommitted repairs. This used real YAKE
 and MarkdownIt on Python 3.12.15. Reports and their source/run receipt are checked
 in under `benchmarks/results/topics/`.
@@ -53,8 +60,8 @@ Single-run benchmark on repeated synthetic 141-character notes:
 
 | Notes | Cold sync | Warm sync | Catalog | Positive membership query |
 | --- | --- | --- | --- | --- |
-| 100 | 0.296 s | 0.031 s | 1.42 ms | 1.04 ms |
-| 1,000 | 3.008 s | 0.294 s | 13.06 ms | 9.89 ms |
+| 100 | 0.301 s | 0.034 s | 1.44 ms | 1.03 ms |
+| 1,000 | 3.029 s | 0.331 s | 13.13 ms | 9.88 ms |
 
 Membership queries returned all 100/1,000 expected sources. These costs are useful
 regression evidence, not representative real-vault latency measurements.
