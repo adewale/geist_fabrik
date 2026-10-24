@@ -18,6 +18,10 @@ if [ ! -f "pyproject.toml" ]; then
     exit 1
 fi
 
+GF_VALIDATION_LOCK_SNAPSHOT=$(mktemp)
+trap 'rm -f "$GF_VALIDATION_LOCK_SNAPSHOT"' EXIT
+cp uv.lock "$GF_VALIDATION_LOCK_SNAPSHOT"
+
 # Colour output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -95,6 +99,9 @@ fi
 # 7. Build and test release artifacts, including isolated real-model inference.
 # test_wheel.sh is standalone and never invokes validate.sh, avoiding recursion.
 run_check "Package smoke" ./scripts/test_wheel.sh || FAILED=1
+
+# Check nested tools did not rewrite the graph being certified.
+run_check "Dependency lock unchanged" cmp -s "$GF_VALIDATION_LOCK_SNAPSHOT" uv.lock || FAILED=1
 
 # Summary
 echo "=================================================="

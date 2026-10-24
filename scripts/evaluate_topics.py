@@ -92,8 +92,7 @@ def evaluate_gold(path: Path, *, source_root: Path = REPO) -> dict[str, Any]:
 def main() -> int:
     """Emit both fixed reports and fail if either published threshold is unmet."""
     reports = {
-        name: evaluate_gold(REPO / "tests" / "fixtures" / f"{name}.json")
-        for name in FIXTURE_NAMES
+        name: evaluate_gold(REPO / "tests" / "fixtures" / f"{name}.json") for name in FIXTURE_NAMES
     }
     print(json.dumps(reports, indent=2, ensure_ascii=False))
     return 0 if all(report["passed"] for report in reports.values()) else 1

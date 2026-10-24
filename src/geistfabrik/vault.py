@@ -154,7 +154,8 @@ class Vault:
                     # Lexical capture can be expensive. Validate immediately before
                     # commit so edits during that work roll back and retry everything.
                     TopicIndex(self.db, self.config.filtering.exclude_paths).synchronize(
-                        rebuild=rebuild_topics, source_errors=self._topic_sync_errors,
+                        rebuild=rebuild_topics,
+                        source_errors=self._topic_sync_errors,
                         source_identities=self._topic_source_identities,
                     )
                     if not self._snapshot_is_current(md_files):
@@ -207,7 +208,7 @@ class Vault:
             candidate = current_candidates[rel_path]
             try:
                 resolved = ensure_contained(candidate, self.vault_path, must_exist=True)
-                stat = resolved.stat()
+                resolved.stat()
             except (PathSafetyError, FileNotFoundError, OSError):
                 continue
             if resolved.is_file():

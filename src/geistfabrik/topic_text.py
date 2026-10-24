@@ -24,18 +24,41 @@ from .markdown_parser import iter_wikilinks, parse_frontmatter
 
 _SECTION_LABELS = frozenset(
     {
-        "notes", "references", "contents", "features", "to-do", "readme", "related",
-        "introduction", "background", "methods", "results", "discussion", "summary",
+        "notes",
+        "references",
+        "contents",
+        "features",
+        "to-do",
+        "readme",
+        "related",
+        "introduction",
+        "background",
+        "methods",
+        "results",
+        "discussion",
+        "summary",
     }
 )
 MAX_COMMENT_REPARSES = 32
 
-_NON_PROSE = frozenset(
-    {"code", "pre", "script", "style", "head", "title", "template", "textarea"}
-)
+_NON_PROSE = frozenset({"code", "pre", "script", "style", "head", "title", "template", "textarea"})
 _VOID_HTML = frozenset(
-    {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
-     "param", "source", "track", "wbr"}
+    {
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
+    }
 )
 
 
@@ -105,12 +128,15 @@ def _mapped_span(mapping: list[int | None], start: int, end: int) -> tuple[int, 
 
 def _inline_regions(
     source: str, environment: dict[str, Any]
-) -> tuple[list[tuple[int, int]], list[tuple[int, int]], list[tuple[int, int]]]:
+) -> tuple[
+    list[tuple[int, int]], list[tuple[int, int]], list[tuple[int, int]], list[tuple[int, int]]
+]:
     """Return masked spans and syntactic-owner spans in one exact inline source."""
     parser = MarkdownIt("commonmark", {"html": True, "store_labels": True})
     masked: list[tuple[int, int]] = []
     owners: list[tuple[int, int]] = []
     html_tags: list[tuple[int, int]] = []
+    barriers: list[tuple[int, int]] = []
     wiki_spans = {match.start(): match for match in iter_wikilinks(source)}
 
     def wiki(state: StateInline, silent: bool) -> bool:
@@ -122,6 +148,7 @@ def _inline_regions(
         if match[1]:
             masked.append(match.span())
             owners.append(match.span())
+            barriers.append(match.span())
         else:
             group = 3 if match[3] is not None else 2
             syntax = ((match.start(), match.start(group)), (match.end(group), match.end()))
@@ -151,16 +178,22 @@ def _inline_regions(
         if not silent and state.src == source:
             masked.append((start, state.pos))
             owners.append((start, state.pos))
+            barriers.append((start, state.pos))
         return True
 
     def code(state: StateInline, silent: bool) -> bool:
         start, before = state.pos, len(state.tokens)
         if not backtick(state, silent):
             return False
-        if (not silent and state.src == source and len(state.tokens) > before
-                and state.tokens[-1].type == "code_inline"):
+        if (
+            not silent
+            and state.src == source
+            and len(state.tokens) > before
+            and state.tokens[-1].type == "code_inline"
+        ):
             masked.append((start, state.pos))
             owners.append((start, state.pos))
+            barriers.append((start, state.pos))
         return True
 
     def html(state: StateInline, silent: bool) -> bool:
@@ -178,7 +211,7 @@ def _inline_regions(
     parser.inline.ruler.at("backticks", code)
     parser.inline.ruler.at("html_inline", html)
     parser.inline.parse(source, parser, environment, [])
-    return masked, owners, html_tags
+    return masked, owners, html_tags, barriers
 
 
 class _HTMLRegions(HTMLParser):
@@ -203,7 +236,8 @@ class _HTMLRegions(HTMLParser):
         self._markup(self.get_starttag_text() or "")
         attributes = dict(attrs)
         hidden = (
-            tag in _NON_PROSE or "hidden" in attributes
+            tag in _NON_PROSE
+            or "hidden" in attributes
             or (attributes.get("aria-hidden") or "").casefold() == "true"
         )
         if tag not in _VOID_HTML:
@@ -297,11 +331,12 @@ def _percent_comments(chars: list[str]) -> None:
                 protected.append(_block_span(token, offsets, len(source)))
             elif token.type == "inline":
                 mapping = _source_map(token, source, offsets)
-                masked, owners, tags = _inline_regions(token.content, environment)
+                masked, owners, tags, _ = _inline_regions(token.content, environment)
                 # Hidden bodies own markers; literal tags in code/escapes do not.
                 owners.extend(_inline_html_regions(token.content, masked, tags))
                 protected.extend(
-                    span for start, end in owners
+                    span
+                    for start, end in owners
                     if (span := _mapped_span(mapping, start, end)) is not None
                 )
             elif token.type == "html_block":
@@ -310,7 +345,8 @@ def _percent_comments(chars: list[str]) -> None:
                     continue
                 mapping = _source_map(token, source, offsets)
                 protected.extend(
-                    span for start, end in _html_regions(token.content)
+                    span
+                    for start, end in _html_regions(token.content)
                     if (span := _mapped_span(mapping, start, end)) is not None
                 )
         merged: list[tuple[int, int]] = []
@@ -359,9 +395,14 @@ def _projection(content: str) -> _Projection:
     boundaries: set[int] = set()
     html_openers: set[int] = set()
     h1 = False
+    heading = False
     for token in tokens:
         if token.type == "heading_open":
             h1 = token.tag == "h1"
+            heading = True
+            continue
+        if token.type == "heading_close":
+            h1 = heading = False
             continue
         if token.type not in {"inline", "html_block"} or token.map is None:
             continue
@@ -370,13 +411,14 @@ def _projection(content: str) -> _Projection:
         mapping = _source_map(token, source, offsets)
         block = _mapped_span(mapping, 0, len(mapping))
         if block is None:
+            h1 = heading = False
             continue
         boundaries.update(block)
         for position in mapping:
             if position is not None:
                 output[position] = chars[position]
         if token.type == "inline":
-            masked, _, tags = _inline_regions(token.content, environment)
+            masked, _, tags, barriers = _inline_regions(token.content, environment)
             for start, end in tags:
                 span = _mapped_span(mapping, start, end)
                 if span is not None:
@@ -384,23 +426,23 @@ def _projection(content: str) -> _Projection:
             for start, end in masked:
                 span = _mapped_span(mapping, start, end)
                 if span is not None:
+                    _erase(output, *span, barrier=False)
+            for start, end in barriers:
+                span = _mapped_span(mapping, start, end)
+                if span is not None:
                     _erase(output, *span)
+                    boundaries.update(span)
             if h1:
                 headings.append(block)
             # Generic section labels are structure, not a personal subject.
             name = re.sub(r"^\d+[.)]?\s+", "", token.content.strip())
-            if _key(name) in _SECTION_LABELS and (
-                token.level > 0 and any(
-                    other.type == "heading_open" and other.map == token.map for other in tokens
-                )
-            ):
+            if heading and _key(name) in _SECTION_LABELS:
                 _erase(output, *block)
         else:
             html_openers.update(
-                position for position in mapping
-                if position is not None and source[position] == "<"
+                position for position in mapping if position is not None and source[position] == "<"
             )
-        h1 = False
+        h1 = heading = False
     # HTML sees only source admitted by Markdown. Tags in code/comment masks
     # cannot open or close a hidden-element region.
     html_source = list(output)

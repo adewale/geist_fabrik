@@ -82,7 +82,7 @@ def test_nonprose_never_becomes_topics(source: str) -> None:
 def test_visible_link_labels_retain_exact_source_offsets() -> None:
     source = (
         "# Urban gardens\n\n[Urban gardens](https://example.test 'Hidden subject') "
-        "and [[Private destination|seed libraries]].\n"
+        "and [[Private destination|seed libraries]].\n\n"
         "[hidden-id]: https://example.test 'Secret title'\n"
     )
     prose = topic_prose(source)
@@ -194,7 +194,12 @@ def test_oversized_note_is_explicit_error(topic_vault: Vault) -> None:
 
 
 def test_boundaries_are_enforced_even_when_filter_disabled(tmp_path: Path) -> None:
-    for path in ["public.md", "Private/secret.md", "geist journal/generated.md", "_geistfabrik/x.md"]:
+    for path in [
+        "public.md",
+        "Private/secret.md",
+        "geist journal/generated.md",
+        "_geistfabrik/x.md",
+    ]:
         target = tmp_path / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("# Rare subject\n\nRare subject.")
@@ -250,7 +255,10 @@ def test_parser_rejection_cannot_disappear_as_empty(
 
 
 def test_dated_entries_preserve_source_and_author_tags(tmp_path: Path) -> None:
-    source = "---\ntags: [authored]\n---\n## 2025-01-01\n[[Urban gardens]]\n## 2025-01-02\n[[Chocolate cake]]\n"
+    source = (
+        "---\ntags: [authored]\n---\n## 2025-01-01\n[[Urban gardens]]\n"
+        "## 2025-01-02\n[[Chocolate cake]]\n"
+    )
     path = tmp_path / "diary.md"
     path.write_text(source)
     vault = Vault(tmp_path)
@@ -302,7 +310,13 @@ def test_upgrade_preserves_raw_notes_and_is_idempotent(
         ("old.md", "Old", "Source", "2025-01-01", "2025-01-01", 0),
     )
     db.execute("INSERT INTO tags VALUES ('old.md','authored')")
-    for table in ["note_topics", "note_topic_state", "topic_source_errors", "topic_source_identity", "topics"]:
+    for table in [
+        "note_topics",
+        "note_topic_state",
+        "topic_source_errors",
+        "topic_source_identity",
+        "topics",
+    ]:
         db.execute(f"DROP TABLE {table}")
     db.execute(f"PRAGMA user_version={previous_version}")
     db.commit()
@@ -504,3 +518,40 @@ def test_labels_cannot_join_distinct_prose_blocks(source: str) -> None:
     assert "red blue" not in {
         tag.key for tag in extract_topics(source, _JoinedExtractor())
     }
+
+
+def test_topic_upgrade_preserves_existing_lexical_evidence(tmp_path: Path) -> None:
+    path = tmp_path / "state.db"
+    db = init_db(path)
+    db.execute(
+        "INSERT INTO notes(path,title,content,created,modified,file_mtime) VALUES (?,?,?,?,?,?)",
+        ("old.md", "Old", "Original prose", "2026-01-01", "2026-01-01", 0),
+    )
+    db.execute(
+        "INSERT INTO lexical_notes(path,raw_hash,body_hash,provenance,counts_json,observed_at) "
+        "VALUES (?,?,?,?,?,?)",
+        ("old.md", "raw", "body", "declared", '{"original":1}', "2026-01-01"),
+    )
+    db.execute(
+        "INSERT INTO lexical_events(path,bin_start,previous_at,observed_at,terms_json,"
+        "revisions_json,evidence_hash) VALUES (?,?,?,?,?,?,?)",
+        ("old.md", "2025-12-29", "2026-01-01", "2026-01-02", '{"original":1}', "[]", "keep"),
+    )
+    db.execute("INSERT INTO word_burst_cache VALUES ('keep','{}','{}')")
+    tables = ("notes", "lexical_notes", "lexical_events", "word_burst_cache")
+    before = {table: db.execute(f"SELECT * FROM {table}").fetchall() for table in tables}
+    for table in (
+        "note_topics", "note_topic_state", "topic_source_errors", "topic_source_identity", "topics"
+    ):
+        db.execute(f"DROP TABLE {table}")
+    db.execute("PRAGMA user_version=15")
+    db.commit()
+    db.close()
+    for _ in range(2):
+        db = init_db(path)
+        try:
+            assert get_schema_version(db) == 16
+            after = {table: db.execute(f"SELECT * FROM {table}").fetchall() for table in tables}
+            assert after == before
+        finally:
+            db.close()

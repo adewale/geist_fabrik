@@ -18,6 +18,7 @@ permissions:
   contents: read
 
 env:
+  UV_LOCKED: "1"
   UV_PYTHON: "3.11"
   GEISTFABRIK_OFFLINE: "1"
   OMP_NUM_THREADS: "1"
@@ -56,20 +57,20 @@ jobs:
           python-version: ${{ env.UV_PYTHON }}
 
       - name: Install dependencies
-        run: uv sync --frozen --extra vector-search
+        run: uv sync --locked --extra vector-search
 
       # Selecting any production_model item makes tests/conftest.py leave the
       # whole session on the real SentenceTransformer (no stub).
       - name: Run real-model tests
         run: >-
-          uv run pytest tests -v -m "production_model"
+          uv run --frozen pytest tests -v -m "production_model"
           --timeout=300 --durations=0
           --junitxml=reports/production-model.xml
 
       - name: Summarise results
         if: always()
         run: >-
-          uv run python scripts/junit_summary.py reports/production-model.xml
+          uv run --frozen python scripts/junit_summary.py reports/production-model.xml
           --title "Real-model tests" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload results
@@ -98,21 +99,21 @@ jobs:
           python-version: ${{ env.UV_PYTHON }}
 
       - name: Install dependencies
-        run: uv sync --frozen --extra vector-search
+        run: uv sync --locked --extra vector-search
 
       # Benchmarks assert on timings, so a shared runner can make them red;
       # that is the weekly trend signal, not a merge gate. The junit reports
       # (kept 90 days) carry per-test durations for comparison across runs.
       - name: Run slow and benchmark tests
         run: >-
-          uv run pytest tests -v -m "(slow or benchmark) and not production_model"
+          uv run --frozen pytest tests -v -m "(slow or benchmark) and not production_model"
           --timeout=300 --durations=0
           --junitxml=reports/slow-and-benchmarks.xml
 
       - name: Summarise results
         if: always()
         run: >-
-          uv run python scripts/junit_summary.py reports/slow-and-benchmarks.xml
+          uv run --frozen python scripts/junit_summary.py reports/slow-and-benchmarks.xml
           --title "Slow and benchmark tests" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload results

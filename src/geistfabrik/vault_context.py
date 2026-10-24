@@ -477,7 +477,10 @@ class VaultContext:
         resolved = self.vault.get_note(target) or self.vault.resolve_link_target(target)
         if resolved is not None:
             return resolved.path
-        if not target.endswith(".md") and self._topic_index().state(target + ".md").status == "error":
+        if (
+            not target.endswith(".md")
+            and self._topic_index().state(target + ".md").status == "error"
+        ):
             return target + ".md"
         return target
 

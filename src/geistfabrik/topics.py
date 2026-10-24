@@ -25,7 +25,11 @@ from .topic_text import topic_boundaries, topic_prose
 MAX_TOPICS = 5
 MAX_TOPIC_CHARS = 100_000
 _SETTINGS: dict[str, Any] = {
-    "lan": "en", "n": 3, "top": 50, "dedup_lim": 0.9, "window_size": 2,
+    "lan": "en",
+    "n": 3,
+    "top": 50,
+    "dedup_lim": 0.9,
+    "window_size": 2,
 }
 _WORD = re.compile(r"[^\W_]+(?:['’\-][^\W_]+)*", re.UNICODE)
 # Ranking hints, never validity rules. Subjects such as "use cases" remain eligible.
@@ -39,7 +43,7 @@ _PREDICATE_HINTS = frozenset(
 
 
 class KeywordExtractor(Protocol):
-    def extract_keywords(self, text: str) -> list[tuple[str, float]]: ...
+    def extract_keywords(self, text: str, /) -> list[tuple[str, float]]: ...
 
 
 @dataclass(frozen=True)
@@ -85,34 +89,63 @@ def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> l
     for label, start, end, provenance in _explicit_labels(content, prose):
         key = topic_key(label)
         if len(key) >= 2 and " ".join(_WORD.findall(key)) == key and any(c.isalpha() for c in key):
-            tags.setdefault(key, TopicTag(
-                key, label, 0.0 if provenance == "heading" else 0.001,
-                start, end, content[start:end], content.count("\n", 0, start) + 1, provenance,
-            ))
+            tags.setdefault(
+                key,
+                TopicTag(
+                    key,
+                    label,
+                    0.0 if provenance == "heading" else 0.001,
+                    start,
+                    end,
+                    content[start:end],
+                    content.count("\n", 0, start) + 1,
+                    provenance,
+                ),
+            )
     for label, raw_score in extractor.extract_keywords(prose):
         key = topic_key(label)
         words = _WORD.findall(key)
         score = float(raw_score)
         if any(word in _PREDICATE_HINTS for word in words):
             score *= 32.0
-        if (not words or " ".join(words) != key or not any(c.isalpha() for c in key)
-                or len(key) < 2 or len(set(words)) != len(words)
-                or not math.isfinite(score) or score < 0):
+        if (
+            not words
+            or " ".join(words) != key
+            or not any(c.isalpha() for c in key)
+            or len(key) < 2
+            or len(set(words)) != len(words)
+            or not math.isfinite(score)
+            or score < 0
+        ):
             continue
         expression = r"(?<!\w)" + r"\s+".join(re.escape(w) for w in label.split()) + r"(?!\w)"
-        match = next((candidate for candidate in re.finditer(expression, prose, re.IGNORECASE)
-                      if not any(candidate.start() < edge < candidate.end()
-                                 for edge in boundaries)), None)
+        match = next(
+            (
+                candidate
+                for candidate in re.finditer(expression, prose, re.IGNORECASE)
+                if not any(candidate.start() < edge < candidate.end() for edge in boundaries)
+            ),
+            None,
+        )
         if match is None:
             continue
-        tag = TopicTag(key, " ".join(label.split()), score, match.start(), match.end(),
-                       content[match.start():match.end()], content.count("\n", 0, match.start()) + 1)
+        tag = TopicTag(
+            key,
+            " ".join(label.split()),
+            score,
+            match.start(),
+            match.end(),
+            content[match.start() : match.end()],
+            content.count("\n", 0, match.start()) + 1,
+        )
         if key not in tags or score < tags[key].score:
             tags[key] = tag
     selected: list[TopicTag] = []
     for tag in sorted(tags.values(), key=lambda item: (item.score, item.key)):
-        if any(f" {tag.key} " in f" {other.key} " or f" {other.key} " in f" {tag.key} "
-               for other in selected):
+        if any(
+            f" {tag.key} " in f" {other.key} " or f" {other.key} " in f" {tag.key} "
+            for other in selected
+        ):
             continue
         selected.append(tag)
         if len(selected) == MAX_TOPICS:
@@ -123,8 +156,12 @@ def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> l
 @lru_cache(maxsize=1)
 def _extractor_identity() -> str:
     digest = hashlib.sha256()
-    for path in (Path(__file__), Path(markdown_parser.__file__), Path(source_eligibility.__file__),
-                 Path(topic_text.__file__)):
+    for path in (
+        Path(__file__),
+        Path(markdown_parser.__file__),
+        Path(source_eligibility.__file__),
+        Path(topic_text.__file__),
+    ):
         digest.update(path.read_bytes())
     digest.update(version("yake").encode())
     digest.update(version("markdown-it-py").encode())
@@ -150,9 +187,9 @@ class TopicIndex:
         return not self._eligibility.allows(path, source_file)
 
     def _algorithm_digest(self) -> str:
-        return hashlib.sha256(json.dumps(
-            [_extractor_identity(), self.exclude_paths], ensure_ascii=False
-        ).encode()).hexdigest()
+        return hashlib.sha256(
+            json.dumps([_extractor_identity(), self.exclude_paths], ensure_ascii=False).encode()
+        ).hexdigest()
 
     @contextmanager
     def read_snapshot(self) -> Iterator[None]:
@@ -166,27 +203,45 @@ class TopicIndex:
             if owned and self.db.in_transaction:
                 self.db.rollback()
 
-    def synchronize(self, *, rebuild: bool = False,
-                    source_errors: dict[str, str] | None = None,
-                    source_identities: dict[str, str] | None = None) -> None:
+    def synchronize(
+        self,
+        *,
+        rebuild: bool = False,
+        source_errors: dict[str, str] | None = None,
+        source_identities: dict[str, str] | None = None,
+    ) -> None:
         if not self.db.in_transaction:
             raise RuntimeError("Topic synchronization requires the Vault.sync transaction")
         if source_identities is not None:
             self.db.execute("DELETE FROM topic_source_identity")
-            self.db.executemany("INSERT INTO topic_source_identity VALUES (?, ?)",
-                                source_identities.items())
-        identities = dict(self.db.execute("SELECT source_path,resolved_path FROM topic_source_identity"))
+            self.db.executemany(
+                "INSERT INTO topic_source_identity VALUES (?, ?)", source_identities.items()
+            )
+        identities = dict(
+            self.db.execute("SELECT source_path,resolved_path FROM topic_source_identity")
+        )
         self.db.execute("DELETE FROM topic_source_errors")
-        self.db.executemany("INSERT INTO topic_source_errors VALUES (?, ?)", (
-            (path, error) for path, error in (source_errors or {}).items()
-            if not self._excluded(path, identities.get(path))
-        ))
+        self.db.executemany(
+            "INSERT INTO topic_source_errors VALUES (?, ?)",
+            (
+                (path, error)
+                for path, error in (source_errors or {}).items()
+                if not self._excluded(path, identities.get(path))
+            ),
+        )
         algorithm = self._algorithm_digest()
         rows = self.db.execute(
             "SELECT n.path,n.content,n.source_file,s.source_digest,s.algorithm_digest,s.status "
             "FROM notes n LEFT JOIN note_topic_state s ON s.note_path=n.path ORDER BY n.path"
         ).fetchall()
-        for path, content, source_file, previous_content, previous_algorithm, previous_status in rows:
+        for (
+            path,
+            content,
+            source_file,
+            previous_content,
+            previous_algorithm,
+            previous_status,
+        ) in rows:
             if self._excluded(path, source_file) or self._excluded(
                 source_file or path, identities.get(source_file or path)
             ):
@@ -194,8 +249,12 @@ class TopicIndex:
                 self.db.execute("DELETE FROM note_topic_state WHERE note_path=?", (path,))
                 continue
             digest = _content_digest(content)
-            if (not rebuild and digest == previous_content and algorithm == previous_algorithm
-                    and previous_status == "complete"):
+            if (
+                not rebuild
+                and digest == previous_content
+                and algorithm == previous_algorithm
+                and previous_status == "complete"
+            ):
                 continue
             try:
                 tags = extract_topics(content)
@@ -213,10 +272,21 @@ class TopicIndex:
                 self.db.execute(
                     "INSERT INTO note_topics (note_path,topic_key,label,score,source_start,"
                     "source_end,source_text,source_line,provenance) VALUES (?,?,?,?,?,?,?,?,?)",
-                    (path, tag.key, tag.label, tag.score, tag.start, tag.end,
-                     tag.text, tag.line, tag.provenance),
+                    (
+                        path,
+                        tag.key,
+                        tag.label,
+                        tag.score,
+                        tag.start,
+                        tag.end,
+                        tag.text,
+                        tag.line,
+                        tag.provenance,
+                    ),
                 )
-        self.db.execute("DELETE FROM topics WHERE topic_key NOT IN (SELECT topic_key FROM note_topics)")
+        self.db.execute(
+            "DELETE FROM topics WHERE topic_key NOT IN (SELECT topic_key FROM note_topics)"
+        )
 
     def _state_from_row(self, row: tuple[Any, ...]) -> TopicState:
         path, content, source_file, digest, algorithm, status, error, source_error, resolved = row
@@ -238,8 +308,10 @@ class TopicIndex:
             "LEFT JOIN topic_source_errors e ON e.source_path=COALESCE(n.source_file,n.path) "
             "LEFT JOIN topic_source_identity i ON i.source_path=COALESCE(n.source_file,n.path)"
         )
-        return self.db.execute(sql + (" WHERE n.path=?" if path is not None else ""),
-                               (path,) if path is not None else ()).fetchall()
+        return self.db.execute(
+            sql + (" WHERE n.path=?" if path is not None else ""),
+            (path,) if path is not None else (),
+        ).fetchall()
 
     def state(self, path: str) -> TopicState:
         with self.read_snapshot():
@@ -256,7 +328,8 @@ class TopicIndex:
             error = self.db.execute(
                 "SELECT e.error,i.resolved_path FROM topic_source_errors e "
                 "LEFT JOIN topic_source_identity i ON i.source_path=e.source_path "
-                "WHERE e.source_path=?", (path,)
+                "WHERE e.source_path=?",
+                (path,),
             ).fetchone()
             if error and self._excluded(path, error[1]):
                 return TopicState("excluded")
@@ -278,7 +351,9 @@ class TopicIndex:
     def require_complete(self, states: dict[str, TopicState] | None = None) -> None:
         states = self.states() if states is None else states
         if any(state.status not in {"complete", "excluded"} for state in states.values()):
-            raise TopicIndexIncompleteError("Topic index is incomplete; sync or inspect source errors")
+            raise TopicIndexIncompleteError(
+                "Topic index is incomplete; sync or inspect source errors"
+            )
 
     def tags(self, path: str) -> list[TopicTag]:
         with self.read_snapshot():
@@ -287,10 +362,14 @@ class TopicIndex:
                 return []
             if state.status != "complete":
                 raise TopicIndexIncompleteError(f"Topic extraction for {path} is {state.status}")
-            return [TopicTag(*row) for row in self.db.execute(
-                "SELECT topic_key,label,score,source_start,source_end,source_text,source_line,"
-                "provenance FROM note_topics WHERE note_path=? ORDER BY score,topic_key", (path,)
-            )]
+            return [
+                TopicTag(*row)
+                for row in self.db.execute(
+                    "SELECT topic_key,label,score,source_start,source_end,source_text,source_line,"
+                    "provenance FROM note_topics WHERE note_path=? ORDER BY score,topic_key",
+                    (path,),
+                )
+            ]
 
     def catalog(self) -> list[tuple[str, int]]:
         with self.read_snapshot():
@@ -306,7 +385,11 @@ class TopicIndex:
         with self.read_snapshot():
             states = self.states()
             self.require_complete(states)
-            return [path for (path,) in self.db.execute(
-                "SELECT note_path FROM note_topics WHERE topic_key=? ORDER BY note_path",
-                (topic_key(topic),)
-            ) if states[path].status == "complete"]
+            return [
+                path
+                for (path,) in self.db.execute(
+                    "SELECT note_path FROM note_topics WHERE topic_key=? ORDER BY note_path",
+                    (topic_key(topic),),
+                )
+                if states[path].status == "complete"
+            ]

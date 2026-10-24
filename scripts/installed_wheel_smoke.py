@@ -11,8 +11,8 @@ from sentence_transformers import SentenceTransformer
 
 import geistfabrik
 from geistfabrik.embeddings import EmbeddingComputer, Session
-from geistfabrik.vault import Vault
 from geistfabrik.topics import TopicIndex
+from geistfabrik.vault import Vault
 
 package_file = Path(geistfabrik.__file__).resolve()
 assert ".venv" not in package_file.parts, package_file

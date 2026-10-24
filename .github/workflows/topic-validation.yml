@@ -6,28 +6,29 @@ on:
     paths:
       - 'src/geistfabrik/topic*'
       - 'tests/**/test_topic*'
+      - 'tests/unit/test_dependency_validation.py'
       - 'tests/fixtures/topic*.json'
       - 'scripts/*topics.py'
+      - 'scripts/validate.sh'
+      - 'uv.lock'
       - '.github/workflows/topic-validation.yml'
 
 permissions:
   contents: read
 
 jobs:
-  canonical:
+  topics:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     env:
       UV_PYTHON: '3.12'
+      UV_LOCKED: '1'
       GEISTFABRIK_OFFLINE: '1'
-      PACKAGE_SMOKE_PYTHON: '3.12'
       OMP_NUM_THREADS: '1'
       OPENBLAS_NUM_THREADS: '1'
-      TOKENIZERS_PARALLELISM: 'false'
     steps:
       - uses: actions/checkout@v7
         with:
-          lfs: true
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v10.1.0
         with:
@@ -35,27 +36,71 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - name: Diagnose recovery lock and formatting drift
+      - name: Require the committed dependency graph
+        run: uv sync --locked --extra vector-search
+      - name: Run repository hooks on changed files
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: |
-          # Recovery diagnostic only: any generated patch fails this step.
-          # It cannot certify an uncommitted dependency or source repair.
-          uv sync --extra vector-search
-          mapfile -t python_files < <(git diff --name-only "$BASE_REF" HEAD -- '*.py')
-          if [ "${#python_files[@]}" -gt 0 ]; then
-            uv run --frozen ruff check --fix "${python_files[@]}" || true
-            uv run --frozen ruff format "${python_files[@]}"
-          fi
+          mapfile -t changed_files < <(git diff --name-only "$BASE_REF" HEAD)
+          uv run --frozen pre-commit run --files "${changed_files[@]}"
+      - name: Focused topic and validation regressions
+        if: always()
+        run: uv run --frozen pytest tests/unit/test_topic*.py tests/unit/test_dependency_validation.py tests/integration/test_topics.py --no-cov -q
+      - name: Frozen topic quality gates
+        if: always()
+        run: uv run --frozen python scripts/evaluate_topics.py
+      - name: Positive-query indexing benchmark
+        if: always()
+        run: uv run --frozen python scripts/benchmark_topics.py
+      - name: Calibration diagnostics
+        if: always()
+        run: |
+          uv run --frozen python - <<'PY'
+          import json
+          import yake
+          from scripts.evaluate_topics import REPO, FIXTURE_NAMES, _content
+          from geistfabrik.topics import _SETTINGS, topic_prose
+          extractor = yake.KeywordExtractor(**_SETTINGS)
+          reports = []
+          for name in FIXTURE_NAMES:
+              fixture = json.loads((REPO / 'tests/fixtures' / (name + '.json')).read_text())
+              for note in fixture['notes']:
+                  prose = topic_prose(_content(note, REPO))
+                  reports.append({'id': note['id'], 'prose': prose,
+                                  'candidates': extractor.extract_keywords(prose)})
+          print('TOPIC_CANDIDATE_DIAGNOSTICS_BEGIN')
+          print(json.dumps(reports))
+          print('TOPIC_CANDIDATE_DIAGNOSTICS_END')
+          PY
+      - name: Reject and expose uncommitted hook repairs
+        if: always()
+        run: |
           echo TOPIC_VALIDATION_PATCH_BEGIN
           git diff --binary | base64 -w 76
           echo TOPIC_VALIDATION_PATCH_END
           git diff --exit-code
+
+  canonical:
+    needs: topics
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      UV_PYTHON: '3.12'
+      PACKAGE_SMOKE_PYTHON: '3.12'
+      GEISTFABRIK_OFFLINE: '1'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - name: Required canonical validation
-        if: always()
         run: ./scripts/validate.sh
-      - name: Report topic quality and indexing cost
-        if: always()
-        run: |
-          uv run --frozen python scripts/evaluate_topics.py
-          uv run --frozen python scripts/benchmark_topics.py

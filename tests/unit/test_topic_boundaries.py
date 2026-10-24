@@ -171,3 +171,19 @@ def test_oversized_alias_retarget_cannot_publish_stale_exclusion(
         ).fetchone() == ("public-large.bin",)
         with pytest.raises(TopicIndexIncompleteError):
             index.catalog()
+
+
+def test_unconfirmed_physical_provenance_cannot_validate_cached_topics(tmp_path: Path) -> None:
+    (tmp_path / "note.md").write_text("# Public topic\n")
+    with closing(Vault(tmp_path)) as vault:
+        vault.sync()
+        index = TopicIndex(vault.db)
+        assert index.state("note.md").status == "complete"
+        vault.db.execute("DELETE FROM topic_source_identity")
+        vault.db.commit()
+        assert index.state("note.md").status == "pending"
+        with pytest.raises(TopicIndexIncompleteError):
+            index.tags("note.md")
+        vault.sync()
+        assert index.state("note.md").status == "complete"
+        assert index.paths("public topic") == ["note.md"]
