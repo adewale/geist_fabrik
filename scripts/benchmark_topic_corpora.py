@@ -44,10 +44,12 @@ def inventory(root: Path) -> dict:
 
 def topic_digest(vault: Vault, paths: list[str] | None = None) -> str:
     """Compare full derived evidence, rather than count-only success."""
-    rows = list(vault.db.execute(
-        "SELECT note_path,topic_key,label,score,source_start,source_end,source_text,"
-        "source_line,provenance FROM note_topics ORDER BY note_path,topic_key"
-    ))
+    rows = list(
+        vault.db.execute(
+            "SELECT note_path,topic_key,label,score,source_start,source_end,source_text,"
+            "source_line,provenance FROM note_topics ORDER BY note_path,topic_key"
+        )
+    )
     if paths is not None:
         allowed = set(paths)
         rows = [row for row in rows if row[0] in allowed]
@@ -73,9 +75,12 @@ def observe(vault: Vault) -> dict:
         started = perf_counter()
         paths = index.paths(key)
         elapsed = perf_counter() - started
-        expected = [row[0] for row in vault.db.execute(
-            "SELECT note_path FROM note_topics WHERE topic_key=? ORDER BY note_path", (key,)
-        )]
+        expected = [
+            row[0]
+            for row in vault.db.execute(
+                "SELECT note_path FROM note_topics WHERE topic_key=? ORDER BY note_path", (key,)
+            )
+        ]
         if not paths or paths != expected or len(paths) != count:
             raise AssertionError("positive membership does not match stored eligible evidence")
         queries.append({"topic": key, "matches": count, "seconds": elapsed})
@@ -116,20 +121,23 @@ def samples(vault: Vault, root: Path, selection: list[dict], spec: dict) -> list
             if git_blob != selected["sha"]:
                 raise AssertionError("frozen sample source changed")
         state = index.state(relative)
-        result.append({
-            "path": relative,
-            "stratum": selected.get("stratum"),
-            "source_sha256": hashlib.sha256(raw).hexdigest(),
-            "source_repository": spec.get("repository"),
-            "source_commit": spec.get("commit"),
-            "state": asdict(state),
-            "topics": (
-                [asdict(tag) for tag in index.tags(relative)]
-                if state.status == "complete" else []
-            ),
-            "human_reviewed": False,
-            "usefulness": None,
-        })
+        result.append(
+            {
+                "path": relative,
+                "stratum": selected.get("stratum"),
+                "source_sha256": hashlib.sha256(raw).hexdigest(),
+                "source_repository": spec.get("repository"),
+                "source_commit": spec.get("commit"),
+                "state": asdict(state),
+                "topics": (
+                    [asdict(tag) for tag in index.tags(relative)]
+                    if state.status == "complete"
+                    else []
+                ),
+                "human_reviewed": False,
+                "usefulness": None,
+            }
+        )
         if selected.get("stratum") == "excluded-template" and state.status != "excluded":
             raise AssertionError("configured template entered the eligible population")
     return result
@@ -141,7 +149,7 @@ def run_corpus(
     config = GeistFabrikConfig()
     config.lexical_analysis.enabled = False
     config.filtering.exclude_paths = spec.get("exclude_paths", [])
-    records = replay[1]["snapshots"][:spec["snapshots"]] if replay else [None]
+    records = replay[1]["snapshots"][: spec["snapshots"]] if replay else [None]
     report = {"corpus": spec, "lexical_capture_enabled": False, "snapshots": []}
     stable = replay[1]["stable_paths"] if replay else None
     with closing(Vault(root, config=config)) as vault:
@@ -165,12 +173,17 @@ def run_corpus(
                 if current != first_stable:
                     raise AssertionError("stable source topic evidence changed across snapshots")
             report["snapshots"].append(run)
-            print(json.dumps({
-                "progress": spec["name"],
-                "snapshot": run["snapshot"],
-                "seconds": run["seconds"],
-                "notes": run["notes"],
-            }), flush=True)
+            print(
+                json.dumps(
+                    {
+                        "progress": spec["name"],
+                        "snapshot": run["snapshot"],
+                        "seconds": run["seconds"],
+                        "notes": run["notes"],
+                    }
+                ),
+                flush=True,
+            )
         digest = topic_digest(vault)
         before_warm = inventory(root)
         report["warm_sync"] = sync_probe(vault)
