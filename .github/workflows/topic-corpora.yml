@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: topic-corpora-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   corpora:
     runs-on: ubuntu-latest

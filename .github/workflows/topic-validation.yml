@@ -17,6 +17,52 @@ permissions:
   contents: read
 
 jobs:
+  quality-probes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      UV_PYTHON: '3.12'
+      UV_LOCKED: '1'
+      GEISTFABRIK_OFFLINE: '1'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: project
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: thebrianbug/LYT-Kit
+          ref: e191473fcb326df78cca8a6c49b29420ab318e46
+          path: corpora/lyt
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Require committed dependencies
+        working-directory: project
+        run: uv sync --locked --extra vector-search
+      - name: Diagnose frozen quality failures with real YAKE
+        working-directory: project
+        run: |
+          uv run --frozen ruff check scripts/probe_topic_quality.py
+          uv run --frozen ruff format --diff scripts/probe_topic_quality.py
+          uv run --frozen python -m scripts.probe_topic_quality \
+            --lyt ../corpora/lyt --output "$RUNNER_TEMP/topic-quality-probes.json"
+      - name: Retain source-bound diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: topic-quality-probes
+          path: ${{ runner.temp }}/topic-quality-probes.json
+          if-no-files-found: ignore
+          retention-days: 7
+
   topics:
     runs-on: ubuntu-latest
     timeout-minutes: 10
