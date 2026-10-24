@@ -7,6 +7,89 @@ import pytest
 from geistfabrik.topic_text import explicit_labels, topic_boundaries, topic_prose
 
 
+@pytest.mark.parametrize("prefix", ["", "> ", "- "])
+def test_property_paragraphs_do_not_seed_topics(prefix: str) -> None:
+    source = (
+        f"{prefix}up:: [[Hidden parent]]\n"
+        f"{prefix}custom label:: Hidden property\n\n"
+        "# Urban gardens\n\nUrban gardens support wildlife.\n"
+    )
+    prose = topic_prose(source)
+    assert "Hidden" not in prose and "custom label" not in prose
+    assert "Urban gardens" in prose and "wildlife" in prose
+    assert len(prose) == len(source)
+    assert [i for i, c in enumerate(prose) if c == "\n"] == [
+        i for i, c in enumerate(source) if c == "\n"
+    ]
+    assert [label for label, _, _, _ in explicit_labels(source, prose)] == ["Urban gardens"]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Use std::vector for these values.",
+        "# Topic:: Research\n\nPublic gardens.",
+        "[property:: Visible subject](https://example.test)",
+        "Public prose.\nproperty:: A mixed paragraph remains visible.",
+    ],
+)
+def test_property_detection_preserves_other_document_roles(source: str) -> None:
+    prose = topic_prose(source)
+    assert any(word in prose for word in ("std::vector", "Research", "Visible", "Public"))
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        "up:: %% hidden\n",
+        "up:: <script>hidden\n",
+        "up:: `<script> %% hidden`\n",
+        "custom-key:: [[Hidden parent]]\ncréation:: hidden\n",
+    ],
+)
+def test_property_values_cannot_own_later_public_prose(metadata: str) -> None:
+    source = metadata + "\n# Urban gardens\n\nPublic wildlife.\n"
+    prose = topic_prose(source)
+    assert "Urban gardens" in prose and "Public wildlife" in prose
+    assert "hidden" not in prose and "Hidden" not in prose
+
+
+@pytest.mark.parametrize(
+    "opening",
+    [
+        "%% hidden\n\nproperty:: ignored %%\n",
+        "Visible <span hidden>secret\n\nproperty:: ignored </span>\n",
+        "Visible <span hidden>secret\n\n%% ignored\n\n</span>\n",
+    ],
+)
+def test_earlier_owners_retain_closing_syntax_across_property_blocks(opening: str) -> None:
+    source = opening + "\n# Urban gardens\n"
+    prose = topic_prose(source)
+    assert "Urban gardens" in prose
+    assert "secret" not in prose and "ignored" not in prose and "hidden" not in prose
+
+
+def test_many_property_values_have_bounded_comment_processing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import geistfabrik.topic_text as topic_text
+
+    source = "".join(f"field{number}:: hidden %%\n" for number in range(500))
+    source += "\n# Urban gardens\n"
+    original = topic_text._parse
+    calls = 0
+
+    def counted(content: str):
+        nonlocal calls
+        calls += 1
+        return original(content)
+
+    topic_text._projection.cache_clear()
+    monkeypatch.setattr(topic_text, "_parse", counted)
+    assert "Urban gardens" in topic_text.topic_prose(source)
+    assert calls <= 3
+
+
 def test_visible_link_syntax_does_not_insert_sentence_boundaries() -> None:
     source = "Using [[evergreen]] notes and [spaced repetition](https://example.test) cards."
     prose = topic_prose(source)

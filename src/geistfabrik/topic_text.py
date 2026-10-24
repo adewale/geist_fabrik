@@ -288,25 +288,88 @@ def _html_regions(source: str) -> list[tuple[int, int]]:
     return parser.regions
 
 
-def _inline_html_regions(
-    source: str, masked: list[tuple[int, int]], tags: list[tuple[int, int]]
-) -> list[tuple[int, int]]:
-    """Only Markdown-owned HTML may establish hidden-element ownership."""
-    chars = list(source)
-    for start, end in masked:
-        _erase(chars, start, end, barrier=False)
-    allowed = {start for start, _ in tags}
-    for position, char in enumerate(chars):
-        if char == "<" and position not in allowed:
-            chars[position] = " "
-    return _html_regions("".join(chars))
-
-
 def _parse(source: str) -> tuple[list[Token], dict[str, Any]]:
     parser = MarkdownIt("commonmark", {"html": True, "inline_definitions": True})
     parser.core.ruler.disable(["inline"])
     environment: dict[str, Any] = {}
     return parser.parse(source, environment), environment
+
+
+_PROPERTY_LINE = re.compile(r"[ \t]*\w[\w -]*::(?:[ \t]+[^\r\n]*|[ \t]*)\r?")
+
+
+def _syntax_ownership(
+    source: str, tokens: list[Token], environment: dict[str, Any]
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]], list[tuple[int, int]]]:
+    """Resolve property paragraphs and HTML in source order after Markdown.
+
+    A property-only paragraph is structural metadata. Its value cannot open HTML
+    outside the paragraph, but an earlier hidden HTML element still owns closing
+    syntax inside it. Preserve raw coordinates while feeding those owners in order.
+    """
+    offsets = _line_offsets(source)
+    admitted = [char if char in "\r\n" else " " for char in source]
+    owners: list[tuple[int, int]] = []
+    properties: list[tuple[int, int]] = []
+    html_openers: set[int] = set()
+    heading = False
+    for token in tokens:
+        if token.type == "heading_open":
+            heading = True
+        elif token.type == "heading_close":
+            heading = False
+        if token.map is None:
+            continue
+        block = _block_span(token, offsets, len(source))
+        if token.type in {"fence", "code_block", "definition"}:
+            owners.append(block)
+            continue
+        if token.type not in {"inline", "html_block"}:
+            continue
+        mapping = _source_map(token, source, offsets)
+        for position in mapping:
+            if position is not None:
+                admitted[position] = source[position]
+        if token.type == "inline":
+            masked, syntax, tags, _ = _inline_regions(token.content, environment)
+            for start, end in masked:
+                if (span := _mapped_span(mapping, start, end)) is not None:
+                    _erase(admitted, *span, barrier=False)
+            owners.extend(
+                span
+                for start, end in syntax
+                if (span := _mapped_span(mapping, start, end)) is not None
+            )
+            for start, end in tags:
+                if (span := _mapped_span(mapping, start, end)) is not None:
+                    html_openers.add(span[0])
+            lines = token.content.splitlines()
+            if not heading and lines and all(_PROPERTY_LINE.fullmatch(line) for line in lines):
+                properties.append(block)
+        else:
+            if token.content.startswith("<!--"):
+                owners.append(block)
+            html_openers.update(
+                position for position in mapping if position is not None and source[position] == "<"
+            )
+    for position, char in enumerate(admitted):
+        if char == "<" and position not in html_openers:
+            admitted[position] = " "
+    html_source = "".join(admitted)
+    parser = _HTMLRegions(html_source)
+    metadata: list[tuple[int, int]] = []
+    cursor = 0
+    for start, end in sorted(properties):
+        parser.feed(html_source[cursor:start])
+        if parser.rawdata or any(hidden for _, hidden in parser.stack):
+            parser.feed(html_source[start:end])
+        else:
+            metadata.append((start, end))
+            parser.feed("".join(char if char in "\r\n" else " " for char in html_source[start:end]))
+        cursor = end
+    parser.feed(html_source[cursor:])
+    parser.close()
+    return metadata, parser.regions, owners
 
 
 def _percent_comments(chars: list[str]) -> None:
@@ -326,33 +389,8 @@ def _percent_comments(chars: list[str]) -> None:
         if reparses > MAX_COMMENT_REPARSES:
             raise ValueError("topic comment preprocessing exceeds work limit")
         tokens, environment = _parse(source)
-        offsets = _line_offsets(source)
-        protected: list[tuple[int, int]] = []
-        for token in tokens:
-            if token.map is None:
-                continue
-            if token.type in {"fence", "code_block", "definition"}:
-                protected.append(_block_span(token, offsets, len(source)))
-            elif token.type == "inline":
-                mapping = _source_map(token, source, offsets)
-                masked, owners, tags, _ = _inline_regions(token.content, environment)
-                # Hidden bodies own markers; literal tags in code/escapes do not.
-                owners.extend(_inline_html_regions(token.content, masked, tags))
-                protected.extend(
-                    span
-                    for start, end in owners
-                    if (span := _mapped_span(mapping, start, end)) is not None
-                )
-            elif token.type == "html_block":
-                if token.content.startswith("<!--"):
-                    protected.append(_block_span(token, offsets, len(source)))
-                    continue
-                mapping = _source_map(token, source, offsets)
-                protected.extend(
-                    span
-                    for start, end in _html_regions(token.content)
-                    if (span := _mapped_span(mapping, start, end)) is not None
-                )
+        metadata, html_regions, owners = _syntax_ownership(source, tokens, environment)
+        protected = metadata + html_regions + owners
         merged: list[tuple[int, int]] = []
         for start, end in sorted(protected):
             if merged and start <= merged[-1][1]:
@@ -453,7 +491,13 @@ def _projection(content: str) -> _Projection:
     for position, char in enumerate(html_source):
         if char == "<" and position not in html_openers:
             html_source[position] = " "
-    for start, end in _html_regions("".join(html_source)):
+    if "::" in source:
+        metadata, html_regions, _ = _syntax_ownership(source, tokens, environment)
+        for start, end in metadata:
+            _erase(output, start, end)
+    else:
+        html_regions = _html_regions("".join(html_source))
+    for start, end in html_regions:
         _erase(output, start, min(end, len(output)))
     for pattern in (
         re.compile(r"(?:https?://|www\.)[^\s<>]+", re.IGNORECASE),

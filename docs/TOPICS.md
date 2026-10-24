@@ -37,6 +37,9 @@ Membership is textual evidence, never stance, emotion or intention.
 
 Frontmatter, code, comments, transclusions, authored tags, link destinations and
 reference metadata and hidden HTML bodies are excluded using parser-owned spans.
+Property-only paragraphs such as `up:: ...` or `tags:: ...` are structural metadata,
+including their visible link values. Headings, code, namespace expressions and
+mixed prose remain distinct document roles; no property-name stoplist is used.
 Visible link wording remains continuous with surrounding prose. Structurally
 ambiguous comment processing is bounded at 32 reparses and reports an error when
 that work limit is exhausted. Shared source boundaries (including Templates/),

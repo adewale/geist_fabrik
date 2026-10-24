@@ -41,6 +41,23 @@ the existing evaluator. This proxy reports its own pass/fail result. Functional
 corpus validation does not certify semantic usefulness or close the human gate;
 a failing relevance proxy must remain visible even if indexing checks pass.
 
+## Initial measured findings and targeted repair
+
+The complete run on `52b25c556dbf731c66e25a139348dd01eacaafd3` passed
+all functional corpus checks. The narrative proxy scored 0.448 precision / 0.667
+recall, and the LYT proxy scored 0.377 / 0.575, below their fixed precision
+thresholds. LYT also emitted labels for an unfilled daily-note form. These
+results do not justify a merge recommendation.
+
+The LYT outputs exposed property metadata entering the topic budget: `moc tags`,
+`meta pkm tags`, `url` and parent-navigation link titles were treated as subjects.
+The targeted repair treats property-only paragraphs as structural metadata using
+Markdown spans and source-ordered HTML ownership. It retains headings and mixed
+prose, does not blacklist property names, and keeps comments/code/HTML from owning
+the wrong later text. Existing and new proxy annotations remain frozen. Sentence
+fragments and unfilled-form noise are separate unresolved quality findings; they
+are not hidden by changing the oracle or corpus population.
+
 ## Executable checks
 
 `scripts/benchmark_topic_corpora.py` uses real `Vault.sync` and `TopicIndex` with
