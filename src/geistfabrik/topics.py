@@ -24,6 +24,9 @@ from .topic_text import topic_boundaries, topic_prose
 
 MAX_TOPICS = 5
 MAX_TOPIC_CHARS = 100_000
+# A label budget is a maximum, not a requirement to pad weak proposals. Compare
+# statistical costs only: authored-label priors must not create artificial gaps.
+_MAX_SCORE_GAP = 8.0
 _SETTINGS: dict[str, Any] = {
     "lan": "en",
     "n": 3,
@@ -141,13 +144,27 @@ def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> l
         if key not in tags or score < tags[key].score:
             tags[key] = tag
     selected: list[TopicTag] = []
+    previous_statistical_cost: float | None = None
+    statistical_abstention = False
     for tag in sorted(tags.values(), key=lambda item: (item.score, item.key)):
+        if tag.provenance == "yake" and statistical_abstention:
+            continue
         if any(
             f" {tag.key} " in f" {other.key} " or f" {other.key} " in f" {tag.key} "
             for other in selected
         ):
             continue
+        if (
+            tag.provenance == "yake"
+            and previous_statistical_cost is not None
+            and previous_statistical_cost > 0
+            and tag.score > previous_statistical_cost * _MAX_SCORE_GAP
+        ):
+            statistical_abstention = True
+            continue
         selected.append(tag)
+        if tag.provenance == "yake":
+            previous_statistical_cost = tag.score
         if len(selected) == MAX_TOPICS:
             break
     return selected

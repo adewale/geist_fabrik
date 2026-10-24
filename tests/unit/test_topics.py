@@ -513,11 +513,39 @@ class _JoinedExtractor:
         return [("red blue", 0.01)]
 
 
+class _SeparatedCosts:
+    def extract_keywords(self, text: str) -> list[tuple[str, float]]:
+        return [("alpha", 0.1), ("beta", 0.11), ("gamma", 1.0)]
+
+
+def test_budget_does_not_pad_a_large_statistical_cost_gap() -> None:
+    tags = extract_topics("alpha beta gamma", _SeparatedCosts())
+    assert [tag.key for tag in tags] == ["alpha", "beta"]
+
+
+class _WeakSingleton:
+    def extract_keywords(self, text: str) -> list[tuple[str, float]]:
+        return [("rare topic", 2.0)]
+
+
+def test_cost_gap_abstention_has_no_absolute_or_corpus_frequency_floor() -> None:
+    tags = extract_topics("rare topic", _WeakSingleton())
+    assert [tag.key for tag in tags] == ["rare topic"]
+
+
+class _EarlyCostGap:
+    def extract_keywords(self, text: str) -> list[tuple[str, float]]:
+        return [("alpha", 0.000001), ("beta", 0.0001)]
+
+
+def test_statistical_abstention_does_not_suppress_later_authored_evidence() -> None:
+    tags = extract_topics("alpha beta [[Rare topic]]", _EarlyCostGap())
+    assert [tag.key for tag in tags] == ["alpha", "rare topic"]
+
+
 @pytest.mark.parametrize("source", ["red\n\nblue", "red\n- blue", "red\n## blue"])
 def test_labels_cannot_join_distinct_prose_blocks(source: str) -> None:
-    assert "red blue" not in {
-        tag.key for tag in extract_topics(source, _JoinedExtractor())
-    }
+    assert "red blue" not in {tag.key for tag in extract_topics(source, _JoinedExtractor())}
 
 
 def test_topic_upgrade_preserves_existing_lexical_evidence(tmp_path: Path) -> None:
@@ -541,7 +569,11 @@ def test_topic_upgrade_preserves_existing_lexical_evidence(tmp_path: Path) -> No
     tables = ("notes", "lexical_notes", "lexical_events", "word_burst_cache")
     before = {table: db.execute(f"SELECT * FROM {table}").fetchall() for table in tables}
     for table in (
-        "note_topics", "note_topic_state", "topic_source_errors", "topic_source_identity", "topics"
+        "note_topics",
+        "note_topic_state",
+        "topic_source_errors",
+        "topic_source_identity",
+        "topics",
     ):
         db.execute(f"DROP TABLE {table}")
     db.execute("PRAGMA user_version=15")

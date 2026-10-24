@@ -25,7 +25,8 @@ def test_project_core_dependencies_are_represented_in_the_lock() -> None:
         assert any(
             canonicalize_name(item["name"]) == name
             and (
-                Requirement(item["name"] + item.get("specifier", "")).specifier == required.specifier
+                Requirement(item["name"] + item.get("specifier", "")).specifier
+                == required.specifier
             )
             for item in requirements
         ), f"Stale dependency requirement: {dependency}"
@@ -55,13 +56,21 @@ def test_validator_rejects_a_dependency_tool_rewriting_its_input(tmp_path: Path)
     go.chmod(0o755)
     environment = {**os.environ, "PATH": str(binaries) + os.pathsep + os.environ["PATH"]}
     control = subprocess.run(
-        ["bash", str(script)], cwd=tmp_path, env={**environment, "MUTATE_TEST_LOCK": "0"},
-        capture_output=True, text=True, check=False,
+        ["bash", str(script)],
+        cwd=tmp_path,
+        env={**environment, "MUTATE_TEST_LOCK": "0"},
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert control.returncode == 0, control.stdout + control.stderr
     mutated = subprocess.run(
-        ["bash", str(script)], cwd=tmp_path, env={**environment, "MUTATE_TEST_LOCK": "1"},
-        capture_output=True, text=True, check=False,
+        ["bash", str(script)],
+        cwd=tmp_path,
+        env={**environment, "MUTATE_TEST_LOCK": "1"},
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert mutated.returncode != 0
     assert "Dependency lock unchanged failed" in mutated.stdout
