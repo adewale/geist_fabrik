@@ -52,7 +52,15 @@ def main() -> int:
     def without_link_prior(content, prose):
         return (row for row in original_labels(content, prose) if row[3] != "wikilink")
 
-    def selected(content, *, budget=5, link_prior=True, predicate_penalty=True):
+    def selected(
+        content, *, budget=5, link_prior=True, predicate_penalty=True, block_sentences=False
+    ):
+        class BlockCandidates:
+            def extract_keywords(self, text):
+                edges = sorted({0, len(text), *topics.topic_boundaries(content)})
+                scored = "\n.\n".join(text[a:b] for a, b in zip(edges, edges[1:]))
+                return extractor.extract_keywords(scored)
+
         with (
             patch.object(
                 topics, "_explicit_labels", original_labels if link_prior else without_link_prior
@@ -63,7 +71,9 @@ def main() -> int:
                 topics._PREDICATE_HINTS if predicate_penalty else frozenset(),
             ),
         ):
-            return original_extract(content, extractor=extractor)[:budget]
+            return original_extract(
+                content, extractor=BlockCandidates() if block_sentences else extractor
+            )[:budget]
 
     policies = {
         "baseline": {},
@@ -74,6 +84,7 @@ def main() -> int:
         "without-link-prior": {"link_prior": False},
         "without-predicate-penalty": {"predicate_penalty": False},
         "without-link-prior-at-most-three": {"link_prior": False, "budget": 3},
+        "block-sentence-scoring": {"block_sentences": True},
     }
     reports = {}
     diagnostics = {}
