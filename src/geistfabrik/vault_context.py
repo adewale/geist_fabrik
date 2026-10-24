@@ -475,7 +475,11 @@ class VaultContext:
         if target.startswith("[[") and target.endswith("]]"):
             target = target[2:-2].split("|", 1)[0]
         resolved = self.vault.get_note(target) or self.vault.resolve_link_target(target)
-        return resolved.path if resolved is not None else target
+        if resolved is not None:
+            return resolved.path
+        if not target.endswith(".md") and self._topic_index().state(target + ".md").status == "error":
+            return target + ".md"
+        return target
 
     def topics_for_note(self, note: Note | str) -> list[TopicTag]:
         """Derived labels with source evidence; incomplete extraction raises."""

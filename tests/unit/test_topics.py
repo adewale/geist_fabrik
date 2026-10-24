@@ -10,7 +10,7 @@ import pytest
 import geistfabrik.topics as topics_module
 from geistfabrik.config_loader import GeistFabrikConfig
 from geistfabrik.embeddings import Session
-from geistfabrik.schema import get_schema_version, init_db
+from geistfabrik.schema import SCHEMA_VERSION, get_schema_version, init_db
 from geistfabrik.topics import (
     MAX_TOPIC_CHARS,
     MAX_TOPICS,
@@ -291,7 +291,10 @@ def test_storage_failure_rolls_back_note_and_topic_publication(
     assert TopicIndex(topic_vault.db).catalog() == before
 
 
-def test_v10_upgrade_preserves_raw_notes_and_is_idempotent(tmp_path: Path) -> None:
+@pytest.mark.parametrize("previous_version", [10, 15])
+def test_upgrade_preserves_raw_notes_and_is_idempotent(
+    tmp_path: Path, previous_version: int
+) -> None:
     path = tmp_path / "state.db"
     db = init_db(path)
     db.execute(
@@ -299,15 +302,15 @@ def test_v10_upgrade_preserves_raw_notes_and_is_idempotent(tmp_path: Path) -> No
         ("old.md", "Old", "Source", "2025-01-01", "2025-01-01", 0),
     )
     db.execute("INSERT INTO tags VALUES ('old.md','authored')")
-    for table in ["note_topics", "note_topic_state", "topic_source_errors", "topics"]:
+    for table in ["note_topics", "note_topic_state", "topic_source_errors", "topic_source_identity", "topics"]:
         db.execute(f"DROP TABLE {table}")
-    db.execute("PRAGMA user_version=10")
+    db.execute(f"PRAGMA user_version={previous_version}")
     db.commit()
     db.close()
     for _ in range(2):
         db = init_db(path)
         try:
-            assert get_schema_version(db) == 16
+            assert get_schema_version(db) == SCHEMA_VERSION == 16
             assert db.execute("SELECT content FROM notes").fetchall() == [("Source",)]
             assert db.execute("SELECT tag FROM tags").fetchall() == [("authored",)]
             assert TopicIndex(db).state("old.md").status == "pending"

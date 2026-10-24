@@ -16,6 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       UV_PYTHON: ${{ matrix.python-version }}
+      UV_LOCKED: "1"
       GEISTFABRIK_OFFLINE: "1"
       OMP_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
@@ -46,48 +47,48 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --frozen --extra vector-search
+        run: uv sync --locked --extra vector-search
 
       - name: Verify matrix interpreter
         run: >-
-          uv run python -c "import os, sys;
+          uv run --frozen python -c "import os, sys;
           expected = tuple(map(int, os.environ['UV_PYTHON'].split('.')));
           print(sys.version); assert sys.version_info[:2] == expected"
 
       - name: Run unit tests
         run: >-
-          uv run pytest tests/unit -v
+          uv run --frozen pytest tests/unit -v
           -m "not slow and not benchmark and not artifact and not production_model"
           --timeout=60 --require-geist-firing --cov=geistfabrik --cov-branch --cov-report=
 
       - name: Run integration tests and enforce branch coverage
         run: >-
-          uv run pytest tests/integration -v
+          uv run --frozen pytest tests/integration -v
           -m "not slow and not benchmark and not artifact and not production_model"
           --timeout=300 --cov=geistfabrik --cov-branch --cov-append
           --cov-report=term-missing
 
       - name: Enforce branch-only coverage
-        run: uv run python scripts/check_branch_coverage.py --minimum 70
+        run: uv run --frozen python scripts/check_branch_coverage.py --minimum 70
 
       - name: Run linting
-        run: uv run ruff check src/ tests/
+        run: uv run --frozen ruff check src/ tests/
 
       - name: Run mypy type checking
-        run: uv run mypy src/ --strict
+        run: uv run --frozen mypy src/ --strict
 
       - name: Run ty type checking
-        run: uv run ty check src tests --error-on-warning
+        run: uv run --frozen ty check src tests --error-on-warning
 
       - name: Check for unused database tables
-        run: uv run python scripts/detect_unused_tables.py
+        run: uv run --frozen python scripts/detect_unused_tables.py
 
       - name: Security scan (bandit)
-        run: uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q
+        run: uv run --frozen bandit -c pyproject.toml -r src/geistfabrik -ll -q
 
       - name: Acceptance criteria
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-        run: uv run python scripts/check_phase_completion.py
+        run: uv run --frozen python scripts/check_phase_completion.py
 
       # Pinned actionlint, built from source through the checksum-verified Go
       # module proxy; it runs shellcheck on `run:` scripts when available.
@@ -101,6 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UV_PYTHON: ${{ matrix.python-version }}
+      UV_LOCKED: "1"
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -127,11 +129,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --frozen --extra vector-search
+        run: uv sync --locked --extra vector-search
 
       - name: Verify matrix interpreter
         run: >-
-          uv run python -c "import os, sys;
+          uv run --frozen python -c "import os, sys;
           expected = tuple(map(int, os.environ['UV_PYTHON'].split('.')));
           print(sys.version); assert sys.version_info[:2] == expected"
 

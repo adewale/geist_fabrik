@@ -83,6 +83,9 @@ class Vault:
         self._link_index: NoteLinkIndex | None = None
         self._link_index_version: tuple[int, int] | None = None
         self._topic_sync_errors: dict[str, str] = {}
+        self._topic_source_identities: dict[str, str] = {}
+        self._source_candidates: set[str] = set()
+        self._source_observations: dict[str, tuple[Path, os.stat_result]] = {}
 
     def _is_excluded_from_date_collection(self, rel_path: str) -> bool:
         """Check if file should be excluded from date-collection detection.
@@ -113,6 +116,7 @@ class Vault:
             try:
                 with owned_transaction(self.db, "Vault.sync"):
                     self._topic_sync_errors = {}
+                    self._topic_source_identities = {}
                     lexical = LexicalIndex(self.db, self.config.lexical_analysis, datetime.now(UTC))
                     rebuild_lexical = (
                         lexical.prepare() if self.config.lexical_analysis_enabled else False
@@ -150,7 +154,8 @@ class Vault:
                     # Lexical capture can be expensive. Validate immediately before
                     # commit so edits during that work roll back and retry everything.
                     TopicIndex(self.db, self.config.filtering.exclude_paths).synchronize(
-                        rebuild=rebuild_topics, source_errors=self._topic_sync_errors
+                        rebuild=rebuild_topics, source_errors=self._topic_sync_errors,
+                        source_identities=self._topic_source_identities,
                     )
                     if not self._snapshot_is_current(md_files):
                         raise _VaultSnapshotChangedError
@@ -169,16 +174,18 @@ class Vault:
         raise AssertionError("unreachable")
 
     def _snapshot_is_current(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> bool:
-        """Revalidate the complete eligible source set without resolving known paths twice."""
-        expected = {
-            str(candidate.relative_to(self.vault_path)): (resolved, stat)
-            for candidate, resolved, stat in md_files
-        }
+        """Validate the same complete discovery population, including skipped sources.
+
+        Oversized inputs still establish topic completeness and physical identity.
+        Reuse their validated containment, as for bounded sources, so every known
+        source needs only one containment check per attempt.
+        """
+        expected = self._source_observations
         current_candidates = {
             str(candidate.relative_to(self.vault_path)): candidate
             for candidate in self.vault_path.rglob("*.md")
         }
-        if not expected.keys() <= current_candidates.keys():
+        if current_candidates.keys() != self._source_candidates:
             return False
 
         for rel_path, (expected_resolved, expected_stat) in expected.items():
@@ -194,9 +201,8 @@ class Vault:
             if self._stat_signature(current_stat) != self._stat_signature(expected_stat):
                 return False
 
-        # Newly observed paths must be classified with the normal containment
-        # and size rules. Ineligible files do not belong to the mirrored set;
-        # any new eligible source invalidates this attempt.
+        # A previously unsafe or unreadable candidate becoming a contained file
+        # changes completeness even when it is too large for the raw mirror.
         for rel_path in current_candidates.keys() - expected.keys():
             candidate = current_candidates[rel_path]
             try:
@@ -204,20 +210,29 @@ class Vault:
                 stat = resolved.stat()
             except (PathSafetyError, FileNotFoundError, OSError):
                 continue
-            if resolved.is_file() and stat.st_size <= MAX_NOTE_BYTES:
+            if resolved.is_file():
                 return False
         return True
 
     def _discover_markdown_files(self) -> list[tuple[Path, Path, os.stat_result]]:
         """Resolve bounded Markdown sources without touching SQLite state."""
         md_files: list[tuple[Path, Path, os.stat_result]] = []
+        self._source_candidates = set()
+        self._source_observations = {}
         for candidate in self.vault_path.rglob("*.md"):
             rel_path = str(candidate.relative_to(self.vault_path))
+            self._source_candidates.add(rel_path)
             try:
                 resolved = ensure_contained(candidate, self.vault_path, must_exist=True)
+                self._topic_source_identities[rel_path] = str(resolved.relative_to(self.vault_path))
                 stat = resolved.stat()
-            except (PathSafetyError, FileNotFoundError, OSError) as exc:
+                self._source_observations[rel_path] = (resolved, stat)
+            except (PathSafetyError, FileNotFoundError) as exc:
                 logger.warning("Skipping unsafe note %s: %s", rel_path, exc)
+                continue
+            except OSError:
+                self._topic_sync_errors[rel_path] = "source cannot be inspected"
+                logger.warning("Skipping unreadable note %s", rel_path)
                 continue
             if not resolved.is_file():
                 continue

@@ -16,10 +16,11 @@ from typing import Any, Literal, Protocol, cast
 
 import yake  # type: ignore[import-untyped]
 
-from . import markdown_parser
+from . import markdown_parser, source_eligibility, topic_text
 from .config import GEIST_JOURNAL_DIR
-from .markdown_parser import iter_wikilinks, markdown_prose_lines, parse_frontmatter
-from .models import _normalise_vault_path
+from .source_eligibility import SourceEligibility
+from .topic_text import explicit_labels as _explicit_labels
+from .topic_text import topic_boundaries, topic_prose
 
 MAX_TOPICS = 5
 MAX_TOPIC_CHARS = 100_000
@@ -27,14 +28,6 @@ _SETTINGS: dict[str, Any] = {
     "lan": "en", "n": 3, "top": 50, "dedup_lim": 0.9, "window_size": 2,
 }
 _WORD = re.compile(r"[^\W_]+(?:['’\-][^\W_]+)*", re.UNICODE)
-_REGION_OPEN = re.compile(r"<!--|%%|`+")
-_LINK = re.compile(r"(!?)\[([^\]\n]*)\]\([^\)\n]*\)")
-_REFERENCE_LINK = re.compile(r"(!?)\[([^\]\n]+)\]\[[^\]\n]*\]")
-_REFERENCE_DEF = re.compile(r"(?m)^ {0,3}\[[^\]\n]+\]:[^\n]*(?:\n[ \t]+[^\n]+)*")
-_SECTION_LABELS = {
-    "notes", "references", "contents", "features", "to-do", "readme", "related",
-    "introduction", "background", "methods", "results", "discussion", "summary",
-}
 # Ranking hints, never validity rules. Subjects such as "use cases" remain eligible.
 _PREDICATE_HINTS = frozenset(
     "need needs use uses using make makes made help helps improve improves "
@@ -78,127 +71,12 @@ def topic_key(label: str) -> str:
     return " ".join(unicodedata.normalize("NFC", label).casefold().split())
 
 
-def _mask(chars: list[str], start: int, end: int, *, barrier: bool = True) -> None:
-    first = True
-    for pos in range(start, end):
-        if chars[pos] not in "\r\n":
-            chars[pos] = "." if barrier and first else " "
-            first = False
-
-
-def _mask_regions(chars: list[str], content: str) -> None:
-    """First opener owns its delimiters, including code markers in hidden metadata."""
-    text = "".join(chars)
-    pos = 0
-    while True:
-        candidates = [
-            (match.start(), order, pattern, match)
-            for order, pattern in enumerate(
-                (_REGION_OPEN, _REFERENCE_DEF, _LINK, _REFERENCE_LINK)
-            )
-            if (match := pattern.search(content if pattern == _REFERENCE_DEF else text, pos))
-            is not None
-        ]
-        if not candidates:
-            return
-        _, _, pattern, match = min(candidates, key=lambda item: item[:2])
-        if pattern == _REFERENCE_DEF:
-            _mask(chars, match.start(), match.end())
-            pos = match.end()
-            text = "".join(chars)
-            continue
-        if pattern in (_LINK, _REFERENCE_LINK):
-            if match[1]:
-                _mask(chars, match.start(), match.end())
-                pos = match.end()
-            else:
-                _mask(chars, match.start(), match.start(2), barrier=False)
-                _mask(chars, match.end(2), match.end(), barrier=False)
-                pos = match.start(2)
-            text = "".join(chars)
-            continue
-        opener = match[0]
-        if opener in {"<!--", "%%"}:
-            closer = "-->" if opener == "<!--" else "%%"
-            closing = text.find(closer, match.end())
-            end = closing + len(closer) if closing >= 0 else len(text)
-        else:
-            closing_match = re.search(
-                r"(?<!`)" + re.escape(opener) + r"(?!`)", text[match.end():]
-            )
-            if closing_match is None:
-                pos = match.end()
-                continue  # An unmatched backtick is literal Markdown prose.
-            end = match.end() + closing_match.end()
-        _mask(chars, match.start(), end)
-        pos = end
-
-
-def topic_prose(content: str) -> str:
-    """Mask code and metadata while preserving character offsets and line numbers."""
-    _, body = parse_frontmatter(content)
-    offset = len(content) - len(body)
-    chars = list(content)
-    _mask(chars, 0, offset)
-    projection = "\n".join(
-        re.sub(r"^ {0,3}(?:>[ \t]?)+", "", line) for line in body.split("\n")
-    )
-    allowed = {number for number, _ in markdown_prose_lines(projection)}
-    pos = offset
-    for number, line in enumerate(body.splitlines(keepends=True), start=1):
-        heading = re.match(r"^ {0,3}#{1,6}\s+(.+?)\s*$", line)
-        name = re.sub(r"^\d+[.)]?\s+", "", heading[1]) if heading else ""
-        if number not in allowed or (heading and topic_key(name) in _SECTION_LABELS):
-            _mask(chars, pos, pos + len(line))
-        elif line.endswith("\n") and (
-            not line.strip() or re.match(r"^ {0,3}(?:#{1,6}\s|[-*+]\s)", line)
-        ):
-            chars[pos + len(line) - 1] = "."
-        # Separate prose from a following list or heading as well.
-        if re.match(r"^ {0,3}(?:#{1,6}\s|[-*+]\s)", line) and pos > offset:
-            if chars[pos - 1] == "\n":
-                chars[pos - 1] = "."
-        pos += len(line)
-    _mask_regions(chars, content)
-    for pattern in (
-        re.compile(r"</?[A-Za-z][^>\n]*>"),
-        re.compile(r"(?:https?://|www\.)[^\s<>]+"),
-        re.compile(r"(?<!\S)#[\w/-]+"),
-    ):
-        for match in pattern.finditer("".join(chars)):
-            _mask(chars, match.start(), match.end())
-    for match in iter_wikilinks("".join(chars)):
-        if match[1]:
-            _mask(chars, match.start(), match.end())
-        else:
-            group = 3 if match[3] is not None else 2
-            _mask(chars, match.start(), match.start(group), barrier=False)
-            _mask(chars, match.end(group), match.end(), barrier=False)
-    for match in re.finditer(r"[#*_~>|\[\]]", "".join(chars)):
-        _mask(chars, match.start(), match.end(), barrier=False)
-    return "".join(chars)
-
-
-def _explicit_labels(content: str, prose: str) -> Iterator[tuple[str, int, int, str]]:
-    for match in re.finditer(r"(?m)^ {0,3}#[ \t]+(.+?)\s*$", content):
-        start, end = match.span(1)
-        label = prose[start:end].strip().rstrip(".").strip()
-        if topic_key(label) not in _SECTION_LABELS and 1 <= len(label.split()) <= 5:
-            end = start + len(prose[start:end].rstrip(". \r\n"))
-            yield label, start, end, "heading"
-    for match in iter_wikilinks(content):
-        if not match[1]:
-            start, end = match.span(3 if match[3] is not None else 2)
-            label = prose[start:end].strip()
-            if 1 <= len(label.split()) <= 3:
-                yield label, start, end, "wikilink"
-
-
 def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> list[TopicTag]:
     """Ground all labels in visible text; report oversize inputs instead of truncating."""
     if len(content) > MAX_TOPIC_CHARS:
         raise ValueError(f"topic extraction exceeds {MAX_TOPIC_CHARS} characters")
     prose = topic_prose(content)
+    boundaries = topic_boundaries(content)
     if not _WORD.search(prose):
         return []
     if extractor is None:
@@ -222,7 +100,9 @@ def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> l
                 or not math.isfinite(score) or score < 0):
             continue
         expression = r"(?<!\w)" + r"\s+".join(re.escape(w) for w in label.split()) + r"(?!\w)"
-        match = re.search(expression, prose, re.IGNORECASE)
+        match = next((candidate for candidate in re.finditer(expression, prose, re.IGNORECASE)
+                      if not any(candidate.start() < edge < candidate.end()
+                                 for edge in boundaries)), None)
         if match is None:
             continue
         tag = TopicTag(key, " ".join(label.split()), score, match.start(), match.end(),
@@ -243,9 +123,11 @@ def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> l
 @lru_cache(maxsize=1)
 def _extractor_identity() -> str:
     digest = hashlib.sha256()
-    for path in (Path(__file__), Path(markdown_parser.__file__)):
+    for path in (Path(__file__), Path(markdown_parser.__file__), Path(source_eligibility.__file__),
+                 Path(topic_text.__file__)):
         digest.update(path.read_bytes())
     digest.update(version("yake").encode())
+    digest.update(version("markdown-it-py").encode())
     digest.update(json.dumps(_SETTINGS, sort_keys=True).encode())
     return digest.hexdigest()
 
@@ -259,14 +141,13 @@ class TopicIndex:
 
     def __init__(self, db: sqlite3.Connection, exclude_paths: Sequence[str] = ()):
         self.db = db
-        self.exclude_paths = tuple(sorted({
-            _normalise_vault_path(path).strip("/")
-            for path in (*exclude_paths, GEIST_JOURNAL_DIR, "_geistfabrik") if path.strip("/")
-        }))
+        self.exclude_paths = tuple(sorted(set(exclude_paths)))
+        self._eligibility = SourceEligibility(
+            (*self.exclude_paths, GEIST_JOURNAL_DIR + "/", "_geistfabrik/")
+        )
 
-    def _excluded(self, path: str) -> bool:
-        path = _normalise_vault_path(path)
-        return any(path == prefix or path.startswith(prefix + "/") for prefix in self.exclude_paths)
+    def _excluded(self, path: str, source_file: str | None = None) -> bool:
+        return not self._eligibility.allows(path, source_file)
 
     def _algorithm_digest(self) -> str:
         return hashlib.sha256(json.dumps(
@@ -286,13 +167,19 @@ class TopicIndex:
                 self.db.rollback()
 
     def synchronize(self, *, rebuild: bool = False,
-                    source_errors: dict[str, str] | None = None) -> None:
+                    source_errors: dict[str, str] | None = None,
+                    source_identities: dict[str, str] | None = None) -> None:
         if not self.db.in_transaction:
             raise RuntimeError("Topic synchronization requires the Vault.sync transaction")
+        if source_identities is not None:
+            self.db.execute("DELETE FROM topic_source_identity")
+            self.db.executemany("INSERT INTO topic_source_identity VALUES (?, ?)",
+                                source_identities.items())
+        identities = dict(self.db.execute("SELECT source_path,resolved_path FROM topic_source_identity"))
         self.db.execute("DELETE FROM topic_source_errors")
         self.db.executemany("INSERT INTO topic_source_errors VALUES (?, ?)", (
             (path, error) for path, error in (source_errors or {}).items()
-            if not self._excluded(path)
+            if not self._excluded(path, identities.get(path))
         ))
         algorithm = self._algorithm_digest()
         rows = self.db.execute(
@@ -300,7 +187,9 @@ class TopicIndex:
             "FROM notes n LEFT JOIN note_topic_state s ON s.note_path=n.path ORDER BY n.path"
         ).fetchall()
         for path, content, source_file, previous_content, previous_algorithm, previous_status in rows:
-            if self._excluded(source_file or path):
+            if self._excluded(path, source_file) or self._excluded(
+                source_file or path, identities.get(source_file or path)
+            ):
                 self.db.execute("DELETE FROM note_topics WHERE note_path=?", (path,))
                 self.db.execute("DELETE FROM note_topic_state WHERE note_path=?", (path,))
                 continue
@@ -330,11 +219,13 @@ class TopicIndex:
         self.db.execute("DELETE FROM topics WHERE topic_key NOT IN (SELECT topic_key FROM note_topics)")
 
     def _state_from_row(self, row: tuple[Any, ...]) -> TopicState:
-        path, content, source_file, digest, algorithm, status, error, source_error = row
-        if self._excluded(source_file or path):
+        path, content, source_file, digest, algorithm, status, error, source_error, resolved = row
+        if self._excluded(path, source_file) or (resolved and self._excluded(resolved)):
             return TopicState("excluded")
         if source_error:
             return TopicState("error", str(source_error))
+        if resolved is None:
+            return TopicState("pending")  # Physical provenance has not been confirmed.
         if digest != _content_digest(content) or algorithm != self._algorithm_digest():
             return TopicState("pending")
         return TopicState("complete") if status == "complete" else TopicState("error", error)
@@ -342,9 +233,10 @@ class TopicIndex:
     def _rows(self, path: str | None = None) -> list[tuple[Any, ...]]:
         sql = (
             "SELECT n.path,n.content,n.source_file,s.source_digest,s.algorithm_digest,"
-            "s.status,s.error,e.error FROM notes n "
+            "s.status,s.error,e.error,i.resolved_path FROM notes n "
             "LEFT JOIN note_topic_state s ON s.note_path=n.path "
-            "LEFT JOIN topic_source_errors e ON e.source_path=COALESCE(n.source_file,n.path)"
+            "LEFT JOIN topic_source_errors e ON e.source_path=COALESCE(n.source_file,n.path) "
+            "LEFT JOIN topic_source_identity i ON i.source_path=COALESCE(n.source_file,n.path)"
         )
         return self.db.execute(sql + (" WHERE n.path=?" if path is not None else ""),
                                (path,) if path is not None else ()).fetchall()
@@ -356,9 +248,18 @@ class TopicIndex:
                 return self._state_from_row(rows[0])
             if self._excluded(path):
                 return TopicState("excluded")
-            error = self.db.execute(
-                "SELECT error FROM topic_source_errors WHERE source_path=?", (path,)
+            identity = self.db.execute(
+                "SELECT resolved_path FROM topic_source_identity WHERE source_path=?", (path,)
             ).fetchone()
+            if identity and self._excluded(path, identity[0]):
+                return TopicState("excluded")
+            error = self.db.execute(
+                "SELECT e.error,i.resolved_path FROM topic_source_errors e "
+                "LEFT JOIN topic_source_identity i ON i.source_path=e.source_path "
+                "WHERE e.source_path=?", (path,)
+            ).fetchone()
+            if error and self._excluded(path, error[1]):
+                return TopicState("excluded")
             return TopicState("error", error[0]) if error else TopicState("pending")
 
     def states(self) -> dict[str, TopicState]:
@@ -366,8 +267,11 @@ class TopicIndex:
             rows = self._rows()
             states = {row[0]: self._state_from_row(row) for row in rows}
             represented = {row[2] or row[0] for row in rows}
-            for path, error in self.db.execute("SELECT source_path,error FROM topic_source_errors"):
-                if path not in represented and not self._excluded(path):
+            for path, error, resolved in self.db.execute(
+                "SELECT e.source_path,e.error,i.resolved_path FROM topic_source_errors e "
+                "LEFT JOIN topic_source_identity i ON i.source_path=e.source_path"
+            ):
+                if path not in represented and not self._excluded(path, resolved):
                     states[path] = TopicState("error", error)
             return states
 

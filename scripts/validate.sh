@@ -4,6 +4,8 @@
 
 set -e  # Exit on first error
 export GEISTFABRIK_OFFLINE=1
+# Nested acceptance commands must reject dependency drift too.
+export UV_LOCKED=1
 
 echo "=================================================="
 echo "Running Local CI Validation"
@@ -41,35 +43,35 @@ run_check() {
 FAILED=0
 
 # 0. Resolve exactly the dependency set used by CI
-run_check "Dependency sync" uv sync --frozen --extra vector-search || FAILED=1
+run_check "Dependency sync" uv sync --locked --extra vector-search || FAILED=1
 
 # 1. Linting with ruff
-run_check "Ruff linting" uv run ruff check src/ tests/ || FAILED=1
+run_check "Ruff linting" uv run --frozen ruff check src/ tests/ || FAILED=1
 
 # 2. Type checking with mypy
-run_check "Mypy type checking" uv run mypy src/ --strict || FAILED=1
+run_check "Mypy type checking" uv run --frozen mypy src/ --strict || FAILED=1
 
 # 2b. Additive whole-project type checking with Astral ty
-run_check "ty type checking" uv run ty check src tests --error-on-warning || FAILED=1
+run_check "ty type checking" uv run --frozen ty check src tests --error-on-warning || FAILED=1
 
 # 3. Unused database tables check
-run_check "Unused database tables check" uv run python scripts/detect_unused_tables.py || FAILED=1
+run_check "Unused database tables check" uv run --frozen python scripts/detect_unused_tables.py || FAILED=1
 
 # 3b. Security scan (bandit, medium+ severity)
-run_check "Bandit security scan" uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q || FAILED=1
+run_check "Bandit security scan" uv run --frozen bandit -c pyproject.toml -r src/geistfabrik -ll -q || FAILED=1
 
 # 4. Unit tests (external SentenceTransformer constructor stubbed)
 # --require-geist-firing fails the lane unless every bundled geist produced a
 # Suggestion during it (tests/plugins/geist_firing.py). The lane also runs
 # tests/unit/test_suite_hygiene.py, which rejects tests that cannot fail.
 MARKERS="not slow and not benchmark and not artifact and not production_model"
-run_check "Unit tests" uv run pytest tests/unit -v -m "$MARKERS" --timeout=60 \
+run_check "Unit tests" uv run --frozen pytest tests/unit -v -m "$MARKERS" --timeout=60 \
     --require-geist-firing --cov=geistfabrik --cov-branch --cov-report= || FAILED=1
 
 # 5. Integration tests (same selection and coverage contract as CI)
-run_check "Integration tests" uv run pytest tests/integration -v -m "$MARKERS" --timeout=300 \
+run_check "Integration tests" uv run --frozen pytest tests/integration -v -m "$MARKERS" --timeout=300 \
     --cov=geistfabrik --cov-branch --cov-append --cov-report=term-missing || FAILED=1
-run_check "Branch-only coverage gate" uv run python scripts/check_branch_coverage.py \
+run_check "Branch-only coverage gate" uv run --frozen python scripts/check_branch_coverage.py \
     --minimum 70 || FAILED=1
 
 # 6. Acceptance-criteria verification (spec <-> code drift gate)
@@ -78,7 +80,7 @@ run_check "Branch-only coverage gate" uv run python scripts/check_branch_coverag
 # unwired features that would otherwise let the spec drift from the code.
 # It also rejects partial evidence: a pytest criterion that selects no tests,
 # or names a whole file while the canonical marker filter deselects some of it.
-run_check "Acceptance criteria" uv run python scripts/check_phase_completion.py || FAILED=1
+run_check "Acceptance criteria" uv run --frozen python scripts/check_phase_completion.py || FAILED=1
 
 # 6b. Workflow lint (same pinned actionlint as CI). Needs a Go toolchain;
 # without one this local run says so and CI still enforces it.

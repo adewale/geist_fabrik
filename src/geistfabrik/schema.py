@@ -17,7 +17,7 @@ from pathlib import Path
 # Version 13: Cached lexical evidence diagnostics and durable evidence lookup
 # Version 14: Compact stable-ID lexical presence projections
 # Version 15: Retain incompatible observation policies and resumable burst work
-# Version 16: Derived topics and explicit source/extraction failures
+# Version 16: Derived topics, source evidence and explicit source/extraction failures
 SCHEMA_VERSION = 16
 MIN_SUPPORTED_SCHEMA_VERSION = 3
 SQLITE_BUSY_TIMEOUT_MS = 5_000
@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS note_topics (
 CREATE INDEX IF NOT EXISTS idx_note_topics_topic ON note_topics(topic_key, note_path);
 -- Newly discovered failures have no notes row and must still block completeness.
 CREATE TABLE IF NOT EXISTS topic_source_errors (source_path TEXT PRIMARY KEY, error TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS topic_source_identity (
+    source_path TEXT PRIMARY KEY,
+    resolved_path TEXT NOT NULL
+);
 
 -- Notes table
 CREATE TABLE IF NOT EXISTS notes (

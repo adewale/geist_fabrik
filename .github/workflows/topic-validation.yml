@@ -1,0 +1,61 @@
+name: Topic validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/geistfabrik/topic*'
+      - 'tests/**/test_topic*'
+      - 'tests/fixtures/topic*.json'
+      - 'scripts/*topics.py'
+      - '.github/workflows/topic-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  canonical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      UV_PYTHON: '3.12'
+      GEISTFABRIK_OFFLINE: '1'
+      PACKAGE_SMOKE_PYTHON: '3.12'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Diagnose recovery lock and formatting drift
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Recovery diagnostic only: any generated patch fails this step.
+          # It cannot certify an uncommitted dependency or source repair.
+          uv sync --extra vector-search
+          mapfile -t python_files < <(git diff --name-only "$BASE_REF" HEAD -- '*.py')
+          if [ "${#python_files[@]}" -gt 0 ]; then
+            uv run --frozen ruff check --fix "${python_files[@]}" || true
+            uv run --frozen ruff format "${python_files[@]}"
+          fi
+          echo TOPIC_VALIDATION_PATCH_BEGIN
+          git diff --binary | base64 -w 76
+          echo TOPIC_VALIDATION_PATCH_END
+          git diff --exit-code
+      - name: Required canonical validation
+        if: always()
+        run: ./scripts/validate.sh
+      - name: Report topic quality and indexing cost
+        if: always()
+        run: |
+          uv run --frozen python scripts/evaluate_topics.py
+          uv run --frozen python scripts/benchmark_topics.py
