@@ -18,7 +18,7 @@ from textblob.en import lexicon, tokenize  # type: ignore[import-untyped]
 WORD = re.compile(r"[^\W_]+(?:['’\-][^\W_]+)*", re.UNICODE)
 # Bare VB is ambiguous with subjects such as "Use cases". Finite inflections
 # and personal/relative clauses provide stronger evidence than that base form.
-_CLAUSE = frozenset({"VBD", "VBP", "VBZ", "MD", "PRP", "PRP$", "WP", "WP$", "WRB"})
+_CLAUSE = frozenset({"VBD", "VBP", "VBZ", "MD", "PRP", "WP", "WRB"})
 _Token = tuple[int, int, str, str]
 
 
@@ -106,14 +106,19 @@ class CandidateGrammar:
         words = _words(label)
         if words == self.words:
             return True
-        tokens = [token for token in self._tokens() if start <= token[0] and token[1] <= end]
+        context = self._tokens()
+        if not any(token[3] in _CLAUSE and not token[2].isdecimal() for token in context):
+            return True  # Nominal outlines provide no clause context for disambiguation.
+        tokens = [token for token in context if start <= token[0] and token[1] <= end]
         if [unicodedata.normalize("NFC", token[2]).casefold() for token in tokens] != words:
             return True
         tags = [token[3] for token in tokens]
-        if any(tag in _CLAUSE for tag in tags):
+        if any(token[3] in _CLAUSE and not token[2].isdecimal() for token in tokens):
             return False
         if len(tags) == 1 and tags[0] == "VBG":
             return True
         return (
-            bool(tags) and tags[-1].startswith("NN") and any(tag.startswith("NN") for tag in tags)
+            bool(tags)
+            and (tags[-1].startswith("NN") or tags[-1] == "CD" or tokens[-1][2].isdecimal())
+            and any(tag.startswith("NN") for tag in tags)
         )

@@ -42,10 +42,31 @@ def test_base_form_ambiguity_preserves_a_subject_in_context() -> None:
     assert "use cases" in {tag.key for tag in extract_topics(source, _Candidates("Use cases"))}
 
 
+@pytest.mark.parametrize("subject", ["Python 3", "Area 51", "World War 2"])
+def test_noun_headed_numeric_names_remain_eligible(subject: str) -> None:
+    source = f"We discussed {subject} at the reading group."
+    assert subject.casefold() in {
+        tag.key for tag in extract_topics(source, _Candidates(subject))
+    }
+
+
+def test_nominal_note_keeps_its_adjectival_subjects() -> None:
+    tags = extract_topics("blue amber jade", _Candidates("blue", "amber", "jade"))
+    assert {tag.key for tag in tags} == {"blue", "amber", "jade"}
+
+
 def test_authored_heading_and_link_labels_keep_their_independent_evidence() -> None:
     source = "# Game over\n\nConsider [[Use cases]] before making a decision."
     keys = {tag.key for tag in extract_topics(source, _Candidates())}
     assert {"game over", "use cases"} <= keys
+
+
+@pytest.mark.parametrize("subject", ["my career", "our children", "His Dark Materials"])
+def test_possessive_noun_phrases_remain_eligible_in_context(subject: str) -> None:
+    source = f"We discussed {subject} at the reading group."
+    assert subject.casefold() in {
+        tag.key for tag in extract_topics(source, _Candidates(subject))
+    }
 
 
 def test_unmapped_words_do_not_borrow_a_later_identical_occurrence(
