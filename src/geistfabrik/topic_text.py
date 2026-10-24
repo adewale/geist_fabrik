@@ -390,8 +390,11 @@ def _syntax_ownership(
                 if (span := _mapped_span(mapping, start, end)) is not None
             )
             for start, end in tags:
-                if (span := _mapped_span(mapping, start, end)) is not None:
-                    html_openers.add(span[0])
+                html_openers.update(
+                    position
+                    for position in mapping[start:end]
+                    if position is not None and source[position] == "<"
+                )
             lines = token.content.splitlines()
             if not heading and lines and all(_PROPERTY_LINE.fullmatch(line) for line in lines):
                 properties.append(block)
@@ -537,7 +540,7 @@ def _projection(content: str) -> _Projection:
     for position, char in enumerate(html_source):
         if char == "<" and position not in html_openers:
             html_source[position] = " "
-    if "::" in source:
+    if "::" in source or html_openers or any(token.type == "html_block" for token in tokens):
         metadata, html_regions, _ = _syntax_ownership(source, tokens, environment)
         for start, end in metadata:
             _erase(output, start, end)

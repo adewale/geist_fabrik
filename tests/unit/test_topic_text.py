@@ -90,10 +90,7 @@ def test_property_inside_hidden_html_preserves_nested_closing_order() -> None:
 
 @pytest.mark.parametrize("new_tag", ["script", "div"])
 def test_unclosed_property_nesting_cannot_escape_earlier_hidden_html(new_tag: str) -> None:
-    source = (
-        f"Visible <div hidden>secret\n\nproperty:: <{new_tag}>\n\n"
-        "</div>\n\nPublic gardens.\n"
-    )
+    source = f"Visible <div hidden>secret\n\nproperty:: <{new_tag}>\n\n</div>\n\nPublic gardens.\n"
     prose = topic_prose(source)
     assert "Public gardens" in prose and "secret" not in prose
 
@@ -126,6 +123,13 @@ def test_property_raw_text_closer_inside_literal_comment_retains_its_role() -> N
     )
     prose = topic_prose(source)
     assert "Public gardens" in prose and "secret" not in prose
+
+
+@pytest.mark.parametrize("separator", ["", "\n\n"])
+def test_earlier_raw_text_can_end_inside_a_markdown_html_comment(separator: str) -> None:
+    source = f"Visible <script>{separator}<!-- </script> -->\n\nPublic gardens.\n"
+    prose = topic_prose(source)
+    assert "Public gardens" in prose
 
 
 def test_many_property_values_have_bounded_comment_processing(
