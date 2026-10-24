@@ -149,6 +149,17 @@ def test_inline_script_and_style_do_not_lose_their_opening_owner() -> None:
     assert "script" not in prose and "style" not in prose
 
 
+@pytest.mark.parametrize("tag", ["script", "style"])
+def test_self_closing_raw_text_cannot_close_parent_ownership(tag: str) -> None:
+    source = (
+        f"<div><{tag}/>ignored </div>Hidden subject</{tag}></div>\n\n"
+        "# Urban gardens\n\nUrban gardens support wildlife.\n"
+    )
+    prose = topic_prose(source)
+    assert "Hidden subject" not in prose and "ignored" not in prose
+    assert "Urban gardens" in prose and "wildlife" in prose
+
+
 def test_link_labels_still_obey_comment_and_code_rules() -> None:
     content = (
         '[seed %% hidden subject %% libraries](https://example.test/%%metadata "` title") '

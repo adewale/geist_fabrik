@@ -174,6 +174,23 @@ class Vault:
 
         raise AssertionError("unreachable")
 
+    def _markdown_candidates(self) -> list[Path]:
+        """Discover candidates without silently skipping unreadable directories."""
+
+        def fail_on_scan_error(error: OSError) -> None:
+            raise error
+
+        candidates: list[Path] = []
+        for directory, subdirectories, filenames in os.walk(
+            self.vault_path, onerror=fail_on_scan_error, followlinks=False
+        ):
+            candidates.extend(
+                Path(directory) / name
+                for name in (*subdirectories, *filenames)
+                if Path(name).match("*.md")
+            )
+        return candidates
+
     def _snapshot_is_current(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> bool:
         """Validate the same complete discovery population, including skipped sources.
 
@@ -184,7 +201,7 @@ class Vault:
         expected = self._source_observations
         current_candidates = {
             str(candidate.relative_to(self.vault_path)): candidate
-            for candidate in self.vault_path.rglob("*.md")
+            for candidate in self._markdown_candidates()
         }
         if current_candidates.keys() != self._source_candidates:
             return False
@@ -220,7 +237,7 @@ class Vault:
         md_files: list[tuple[Path, Path, os.stat_result]] = []
         self._source_candidates = set()
         self._source_observations = {}
-        for candidate in self.vault_path.rglob("*.md"):
+        for candidate in self._markdown_candidates():
             rel_path = str(candidate.relative_to(self.vault_path))
             self._source_candidates.add(rel_path)
             try:

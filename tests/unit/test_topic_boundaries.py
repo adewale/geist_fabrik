@@ -14,6 +14,46 @@ from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
 
 
+@pytest.mark.parametrize("fail_during_snapshot", [False, True])
+def test_unreadable_directory_cannot_publish_empty_completion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail_during_snapshot: bool
+) -> None:
+    import geistfabrik.vault as vault_module
+
+    folder = tmp_path / "Opaque"
+    folder.mkdir()
+    (folder / "note.md").write_text("# Urban gardens\n")
+    original_scan = vault_module.os.scandir
+    original_sync = TopicIndex.synchronize
+    deny = not fail_during_snapshot
+
+    def scan(path: Any) -> Any:
+        if deny and Path(path) == folder:
+            raise PermissionError("directory scan denied")
+        return original_scan(path)
+
+    def deny_after_topics(self: TopicIndex, **kwargs: Any) -> None:
+        nonlocal deny
+        original_sync(self, **kwargs)
+        deny = True
+
+    with closing(Vault(tmp_path)) as vault:
+        vault.sync()
+        before = vault.db.iterdump()
+        snapshot = tuple(before)
+        monkeypatch.setattr(vault_module.os, "scandir", scan)
+        if fail_during_snapshot:
+            monkeypatch.setattr(TopicIndex, "synchronize", deny_after_topics)
+        with pytest.raises(PermissionError, match="directory scan denied"):
+            vault.sync()
+        assert tuple(vault.db.iterdump()) == snapshot
+        assert TopicIndex(vault.db).paths("urban gardens") == ["Opaque/note.md"]
+        monkeypatch.setattr(vault_module.os, "scandir", original_scan)
+        monkeypatch.setattr(TopicIndex, "synchronize", original_sync)
+        vault.sync()
+        assert TopicIndex(vault.db).paths("urban gardens") == ["Opaque/note.md"]
+
+
 def test_private_physical_source_cannot_leak_through_alias(tmp_path: Path) -> None:
     private = tmp_path / "Private" / "hidden.md"
     private.parent.mkdir()

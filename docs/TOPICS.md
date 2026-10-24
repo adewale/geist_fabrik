@@ -15,7 +15,9 @@ geistfabrik topics /path/to/vault --rebuild
 Exit 0 means complete, 1 command error, 2 incomplete. Incomplete corpus queries
 return unavailable counts/memberships rather than false zeroes. Empty successful
 extraction remains distinct from pending/error/excluded work. Failed physical
-sources are recorded even when parsing could not create a note row. Diagnostics
+sources are recorded even when parsing could not create a note row. Unreadable
+directory traversal aborts sync and preserves the previous database; it cannot
+publish an empty complete index. Diagnostics
 use stderr so JSON stdout remains readable. Inspection loads no embedding model
 or user plugins.
 

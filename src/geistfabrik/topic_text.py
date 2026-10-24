@@ -246,6 +246,10 @@ class _HTMLRegions(HTMLParser):
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         # In HTML, a slash does not close non-void elements such as script/div.
         self.handle_starttag(tag, attrs)
+        if tag in self.CDATA_CONTENT_ELEMENTS:
+            # Match HTMLParser's normal start-tag raw-text handling too: apparent
+            # parent closing tags inside script/style cannot close hidden owners.
+            self.set_cdata_mode(tag)
 
     def handle_endtag(self, tag: str) -> None:
         start = self._position()
