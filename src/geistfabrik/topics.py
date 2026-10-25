@@ -1,67 +1,27 @@
-"""Local, rebuildable derived labels with exact evidence and explicit completeness."""
+"""Transactional, rebuildable topic storage with source eligibility boundaries."""
 
 import hashlib
 import json
-import math
-import re
 import sqlite3
-import unicodedata
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal
 
-import yake  # type: ignore[import-untyped]
-
-from . import markdown_parser, source_eligibility, topic_grammar, topic_text
+from . import markdown_parser, source_eligibility, topic_grammar, topic_selection, topic_text
 from .config import GEIST_JOURNAL_DIR
 from .source_eligibility import SourceEligibility
-from .topic_grammar import WORD as _WORD
-from .topic_grammar import CandidateGrammar
-from .topic_text import explicit_labels as _explicit_labels
-from .topic_text import topic_boundaries, topic_prose
-
-MAX_TOPICS = 5
-MAX_TOPIC_CHARS = 100_000
-# A label budget must not force weak standalone-word padding. Phrase evidence
-# remains eligible across gaps; authored priors do not create statistical gaps.
-_MAX_SCORE_GAP = 8.0
-_SETTINGS: dict[str, Any] = {
-    "lan": "en",
-    "n": 3,
-    "top": 50,
-    "dedup_lim": 0.9,
-    "window_size": 2,
-}
-# Ranking hints, never validity rules. Subjects such as "use cases" remain eligible.
-_PREDICATE_HINTS = frozenset(
-    "need needs use uses using make makes made help helps improve improves "
-    "develop develops connect connects change changes reduce reduces include includes "
-    "depend depends begin begins contain contains combine combines explore explores "
-    "protect protects detect detects disagree evolve evolves discussed focused "
-    "through over and or but".split()
-)
-
-
-class KeywordExtractor(Protocol):
-    def extract_keywords(self, text: str, /) -> list[tuple[str, float]]: ...
-
-
-@dataclass(frozen=True)
-class TopicTag:
-    """A label and its exact evidence in stored note/virtual-entry content."""
-
-    key: str
-    label: str
-    score: float
-    start: int
-    end: int
-    text: str
-    line: int
-    provenance: str = "yake"
+from .topic_selection import MAX_TOPIC_CHARS as MAX_TOPIC_CHARS
+from .topic_selection import MAX_TOPICS as MAX_TOPICS
+from .topic_selection import KeywordExtractor as KeywordExtractor
+from .topic_selection import SETTINGS as _SETTINGS
+from .topic_selection import TopicTag as TopicTag
+from .topic_selection import extract_topics as extract_topics
+from .topic_selection import topic_key as topic_key
+from .topic_text import topic_prose as topic_prose
 
 
 @dataclass(frozen=True)
@@ -74,102 +34,6 @@ class TopicIndexIncompleteError(RuntimeError):
     """Unfinished extraction cannot establish absence or corpus counts."""
 
 
-def topic_key(label: str) -> str:
-    """Case/Unicode/whitespace normalization only; no semantic merging or stemming."""
-    return " ".join(unicodedata.normalize("NFC", label).casefold().split())
-
-
-def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> list[TopicTag]:
-    """Ground all labels in visible text; report oversize inputs instead of truncating."""
-    if len(content) > MAX_TOPIC_CHARS:
-        raise ValueError(f"topic extraction exceeds {MAX_TOPIC_CHARS} characters")
-    prose = topic_prose(content)
-    boundaries = topic_boundaries(content)
-    if not _WORD.search(prose):
-        return []
-    if extractor is None:
-        extractor = cast(KeywordExtractor, yake.KeywordExtractor(**_SETTINGS))
-    grammar = CandidateGrammar(prose, boundaries)
-    tags: dict[str, TopicTag] = {}
-    for label, start, end, provenance in _explicit_labels(content, prose):
-        key = topic_key(label)
-        if len(key) >= 2 and " ".join(_WORD.findall(key)) == key and any(c.isalpha() for c in key):
-            tags.setdefault(
-                key,
-                TopicTag(
-                    key,
-                    label,
-                    0.0 if provenance == "heading" else 0.001,
-                    start,
-                    end,
-                    content[start:end],
-                    content.count("\n", 0, start) + 1,
-                    provenance,
-                ),
-            )
-    for label, raw_score in extractor.extract_keywords(prose):
-        key = topic_key(label)
-        words = _WORD.findall(key)
-        score = float(raw_score)
-        if any(word in _PREDICATE_HINTS for word in words):
-            score *= 32.0
-        if (
-            not words
-            or " ".join(words) != key
-            or not any(c.isalpha() for c in key)
-            or len(key) < 2
-            or len(set(words)) != len(words)
-            or not math.isfinite(score)
-            or score < 0
-        ):
-            continue
-        expression = r"(?<!\w)" + r"\s+".join(re.escape(w) for w in label.split()) + r"(?!\w)"
-        match = next(
-            (
-                candidate
-                for candidate in re.finditer(expression, prose, re.IGNORECASE)
-                if not any(candidate.start() < edge < candidate.end() for edge in boundaries)
-                and grammar.allows(label, candidate.start(), candidate.end())
-            ),
-            None,
-        )
-        if match is None:
-            continue
-        tag = TopicTag(
-            key,
-            " ".join(label.split()),
-            score,
-            match.start(),
-            match.end(),
-            content[match.start() : match.end()],
-            content.count("\n", 0, match.start()) + 1,
-        )
-        if key not in tags or score < tags[key].score:
-            tags[key] = tag
-    selected: list[TopicTag] = []
-    previous_statistical_cost: float | None = None
-    for tag in sorted(tags.values(), key=lambda item: (item.score, item.key)):
-        if any(
-            f" {tag.key} " in f" {other.key} " or f" {other.key} " in f" {tag.key} "
-            for other in selected
-        ):
-            continue
-        if (
-            tag.provenance == "yake"
-            and len(tag.key.split()) == 1
-            and previous_statistical_cost is not None
-            and previous_statistical_cost > 0
-            and tag.score > previous_statistical_cost * _MAX_SCORE_GAP
-        ):
-            continue
-        selected.append(tag)
-        if tag.provenance == "yake":
-            previous_statistical_cost = tag.score
-        if len(selected) == MAX_TOPICS:
-            break
-    return selected
-
-
 @lru_cache(maxsize=1)
 def _extractor_identity() -> str:
     digest = hashlib.sha256()
@@ -179,6 +43,7 @@ def _extractor_identity() -> str:
         Path(source_eligibility.__file__),
         Path(topic_text.__file__),
         Path(topic_grammar.__file__),
+        Path(topic_selection.__file__),
     ):
         digest.update(path.read_bytes())
     digest.update(version("yake").encode())

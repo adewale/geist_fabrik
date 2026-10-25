@@ -50,14 +50,14 @@ jobs:
       - name: Check diagnostic code
         working-directory: project
         run: |
-          uv run --frozen ruff check scripts/probe_topic_quality.py
-          uv run --frozen ruff format --diff scripts/probe_topic_quality.py
+          uv run --frozen ruff check scripts/probe_topic_quality.py scripts/topic_legacy_grammar.py
+          uv run --frozen ruff format --diff scripts/probe_topic_quality.py scripts/topic_legacy_grammar.py
       - name: Diagnose frozen quality failures with real YAKE
         if: always()
         working-directory: project
         run: |
           uv run --frozen python -m scripts.probe_topic_quality \
-            --grammar --lyt ../corpora/lyt --output "$RUNNER_TEMP/topic-quality-probes.json"
+            --phase calibrate --lyt ../corpora/lyt --output "$RUNNER_TEMP/topic-quality-probes.json"
       - name: Retain source-bound diagnostic report
         if: always()
         uses: actions/upload-artifact@v7

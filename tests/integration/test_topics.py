@@ -27,6 +27,35 @@ def _run(path: Path, *options: str) -> int:
     return TopicsCommand(args).run()
 
 
+def test_explained_inspection_matches_stored_labels(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = _vault_path(tmp_path)
+    assert _run(path, "--json", "--note", "cakes", "--explain") == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["explanation"]["topics"] == report["topics"]
+    assert any(row["selected"] for row in report["explanation"]["candidates"])
+
+
+def test_explanation_does_not_extract_an_excluded_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import geistfabrik.commands.topics as command_module
+
+    path = _vault_path(tmp_path)
+    (path / "Templates").mkdir()
+    (path / "Templates/hidden.md").write_text("# Secret subject\n")
+
+    def forbidden(_content: str) -> None:
+        raise AssertionError("excluded source must not enter explanation extraction")
+
+    monkeypatch.setattr(command_module, "explain_topics", forbidden)
+    assert _run(path, "--json", "--note", "Templates/hidden.md", "--explain") == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["note"]["status"] == "excluded"
+    assert report["explanation"] is None and report["topics"] is None
+
+
 def test_inspection_is_model_free_clean_json_and_preserves_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

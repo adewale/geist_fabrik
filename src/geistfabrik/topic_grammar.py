@@ -9,6 +9,7 @@ import hashlib
 import importlib.resources
 import re
 import unicodedata
+from dataclasses import dataclass
 from importlib.metadata import version
 from typing import cast
 
@@ -91,64 +92,129 @@ def _tag_block(block: str) -> list[list[tuple[str, str]]]:
     return result
 
 
+@dataclass(frozen=True)
+class GrammarDecision:
+    """Candidate eligibility and its mapped, original-source sentence context.
+
+    Reason codes describe this grammatical gate only, not overall topic quality.
+    Missing context bounds mean alignment could not establish a safe sentence.
+    """
+
+    allowed: bool
+    reason: str
+    context_start: int | None
+    context_end: int | None
+
+
+@dataclass(frozen=True)
+class _SentenceContext:
+    start: int
+    end: int
+    tokens: tuple[_Token, ...]
+
+
 class CandidateGrammar:
-    """Keep uncertain alignments; never borrow a later occurrence for a token."""
+    """Judge each occurrence within its sentence; preserve uncertain alignments.
+
+    Sentence segmentation and tagging are local to a visible block. Unrelated
+    blocks or sentences cannot supply the finite-clause gate for a candidate.
+    """
 
     def __init__(self, prose: str, boundaries: tuple[int, ...]) -> None:
         self.prose = prose
         self.boundaries = boundaries
-        self.words = _words(prose)
-        self.tokens: list[_Token] | None = None
+        self._contexts: list[_SentenceContext] | None = None
 
-    def _tokens(self) -> list[_Token]:
-        if self.tokens is not None:
-            return self.tokens
-        result: list[_Token] = []
+    def _sentences(self) -> list[_SentenceContext]:
+        if self._contexts is not None:
+            return self._contexts
+        result: list[_SentenceContext] = []
         edges = sorted({0, len(self.prose), *self.boundaries})
         for start, end in zip(edges, edges[1:]):
             block = self.prose[start:end]
-            cursor = 0
-            mapped: list[_Token] = []
-            complete = True
-            for sentence in _tag_block(block):
+            try:
+                spans = list(_SENTENCES.span_tokenize(block.translate(_SCORING_QUOTES)))
+            except ValueError:
+                continue  # An unsupported source layout supplies no safe context.
+            for local_start, local_end in spans:
+                source = block[local_start:local_end]
+                tagged = _tag_block(source)
+                if len(tagged) != 1:
+                    continue
+                sentence = tagged[0]
+                offset = start + local_start
+                cursor = 0
+                tokens: list[_Token] = []
+                complete = True
                 for word, tag in sentence:
                     word = word.replace("&slash;", "/")
-                    position = block.find(word, cursor)
+                    position = source.find(word, cursor)
                     if position < 0:
                         if WORD.search(word):
                             complete = False
                             break
                         continue
-                    if WORD.search(block[cursor:position]):
+                    if WORD.search(source[cursor:position]):
                         complete = False
                         break
                     cursor = position + len(word)
                     if WORD.fullmatch(word):
-                        mapped.append((start + position, start + cursor, word, tag))
-                if not complete:
-                    break
-            if complete and not WORD.search(block[cursor:]):
-                result.extend(mapped)
-        self.tokens = result
+                        tokens.append((offset + position, offset + cursor, word, tag))
+                # Check the entire source sentence, including omitted trailing
+                # words. Never borrow a later occurrence or poison a different
+                # sentence's alignment because this one could not be mapped.
+                if complete and not WORD.search(source[cursor:]):
+                    result.append(_SentenceContext(offset, start + local_end, tuple(tokens)))
+        self._contexts = result
         return result
 
-    def allows(self, label: str, start: int, end: int) -> bool:
+    def decision(self, label: str, start: int, end: int) -> GrammarDecision:
+        """Explain the grammar gate for this exact candidate occurrence.
+
+        Context bounds include the mapped sentence's punctuation and retain
+        original offsets. Token alignment uncertainty keeps the candidate;
+        packaged tagger failures propagate rather than becoming empty evidence.
+        """
+        if not 0 <= start < end <= len(self.prose):
+            return GrammarDecision(True, "uncertain_alignment", None, None)
+        context = next(
+            (
+                sentence
+                for sentence in self._sentences()
+                if sentence.start <= start and end <= sentence.end
+            ),
+            None,
+        )
+        if context is None:
+            return GrammarDecision(True, "uncertain_alignment", None, None)
+
+        context_start, context_end = context.start, context.end
+
+        def outcome(allowed: bool, reason: str) -> GrammarDecision:
+            return GrammarDecision(allowed, reason, context_start, context_end)
+
         words = _words(label)
-        if words == self.words:
-            return True
-        context = self._tokens()
-        if not any(token[3] in _CLAUSE and not token[2].isdecimal() for token in context):
-            return True  # Nominal outlines provide no clause context for disambiguation.
-        tokens = [token for token in context if start <= token[0] and token[1] <= end]
+        if not words or _words(self.prose[start:end]) != words:
+            return outcome(True, "uncertain_alignment")
+        if words == _words(self.prose[context.start:context.end]):
+            return outcome(True, "isolated_subject")
+        if not any(token[3] in _CLAUSE and not token[2].isdecimal() for token in context.tokens):
+            return outcome(True, "nominal_context")
+        tokens = [token for token in context.tokens if start <= token[0] and token[1] <= end]
         if [unicodedata.normalize("NFC", token[2]).casefold() for token in tokens] != words:
-            return True
+            return outcome(True, "uncertain_alignment")
         tags = [token[3] for token in tokens]
         if any(token[3] in _CLAUSE and not token[2].isdecimal() for token in tokens):
-            return False
+            return outcome(False, "clause_fragment")
         if len(tags) == 1 and tags[0] == "VBG":
-            return True
-        return (
+            return outcome(True, "noun_phrase")
+        nominal = (
             bool(tags)
             and (tags[-1].startswith(("NN", "JJ")) or tags[-1] == "CD" or tokens[-1][2].isdecimal())
             and any(tag.startswith("NN") for tag in tags)
         )
+        return outcome(nominal, "noun_phrase" if nominal else "non_nominal_fragment")
+
+    def allows(self, label: str, start: int, end: int) -> bool:
+        """Compatibility predicate for callers that do not need the explanation."""
+        return self.decision(label, start, end).allowed

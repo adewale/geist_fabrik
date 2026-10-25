@@ -1,67 +1,89 @@
-# Automatic derived topics
+# Automatic topics
 
-Normal vault sync extracts up to five English topic labels per eligible note or
-dated entry using local YAKE, short primary headings, and visible wikilink names.
-Topics and exact evidence live in SQLite, separate from authored tags; Markdown
-and frontmatter are never rewritten. Schema v16 migrates automatically.
+GeistFabrik derives a local topic index during normal vault sync. Up to five
+English labels per eligible note or dated entry connect observed subjects to
+source notes. Existing geists and Tracery can consume the index through
+VaultContext. This work adds shared metadata and inspection, with no new geist.
 
-```
-geistfabrik topics /path/to/vault
-geistfabrik topics /path/to/vault --note '[[My note]]' --json
+## Contracts
+
+- Markdown, frontmatter and authored tags remain unchanged; derived memberships
+  and exact evidence live in the existing SQLite database.
+- Shared exclusions apply to logical, physical and dated-entry identities before
+  extraction or counts. Hidden syntax, metadata and non-prose remain outside the
+  candidate text. Pending/error/excluded states are distinct from complete-empty.
+- Topic keys normalize Unicode, case and whitespace only. Singleton subjects
+  remain eligible; there is no public-topic promotion floor or semantic merging.
+- Normal operation requires no network, LLM, background service or dashboard.
+  Inspection loads neither an embedding model nor user plugins.
+- Edits, deletions, code/data/settings changes invalidate derived results. A clean
+  rebuild must match incremental state; extraction errors never certify absence.
+- Topics describe observed text, without claims about stance or intent. Suggestion
+  sampling, boundaries, preview and explicit `--write` retain their existing flow.
+
+## Pipeline and decisions
+
+Source eligibility and the offset-preserving Markdown projection are hard
+boundaries. YAKE proposes labels from the admitted prose. The separate selection
+module grounds occurrences, applies the current relevance policy, and returns
+bounded labels. The transactional index stores them; geists never repeat this
+processing or query its tables directly.
+
+Relevance is fallible. Seven rules are measured independently and in combination:
+heading priors, link priors, predicate hints, relative score-gap abstention,
+containment suppression, repeated-word filtering and grammatical eligibility.
+Grammar uses only the occurrence's mapped sentence within a visible block.
+Unrelated sentences cannot change that decision. Uncertain alignment preserves
+candidates; unavailable packaged grammar produces an extraction error.
+
+```sh
+geistfabrik topics /path/to/vault --note '[[My note]]' --json --explain
 geistfabrik topics /path/to/vault --topic 'paper folding'
 geistfabrik topics /path/to/vault --rebuild
 ```
 
-Exit 0 means complete, 1 command error, 2 incomplete. Incomplete corpus queries
-return unavailable counts/memberships rather than false zeroes. Empty successful
-extraction remains distinct from pending/error/excluded work. Failed physical
-sources are recorded even when parsing could not create a note row. Unreadable
-directory traversal aborts sync and preserves the previous database; it cannot
-publish an empty complete index. Diagnostics
-use stderr so JSON stdout remains readable. Inspection loads no embedding model
-or user plugins.
+An explanation separates structural mask spans from grounding, relevance and
+selection decisions. It lists every proposal, inspected occurrence, local grammar
+reason, score adjustment and final selection/rejection reason. Masked source text
+is not exposed. Excluded or incomplete notes are not re-extracted for explanation.
+Scores are ordering values, not probabilities. Exit codes: 0 complete, 1 error,
+2 incomplete; unavailable memberships/counts are null rather than false zeroes.
 
-VaultContext exposes `topics_for_note`, `topic_state`, `notes_for_topic`, and
-`topic_catalog`. Metadata contains `derived_topics` and `derived_topics_status`.
-Tracery functions `note_topics(note)` return label text and `topic_notes(topic,
-count=5)` return deterministically sampled, bracketed links. Suggestions retain
-the existing sampling, filtering, preview, and explicit `--write` controls.
+## Boilerplate policy
 
-Keys normalize Unicode, case and whitespace only; no stemming, semantic merging,
-public-topic threshold, corpus frequency floor, or popularity ranking. Singleton
-topics remain valid. Scores rank labels, not provocations, and are not calibrated
-probabilities. Five is a maximum, not a quota: a large relative score gap can
-exclude weak standalone words; explicit labels and multiword phrases remain
-eligible under their own evidence rules. This policy is corpus-independent and
-permits isolated subjects.
-Membership is textual evidence, never stance, emotion or intention.
+| Source role | Policy |
+| --- | --- |
+| Excluded source or structurally empty visible prose | Hard boundary; zero assigned topics. |
+| Substantive outline or filled part of a form | Empty siblings/children alone cannot suppress observed subject evidence. |
+| Unused form with nominal prompt wording | Syntax, repetition and grammar alone cannot distinguish every prompt from an authored category; retain uncertainty and report noise. |
 
-Statistical candidates also pass a local English grammar guard using packaged
-TextBlob rules and data-free NLTK tokenizers. It can reject clause fragments while
-preserving authored priors, isolated subjects and nominal outlines. It keeps
-uncertain alignments and reports model failures through the existing incomplete
-handling. Typographic scoring copies do not rewrite source evidence or merge
-topic identities. Grammar is a heuristic: useful subjects can be missed and
-noun-like boilerplate can remain. Complete means extraction finished, not that
-every meaningful subject was found. See the [repair decisions](TOPIC_QUALITY_REPAIR.md).
+This tradeoff is frozen in the [experiment plan](../benchmarks/corpora/topic_policy_experiment.json)
+before new measurements. The old LYT empty-form zero-false-topic gate remains
+unchanged and failed until actually satisfied. Its failure is not hidden by
+excluding Calendar, reading excluded templates, adding journal word lists or
+changing the oracle. [Constructed contrasts](../benchmarks/corpora/topic_boilerplate_controls.json)
+cover empty forms, meaningful outlines and partially completed forms.
 
-Frontmatter, code, comments, transclusions, authored tags, link destinations and
-reference metadata and hidden HTML bodies are excluded using parser-owned spans.
-Property-only paragraphs such as `up:: ...` or `tags:: ...` are structural metadata,
-including their visible link values. Headings, code, namespace expressions and
-mixed prose remain distinct document roles; no property-name stoplist is used.
-Visible link wording remains continuous with surrounding prose. Structurally
-ambiguous comment processing is bounded at 32 reparses and reports an error when
-that work limit is exhausted. Shared source boundaries (including Templates/),
-configured prefixes, the geist journal and managed-state directory are excluded
-before extraction/counts even when
-suggestion boundary filtering is disabled. Logical, dated-entry and resolved
-physical identities must all be eligible, including cached reads after reopen.
-Raw inputs over 100,000 characters
-produce explicit errors, never silently truncated labels. Content/parser/extractor/
-settings/boundary and packaged grammar-data changes invalidate cached results;
-edits and deletions reconcile
-memberships during normal sync. Related reads share one database snapshot.
+## Evaluation and current results
 
-See [verification status](TOPICS_VERIFICATION.md) and the
-[guiding principles](../specs/TOPIC_EVIDENCE_SPEC.md).
+The controlled experiment compares all 128 rule combinations with identical
+cached real YAKE proposals on the four unchanged calibration fixtures. Selection
+requires their numeric floors, no increased empty-case noise and unchanged
+known-answer regressions; eligible policies are ranked by simplicity before
+quality tie-breaks. A selection receipt must be committed before fresh evaluation.
+
+Sixteen previously unselected LYT sources were frozen by a length-stratified path
+hash. Two independent source-only model annotators and a third adjudicator labelled
+them before extraction. The chosen policy is evaluated once alongside clean YAKE
+and the frozen legacy comparator. Underspecified sources remain visible separately.
+These are model annotations from one public PKM vault, not human judgments or a
+claim about arbitrary personal vaults. No tuning follows that held-out evaluation.
+
+New policy measurements and validation are pending. The preceding published
+implementation passed all six corpora/120 replay snapshots, but retained an
+unused-form false topic and unperformed human relevance review. Those prior
+results do not certify the changed policy. See [current verification](TOPICS_VERIFICATION.md).
+
+Raw historical evidence is preserved byte-for-byte in a [durable Git archive](../benchmarks/archives/topics/README.md),
+with checksums and standard-library verification/restoration commands. The
+[specification](../specs/TOPIC_EVIDENCE_SPEC.md) remains the delivery contract.

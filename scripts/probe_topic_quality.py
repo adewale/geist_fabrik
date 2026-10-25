@@ -1,167 +1,585 @@
-"""Diagnose selection policy on frozen sources; never alter production policy or gold.
+"""Frozen factorial calibration and separately authorized held-out topic evaluation.
 
-These are implementation-aware ablations, not fresh validation or owner ratings.
-All assigned labels are scored at the existing maximum and fixed thresholds.
+Calibration never opens fresh evidence. Holdout requires a committed calibration
+receipt and its selected production policy before reading fresh sources. Helpers
+and their tests use stdlib only; experiments require the locked dependencies.
 """
 
+from __future__ import annotations
+
 import argparse
+import ast
+import base64
+import gzip
 import hashlib
+import itertools
 import json
+import runpy
 import subprocess
+from collections import Counter
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict
-from functools import partial
 from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any, Protocol
 from unittest.mock import patch
 
-import yake
-
-from geistfabrik import topics
-from scripts import evaluate_topics as evaluation
-from scripts.generate_narrative_corpus import generate_narrative_corpus
-from scripts.generate_temporal_corpus import apply_snapshot
-
 REPO = Path(__file__).resolve().parents[1]
+PINNED_LYT = "e191473fcb326df78cca8a6c49b29420ab318e46"
+RULES = ("heading_prior", "link_prior", "predicate_penalty", "score_gap", "containment",
+         "repeated_words", "grammar")
+PLAN = Path("benchmarks/corpora/topic_policy_experiment.json")
+CONTROLS = Path("benchmarks/corpora/topic_boilerplate_controls.json")
+CALIBRATION = {
+    "synthetic": Path("tests/fixtures/topic_gold.json"),
+    "public-starter": Path("tests/fixtures/topic_real_gold.json"),
+    "narrative": Path("benchmarks/corpora/topic_narrative_proxy_gold.json"),
+    "lyt": Path("benchmarks/corpora/topic_lyt_proxy_gold.json"),
+}
+FORMAT = "geistfabrik-topic-policy-experiment-v1"
+ARCHIVE_BEGIN = "TOPIC_POLICY_ARCHIVE_BEGIN"
+ARCHIVE_END = "TOPIC_POLICY_ARCHIVE_END"
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lyt", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--grammar", action="store_true")
-    args = parser.parse_args()
-    observed = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=args.lyt, text=True
-    ).strip()
-    if observed != "e191473fcb326df78cca8a6c49b29420ab318e46":
-        raise AssertionError("LYT source checkout is not the frozen mirror")
-    subprocess.run(["git", "diff", "--quiet", "HEAD", "--", "."], cwd=args.lyt, check=True)
-    original_labels = topics._explicit_labels
-    original_extract = topics.extract_topics
-    original_grammar = topics.CandidateGrammar
-    candidate_cache = {}
+class KeywordSource(Protocol):
+    def extract_keywords(self, text: str, /) -> list[tuple[str, float]]: ...
 
-    class NoGrammar:
-        def __init__(self, prose, boundaries):
-            pass
 
-        def allows(self, label, start, end):
-            return True
+def sha256(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
 
-    class CachedCandidates:
-        def extract_keywords(self, text):
-            if text not in candidate_cache:
-                candidate_cache[text] = yake.KeywordExtractor(**topics._SETTINGS).extract_keywords(
-                    text
-                )
-            return candidate_cache[text]
 
-    extractor = CachedCandidates()
+def json_bytes(value: Any) -> bytes:
+    return (json.dumps(value, ensure_ascii=True, sort_keys=True, indent=2,
+                       allow_nan=False) + "\n").encode("ascii")
 
-    def without_link_prior(content, prose):
-        return (row for row in original_labels(content, prose) if row[3] != "wikilink")
 
-    def selected(
-        content,
-        *,
-        budget=5,
-        link_prior=True,
-        predicate_penalty=True,
-        block_sentences=False,
-        grammar=False,
-    ):
-        boundaries = topics.topic_boundaries(content)
+def all_policies() -> list[dict[str, bool]]:
+    return [dict(zip(RULES, bits)) for bits in itertools.product((False, True), repeat=len(RULES))]
 
-        class BlockCandidates:
-            def extract_keywords(self, text):
-                if block_sentences:
-                    edges = sorted({0, len(text), *boundaries})
-                    text = "\n.\n".join(text[a:b] for a, b in zip(edges, edges[1:]))
-                return extractor.extract_keywords(text)
 
-        with (
-            patch.object(topics, "CandidateGrammar", original_grammar if grammar else NoGrammar),
-            patch.object(
-                topics, "_explicit_labels", original_labels if link_prior else without_link_prior
-            ),
-            patch.object(
-                topics,
-                "_PREDICATE_HINTS",
-                topics._PREDICATE_HINTS if predicate_penalty else frozenset(),
-            ),
-        ):
-            return original_extract(
-                content, extractor=BlockCandidates() if block_sentences else extractor
-            )[:budget]
+def policy_name(policy: Mapping[str, bool]) -> str:
+    if not any(policy.values()):
+        return "clean-yake"
+    if all(policy.values()):
+        return "local-full"
+    return "+".join(rule for rule in RULES if policy[rule])
 
-    policies = {
-        "baseline": {},
-        "at-most-one": {"budget": 1},
-        "at-most-two": {"budget": 2},
-        "at-most-three": {"budget": 3},
-        "at-most-four": {"budget": 4},
-        "without-link-prior": {"link_prior": False},
-        "without-predicate-penalty": {"predicate_penalty": False},
-        "without-link-prior-at-most-three": {"link_prior": False, "budget": 3},
-        "block-sentence-scoring": {"block_sentences": True},
+
+def validate_policy(policy: Any) -> dict[str, bool]:
+    if not isinstance(policy, dict) or set(policy) != set(RULES):
+        raise ValueError("Selection must specify exactly the seven frozen rules")
+    if any(type(value) is not bool for value in policy.values()):
+        raise ValueError("Policy switches must be booleans")
+    return {rule: policy[rule] for rule in RULES}
+
+
+class ProposalCache:
+    """One real proposal computation per exact prose, independent of policy."""
+
+    def __init__(self, factory: Callable[[], KeywordSource]) -> None:
+        self.factory = factory
+        self.proposals: dict[str, tuple[tuple[str, float], ...]] = {}
+
+    def extract_keywords(self, text: str, /) -> list[tuple[str, float]]:
+        if text not in self.proposals:
+            self.proposals[text] = tuple(self.factory().extract_keywords(text))
+        return list(self.proposals[text])
+
+
+class GrammarCache:
+    def __init__(self, factory: Callable[..., Any]) -> None:
+        self.factory = factory
+        self.instances: dict[tuple[str, tuple[int, ...]], Any] = {}
+
+    def __call__(self, prose: str, boundaries: tuple[int, ...]) -> Any:
+        key = prose, boundaries
+        if key not in self.instances:
+            self.instances[key] = self.factory(prose, boundaries)
+        return self.instances[key]
+
+
+def empty_case_labels(report: Mapping[str, Any]) -> int:
+    return sum(len(labels) for labels in report["empty_case_predictions"].values())
+
+
+def viability(reports: Mapping[str, Mapping[str, Any]],
+              legacy: Mapping[str, Mapping[str, Any]],
+              contract_failures: Sequence[str] = ()) -> list[str]:
+    """Non-regression eligibility does not waive any existing empty-case gate."""
+    failures = [f"frozen_contract:{name}" for name in contract_failures]
+    for name, report in reports.items():
+        for metric in ("precision", "recall"):
+            if report["metrics"]["yake"][metric] < report[f"minimum_{metric}"]:
+                failures.append(f"{name}:{metric}_floor")
+        if empty_case_labels(report) > empty_case_labels(legacy[name]):
+            failures.append(f"{name}:additional_empty_case_labels")
+    return failures
+
+
+def rank_policy(policy: Mapping[str, bool], reports: Mapping[str, Mapping[str, Any]],
+                ) -> tuple[int, bool, bool, float, float, str]:
+    return (sum(policy.values()), policy["grammar"], policy["predicate_penalty"],
+            -min(report["metrics"]["yake"]["precision"] for report in reports.values()),
+            -min(report["metrics"]["yake"]["recall"] for report in reports.values()),
+            policy_name(policy))
+
+
+def select_policy(reports: Mapping[str, Mapping[str, Any]], previous: Mapping[str, bool],
+                  contracts: Mapping[str, Sequence[str]]) -> dict[str, Any]:
+    eligible = []
+    failures = {}
+    for policy in all_policies():
+        name = policy_name(policy)
+        rejected = viability(reports[name], reports["legacy"], contracts[name])
+        failures[name] = rejected
+        if not rejected:
+            eligible.append(policy)
+    selected = (min(eligible, key=lambda policy: rank_policy(policy, reports[policy_name(policy)]))
+                if eligible else dict(previous))
+    return {
+        "selected_policy": selected, "selected_policy_name": policy_name(selected),
+        "viable_policy_found": bool(eligible),
+        "simplification_succeeded": bool(eligible)
+        and sum(selected.values()) < sum(previous.values()),
+        "selection_outcome": ("ranked_eligible_policy" if eligible
+                              else "no_eligible_local_policy_keep_published_implementation"),
+        "selected_policy_is_diagnostic_only": not bool(eligible),
+        "eligible_policy_names": sorted(policy_name(policy) for policy in eligible),
+        "viability_failures": failures,
     }
-    if args.grammar:
-        policies["contextual-grammar"] = {"grammar": True}
-    reports = {}
-    diagnostics = {}
-    with TemporaryDirectory(prefix="topic-quality-probe-") as directory:
+
+
+def verified_content(note: Mapping[str, Any], source_root: Path) -> str:
+    if "source_path" not in note:
+        return str(note["content"])
+    source = (source_root / note["source_path"]).resolve()
+    if not source.is_relative_to(source_root.resolve()):
+        raise ValueError("Source must remain inside the pinned checkout")
+    raw = source.read_bytes()
+    if sha256(raw) != note["source_sha256"]:
+        raise ValueError(f"Frozen source changed: {note['source_path']}")
+    return raw.decode("utf-8")
+
+
+def verify_fresh_sources(manifest: Mapping[str, Any], gold: Mapping[str, Any], source_root: Path,
+                         *, expected_count: int = 16) -> dict[str, str]:
+    """Check every source, including underspecified/empty cases, before extraction."""
+    if manifest["source_commit"] != PINNED_LYT:
+        raise ValueError("Fresh manifest must bind the pinned LYT commit")
+    selected = {note["id"]: note for note in manifest["notes"]}
+    annotated = {note["id"]: note for note in gold["notes"]}
+    if (len(selected) != expected_count or len(annotated) != expected_count
+            or len(manifest["notes"]) != expected_count or len(gold["notes"]) != expected_count
+            or selected.keys() != annotated.keys()):
+        raise ValueError("Fresh selection/annotations must retain every unique selected case")
+    contents = {}
+    for identifier, note in annotated.items():
+        chosen = selected[identifier]
+        if any(chosen[field] != note[field] for field in ("source_path", "source_sha256")):
+            raise ValueError(f"Fresh annotation source mismatch: {identifier}")
+        if note["classification"] not in {"substantive", "empty", "underspecified"}:
+            raise ValueError(f"Unknown fresh classification: {identifier}")
+        contents[identifier] = verified_content(note, source_root)
+        raw = (source_root / chosen["source_path"]).read_bytes()
+        blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+        if len(raw) != chosen["bytes"] or blob != chosen["source_git_blob"]:
+            raise ValueError(f"Fresh source size/blob mismatch: {identifier}")
+    return contents
+
+
+def budget_recall_ceiling(expected: Sequence[Iterable[str]], limit: int = 5) -> float | None:
+    """Maximum required-group coverage at the label budget, allowing shared aliases."""
+    if not expected:
+        return None
+    aliases: dict[str, int] = {}
+    for index, group in enumerate(expected):
+        for alias in group:
+            aliases[alias] = aliases.get(alias, 0) | (1 << index)
+    masks = set(aliases.values())
+    possible = {0}
+    full = (1 << len(expected)) - 1
+    for _ in range(limit):
+        possible |= {existing | mask for existing in possible for mask in masks}
+        if full in possible:
+            return 1.0
+    return max(mask.bit_count() for mask in possible) / len(expected)
+
+
+def score_holdout(gold: Mapping[str, Any], predictions: Mapping[str, Sequence[str]],
+                  normalise: Callable[[str], str]) -> dict[str, Any]:
+    """Keep all predictions; uncertain annotations never enter substantive macro scores."""
+    cases = []
+    substantive = []
+    underspecified = []
+    hard_empty = []
+    if gold["limit"] != 5:
+        raise ValueError("Holdout must score every label at the fixed limit five")
+    if set(predictions) != {note["id"] for note in gold["notes"]}:
+        raise ValueError("Holdout predictions must cover every case exactly")
+    for note in gold["notes"]:
+        labels = list(predictions[note["id"]])
+        if len(labels) > gold["limit"]:
+            raise ValueError("Holdout prediction exceeds fixed label budget")
+        expected = [{normalise(alias) for alias in group} for group in note["expected"]]
+        acceptable = {normalise(label) for label in note["acceptable"]}
+        precision = sum(label in acceptable for label in labels) / max(1, len(labels))
+        recall = sum(bool(group.intersection(labels)) for group in expected) / max(1, len(expected))
+        case = {"id": note["id"], "source_path": note["source_path"],
+                "classification": note["classification"], "predictions": labels,
+                "annotation_reason": note.get("reason"),
+                "precision": precision, "recall": recall, "required_groups": len(expected),
+                "maximum_recall_at_label_budget": budget_recall_ceiling(expected, gold["limit"])}
+        cases.append(case)
+        if note["classification"] == "substantive":
+            substantive.append(case)
+        elif note["classification"] == "underspecified":
+            underspecified.append(case)
+        elif note["classification"] == "empty":
+            hard_empty.append({"id": note["id"], "labels": labels,
+                               "false_positive_count": len(labels)})
+        else:
+            raise ValueError("Unknown holdout classification")
+    metrics = {key: sum(case[key] for case in substantive) / max(1, len(substantive))
+               for key in ("precision", "recall")}
+    return {
+        "cases": cases, "metrics": metrics, "substantive_cases": len(substantive),
+        "cases_limited_by_label_budget": sum(
+            case["maximum_recall_at_label_budget"] < 1 for case in substantive),
+        "maximum_macro_recall_at_label_budget": sum(
+            case["maximum_recall_at_label_budget"] for case in substantive
+        ) / max(1, len(substantive)),
+        "underspecified": {"cases": underspecified, "assigned_labels": sum(
+            len(case["predictions"]) for case in underspecified)},
+        "hard_empty_cases": hard_empty,
+        "hard_empty_false_positives": [case for case in hard_empty if case["labels"]],
+        "minimum_precision": gold["minimum_precision"],
+        "minimum_recall": gold["minimum_recall"],
+        "passed": bool(substantive) and metrics["precision"] >= gold["minimum_precision"]
+        and metrics["recall"] >= gold["minimum_recall"]
+        and not any(case["labels"] for case in hard_empty),
+        "macro_scope": "substantive only; underspecified judgments reported separately",
+    }
+
+
+def archive_lines(report: Any) -> list[str]:
+    raw = json_bytes(report)
+    payload = base64.b64encode(gzip.compress(raw, compresslevel=9, mtime=0)).decode("ascii")
+    header = json.dumps({"format": FORMAT, "encoding": "gzip+base64", "bytes": len(raw),
+                         "sha256": sha256(raw)}, sort_keys=True)
+    return [ARCHIVE_BEGIN, header, *(payload[i:i + 120] for i in range(0, len(payload), 120)),
+            ARCHIVE_END]
+
+
+def git(*arguments: str, root: Path = REPO) -> str:
+    return subprocess.check_output(["git", *arguments], cwd=root, text=True).strip()
+
+
+def validate_checkout(root: Path) -> None:
+    if git("rev-parse", "HEAD", root=root) != PINNED_LYT:
+        raise ValueError("LYT checkout must equal the frozen mirror commit")
+    subprocess.run(["git", "diff", "--quiet", "HEAD", "--", "."], cwd=root, check=True)
+
+
+def selection_logic_sha256(path: Path) -> str:
+    """Permit only the chosen default binding to change after calibration."""
+    tree = ast.parse(path.read_bytes())
+    tree.body = [node for node in tree.body if not (
+        isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "DEFAULT_POLICY"
+                for target in node.targets)
+        or isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name) and node.target.id == "DEFAULT_POLICY"
+    )]
+    return sha256(ast.dump(tree, include_attributes=False).encode())
+
+
+def receipt() -> dict[str, Any]:
+    from geistfabrik.topic_grammar import grammar_identity
+
+    files = [PLAN, CONTROLS, Path("pyproject.toml"), Path("uv.lock"),
+             Path("scripts/probe_topic_quality.py"), Path("scripts/topic_legacy_grammar.py"),
+             Path("scripts/evaluate_topics.py"), Path("scripts/generate_narrative_corpus.py"),
+             Path("scripts/generate_temporal_corpus.py"),
+             *(Path("src/geistfabrik") / name for name in (
+                 "topic_selection.py", "topic_grammar.py", "topic_text.py", "markdown_parser.py"))]
+    return {
+        "measured_git_commit": git("rev-parse", "HEAD"),
+        "tracked_diff_sha256": sha256(subprocess.check_output(["git", "diff", "HEAD"], cwd=REPO)),
+        "file_sha256": {str(path): sha256((REPO / path).read_bytes()) for path in files},
+        "dependency_versions": {name: version(name) for name in (
+            "yake", "textblob", "nltk", "markdown-it-py", "scikit-learn")},
+        "grammar_dependency_sha256": grammar_identity(), "lyt_commit": PINNED_LYT,
+        "selection_logic_sha256": selection_logic_sha256(
+            REPO / "src/geistfabrik/topic_selection.py"),
+    }
+
+
+class PolicyRunner:
+    def __init__(self) -> None:
+        import yake
+
+        from geistfabrik import topic_selection as selection
+        from geistfabrik.topic_grammar import CandidateGrammar
+        from scripts.topic_legacy_grammar import LegacyGrammar
+
+        self.selection = selection
+        self.proposals = ProposalCache(lambda: yake.KeywordExtractor(**selection.SETTINGS))
+        self.local = GrammarCache(CandidateGrammar)
+        self.legacy = GrammarCache(LegacyGrammar)
+        self.summaries: dict[str, dict[str, Any]] = {}
+
+    def explanation(self, content: str, policy: Mapping[str, bool], *, legacy: bool = False,
+                    extractor: KeywordSource | None = None) -> Any:
+        return self.selection.analyze_topics(
+            content, self.proposals if extractor is None else extractor,
+            policy=self.selection.SelectionPolicy(**policy),
+            grammar_factory=self.legacy if legacy else self.local)
+
+    def extract(self, content: str, policy: Mapping[str, bool], *, legacy: bool = False,
+                extractor: KeywordSource | None = None) -> Any:
+        explanation = self.explanation(content, policy, legacy=legacy, extractor=extractor)
+        self.summaries[sha256(content.encode())] = {
+            "reasons": dict(sorted(Counter(row.reason for row in explanation.candidates).items())),
+            "adjustments": dict(sorted(Counter(
+                change for row in explanation.candidates for change in row.adjustments).items())),
+        }
+        return explanation.topics
+
+
+@contextmanager
+def calibration_sources(lyt: Path) -> Iterator[dict[str, tuple[Path, Path]]]:
+    from scripts.generate_narrative_corpus import generate_narrative_corpus
+    from scripts.generate_temporal_corpus import apply_snapshot
+
+    with TemporaryDirectory(prefix="topic-policy-calibration-") as directory:
         corpus = Path(directory) / "narrative-corpus"
         manifest = generate_narrative_corpus(corpus)
         narrative = Path(directory) / "narrative"
         for record in manifest["snapshots"]:
             apply_snapshot(corpus, narrative, record["index"])
-        fixtures = {
-            "synthetic": (REPO / "tests/fixtures/topic_gold.json", REPO),
-            "public-starter": (REPO / "tests/fixtures/topic_real_gold.json", REPO),
-            "narrative": (REPO / "benchmarks/corpora/topic_narrative_proxy_gold.json", narrative),
-            "lyt": (REPO / "benchmarks/corpora/topic_lyt_proxy_gold.json", args.lyt),
-        }
-        for name, (fixture, source_root) in fixtures.items():
-            reports[name] = {}
-            for policy, options in policies.items():
-                with patch.object(evaluation, "extract_topics", partial(selected, **options)):
-                    reports[name][policy] = evaluation.evaluate_gold(
-                        fixture, source_root=source_root
-                    )
-            cases = []
-            for note in json.loads(fixture.read_text())["notes"]:
-                content = evaluation._content(note, source_root)
-                prose = topics.topic_prose(content)
-                cases.append(
-                    {
-                        "id": note["id"],
-                        "source_sha256": hashlib.sha256(content.encode()).hexdigest(),
-                        "assigned": [asdict(tag) for tag in selected(content, grammar=True)],
-                        "authored_candidates": list(original_labels(content, prose)),
-                        "yake_candidates": extractor.extract_keywords(prose),
-                    }
-                )
-            diagnostics[name] = cases
-        result = {
-            "measured_git_commit": subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], cwd=REPO, text=True
-            ).strip(),
-            "fixture_sha256": {
-                name: hashlib.sha256(path.read_bytes()).hexdigest()
-                for name, (path, _) in fixtures.items()
-            },
-            "reports": reports,
-            "diagnostics": diagnostics,
-            "limitation": (
-                "Model-labelled calibration ablations; no human or holdout quality claim."
-            ),
-            "experimental_grammar_package": version("textblob") if args.grammar else None,
-        }
-        args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
-        print("TOPIC_QUALITY_PROBE_BEGIN", flush=True)
-        print(json.dumps(result, ensure_ascii=False), flush=True)
-        print("TOPIC_QUALITY_PROBE_END", flush=True)
+        yield {name: (REPO / fixture, narrative if name == "narrative" else lyt if name == "lyt"
+                      else REPO) for name, fixture in CALIBRATION.items()}
+
+
+def frozen_contracts(runner: PolicyRunner, policy: Mapping[str, bool], *, legacy: bool,
+                     functions: Mapping[str, Sequence[str]]) -> list[str]:
+    failures = []
+    for filename, names in functions.items():
+        namespace = runpy.run_path(str(REPO / filename))
+        for name in names:
+            function = namespace[name]
+            original = function.__globals__["extract_topics"]
+
+            def selected(content: str, extractor: KeywordSource | None = None) -> Any:
+                return runner.extract(content, policy, legacy=legacy, extractor=extractor)
+
+            function.__globals__["extract_topics"] = selected
+            try:
+                function()
+            except AssertionError:
+                failures.append(f"{filename}::{name}")
+            finally:
+                function.__globals__["extract_topics"] = original
+    return failures
+
+
+def boilerplate_panel(runner: PolicyRunner, policies: Mapping[str, Mapping[str, bool]]) -> Any:
+    controls = json.loads((REPO / CONTROLS).read_text())
+    panel = {}
+    for name, policy in policies.items():
+        cases = []
+        for note in controls["notes"]:
+            explanation = runner.explanation(note["content"], policy, legacy=name == "legacy")
+            protected = []
+            for label in note["protected_candidates"]:
+                class Injected:
+                    def extract_keywords(self, text: str, /) -> list[tuple[str, float]]:
+                        return [(label, 0.1)]
+
+                injected = runner.explanation(note["content"], policy, legacy=name == "legacy",
+                                              extractor=Injected())
+                statistical = [row for row in injected.candidates if row.provenance == "yake"]
+                protected.append({"label": label, "decisions": [
+                    asdict(row) for row in statistical],
+                    "eligible_before_ranking": any(
+                        occurrence.allowed for row in statistical
+                        for occurrence in row.inspected_occurrences),
+                    "statistical_candidate_selected": any(row.selected for row in statistical),
+                    "assigned": [tag.key for tag in injected.topics]})
+            cases.append({"id": note["id"], "kind": note["kind"],
+                          "assigned": [asdict(tag) for tag in explanation.topics],
+                          "protected_injected_candidates": protected})
+        panel[name] = cases
+    return {"diagnostic_only": True, "used_for_selection": False, "policies": panel}
+
+
+def calibrate(lyt: Path, plan: Mapping[str, Any]) -> dict[str, Any]:
+    from scripts import evaluate_topics as evaluation
+
+    runner = PolicyRunner()
+    policies = {policy_name(policy): policy for policy in all_policies()}
+    policies["legacy"] = dict.fromkeys(RULES, True)
+    reports: dict[str, dict[str, Any]] = {name: {} for name in policies}
+    sources = {}
+    contract_results = {}
+    for name, policy in policies.items():
+        contract_results[name] = frozen_contracts(
+            runner, policy, legacy=name == "legacy", functions=plan["frozen_contract_functions"])
+    with calibration_sources(lyt) as fixtures:
+        for fixture_name, (fixture_path, source_root) in fixtures.items():
+            gold = json.loads(fixture_path.read_text())
+            empty_ids = {note["id"] for note in gold["notes"] if not note["expected"]}
+            contents = {note["id"]: verified_content(note, source_root) for note in gold["notes"]}
+            sources[fixture_name] = {
+                "fixture_sha256": sha256(fixture_path.read_bytes()),
+                "notes": {note["id"]: {
+                    "source_path": note.get("source_path"),
+                    "source_sha256": sha256(contents[note["id"]].encode()),
+                    "prose_sha256": sha256(evaluation.topic_prose(contents[note["id"]]).encode())}
+                    for note in gold["notes"]},
+            }
+            for name, policy in policies.items():
+                runner.summaries = {}
+
+                def extract(content: str) -> Any:
+                    return runner.extract(content, policy, legacy=name == "legacy")
+
+                with patch.object(evaluation, "extract_topics", extract):
+                    report = evaluation.evaluate_gold(fixture_path, source_root=source_root)
+                report["empty_case_predictions"] = {
+                    case["id"]: case["predictions"]["yake"] for case in report["cases"]
+                    if case["id"] in empty_ids}
+                report["decision_summary"] = {
+                    identifier: runner.summaries.get(sha256(content.encode()), {})
+                    for identifier, content in contents.items()}
+                reports[name][fixture_name] = report
+        previous = asdict(runner.selection.DEFAULT_POLICY)
+        decision = select_policy(reports, previous, contract_results)
+        chosen = decision["selected_policy"]
+        explanations = {}
+        if decision["viable_policy_found"]:
+            for fixture_name, (fixture_path, source_root) in fixtures.items():
+                explanations[fixture_name] = {
+                    note["id"]: asdict(runner.explanation(
+                        verified_content(note, source_root), chosen))
+                    for note in json.loads(fixture_path.read_text())["notes"]}
+        panel = boilerplate_panel(runner, policies)
+    return {
+        "format": FORMAT, "phase": "calibrate", "receipt": receipt(),
+        "previous_production_policy": previous, **decision,
+        "frozen_contract_failures": contract_results,
+        "sources": sources, "reports": reports, "winner_explanations": explanations,
+        "yake_proposals": {sha256(prose.encode()): list(proposals)
+                           for prose, proposals in runner.proposals.proposals.items()},
+        "boilerplate_panel": panel,
+        "limitation": "Calibration/constructed contrasts; fresh sources were not opened.",
+    }
+
+
+def frozen_selection(path: Path, current_policy: Mapping[str, bool]) -> dict[str, Any]:
+    raw = path.read_bytes()
+    report = json.loads(raw)
+    if report.get("format") != FORMAT or report.get("phase") != "calibrate":
+        raise ValueError("--selection must be a calibration receipt")
+    chosen = validate_policy(report["selected_policy"])
+    if chosen != dict(current_policy):
+        raise ValueError("Production DEFAULT_POLICY must equal the frozen selected policy")
+    if (report.get("selection_outcome") != "ranked_eligible_policy"
+            or report.get("viable_policy_found") is not True):
+        raise ValueError("Holdout requires a ranked eligible local policy; no eligible fallback")
+    recomputed = select_policy(report["reports"], report["previous_production_policy"],
+                               report["frozen_contract_failures"])
+    if not recomputed["viable_policy_found"] or chosen != recomputed["selected_policy"]:
+        raise ValueError("Recorded selection does not match frozen calibration ranking")
+    relative = path.resolve().relative_to(REPO.resolve())
+    committed = subprocess.check_output(["git", "show", f"HEAD:{relative.as_posix()}"], cwd=REPO)
+    if committed != raw:
+        raise ValueError("Calibration selection receipt must be committed unchanged before holdout")
+    for relative_path in (PLAN, *CALIBRATION.values()):
+        expected = report["receipt"]["file_sha256"].get(str(relative_path))
+        if relative_path in CALIBRATION.values():
+            fixture_name = next(
+                name for name, value in CALIBRATION.items() if value == relative_path)
+            expected = report["sources"][fixture_name]["fixture_sha256"]
+        if sha256((REPO / relative_path).read_bytes()) != expected:
+            raise ValueError(f"Frozen calibration plan/fixture changed: {relative_path}")
+    measured = receipt()
+    for filename, digest in report["receipt"]["file_sha256"].items():
+        if filename == "src/geistfabrik/topic_selection.py":
+            continue
+        if measured["file_sha256"].get(filename) != digest:
+            raise ValueError(f"Measured implementation/dependency input changed: {filename}")
+    for field in ("selection_logic_sha256", "grammar_dependency_sha256", "dependency_versions"):
+        if measured[field] != report["receipt"][field]:
+            raise ValueError(f"Measured implementation/dependency changed: {field}")
+    return report
+
+
+def holdout(lyt: Path, selection_path: Path) -> dict[str, Any]:
+    from geistfabrik import topic_selection as selection
+
+    calibration = frozen_selection(selection_path, asdict(selection.DEFAULT_POLICY))
+    plan = json.loads((REPO / PLAN).read_text())
+    fresh = plan["fresh_evaluation"]
+    manifest_path = REPO / PLAN.parent / fresh["selection_manifest"]
+    gold_path = REPO / PLAN.parent / fresh["annotations"]
+    for filename, digest in fresh["frozen_sha256"].items():
+        if sha256((REPO / filename).read_bytes()) != digest:
+            raise ValueError(f"Fresh annotation/selection changed after calibration: {filename}")
+    manifest = json.loads(manifest_path.read_text())
+    gold = json.loads(gold_path.read_text())
+    contents = verify_fresh_sources(manifest, gold, lyt)
+    runner = PolicyRunner()
+    chosen = calibration["selected_policy"]
+    policies = {"selected": chosen, "clean-yake": dict.fromkeys(RULES, False),
+                "legacy": dict.fromkeys(RULES, True)}
+    reports = {}
+    explanations = {}
+    for name, policy in policies.items():
+        predictions = {}
+        for identifier, content in contents.items():
+            explanation = runner.explanation(content, policy, legacy=name == "legacy")
+            predictions[identifier] = [tag.key for tag in explanation.topics]
+            if name == "selected":
+                explanations[identifier] = asdict(explanation)
+        reports[name] = score_holdout(gold, predictions, selection.topic_key)
+    return {
+        "format": FORMAT, "phase": "holdout", "receipt": receipt(),
+        "selection_report_sha256": sha256(selection_path.read_bytes()),
+        "selected_policy": chosen, "selected_policy_name": policy_name(chosen),
+        "selection_performed": False,
+        "fresh_selection_sha256": sha256(manifest_path.read_bytes()),
+        "fresh_gold_sha256": sha256(gold_path.read_bytes()),
+        "sources": {identifier: sha256(content.encode())
+                    for identifier, content in contents.items()},
+        "reports": reports, "winner_explanations": explanations,
+        "yake_proposals": {sha256(prose.encode()): list(proposals)
+                           for prose, proposals in runner.proposals.proposals.items()},
+        "annotation_provenance": gold.get("provenance"), "limitation": fresh["limits"],
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--phase", choices=("calibrate", "holdout"), required=True)
+    parser.add_argument("--lyt", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--selection", type=Path)
+    args = parser.parse_args(argv)
+    if args.phase == "holdout" and args.selection is None:
+        parser.error("--phase holdout requires --selection with a committed calibration receipt")
+    plan = json.loads((REPO / PLAN).read_text())
+    if tuple(plan["factorial_rules"]) != RULES or plan["label_limit"] != 5:
+        raise ValueError("Frozen factors or label limit changed")
+    validate_checkout(args.lyt)
+    result = (calibrate(args.lyt, plan) if args.phase == "calibrate"
+              else holdout(args.lyt, args.selection))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_bytes(json_bytes(result))
+    print("\n".join(archive_lines(result)), flush=True)
     return 0
 
 

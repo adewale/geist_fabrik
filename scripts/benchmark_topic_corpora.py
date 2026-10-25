@@ -276,6 +276,7 @@ def main() -> int:
                 "src/geistfabrik/topics.py",
                 "src/geistfabrik/topic_text.py",
                 "src/geistfabrik/topic_grammar.py",
+                "src/geistfabrik/topic_selection.py",
                 "src/geistfabrik/vault.py",
                 "scripts/benchmark_topic_corpora.py",
                 "scripts/generate_temporal_corpus.py",

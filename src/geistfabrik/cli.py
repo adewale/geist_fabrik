@@ -360,6 +360,7 @@ def _add_topics_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     parser.add_argument("--limit", type=bounded_int("limit", 1, 1000), default=50)
     parser.add_argument("--json", action="store_true", help="Print a structured JSON report")
     parser.add_argument("--rebuild", action="store_true", help="Rebuild all eligible topics")
+    parser.add_argument("--explain", action="store_true", help="Explain candidate decisions for --note")
     parser.add_argument("--verbose", "-v", action="store_true")
 
 

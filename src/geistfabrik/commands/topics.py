@@ -6,6 +6,7 @@ from dataclasses import asdict
 from typing import Any
 
 from ..topics import TopicIndex
+from ..topic_selection import explain_topics
 from ..vault import Vault
 from .base import BaseCommand
 
@@ -19,6 +20,8 @@ class TopicsCommand(BaseCommand):
             print(message, file=sys.stderr)
 
     def execute(self) -> int:
+        if self.args.explain and not self.args.note:
+            raise ValueError("--explain requires --note")
         vault_path = self.get_vault_path(auto_detect=True)
         if vault_path is None:
             return 1
@@ -50,6 +53,8 @@ class TopicsCommand(BaseCommand):
             "eligible_notes": len(eligible),
             "incomplete_notes": incomplete,
         }
+        if self.args.explain:
+            report["explanation"] = None
         if self.args.note:
             target = self.args.note.strip()
             if target.startswith("[[") and target.endswith("]]"):
@@ -81,6 +86,10 @@ class TopicsCommand(BaseCommand):
                     if state.status == "complete"
                     else None
                 )
+                if self.args.explain:
+                    report["explanation"] = (
+                        asdict(explain_topics(note.content)) if state.status == "complete" else None
+                    )
         elif self.args.topic:
             report["topic"] = self.args.topic
             if complete:
@@ -113,6 +122,10 @@ class TopicsCommand(BaseCommand):
             print(f"{note['link'] or note['path']}: {note['status']}")
             for tag in report["topics"] or []:
                 print(f"  {tag['label']} — line {tag['line']}: {tag['text']}")
+            if report.get("explanation") is not None:
+                for candidate in report["explanation"]["candidates"]:
+                    disposition = "selected" if candidate["selected"] else "rejected"
+                    print(f"  {disposition}: {candidate['label']} ({candidate['reason']})")
         elif "notes" in report:
             if report["notes"] is None:
                 print("Membership unavailable while the topic index is incomplete.")
