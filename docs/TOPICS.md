@@ -33,6 +33,9 @@ Relevance is fallible. Seven rules are measured independently and in combination
 heading priors, link priors, predicate hints, relative score-gap abstention,
 containment suppression, repeated-word filtering and grammatical eligibility.
 Grammar uses only the occurrence's mapped sentence within a visible block.
+Generic named section headings are a separate, earlier source-role heuristic,
+with their own preprocessor ablation. Explanations label that judgment as
+relevance, rather than claiming the text was code or metadata.
 Unrelated sentences cannot change that decision. Uncertain alignment preserves
 candidates; unavailable packaged grammar produces an extraction error.
 Immediately colon-followed candidates use the ordinary noun/clause checks rather

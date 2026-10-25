@@ -394,6 +394,13 @@ def receipt() -> dict[str, Any]:
             )
         ),
     ]
+    plan = json.loads((REPO / PLAN).read_text())
+    for functions in (
+        plan["frozen_contract_functions"],
+        plan["source_role_ablation"]["contract_functions"],
+    ):
+        files.extend(Path(filename) for filename in functions)
+    files = list(dict.fromkeys(files))
     return {
         "measured_git_commit": git("rev-parse", "HEAD"),
         "tracked_diff_sha256": sha256(subprocess.check_output(["git", "diff", "HEAD"], cwd=REPO)),
@@ -493,19 +500,156 @@ def frozen_contracts(
         namespace = runpy.run_path(str(REPO / filename))
         for name in names:
             function = namespace[name]
-            original = function.__globals__["extract_topics"]
+            has_extractor = "extract_topics" in function.__globals__
+            original = function.__globals__.get("extract_topics")
 
             def selected(content: str, extractor: KeywordSource | None = None) -> Any:
                 return runner.extract(content, policy, legacy=legacy, extractor=extractor)
 
-            function.__globals__["extract_topics"] = selected
+            if has_extractor:
+                function.__globals__["extract_topics"] = selected
             try:
                 function()
             except AssertionError:
                 failures.append(f"{filename}::{name}")
             finally:
-                function.__globals__["extract_topics"] = original
+                if has_extractor:
+                    function.__globals__["extract_topics"] = original
     return failures
+
+
+@contextmanager
+def source_role_runner(
+    topic_text: Any, runner_factory: Callable[[], Any]
+) -> Iterator[Any]:
+    """A different preprocessing arm must never reuse baseline projections/proposals."""
+    topic_text._projection.cache_clear()
+    try:
+        with patch.object(topic_text, "_SECTION_LABELS", frozenset()):
+            yield runner_factory()
+    finally:
+        # patch.object restores the role vocabulary before this final cache clear.
+        topic_text._projection.cache_clear()
+
+
+def source_role_ablation(
+    plan: Mapping[str, Any],
+    policy: Mapping[str, bool],
+    fixtures: Mapping[str, tuple[Path, Path]],
+    baseline_runner: PolicyRunner,
+    legacy_reports: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Separate preprocessor experiment: it cannot enter the frozen 128-policy ranking."""
+    from geistfabrik import topic_text
+    from scripts import evaluate_topics as evaluation
+
+    preregistered = plan["source_role_ablation"]
+    role_functions = preregistered["contract_functions"]
+    baseline_role_failures = frozen_contracts(
+        baseline_runner, policy, legacy=False, functions=role_functions
+    )
+    reports = {}
+    sources = {}
+    with source_role_runner(topic_text, PolicyRunner) as runner:
+        contract_failures = frozen_contracts(
+            runner, policy, legacy=False, functions=plan["frozen_contract_functions"]
+        )
+        role_failures = frozen_contracts(runner, policy, legacy=False, functions=role_functions)
+        for name, (fixture_path, source_root) in fixtures.items():
+            gold = json.loads(fixture_path.read_text())
+            contents = {
+                note["id"]: verified_content(note, source_root) for note in gold["notes"]
+            }
+            empty_ids = {note["id"] for note in gold["notes"] if not note["expected"]}
+            runner.summaries = {}
+
+            def extract(content: str) -> Any:
+                return runner.extract(content, policy)
+
+            with patch.object(evaluation, "extract_topics", extract):
+                report = evaluation.evaluate_gold(fixture_path, source_root=source_root)
+            report["empty_case_predictions"] = {
+                case["id"]: case["predictions"]["yake"]
+                for case in report["cases"] if case["id"] in empty_ids
+            }
+            report["decision_summary"] = {
+                identifier: runner.summaries.get(sha256(content.encode()), {})
+                for identifier, content in contents.items()
+            }
+            reports[name] = report
+            sources[name] = {
+                identifier: {
+                    "source_sha256": sha256(content.encode()),
+                    "prose_sha256": sha256(topic_text.topic_prose(content).encode()),
+                }
+                for identifier, content in contents.items()
+            }
+        proposals = {
+            sha256(prose.encode()): list(rows)
+            for prose, rows in runner.proposals.proposals.items()
+        }
+    failures = viability(reports, legacy_reports, [*contract_failures, *role_failures])
+    return {
+        "name": "without-generic-section-role",
+        "pre_registered_plan": preregistered,
+        "pre_registered_plan_sha256": sha256(json_bytes(preregistered)),
+        "policy": dict(policy),
+        "baseline_policy_reference": policy_name(policy),
+        "used_for_selection": False,
+        "proposal_cache_isolated": True,
+        "candidate_proposals_shared_with_factorial": False,
+        "projection_cache_cleared_before_and_after": True,
+        "proposal_difference_reason": "Disabling generic named section-role curation admits "
+        "different prose before YAKE; candidate proposals are recomputed for this arm.",
+        "reports": reports,
+        "sources": sources,
+        "yake_proposals": proposals,
+        "frozen_contract_failures": contract_failures,
+        "source_role_contract_failures": {"baseline": baseline_role_failures, "arm": role_failures},
+        "diagnostic_failure_reasons": failures,
+        "fixed_role_contract_blocks_selection": bool(role_failures),
+        "empty_noise_blocks_selection": any(
+            failure.endswith(":additional_empty_case_labels") for failure in failures
+        ),
+        "requires_selection_expansion_before_holdout": not failures and not baseline_role_failures,
+        "justification_scope": "Fixed source-role regression contracts and calibration "
+        "diagnostics; independent semantic usefulness of heading curation is not established.",
+    }
+
+
+def validate_source_role_receipt(report: Mapping[str, Any], plan: Mapping[str, Any]) -> None:
+    """A source-role diagnostic that qualifies requires a new selection plan before holdout."""
+    arm = report.get("source_role_ablation")
+    preregistered = plan.get("source_role_ablation")
+    if not isinstance(arm, dict) or not isinstance(preregistered, dict):
+        raise ValueError("Frozen selection requires the preregistered source-role ablation")
+    if (arm.get("name") != "without-generic-section-role"
+            or arm.get("pre_registered_plan") != preregistered
+            or arm.get("pre_registered_plan_sha256") != sha256(json_bytes(preregistered))
+            or arm.get("policy") != report["selected_policy"]
+            or arm.get("baseline_policy_reference") != policy_name(report["selected_policy"])
+            or arm.get("used_for_selection") is not False
+            or arm.get("proposal_cache_isolated") is not True
+            or arm.get("candidate_proposals_shared_with_factorial") is not False
+            or arm.get("projection_cache_cleared_before_and_after") is not True
+            or set(arm.get("reports", {})) != set(CALIBRATION)):
+        raise ValueError("Frozen source-role ablation metadata changed or is incomplete")
+    role_failures = arm["source_role_contract_failures"]
+    failures = viability(
+        arm["reports"], report["reports"]["legacy"],
+        [*arm["frozen_contract_failures"], *role_failures["arm"]],
+    )
+    requires_expansion = not failures and not role_failures["baseline"]
+    if (arm.get("diagnostic_failure_reasons") != failures
+            or arm.get("fixed_role_contract_blocks_selection") is not bool(role_failures["arm"])
+            or arm.get("empty_noise_blocks_selection") is not any(
+                failure.endswith(":additional_empty_case_labels") for failure in failures)
+            or arm.get("requires_selection_expansion_before_holdout") is not requires_expansion):
+        raise ValueError("Frozen source-role diagnostic decision does not match its evidence")
+    if role_failures["baseline"]:
+        raise ValueError("Selected baseline violates the fixed source-role regression contract")
+    if requires_expansion:
+        raise ValueError("Source-role ablation qualifies; expand selection before holdout")
 
 
 def boilerplate_panel(runner: PolicyRunner, policies: Mapping[str, Mapping[str, bool]]) -> Any:
@@ -554,6 +698,8 @@ def boilerplate_panel(runner: PolicyRunner, policies: Mapping[str, Mapping[str, 
 def calibrate(lyt: Path, plan: Mapping[str, Any]) -> dict[str, Any]:
     from scripts import evaluate_topics as evaluation
 
+    if "source_role_ablation" not in plan:
+        raise ValueError("Source-role ablation must be preregistered before calibration outputs")
     runner = PolicyRunner()
     policies = {policy_name(policy): policy for policy in all_policies()}
     policies["legacy"] = dict.fromkeys(RULES, True)
@@ -613,6 +759,7 @@ def calibrate(lyt: Path, plan: Mapping[str, Any]) -> dict[str, Any]:
                     for note in json.loads(fixture_path.read_text())["notes"]
                 }
         panel = boilerplate_panel(runner, policies)
+        role_ablation = source_role_ablation(plan, chosen, fixtures, runner, reports["legacy"])
     return {
         "format": FORMAT,
         "phase": "calibrate",
@@ -629,6 +776,7 @@ def calibrate(lyt: Path, plan: Mapping[str, Any]) -> dict[str, Any]:
             for prose, proposals in runner.proposals.proposals.items()
         },
         "boilerplate_panel": panel,
+        "source_role_ablation": role_ablation,
         "limitation": "Calibration/constructed contrasts; fresh sources were not opened.",
     }
 
@@ -686,6 +834,7 @@ def frozen_selection(path: Path, current_policy: Mapping[str, bool]) -> dict[str
             expected = report["sources"][fixture_name]["fixture_sha256"]
         if sha256((REPO / relative_path).read_bytes()) != expected:
             raise ValueError(f"Frozen calibration plan/fixture changed: {relative_path}")
+    validate_source_role_receipt(report, json.loads((REPO / PLAN).read_text()))
     measured = receipt()
     for filename, digest in report["receipt"]["file_sha256"].items():
         if filename == "src/geistfabrik/topic_selection.py":

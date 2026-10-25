@@ -469,6 +469,7 @@ class _Projection:
     prose: str
     headings: tuple[tuple[int, int], ...]
     boundaries: tuple[int, ...]
+    generic_section_spans: tuple[tuple[int, int], ...]
 
 
 @lru_cache(maxsize=8)
@@ -483,6 +484,7 @@ def _projection(content: str) -> _Projection:
     offsets = _line_offsets(source)
     output = [char if char in "\r\n" else " " for char in content]
     headings: list[tuple[int, int]] = []
+    generic_section_spans: list[tuple[int, int]] = []
     boundaries: set[int] = set()
     html_openers: set[int] = set()
     h1 = False
@@ -525,9 +527,11 @@ def _projection(content: str) -> _Projection:
                     boundaries.update(span)
             if h1:
                 headings.append(block)
-            # Generic section labels are structure, not a personal subject.
+            # Generic section names are a fallible source-role hint, separate
+            # from syntax-owned non-prose. Preserve the existing projection.
             name = re.sub(r"^\d+[.)]?\s+", "", token.content.strip())
             if heading and _key(name) in _SECTION_LABELS:
+                generic_section_spans.append(block)
                 _erase(output, *block)
         else:
             html_openers.update(
@@ -540,8 +544,10 @@ def _projection(content: str) -> _Projection:
     for position, char in enumerate(html_source):
         if char == "<" and position not in html_openers:
             html_source[position] = " "
+    role_hard_exclusions: list[tuple[int, int]] = []
     if "::" in source or html_openers or any(token.type == "html_block" for token in tokens):
         metadata, html_regions, _ = _syntax_ownership(source, tokens, environment)
+        role_hard_exclusions.extend(metadata)
         for start, end in metadata:
             _erase(output, start, end)
     else:
@@ -556,7 +562,21 @@ def _projection(content: str) -> _Projection:
             _erase(output, match.start(), match.end())
     for match in re.finditer(r"[#*_~>|\[\]]", "".join(output)):
         _erase(output, match.start(), match.end(), barrier=False)
-    return _Projection("".join(output), tuple(headings), tuple(sorted(boundaries)))
+    # A Markdown heading can still be owned by HTML opened in an earlier
+    # block. Hard ownership wins without changing the existing prose mask.
+    role_hard_exclusions.extend(html_regions)
+    hard_ranges = sorted(role_hard_exclusions)
+    owner = 0
+    visible_section_spans: list[tuple[int, int]] = []
+    for start, end in sorted(generic_section_spans):
+        while owner < len(hard_ranges) and hard_ranges[owner][1] <= start:
+            owner += 1
+        if owner < len(hard_ranges) and hard_ranges[owner][0] < end:
+            continue
+        visible_section_spans.append((start, end))
+    return _Projection(
+        "".join(output), tuple(headings), tuple(sorted(boundaries)), tuple(visible_section_spans)
+    )
 
 
 def topic_prose(content: str) -> str:
@@ -567,6 +587,16 @@ def topic_prose(content: str) -> str:
 def topic_boundaries(content: str) -> tuple[int, ...]:
     """Block edges a source-grounded candidate must not cross."""
     return _projection(content).boundaries
+
+
+def topic_role_exclusions(content: str) -> tuple[tuple[int, int], ...]:
+    """Original ranges masked by the fallible generic-section-name heuristic.
+
+    These are visible heading labels judged unlikely to be personal subjects,
+    not syntax-owned code or metadata. Reporting them does not change the
+    existing topic prose projection or candidate eligibility.
+    """
+    return _projection(content).generic_section_spans
 
 
 def explicit_labels(content: str, prose: str) -> Iterator[tuple[str, int, int, str]]:

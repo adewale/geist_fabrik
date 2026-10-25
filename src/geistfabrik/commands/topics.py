@@ -123,6 +123,8 @@ class TopicsCommand(BaseCommand):
             for tag in report["topics"] or []:
                 print(f"  {tag['label']} — line {tag['line']}: {tag['text']}")
             if report.get("explanation") is not None:
+                for role in report["explanation"]["relevance_exclusions"]:
+                    print(f"  relevance: {role['label']} ({role['reason']}, line {role['line']})")
                 for candidate in report["explanation"]["candidates"]:
                     disposition = "selected" if candidate["selected"] else "rejected"
                     print(f"  {disposition}: {candidate['label']} ({candidate['reason']})")

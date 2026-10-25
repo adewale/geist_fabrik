@@ -77,6 +77,16 @@ def test_structurally_empty_text_has_no_candidates_or_topics() -> None:
     assert explanation.structural_exclusions
 
 
+def test_generic_section_name_is_a_relevance_judgment_not_hard_structure() -> None:
+    explanation = analyze_topics("## Methods\n")
+    assert explanation.topics == []
+    assert explanation.structural_exclusions == []
+    assert len(explanation.relevance_exclusions) == 1
+    role = explanation.relevance_exclusions[0]
+    assert role.stage == "relevance" and role.reason == "generic_section_label"
+    assert role.label == "Methods"
+
+
 @pytest.mark.parametrize(
     "source",
     [

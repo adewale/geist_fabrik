@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "frozen_before_new_policy_outputs": true,
   "label_limit": 5,
   "calibration_sets": [
@@ -84,6 +84,29 @@
         "Extra grammatical subject-field counterexamples are reported as diagnostic costs, with no change to the four frozen gold sets or acceptance floors."
       ],
       "fresh_predictions_inspected": false
+    },
+    {
+      "version": 3,
+      "changes": [
+        "Expose generic named heading suppression as a fallible source-role judgment rather than hard non-prose. Default projection and labels unchanged.",
+        "Add a separately controlled preprocessor ablation with independent proposals and unchanged role contracts; main128 selector factorial remains unchanged."
+      ],
+      "fresh_predictions_inspected": false
     }
-  ]
+  ],
+  "source_role_ablation": {
+    "role": "generic named section-heading suppression before YAKE",
+    "baseline": "selected post-proposal flags with ordinary role curation",
+    "arm": "same flags with _SECTION_LABELS empty, independent proposal cache, projection cache cleared and restored",
+    "scope": "A distinct preprocessor ablation: admitted prose/proposals necessarily differ. It is not one of the 128 post-proposal combinations.",
+    "criteria": "Report same calibration floors, empty-case labels and unchanged source-role contracts. If the arm qualifies, expand policy selection before any fresh prediction instead of claiming the role rule earned its complexity.",
+    "contract_functions": {
+      "tests/unit/test_topic_text.py": [
+        "test_generic_secondary_headings_are_masked"
+      ],
+      "tests/unit/test_topics.py": [
+        "test_primary_heading_survives_secondary_heading_budget"
+      ]
+    }
+  }
 }

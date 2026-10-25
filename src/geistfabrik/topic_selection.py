@@ -14,7 +14,7 @@ from typing import Any, Literal, Protocol, cast
 import yake  # type: ignore[import-untyped]
 
 from .topic_grammar import WORD, CandidateGrammar, GrammarDecision
-from .topic_text import explicit_labels, topic_boundaries, topic_prose
+from .topic_text import explicit_labels, topic_boundaries, topic_prose, topic_role_exclusions
 
 MAX_TOPICS = 5
 MAX_TOPIC_CHARS = 100_000
@@ -110,11 +110,22 @@ class StructuralExclusion:
 
 
 @dataclass(frozen=True)
+class SourceRoleDecision:
+    start: int
+    end: int
+    line: int
+    label: str
+    stage: str = "relevance"
+    reason: str = "generic_section_label"
+
+
+@dataclass(frozen=True)
 class TopicExplanation:
     policy: SelectionPolicy
     topics: list[TopicTag]
     candidates: list[CandidateDecision]
     structural_exclusions: list[StructuralExclusion]
+    relevance_exclusions: list[SourceRoleDecision] = field(default_factory=list)
 
 
 def topic_key(label: str) -> str:
@@ -153,18 +164,24 @@ def analyze_topics(
     policy = DEFAULT_POLICY if policy is None else policy
     prose = topic_prose(content)
     boundaries = topic_boundaries(content)
+    roles = topic_role_exclusions(content) if trace else ()
+    role_decisions = [
+        SourceRoleDecision(start, end, content.count("\n", 0, start) + 1, content[start:end])
+        for start, end in roles
+    ]
     exclusions = (
         [
             StructuralExclusion(m.start(), m.end(), content.count("\n", 0, m.start()) + 1)
             for m in WORD.finditer(content)
             if prose[m.start() : m.end()] != m.group()
+            and not any(start <= m.start() and m.end() <= end for start, end in roles)
         ]
         if trace
         else []
     )
     decisions: list[CandidateDecision] = []
     if not WORD.search(prose):
-        return TopicExplanation(policy, [], decisions, exclusions)
+        return TopicExplanation(policy, [], decisions, exclusions, role_decisions)
     if extractor is None:
         extractor = cast(KeywordExtractor, yake.KeywordExtractor(**SETTINGS))
     grammar = grammar_factory(prose, boundaries) if policy.grammar else None
@@ -321,7 +338,9 @@ def analyze_topics(
         row.selected, row.reason = True, "selected"
         if tag.provenance == "yake":
             previous_statistical_cost = tag.score
-    return TopicExplanation(policy, selected, decisions if trace else [], exclusions)
+    return TopicExplanation(
+        policy, selected, decisions if trace else [], exclusions, role_decisions
+    )
 
 
 def extract_topics(content: str, extractor: KeywordExtractor | None = None) -> list[TopicTag]:

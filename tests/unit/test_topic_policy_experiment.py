@@ -61,7 +61,8 @@ def calibration_receipt(root: Path) -> dict[str, Any]:
         sources[name] = {"fixture_sha256": experiment.sha256(path.read_bytes())}
     plan = root / experiment.PLAN
     plan.parent.mkdir(parents=True, exist_ok=True)
-    plan.write_bytes(b"synthetic frozen plan")
+    role_plan = {"role": "synthetic section-role control", "contract_functions": {}}
+    plan.write_bytes(experiment.json_bytes({"source_role_ablation": role_plan}))
     files[str(experiment.PLAN)] = experiment.sha256(plan.read_bytes())
     files["scripts/topic_evidence_archive.py"] = "synthetic-reader-digest"
     policies = experiment.all_policies()
@@ -72,6 +73,27 @@ def calibration_receipt(root: Path) -> dict[str, Any]:
     reports["legacy"] = {name: report() for name in experiment.CALIBRATION}
     contracts = {name: [] for name in reports}
     decision = experiment.select_policy(reports, policies[-1], contracts)
+    role_reports = {name: report() for name in experiment.CALIBRATION}
+    role_failure = "synthetic source-role regression"
+    source_role = {
+        "name": "without-generic-section-role",
+        "pre_registered_plan": role_plan,
+        "pre_registered_plan_sha256": experiment.sha256(experiment.json_bytes(role_plan)),
+        "policy": decision["selected_policy"],
+        "baseline_policy_reference": experiment.policy_name(decision["selected_policy"]),
+        "used_for_selection": False,
+        "proposal_cache_isolated": True,
+        "candidate_proposals_shared_with_factorial": False,
+        "projection_cache_cleared_before_and_after": True,
+        "reports": role_reports,
+        "frozen_contract_failures": [],
+        "source_role_contract_failures": {"baseline": [], "arm": [role_failure]},
+        "fixed_role_contract_blocks_selection": True,
+        "empty_noise_blocks_selection": False,
+        "diagnostic_failure_reasons": experiment.viability(
+            role_reports, reports["legacy"], [role_failure]),
+        "requires_selection_expansion_before_holdout": False,
+    }
     return {
         "format": experiment.FORMAT,
         "phase": "calibrate",
@@ -79,6 +101,7 @@ def calibration_receipt(root: Path) -> dict[str, Any]:
         "previous_production_policy": policies[-1],
         "frozen_contract_failures": contracts,
         "sources": sources,
+        "source_role_ablation": source_role,
         "receipt": {
             "file_sha256": files,
             "selection_logic_sha256": "synthetic-logic-digest",
@@ -117,6 +140,50 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         self.assertIs(cache("alpha beta", (5,)), cache("alpha beta", (5,)))
         self.assertIsNot(cache("alpha beta", (5,)), cache("alpha beta", ()))
         self.assertIsNot(cache("alpha beta", (5,)), cache("other prose", (5,)))
+
+    def test_source_role_projection_cache_and_vocabulary_restore_after_exception(self) -> None:
+        original = frozenset({"notes", "methods"})
+        clears = []
+        text = SimpleNamespace(_SECTION_LABELS=original)
+        text._projection = SimpleNamespace(cache_clear=lambda: clears.append(text._SECTION_LABELS))
+        with self.assertRaisesRegex(RuntimeError, "arm failure"):
+            with experiment.source_role_runner(text, object):
+                self.assertEqual(text._SECTION_LABELS, frozenset())
+                raise RuntimeError("arm failure")
+        self.assertIs(text._SECTION_LABELS, original)
+        self.assertEqual(clears, [original, original])
+        with self.assertRaisesRegex(RuntimeError, "factory failure"):
+            def broken_factory() -> Any:
+                raise RuntimeError("factory failure")
+
+            with experiment.source_role_runner(text, broken_factory):
+                self.fail("Broken factory cannot produce a runner")
+        self.assertIs(text._SECTION_LABELS, original)
+        self.assertEqual(clears, [original] * 4)
+
+    def test_source_role_arm_has_an_independent_real_proposal_cache(self) -> None:
+        calls = []
+
+        class Extractor:
+            def extract_keywords(self, prose: str, /) -> list[tuple[str, float]]:
+                calls.append(prose)
+                return [(prose, 0.1)]
+
+        def factory() -> Any:
+            return SimpleNamespace(proposals=experiment.ProposalCache(Extractor))
+
+        text = SimpleNamespace(
+            _SECTION_LABELS=frozenset({"notes"}),
+            _projection=SimpleNamespace(cache_clear=lambda: None),
+        )
+        baseline = factory()
+        baseline.proposals.extract_keywords("same prose")
+        with experiment.source_role_runner(text, factory) as arm:
+            self.assertIsNot(arm.proposals, baseline.proposals)
+            arm.proposals.extract_keywords("same prose")
+            arm.proposals.extract_keywords("different arm prose")
+        self.assertEqual(calls, ["same prose", "same prose", "different arm prose"])
+        self.assertNotIn("different arm prose", baseline.proposals.proposals)
 
     def test_actual_policy_adapter_reuses_the_same_proposal_source_for_every_switch(self) -> None:
         observed = []
@@ -405,6 +472,33 @@ class TopicPolicyExperimentTests(unittest.TestCase):
                 result["selection_report_sha256"], result["logical_calibration_report_sha256"]
             )
 
+    def test_source_role_receipt_rejects_missing_metadata_and_an_arm_that_qualifies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = calibration_receipt(root)
+            plan = json.loads((root / experiment.PLAN).read_bytes())
+            experiment.validate_source_role_receipt(payload, plan)
+            missing = dict(payload)
+            del missing["source_role_ablation"]
+            with self.assertRaisesRegex(ValueError, "preregistered source-role"):
+                experiment.validate_source_role_receipt(missing, plan)
+            arm = payload["source_role_ablation"]
+            arm["source_role_contract_failures"]["arm"] = []
+            arm["fixed_role_contract_blocks_selection"] = False
+            arm["diagnostic_failure_reasons"] = []
+            arm["requires_selection_expansion_before_holdout"] = True
+            with self.assertRaisesRegex(ValueError, "expand selection before holdout"):
+                experiment.validate_source_role_receipt(payload, plan)
+
+    def test_source_role_receipt_is_bound_to_plan_and_selected_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = calibration_receipt(root)
+            plan = json.loads((root / experiment.PLAN).read_bytes())
+            payload["source_role_ablation"]["policy"] = experiment.all_policies()[-1]
+            with self.assertRaisesRegex(ValueError, "metadata changed or is incomplete"):
+                experiment.validate_source_role_receipt(payload, plan)
+
     def test_archive_cannot_substitute_inner_bytes_for_committed_envelope(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -474,6 +568,17 @@ class TopicPolicyExperimentTests(unittest.TestCase):
             )
         self.assertEqual(failures, ["existing_test.py::known_answer"])
         self.assertIs(namespace["extract_topics"], original)
+
+    def test_direct_projection_contract_does_not_require_an_extractor_global(self) -> None:
+        namespace: dict[str, Any] = {"topic_prose": lambda _text: "Methods"}
+        exec("def role_control():\n    assert 'Methods' not in topic_prose('source')\n", namespace)
+        with patch.object(experiment.runpy, "run_path", return_value=namespace):
+            failures = experiment.frozen_contracts(
+                None, experiment.all_policies()[0], legacy=False,
+                functions={"existing_projection_test.py": ["role_control"]},
+            )
+        self.assertEqual(failures, ["existing_projection_test.py::role_control"])
+        self.assertNotIn("extract_topics", namespace)
 
     def test_selection_logic_receipt_permits_only_default_binding_to_change(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
