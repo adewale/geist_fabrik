@@ -13,7 +13,8 @@ from geistfabrik.topic_text import (
 @pytest.mark.parametrize("heading", ["Notes", "Methods"])
 @pytest.mark.parametrize("prefix", ["# ", "## ", "> # "])
 def test_visible_generic_heading_names_report_their_exact_role_spans(
-    heading: str, prefix: str,
+    heading: str,
+    prefix: str,
 ) -> None:
     source = f"{prefix}{heading}\n\nCyanotypes preserve useful images.\n"
     start = len(prefix)
@@ -50,11 +51,7 @@ def test_frontmatter_and_code_stay_masked_without_heuristic_role_exclusions() ->
 
 
 def test_visible_role_spans_do_not_cover_identical_words_in_hard_exclusions() -> None:
-    source = (
-        "---\ntitle: Notes\n---\n\n"
-        "```markdown\n# Methods\n```\n\n"
-        "# Notes\n"
-    )
+    source = "---\ntitle: Notes\n---\n\n```markdown\n# Methods\n```\n\n# Notes\n"
     start = source.rindex("Notes")
     assert topic_role_exclusions(source) == ((start, start + 5),)
     assert "Notes" not in topic_prose(source)
@@ -80,7 +77,8 @@ def test_reporting_roles_preserves_primary_subject_and_link_evidence() -> None:
     assert topic_boundaries(source) == boundaries
     assert list(explicit_labels(source, prose)) == labels
     assert [(label, provenance) for label, _, _, provenance in labels] == [
-        ("Cyanotypes", "heading"), ("Photograms", "wikilink"),
+        ("Cyanotypes", "heading"),
+        ("Photograms", "wikilink"),
     ]
     assert all(source[start:end] == label for label, start, end, _ in labels)
 

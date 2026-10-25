@@ -15,8 +15,7 @@ permissions:
 
 concurrency:
   group: topic-corpora-${{ github.event.pull_request.number }}
-  # Preserve a complete replay while evidence-only commits are published.
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   corpora:

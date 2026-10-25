@@ -519,9 +519,7 @@ def frozen_contracts(
 
 
 @contextmanager
-def source_role_runner(
-    topic_text: Any, runner_factory: Callable[[], Any]
-) -> Iterator[Any]:
+def source_role_runner(topic_text: Any, runner_factory: Callable[[], Any]) -> Iterator[Any]:
     """A different preprocessing arm must never reuse baseline projections/proposals."""
     topic_text._projection.cache_clear()
     try:
@@ -557,9 +555,7 @@ def source_role_ablation(
         role_failures = frozen_contracts(runner, policy, legacy=False, functions=role_functions)
         for name, (fixture_path, source_root) in fixtures.items():
             gold = json.loads(fixture_path.read_text())
-            contents = {
-                note["id"]: verified_content(note, source_root) for note in gold["notes"]
-            }
+            contents = {note["id"]: verified_content(note, source_root) for note in gold["notes"]}
             empty_ids = {note["id"] for note in gold["notes"] if not note["expected"]}
             runner.summaries = {}
 
@@ -570,7 +566,8 @@ def source_role_ablation(
                 report = evaluation.evaluate_gold(fixture_path, source_root=source_root)
             report["empty_case_predictions"] = {
                 case["id"]: case["predictions"]["yake"]
-                for case in report["cases"] if case["id"] in empty_ids
+                for case in report["cases"]
+                if case["id"] in empty_ids
             }
             report["decision_summary"] = {
                 identifier: runner.summaries.get(sha256(content.encode()), {})
@@ -585,8 +582,7 @@ def source_role_ablation(
                 for identifier, content in contents.items()
             }
         proposals = {
-            sha256(prose.encode()): list(rows)
-            for prose, rows in runner.proposals.proposals.items()
+            sha256(prose.encode()): list(rows) for prose, rows in runner.proposals.proposals.items()
         }
     failures = viability(reports, legacy_reports, [*contract_failures, *role_failures])
     return {
@@ -623,28 +619,33 @@ def validate_source_role_receipt(report: Mapping[str, Any], plan: Mapping[str, A
     preregistered = plan.get("source_role_ablation")
     if not isinstance(arm, dict) or not isinstance(preregistered, dict):
         raise ValueError("Frozen selection requires the preregistered source-role ablation")
-    if (arm.get("name") != "without-generic-section-role"
-            or arm.get("pre_registered_plan") != preregistered
-            or arm.get("pre_registered_plan_sha256") != sha256(json_bytes(preregistered))
-            or arm.get("policy") != report["selected_policy"]
-            or arm.get("baseline_policy_reference") != policy_name(report["selected_policy"])
-            or arm.get("used_for_selection") is not False
-            or arm.get("proposal_cache_isolated") is not True
-            or arm.get("candidate_proposals_shared_with_factorial") is not False
-            or arm.get("projection_cache_cleared_before_and_after") is not True
-            or set(arm.get("reports", {})) != set(CALIBRATION)):
+    if (
+        arm.get("name") != "without-generic-section-role"
+        or arm.get("pre_registered_plan") != preregistered
+        or arm.get("pre_registered_plan_sha256") != sha256(json_bytes(preregistered))
+        or arm.get("policy") != report["selected_policy"]
+        or arm.get("baseline_policy_reference") != policy_name(report["selected_policy"])
+        or arm.get("used_for_selection") is not False
+        or arm.get("proposal_cache_isolated") is not True
+        or arm.get("candidate_proposals_shared_with_factorial") is not False
+        or arm.get("projection_cache_cleared_before_and_after") is not True
+        or set(arm.get("reports", {})) != set(CALIBRATION)
+    ):
         raise ValueError("Frozen source-role ablation metadata changed or is incomplete")
     role_failures = arm["source_role_contract_failures"]
     failures = viability(
-        arm["reports"], report["reports"]["legacy"],
+        arm["reports"],
+        report["reports"]["legacy"],
         [*arm["frozen_contract_failures"], *role_failures["arm"]],
     )
     requires_expansion = not failures and not role_failures["baseline"]
-    if (arm.get("diagnostic_failure_reasons") != failures
-            or arm.get("fixed_role_contract_blocks_selection") is not bool(role_failures["arm"])
-            or arm.get("empty_noise_blocks_selection") is not any(
-                failure.endswith(":additional_empty_case_labels") for failure in failures)
-            or arm.get("requires_selection_expansion_before_holdout") is not requires_expansion):
+    if (
+        arm.get("diagnostic_failure_reasons") != failures
+        or arm.get("fixed_role_contract_blocks_selection") is not bool(role_failures["arm"])
+        or arm.get("empty_noise_blocks_selection")
+        is not any(failure.endswith(":additional_empty_case_labels") for failure in failures)
+        or arm.get("requires_selection_expansion_before_holdout") is not requires_expansion
+    ):
         raise ValueError("Frozen source-role diagnostic decision does not match its evidence")
     if role_failures["baseline"]:
         raise ValueError("Selected baseline violates the fixed source-role regression contract")

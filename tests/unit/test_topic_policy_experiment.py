@@ -91,7 +91,8 @@ def calibration_receipt(root: Path) -> dict[str, Any]:
         "fixed_role_contract_blocks_selection": True,
         "empty_noise_blocks_selection": False,
         "diagnostic_failure_reasons": experiment.viability(
-            role_reports, reports["legacy"], [role_failure]),
+            role_reports, reports["legacy"], [role_failure]
+        ),
         "requires_selection_expansion_before_holdout": False,
     }
     return {
@@ -153,6 +154,7 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         self.assertIs(text._SECTION_LABELS, original)
         self.assertEqual(clears, [original, original])
         with self.assertRaisesRegex(RuntimeError, "factory failure"):
+
             def broken_factory() -> Any:
                 raise RuntimeError("factory failure")
 
@@ -574,7 +576,9 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         exec("def role_control():\n    assert 'Methods' not in topic_prose('source')\n", namespace)
         with patch.object(experiment.runpy, "run_path", return_value=namespace):
             failures = experiment.frozen_contracts(
-                None, experiment.all_policies()[0], legacy=False,
+                None,
+                experiment.all_policies()[0],
+                legacy=False,
                 functions={"existing_projection_test.py": ["role_control"]},
             )
         self.assertEqual(failures, ["existing_projection_test.py::role_control"])
