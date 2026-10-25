@@ -1,6 +1,8 @@
 # Historical topic evidence
 
 These checked-in ASCII archives preserve the original report and review bytes.
+Compressed payloads are omitted from line diffs; these remain ordinary durable
+Git blobs, with their readable inventories available through the utility below.
 They are durable Git files, not expiring CI artifacts. Each JSON envelope lists
 the original paths, byte counts and SHA256 checksums beside a bounded compressed
 payload. No source vault Markdown bodies are included. Review keyphrases and

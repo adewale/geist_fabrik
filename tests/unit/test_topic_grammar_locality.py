@@ -224,7 +224,9 @@ def test_an_uncertain_other_sentence_cannot_weaken_a_mapped_clause_rejection(
 @pytest.mark.parametrize("label", ["Big", "Medium", "Small"])
 @pytest.mark.parametrize("suffix", [":", ": partly filled", " : "])
 def test_adjective_field_fragments_do_not_take_nominal_or_isolated_shortcuts(
-    monkeypatch: pytest.MonkeyPatch, label: str, suffix: str,
+    monkeypatch: pytest.MonkeyPatch,
+    label: str,
+    suffix: str,
 ) -> None:
     # Surface wording alone never rejects a field: this case supplies JJ tags.
     source = label + suffix
@@ -258,7 +260,8 @@ def test_a_finite_field_prompt_is_explained_as_a_clause_fragment() -> None:
 )
 @pytest.mark.parametrize("value", ["", " a partially filled description"])
 def test_true_nominal_and_gerund_field_subjects_remain_eligible(
-    subject: str, value: str,
+    subject: str,
+    value: str,
 ) -> None:
     source = subject + ":" + value
     tags = extract_topics(source, _Candidates(subject))
@@ -271,10 +274,15 @@ def test_a_noun_reading_of_medium_is_not_blacklisted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        grammar_module, "_tag_block", lambda text: [[("Medium", "NN"), (":", ":")]],
+        grammar_module,
+        "_tag_block",
+        lambda text: [[("Medium", "NN"), (":", ":")]],
     )
     assert CandidateGrammar("Medium:", ()).decision("Medium", 0, 6) == GrammarDecision(
-        True, "noun_phrase", 0, 7,
+        True,
+        "noun_phrase",
+        0,
+        7,
     )
 
 
@@ -290,14 +298,21 @@ def test_a_later_colon_does_not_change_an_unchanged_nominal_candidate_context(
 ) -> None:
     source = "blue amber:"
     monkeypatch.setattr(
-        grammar_module, "_tag_block",
+        grammar_module,
+        "_tag_block",
         lambda text: [[("blue", "JJ"), ("amber", "NN"), (":", ":")]],
     )
     assert CandidateGrammar(source, ()).decision("blue", 0, 4) == GrammarDecision(
-        True, "nominal_context", 0, len(source),
+        True,
+        "nominal_context",
+        0,
+        len(source),
     )
     assert CandidateGrammar(source, ()).decision("blue amber", 0, 10) == GrammarDecision(
-        True, "noun_phrase", 0, len(source),
+        True,
+        "noun_phrase",
+        0,
+        len(source),
     )
 
 
@@ -308,7 +323,10 @@ def test_unmapped_colon_field_alignment_still_preserves_the_candidate(
     source = "unmapped Small:"
     start = source.index("Small")
     assert CandidateGrammar(source, ()).decision("Small", start, start + 5) == GrammarDecision(
-        True, "uncertain_alignment", None, None,
+        True,
+        "uncertain_alignment",
+        None,
+        None,
     )
 
 

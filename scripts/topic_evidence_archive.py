@@ -228,9 +228,7 @@ def load_archive(path: Path) -> tuple[list[dict[str, Any]], dict[str, bytes]]:
         )
     else:
         try:
-            xz_decoder = lzma.LZMADecompressor(
-                format=lzma.FORMAT_XZ, memlimit=MAX_XZ_MEMORY_BYTES
-            )
+            xz_decoder = lzma.LZMADecompressor(format=lzma.FORMAT_XZ, memlimit=MAX_XZ_MEMORY_BYTES)
             payload = xz_decoder.decompress(compressed, max_length=expanded_size + 1)
         except lzma.LZMAError as exc:
             raise ArchiveError("Invalid xz payload or decoder memory limit exceeded") from exc

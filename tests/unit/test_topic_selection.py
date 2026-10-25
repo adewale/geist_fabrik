@@ -93,7 +93,7 @@ def test_evidence_cannot_reconstruct_masked_destinations(source: str) -> None:
     rendered = json.dumps(asdict(explanation), ensure_ascii=False)
     assert "Private destination" not in rendered
     assert "secret.example" not in rendered and "🔒" not in rendered
-    assert all(source[tag.start:tag.end] == tag.text for tag in explanation.topics)
+    assert all(source[tag.start : tag.end] == tag.text for tag in explanation.topics)
 
 
 def test_masked_occurrence_does_not_hide_a_later_safe_occurrence() -> None:

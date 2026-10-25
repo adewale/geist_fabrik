@@ -150,9 +150,7 @@ class TopicEvidenceArchiveTests(unittest.TestCase):
         )
         self.assertEqual(envelope["compression"], "xz+base64")
         second = self.root / "second.json"
-        archive.create_archive(
-            self.root, list(reversed(self.originals)), second, compression="xz"
-        )
+        archive.create_archive(self.root, list(reversed(self.originals)), second, compression="xz")
         self.assertEqual(self.output.read_bytes(), second.read_bytes())
         _, files = archive.load_archive(self.output)
         self.assertEqual(files, self.originals)
@@ -194,7 +192,7 @@ class TopicEvidenceArchiveTests(unittest.TestCase):
         payload = bytearray(lzma.compress(b"{}", format=lzma.FORMAT_XZ, preset=6))
         header_end = 12 + (payload[12] + 1) * 4
         self.assertEqual(payload[14:17], b"\x21\x01\x16")
-        payload[16] = 0x1e
+        payload[16] = 0x1E
         payload[header_end - 4 : header_end] = zlib.crc32(payload[12 : header_end - 4]).to_bytes(
             4, "little"
         )
@@ -209,8 +207,13 @@ class TopicEvidenceArchiveTests(unittest.TestCase):
             self.assertEqual(
                 archive.main(
                     [
-                        "create", str(self.output), "empty", "--root", str(self.root),
-                        "--compression", "xz",
+                        "create",
+                        str(self.output),
+                        "empty",
+                        "--root",
+                        str(self.root),
+                        "--compression",
+                        "xz",
                     ]
                 ),
                 0,
