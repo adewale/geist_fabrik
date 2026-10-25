@@ -29,7 +29,7 @@ def test_explanation_separates_structural_mask_and_relevance() -> None:
     assert explanation.structural_exclusions
     rendered = json.dumps(asdict(explanation), allow_nan=False)
     assert "secret metadata" not in rendered
-    assert all(source[tag.start:tag.end] == tag.text for tag in explanation.topics)
+    assert all(source[tag.start : tag.end] == tag.text for tag in explanation.topics)
 
 
 def test_every_proposal_has_a_final_decision_and_later_evidence_is_explained() -> None:
@@ -48,7 +48,8 @@ def test_plain_yake_comparator_disables_added_relevance_rules_only() -> None:
     plain = SelectionPolicy(**dict.fromkeys(vars(SelectionPolicy()), False))
     explanation = analyze_topics(
         "# Clinic\n\nThe clinic moved the appointment.",
-        Candidates(("clinic moved", 0.1), ("appointment", 0.2)), policy=plain,
+        Candidates(("clinic moved", 0.1), ("appointment", 0.2)),
+        policy=plain,
     )
     assert plain.name == "clean-yake" and plain.complexity == 0
     assert [tag.key for tag in explanation.topics] == ["clinic moved", "appointment"]
@@ -74,3 +75,32 @@ def test_structurally_empty_text_has_no_candidates_or_topics() -> None:
     explanation = analyze_topics("---\ntags: [daily]\n---\n## Notes\n\n![[Daily.base]]\n")
     assert explanation.topics == [] and explanation.candidates == []
     assert explanation.structural_exclusions
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "# Community [[Private destination|gardens]]",
+        "# [Community](https://secret.example) gardens",
+        "[Community](https://secret.example) gardens",
+        "# Community [[🔒|gardens]]",
+    ],
+)
+def test_evidence_cannot_reconstruct_masked_destinations(source: str) -> None:
+    explanation = analyze_topics(source, Candidates(("Community gardens", 0.1)))
+    assert "community gardens" not in {tag.key for tag in explanation.topics}
+    assert any(row.reason == "masked_evidence_span" for row in explanation.candidates)
+    rendered = json.dumps(asdict(explanation), ensure_ascii=False)
+    assert "Private destination" not in rendered
+    assert "secret.example" not in rendered and "🔒" not in rendered
+    assert all(source[tag.start:tag.end] == tag.text for tag in explanation.topics)
+
+
+def test_masked_occurrence_does_not_hide_a_later_safe_occurrence() -> None:
+    source = "[Community](https://secret.example) gardens. Community gardens thrive."
+    explanation = analyze_topics(source, Candidates(("Community gardens", 0.1)))
+    assert len(explanation.topics) == 1
+    assert explanation.topics[0].start == source.rindex("Community gardens")
+    row = next(row for row in explanation.candidates if row.key == "community gardens")
+    assert row.inspected_occurrences[0].reason == "masked_evidence_span"
+    assert row.inspected_occurrences[-1].allowed

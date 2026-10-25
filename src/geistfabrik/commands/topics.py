@@ -5,8 +5,8 @@ import sys
 from dataclasses import asdict
 from typing import Any
 
-from ..topics import TopicIndex
 from ..topic_selection import explain_topics
+from ..topics import TopicIndex
 from ..vault import Vault
 from .base import BaseCommand
 

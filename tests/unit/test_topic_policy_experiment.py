@@ -22,18 +22,71 @@ experiment = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(experiment)
 
 
-def report(*, precision: float = 0.8, recall: float = 0.7,
-           empty: list[str] | None = None, passed: bool = True) -> dict[str, Any]:
-    return {"metrics": {"yake": {"precision": precision, "recall": recall}},
-            "minimum_precision": 0.5, "minimum_recall": 0.6,
-            "empty_case_predictions": {"empty": [] if empty is None else empty},
-            "passed": passed}
+def report(
+    *,
+    precision: float = 0.8,
+    recall: float = 0.7,
+    empty: list[str] | None = None,
+    passed: bool = True,
+) -> dict[str, Any]:
+    return {
+        "metrics": {"yake": {"precision": precision, "recall": recall}},
+        "minimum_precision": 0.5,
+        "minimum_recall": 0.6,
+        "empty_case_predictions": {"empty": [] if empty is None else empty},
+        "passed": passed,
+    }
 
 
-def note(identifier: str, classification: str, expected: list[list[str]],
-         acceptable: list[str]) -> dict[str, Any]:
-    return {"id": identifier, "source_path": f"{identifier}.md",
-            "classification": classification, "expected": expected, "acceptable": acceptable}
+def note(
+    identifier: str, classification: str, expected: list[list[str]], acceptable: list[str]
+) -> dict[str, Any]:
+    return {
+        "id": identifier,
+        "source_path": f"{identifier}.md",
+        "classification": classification,
+        "expected": expected,
+        "acceptable": acceptable,
+    }
+
+
+def calibration_receipt(root: Path) -> dict[str, Any]:
+    """Synthetic eligible receipt; never opens project gold or fresh evidence."""
+    files = {}
+    sources = {}
+    for name, relative in experiment.CALIBRATION.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"synthetic frozen fixture")
+        sources[name] = {"fixture_sha256": experiment.sha256(path.read_bytes())}
+    plan = root / experiment.PLAN
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_bytes(b"synthetic frozen plan")
+    files[str(experiment.PLAN)] = experiment.sha256(plan.read_bytes())
+    files["scripts/topic_evidence_archive.py"] = "synthetic-reader-digest"
+    policies = experiment.all_policies()
+    reports = {
+        experiment.policy_name(policy): {name: report() for name in experiment.CALIBRATION}
+        for policy in policies
+    }
+    reports["legacy"] = {name: report() for name in experiment.CALIBRATION}
+    contracts = {name: [] for name in reports}
+    decision = experiment.select_policy(reports, policies[-1], contracts)
+    return {
+        "format": experiment.FORMAT,
+        "phase": "calibrate",
+        "reports": reports,
+        "previous_production_policy": policies[-1],
+        "frozen_contract_failures": contracts,
+        "sources": sources,
+        "receipt": {
+            "file_sha256": files,
+            "selection_logic_sha256": "synthetic-logic-digest",
+            "grammar_dependency_sha256": "synthetic-grammar-digest",
+            "dependency_versions": {"synthetic": "1"},
+        },
+        **decision,
+    }
 
 
 class TopicPolicyExperimentTests(unittest.TestCase):
@@ -79,8 +132,9 @@ class TopicPolicyExperimentTests(unittest.TestCase):
             return object()
 
         runner = experiment.PolicyRunner.__new__(experiment.PolicyRunner)
-        runner.selection = SimpleNamespace(analyze_topics=analyze,
-                                           SelectionPolicy=lambda **policy: policy)
+        runner.selection = SimpleNamespace(
+            analyze_topics=analyze, SelectionPolicy=lambda **policy: policy
+        )
         runner.proposals = experiment.ProposalCache(Extractor)
         runner.local = experiment.GrammarCache(lambda *args: object())
         runner.legacy = experiment.GrammarCache(lambda *args: object())
@@ -99,9 +153,15 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         self.assertFalse(candidate["a"]["passed"])
         candidate["a"] = report(empty=["old-noise", "new-noise"])
         candidate["b"] = report(precision=0.49, recall=0.59)
-        self.assertEqual(experiment.viability(candidate, legacy, ["known-answer"]), [
-            "frozen_contract:known-answer", "a:additional_empty_case_labels",
-            "b:precision_floor", "b:recall_floor"])
+        self.assertEqual(
+            experiment.viability(candidate, legacy, ["known-answer"]),
+            [
+                "frozen_contract:known-answer",
+                "a:additional_empty_case_labels",
+                "b:precision_floor",
+                "b:recall_floor",
+            ],
+        )
 
     def test_selection_uses_complexity_grammar_predicate_then_worst_metrics(self) -> None:
         policies = experiment.all_policies()
@@ -120,18 +180,25 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         self.assertEqual(chosen["selected_policy"], simple)
         no_rules = policies[0]
         contracts["clean-yake"] = []
-        self.assertEqual(experiment.select_policy(reports, policies[-1], contracts)[
-            "selected_policy"], no_rules)
+        self.assertEqual(
+            experiment.select_policy(reports, policies[-1], contracts)["selected_policy"], no_rules
+        )
         # Macro averages cannot hide a weaker fixture in the tie break.
         alternate = dict(simple, heading_prior=False, link_prior=True)
-        self.assertLess(experiment.rank_policy(simple, {"a": report(precision=0.7),
-                                                       "b": report(precision=0.7)}),
-                        experiment.rank_policy(alternate, {"a": report(precision=1.0),
-                                                          "b": report(precision=0.6)}))
+        self.assertLess(
+            experiment.rank_policy(
+                simple, {"a": report(precision=0.7), "b": report(precision=0.7)}
+            ),
+            experiment.rank_policy(
+                alternate, {"a": report(precision=1.0), "b": report(precision=0.6)}
+            ),
+        )
 
     def test_no_viable_policy_retains_previous_without_lowering_floors(self) -> None:
-        reports = {experiment.policy_name(policy): {"set": report(precision=0.1)}
-                   for policy in experiment.all_policies()}
+        reports = {
+            experiment.policy_name(policy): {"set": report(precision=0.1)}
+            for policy in experiment.all_policies()
+        }
         reports["legacy"] = {"set": report()}
         contracts = {name: [] for name in reports}
         previous = experiment.all_policies()[-1]
@@ -140,23 +207,31 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         self.assertFalse(chosen["simplification_succeeded"])
         self.assertEqual(chosen["eligible_policy_names"], [])
         self.assertTrue(chosen["selected_policy_is_diagnostic_only"])
-        self.assertEqual(chosen["selection_outcome"],
-                         "no_eligible_local_policy_keep_published_implementation")
+        self.assertEqual(
+            chosen["selection_outcome"], "no_eligible_local_policy_keep_published_implementation"
+        )
 
     def test_holdout_keeps_underspecified_predictions_and_empty_failure_visible(self) -> None:
-        gold = {"limit": 5, "minimum_precision": 0.5, "minimum_recall": 0.6, "notes": [
-            note("subject", "substantive", [["alpha"]], ["alpha"]),
-            note("uncertain", "underspecified", [], []),
-            note("stub", "empty", [], []),
-        ]}
+        gold = {
+            "limit": 5,
+            "minimum_precision": 0.5,
+            "minimum_recall": 0.6,
+            "notes": [
+                note("subject", "substantive", [["alpha"]], ["alpha"]),
+                note("uncertain", "underspecified", [], []),
+                note("stub", "empty", [], []),
+            ],
+        }
         predictions = {"subject": ["alpha"], "uncertain": ["ambiguous"], "stub": ["noise"]}
         result = experiment.score_holdout(gold, predictions, str.casefold)
         self.assertEqual(result["metrics"], {"precision": 1.0, "recall": 1.0})
         self.assertEqual(len(result["cases"]), 3)
         self.assertEqual(result["underspecified"]["assigned_labels"], 1)
         self.assertEqual(result["underspecified"]["cases"][0]["predictions"], ["ambiguous"])
-        self.assertEqual(result["hard_empty_false_positives"], [
-            {"id": "stub", "labels": ["noise"], "false_positive_count": 1}])
+        self.assertEqual(
+            result["hard_empty_false_positives"],
+            [{"id": "stub", "labels": ["noise"], "false_positive_count": 1}],
+        )
         self.assertFalse(result["passed"])
         del predictions["uncertain"]
         with self.assertRaisesRegex(ValueError, "every case"):
@@ -169,8 +244,12 @@ class TopicPolicyExperimentTests(unittest.TestCase):
 
     def test_one_prediction_can_cover_two_groups_and_changes_five_label_ceiling(self) -> None:
         overlapping = [["shared", "alpha"], ["shared", "beta"]]
-        gold = {"limit": 5, "minimum_precision": 1.0, "minimum_recall": 1.0,
-                "notes": [note("subject", "substantive", overlapping, ["shared"])]}
+        gold = {
+            "limit": 5,
+            "minimum_precision": 1.0,
+            "minimum_recall": 1.0,
+            "notes": [note("subject", "substantive", overlapping, ["shared"])],
+        }
         scored = experiment.score_holdout(gold, {"subject": ["shared"]}, str.casefold)
         self.assertEqual(scored["metrics"], {"precision": 1.0, "recall": 1.0})
         self.assertEqual(scored["cases"][0]["maximum_recall_at_label_budget"], 1.0)
@@ -183,14 +262,21 @@ class TopicPolicyExperimentTests(unittest.TestCase):
             root = Path(directory)
             raw = b"ambiguous source"
             (root / "uncertain.md").write_bytes(raw)
-            selected = {"id": "uncertain", "source_path": "uncertain.md",
-                        "source_sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw),
-                        "source_git_blob": hashlib.sha1(
-                            b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()}
+            selected = {
+                "id": "uncertain",
+                "source_path": "uncertain.md",
+                "source_sha256": hashlib.sha256(raw).hexdigest(),
+                "bytes": len(raw),
+                "source_git_blob": hashlib.sha1(
+                    b"blob " + str(len(raw)).encode() + b"\0" + raw
+                ).hexdigest(),
+            }
             manifest = {"source_commit": experiment.PINNED_LYT, "notes": [selected]}
             gold = {"notes": [dict(selected, classification="underspecified")]}
-            self.assertEqual(experiment.verify_fresh_sources(
-                manifest, gold, root, expected_count=1), {"uncertain": raw.decode()})
+            self.assertEqual(
+                experiment.verify_fresh_sources(manifest, gold, root, expected_count=1),
+                {"uncertain": raw.decode()},
+            )
             (root / "uncertain.md").write_bytes(b"changed")
             with self.assertRaisesRegex(ValueError, "Frozen source changed"):
                 experiment.verify_fresh_sources(manifest, gold, root, expected_count=1)
@@ -200,9 +286,13 @@ class TopicPolicyExperimentTests(unittest.TestCase):
             root = Path(directory)
             raw = b"alpha"
             (root / "alpha.md").write_bytes(raw)
-            selected = {"id": "alpha", "source_path": "alpha.md",
-                        "source_sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw),
-                        "source_git_blob": "0" * 40}
+            selected = {
+                "id": "alpha",
+                "source_path": "alpha.md",
+                "source_sha256": hashlib.sha256(raw).hexdigest(),
+                "bytes": len(raw),
+                "source_git_blob": "0" * 40,
+            }
             manifest = {"source_commit": experiment.PINNED_LYT, "notes": [selected]}
             gold = {"notes": [dict(selected, classification="substantive")]}
             with self.assertRaisesRegex(ValueError, "size/blob"):
@@ -225,8 +315,15 @@ class TopicPolicyExperimentTests(unittest.TestCase):
     def test_holdout_cannot_read_fresh_data_before_policy_matches_selection(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "selection.json"
-            path.write_text(json.dumps({"format": experiment.FORMAT, "phase": "calibrate",
-                                        "selected_policy": experiment.all_policies()[0]}))
+            path.write_text(
+                json.dumps(
+                    {
+                        "format": experiment.FORMAT,
+                        "phase": "calibrate",
+                        "selected_policy": experiment.all_policies()[0],
+                    }
+                )
+            )
             with patch.object(experiment.subprocess, "check_output") as git_show:
                 with self.assertRaisesRegex(ValueError, "DEFAULT_POLICY"):
                     experiment.frozen_selection(path, experiment.all_policies()[-1])
@@ -236,19 +333,132 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "selection.json"
             policy = experiment.all_policies()[-1]
-            path.write_text(json.dumps({
-                "format": experiment.FORMAT, "phase": "calibrate", "selected_policy": policy,
-                "viable_policy_found": False,
-                "selection_outcome": "no_eligible_local_policy_keep_published_implementation"}))
+            path.write_text(
+                json.dumps(
+                    {
+                        "format": experiment.FORMAT,
+                        "phase": "calibrate",
+                        "selected_policy": policy,
+                        "viable_policy_found": False,
+                        "selection_outcome": (
+                            "no_eligible_local_policy_keep_published_implementation"
+                        ),
+                    }
+                )
+            )
             with patch.object(experiment.subprocess, "check_output") as git_show:
                 with self.assertRaisesRegex(ValueError, "ranked eligible"):
                     experiment.frozen_selection(path, policy)
                 git_show.assert_not_called()
 
+    def test_committed_archive_validates_inner_ranking_and_distinguishes_both_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = calibration_receipt(root)
+            logical_raw = experiment.json_bytes(payload)
+            raw = experiment.json_bytes(
+                {"format": experiment.EVIDENCE_FORMAT, "compression": "xz+base64"}
+            )
+            path = root / "calibration.archive.json"
+            path.write_bytes(raw)
+            inner_path = "historical/calibration.json"
+            with (
+                patch.object(experiment, "REPO", root),
+                patch.object(experiment, "receipt", return_value=payload["receipt"]),
+                patch.object(
+                    experiment,
+                    "load_selection_archive",
+                    return_value=([{"path": inner_path}], {inner_path: logical_raw}),
+                ) as archive_reader,
+                patch.object(experiment.subprocess, "check_output", return_value=raw) as git_show,
+            ):
+                result = experiment.frozen_selection(path, payload["selected_policy"])
+            archive_reader.assert_called_once_with(path)
+            git_show.assert_called_once_with(
+                ["git", "show", "HEAD:calibration.archive.json"], cwd=root
+            )
+            self.assertEqual(result["selected_policy"], payload["selected_policy"])
+            self.assertEqual(result["selection_report_sha256"], experiment.sha256(raw))
+            self.assertEqual(
+                result["logical_calibration_report_sha256"], experiment.sha256(logical_raw)
+            )
+            self.assertNotEqual(
+                result["selection_report_sha256"], result["logical_calibration_report_sha256"]
+            )
+
+    def test_plain_committed_report_remains_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = calibration_receipt(root)
+            raw = experiment.json_bytes(payload)
+            path = root / "calibration.json"
+            path.write_bytes(raw)
+            with (
+                patch.object(experiment, "REPO", root),
+                patch.object(experiment, "receipt", return_value=payload["receipt"]),
+                patch.object(experiment, "load_selection_archive") as archive_reader,
+                patch.object(experiment.subprocess, "check_output", return_value=raw),
+            ):
+                result = experiment.frozen_selection(path, payload["selected_policy"])
+            archive_reader.assert_not_called()
+            self.assertEqual(
+                result["selection_report_sha256"], result["logical_calibration_report_sha256"]
+            )
+
+    def test_archive_cannot_substitute_inner_bytes_for_committed_envelope(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = calibration_receipt(root)
+            logical_raw = experiment.json_bytes(payload)
+            path = root / "calibration.archive.json"
+            path.write_bytes(experiment.json_bytes({"format": experiment.EVIDENCE_FORMAT}))
+            with (
+                patch.object(experiment, "REPO", root),
+                patch.object(
+                    experiment,
+                    "load_selection_archive",
+                    return_value=([{"path": "report.json"}], {"report.json": logical_raw}),
+                ),
+                patch.object(experiment.subprocess, "check_output", return_value=logical_raw),
+            ):
+                with self.assertRaisesRegex(ValueError, "committed unchanged"):
+                    experiment.frozen_selection(path, payload["selected_policy"])
+
+    def test_archive_inner_policy_must_still_match_recomputed_ranking(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = calibration_receipt(root)
+            payload["selected_policy"] = experiment.all_policies()[-1]
+            logical_raw = experiment.json_bytes(payload)
+            path = root / "calibration.archive.json"
+            path.write_bytes(experiment.json_bytes({"format": experiment.EVIDENCE_FORMAT}))
+            with (
+                patch.object(
+                    experiment,
+                    "load_selection_archive",
+                    return_value=([{"path": "report.json"}], {"report.json": logical_raw}),
+                ),
+                patch.object(experiment.subprocess, "check_output") as git_show,
+            ):
+                with self.assertRaisesRegex(ValueError, "frozen calibration ranking"):
+                    experiment.frozen_selection(path, payload["selected_policy"])
+            git_show.assert_not_called()
+
+    def test_selection_archive_requires_exactly_one_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "selection.archive.json"
+            path.write_bytes(experiment.json_bytes({"format": experiment.EVIDENCE_FORMAT}))
+            entries = [{"path": "one.json"}, {"path": "two.json"}]
+            files = {"one.json": b"{}", "two.json": b"{}"}
+            with patch.object(experiment, "load_selection_archive", return_value=(entries, files)):
+                with self.assertRaisesRegex(ValueError, "exactly one report"):
+                    experiment.calibration_report_input(path)
+
     def test_frozen_known_answer_function_is_called_and_its_globals_restored(self) -> None:
         namespace: dict[str, Any] = {"extract_topics": lambda _text: ["original"]}
-        exec("def known_answer():\n    assert extract_topics('source') == ['original']\n",
-             namespace)
+        exec(
+            "def known_answer():\n    assert extract_topics('source') == ['original']\n", namespace
+        )
 
         class Runner:
             def extract(self, content: str, policy: Any, **options: Any) -> list[str]:
@@ -257,8 +467,11 @@ class TopicPolicyExperimentTests(unittest.TestCase):
         original = namespace["extract_topics"]
         with patch.object(experiment.runpy, "run_path", return_value=namespace):
             failures = experiment.frozen_contracts(
-                Runner(), experiment.all_policies()[0], legacy=False,
-                functions={"existing_test.py": ["known_answer"]})
+                Runner(),
+                experiment.all_policies()[0],
+                legacy=False,
+                functions={"existing_test.py": ["known_answer"]},
+            )
         self.assertEqual(failures, ["existing_test.py::known_answer"])
         self.assertIs(namespace["extract_topics"], original)
 

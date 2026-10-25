@@ -16,8 +16,8 @@ from .config import GEIST_JOURNAL_DIR
 from .source_eligibility import SourceEligibility
 from .topic_selection import MAX_TOPIC_CHARS as MAX_TOPIC_CHARS
 from .topic_selection import MAX_TOPICS as MAX_TOPICS
-from .topic_selection import KeywordExtractor as KeywordExtractor
 from .topic_selection import SETTINGS as _SETTINGS
+from .topic_selection import KeywordExtractor as KeywordExtractor
 from .topic_selection import TopicTag as TopicTag
 from .topic_selection import extract_topics as extract_topics
 from .topic_selection import topic_key as topic_key

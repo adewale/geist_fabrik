@@ -1,12 +1,14 @@
-"""Frozen document-global comparator, for the policy benchmark only.
+"""Legacy selection grammar over current safe grounding, for benchmarks only.
 
 The class body is copied unchanged from the pre-locality implementation. Shared
 word/tag helpers retain the pinned tokenizer; production never imports this file.
+All benchmark policies use current safe source grounding, so this comparator does
+not reproduce the entire historical extraction engine.
 """
 
 import unicodedata
 
-from geistfabrik.topic_grammar import WORD, GrammarDecision, _CLAUSE, _tag_block, _Token, _words
+from geistfabrik.topic_grammar import _CLAUSE, WORD, GrammarDecision, _tag_block, _Token, _words
 
 
 class LegacyGrammar:

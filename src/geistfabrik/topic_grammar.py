@@ -196,9 +196,15 @@ class CandidateGrammar:
         words = _words(label)
         if not words or _words(self.prose[start:end]) != words:
             return outcome(True, "uncertain_alignment")
-        if words == _words(self.prose[context.start:context.end]):
+        # A candidate's own following colon supplies local fragment context.
+        # It removes permissive shortcuts, not the candidate: noun/gerund
+        # subjects remain eligible under the same fallible POS evidence below.
+        field_fragment = re.match(r"[ \t]*:", self.prose[end : context.end]) is not None
+        if not field_fragment and words == _words(self.prose[context.start : context.end]):
             return outcome(True, "isolated_subject")
-        if not any(token[3] in _CLAUSE and not token[2].isdecimal() for token in context.tokens):
+        if not field_fragment and not any(
+            token[3] in _CLAUSE and not token[2].isdecimal() for token in context.tokens
+        ):
             return outcome(True, "nominal_context")
         tokens = [token for token in context.tokens if start <= token[0] and token[1] <= end]
         if [unicodedata.normalize("NFC", token[2]).casefold() for token in tokens] != words:
@@ -213,7 +219,9 @@ class CandidateGrammar:
             and (tags[-1].startswith(("NN", "JJ")) or tags[-1] == "CD" or tokens[-1][2].isdecimal())
             and any(tag.startswith("NN") for tag in tags)
         )
-        return outcome(nominal, "noun_phrase" if nominal else "non_nominal_fragment")
+        if nominal:
+            return outcome(True, "noun_phrase")
+        return outcome(False, "non_nominal_field" if field_fragment else "non_nominal_fragment")
 
     def allows(self, label: str, start: int, end: int) -> bool:
         """Compatibility predicate for callers that do not need the explanation."""

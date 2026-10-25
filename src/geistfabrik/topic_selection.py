@@ -19,7 +19,11 @@ from .topic_text import explicit_labels, topic_boundaries, topic_prose
 MAX_TOPICS = 5
 MAX_TOPIC_CHARS = 100_000
 SETTINGS: dict[str, Any] = {
-    "lan": "en", "n": 3, "top": 50, "dedup_lim": 0.9, "window_size": 2,
+    "lan": "en",
+    "n": 3,
+    "top": 50,
+    "dedup_lim": 0.9,
+    "window_size": 2,
 }
 PREDICATE_HINTS = frozenset(
     "need needs use uses using make makes made help helps improve improves "
@@ -118,6 +122,18 @@ def topic_key(label: str) -> str:
     return " ".join(unicodedata.normalize("NFC", label).casefold().split())
 
 
+def _visible_evidence(content: str, prose: str, start: int, end: int) -> bool:
+    """A single raw evidence span cannot reconstruct masked syntax or content.
+
+    Composite visible phrases remain YAKE proposals, but require a later safe
+    occurrence or future multi-span evidence support before they can be stored.
+    """
+    return all(
+        raw == visible or (raw.isspace() and visible.isspace())
+        for raw, visible in zip(content[start:end], prose[start:end], strict=True)
+    )
+
+
 def analyze_topics(
     content: str,
     extractor: KeywordExtractor | None = None,
@@ -141,8 +157,10 @@ def analyze_topics(
         [
             StructuralExclusion(m.start(), m.end(), content.count("\n", 0, m.start()) + 1)
             for m in WORD.finditer(content)
-            if prose[m.start():m.end()] != m.group()
-        ] if trace else []
+            if prose[m.start() : m.end()] != m.group()
+        ]
+        if trace
+        else []
     )
     decisions: list[CandidateDecision] = []
     if not WORD.search(prose):
@@ -171,12 +189,26 @@ def analyze_topics(
         if not (policy.heading_prior if provenance == "heading" else policy.link_prior):
             row.stage, row.reason = "relevance", "authored_prior_disabled"
             continue
+        if not _visible_evidence(content, prose, start, end):
+            row.reason = "masked_evidence_span"
+            continue
         if len(key) < 2 or " ".join(WORD.findall(key)) != key or not any(c.isalpha() for c in key):
             row.reason = "unsupported_label_shape"
             continue
         row.inspected_occurrences.append(OccurrenceDecision(start, end, True, "authored_source"))
-        admit(TopicTag(key, label, score, start, end, content[start:end],
-                       content.count("\n", 0, start) + 1, provenance), row)
+        admit(
+            TopicTag(
+                key,
+                label,
+                score,
+                start,
+                end,
+                content[start:end],
+                content.count("\n", 0, start) + 1,
+                provenance,
+            ),
+            row,
+        )
 
     for label, raw_score in extractor.extract_keywords(prose):
         key = topic_key(label)
@@ -185,8 +217,14 @@ def analyze_topics(
         finite_score = score if math.isfinite(score) else None
         row = CandidateDecision(label, key, "yake", finite_score, finite_score)
         decisions.append(row)
-        if (not words or " ".join(words) != key or not any(c.isalpha() for c in key)
-                or len(key) < 2 or not math.isfinite(score) or score < 0):
+        if (
+            not words
+            or " ".join(words) != key
+            or not any(c.isalpha() for c in key)
+            or len(key) < 2
+            or not math.isfinite(score)
+            or score < 0
+        ):
             row.reason = "unsupported_label_or_score"
             continue
         if policy.repeated_words and len(set(words)) != len(words):
@@ -204,6 +242,12 @@ def analyze_topics(
         chosen: re.Match[str] | None = None
         for occurrence in re.finditer(expression, prose, re.IGNORECASE):
             start, end = occurrence.span()
+            if not _visible_evidence(content, prose, start, end):
+                row.inspected_occurrences.append(
+                    OccurrenceDecision(start, end, False, "masked_evidence_span")
+                )
+                row.stage, row.reason = "grounding", "masked_evidence_span"
+                continue
             if any(start < edge < end for edge in boundaries):
                 row.inspected_occurrences.append(
                     OccurrenceDecision(start, end, False, "crosses_structural_boundary")
@@ -211,13 +255,20 @@ def analyze_topics(
                 row.reason = "crosses_structural_boundary"
                 continue
             assessment = (
-                grammar.decision(label, start, end) if grammar is not None
+                grammar.decision(label, start, end)
+                if grammar is not None
                 else GrammarDecision(True, "grammar_disabled", None, None)
             )
-            row.inspected_occurrences.append(OccurrenceDecision(
-                start, end, assessment.allowed, assessment.reason,
-                assessment.context_start, assessment.context_end,
-            ))
+            row.inspected_occurrences.append(
+                OccurrenceDecision(
+                    start,
+                    end,
+                    assessment.allowed,
+                    assessment.reason,
+                    assessment.context_start,
+                    assessment.context_end,
+                )
+            )
             if assessment.allowed:
                 chosen = occurrence
                 break
@@ -225,22 +276,42 @@ def analyze_topics(
         if chosen is None:
             continue
         start, end = chosen.span()
-        admit(TopicTag(key, " ".join(label.split()), score, start, end, content[start:end],
-                       content.count("\n", 0, start) + 1), row)
+        admit(
+            TopicTag(
+                key,
+                " ".join(label.split()),
+                score,
+                start,
+                end,
+                content[start:end],
+                content.count("\n", 0, start) + 1,
+            ),
+            row,
+        )
 
     selected: list[TopicTag] = []
     previous_statistical_cost: float | None = None
     for tag, row in sorted(tags.values(), key=lambda pair: (pair[0].score, pair[0].key)):
         row.stage = "selection"
-        conflict = next((other for other in selected if
-                         f" {tag.key} " in f" {other.key} "
-                         or f" {other.key} " in f" {tag.key} "), None)
+        conflict = next(
+            (
+                other
+                for other in selected
+                if f" {tag.key} " in f" {other.key} " or f" {other.key} " in f" {tag.key} "
+            ),
+            None,
+        )
         if policy.containment and conflict is not None:
             row.reason, row.conflicting_key = "contained_label", conflict.key
             continue
-        if (policy.score_gap and tag.provenance == "yake" and len(tag.key.split()) == 1
-                and previous_statistical_cost is not None and previous_statistical_cost > 0
-                and tag.score > previous_statistical_cost * 8.0):
+        if (
+            policy.score_gap
+            and tag.provenance == "yake"
+            and len(tag.key.split()) == 1
+            and previous_statistical_cost is not None
+            and previous_statistical_cost > 0
+            and tag.score > previous_statistical_cost * 8.0
+        ):
             row.reason = "standalone_score_gap_8"
             continue
         if len(selected) == MAX_TOPICS:

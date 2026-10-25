@@ -4,15 +4,17 @@ python tests/unit/test_topic_evidence_archive.py
 """
 
 import base64
-from collections.abc import Callable
 import gzip
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
+import lzma
 import tempfile
-from typing import Any
 import unittest
+import zlib
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "topic_evidence_archive.py"
@@ -28,8 +30,11 @@ class TopicEvidenceArchiveTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name).resolve()
         (self.root / "reports").mkdir()
-        self.originals = {"reports/a.json": b'{"utf8":"\xc3\xa9"}\r\n',
-                          "reports/b.bin": b"\x00\xff\x80\n", "empty": b""}
+        self.originals = {
+            "reports/a.json": b'{"utf8":"\xc3\xa9"}\r\n',
+            "reports/b.bin": b"\x00\xff\x80\n",
+            "empty": b"",
+        }
         for name, content in self.originals.items():
             (self.root / name).write_bytes(content)
         self.output = self.root / "archive.json"
@@ -113,8 +118,10 @@ class TopicEvidenceArchiveTests(unittest.TestCase):
     def test_bounded_decompression_and_trailing_stream_rejection(self) -> None:
         self.create()
         original = self.output.read_bytes()
-        payloads = [gzip.compress(b"x" * 500_000, mtime=0),
-                    gzip.compress(b"{}", mtime=0) + gzip.compress(b"more", mtime=0)]
+        payloads = [
+            gzip.compress(b"x" * 500_000, mtime=0),
+            gzip.compress(b"{}", mtime=0) + gzip.compress(b"more", mtime=0),
+        ]
         for payload in payloads:
             self.output.write_bytes(original)
 
@@ -134,6 +141,82 @@ class TopicEvidenceArchiveTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.create()
         self.mutate(lambda data: data.update(payload="not base64!"))
+        with self.assertRaises(archive.ArchiveError):
+            archive.load_archive(self.output)
+
+    def test_xz_exact_round_trip_deterministic_and_default_gzip_unchanged(self) -> None:
+        envelope = archive.create_archive(
+            self.root, list(self.originals), self.output, compression="xz"
+        )
+        self.assertEqual(envelope["compression"], "xz+base64")
+        second = self.root / "second.json"
+        archive.create_archive(
+            self.root, list(reversed(self.originals)), second, compression="xz"
+        )
+        self.assertEqual(self.output.read_bytes(), second.read_bytes())
+        _, files = archive.load_archive(self.output)
+        self.assertEqual(files, self.originals)
+        default = archive.create_archive(
+            self.root, list(self.originals), self.root / "default.json"
+        )
+        self.assertEqual(default["compression"], "gzip+base64")
+        explicit = self.root / "gzip.json"
+        archive.create_archive(self.root, list(self.originals), explicit, compression="gzip")
+        self.assertEqual((self.root / "default.json").read_bytes(), explicit.read_bytes())
+
+    def test_xz_bomb_truncation_and_trailing_stream_rejected_before_writing(self) -> None:
+        archive.create_archive(self.root, list(self.originals), self.output, compression="xz")
+        original = self.output.read_bytes()
+        payloads = [
+            lzma.compress(b"x" * 500_000),
+            lzma.compress(b"{}") + lzma.compress(b"more"),
+            lzma.compress(b"{}")[:-1],
+        ]
+        for index, payload in enumerate(payloads):
+            with self.subTest(index=index):
+                self.output.write_bytes(original)
+
+                def change(data: dict[str, Any]) -> None:
+                    data["payload"] = base64.b64encode(payload).decode("ascii")
+                    data["expanded_bytes"] = 2
+                    data["expanded_sha256"] = hashlib.sha256(b"{}").hexdigest()
+
+                self.mutate(change)
+                destination = self.root / f"restored-{index}"
+                with self.assertRaises(archive.ArchiveError):
+                    archive.extract_archive(self.output, destination)
+                self.assertFalse(destination.exists())
+
+    def test_xz_large_dictionary_header_exceeds_real_memory_limit(self) -> None:
+        archive.create_archive(self.root, list(self.originals), self.output, compression="xz")
+        # Change an ordinary XZ block's declared LZMA2 dictionary to 128 MiB.
+        # Repair its header CRC without allocating that dictionary in a compressor.
+        payload = bytearray(lzma.compress(b"{}", format=lzma.FORMAT_XZ, preset=6))
+        header_end = 12 + (payload[12] + 1) * 4
+        self.assertEqual(payload[14:17], b"\x21\x01\x16")
+        payload[16] = 0x1e
+        payload[header_end - 4 : header_end] = zlib.crc32(payload[12 : header_end - 4]).to_bytes(
+            4, "little"
+        )
+        self.mutate(lambda data: data.update(payload=base64.b64encode(payload).decode("ascii")))
+        with self.assertRaises(archive.ArchiveError) as caught:
+            archive.load_archive(self.output)
+        self.assertIsInstance(caught.exception.__cause__, lzma.LZMAError)
+        self.assertIn("Memory usage limit exceeded", str(caught.exception.__cause__))
+
+    def test_cli_xz_creation_and_unknown_codec_rejection(self) -> None:
+        with patch("builtins.print"):
+            self.assertEqual(
+                archive.main(
+                    [
+                        "create", str(self.output), "empty", "--root", str(self.root),
+                        "--compression", "xz",
+                    ]
+                ),
+                0,
+            )
+        self.assertEqual(json.loads(self.output.read_text())["compression"], "xz+base64")
+        self.mutate(lambda data: data.update(compression={"invalid": "codec"}))
         with self.assertRaises(archive.ArchiveError):
             archive.load_archive(self.output)
 

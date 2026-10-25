@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "frozen_before_new_policy_outputs": true,
   "label_limit": 5,
   "calibration_sets": [
@@ -26,7 +26,7 @@
     "deterministic order",
     "five-label maximum"
   ],
-  "comparison": "All 128 combinations use identical clean source text and cached real YAKE proposals. Current document-global grammar is retained only as a benchmark comparator. Plain clean-text YAKE disables every added relevance rule.",
+  "comparison": "All 128 combinations use identical clean source text, real cached YAKE proposals and current safe contiguous-span grounding. The legacy comparator retains document-global selection grammar only, not the historical unsafe evidence reconstruction.",
   "selection": [
     "Choose using the four existing frozen calibration sets only; never inspect fresh predictions before this choice is frozen.",
     "Require each calibration set's existing numeric precision/recall floors and no more YAKE empty-case labels than the legacy policy in any set. Existing empty-case failures stay failed and visible; this does not waive their delivery gate.",
@@ -68,5 +68,22 @@
       "test_empty_fields_do_not_erase_a_substantive_rare_topic_outline",
       "test_empty_children_do_not_erase_their_substantive_parent_caption"
     ]
-  }
+  },
+  "calibration_revisions": [
+    {
+      "version": 1,
+      "commit": "0530f2f7e27523c484e0ff601f47b0e82b130a17",
+      "raw_archive": "benchmarks/archives/topics/calibration-0530.archive.json",
+      "outcome": "No eligible local policy: unused-form labels grew from one to five. All numeric floors and old selection regressions passed for local-full."
+    },
+    {
+      "version": 2,
+      "changes": [
+        "Colon-followed candidates bypass isolated-subject/nominal-context shortcuts and use the existing POS rules; this is fallible relevance, not metadata masking.",
+        "Every provenance must have a safe contiguous visible evidence span; masked syntax/content cannot be reconstructed into stored evidence.",
+        "Extra grammatical subject-field counterexamples are reported as diagnostic costs, with no change to the four frozen gold sets or acceptance floors."
+      ],
+      "fresh_predictions_inspected": false
+    }
+  ]
 }

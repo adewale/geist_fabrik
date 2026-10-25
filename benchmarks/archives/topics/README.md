@@ -16,6 +16,7 @@ evidence snippets are retained; review records remain unrated, not approvals.
 | [initial-review](initial-review.archive.json) | Initial pending starter review record |
 | [grammar-repair-review](grammar-repair-review.archive.json) | Pending source-first review packet and ambiguity evidence |
 | [fresh annotations](fresh-annotations.archive.json) | Two independent source-only model annotation passes; not human judgments |
+| [calibration 0530](calibration-0530.archive.json) | Failed calibration of 128 local policy variants plus the published baseline; no eligible local policy |
 
 The readable [grammar repair reports](../../results/topics/corpora/grammar-repair/index.json)
 and [corpus receipt](../../results/topics/corpora/receipt.json) remain available.
@@ -41,6 +42,17 @@ retains exact bytes, including original line endings and provenance fields:
 python scripts/topic_evidence_archive.py create ./review.archive.json \
   benchmarks/reviews/topics/pending.json --root ./topic-evidence-restored
 ```
+
+Gzip is the default; `create --compression xz` uses XZ for highly repetitive
+reports. Readers accept both codecs and limit XZ decoder memory to 64 MiB.
+The calibration archive preserves the complete original
+`benchmarks/results/topics/policy-experiments/calibration-0530.json`, including
+its source-localization evidence and failed selection outcome. The 128 local
+variants found no eligible policy; the selected local policy is diagnostic
+only, simplification failed, and the published implementation was retained.
+This historical failure is calibration evidence, not a fresh-source result or
+an eligible replacement policy. The original report remains byte-exact inside
+the archive rather than adding its 10.8 MB plain JSON to the review.
 
 Historical references should name the archive and original path; `list` exposes
 the original checksum. Restore historical paths before running tools that expect

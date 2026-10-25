@@ -17,17 +17,19 @@ import gzip
 import hashlib
 import io
 import json
+import lzma
 import os
-from pathlib import Path, PurePosixPath
 import re
 import stat
-from typing import Any
 import zlib
+from pathlib import Path, PurePosixPath
+from typing import Any, Literal
 
 FORMAT = "geistfabrik-topic-evidence-v1"
 MAX_ARCHIVE_BYTES = 500_000
 MAX_EXPANDED_BYTES = 32 * 1024 * 1024
 MAX_FILES = 10_000
+MAX_XZ_MEMORY_BYTES = 64 * 1024 * 1024
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
@@ -88,8 +90,9 @@ def _directory_fd(path: Path, *, create: bool) -> int:
                     os.mkdir(component, mode=0o755, dir_fd=descriptor)
                 except FileExistsError:
                     pass
-            child = os.open(component, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                            dir_fd=descriptor)
+            child = os.open(
+                component, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
+            )
             os.close(descriptor)
             descriptor = child
         return descriptor
@@ -103,12 +106,12 @@ def _read_source(root: Path, path: str) -> bytes:
     try:
         parts = path.split("/")
         for component in parts[:-1]:
-            child = os.open(component, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                            dir_fd=descriptor)
+            child = os.open(
+                component, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
+            )
             os.close(descriptor)
             descriptor = child
-        source = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
-                         dir_fd=descriptor)
+        source = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor)
         with os.fdopen(source, "rb") as handle:
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
                 raise ArchiveError(f"Not a regular file: {path}")
@@ -120,8 +123,16 @@ def _read_source(root: Path, path: str) -> bytes:
         os.close(descriptor)
 
 
-def create_archive(root: Path, paths: list[str], output: Path) -> dict[str, Any]:
+def create_archive(
+    root: Path,
+    paths: list[str],
+    output: Path,
+    *,
+    compression: Literal["gzip", "xz"] = "gzip",
+) -> dict[str, Any]:
     """Create without timestamps, absolute machine paths or changing source data."""
+    if compression not in {"gzip", "xz"}:
+        raise ArchiveError("Unsupported compression")
     paths = sorted(_safe_path(path) for path in paths)
     if not paths or len(paths) > MAX_FILES or len(set(paths)) != len(paths):
         raise ArchiveError("Expected a nonempty, unique, bounded file selection")
@@ -140,16 +151,22 @@ def create_archive(root: Path, paths: list[str], output: Path) -> dict[str, Any]
     payload = _json_bytes(files)
     if len(payload) > MAX_EXPANDED_BYTES:
         raise ArchiveError("Serialized data exceeds expanded limit; split the archive")
-    buffer = io.BytesIO()
-    with gzip.GzipFile(filename="", mode="wb", compresslevel=9, mtime=0, fileobj=buffer) as stream:
-        stream.write(payload)
+    if compression == "gzip":
+        buffer = io.BytesIO()
+        with gzip.GzipFile(
+            filename="", mode="wb", compresslevel=9, mtime=0, fileobj=buffer
+        ) as stream:
+            stream.write(payload)
+        compressed = buffer.getvalue()
+    else:
+        compressed = lzma.compress(payload, format=lzma.FORMAT_XZ, preset=6)
     envelope = {
         "format": FORMAT,
-        "compression": "gzip+base64",
+        "compression": f"{compression}+base64",
         "expanded_bytes": len(payload),
         "expanded_sha256": hashlib.sha256(payload).hexdigest(),
         "entries": entries,
-        "payload": base64.b64encode(buffer.getvalue()).decode("ascii"),
+        "payload": base64.b64encode(compressed).decode("ascii"),
     }
     encoded = _json_bytes(envelope)
     if len(encoded) > MAX_ARCHIVE_BYTES:
@@ -168,8 +185,11 @@ def load_archive(path: Path) -> tuple[list[dict[str, Any]], dict[str, bytes]]:
     if not raw.isascii():
         raise ArchiveError("Archive must be ASCII")
     envelope = _parse_json(raw)
-    if (not isinstance(envelope, dict) or envelope.get("format") != FORMAT
-            or envelope.get("compression") != "gzip+base64"):
+    if (
+        not isinstance(envelope, dict)
+        or envelope.get("format") != FORMAT
+        or envelope.get("compression") not in ("gzip+base64", "xz+base64")
+    ):
         raise ArchiveError("Unsupported archive format")
     expanded_size = envelope.get("expanded_bytes")
     if type(expanded_size) is not int or not 0 <= expanded_size <= MAX_EXPANDED_BYTES:
@@ -184,9 +204,12 @@ def load_archive(path: Path) -> tuple[list[dict[str, Any]], dict[str, bytes]]:
         name = _safe_path(entry["path"])
         if name in expected:
             raise ArchiveError(f"Duplicate path: {name}")
-        if (type(entry["bytes"]) is not int or not 0 <= entry["bytes"] <= MAX_EXPANDED_BYTES
-                or not isinstance(entry["sha256"], str)
-                or not _SHA256.fullmatch(entry["sha256"])):
+        if (
+            type(entry["bytes"]) is not int
+            or not 0 <= entry["bytes"] <= MAX_EXPANDED_BYTES
+            or not isinstance(entry["sha256"], str)
+            or not _SHA256.fullmatch(entry["sha256"])
+        ):
             raise ArchiveError("Invalid manifest size or checksum")
         expected[name] = entry
     if list(expected) != sorted(expected):
@@ -194,13 +217,25 @@ def load_archive(path: Path) -> tuple[list[dict[str, Any]], dict[str, bytes]]:
     if sum(entry["bytes"] for entry in entries) > MAX_EXPANDED_BYTES:
         raise ArchiveError("Manifest exceeds expanded limit")
     compressed = _decode(envelope.get("payload"))
-    try:
-        decoder = zlib.decompressobj(wbits=31)
-        payload = decoder.decompress(compressed, expanded_size + 1)
-    except zlib.error as exc:
-        raise ArchiveError("Invalid gzip payload") from exc
-    if (len(payload) != expanded_size or not decoder.eof
-            or decoder.unused_data or decoder.unconsumed_tail):
+    if envelope["compression"] == "gzip+base64":
+        try:
+            gzip_decoder = zlib.decompressobj(wbits=31)
+            payload = gzip_decoder.decompress(compressed, expanded_size + 1)
+        except zlib.error as exc:
+            raise ArchiveError("Invalid gzip payload") from exc
+        complete = (
+            gzip_decoder.eof and not gzip_decoder.unused_data and not gzip_decoder.unconsumed_tail
+        )
+    else:
+        try:
+            xz_decoder = lzma.LZMADecompressor(
+                format=lzma.FORMAT_XZ, memlimit=MAX_XZ_MEMORY_BYTES
+            )
+            payload = xz_decoder.decompress(compressed, max_length=expanded_size + 1)
+        except lzma.LZMAError as exc:
+            raise ArchiveError("Invalid xz payload or decoder memory limit exceeded") from exc
+        complete = xz_decoder.eof and not xz_decoder.unused_data
+    if len(payload) != expanded_size or not complete:
         raise ArchiveError(
             "Expanded size mismatch, trailing stream or decompression limit exceeded"
         )
@@ -231,12 +266,17 @@ def extract_archive(path: Path, destination: Path) -> list[dict[str, Any]]:
                         os.mkdir(component, mode=0o755, dir_fd=descriptor)
                     except FileExistsError:
                         pass
-                    child = os.open(component, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                                    dir_fd=descriptor)
+                    child = os.open(
+                        component, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
+                    )
                     os.close(descriptor)
                     descriptor = child
-                output = os.open(parts[-1], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                                 0o644, dir_fd=descriptor)
+                output = os.open(
+                    parts[-1],
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    0o644,
+                    dir_fd=descriptor,
+                )
                 with os.fdopen(output, "wb") as handle:
                     handle.write(data)
             finally:
@@ -253,6 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     create.add_argument("archive", type=Path)
     create.add_argument("paths", nargs="+")
     create.add_argument("--root", type=Path, default=Path("."))
+    create.add_argument("--compression", choices=("gzip", "xz"), default="gzip")
     for name in ("list", "verify", "extract"):
         command = commands.add_parser(name)
         command.add_argument("archive", type=Path)
@@ -261,7 +302,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "create":
-            entries = create_archive(args.root, args.paths, args.archive)["entries"]
+            entries = create_archive(
+                args.root, args.paths, args.archive, compression=args.compression
+            )["entries"]
         elif args.command == "extract":
             entries = extract_archive(args.archive, args.destination)
         else:

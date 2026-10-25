@@ -35,6 +35,10 @@ containment suppression, repeated-word filtering and grammatical eligibility.
 Grammar uses only the occurrence's mapped sentence within a visible block.
 Unrelated sentences cannot change that decision. Uncertain alignment preserves
 candidates; unavailable packaged grammar produces an extraction error.
+Immediately colon-followed candidates use the ordinary noun/clause checks rather
+than the isolated-subject or nominal-context shortcuts. This can reject real
+adjectival or postposition-ending subject fields; the contrast panel reports that
+cost. It does not classify an entire form as empty.
 
 ```sh
 geistfabrik topics /path/to/vault --note '[[My note]]' --json --explain
@@ -46,6 +50,9 @@ An explanation separates structural mask spans from grounding, relevance and
 selection decisions. It lists every proposal, inspected occurrence, local grammar
 reason, score adjustment and final selection/rejection reason. Masked source text
 is not exposed. Excluded or incomplete notes are not re-extracted for explanation.
+The current single-span evidence format admits only a contiguous visible source
+span. A proposal crossing masked markup/content must find a later safe occurrence;
+composite evidence would require a separate representation change.
 Scores are ordering values, not probabilities. Exit codes: 0 complete, 1 error,
 2 incomplete; unavailable memberships/counts are null rather than false zeroes.
 
@@ -79,7 +86,12 @@ and the frozen legacy comparator. Underspecified sources remain visible separate
 These are model annotations from one public PKM vault, not human judgments or a
 claim about arbitrary personal vaults. No tuning follows that held-out evaluation.
 
-New policy measurements and validation are pending. The preceding published
+The first 128-policy experiment found no eligible local policy: the unused form
+grew from one to five labels even though all numeric floors and existing known
+answers passed for the full policy. Its [raw failure](../benchmarks/archives/topics/README.md)
+is retained. A second calibration checks the local colon correction and a
+source-grounding repair that prevents raw evidence from reconstructing masked
+link destinations. Its results and real validation remain pending. The preceding published
 implementation passed all six corpora/120 replay snapshots, but retained an
 unused-form false topic and unperformed human relevance review. Those prior
 results do not certify the changed policy. See [current verification](TOPICS_VERIFICATION.md).
