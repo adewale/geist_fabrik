@@ -232,5 +232,194 @@
     "clean-yake": "YAKE after ordinary prose and generic-heading-role projection; seven post-proposal rules disabled.",
     "source_role_ablation": "Separate preprocessor arm disables heading-role curation with otherwise selected flags and recomputes proposals.",
     "legacy": "Legacy document-global selection with current safe grounding; not historical-engine equivalence."
+  },
+  "boilerplate_diagnostics": {
+    "diagnostic_only": true,
+    "independent": false,
+    "cases": [
+      {
+        "id": "metadata-only",
+        "kind": "structurally_empty",
+        "clean_yake_labels": [],
+        "selected_labels": [],
+        "protected_candidate_eligibility": []
+      },
+      {
+        "id": "structural-stub",
+        "kind": "structurally_empty",
+        "clean_yake_labels": [],
+        "selected_labels": [],
+        "protected_candidate_eligibility": []
+      },
+      {
+        "id": "unused-form",
+        "kind": "unused_form",
+        "clean_yake_labels": [
+          "action items today",
+          "important action items",
+          "items today",
+          "action items",
+          "important action"
+        ],
+        "selected_labels": [
+          "important action items"
+        ],
+        "protected_candidate_eligibility": []
+      },
+      {
+        "id": "substantive-parent",
+        "kind": "substantive_outline",
+        "clean_yake_labels": [
+          "symmetric",
+          "transitive",
+          "important relation properties",
+          "relation properties today",
+          "reflexive"
+        ],
+        "selected_labels": [
+          "transitive",
+          "important relation properties",
+          "reflexive",
+          "wind"
+        ],
+        "protected_candidate_eligibility": [
+          {
+            "label": "important relation properties",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": true
+          }
+        ]
+      },
+      {
+        "id": "rare-outline",
+        "kind": "substantive_outline",
+        "clean_yake_labels": [
+          "ferric ammonium citrate",
+          "potassium ferricyanide",
+          "exposure time",
+          "ferric ammonium",
+          "ammonium citrate"
+        ],
+        "selected_labels": [
+          "cyanotypes",
+          "ferric ammonium citrate",
+          "potassium ferricyanide",
+          "exposure time"
+        ],
+        "protected_candidate_eligibility": [
+          {
+            "label": "Cyanotypes",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": false
+          },
+          {
+            "label": "Ferric ammonium citrate",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": true
+          },
+          {
+            "label": "Potassium ferricyanide",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": true
+          }
+        ]
+      },
+      {
+        "id": "filled-priority",
+        "kind": "partially_completed",
+        "clean_yake_labels": [
+          "repair the rainwater",
+          "action items today",
+          "important action items",
+          "rainwater pump",
+          "big"
+        ],
+        "selected_labels": [
+          "repair the rainwater",
+          "important action items",
+          "rainwater pump",
+          "big",
+          "medium"
+        ],
+        "protected_candidate_eligibility": [
+          {
+            "label": "rainwater pump",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": true
+          }
+        ]
+      },
+      {
+        "id": "filled-reflection",
+        "kind": "partially_completed",
+        "clean_yake_labels": [
+          "restored cyanotype prints",
+          "today i accomplished",
+          "restored cyanotype",
+          "cyanotype prints",
+          "restored"
+        ],
+        "selected_labels": [
+          "restored cyanotype prints"
+        ],
+        "protected_candidate_eligibility": [
+          {
+            "label": "cyanotype prints",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": true
+          }
+        ]
+      },
+      {
+        "id": "adjectival-relation-fields",
+        "kind": "substantive_outline",
+        "clean_yake_labels": [
+          "reflexive",
+          "transitive",
+          "relation properties",
+          "symmetric",
+          "relation"
+        ],
+        "selected_labels": [
+          "relation properties",
+          "reflexive",
+          "transitive"
+        ],
+        "protected_candidate_eligibility": [
+          {
+            "label": "Symmetric",
+            "eligible_before_ranking": false,
+            "statistical_candidate_selected": false
+          },
+          {
+            "label": "Reflexive",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": true
+          },
+          {
+            "label": "Transitive",
+            "eligible_before_ranking": true,
+            "statistical_candidate_selected": true
+          }
+        ]
+      },
+      {
+        "id": "named-subject-field",
+        "kind": "substantive_outline",
+        "clean_yake_labels": [
+          "game"
+        ],
+        "selected_labels": [
+          "game"
+        ],
+        "protected_candidate_eligibility": [
+          {
+            "label": "Game over",
+            "eligible_before_ranking": false,
+            "statistical_candidate_selected": false
+          }
+        ]
+      }
+    ]
   }
 }

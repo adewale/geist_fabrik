@@ -61,6 +61,21 @@ remains unchanged and failed on
 `important action items`. No oracle, threshold, source exclusion or domain list is
 changed to manufacture a pass.
 
+The constructed contrast panel records these actual selected outputs; candidate
+eligibility is separate from final ranking. These are diagnostics, not held-out
+quality evidence.
+
+| Contrast | Selected labels / observed cost |
+| --- | --- |
+| Metadata-only; generic structural stub | None in either case. |
+| Unused form | `important action items` remains. |
+| Substantive parent | `transitive`, `important relation properties`, `reflexive`, `wind`; noun subject survives, unrelated prompt fragment remains. |
+| Rare outline | `cyanotypes`, `ferric ammonium citrate`, `potassium ferricyanide`, `exposure time`. |
+| Partly filled priority form | `repair the rainwater`, `important action items`, `rainwater pump`, `big`, `medium`; response subject survives alongside prompt noise. |
+| Partly filled reflection | `restored cyanotype prints`. |
+| Adjectival relation fields | `relation properties`, `reflexive`, `transitive`; `Symmetric` is rejected. |
+| Named subject field | `game`; injected `Game over` is rejected. |
+
 ## Measured results
 
 The preregistered [experiment](../benchmarks/corpora/topic_policy_experiment.json)
