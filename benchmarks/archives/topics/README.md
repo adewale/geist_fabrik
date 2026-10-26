@@ -1,4 +1,4 @@
-# Historical topic evidence
+# Durable topic evidence
 
 These checked-in ASCII archives preserve the original report and review bytes.
 Compressed payloads are omitted from line diffs; these remain ordinary durable
@@ -19,10 +19,13 @@ evidence snippets are retained; review records remain unrated, not approvals.
 | [grammar-repair-review](grammar-repair-review.archive.json) | Pending source-first review packet and ambiguity evidence |
 | [fresh annotations](fresh-annotations.archive.json) | Two independent source-only model annotation passes; not human judgments |
 | [selected calibration](calibration-selected.archive.json) | Full source-bound factorial and source-role results; committed before held-out evaluation |
+| [selected corpus replay](corpus-selected.archive.json) | Full selected-runtime six-corpus/120-snapshot report |
+| [previous current reports](pre-policy-current.archive.json) | Earlier readable quality/performance/receipt and grammar-repair corpus files, now historical |
 | [calibration 0530](calibration-0530.archive.json) | Failed calibration of 128 local policy variants plus the published baseline; no eligible local policy |
 
-The readable [grammar repair reports](../../results/topics/corpora/grammar-repair/index.json)
-and [corpus receipt](../../results/topics/corpora/receipt.json) remain available.
+The [compact current results](../../results/topics/current.json) are the readable
+entry point; every raw historical and current measurement remains restorable.
+
 An archive's filename and historical `final` labels do not establish current
 runtime validity; use the current verification summary for delivery status.
 

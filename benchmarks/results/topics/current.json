@@ -125,12 +125,35 @@
     "requires_selection_expansion_before_holdout": false
   },
   "heldout": {
-    "status": "pending",
+    "status": "queued; no predictions inspected",
     "annotations_human_reviewed": false,
-    "scope": "16 previously unselected LYT notes held out from quality annotation, output inspection and policy tuning; previous operational indexing covered all notes."
+    "scope": "16 previously unselected LYT notes held out from quality annotation, output inspection and policy tuning; previous operational indexing covered all notes.",
+    "run": 40252867577,
+    "job": 121348339118,
+    "evaluation_head": "f783758c8d10b14ecad297f17b5edb7099c89c6a",
+    "earlier_same_policy_run": 40251002226,
+    "earlier_job": 121342652457,
+    "policy_and_annotations_frozen": true,
+    "next": "Read first completed valid evaluation; preserve negative results, archive exact raw report, update this summary. Do not tune or relabel."
   },
   "runtime_validation": {
-    "status": "pending on final source; earlier real focused run passed306tests+21subtests"
+    "status": "passed on byte-identical selected runtime",
+    "runtime_commit": "507f98e1731871f40f6d37e7c6736e75e460d541",
+    "canonical_run": 40206794180,
+    "canonical_job": 121211451043,
+    "focused_tests": 306,
+    "unit_tests_passed": 2471,
+    "unit_skipped": 1,
+    "subtests_passed": 21,
+    "integration_tests_passed": 88,
+    "branch_coverage_percent": 84.03,
+    "branch_covered": 3953,
+    "branch_total": 4704,
+    "automatic_acceptance_passed": 158,
+    "manual_prose_criteria_unverified": 83,
+    "platform_and_package_run": 40206794158,
+    "all_platform_lanes_passed": true,
+    "both_offline_package_lanes_passed": true
   },
   "delivery_blockers": [
     "Known LYT unused-form label important action items remains",
@@ -140,6 +163,74 @@
     "Model-labelled same-vault calibration/holdout; no general human usefulness claim",
     "Seven rules retained; no selector complexity reduction",
     "Repeated-word filtering is supported by a frozen validity regression, not a measured calibration benefit",
-    "32x predicate penalty and8x gap are historical settings, not calibrated probabilities"
-  ]
+    "32x predicate penalty and 8x gap are historical settings, not calibrated probabilities"
+  ],
+  "corpora": {
+    "status": "passed",
+    "run": 40206794210,
+    "job": 121209480053,
+    "archive": "benchmarks/archives/topics/corpus-selected.archive.json",
+    "archive_sha256": "8718826d32979df6bb2877ba1e65845bb4cc248027ea56a70117953d246803c9",
+    "logical_report_sha256": "aaa051ca9d857607683c8d1aa6dcfc8d4ec6d3730c27d4ee3d302a45922068d4",
+    "source_files_sha256": {
+      "src/geistfabrik/topics.py": "812f5774fc8768aadbd2d7f37f7838d539ed5d6e1e437965fcef19870a87e24f",
+      "src/geistfabrik/topic_text.py": "e968e42c772eb20f239f773986824c4bb76d8a677bc339a9ffec0918966210d0",
+      "src/geistfabrik/topic_grammar.py": "30b37b2613f4674e02023cbbdbf2f6f7d02bfab6745a5f3555852fd6b986da50",
+      "src/geistfabrik/topic_selection.py": "e1decef620a5dcee8ce959c5ca94d94883974dd92947ae63942aa75e9c3659ad",
+      "src/geistfabrik/vault.py": "5a3e45c24efc76e55e3a36d9c72e2b95e9cae39f639f77ee9766e0302207f473",
+      "scripts/benchmark_topic_corpora.py": "904a715f915ad32143a8cd4151241070d88e9f43e665902e457cc4e7959a0c17",
+      "scripts/generate_temporal_corpus.py": "093d61a17b950a65029f7c1f0f8249544a743ce897f9c4045b988df2548a0356",
+      "scripts/generate_narrative_corpus.py": "52ab3270898e028647c3365e550b0130775483bb37c9f2947cca2b2e40c54724"
+    },
+    "all120_replay_snapshots_present": true,
+    "all6_source_inventories_match_prior_run": true,
+    "source_unchanged": true,
+    "warm_raw_and_topic_extractions_zero": true,
+    "all4_replay_final_states_match_fresh_rebuilds": true,
+    "stored_proxy_cases_match_selected_calibration": true,
+    "trials": "Single CI measurements; lexical capture disabled; not causal performance comparisons.",
+    "populations": {
+      "narrative-mara-v1": {
+        "snapshots": 24,
+        "final_indexed_states": 189,
+        "sync_seconds_sum": 5.654157152000067,
+        "warm_seconds": 0.09027317100000687
+      },
+      "temporal-smoke": {
+        "snapshots": 32,
+        "final_indexed_states": 211,
+        "sync_seconds_sum": 18.41565843099994,
+        "warm_seconds": 0.09281354899999883
+      },
+      "temporal-standard": {
+        "snapshots": 32,
+        "final_indexed_states": 1252,
+        "sync_seconds_sum": 139.43197937299993,
+        "warm_seconds": 0.632060647000003
+      },
+      "temporal-large": {
+        "snapshots": 32,
+        "final_indexed_states": 12232,
+        "sync_seconds_sum": 1340.822478967999,
+        "warm_seconds": 6.533493034999992
+      },
+      "original-10000": {
+        "snapshots": 1,
+        "final_indexed_states": 10000,
+        "sync_seconds_sum": 1324.117774682,
+        "warm_seconds": 5.782635408999795
+      },
+      "lyt-kit-mirror": {
+        "snapshots": 1,
+        "final_indexed_states": 272,
+        "sync_seconds_sum": 14.256382590000158,
+        "warm_seconds": 0.16522252899994783
+      }
+    }
+  },
+  "baseline_scope": {
+    "clean-yake": "YAKE after ordinary prose and generic-heading-role projection; seven post-proposal rules disabled.",
+    "source_role_ablation": "Separate preprocessor arm disables heading-role curation with otherwise selected flags and recomputes proposals.",
+    "legacy": "Legacy document-global selection with current safe grounding; not historical-engine equivalence."
+  }
 }
