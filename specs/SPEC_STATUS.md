@@ -95,6 +95,7 @@ Live config keys NOT in the spec (added since): `enabled_modules`,
 
 | item | spec | status |
 |---|---|---|
+| Automatic topic extraction and derived note tags | [TOPIC_EVIDENCE_SPEC.md](TOPIC_EVIDENCE_SPEC.md) | BUILT — draft PR #96; grammar repair meets broader proxy numeric thresholds, but the empty-form and human-review gates remain open; see docs/TOPIC_QUALITY_REPAIR.md, docs/TOPIC_CORPUS_EVALUATION.md and docs/TOPICS_VERIFICATION.md |
 | `geist_status` failure-persistence table | geistfabrik_spec.md (Database Schema; `increment_failure_count`) | BUILT (schema v8) |
 | `session_embeddings.cluster_label` | (cluster_evolution_tracker, retired 2026-10) | BUILT (schema v7); API kept for comparing cluster membership across sessions |
 | GraphPatternFinder showcase geists (structural holes / path length / bridges) | reuse_abstractions_spec.md:1120 | BUILT (examples/geists/code/) |

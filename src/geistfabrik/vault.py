@@ -24,6 +24,7 @@ from .models import Link, Note, NoteLinkIndex
 from .path_safety import PathSafetyError, ensure_contained
 from .schema import init_db
 from .sqlite_transaction import owned_transaction
+from .topics import TopicIndex
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,10 @@ class Vault:
         # init_db performs ordered migrations for existing databases.
         self._link_index: NoteLinkIndex | None = None
         self._link_index_version: tuple[int, int] | None = None
+        self._topic_sync_errors: dict[str, str] = {}
+        self._topic_source_identities: dict[str, str] = {}
+        self._source_candidates: set[str] = set()
+        self._source_observations: dict[str, tuple[Path, os.stat_result]] = {}
 
     def _is_excluded_from_date_collection(self, rel_path: str) -> bool:
         """Check if file should be excluded from date-collection detection.
@@ -96,7 +101,7 @@ class Vault:
                 return True
         return False
 
-    def sync(self) -> int:
+    def sync(self, *, rebuild_topics: bool = False) -> int:
         """Incrementally update the database as one exception-atomic unit.
 
         Returns:
@@ -110,6 +115,8 @@ class Vault:
         for attempt in range(_SYNC_SNAPSHOT_ATTEMPTS):
             try:
                 with owned_transaction(self.db, "Vault.sync"):
+                    self._topic_sync_errors = {}
+                    self._topic_source_identities = {}
                     lexical = LexicalIndex(self.db, self.config.lexical_analysis, datetime.now(UTC))
                     rebuild_lexical = (
                         lexical.prepare() if self.config.lexical_analysis_enabled else False
@@ -146,6 +153,11 @@ class Vault:
                         lexical.pause()
                     # Lexical capture can be expensive. Validate immediately before
                     # commit so edits during that work roll back and retry everything.
+                    TopicIndex(self.db, self.config.filtering.exclude_paths).synchronize(
+                        rebuild=rebuild_topics,
+                        source_errors=self._topic_sync_errors,
+                        source_identities=self._topic_source_identities,
+                    )
                     if not self._snapshot_is_current(md_files):
                         raise _VaultSnapshotChangedError
                     self.last_lexical_stats = {
@@ -162,17 +174,36 @@ class Vault:
 
         raise AssertionError("unreachable")
 
+    def _markdown_candidates(self) -> list[Path]:
+        """Discover candidates without silently skipping unreadable directories."""
+
+        def fail_on_scan_error(error: OSError) -> None:
+            raise error
+
+        candidates: list[Path] = []
+        for directory, subdirectories, filenames in os.walk(
+            self.vault_path, onerror=fail_on_scan_error, followlinks=False
+        ):
+            candidates.extend(
+                Path(directory) / name
+                for name in (*subdirectories, *filenames)
+                if Path(name).match("*.md")
+            )
+        return candidates
+
     def _snapshot_is_current(self, md_files: list[tuple[Path, Path, os.stat_result]]) -> bool:
-        """Revalidate the complete eligible source set without resolving known paths twice."""
-        expected = {
-            str(candidate.relative_to(self.vault_path)): (resolved, stat)
-            for candidate, resolved, stat in md_files
-        }
+        """Validate the same complete discovery population, including skipped sources.
+
+        Oversized inputs still establish topic completeness and physical identity.
+        Reuse their validated containment, as for bounded sources, so every known
+        source needs only one containment check per attempt.
+        """
+        expected = self._source_observations
         current_candidates = {
             str(candidate.relative_to(self.vault_path)): candidate
-            for candidate in self.vault_path.rglob("*.md")
+            for candidate in self._markdown_candidates()
         }
-        if not expected.keys() <= current_candidates.keys():
+        if current_candidates.keys() != self._source_candidates:
             return False
 
         for rel_path, (expected_resolved, expected_stat) in expected.items():
@@ -188,34 +219,43 @@ class Vault:
             if self._stat_signature(current_stat) != self._stat_signature(expected_stat):
                 return False
 
-        # Newly observed paths must be classified with the normal containment
-        # and size rules. Ineligible files do not belong to the mirrored set;
-        # any new eligible source invalidates this attempt.
+        # A previously unsafe or unreadable candidate becoming a contained file
+        # changes completeness even when it is too large for the raw mirror.
         for rel_path in current_candidates.keys() - expected.keys():
             candidate = current_candidates[rel_path]
             try:
                 resolved = ensure_contained(candidate, self.vault_path, must_exist=True)
-                stat = resolved.stat()
+                resolved.stat()
             except (PathSafetyError, FileNotFoundError, OSError):
                 continue
-            if resolved.is_file() and stat.st_size <= MAX_NOTE_BYTES:
+            if resolved.is_file():
                 return False
         return True
 
     def _discover_markdown_files(self) -> list[tuple[Path, Path, os.stat_result]]:
         """Resolve bounded Markdown sources without touching SQLite state."""
         md_files: list[tuple[Path, Path, os.stat_result]] = []
-        for candidate in self.vault_path.rglob("*.md"):
+        self._source_candidates = set()
+        self._source_observations = {}
+        for candidate in self._markdown_candidates():
             rel_path = str(candidate.relative_to(self.vault_path))
+            self._source_candidates.add(rel_path)
             try:
                 resolved = ensure_contained(candidate, self.vault_path, must_exist=True)
+                self._topic_source_identities[rel_path] = str(resolved.relative_to(self.vault_path))
                 stat = resolved.stat()
-            except (PathSafetyError, FileNotFoundError, OSError) as exc:
+                self._source_observations[rel_path] = (resolved, stat)
+            except (PathSafetyError, FileNotFoundError) as exc:
                 logger.warning("Skipping unsafe note %s: %s", rel_path, exc)
+                continue
+            except OSError:
+                self._topic_sync_errors[rel_path] = "source cannot be inspected"
+                logger.warning("Skipping unreadable note %s", rel_path)
                 continue
             if not resolved.is_file():
                 continue
             if stat.st_size > MAX_NOTE_BYTES:
+                self._topic_sync_errors[rel_path] = "source exceeds file size limit"
                 logger.warning(
                     "Skipping oversized note %s (%d bytes; limit %d)",
                     rel_path,
@@ -265,6 +305,7 @@ class Vault:
                 with resolved_file.open("rb") as handle:
                     raw_content = handle.read(MAX_NOTE_BYTES + 1)
                 if len(raw_content) > MAX_NOTE_BYTES:
+                    self._topic_sync_errors[rel_path] = "source exceeds file size limit"
                     logger.warning(
                         "Skipping note %s because it grew beyond the size limit", rel_path
                     )
@@ -273,9 +314,11 @@ class Vault:
             except FileNotFoundError:
                 continue
             except UnicodeDecodeError as e:
+                self._topic_sync_errors[rel_path] = "source is not valid UTF-8"
                 logger.warning(f"Skipping file {rel_path} due to encoding error: {e}")
                 continue
             except PermissionError as e:
+                self._topic_sync_errors[rel_path] = "source is unreadable"
                 logger.warning(f"Skipping file {rel_path} due to permission denied: {e}")
                 continue
 
@@ -307,6 +350,7 @@ class Vault:
                     )
                 )
             except MarkdownLimitError as exc:
+                self._topic_sync_errors[rel_path] = "source exceeds Markdown parser limit"
                 logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                 self.db.execute(
                     "DELETE FROM notes WHERE path = ? OR source_file = ?",
@@ -321,6 +365,7 @@ class Vault:
                 try:
                     virtual_notes = split_date_collection_note(rel_path, content, created, modified)
                 except MarkdownLimitError as exc:
+                    self._topic_sync_errors[rel_path] = "source exceeds Markdown parser limit"
                     logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                     continue
 
@@ -332,6 +377,7 @@ class Vault:
                 try:
                     title, clean_content, links, tags = parse_markdown(rel_path, content)
                 except MarkdownLimitError as exc:
+                    self._topic_sync_errors[rel_path] = "source exceeds Markdown parser limit"
                     logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                     self.db.execute(
                         "DELETE FROM notes WHERE path = ? OR source_file = ?",

@@ -1,0 +1,155 @@
+name: Topic validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/geistfabrik/topic*'
+      - 'tests/**/test_topic*'
+      - 'tests/unit/test_dependency_validation.py'
+      - 'tests/fixtures/topic*.json'
+      - 'scripts/*topics.py'
+      - 'scripts/validate.sh'
+      - 'uv.lock'
+      - 'benchmarks/corpora/topic*.json'
+      - 'benchmarks/archives/topics/calibration-selected.archive.json'
+      - '.github/workflows/topic-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: topic-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  quality-probes:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      UV_PYTHON: '3.12'
+      UV_LOCKED: '1'
+      GEISTFABRIK_OFFLINE: '1'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: project
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: thebrianbug/LYT-Kit
+          ref: e191473fcb326df78cca8a6c49b29420ab318e46
+          path: corpora/lyt
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Require committed dependencies
+        working-directory: project
+        run: uv sync --locked --extra vector-search
+      - name: Check diagnostic code
+        working-directory: project
+        run: |
+          uv run --frozen ruff check scripts/probe_topic_quality.py scripts/topic_legacy_grammar.py
+          uv run --frozen ruff format --diff scripts/probe_topic_quality.py scripts/topic_legacy_grammar.py
+      - name: Evaluate frozen selected policy on held-out sources
+        if: always()
+        working-directory: project
+        run: |
+          uv run --frozen python -m scripts.probe_topic_quality \
+            --phase holdout --selection benchmarks/archives/topics/calibration-selected.archive.json \
+            --lyt ../corpora/lyt --output "$RUNNER_TEMP/topic-quality-probes.json"
+      - name: Enforce the independently annotated quality floors
+        working-directory: project
+        run: |
+          uv run --frozen python - "$RUNNER_TEMP/topic-quality-probes.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text())
+          chosen = report["reports"]["selected"]
+          print(json.dumps(chosen, indent=2))
+          raise SystemExit(0 if chosen["passed"] else 1)
+          PY
+      - name: Retain source-bound diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: topic-quality-probes
+          path: ${{ runner.temp }}/topic-quality-probes.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  topics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      UV_PYTHON: '3.12'
+      UV_LOCKED: '1'
+      GEISTFABRIK_OFFLINE: '1'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Require the committed dependency graph
+        run: uv sync --locked --extra vector-search
+      - name: Run repository hooks on changed files
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mapfile -t changed_files < <(git diff --name-only "$BASE_REF" HEAD)
+          uv run --frozen pre-commit run --files "${changed_files[@]}"
+      - name: Focused topic and validation regressions
+        if: always()
+        run: uv run --frozen pytest tests/unit/test_topic*.py tests/unit/test_dependency_validation.py tests/integration/test_topics.py --no-cov -q
+      - name: Frozen topic quality gates
+        if: always()
+        run: uv run --frozen python scripts/evaluate_topics.py
+      - name: Positive-query indexing benchmark
+        if: always()
+        run: uv run --frozen python scripts/benchmark_topics.py
+      - name: Reject and expose uncommitted hook repairs
+        if: always()
+        run: |
+          echo TOPIC_VALIDATION_PATCH_BEGIN
+          git diff --binary | base64 -w 76
+          echo TOPIC_VALIDATION_PATCH_END
+          git diff --exit-code
+
+  canonical:
+    needs: topics
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      UV_PYTHON: '3.12'
+      PACKAGE_SMOKE_PYTHON: '3.12'
+      GEISTFABRIK_OFFLINE: '1'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Required canonical validation
+        run: ./scripts/validate.sh

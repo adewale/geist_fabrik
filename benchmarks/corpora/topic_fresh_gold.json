@@ -1,0 +1,1339 @@
+{
+  "limit": 5,
+  "minimum_precision": 0.5,
+  "minimum_recall": 0.6,
+  "provenance": {
+    "annotation_author": "three independent source-only model passes",
+    "human_reviewed": false,
+    "extractor_output_inspected": false,
+    "extractor_implementation_inspected": false,
+    "annotation_process": "Two independently produced source-only annotations followed by a third source-only adjudication pass. The adjudicator read only the 16 copied source files, their manifest, and the two annotation artifacts.",
+    "source_sha256_verified": true,
+    "all_16_sources_read": true,
+    "annotation_inputs": [
+      {
+        "path": "/workspace/topic-fresh-annotation-a.json",
+        "sha256": "39d23739ac09e4eb4324bbbd10e60ccaa5113e57d6f8d065920076999230e086"
+      },
+      {
+        "path": "/workspace/topic-fresh-annotation-b.json",
+        "sha256": "7aefa128545d5ddbb3380ecdc11cb48d9f9ff62ac313f8b0bb6ce4e091db8960"
+      }
+    ],
+    "frozen_at_utc": "2026-10-25T01:39:25.579819+00:00",
+    "frozen_before_heldout_prediction_inspection": true,
+    "classification_counts": {
+      "substantive": 12,
+      "empty": 2,
+      "underspecified": 2
+    },
+    "classification_policy": "Empty includes zero-content sources and heading-only named stubs. Underspecified contains authored fragments whose subject cannot be determined; these remain visible and must not be forced into empty or substantive denominators.",
+    "expected_policy": "Central retrieval subject groups. Alternatives in a group are retrieval labels for the same source topic; acceptable includes additional useful source-observed secondary labels and short variants. No filename-only, property-only, comment, transclusion, code, link-destination, generic navigation, stance, emotion, or intent evidence is used.",
+    "limitations": [
+      "All three passes are model judgments, not human validation.",
+      "The corpus has 16 notes and is too small for a strong population-level quality claim.",
+      "fresh-03 is explicitly a named heading-only stub under the empty-content classification.",
+      "fresh-16 has eight developed subject groups. At the five-label limit its maximum group recall is 0.625, just above the specified 0.60 threshold; report that constraint.",
+      "Acceptable labels aim to reduce exact-match unfairness but are not an exhaustive paraphrase ontology.",
+      "Underspecified notes require a separately visible audit category, not an assumed true-empty label."
+    ]
+  },
+  "notes": [
+    {
+      "id": "fresh-01",
+      "source_path": "Cards/Folgezettel - 100a.1b Adds certain things....md",
+      "source_sha256": "ce42cd1c6fd0754711b8f74719b9ad4003df6d605bd1f362764aa0600f374d83",
+      "expected": [],
+      "acceptable": [
+        "upfront friction",
+        "adds upfront friction"
+      ],
+      "classification": "underspecified",
+      "reason": "An unfinished dependent fragment leaves its subject unresolved. The displayed upfront-friction link is eligible evidence for an optional label, but cannot establish the central subject of the unfinished claim."
+    },
+    {
+      "id": "fresh-02",
+      "source_path": "+ Encounters/Albert Einstein.md",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected": [],
+      "acceptable": [],
+      "classification": "empty",
+      "reason": "The source contains zero bytes; its filename supplies no eligible content."
+    },
+    {
+      "id": "fresh-03",
+      "source_path": "+ Encounters/Elden Ring.md",
+      "source_sha256": "ad13926be7614ac6c24d74ef62188eb81704d5d832846c9fde9f4c0f57eb7808",
+      "expected": [],
+      "acceptable": [],
+      "classification": "empty",
+      "reason": "Only an Elden Ring heading and an excluded property paragraph survive. This is an empty-content named stub, not a substantive discussion. No retrieval subject is required solely from its title."
+    },
+    {
+      "id": "fresh-04",
+      "source_path": "Cards/Folgezettel - 100b.1 And Long-term Rigidity.md",
+      "source_sha256": "2f24e57f507939e61157e732ca2717ed3fe3a2bdda2d6591dcf276ac386ecb88",
+      "expected": [],
+      "acceptable": [],
+      "classification": "underspecified",
+      "reason": "The isolated claim says an unidentified thing becomes rigid. Its missing antecedent makes the subject underspecified; the return link is generic navigation and rigid alone is an unhelpful adjective."
+    },
+    {
+      "id": "fresh-05",
+      "source_path": "Cards/MOCs are both workbenches and maps.md",
+      "source_sha256": "c31a69d955a619425a2442b83bb4f381af24d7ab21d39ca17af8ecf66bcf35ec",
+      "expected": [
+        [
+          "mocs",
+          "mocs are both workbenches and maps"
+        ]
+      ],
+      "acceptable": [
+        "mocs",
+        "mocs are both workbenches and maps",
+        "workbenches",
+        "workbench",
+        "new workbench",
+        "personal warehouse",
+        "relevant notes",
+        "maps",
+        "map",
+        "newly crafted map",
+        "library",
+        "craft those notes"
+      ],
+      "classification": "substantive",
+      "reason": "The sole central retrieval subject is MOCs. Workbenches and maps are explanatory metaphors for gathering, crafting, and connecting notes, retained as acceptable secondary labels rather than separately required subjects. Properties and image transclusions are excluded."
+    },
+    {
+      "id": "fresh-06",
+      "source_path": "Atlas/My Newsletter MOC.md",
+      "source_sha256": "580e1242afc4966cc55cf1085377f8e39e8abad3957b0688089c36ee73998756",
+      "expected": [
+        [
+          "newsletter",
+          "newsletter moc",
+          "my newsletter moc"
+        ]
+      ],
+      "acceptable": [
+        "newsletter",
+        "newsletter moc",
+        "my newsletter moc",
+        "data view"
+      ],
+      "classification": "substantive",
+      "reason": "The heading and explanatory prose identify a newsletter map that consolidates related notes into one place. The data-view query and property paragraphs are excluded, as is the folder name appearing only as inline code."
+    },
+    {
+      "id": "fresh-07",
+      "source_path": "Atlas/Health MOC.md",
+      "source_sha256": "b7899cb3932a800b58d44e8c8d776fb53e11b792d500a3628e3b6e1de8ae8bd2",
+      "expected": [
+        [
+          "health",
+          "health moc",
+          "physical health",
+          "wellness"
+        ]
+      ],
+      "acceptable": [
+        "health",
+        "health moc",
+        "physical health",
+        "wellness",
+        "training",
+        "exercise",
+        "physical training",
+        "physical training moc",
+        "nutrition",
+        "nutrition moc",
+        "sleep",
+        "sleep moc",
+        "exercises",
+        "exercises moc",
+        "breathing exercises",
+        "breathing exercises moc",
+        "hormesis",
+        "hormesis moc",
+        "posture",
+        "posture moc",
+        "medical",
+        "medical moc",
+        "workouts tracker",
+        "injury tracker",
+        "injury tracker moc",
+        "body quirks tracker"
+      ],
+      "classification": "substantive",
+      "reason": "An explicit scope sentence makes physical health/wellness the central subject. Training and exercise are useful narrower areas alongside nutrition, sleep, and the other displayed health links; they are not required as a separate subject for this broad map."
+    },
+    {
+      "id": "fresh-08",
+      "source_path": "Cards/The Id.md",
+      "source_sha256": "9f74a0ff0f6c04023fb0d6ac09b8d17ae0a286dc7800fcf1d822d85b47981226",
+      "expected": [
+        [
+          "id",
+          "the id",
+          "the \"id\""
+        ]
+      ],
+      "acceptable": [
+        "id",
+        "the id",
+        "the \"id\"",
+        "bodily needs",
+        "desires",
+        "impulses",
+        "aggressive drives",
+        "sexual and aggressive",
+        "instinctual tension",
+        "personality structure",
+        "instinctual drives",
+        "basic, instinctual drives",
+        "no-face",
+        "sexual and aggressive drives"
+      ],
+      "classification": "substantive",
+      "reason": "The note defines the Id through bodily needs and instinctual drives. Those are attributes of its single central subject, with No-Face as a secondary association. The property-only parent concept is excluded."
+    },
+    {
+      "id": "fresh-09",
+      "source_path": "Sources/1949 - 1984 (book).md",
+      "source_sha256": "3817967c8e1b6ee9bcffcc25e03538c352f892d5dc3c1a00cc81d3f5e14799f0",
+      "expected": [
+        [
+          "1984",
+          "1949 📚 1984"
+        ],
+        [
+          "language",
+          "power of language"
+        ],
+        [
+          "newspeak"
+        ]
+      ],
+      "acceptable": [
+        "1984",
+        "1949 📚 1984",
+        "george orwell",
+        "orwell",
+        "language",
+        "power of language",
+        "newspeak",
+        "big brother",
+        "word choice",
+        "complex thoughts",
+        "thoughts and emotions",
+        "reduced vocabularies",
+        "vocabularies",
+        "big words",
+        "identity",
+        "vocabulary",
+        "complex thoughts and emotions"
+      ],
+      "classification": "substantive",
+      "reason": "The prose discusses 1984, the power of language, and NewSpeak as the named language-restriction mechanism, then discusses reduced vocabulary and expression. NewSpeak is retained as a separate central subject rather than treated as a synonym of language. The entire commented passage is excluded."
+    },
+    {
+      "id": "fresh-10",
+      "source_path": "Cards/Note-making creates unexpected optionality.md",
+      "source_sha256": "5a2d419b8fd0c7cc41f1d7bf2dc0993756485ee423bdfe0fc42b0be629a811cc",
+      "expected": [
+        [
+          "note-making",
+          "note-making creates unexpected optionality"
+        ],
+        [
+          "optionality",
+          "unexpected optionality"
+        ],
+        [
+          "linking your thinking",
+          "linked thinking"
+        ]
+      ],
+      "acceptable": [
+        "note-making",
+        "note-making creates unexpected optionality",
+        "linking your thinking",
+        "linked thinking",
+        "benefits of linked thinking",
+        "optionality",
+        "unexpected optionality",
+        "second-order effect",
+        "abundance",
+        "scarcity",
+        "pivot your career",
+        "career",
+        "past experiences",
+        "new situations",
+        "coaching college football",
+        "college football",
+        "civil engineer",
+        "entrepreneurship",
+        "filmmaking",
+        "small business",
+        "editing in television",
+        "television",
+        "pkm educators",
+        "external rewards"
+      ],
+      "classification": "substantive",
+      "reason": "Note-making, linked thinking, and optionality are explicitly connected in the heading, opening claim, and related prose. They are distinct central retrieval subjects. Career switching, prior experience, occupations, and the related visible link provide useful secondary labels."
+    },
+    {
+      "id": "fresh-11",
+      "source_path": "Atlas/Meta PKM.md",
+      "source_sha256": "7aef12362ba802a235f35ed79fcc3d77f9a019222c039af9336de7b763556bb9",
+      "expected": [
+        [
+          "pkm",
+          "meta pkm",
+          "pkm system"
+        ],
+        [
+          "pkm workflows",
+          "my pkm workflows",
+          "workflows"
+        ]
+      ],
+      "acceptable": [
+        "pkm",
+        "meta pkm",
+        "pkm system",
+        "managing your pkm",
+        "best practices",
+        "pkm folders",
+        "my pkm folders",
+        "pkm tags",
+        "my pkm tags",
+        "pkm metadata",
+        "my pkm metadata",
+        "pkm queries",
+        "my pkm queries",
+        "pkm workflows",
+        "my pkm workflows",
+        "workflows",
+        "global guidelines",
+        "inputs + oldputs",
+        "outputs",
+        "lyt workshop",
+        "managing my pkm system",
+        "managing my pkm workflows",
+        "pkm workflows - global guidelines",
+        "pkm workflows - inputs + oldputs",
+        "pkm workflows - outputs"
+      ],
+      "classification": "substantive",
+      "reason": "The two substantive groups concern managing a PKM system and managing PKM workflows. Displayed folder, tag, metadata, query, and workflow labels provide secondary subjects. Home and the My PKM MOC instruction function as navigation and are excluded."
+    },
+    {
+      "id": "fresh-12",
+      "source_path": "Atlas/People MOC.md",
+      "source_sha256": "1c65ae1a120fa9ee7cbf0ede9acc6c5c6115062b8e7fae615a68d9eafef49398",
+      "expected": [
+        [
+          "people",
+          "people moc",
+          "notes on people",
+          "notes for people"
+        ],
+        [
+          "prominent people",
+          "prominent people 🌋"
+        ]
+      ],
+      "acceptable": [
+        "people",
+        "people moc",
+        "notes on people",
+        "notes for people",
+        "prominent people",
+        "prominent people 🌋",
+        "family",
+        "friends",
+        "birthdays",
+        "family, friends, and birthdays",
+        "eras in life",
+        "entertainment industry",
+        "literary industry",
+        "special memories",
+        "notable information",
+        "industries",
+        "carl sagan",
+        "mihaly csikszentmihalyi",
+        "people by my eras in life"
+      ],
+      "classification": "substantive",
+      "reason": "The map explains notes about people and a distinct prominent-people section. Family, friends, birthdays, life eras, industries, memories, and named examples are eligible secondary labels. Code, link destinations, and generic download/rendering instructions are excluded."
+    },
+    {
+      "id": "fresh-13",
+      "source_path": "Cards/On the process of note-making.md",
+      "source_sha256": "78f651342603566c1d7ab066ed8cba602964903b8c1c692735d95f94c6f2c46e",
+      "expected": [
+        [
+          "note-making",
+          "process of note-making",
+          "on the process of note-making",
+          "note-making walkthrough"
+        ],
+        [
+          "evergreen notes",
+          "evergreen note",
+          "living notes",
+          "living note"
+        ],
+        [
+          "mocs",
+          "maps of content"
+        ]
+      ],
+      "acceptable": [
+        "note-making",
+        "process of note-making",
+        "on the process of note-making",
+        "note-making walkthrough",
+        "idea creation",
+        "creation and connection",
+        "note retrieval",
+        "spaced repetition",
+        "zettelkasten",
+        "pre-obsidian zettelkasten",
+        "evergreen note",
+        "evergreen notes",
+        "living note",
+        "living notes",
+        "new ideas",
+        "new insights",
+        "separate notes",
+        "linking your notes",
+        "lightning fast navigation",
+        "navigation",
+        "idea emergence",
+        "maps of content",
+        "mocs",
+        "the 3 phases of mocs",
+        "habit concepts",
+        "habit concepts and theory",
+        "habits",
+        "habit formation",
+        "neural formation",
+        "truest habit metaphors",
+        "habit metaphors",
+        "evolutionary advantage",
+        "hidden inertia",
+        "neural formation of habits",
+        "habit formation provides an evolutionary advantage",
+        "habits carry a ton of hidden inertia"
+      ],
+      "classification": "substantive",
+      "reason": "The walkthrough develops note-making, evergreen/living notes, and Maps of Content. Habit-related links illustrate the process and provide secondary labels. Note navigation is discussed as a concept in visible prose, while Home and LYT Kit are generic navigation labels and excluded."
+    },
+    {
+      "id": "fresh-14",
+      "source_path": "Sources/2009 - Analogy as Core - Hofstadter (talk).md",
+      "source_sha256": "c88af1fd72c2c0f336a2ef78b842a2fb4f4b767cf666ad31c0d525a759ce9d67",
+      "expected": [
+        [
+          "analogy",
+          "analogies",
+          "analogy-making",
+          "analogy as core"
+        ],
+        [
+          "cognition",
+          "thinking",
+          "cognition-core hypothesis"
+        ],
+        [
+          "concept expansion",
+          "concepts expand",
+          "expand concepts"
+        ],
+        [
+          "chunking",
+          "limitless chunking"
+        ]
+      ],
+      "acceptable": [
+        "analogy",
+        "analogies",
+        "analogy-making",
+        "analogy as core",
+        "douglas r. hofstadter",
+        "hofstadter",
+        "cognition",
+        "cognition-core hypothesis",
+        "all of cognition",
+        "thinking",
+        "figurative language",
+        "concepts",
+        "concept expansion",
+        "concepts expand",
+        "expand concepts",
+        "reminding events",
+        "analogies as reminding",
+        "chunking",
+        "limitless chunking",
+        "memory trace",
+        "primordial concepts",
+        "abstract concepts",
+        "highly-chunked abstract concepts",
+        "continuum of concepts",
+        "labeled concepts",
+        "unlabeled concepts",
+        "simple concepts",
+        "compound words",
+        "phrases",
+        "proverbs",
+        "joe becker",
+        "mental lexicon",
+        "phrasal lexicon",
+        "situation-labels",
+        "category assignment",
+        "battle of analogies",
+        "individual words",
+        "abstraction",
+        "albert einstein",
+        "light-quantum hypothesis",
+        "bell-shaped curves",
+        "personal insights",
+        "instantaneous categorizations",
+        "blends",
+        "2009 🗣 analogy as core - hofstadter",
+        "shadow",
+        "snow shadow",
+        "rain shadow",
+        "familial shadow",
+        "political analogies",
+        "personal-situation mappings",
+        "scientific leaps",
+        "scientific break-even for laser fusion",
+        "wilderness protection legislation"
+      ],
+      "classification": "substantive",
+      "reason": "The talk notes develop analogy in cognition, concept expansion, and chunking. The cognition-core hypothesis is the stated culmination of the cognition claim, so it is an alternative retrieval label for that subject rather than an additional required duplicate. Other source-observed examples and concept categories remain acceptable secondary labels."
+    },
+    {
+      "id": "fresh-15",
+      "source_path": "Cards/MOCs encourage flexible non-destructive thinking.md",
+      "source_sha256": "863ff4f7d03283a65d5b2a9b11f3ffef06d3bb26591a0a58241ee55781930a12",
+      "expected": [
+        [
+          "mocs",
+          "mocs encourage flexible non-destructive thinking"
+        ],
+        [
+          "flexible idea rearrangement",
+          "idea rearrangement",
+          "non-destructive thinking",
+          "flexible non-destructive thinking",
+          "relational/positional thinking"
+        ]
+      ],
+      "acceptable": [
+        "mocs",
+        "mocs encourage flexible non-destructive thinking",
+        "flexible idea rearrangement",
+        "idea rearrangement",
+        "flexible non-destructive thinking",
+        "non-destructive thinking",
+        "relational/positional thinking",
+        "limitless interpretations",
+        "concepts by category",
+        "different categories",
+        "concepts by different categories",
+        "a-z sorting",
+        "a-z manual lists",
+        "table of contents",
+        "strategy",
+        "improvement",
+        "natural selection",
+        "finding balance",
+        "dealing with aggression",
+        "expanding perspective",
+        "goal-oriented",
+        "thinking oriented",
+        "heavyweight concepts",
+        "mind-jostling concepts",
+        "ooda loop",
+        "levels of magnification",
+        "refraction thinking",
+        "reps",
+        "flow",
+        "shadow clone",
+        "forcing function",
+        "hormesis",
+        "antifragility",
+        "cause and effect",
+        "lindy effect",
+        "yin and yang",
+        "synthesis",
+        "seasons",
+        "no-face",
+        "the id",
+        "aikido",
+        "rubik's cube",
+        "munger's mental models",
+        "concepts",
+        "goal-oriented, fairly actionable and practical concepts",
+        "other mind-jostling concepts",
+        "concepts by a-z sorting"
+      ],
+      "classification": "substantive",
+      "reason": "The central subjects are MOCs and flexible non-destructive rearrangement of ideas. Categorized and alphabetical arrangements demonstrate that claim; they and the repeatedly displayed concepts are useful secondary labels without separate required coverage."
+    },
+    {
+      "id": "fresh-16",
+      "source_path": "Cards/Natural Selection.md",
+      "source_sha256": "a7a460ddf5b5f96f111d67b72ad0862b24c01fbc980df6f6449610fec174c34c",
+      "expected": [
+        [
+          "natural selection"
+        ],
+        [
+          "evolution",
+          "evolutionary change",
+          "evolutionary theory"
+        ],
+        [
+          "heritable variation",
+          "natural variation",
+          "heritable traits"
+        ],
+        [
+          "differential reproduction",
+          "reproductive advantage"
+        ],
+        [
+          "fitness",
+          "survival of the fittest"
+        ],
+        [
+          "competition"
+        ],
+        [
+          "antibiotic resistance",
+          "microbial resistance",
+          "evolutionary arms race",
+          "arms race",
+          "resistance to antibiotics"
+        ],
+        [
+          "universal darwinism"
+        ]
+      ],
+      "acceptable": [
+        "natural selection",
+        "hormesis",
+        "antifragility",
+        "differential survival",
+        "survival and reproduction",
+        "phenotype",
+        "evolution",
+        "heritable traits",
+        "heritable variation",
+        "differential reproduction",
+        "natural variation",
+        "reproductive rate",
+        "reproductive advantage",
+        "advantageous heritable trait",
+        "evolutionary change",
+        "darwin",
+        "fitness",
+        "survival of the fittest",
+        "improvement in fitness",
+        "evolutionary theory",
+        "modern evolutionary theory",
+        "genotype",
+        "competition",
+        "organisms",
+        "species",
+        "room to roam",
+        "clades",
+        "antibiotic resistance",
+        "microbial resistance",
+        "resistance to antibiotics",
+        "antibiotics",
+        "penicillin",
+        "bacterial diseases",
+        "methicillin-resistant staphylococcus aureus",
+        "staphylococcus aureus",
+        "mrsa",
+        "superbug",
+        "arms race",
+        "evolutionary arms race",
+        "universal darwinism",
+        "adam smith",
+        "karl marx",
+        "stephen jay gould",
+        "daniel dennett",
+        "darwin's dangerous idea",
+        "universal acid",
+        "evolutionary biology",
+        "evolutionary computation",
+        "quantum darwinism",
+        "evolutionary economics",
+        "evolutionary epistemology",
+        "evolutionary psychology",
+        "cosmological natural selection",
+        "survival",
+        "reproduction",
+        "offspring",
+        "bacteria"
+      ],
+      "classification": "substantive",
+      "reason": "The substantial sections cover natural selection, evolution, heritable variation, differential reproduction, fitness, competition, antibiotic resistance, and universal Darwinism. Variation and reproduction are distinct mechanisms, not aliases. All eight remain visible rather than deleting developed subjects to fit the five-label output limit. The Charles Darwin property alone contributes no label; Darwin also occurs in eligible prose."
+    }
+  ],
+  "adjudication": [
+    {
+      "id": "fresh-01",
+      "disagreements": [],
+      "resolution": "Agreement retained: underspecified, no required subject, displayed upfront friction accepted."
+    },
+    {
+      "id": "fresh-02",
+      "disagreements": [],
+      "resolution": "Agreement retained: empty source, no required or acceptable labels."
+    },
+    {
+      "id": "fresh-03",
+      "disagreements": [],
+      "resolution": "Agreement retained: empty-content named stub. Empty means no substantive body content; it does not claim that the title is absent."
+    },
+    {
+      "id": "fresh-04",
+      "disagreements": [
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "rigid"
+          ],
+          "annotation_b_only": []
+        }
+      ],
+      "resolution": "Retain underspecified. Reject A's rigid label because an adjective with no identified referent is not a useful retrieval subject."
+    },
+    {
+      "id": "fresh-05",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "mocs",
+              "mocs are both workbenches and maps"
+            ],
+            [
+              "workbenches",
+              "workbench"
+            ],
+            [
+              "maps",
+              "map",
+              "newly crafted map"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "mocs",
+              "mocs are both workbenches and maps"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "collect",
+            "collide",
+            "craft",
+            "gather",
+            "map",
+            "new workbench",
+            "notes",
+            "personal warehouse",
+            "workbench"
+          ],
+          "annotation_b_only": []
+        }
+      ],
+      "resolution": "Use B's single central MOCs group. Keep workbench/map metaphors and useful short observed noun phrases as secondary labels; reject isolated generic process verbs."
+    },
+    {
+      "id": "fresh-06",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "newsletter",
+              "newsletter moc",
+              "my newsletter moc"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "newsletter",
+              "my newsletter moc"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "newsletter moc"
+          ],
+          "annotation_b_only": [
+            "my newsletters"
+          ]
+        }
+      ],
+      "resolution": "Retain newsletter as central, including the short newsletter moc variant. Exclude my newsletters because that exact folder name appears only as code. Generic effort/notes/consolidate labels are not useful standalone topics."
+    },
+    {
+      "id": "fresh-07",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "health",
+              "health moc",
+              "physical health",
+              "wellness",
+              "training",
+              "exercise"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "health",
+              "physical health",
+              "health moc"
+            ],
+            [
+              "exercise",
+              "exercises",
+              "training",
+              "physical training moc",
+              "exercises moc"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "injury tracker",
+            "physical training"
+          ],
+          "annotation_b_only": []
+        }
+      ],
+      "resolution": "Require the broad health/wellness subject only. Do not conflate training/exercise with health aliases; retain them and displayed health disciplines as acceptable secondary labels."
+    },
+    {
+      "id": "fresh-08",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "id",
+              "the id",
+              "the \"id\""
+            ],
+            [
+              "instinctual drives",
+              "basic, instinctual drives",
+              "bodily needs",
+              "desires",
+              "impulses"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "id",
+              "the id",
+              "the \"id\""
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "basic, instinctual drives",
+            "needs",
+            "sexual and aggressive",
+            "wants"
+          ],
+          "annotation_b_only": []
+        }
+      ],
+      "resolution": "Use B's single Id subject. Retain source-observed drive/needs phrases as secondary labels, without making defining attributes an additional mandatory topic."
+    },
+    {
+      "id": "fresh-09",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "1984",
+              "1949 📚 1984"
+            ],
+            [
+              "language",
+              "power of language",
+              "newspeak",
+              "word choice",
+              "vocabularies"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "1984",
+              "1949 📚 1984"
+            ],
+            [
+              "language",
+              "power of language"
+            ],
+            [
+              "newspeak"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "identity",
+            "orwell",
+            "thoughts and emotions",
+            "vocabularies",
+            "words"
+          ],
+          "annotation_b_only": []
+        }
+      ],
+      "resolution": "Use B's separate NewSpeak group. Language and NewSpeak are related but not aliases. Add useful observed word-choice, vocabulary, expression, author, and identity variants to acceptable labels."
+    },
+    {
+      "id": "fresh-10",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "note-making",
+              "note-making creates unexpected optionality",
+              "linking your thinking",
+              "linked thinking"
+            ],
+            [
+              "optionality",
+              "unexpected optionality"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "note-making",
+              "note-making creates unexpected optionality"
+            ],
+            [
+              "optionality",
+              "unexpected optionality"
+            ],
+            [
+              "linking your thinking",
+              "linked thinking"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "career",
+            "college football",
+            "fundamental aspects",
+            "note-making to focus",
+            "second-order effect",
+            "television"
+          ],
+          "annotation_b_only": []
+        }
+      ],
+      "resolution": "Use B's three distinct subjects. Note-making and linked thinking are related rather than exact aliases. Accept source-observed career examples and useful short variants; reject truncated note-making to focus."
+    },
+    {
+      "id": "fresh-11",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "pkm",
+              "meta pkm",
+              "pkm system"
+            ],
+            [
+              "pkm workflows",
+              "workflows",
+              "my pkm workflows"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "pkm",
+              "meta pkm",
+              "pkm system"
+            ],
+            [
+              "pkm workflows",
+              "workflows"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "my pkm",
+            "my pkm moc",
+            "my pkm workflows"
+          ],
+          "annotation_b_only": []
+        }
+      ],
+      "resolution": "Retain both agreed central subjects and the my pkm workflows variant supported by prose. Exclude my pkm moc navigation and retain useful workflow-link suffix variants."
+    },
+    {
+      "id": "fresh-12",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "people",
+              "people moc",
+              "notes on people",
+              "notes for people"
+            ],
+            [
+              "prominent people",
+              "prominent people 🌋"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "people",
+              "people moc",
+              "notes on people"
+            ],
+            [
+              "prominent people",
+              "prominent people 🌋"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "eras in life",
+            "industries",
+            "notes for people",
+            "people by my"
+          ],
+          "annotation_b_only": [
+            "people by my eras in life"
+          ]
+        }
+      ],
+      "resolution": "Retain agreed central subjects. Use the complete displayed people by my eras in life phrase, not truncated people by my; notes for people is supported by prose."
+    },
+    {
+      "id": "fresh-13",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "note-making",
+              "process of note-making",
+              "on the process of note-making",
+              "note-making walkthrough"
+            ],
+            [
+              "evergreen notes",
+              "evergreen note",
+              "living notes",
+              "living note"
+            ],
+            [
+              "mocs",
+              "maps of content",
+              "the 3 phases of mocs"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "note-making",
+              "process of note-making",
+              "on the process of note-making"
+            ],
+            [
+              "evergreen notes",
+              "evergreen note",
+              "living notes",
+              "living note"
+            ],
+            [
+              "mocs",
+              "maps of content"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "creation and connection",
+            "habit concepts and",
+            "lightning fast navigation",
+            "navigation",
+            "note-making walkthrough",
+            "pre-obsidian zettelkasten",
+            "separate notes",
+            "truest habit metaphors"
+          ],
+          "annotation_b_only": [
+            "connection"
+          ]
+        }
+      ],
+      "resolution": "Retain three agreed subjects and note-making walkthrough variant. Keep The 3 Phases of MOCs as secondary, not an exact alias of MOCs. Drop the unfinished habit concepts and fragment."
+    },
+    {
+      "id": "fresh-14",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "analogy",
+              "analogies",
+              "analogy-making",
+              "analogy as core"
+            ],
+            [
+              "cognition",
+              "cognition-core hypothesis",
+              "thinking"
+            ],
+            [
+              "concept expansion",
+              "concepts expand",
+              "expand concepts"
+            ],
+            [
+              "chunking",
+              "limitless chunking"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "analogy",
+              "analogies",
+              "analogy-making",
+              "analogy as core"
+            ],
+            [
+              "cognition",
+              "thinking"
+            ],
+            [
+              "concept expansion",
+              "concepts expand"
+            ],
+            [
+              "chunking"
+            ],
+            [
+              "cognition-core hypothesis"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "abstract concepts",
+            "all of cognition",
+            "analogies as reminding",
+            "battle of analogies",
+            "bell-shaped curves",
+            "blends",
+            "expand concepts",
+            "highly-chunked abstract concepts",
+            "instantaneous categorizations",
+            "memory trace",
+            "personal insights",
+            "word is chosen"
+          ],
+          "annotation_b_only": [
+            "2009 🗣 analogy as core - hofstadter"
+          ]
+        }
+      ],
+      "resolution": "Use A's four-group structure: cognition-core hypothesis can retrieve the central cognition thesis. Keep the observed full heading and meaningful additional examples; omit word is chosen as an unhelpful verb fragment."
+    },
+    {
+      "id": "fresh-15",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "mocs",
+              "mocs encourage flexible non-destructive thinking"
+            ],
+            [
+              "flexible idea rearrangement",
+              "idea rearrangement",
+              "non-destructive thinking",
+              "flexible non-destructive thinking",
+              "relational/positional thinking"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "mocs",
+              "mocs encourage flexible non-destructive thinking"
+            ],
+            [
+              "flexible idea rearrangement",
+              "non-destructive thinking",
+              "flexible non-destructive thinking"
+            ],
+            [
+              "concepts",
+              "concepts by category",
+              "concepts by different categories"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "different categories",
+            "goal-oriented",
+            "mind-jostling concepts"
+          ],
+          "annotation_b_only": [
+            "concepts"
+          ]
+        }
+      ],
+      "resolution": "Use A's two central groups. B's concepts/category group describes the demonstration and remains secondary. Retain meaningful category headings and all displayed concept names."
+    },
+    {
+      "id": "fresh-16",
+      "disagreements": [
+        {
+          "field": "expected",
+          "annotation_a": [
+            [
+              "natural selection"
+            ],
+            [
+              "evolution",
+              "evolutionary change",
+              "evolutionary theory"
+            ],
+            [
+              "fitness",
+              "survival of the fittest"
+            ],
+            [
+              "heritable variation",
+              "differential reproduction",
+              "reproductive advantage"
+            ],
+            [
+              "competition"
+            ],
+            [
+              "antibiotic resistance",
+              "evolutionary arms race",
+              "arms race"
+            ],
+            [
+              "universal darwinism"
+            ]
+          ],
+          "annotation_b": [
+            [
+              "natural selection"
+            ],
+            [
+              "evolution",
+              "evolutionary change"
+            ],
+            [
+              "heritable variation",
+              "natural variation",
+              "heritable traits"
+            ],
+            [
+              "differential reproduction",
+              "reproductive advantage"
+            ],
+            [
+              "fitness"
+            ],
+            [
+              "competition"
+            ],
+            [
+              "antibiotic resistance",
+              "microbial resistance",
+              "evolutionary arms race",
+              "arms race"
+            ],
+            [
+              "universal darwinism"
+            ]
+          ]
+        },
+        {
+          "field": "acceptable",
+          "annotation_a_only": [
+            "advantageous heritable trait",
+            "bacterial diseases",
+            "clades",
+            "differential survival",
+            "evolutionary theory",
+            "methicillin-resistant staphylococcus aureus",
+            "modern evolutionary theory",
+            "organisms",
+            "reproductive rate",
+            "resistance to antibiotics",
+            "room to roam",
+            "species",
+            "superbug",
+            "survival and reproduction",
+            "survival of the fittest"
+          ],
+          "annotation_b_only": [
+            "bacteria",
+            "offspring",
+            "reproduction",
+            "survival"
+          ]
+        }
+      ],
+      "resolution": "Keep B's separation of heritable variation and differential reproduction, with eight developed subjects. Add useful A-only observed variants. Five outputs can cover at most five of eight groups (recall 0.625); this declared limit is retained visibly, not repaired by removing source-supported subjects."
+    }
+  ]
+}

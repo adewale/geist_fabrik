@@ -1,0 +1,77 @@
+{
+  "provenance": "Constructed source contrasts frozen before new experiments; diagnostic only, not independent quality evidence.",
+  "notes": [
+    {
+      "id": "metadata-only",
+      "kind": "structurally_empty",
+      "content": "---\ntags: [daily]\n---\ndates:: 2022-11-21\n",
+      "protected_candidates": []
+    },
+    {
+      "id": "structural-stub",
+      "kind": "structurally_empty",
+      "content": "## Notes\n\n![[Daily.base]]\n",
+      "protected_candidates": []
+    },
+    {
+      "id": "unused-form",
+      "kind": "unused_form",
+      "content": "dates:: 2022-11-21\n\n- Three important action items today\n\t- Big:\n\t- Medium:\n\t- Small:\n- Log\n- Scratchpad\n- Wind Down\n\t- I am grateful for:\n\t- Today I spoke with:\n\t- Today I accomplished:",
+      "protected_candidates": []
+    },
+    {
+      "id": "substantive-parent",
+      "kind": "substantive_outline",
+      "content": "- Three important relation properties today\n\t- Reflexive:\n\t- Symmetric:\n\t- Transitive:\n- Wind Down\n\t- I am grateful for:\n",
+      "protected_candidates": [
+        "important relation properties"
+      ]
+    },
+    {
+      "id": "rare-outline",
+      "kind": "substantive_outline",
+      "content": "# Cyanotypes\n\n- Exposure time:\n- Ferric ammonium citrate:\n- Potassium ferricyanide:\n",
+      "protected_candidates": [
+        "Cyanotypes",
+        "Ferric ammonium citrate",
+        "Potassium ferricyanide"
+      ]
+    },
+    {
+      "id": "filled-priority",
+      "kind": "partially_completed",
+      "content": "- Three important action items today\n\t- Big: Repair the rainwater pump.\n\t- Medium:\n\t- Small:\n- Wind Down\n\t- I am grateful for:\n",
+      "protected_candidates": [
+        "rainwater pump"
+      ]
+    },
+    {
+      "id": "filled-reflection",
+      "kind": "partially_completed",
+      "content": "- Wind Down\n\t- Today I accomplished: Restored cyanotype prints.\n\t- I am grateful for:\n",
+      "protected_candidates": [
+        "cyanotype prints"
+      ]
+    },
+    {
+      "id": "adjectival-relation-fields",
+      "kind": "substantive_outline",
+      "content": "# Relation properties\n\n- Symmetric:\n- Reflexive:\n- Transitive:\n",
+      "protected_candidates": [
+        "Symmetric",
+        "Reflexive",
+        "Transitive"
+      ]
+    },
+    {
+      "id": "named-subject-field",
+      "kind": "substantive_outline",
+      "content": "- Game over:\n",
+      "protected_candidates": [
+        "Game over"
+      ]
+    }
+  ],
+  "revision": 2,
+  "limitations": "Protected injected candidates are diagnostic challenges, not a claim that every heuristic preserves them. Report the colon-rule costs on adjective-only and postposition-ending subject fields explicitly."
+}

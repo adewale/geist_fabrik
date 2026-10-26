@@ -14,6 +14,7 @@ from .initialize import InitCommand
 from .invoke import InvokeCommand
 from .runner import TestCommand
 from .stats import StatsCommand
+from .topics import TopicsCommand
 from .validate import ValidateCommand
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "InitCommand",
     "InvokeCommand",
     "StatsCommand",
+    "TopicsCommand",
     "TestCommand",
     "TestAllCommand",
     "ValidateCommand",

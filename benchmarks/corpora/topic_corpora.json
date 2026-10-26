@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "selection_policy": "Freeze before extractor output. Rank paths by SHA256 of geistfabrik-topics-review-v1 + NUL + path, then take six from each UTF-8 byte-length stratum (<=128, <=600, <=2000, >2000); separately include all four configured template controls.",
+  "corpora": [
+    {
+      "name": "narrative-mara-v1",
+      "origin_pr": 97,
+      "generator": "scripts/generate_narrative_corpus.py",
+      "snapshots": 24,
+      "provenance": "Authored fiction; useful for diverse personal-note forms and lifecycle checks, not real-owner usefulness.",
+      "quality_proxy_fixture": "benchmarks/corpora/topic_narrative_proxy_gold.json",
+      "quality_sample": [
+        {
+          "path": "Care/A neighbour who needs a weekend off.md",
+          "source_fixture": "testdata/narrative_vault/notes/Care/A neighbour who needs a weekend off.md",
+          "stratum": "Care",
+          "source_sha256": "1b231b9c9325d94f6653e05e276f88774ab7f27a10cc46792d3564159a3ce694"
+        },
+        {
+          "path": "Care/The consultation Mum led.md",
+          "source_fixture": "testdata/narrative_vault/notes/Care/The consultation Mum led.md",
+          "stratum": "Care",
+          "source_sha256": "f7411a90c36139f2991a12c87d2b88900d98028ef2a733f2a02239ef0bd3d813"
+        },
+        {
+          "path": "Care/A change of appointment is two changes.md",
+          "source_fixture": "testdata/narrative_vault/notes/Care/A change of appointment is two changes.md",
+          "stratum": "Care",
+          "source_sha256": "0ce4993dcaae35c8c6ef20f4c3cc1928e9b4809315bd891c52343b5e58d7c771"
+        },
+        {
+          "path": "Clippings/Old ferry timetable.md",
+          "source_fixture": "testdata/narrative_vault/notes/Clippings/Old ferry timetable.md",
+          "stratum": "Clippings",
+          "source_sha256": "3a0632e5848ba1c488d8d39834adc5123c05e8ec14e15c80b95c032f18f8db4e"
+        },
+        {
+          "path": "Clippings/Clinic access leaflet draft.md",
+          "source_fixture": "testdata/narrative_vault/notes/Clippings/Clinic access leaflet draft.md",
+          "stratum": "Clippings",
+          "source_sha256": "e3cd9ebfa94179b9058b5706d79561f381097108a980ef3740bd621c2de70748"
+        },
+        {
+          "path": "Clippings/Old repair club minutes.md",
+          "source_fixture": "testdata/narrative_vault/notes/Clippings/Old repair club minutes.md",
+          "stratum": "Clippings",
+          "source_sha256": "a5e5ec34bd568db904017d1231ff8f3e6cdeae1ca7a4fe2970b55bdf39846c27"
+        },
+        {
+          "path": "Community/Repair cafe before the summer pause.md",
+          "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe before the summer pause.md",
+          "stratum": "Community",
+          "source_sha256": "fab91ca221811a7606dc6c021ed4931134d0a11bdaea48cbc8d48c0ef9135068"
+        },
+        {
+          "path": "Community/Waiting time in the borrowing queue.md",
+          "source_fixture": "testdata/narrative_vault/notes/Community/Waiting time in the borrowing queue.md",
+          "stratum": "Community",
+          "source_sha256": "23b65e152b95ab6dc7753db9a03777419038661c6cab630b2f80f26ae911acc4"
+        },
+        {
+          "path": "Community/Repair cafe refusal explained early.md",
+          "source_fixture": "testdata/narrative_vault/notes/Community/Repair cafe refusal explained early.md",
+          "stratum": "Community",
+          "source_sha256": "79d33ec66ac3f6a9852848618404cc52560c5805e268ec64a1d1ec0c2ed55bf5"
+        },
+        {
+          "path": "Garden/The barrel fills after the path floods.md",
+          "source_fixture": "testdata/narrative_vault/notes/Garden/The barrel fills after the path floods.md",
+          "stratum": "Garden",
+          "source_sha256": "6550b96347bc6b06ae5f72477f898c30da53a45d167349fb486bff4f048cf832"
+        },
+        {
+          "path": "Garden/Leaves over the bed for a second winter.md",
+          "source_fixture": "testdata/narrative_vault/notes/Garden/Leaves over the bed for a second winter.md",
+          "stratum": "Garden",
+          "source_sha256": "80e65538bd1fe22c248772a0dbe9d500ff9b1e60e7709e3334182ca7b839a30c"
+        },
+        {
+          "path": "Garden/The seed swap table has a queue.md",
+          "source_fixture": "testdata/narrative_vault/notes/Garden/The seed swap table has a queue.md",
+          "stratum": "Garden",
+          "source_sha256": "ebe4a0b93b014fc4d8b24d29cc9f0ef85ed9b6f425a8411221be8dc84298c84e"
+        },
+        {
+          "path": "Learning/When a project is allowed to end.md",
+          "source_fixture": "testdata/narrative_vault/notes/Learning/When a project is allowed to end.md",
+          "stratum": "Learning",
+          "source_sha256": "69eca9ba2c565cb58d85ede509ba57dc89c705b2eb17f09f42a2abaadc8f5982"
+        },
+        {
+          "path": "Learning/Availability is not access.md",
+          "source_fixture": "testdata/narrative_vault/notes/Learning/Availability is not access.md",
+          "stratum": "Learning",
+          "source_sha256": "7931e349acb154bad67fb686ade4c10ed602725918091412f86061e0da707f39"
+        },
+        {
+          "path": "Learning/A measure that ignores the refusal.md",
+          "source_fixture": "testdata/narrative_vault/notes/Learning/A measure that ignores the refusal.md",
+          "stratum": "Learning",
+          "source_sha256": "ac97146f10252cc9ab8641be7a559a3bd960aaab0b73744d82c852e1b33b4c7d"
+        },
+        {
+          "path": "Museum/A completed project can stay completed.md",
+          "source_fixture": "testdata/narrative_vault/notes/Museum/A completed project can stay completed.md",
+          "stratum": "Museum",
+          "source_sha256": "613b10dea15d692d3faeecf9654fb6c44eba40906295552758956812904180a6"
+        },
+        {
+          "path": "Museum/The supported practice review card.md",
+          "source_fixture": "testdata/narrative_vault/notes/Museum/The supported practice review card.md",
+          "stratum": "Museum",
+          "source_sha256": "069395f51e79daadc01b5bb9182a833b01c6d11dfc251b4a6818058141debbb1"
+        },
+        {
+          "path": "Museum/A sign for when the printer fails.md",
+          "source_fixture": "testdata/narrative_vault/notes/Museum/A sign for when the printer fails.md",
+          "stratum": "Museum",
+          "source_sha256": "b719d21cb417d16ecefdc74b4f7c0e33e235aa12679ad254c4eaf746135e03c5"
+        },
+        {
+          "path": "Personal/Packing less clay equipment.md",
+          "source_fixture": "testdata/narrative_vault/notes/Personal/Packing less clay equipment.md",
+          "stratum": "Personal",
+          "source_sha256": "45162b6630f1ace48cd163539c1a3953c2d7c9255b1ea8fa4e119fae742abf6c"
+        },
+        {
+          "path": "Personal/Routes.md",
+          "source_fixture": "testdata/narrative_vault/notes/Personal/Routes.md",
+          "stratum": "Personal",
+          "source_sha256": "77a8185c46abded93c25b138bf2f34dc416c75b7581bf58025c764f81ccfa13b"
+        },
+        {
+          "path": "Personal/Winter rides need an exit option.md",
+          "source_fixture": "testdata/narrative_vault/notes/Personal/Winter rides need an exit option.md",
+          "stratum": "Personal",
+          "source_sha256": "c415a00b290a18dab8d7f22bb9bc1d5cbd3b1d891591f7974fd09029a3d60cb0"
+        },
+        {
+          "path": "Templates/Reading template.md",
+          "source_fixture": "testdata/narrative_vault/notes/Templates/Reading template.md",
+          "stratum": "excluded-template",
+          "source_sha256": "578bd6e6ee518678a3a22988ac9e0a866bae94d7697bbd098985094e85814860"
+        },
+        {
+          "path": "Templates/Meeting template.md",
+          "source_fixture": "testdata/narrative_vault/notes/Templates/Meeting template.md",
+          "stratum": "excluded-template",
+          "source_sha256": "d6149c43ea47089eb0f6987395320b0b2cbaa078486c285cb2e54bb1f5563976"
+        }
+      ]
+    },
+    {
+      "name": "temporal-smoke",
+      "origin_pr": 97,
+      "generator": "scripts/generate_temporal_corpus.py",
+      "initial_notes": 128,
+      "snapshots": 32,
+      "provenance": "Synthetic planted topics and dates."
+    },
+    {
+      "name": "temporal-standard",
+      "origin_pr": 97,
+      "generator": "scripts/generate_temporal_corpus.py",
+      "initial_notes": 1000,
+      "snapshots": 32,
+      "provenance": "Synthetic planted topics and dates."
+    },
+    {
+      "name": "temporal-large",
+      "origin_pr": 97,
+      "generator": "scripts/generate_temporal_corpus.py",
+      "initial_notes": 10000,
+      "snapshots": 32,
+      "provenance": "Same deterministic 10,000-initial-note generator/profile as PR97; replay all 32 weekly snapshots, including rewrites, planted terms and deletion."
+    },
+    {
+      "name": "original-10000",
+      "origin_prs": [
+        74,
+        97
+      ],
+      "repository": "Zettelkasten-Method/10000-markdown-files",
+      "commit": "40c11a4bb9b96dbcf1cd3c109d32f50dbc8b61a2",
+      "root": "10000 markdown files",
+      "expected_markdown_files": 10000,
+      "expected_bytes": 46635807,
+      "provenance": "Scrambled public stress text; robustness/capacity evidence, not representative semantic topic quality."
+    },
+    {
+      "name": "lyt-kit-mirror",
+      "historical_reference": "docs/LYT_KIT_BENCHMARK.md at b613dd71e8a565ab0587d9db1c6e7f49f625015f, removed in merged PR61",
+      "repository": "thebrianbug/LYT-Kit",
+      "commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+      "expected_markdown_files": 272,
+      "exclude_paths": [
+        ".obsidian/",
+        "Extras/Templates/"
+      ],
+      "provenance": "Public mirror of authored LYT demonstration notes. Related to the historical 235-note benchmark, but not proven byte-identical; this pinned mirror has272 notes. No source texts are redistributed by the review manifest. Not private-owner approval.",
+      "quality_sample": [
+        {
+          "path": "Calendar/2020-06-01.md",
+          "sha": "0de58eea8d7bfc9253bd00ebea210e8758ee02f5",
+          "size": 97,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "Calendar/2023-04-22.md",
+          "sha": "d2a58731aa1c8db2916efebc71abfae4f8762d61",
+          "size": 94,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "Cards/Sense of Control.md",
+          "sha": "14dfe2e2a7bb3fac1b9fcf044035a886c9f190ea",
+          "size": 50,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "+ Encounters/English Language MOC.md",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "size": 0,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "+ Encounters/LOL.md",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "size": 0,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "Cards/Folgezettel - 100a.1a But Also How It.md",
+          "sha": "0e8dd09287a9020f4a21ed58139a5d5b59f18cc7",
+          "size": 85,
+          "stratum": "empty-short"
+        },
+        {
+          "path": "+ Encounters/sound sensory sensitivity.md",
+          "sha": "b238a382a27df9e49bf30be5b3977fccfec2cafc",
+          "size": 354,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Recognize there is a problem and seek solutions..md",
+          "sha": "422ed4709eba20b576c8ff4160464df0d9cadaa2",
+          "size": 204,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Signal to Noise Ratio.md",
+          "sha": "ce1806cd4925eb6d3ed7ff3d88feeebfd3e2a550",
+          "size": 253,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Use it or Lose it.md",
+          "sha": "03487dfc588c9d871ae2188b103dbc95d1b45ec4",
+          "size": 508,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/Heterarchy.md",
+          "sha": "abc07f72b9532ea560559adf9326943a7643053e",
+          "size": 331,
+          "stratum": "short"
+        },
+        {
+          "path": "Calendar/2022-11-21.md",
+          "sha": "27e42845de5f263b6707c9af17dcf545862b981e",
+          "size": 186,
+          "stratum": "short"
+        },
+        {
+          "path": "Cards/+ About Cards.md",
+          "sha": "3aabaf187f14bde75b3faa1378df21ed2c1a584b",
+          "size": 1523,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Forcing Function.md",
+          "sha": "7a66e1d4f233e74e89be14e694b5868c9fec9845",
+          "size": 899,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/The truest habit metaphors are additive - v1.md",
+          "sha": "4e7c43ee4b9084343ef0feb7cf9b49d1be2f1920",
+          "size": 1062,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Reps.md",
+          "sha": "a1932adeff7284ecafb2ed7fcfbd62fa78533e99",
+          "size": 1266,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Habits MOC - Gather.md",
+          "sha": "24f8917e5944968fb36ecb82528892a442bba542",
+          "size": 1046,
+          "stratum": "medium"
+        },
+        {
+          "path": "Home.md",
+          "sha": "288ed7455bf89321b0ae7340b8b64e409fa8f6d2",
+          "size": 644,
+          "stratum": "medium"
+        },
+        {
+          "path": "Cards/Charting out habit cycles in my life circa 2013.md",
+          "sha": "db2a2761af7502ce3bc6fe42303f3c8b0751fbfd",
+          "size": 2831,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Benefits of LYT frameworks.md",
+          "sha": "80e06726f9d7ff62baa779c06b465245f9f4ac57",
+          "size": 5292,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Some Greek Allusions.md",
+          "sha": "857aca9d3a08dadaf7df1e45bfad23d0ad9eafb7",
+          "size": 2625,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Conditions of Flow.md",
+          "sha": "f65b9929175ad54c8b8779e60045cdddbf919a2c",
+          "size": 2390,
+          "stratum": "long"
+        },
+        {
+          "path": "Atlas/Habits MOC.md",
+          "sha": "dacd3d21535301a4473147867cfc3aee8047d43d",
+          "size": 3301,
+          "stratum": "long"
+        },
+        {
+          "path": "Cards/Flow Map.md",
+          "sha": "9253a248c3e3423aae18e1b7319459e6ca0a6b53",
+          "size": 2191,
+          "stratum": "long"
+        },
+        {
+          "path": "Extras/Templates/Template, Daily Note (kit).md",
+          "sha": "ca39668fbcf01b60e14ce893188128f3cc77c178",
+          "size": 184,
+          "stratum": "excluded-template"
+        },
+        {
+          "path": "Extras/Templates/Template, Dates dates dates (kit).md",
+          "sha": "e555195074529385e12b3fd98da207652a833332",
+          "size": 405,
+          "stratum": "excluded-template"
+        },
+        {
+          "path": "Extras/Templates/Template, Meeting (kit).md",
+          "sha": "d6d3057209ca74f2982af8fccf8c2f1a3572585d",
+          "size": 89,
+          "stratum": "excluded-template"
+        },
+        {
+          "path": "Extras/Templates/Template, Note (kit).md",
+          "sha": "b5e6f3d86f5e014d7458e906b879fb8a418e1eed",
+          "size": 26,
+          "stratum": "excluded-template"
+        }
+      ],
+      "quality_proxy_fixture": "benchmarks/corpora/topic_lyt_proxy_gold.json"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "source_repository": "thebrianbug/LYT-Kit",
+  "source_commit": "e191473fcb326df78cca8a6c49b29420ab318e46",
+  "selection_policy": "Exclude all prior frozen quality selections and excluded templates; rank remaining paths by SHA256(geistfabrik-topics-holdout-v1+NUL+path), take four from each UTF8 byte-length stratum <=128/<=600/<=2000/>2000. Frozen before extraction.",
+  "notes": [
+    {
+      "id": "fresh-01",
+      "source_path": "Cards/Folgezettel - 100a.1b Adds certain things....md",
+      "source_git_blob": "d4aecd02d7f299f188043f838624b8ba4a404547",
+      "bytes": 83,
+      "length_stratum": 0,
+      "source_sha256": "ce42cd1c6fd0754711b8f74719b9ad4003df6d605bd1f362764aa0600f374d83"
+    },
+    {
+      "id": "fresh-02",
+      "source_path": "+ Encounters/Albert Einstein.md",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "length_stratum": 0,
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "fresh-03",
+      "source_path": "+ Encounters/Elden Ring.md",
+      "source_git_blob": "d8ce309d8a945f72a1e8506872cdd2ededc4e22d",
+      "bytes": 37,
+      "length_stratum": 0,
+      "source_sha256": "ad13926be7614ac6c24d74ef62188eb81704d5d832846c9fde9f4c0f57eb7808"
+    },
+    {
+      "id": "fresh-04",
+      "source_path": "Cards/Folgezettel - 100b.1 And Long-term Rigidity.md",
+      "source_git_blob": "4cd28a81032807a2bdd7b10245b2c889250e4791",
+      "bytes": 62,
+      "length_stratum": 0,
+      "source_sha256": "2f24e57f507939e61157e732ca2717ed3fe3a2bdda2d6591dcf276ac386ecb88"
+    },
+    {
+      "id": "fresh-05",
+      "source_path": "Cards/MOCs are both workbenches and maps.md",
+      "source_git_blob": "c4f4d42dc392fbc00498e23c07b361950eaf1de9",
+      "bytes": 591,
+      "length_stratum": 1,
+      "source_sha256": "c31a69d955a619425a2442b83bb4f381af24d7ab21d39ca17af8ecf66bcf35ec"
+    },
+    {
+      "id": "fresh-06",
+      "source_path": "Atlas/My Newsletter MOC.md",
+      "source_git_blob": "033b35f4880793787c20b47872a57d546380cb78",
+      "bytes": 422,
+      "length_stratum": 1,
+      "source_sha256": "580e1242afc4966cc55cf1085377f8e39e8abad3957b0688089c36ee73998756"
+    },
+    {
+      "id": "fresh-07",
+      "source_path": "Atlas/Health MOC.md",
+      "source_git_blob": "de646948330513b8ce61cede005e56bab2971a03",
+      "bytes": 552,
+      "length_stratum": 1,
+      "source_sha256": "b7899cb3932a800b58d44e8c8d776fb53e11b792d500a3628e3b6e1de8ae8bd2"
+    },
+    {
+      "id": "fresh-08",
+      "source_path": "Cards/The Id.md",
+      "source_git_blob": "c4e31245c0b521dc41aa728a74c02db06e938348",
+      "bytes": 387,
+      "length_stratum": 1,
+      "source_sha256": "9f74a0ff0f6c04023fb0d6ac09b8d17ae0a286dc7800fcf1d822d85b47981226"
+    },
+    {
+      "id": "fresh-09",
+      "source_path": "Sources/1949 - 1984 (book).md",
+      "source_git_blob": "c0fee305da3b57b5d4e8ce8d8defbba6d0a272ad",
+      "bytes": 1270,
+      "length_stratum": 2,
+      "source_sha256": "3817967c8e1b6ee9bcffcc25e03538c352f892d5dc3c1a00cc81d3f5e14799f0"
+    },
+    {
+      "id": "fresh-10",
+      "source_path": "Cards/Note-making creates unexpected optionality.md",
+      "source_git_blob": "ddbb8aa9c6d642b450bdc644ee3ad8dbfcc3af91",
+      "bytes": 1358,
+      "length_stratum": 2,
+      "source_sha256": "5a2d419b8fd0c7cc41f1d7bf2dc0993756485ee423bdfe0fc42b0be629a811cc"
+    },
+    {
+      "id": "fresh-11",
+      "source_path": "Atlas/Meta PKM.md",
+      "source_git_blob": "2ef8bf58f42ff7daaec4251c59d87ba5a3701cbb",
+      "bytes": 673,
+      "length_stratum": 2,
+      "source_sha256": "7aef12362ba802a235f35ed79fcc3d77f9a019222c039af9336de7b763556bb9"
+    },
+    {
+      "id": "fresh-12",
+      "source_path": "Atlas/People MOC.md",
+      "source_git_blob": "5f5d860bad5759b2f3f870d0998e36a3c0e0b00d",
+      "bytes": 1459,
+      "length_stratum": 2,
+      "source_sha256": "1c65ae1a120fa9ee7cbf0ede9acc6c5c6115062b8e7fae615a68d9eafef49398"
+    },
+    {
+      "id": "fresh-13",
+      "source_path": "Cards/On the process of note-making.md",
+      "source_git_blob": "e0713dfeb1da3b43e00732eead99b02b3c59ad13",
+      "bytes": 2881,
+      "length_stratum": 3,
+      "source_sha256": "78f651342603566c1d7ab066ed8cba602964903b8c1c692735d95f94c6f2c46e"
+    },
+    {
+      "id": "fresh-14",
+      "source_path": "Sources/2009 - Analogy as Core - Hofstadter (talk).md",
+      "source_git_blob": "27c3e0d2c1bbfc520d6add10b681ab26d9333f2f",
+      "bytes": 4992,
+      "length_stratum": 3,
+      "source_sha256": "c88af1fd72c2c0f336a2ef78b842a2fb4f4b767cf666ad31c0d525a759ce9d67"
+    },
+    {
+      "id": "fresh-15",
+      "source_path": "Cards/MOCs encourage flexible non-destructive thinking.md",
+      "source_git_blob": "10b8b958a62b143f1d6086cea755ff5dd815dbe2",
+      "bytes": 2412,
+      "length_stratum": 3,
+      "source_sha256": "863ff4f7d03283a65d5b2a9b11f3ffef06d3bb26591a0a58241ee55781930a12"
+    },
+    {
+      "id": "fresh-16",
+      "source_path": "Cards/Natural Selection.md",
+      "source_git_blob": "f9bd6377ce3d79c4fb58151fb322f0b38cd4e72b",
+      "bytes": 5400,
+      "length_stratum": 3,
+      "source_sha256": "a7a460ddf5b5f96f111d67b72ad0862b24c01fbc980df6f6449610fec174c34c"
+    }
+  ]
+}

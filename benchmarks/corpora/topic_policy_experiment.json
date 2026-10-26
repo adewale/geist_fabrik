@@ -1,0 +1,112 @@
+{
+  "version": 3,
+  "frozen_before_new_policy_outputs": true,
+  "label_limit": 5,
+  "calibration_sets": [
+    "synthetic",
+    "public-starter",
+    "narrative",
+    "lyt"
+  ],
+  "factorial_rules": [
+    "heading_prior",
+    "link_prior",
+    "predicate_penalty",
+    "score_gap",
+    "containment",
+    "repeated_words",
+    "grammar"
+  ],
+  "fixed_contracts": [
+    "eligible visible source only",
+    "exact evidence",
+    "conservative keys",
+    "finite nonnegative scores",
+    "supported lexical shape",
+    "deterministic order",
+    "five-label maximum"
+  ],
+  "comparison": "All 128 combinations use identical clean source text, real cached YAKE proposals and current safe contiguous-span grounding. The legacy comparator retains document-global selection grammar only, not the historical unsafe evidence reconstruction.",
+  "selection": [
+    "Choose using the four existing frozen calibration sets only; never inspect fresh predictions before this choice is frozen.",
+    "Require each calibration set's existing numeric precision/recall floors and no more YAKE empty-case labels than the legacy policy in any set. Existing empty-case failures stay failed and visible; this does not waive their delivery gate.",
+    "Require all existing no-argument known-answer selection/grammar regression functions listed in frozen_contract_functions to pass unchanged; report their failures for every ablation. This is contract evidence, distinct from independent quality evidence.",
+    "Among eligible policies minimize enabled-rule count, then prefer no grammar dependency, then no handwritten predicate penalty; break remaining ties by worst-set precision, worst-set recall and stable policy name.",
+    "If no policy qualifies, retain the previous production policy and report that simplification failed; do not lower thresholds or alter old gold.",
+    "Freeze the selected policy and calibration receipt in a commit before evaluating the fresh set. Evaluate only selected, clean-YAKE and legacy comparators there; do not tune after viewing fresh results."
+  ],
+  "boilerplate_tradeoff": {
+    "structural": "Configured exclusions and non-prose/metadata syntax are hard boundaries; truly empty visible text must produce zero topics.",
+    "protected_subjects": "An empty child field or an unrelated unanswered prompt must not make an otherwise eligible substantive parent caption or filled-field subject ineligible.",
+    "ambiguity": "Blank colon fields, list shape and repetition alone do not justify suppressing a nominal subject. Prefer retaining uncertain observed wording to silently erasing a substantive outline; report resulting prompt noise explicitly.",
+    "measurement": "Report unused forms, substantive outlines and partially completed forms separately with every assigned label. Diagnostic contrast cases are not independent holdout evidence.",
+    "unchanged_delivery_gate": "The existing LYT unused-form zero-false-topic gate remains unchanged; documented ambiguity is not a pass."
+  },
+  "fresh_evaluation": {
+    "selection_manifest": "topic_fresh_selection.json",
+    "annotations": "topic_fresh_gold.json",
+    "annotators": "Two independent source-only models plus a third source-only adjudicator; no implementation or extractor output inspected.",
+    "human_reviewed": false,
+    "underspecified_cases": "Keep all predictions visible and report their judgments separately; do not silently classify or drop them to improve macro metrics.",
+    "limits": "Sixteen held-out notes from the same authored LYT mirror, not a different-vault or human-reviewed generalization claim. Exact observed-label scoring remains a proxy.",
+    "frozen_sha256": {
+      "benchmarks/corpora/topic_fresh_selection.json": "4e1b83cbc67f2d2b359336c49ef00d3d6d2d14d237830c83c34e1ad7da764b46",
+      "benchmarks/corpora/topic_fresh_gold.json": "bce86562a7d6ebe6caada483d7e5d5355f7b91fa2171e71bd0c3b0de72316c49"
+    }
+  },
+  "frozen_contract_functions": {
+    "tests/unit/test_topics.py": [
+      "test_candidate_validation_rejects_unobserved_and_invalid_scores",
+      "test_budget_does_not_pad_a_large_statistical_cost_gap",
+      "test_cost_gap_abstention_has_no_absolute_or_corpus_frequency_floor",
+      "test_statistical_abstention_does_not_suppress_later_authored_evidence",
+      "test_word_padding_abstention_preserves_phrase_evidence_after_a_gap"
+    ],
+    "tests/unit/test_topic_grammar.py": [
+      "test_finite_clause_cannot_displace_its_observed_subject",
+      "test_authored_heading_and_link_labels_keep_their_independent_evidence",
+      "test_empty_fields_do_not_erase_a_substantive_rare_topic_outline",
+      "test_empty_children_do_not_erase_their_substantive_parent_caption"
+    ]
+  },
+  "calibration_revisions": [
+    {
+      "version": 1,
+      "commit": "0530f2f7e27523c484e0ff601f47b0e82b130a17",
+      "raw_archive": "benchmarks/archives/topics/calibration-0530.archive.json",
+      "outcome": "No eligible local policy: unused-form labels grew from one to five. All numeric floors and old selection regressions passed for local-full."
+    },
+    {
+      "version": 2,
+      "changes": [
+        "Colon-followed candidates bypass isolated-subject/nominal-context shortcuts and use the existing POS rules; this is fallible relevance, not metadata masking.",
+        "Every provenance must have a safe contiguous visible evidence span; masked syntax/content cannot be reconstructed into stored evidence.",
+        "Extra grammatical subject-field counterexamples are reported as diagnostic costs, with no change to the four frozen gold sets or acceptance floors."
+      ],
+      "fresh_predictions_inspected": false
+    },
+    {
+      "version": 3,
+      "changes": [
+        "Expose generic named heading suppression as a fallible source-role judgment rather than hard non-prose. Default projection and labels unchanged.",
+        "Add a separately controlled preprocessor ablation with independent proposals and unchanged role contracts; main128 selector factorial remains unchanged."
+      ],
+      "fresh_predictions_inspected": false
+    }
+  ],
+  "source_role_ablation": {
+    "role": "generic named section-heading suppression before YAKE",
+    "baseline": "selected post-proposal flags with ordinary role curation",
+    "arm": "same flags with _SECTION_LABELS empty, independent proposal cache, projection cache cleared and restored",
+    "scope": "A distinct preprocessor ablation: admitted prose/proposals necessarily differ. It is not one of the 128 post-proposal combinations.",
+    "criteria": "Report same calibration floors, empty-case labels and unchanged source-role contracts. If the arm qualifies, expand policy selection before any fresh prediction instead of claiming the role rule earned its complexity.",
+    "contract_functions": {
+      "tests/unit/test_topic_text.py": [
+        "test_generic_secondary_headings_are_masked"
+      ],
+      "tests/unit/test_topics.py": [
+        "test_primary_heading_survives_secondary_heading_budget"
+      ]
+    }
+  }
+}

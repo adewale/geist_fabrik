@@ -160,7 +160,11 @@ def test_windows_source_paths_obey_lexical_exclusions(tmp_path, relative):
     # Persist the native Windows spelling in the same DB input used by capture.
     with closing(Vault(tmp_path)) as vault:
         vault.sync()
+        # This fixture changes raw identity directly, outside Vault.sync.
+        # Drop dependent derived rows before constructing that alternate source.
         vault.db.execute("DELETE FROM lexical_notes")
+        vault.db.execute("DELETE FROM note_topics")
+        vault.db.execute("DELETE FROM note_topic_state")
         vault.db.execute("UPDATE notes SET path=?", (relative,))
         vault.db.commit()
         # Run capture inside its existing production ownership boundary.
