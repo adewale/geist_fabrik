@@ -18,6 +18,7 @@ evidence snippets are retained; review records remain unrated, not approvals.
 | [initial-review](initial-review.archive.json) | Initial pending starter review record |
 | [grammar-repair-review](grammar-repair-review.archive.json) | Pending source-first review packet and ambiguity evidence |
 | [fresh annotations](fresh-annotations.archive.json) | Two independent source-only model annotation passes; not human judgments |
+| [selected calibration](calibration-selected.archive.json) | Full source-bound factorial and source-role results; committed before held-out evaluation |
 | [calibration 0530](calibration-0530.archive.json) | Failed calibration of 128 local policy variants plus the published baseline; no eligible local policy |
 
 The readable [grammar repair reports](../../results/topics/corpora/grammar-repair/index.json)

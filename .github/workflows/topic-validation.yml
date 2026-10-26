@@ -11,6 +11,8 @@ on:
       - 'scripts/*topics.py'
       - 'scripts/validate.sh'
       - 'uv.lock'
+      - 'benchmarks/corpora/topic*.json'
+      - 'benchmarks/archives/topics/calibration-selected.archive.json'
       - '.github/workflows/topic-validation.yml'
 
 permissions:
@@ -52,12 +54,25 @@ jobs:
         run: |
           uv run --frozen ruff check scripts/probe_topic_quality.py scripts/topic_legacy_grammar.py
           uv run --frozen ruff format --diff scripts/probe_topic_quality.py scripts/topic_legacy_grammar.py
-      - name: Diagnose frozen quality failures with real YAKE
+      - name: Evaluate frozen selected policy on held-out sources
         if: always()
         working-directory: project
         run: |
           uv run --frozen python -m scripts.probe_topic_quality \
-            --phase calibrate --lyt ../corpora/lyt --output "$RUNNER_TEMP/topic-quality-probes.json"
+            --phase holdout --selection benchmarks/archives/topics/calibration-selected.archive.json \
+            --lyt ../corpora/lyt --output "$RUNNER_TEMP/topic-quality-probes.json"
+      - name: Enforce the independently annotated quality floors
+        working-directory: project
+        run: |
+          uv run --frozen python - "$RUNNER_TEMP/topic-quality-probes.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text())
+          chosen = report["reports"]["selected"]
+          print(json.dumps(chosen, indent=2))
+          raise SystemExit(0 if chosen["passed"] else 1)
+          PY
       - name: Retain source-bound diagnostic report
         if: always()
         uses: actions/upload-artifact@v7

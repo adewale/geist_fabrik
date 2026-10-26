@@ -1,0 +1,145 @@
+{
+  "format": "geistfabrik-topic-current-results-v1",
+  "stage": "selected before heldout evaluation",
+  "calibration_commit": "507f98e1731871f40f6d37e7c6736e75e460d541",
+  "selection_archive": "benchmarks/archives/topics/calibration-selected.archive.json",
+  "selection_archive_sha256": "7e3770e12afc62d24c523efe7d76703292db72cfc32047900169bc16f2fee34c",
+  "logical_calibration_report_sha256": "be31bf5c12fb7c0e01a053adaa4ee19ede24977cd6bbb5fa80f7e299ae81011a",
+  "selected_policy": {
+    "containment": true,
+    "grammar": true,
+    "heading_prior": true,
+    "link_prior": true,
+    "predicate_penalty": true,
+    "repeated_words": true,
+    "score_gap": true
+  },
+  "selected_policy_name": "local-full",
+  "viable_policy_found": true,
+  "simplification_succeeded": false,
+  "calibration": {
+    "synthetic": {
+      "clean-yake": {
+        "precision": 0.41904761904761906,
+        "recall": 0.6666666666666667
+      },
+      "legacy": {
+        "precision": 0.6285714285714287,
+        "recall": 0.880952380952381
+      },
+      "local-full": {
+        "precision": 0.6285714285714287,
+        "recall": 0.880952380952381
+      }
+    },
+    "public-starter": {
+      "clean-yake": {
+        "precision": 0.31428571428571433,
+        "recall": 0.6666666666666667
+      },
+      "legacy": {
+        "precision": 0.5285714285714286,
+        "recall": 0.8571428571428571
+      },
+      "local-full": {
+        "precision": 0.5285714285714286,
+        "recall": 0.8571428571428571
+      }
+    },
+    "narrative": {
+      "clean-yake": {
+        "precision": 0.23809523809523808,
+        "recall": 0.5
+      },
+      "legacy": {
+        "precision": 0.5714285714285714,
+        "recall": 0.8571428571428571
+      },
+      "local-full": {
+        "precision": 0.5619047619047619,
+        "recall": 0.8571428571428571
+      }
+    },
+    "lyt": {
+      "clean-yake": {
+        "precision": 0.42666666666666664,
+        "recall": 0.675
+      },
+      "legacy": {
+        "precision": 0.545,
+        "recall": 0.625
+      },
+      "local-full": {
+        "precision": 0.5349999999999999,
+        "recall": 0.625
+      }
+    }
+  },
+  "single_rule_removal_failures": {
+    "heading_prior": [
+      "frozen_contract:tests/unit/test_topic_grammar.py::test_authored_heading_and_link_labels_keep_their_independent_evidence",
+      "lyt:recall_floor"
+    ],
+    "link_prior": [
+      "frozen_contract:tests/unit/test_topics.py::test_statistical_abstention_does_not_suppress_later_authored_evidence",
+      "frozen_contract:tests/unit/test_topic_grammar.py::test_authored_heading_and_link_labels_keep_their_independent_evidence",
+      "narrative:precision_floor"
+    ],
+    "predicate_penalty": [
+      "public-starter:precision_floor"
+    ],
+    "score_gap": [
+      "frozen_contract:tests/unit/test_topics.py::test_budget_does_not_pad_a_large_statistical_cost_gap",
+      "frozen_contract:tests/unit/test_topics.py::test_statistical_abstention_does_not_suppress_later_authored_evidence",
+      "frozen_contract:tests/unit/test_topics.py::test_word_padding_abstention_preserves_phrase_evidence_after_a_gap",
+      "lyt:additional_empty_case_labels"
+    ],
+    "containment": [
+      "public-starter:precision_floor",
+      "lyt:additional_empty_case_labels"
+    ],
+    "repeated_words": [
+      "frozen_contract:tests/unit/test_topics.py::test_candidate_validation_rejects_unobserved_and_invalid_scores"
+    ],
+    "grammar": [
+      "frozen_contract:tests/unit/test_topic_grammar.py::test_finite_clause_cannot_displace_its_observed_subject",
+      "narrative:precision_floor",
+      "lyt:precision_floor",
+      "lyt:additional_empty_case_labels"
+    ]
+  },
+  "source_role_ablation": {
+    "diagnostic_failure_reasons": [
+      "frozen_contract:tests/unit/test_topic_text.py::test_generic_secondary_headings_are_masked",
+      "frozen_contract:tests/unit/test_topics.py::test_primary_heading_survives_secondary_heading_budget",
+      "synthetic:additional_empty_case_labels",
+      "public-starter:additional_empty_case_labels"
+    ],
+    "source_role_contract_failures": {
+      "arm": [
+        "tests/unit/test_topic_text.py::test_generic_secondary_headings_are_masked",
+        "tests/unit/test_topics.py::test_primary_heading_survives_secondary_heading_budget"
+      ],
+      "baseline": []
+    },
+    "requires_selection_expansion_before_holdout": false
+  },
+  "heldout": {
+    "status": "pending",
+    "annotations_human_reviewed": false,
+    "scope": "16 previously unselected LYT notes held out from quality annotation, output inspection and policy tuning; previous operational indexing covered all notes."
+  },
+  "runtime_validation": {
+    "status": "pending on final source; earlier real focused run passed306tests+21subtests"
+  },
+  "delivery_blockers": [
+    "Known LYT unused-form label important action items remains",
+    "Human relevance/representativeness not reviewed"
+  ],
+  "claim_limits": [
+    "Model-labelled same-vault calibration/holdout; no general human usefulness claim",
+    "Seven rules retained; no selector complexity reduction",
+    "Repeated-word filtering is supported by a frozen validity regression, not a measured calibration benefit",
+    "32x predicate penalty and8x gap are historical settings, not calibrated probabilities"
+  ]
+}

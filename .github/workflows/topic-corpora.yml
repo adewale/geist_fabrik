@@ -15,7 +15,8 @@ permissions:
 
 concurrency:
   group: topic-corpora-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  # The selected runtime is frozen; preserve its full replay during evidence publication.
+  cancel-in-progress: false
 
 jobs:
   corpora:

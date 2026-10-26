@@ -7,9 +7,9 @@ The current design, boilerplate policy and evaluation method are in
 | --- | --- |
 | Published e314804 before policy refactor | Canonical, 179 focused, 2,346 unit, 86 integration, 84.12% branch coverage, 158 automatic acceptance criteria, all platform/offline package lanes passed. |
 | Earlier full corpus runtime 427afee5 | All six corpora, all 120 replay snapshots, exact evidence, unchanged source bytes, zero warm extractions and four final-state rebuild comparisons passed. |
-| Local sentence grammar and selection explanations | Prepared; real committed-dependency CI pending. |
-| 128-policy calibration and selected-policy receipt | Plan frozen; execution pending. |
-| Sixteen-note independent model holdout | Annotations frozen before extraction; evaluation pending. |
+| Local sentence grammar and selection explanations | Real focused tests passed306 +21subtests; final validation running. |
+| 128-policy calibration and selected-policy receipt | All 128 policies and the separate role arm measured; only local-full qualifies. |
+| Sixteen-note independent model holdout | Annotations withheld from quality-output inspection; receipt frozen before evaluation. |
 | Empty forms and human usefulness | Existing false topic remains visible; no human relevance approval recorded. |
 
 The repository-wide 83 manual criteria are prose verification cells, not 83

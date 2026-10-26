@@ -88,16 +88,38 @@ them before extraction. The chosen policy is evaluated once alongside clean YAKE
 and the frozen legacy comparator. Underspecified sources remain visible separately.
 These are model annotations from one public PKM vault, not human judgments or a
 claim about arbitrary personal vaults. No tuning follows that held-out evaluation.
+Earlier full-vault operational runs indexed all LYT sources. These sixteen notes
+are held out from quality annotation, output inspection and policy tuning, not
+claimed to have never been processed by the index. Calibration does not inspect
+their note-specific predictions.
 
-The first 128-policy experiment found no eligible local policy: the unused form
-grew from one to five labels even though all numeric floors and existing known
-answers passed for the full policy. Its [raw failure](../benchmarks/archives/topics/README.md)
-is retained. A second calibration checks the local colon correction and a
-source-grounding repair that prevents raw evidence from reconstructing masked
-link destinations. Its results and real validation remain pending. The preceding published
-implementation passed all six corpora/120 replay snapshots, but retained an
-unused-form false topic and unperformed human relevance review. Those prior
-results do not certify the changed policy. See [current verification](TOPICS_VERIFICATION.md).
+The first local-grammar experiment was rejected because it increased unused-form
+noise; its raw failure is retained. The final calibration uses the local colon
+correction and safe evidence grounding. Exactly one of 128 policies qualifies:
+all seven rules. There is **no selector complexity reduction**. Generic heading
+role curation also earns retention under its fixed contracts and empty-case
+measurements; disabling it produces additional false topics on stub cases.
+
+| Calibration proxy | Clean-text YAKE precision / recall | Selected policy |
+| --- | --- | --- |
+| synthetic | 0.419 / 0.667 | 0.629 / 0.881 |
+| public-starter | 0.314 / 0.667 | 0.529 / 0.857 |
+| narrative | 0.238 / 0.500 | 0.562 / 0.857 |
+| lyt | 0.427 / 0.675 | 0.535 / 0.625 |
+
+Repeated-word filtering is retained by an existing validity regression, without
+a measured calibration gain. The historical 32x predicate penalty and 8x gap
+are not claimed to be optimal or calibrated confidence values. Every removal
+and contract/quality consequence is recorded in the
+[current results](../benchmarks/results/topics/current.json); the full raw
+[selection archive](../benchmarks/archives/topics/calibration-selected.archive.json)
+is committed before held-out evaluation. The selected policy and measured input
+hashes must match that receipt before fresh predictions are inspected.
+
+The held-out evaluation and final runtime validation are pending. The original
+LYT unused-form failure and genuine human relevance review remain open. No
+annotation, threshold or failing case is removed to obtain approval. See
+[verification](TOPICS_VERIFICATION.md).
 
 Raw historical evidence is preserved byte-for-byte in a [durable Git archive](../benchmarks/archives/topics/README.md),
 with checksums and standard-library verification/restoration commands. The
