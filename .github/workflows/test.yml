@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   test:
     timeout-minutes: 20
@@ -71,6 +75,7 @@ jobs:
         run: uv run python scripts/check_branch_coverage.py --minimum 70
 
       - name: Run linting
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         run: uv run ruff check src/ tests/
 
       - name: Run mypy type checking
@@ -80,9 +85,11 @@ jobs:
         run: uv run ty check src tests --error-on-warning
 
       - name: Check for unused database tables
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         run: uv run python scripts/detect_unused_tables.py
 
       - name: Security scan (bandit)
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         run: uv run bandit -c pyproject.toml -r src/geistfabrik -ll -q
 
       - name: Acceptance criteria
