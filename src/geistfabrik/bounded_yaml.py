@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from yaml.nodes import Node
 
 MAX_YAML_BYTES = 1024 * 1024
 MAX_YAML_NODES = 20_000
@@ -14,34 +15,45 @@ class BoundedYAMLError(ValueError):
     """Raised when YAML is invalid or exceeds a resource limit."""
 
 
+class _BoundedSafeLoader(yaml.SafeLoader):
+    """Enforce quotas while composing, before constructing Python values."""
+
+    def __init__(self, text: str, source: str):
+        super().__init__(text)
+        self.source = source
+        self.node_count = 0
+        self.collection_depth = 0
+
+    def compose_node(self, parent: Node | None, index: Any) -> Node:
+        if self.check_event(yaml.events.AliasEvent):  # type: ignore[no-untyped-call]
+            raise BoundedYAMLError(f"YAML aliases are not permitted: {self.source}")
+        self.node_count += 1
+        if self.node_count > MAX_YAML_NODES:
+            raise BoundedYAMLError(f"YAML node count exceeds {MAX_YAML_NODES}: {self.source}")
+        collection = self.check_event(  # type: ignore[no-untyped-call]
+            yaml.events.MappingStartEvent, yaml.events.SequenceStartEvent
+        )
+        self.collection_depth += int(collection)
+        try:
+            if self.collection_depth > MAX_YAML_DEPTH:
+                raise BoundedYAMLError(f"YAML nesting exceeds {MAX_YAML_DEPTH}: {self.source}")
+            node = super().compose_node(parent, index)
+            assert node is not None
+            return node
+        finally:
+            self.collection_depth -= int(collection)
+
+
 def load_bounded_yaml_text(text: str, source: str = "<yaml>") -> Any:
     """Safely parse YAML text with byte, alias, node, and depth bounds."""
     if len(text.encode("utf-8")) > MAX_YAML_BYTES:
         raise BoundedYAMLError(f"YAML input exceeds {MAX_YAML_BYTES} bytes: {source}")
     try:
-        depth = 0
-        nodes = 0
-        for event in yaml.parse(text, Loader=yaml.SafeLoader):
-            if isinstance(event, yaml.events.AliasEvent):
-                raise BoundedYAMLError(f"YAML aliases are not permitted: {source}")
-            if isinstance(event, (yaml.events.MappingStartEvent, yaml.events.SequenceStartEvent)):
-                depth += 1
-                if depth > MAX_YAML_DEPTH:
-                    raise BoundedYAMLError(f"YAML nesting exceeds {MAX_YAML_DEPTH}: {source}")
-            elif isinstance(event, (yaml.events.MappingEndEvent, yaml.events.SequenceEndEvent)):
-                depth -= 1
-            if isinstance(
-                event,
-                (
-                    yaml.events.ScalarEvent,
-                    yaml.events.MappingStartEvent,
-                    yaml.events.SequenceStartEvent,
-                ),
-            ):
-                nodes += 1
-                if nodes > MAX_YAML_NODES:
-                    raise BoundedYAMLError(f"YAML node count exceeds {MAX_YAML_NODES}: {source}")
-        return yaml.safe_load(text)
+        loader = _BoundedSafeLoader(text, source)
+        try:
+            return loader.get_single_data()
+        finally:
+            loader.dispose()  # type: ignore[no-untyped-call]
     except BoundedYAMLError:
         raise
     except yaml.YAMLError as exc:

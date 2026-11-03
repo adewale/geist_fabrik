@@ -16,6 +16,7 @@ from .date_collection import is_date_collection_note, split_date_collection_note
 from .lexical_index import LexicalIndex
 from .markdown_parser import (
     MarkdownLimitError,
+    ParsedMarkdown,
     declared_creation_date,
     declared_modification_date,
     parse_markdown,
@@ -289,9 +290,10 @@ class Vault:
             # A date the note declares (frontmatter `created:` / `modified:` /
             # `updated:`, or a dated file name) is authoritative; file
             # timestamps are only an estimate.
-            declared_modified = declared_modification_date(content)
+            parsed = ParsedMarkdown.parse(content)
+            declared_modified = declared_modification_date(content, parsed=parsed)
             modified = declared_modified or datetime.fromtimestamp(stat.st_mtime)
-            declared_created = declared_creation_date(rel_path, content)
+            declared_created = declared_creation_date(rel_path, content, parsed=parsed)
             created = declared_created or self._estimate_created(stat, declared_modified)
 
             # Check if this is a date-collection note (if enabled and not excluded)
@@ -304,6 +306,7 @@ class Vault:
                         content,
                         min_sections=dc_config.min_sections,
                         date_threshold=dc_config.date_threshold,
+                        parsed=parsed,
                     )
                 )
             except MarkdownLimitError as exc:
@@ -319,7 +322,9 @@ class Vault:
                 # updated in place so their historical session embeddings survive;
                 # only entries that disappeared from the source are deleted.
                 try:
-                    virtual_notes = split_date_collection_note(rel_path, content, created, modified)
+                    virtual_notes = split_date_collection_note(
+                        rel_path, content, created, modified, parsed=parsed
+                    )
                 except MarkdownLimitError as exc:
                     logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                     continue
@@ -330,7 +335,9 @@ class Vault:
             else:
                 # Regular note - parse markdown
                 try:
-                    title, clean_content, links, tags = parse_markdown(rel_path, content)
+                    title, clean_content, links, tags = parse_markdown(
+                        rel_path, content, parsed=parsed
+                    )
                 except MarkdownLimitError as exc:
                     logger.warning("Skipping structurally dense note %s: %s", rel_path, exc)
                     self.db.execute(
@@ -355,6 +362,7 @@ class Vault:
                     links,
                     tags,
                     created_is_declared=declared_created is not None,
+                    parsed=parsed,
                 )
 
                 processed_count += 1
@@ -494,6 +502,7 @@ class Vault:
         tags: list[str],
         *,
         created_is_declared: bool = False,
+        parsed: ParsedMarkdown | None = None,
     ) -> None:
         """Update a note and its relationships in the database.
 
@@ -513,6 +522,7 @@ class Vault:
             is_virtual=False,
             source_file=None,
             entry_date=None,
+            _parsed_source=parsed,
         )
         # Delegate to the full update method
         self._update_note_from_object(

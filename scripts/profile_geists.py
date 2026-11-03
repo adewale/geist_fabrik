@@ -18,7 +18,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from geistfabrik.embeddings import Session
 from geistfabrik.geist_executor import GeistExecutor
@@ -31,7 +31,7 @@ class ProfilingVaultContext(VaultContext):
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.profile_stats: Dict[str, Any] = {
+        self.profile_stats: dict[str, Any] = {
             "call_counts": defaultdict(int),
             "cache_hits": defaultdict(int),
             "cache_misses": defaultdict(int),
@@ -55,7 +55,7 @@ class ProfilingVaultContext(VaultContext):
         self.profile_stats["call_counts"][method_name] += 1
 
         # Check cache
-        if note.path in self._backlinks_cache:
+        if self._link_graph is not None:
             self.profile_stats["cache_hits"][method_name] += 1
         else:
             self.profile_stats["cache_misses"][method_name] += 1
@@ -73,7 +73,7 @@ class ProfilingVaultContext(VaultContext):
         self.profile_stats["call_counts"][method_name] += 1
 
         # Check cache
-        if note.path in self._outgoing_links_cache:
+        if self._link_graph is not None:
             self.profile_stats["cache_hits"][method_name] += 1
         else:
             self.profile_stats["cache_misses"][method_name] += 1
@@ -85,19 +85,19 @@ class ProfilingVaultContext(VaultContext):
         self.profile_stats["timings"][method_name] += elapsed
         return result
 
-    def graph_neighbors(self, note):
+    def graph_neighbours(self, note):
         """Instrumented graph_neighbors."""
-        method_name = "graph_neighbors"
+        method_name = "graph_neighbours"
         self.profile_stats["call_counts"][method_name] += 1
 
         # Check cache
-        if note.path in self._graph_neighbors_cache:
+        if note.path in self._graph_neighbours_cache:
             self.profile_stats["cache_hits"][method_name] += 1
         else:
             self.profile_stats["cache_misses"][method_name] += 1
 
         start = time.perf_counter()
-        result = super().graph_neighbors(note)
+        result = super().graph_neighbours(note)
         elapsed = time.perf_counter() - start
 
         self.profile_stats["timings"][method_name] += elapsed
@@ -124,27 +124,27 @@ class ProfilingVaultContext(VaultContext):
         self.profile_stats["timings"][method_name] += elapsed
         return result
 
-    def neighbours(self, note, k=10):
+    def neighbours(self, note, count=10, return_scores=False):
         """Instrumented neighbours."""
         method_name = "neighbours"
         self.profile_stats["call_counts"][method_name] += 1
 
         # Check cache
-        cache_key = (note.path, k)
-        if cache_key in self._neighbours_cache:
+        cached = self._neighbours_cache.get(note.path)
+        if cached is not None and cached[0] >= count:
             self.profile_stats["cache_hits"][method_name] += 1
         else:
             self.profile_stats["cache_misses"][method_name] += 1
 
         start = time.perf_counter()
-        result = super().neighbours(note, k)
+        result = super().neighbours(note, count, return_scores=return_scores)
         elapsed = time.perf_counter() - start
 
         self.profile_stats["timings"][method_name] += elapsed
         return result
 
 
-def profile_geist(vault_path: str, geist_id: str) -> Dict[str, Any]:
+def profile_geist(vault_path: str, geist_id: str) -> dict[str, Any]:
     """Profile a single geist execution.
 
     Args:
@@ -246,11 +246,11 @@ def profile_geist(vault_path: str, geist_id: str) -> Dict[str, Any]:
         if total_hits + total_misses > 0:
             overall_hit_rate = total_hits / (total_hits + total_misses) * 100
             print(f"\n{'─' * 70}")
-            print("CACHE EFFICIENCY")
+            print("CACHE AND PREPARED-GRAPH REUSE")
             print(f"{'─' * 70}")
             print(f"Overall hit rate: {overall_hit_rate:.1f}%")
             pct = total_time / elapsed * 100
-            print(f"Time in cached methods: {total_time * 1000:.2f}ms ({pct:.1f}% of total)")
+            print(f"Time in reusable methods: {total_time * 1000:.2f}ms ({pct:.1f}% of total)")
 
     print(f"\n{'=' * 70}\n")
 
@@ -288,7 +288,7 @@ def main():
     if args.geist:
         geists_to_profile = [args.geist]
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
 
     for geist_id in geists_to_profile:
         result = profile_geist(args.vault, geist_id)

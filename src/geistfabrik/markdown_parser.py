@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -149,6 +150,23 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
     except BoundedYAMLError:
         # Malformed or resource-heavy YAML is ordinary Markdown, not metadata.
         return None, content
+
+
+@dataclass(frozen=True)
+class ParsedMarkdown:
+    """Validated source data passed through ingestion and note analysis."""
+
+    raw: str
+    frontmatter: dict[str, Any] | None
+    body: str
+
+    @classmethod
+    def parse(cls, content: str) -> "ParsedMarkdown":
+        return cls(content, *parse_frontmatter(content))
+
+    def normalized(self) -> "ParsedMarkdown":
+        normalized = self.raw.replace("\r\n", "\n").replace("\r", "\n")
+        return self if normalized == self.raw else self.parse(normalized)
 
 
 def extract_title(path: str, frontmatter: dict[str, Any] | None, content: str) -> str:
@@ -308,12 +326,14 @@ def _as_naive_datetime(value: object) -> datetime | None:
     return parsed
 
 
-def _frontmatter_date(content: str, keys: tuple[str, ...]) -> datetime | None:
+def _frontmatter_date(
+    content: str, keys: tuple[str, ...], parsed: ParsedMarkdown | None = None
+) -> datetime | None:
     """The first frontmatter property among ``keys`` that holds a valid date.
 
     Keys are matched case-insensitively and tried in the order given.
     """
-    frontmatter, _ = parse_frontmatter(content)
+    frontmatter = (parsed or ParsedMarkdown.parse(content)).frontmatter
     if not frontmatter:
         return None
     by_key = {str(key).strip().lower(): value for key, value in frontmatter.items()}
@@ -325,7 +345,9 @@ def _frontmatter_date(content: str, keys: tuple[str, ...]) -> datetime | None:
     return None
 
 
-def declared_modification_date(content: str) -> datetime | None:
+def declared_modification_date(
+    content: str, *, parsed: ParsedMarkdown | None = None
+) -> datetime | None:
     """When the note says it was last changed, if it says so.
 
     A frontmatter ``modified:`` property, else ``updated:`` (both common in
@@ -333,10 +355,12 @@ def declared_modification_date(content: str) -> datetime | None:
     the note declares neither; callers then fall back to the file's mtime,
     which copying, syncing or a git clone resets.
     """
-    return _frontmatter_date(content, ("modified", "updated"))
+    return _frontmatter_date(content, ("modified", "updated"), parsed)
 
 
-def declared_creation_date(path: str, content: str) -> datetime | None:
+def declared_creation_date(
+    path: str, content: str, *, parsed: ParsedMarkdown | None = None
+) -> datetime | None:
     """When the note says it was created, if it says so.
 
     Precedence: a frontmatter ``created:`` property (Obsidian's convention,
@@ -345,7 +369,7 @@ def declared_creation_date(path: str, content: str) -> datetime | None:
     note declares neither; callers then fall back to file timestamps, which
     copying, syncing or a git clone can reset.
     """
-    declared = _frontmatter_date(content, ("created",))
+    declared = _frontmatter_date(content, ("created",), parsed)
     if declared is not None:
         return declared
     match = _FILENAME_DATE.match(Path(path).name)
@@ -357,14 +381,15 @@ def declared_creation_date(path: str, content: str) -> datetime | None:
     return None
 
 
-def declared_creation_day(path: str, content: str) -> date | None:
+def declared_creation_day(
+    path: str, content: str, *, parsed: ParsedMarkdown | None = None
+) -> date | None:
     """Declared calendar date for cohorts, without conversion through host time.
 
     Note timestamp APIs keep their existing local-time semantics. Cohorts use
     the calendar written in frontmatter, then a dated filename, never an mtime.
     """
-    normalized = content.replace("\r\n", "\n").replace("\r", "\n")
-    frontmatter, _ = parse_frontmatter(normalized)
+    frontmatter = (parsed or ParsedMarkdown.parse(content)).normalized().frontmatter
     for key, value in (frontmatter or {}).items():
         if key.strip().lower() != "created":
             continue
@@ -386,7 +411,9 @@ def declared_creation_day(path: str, content: str) -> date | None:
     return None
 
 
-def parse_markdown(path: str, content: str) -> tuple[str, str, list[Link], list[str]]:
+def parse_markdown(
+    path: str, content: str, *, parsed: ParsedMarkdown | None = None
+) -> tuple[str, str, list[Link], list[str]]:
     """Parse markdown file and extract structured data.
 
     Args:
@@ -397,7 +424,8 @@ def parse_markdown(path: str, content: str) -> tuple[str, str, list[Link], list[
         Tuple of (title, clean_content, links, tags)
     """
     # Extract frontmatter
-    frontmatter, clean_content = parse_frontmatter(content)
+    source = parsed or ParsedMarkdown.parse(content)
+    frontmatter, clean_content = source.frontmatter, source.body
 
     # Extract title
     title = extract_title(path, frontmatter, clean_content)

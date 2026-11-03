@@ -13,10 +13,10 @@ from datetime import date, datetime
 from .config import MAX_DATE_SECTIONS, MAX_NOTE_H2_HEADINGS, MAX_VIRTUAL_NOTES_PER_FILE
 from .markdown_parser import (
     MarkdownLimitError,
+    ParsedMarkdown,
     extract_links,
     extract_tags,
     markdown_prose_lines,
-    parse_frontmatter,
 )
 from .models import Note
 
@@ -141,7 +141,11 @@ def extract_h2_headings(content: str) -> list[tuple[str, int]]:
 
 
 def is_date_collection_note(
-    content: str, min_sections: int = 2, date_threshold: float = 0.5
+    content: str,
+    min_sections: int = 2,
+    date_threshold: float = 0.5,
+    *,
+    parsed: ParsedMarkdown | None = None,
 ) -> bool:
     """Detect if file contains date-based entries.
 
@@ -153,7 +157,7 @@ def is_date_collection_note(
     Returns:
         True if file should be split into date entries
     """
-    _, clean_content = parse_frontmatter(content)
+    clean_content = (parsed or ParsedMarkdown.parse(content)).body
     headings = extract_h2_headings(clean_content)
 
     # Must have at least min_sections headings
@@ -234,6 +238,8 @@ def split_date_collection_note(
     content: str,
     file_created: datetime,
     file_modified: datetime,
+    *,
+    parsed: ParsedMarkdown | None = None,
 ) -> list[Note]:
     """Split journal file into virtual note entries.
 
@@ -249,7 +255,8 @@ def split_date_collection_note(
         List of virtual Note objects, one per date section
     """
     # Parse frontmatter (applies to all entries)
-    frontmatter, clean_content = parse_frontmatter(content)
+    source = parsed or ParsedMarkdown.parse(content)
+    frontmatter, clean_content = source.frontmatter, source.body
 
     # Split by date headings
     sections = split_by_date_headings(clean_content, file_path)

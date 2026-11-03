@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pytest
+from threadpoolctl import threadpool_limits
 
 from geistfabrik.config import SEMANTIC_DIM, TOTAL_DIM
 from geistfabrik.embeddings import (
@@ -221,3 +222,23 @@ def test_real_very_long_content(db_with_notes, sample_notes):
     embedding = session.get_embedding(note.path)
     assert embedding is not None
     assert embedding.shape == (387,)
+
+
+def test_bounded_cpu_batches_preserve_full_precision_embeddings() -> None:
+    """The smaller working set must preserve ordering, padding and model output."""
+    texts = [
+        "A short note.",
+        "A longer note about forests, rainfall, fungi and biodiversity. " * 8,
+        "",
+        "   ",
+        "Café — 日本語 — naïve",
+        "[[A|alias]] and `code`",
+    ] * 3
+    with EmbeddingComputer() as computer:
+        computer.device = "cpu"
+        with threadpool_limits(limits=1):
+            expected = computer.model.encode(
+                texts, convert_to_numpy=True, show_progress_bar=False, batch_size=32
+            )
+        actual = computer.compute_batch_semantic(texts)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-6)

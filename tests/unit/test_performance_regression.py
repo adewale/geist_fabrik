@@ -213,8 +213,8 @@ def test_outgoing_links_resolves_targets_efficiently():
         assert {note.path for note in outgoing} == {"note_b.md", "note_c.md"}
 
 
-def test_backlinks_caching(temp_vault):
-    """Test that backlinks() uses cache on repeated calls."""
+def test_backlinks_reuse_resolved_graph(temp_vault):
+    """Repeated traversal needs no SQL, and callers cannot mutate the graph."""
     # Create notes with backlinks
     (temp_vault / "note_a.md").write_text("# Note A\n\n[[note_b]]")
     (temp_vault / "note_b.md").write_text("# Note B")
@@ -229,19 +229,22 @@ def test_backlinks_caching(temp_vault):
     note_b = context.get_note("note_b.md")
     assert note_b is not None
 
-    # First call - populates cache
+    # First call builds the canonical graph.
     result1 = context.backlinks(note_b)
 
-    # Second call - should use cache
+    statements = []
+    vault.db.set_trace_callback(statements.append)
     result2 = context.backlinks(note_b)
+    vault.db.set_trace_callback(None)
+    assert statements == []
+    assert [note.path for note in result2] == ["note_a.md"]
+    assert result1 == result2
+    result1.clear()
+    assert context.backlinks(note_b) == result2
 
-    # Verify results are identical (same object from cache)
-    assert result1 is result2
-    assert len(result1) == 1  # note_a links to note_b
 
-
-def test_outgoing_links_caching(temp_vault):
-    """Test that outgoing_links() uses cache on repeated calls."""
+def test_outgoing_links_reuse_resolved_graph(temp_vault):
+    """Repeated traversal needs no SQL, and callers cannot mutate the graph."""
     # Create linked notes
     (temp_vault / "note_a.md").write_text("# Note A\n\n[[note_b]]")
     (temp_vault / "note_b.md").write_text("# Note B")
@@ -265,9 +268,10 @@ def test_outgoing_links_caching(temp_vault):
     assert statements == []
     assert incoming == [note_a]
 
-    # Verify results are identical
-    assert result1 is result2
-    assert len(result1) == 1
+    assert [note.path for note in result2] == ["note_b.md"]
+    assert result1 == result2
+    result1.clear()
+    assert context.outgoing_links(note_a) == result2
 
 
 def test_graph_neighbours_caching(temp_vault):

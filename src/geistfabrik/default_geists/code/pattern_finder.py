@@ -37,7 +37,7 @@ _HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
 _URL = re.compile(r"\b\w+://\S+")
 
 
-def _phrases(content: str) -> Iterator[str]:
+def _phrases(content: str, *, body: str | None = None) -> Iterator[str]:
     """Yield the 3-word phrases of a note's prose.
 
     Frontmatter, fenced/indented code, inline code, headings (often template
@@ -45,7 +45,8 @@ def _phrases(content: str) -> Iterator[str]:
     prose. Any token that is not a plain word (a number, "note.links",
     "list[link]", a list marker) ends the current run of words.
     """
-    body = parse_frontmatter(content)[1]
+    if body is None:
+        body = parse_frontmatter(content)[1]
     for _, line in markdown_prose_lines(body):
         if _HEADING.match(line) or line.lstrip().startswith("|"):
             continue
@@ -83,17 +84,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     if len(notes) < 15:
         return []
 
-    # OPTIMISATION: Build link pair set once for O(1) lookups
-    # This replaces thousands of O(N) links_between() calls
-    all_link_pairs = set()
-    for note in notes:
-        for target in vault.outgoing_links(note):
-            # Store bidirectional pairs in canonical order for symmetric lookup
-            pair = tuple(sorted([note.path, target.path]))
-            all_link_pairs.add(pair)
+    graph = vault.resolved_graph()
+    marks = [0] * len(graph.notes)
 
     # Look for repeated significant 3-word phrases
-    phrase_to_notes = defaultdict(list)
+    phrase_to_notes: dict[str, list[int]] = defaultdict(list)
 
     # Every note is read: sampling the corpus here (Phase 3B) lost most
     # patterns on large vaults (tests/integration/test_phase3b_regression.py).
@@ -101,28 +96,16 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
         # Count each phrase once per note so a note repeating itself is not
         # mistaken for several notes. (A dict, not a set: insertion order
         # keeps output independent of hash seeds.)
-        note_phrases = dict.fromkeys(_phrases(vault.read(note)))
+        note_phrases = dict.fromkeys(_phrases(note.content, body=note.body))
         for phrase in note_phrases:
-            phrase_to_notes[phrase].append(note)
+            phrase_to_notes[phrase].append(graph.ids[note.path])
 
     # Find phrases that appear in multiple unlinked notes
-    for phrase, phrase_notes in phrase_to_notes.items():
+    for generation, (phrase, phrase_notes) in enumerate(phrase_to_notes.items(), start=1):
         if len(phrase_notes) >= 3:
-            # Check if these notes are connected
-            unlinked_group = []
-
-            for i, note_a in enumerate(phrase_notes):
-                is_isolated = True
-                for note_b in phrase_notes:
-                    if note_a.path != note_b.path:
-                        # O(1) set lookup instead of O(N) links_between() call
-                        pair = tuple(sorted([note_a.path, note_b.path]))
-                        if pair in all_link_pairs:
-                            is_isolated = False
-                            break
-
-                if is_isolated:
-                    unlinked_group.append(note_a)
+            unlinked_group = [
+                graph.notes[i] for i in graph.isolated_members(phrase_notes, marks, generation)
+            ]
 
             if len(unlinked_group) >= 3:
                 sample = vault.sample(unlinked_group, count=3)

@@ -736,6 +736,12 @@ for neighbour, similarity in neighbours_with_scores:
 
 Access rich metadata without reading file content.
 
+When only word count is needed, use `vault.word_count(note)`. It counts
+whitespace-separated body words, excluding valid YAML frontmatter, without
+computing voice features. Existing metadata and custom inference providers keep
+their precedence; overridden counts are converted to integers. An empty built-in
+inference loader uses the same direct counting path as no loader.
+
 ```python
 metadata = vault.metadata(note)
 

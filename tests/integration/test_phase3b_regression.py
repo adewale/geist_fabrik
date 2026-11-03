@@ -11,6 +11,7 @@ correctness contract. Cache consistency is owned by the batch_similarity
 cache tests in tests/unit/test_vault_context.py.
 """
 
+from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import TypeVar, cast
@@ -19,6 +20,7 @@ import pytest
 
 from geistfabrik.embeddings import Session
 from geistfabrik.models import Note, Suggestion
+from geistfabrik.note_graph import NoteGraph
 from geistfabrik.vault import Vault
 from geistfabrik.vault_context import VaultContext
 
@@ -30,17 +32,12 @@ class _RecordingPatternContext:
 
     def __init__(self, notes: list[Note]) -> None:
         self._notes = notes
-        self.read_paths: list[str] = []
 
     def notes(self) -> list[Note]:
         return self._notes
 
-    def outgoing_links(self, note: Note) -> list[Note]:
-        return []
-
-    def read(self, note: Note) -> str:
-        self.read_paths.append(note.path)
-        return note.content
+    def resolved_graph(self) -> NoteGraph:
+        return NoteGraph.build(self._notes, [[] for _ in self._notes])
 
     @staticmethod
     def sample(items: list[_T], count: int) -> list[_T]:
@@ -54,7 +51,9 @@ class _RecordingPatternContext:
 class TestPatternFinderCoverage:
     """Tests ensuring pattern_finder examines all notes, not a sample."""
 
-    def test_pattern_finder_processes_all_notes_not_sample(self) -> None:
+    def test_pattern_finder_processes_all_notes_not_sample(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Regression: pattern_finder must examine ALL notes, not a sample.
 
         Phase 3B Issue (commit c74a12a):
@@ -84,9 +83,17 @@ class TestPatternFinderCoverage:
         recording_context = _RecordingPatternContext(notes)
         context = cast(VaultContext, recording_context)
 
+        examined: list[str] = []
+        original = pattern_finder._phrases
+
+        def phrases(content: str, *, body: str | None = None) -> Iterator[str]:
+            examined.append(content)
+            yield from original(content, body=body)
+
+        monkeypatch.setattr(pattern_finder, "_phrases", phrases)
         suggestions: list[Suggestion] = pattern_finder.suggest(context)
 
-        assert recording_context.read_paths == [note.path for note in notes]
+        assert examined == [note.content for note in notes]
         assert any(unique_phrase in suggestion.text for suggestion in suggestions)
 
 

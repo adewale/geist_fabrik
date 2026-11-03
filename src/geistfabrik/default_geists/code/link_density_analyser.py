@@ -66,10 +66,11 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
     from geistfabrik import Suggestion
 
     orphans = {note.path for note in vault.orphans()}
+    graph = vault.resolved_graph()
     # (note, word_count, written links, resolved outgoing, backlinks)
     analysed = []
-    for note in vault.notes():
-        word_count = int(vault.metadata(note).get("word_count", 0))
+    for row, note in enumerate(graph.notes):
+        word_count = vault.word_count(note)
         if word_count < MIN_WORDS:
             continue  # Too short to analyse
         analysed.append(
@@ -77,8 +78,8 @@ def suggest(vault: "VaultContext") -> list["Suggestion"]:
                 note,
                 word_count,
                 _written_link_count(vault, note),
-                len(vault.outgoing_links(note)),
-                len(vault.backlinks(note)),
+                graph.outgoing_offsets[row + 1] - graph.outgoing_offsets[row],
+                graph.incoming_offsets[row + 1] - graph.incoming_offsets[row],
             )
         )
     if not analysed:
