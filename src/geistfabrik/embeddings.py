@@ -67,6 +67,9 @@ class EmbeddingModel(Protocol):
 # spawning (one pool per core, per process) that hung CI under parallel geist
 # execution - without imposing that cap on the host process globally.
 _ENCODE_THREAD_LIMIT = 1
+# Keep the CPU working set small. Larger token batches grow intermediate
+# BERT activations enough to outweigh their reduction in Python overhead.
+_CPU_BATCH_LIMIT = 8
 
 _REQUIRED_MODEL_FILES = (
     "config.json",
@@ -269,6 +272,9 @@ class EmbeddingComputer:
             return np.array([])
 
         model = self.model
+        effective_batch_size = (
+            min(batch_size, _CPU_BATCH_LIMIT) if self.device == "cpu" else batch_size
+        )
 
         def encode(missing: list[str]) -> np.ndarray:
             with threadpool_limits(limits=_ENCODE_THREAD_LIMIT):
@@ -276,7 +282,7 @@ class EmbeddingComputer:
                     missing,
                     convert_to_numpy=True,
                     show_progress_bar=False,
-                    batch_size=batch_size,
+                    batch_size=effective_batch_size,
                 )
 
         return self.text_cache.encode(

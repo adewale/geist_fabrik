@@ -2,9 +2,15 @@
 
 import posixpath
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from datetime import date, datetime
 from pathlib import PurePosixPath
+from typing import TYPE_CHECKING
+
+from .frontmatter_body import strip_frontmatter
+
+if TYPE_CHECKING:
+    from .markdown_parser import ParsedMarkdown
 
 
 def _normalise_vault_path(path: str) -> str:
@@ -249,6 +255,23 @@ class Note:
     is_virtual: bool = False  # True for entries split from journal files
     source_file: str | None = None  # Original file path (e.g., "Daily Journal.md")
     entry_date: date | None = None  # Date extracted from heading
+
+    _parsed_source: InitVar["ParsedMarkdown | None"] = None
+    source: "ParsedMarkdown | None" = field(default=None, init=False, repr=False)
+
+    def __post_init__(self, _parsed_source: "ParsedMarkdown | None") -> None:
+        # Ingestion supplies its validated source. Database hydration needs no
+        # YAML objects; body-only consumers use the conservative projection.
+        # init=False prevents dataclasses.replace from carrying stale source data.
+        if _parsed_source is not None:
+            if _parsed_source.raw != self.content:
+                raise ValueError("parsed source does not describe note content")
+            object.__setattr__(self, "source", _parsed_source)
+
+    @property
+    def body(self) -> str:
+        """Validated prose without constructing metadata that nobody reads."""
+        return self.source.body if self.source is not None else strip_frontmatter(self.content)
 
     def __hash__(self) -> int:
         """Hash based on path (the unique identifier).

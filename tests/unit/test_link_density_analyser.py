@@ -24,6 +24,8 @@ from pathlib import Path
 import pytest
 
 from geistfabrik.default_geists.code import link_density_analyser
+from geistfabrik.metadata_system import MetadataLoader
+from geistfabrik.vault_context import VaultContext
 from tests.fixtures.helpers import VaultBuilder, assert_valid_suggestions
 
 GEIST = "link_density_analyser"
@@ -82,6 +84,44 @@ def test_dense_and_sparse_notes_are_both_flagged(tmp_path: Path) -> None:
             "50+ words is 0.0), and 1 note links back to it."
         ),
     }
+
+
+def test_density_needs_neither_voice_analysis_nor_neighbour_lists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    builder = VaultBuilder(tmp_path)
+    builder.note("Dense", _body(60, 6))
+    builder.note("Sparse", _body(300, 0))
+    _pointer(builder, "Sparse")
+    builder.note("Balanced", _body(100, 1))
+    context = builder.build()
+
+    def unexpected_work(note: object) -> None:
+        raise AssertionError("Density needs word and edge counts only")
+
+    for method in ["voice", "backlinks", "outgoing_links"]:
+        monkeypatch.setattr(context, method, unexpected_work)
+
+    suggestions = link_density_analyser.suggest(context)
+    assert {s.notes[0] for s in suggestions} == {"Dense", "Sparse"}
+    assert any("1 note links back" in s.text for s in suggestions)
+
+
+def test_density_keeps_custom_word_count_overrides(tmp_path: Path) -> None:
+    class Provider(MetadataLoader):
+        def infer_all(self, note: object, vault: object) -> tuple[dict[str, object], list[str]]:
+            return {"word_count": "60"}, []
+
+    builder = VaultBuilder(tmp_path)
+    # Physically under MIN_WORDS, but the inference provider's count wins.
+    builder.note("Dense", "[[One]] [[Two]] [[Three]] [[Four]]")
+    built = builder.build()
+    context = VaultContext(built.vault, built.session, metadata_loader=Provider())
+
+    suggestions = link_density_analyser.suggest(context)
+
+    assert [s.notes for s in suggestions] == [["Dense"]]
+    assert "4 links in 60 words" in suggestions[0].text
 
 
 @pytest.mark.parametrize(("total_words", "fires"), [(49, False), (50, True)])

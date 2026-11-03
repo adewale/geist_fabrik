@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Link-density analysis counts body words without computing unrelated voice
+  metadata, retaining user inference overrides, and reads graph degrees directly
+  from flat adjacency offsets. Note body projection imports its parser only on
+  uncommon fallback paths; empty graph queries avoid temporary array slices.
+- Note ingestion and analysis share validated frontmatter/body representations;
+  bounded YAML loading enforces quotas in a single composition pass. Lexical
+  capture reuses its grammar and streams visible text into tokenization.
+- Link traversal uses a canonical graph with dense note IDs and flat adjacency
+  arrays. Unlinked-pair and phrase-isolation checks avoid repeated path resolution
+  and string-pair hashing while retaining source boundaries and traversal order.
+  Backlink/outgoing APIs return independent lists, so caller mutations cannot
+  corrupt subsequent graph queries.
+- CPU embedding batches are bounded to reduce the model's working set; GPU
+  batching and the full-precision model remain unchanged.
 - Schema v15 retains captured evidence across operational pauses and extraction
   changes, establishes confirmed baselines on resume, and captures newly seen
   notes after bootstrap. Disabled word-burst geists skip lexical indexing.

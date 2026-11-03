@@ -152,6 +152,49 @@ def test_word_count_excludes_frontmatter(tmp_path: Path) -> None:
     assert ctx.metadata(with_front)["word_count"] == 4
 
 
+@pytest.mark.parametrize("empty_loader", [False, True])
+def test_word_count_does_not_require_voice_analysis(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, empty_loader: bool
+) -> None:
+    built = _build_context(tmp_path, {"A": "body words"}, backdate_days=10)
+    ctx = VaultContext(
+        built.vault, built.session, metadata_loader=MetadataLoader() if empty_loader else None
+    )
+
+    def unexpected_voice(note: object) -> None:
+        raise AssertionError("Counting words must not require voice analysis")
+
+    monkeypatch.setattr(ctx, "voice", unexpected_voice)
+    assert ctx.word_count(ctx.notes()[0]) == 4
+
+
+def test_word_count_preserves_custom_provider_and_existing_metadata(tmp_path: Path) -> None:
+    class Provider(MetadataLoader):
+        def infer_all(self, note: object, vault: object) -> tuple[dict[str, object], list[str]]:
+            return {"word_count": "123"}, []
+
+    built = _build_context(tmp_path, {"A": "body words"}, backdate_days=10)
+    # A subclass can supply inference without using MetadataLoader.modules.
+    ctx = VaultContext(built.vault, built.session, metadata_loader=Provider())
+    note = ctx.notes()[0]
+    assert ctx.word_count(note) == 123
+    metadata = ctx.metadata(note)
+    metadata["word_count"] = 321
+    assert ctx.word_count(note) == 321
+
+
+def test_word_count_keeps_provider_failure_diagnostics(tmp_path: Path) -> None:
+    class Provider(MetadataLoader):
+        def infer_all(self, note: object, vault: object) -> tuple[dict[str, object], list[str]]:
+            return {}, ["broken_module"]
+
+    built = _build_context(tmp_path, {"A": "body words"}, backdate_days=10)
+    ctx = VaultContext(built.vault, built.session, metadata_loader=Provider())
+    note = ctx.notes()[0]
+    assert ctx.word_count(note) == 4
+    assert ctx.metadata_errors == {note.path: ["broken_module"]}
+
+
 def test_user_modules_can_still_override(tmp_path: Path) -> None:
     """A user inference module runs after the builtins, so its keys win."""
     modules = tmp_path / "metadata_inference"

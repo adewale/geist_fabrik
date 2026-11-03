@@ -24,6 +24,7 @@ from .config_loader import LexicalAnalysisConfig
 from .lexical_html import HTMLProse
 from .lexical_presence import PresenceWriter
 from .markdown_parser import (
+    ParsedMarkdown,
     declared_creation_day,
     iter_wikilinks,
     parse_frontmatter,
@@ -118,20 +119,18 @@ def _link_spans(
     parser.inline.ruler.at("backticks", code)
     parser.inline.ruler.at("escape", lambda state, silent: special(state, silent, escape))
     parser.inline.ruler.at("entity", lambda state, silent: special(state, silent, entity))
-    parser.inline.ruler.before("link", "lexical_wiki", wiki)
+    if "lexical_wiki" in parser.inline.ruler.get_all_rules():
+        parser.inline.ruler.at("lexical_wiki", wiki)
+    else:
+        parser.inline.ruler.before("link", "lexical_wiki", wiki)
     parser.inline.ruler.at("link", capture)
     parser.inline.ruler.at("image", capture)
     parser.inline.parse(body, parser, environment, [])
     return spans
 
 
-def _clean_inline_blocks(body: str, quoted_lines: set[int], code_lines: set[int]) -> str:
-    """Mask code and rewrite links using authoritative block and inline spans.
-
-    No character offsets are inferred from normalized text. Each emitted line
-    belongs to the same original source line; eligibility is decided separately
-    on original source, so tab/container normalization cannot admit hidden prose.
-    """
+def _prose_parser() -> MarkdownIt:
+    """Reusable grammar; each parse still owns its environment and tokens."""
     parser = MarkdownIt("commonmark", {"inline_definitions": True, "store_labels": True})
     parser.core.ruler.disable(["inline"])
 
@@ -142,6 +141,19 @@ def _clean_inline_blocks(body: str, quoted_lines: set[int], code_lines: set[int]
         )
 
     parser.block.ruler.at("reference", prose_footnotes)
+    return parser
+
+
+def _clean_inline_blocks(
+    body: str, quoted_lines: set[int], code_lines: set[int], parser: MarkdownIt | None = None
+) -> str:
+    """Mask code and rewrite links using authoritative block and inline spans.
+
+    No character offsets are inferred from normalized text. Each emitted line
+    belongs to the same original source line; eligibility is decided separately
+    on original source, so tab/container normalization cannot admit hidden prose.
+    """
+    parser = parser or _prose_parser()
     environment: dict[str, Any] = {}
     tokens = parser.parse(body, environment)
     lines = body.split("\n")
@@ -158,8 +170,7 @@ def _clean_inline_blocks(body: str, quoted_lines: set[int], code_lines: set[int]
             and token.map
             and any(marker in token.content for marker in ("[", "`", "\\", "&"))
         ):
-            inline = MarkdownIt("commonmark", {"store_labels": True})
-            spans = _link_spans(token.content, inline, environment)
+            spans = _link_spans(token.content, parser, environment)
             if not spans:
                 continue
             pieces: list[str] = []
@@ -224,14 +235,23 @@ def week_start(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
-def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
-    content = content.replace("\r\n", "\n").replace("\r", "\n")
-    _, body = parse_frontmatter(content)
+def _prose_regions(
+    content: str,
+    include_quotes: bool,
+    *,
+    parsed: ParsedMarkdown | None = None,
+    parser: MarkdownIt | None = None,
+) -> Iterator[str]:
+    if parsed is None:
+        content = content.replace("\r\n", "\n").replace("\r", "\n")
+        _, body = parse_frontmatter(content)
+    else:
+        body = parsed.normalized().body
     original = _mask_comments(body)
     quoted_lines: set[int] = set()
     code_lines: set[int] = set()
     cleaned = (
-        _clean_inline_blocks(body, quoted_lines, code_lines)
+        _clean_inline_blocks(body, quoted_lines, code_lines, parser)
         if any(marker in body for marker in ("[", "`", "~", ">", "<", "\\", "&"))
         else body
     )
@@ -243,7 +263,6 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
         for number, line in enumerate(cleaned.split("\n"), start=1)
     )
     html = HTMLProse(cleaned, include_quotes) if "<" in cleaned or "&" in cleaned else None
-    prose: list[str] = []
     quoted = False
     # Track raw quote state before excluding code/indentation, including lazy
     # continuations. Only an eligible HTML opening can own subsequent syntax;
@@ -279,14 +298,19 @@ def _prose_regions(content: str, include_quotes: bool) -> Iterator[str]:
             )
             html.feed_line(number, allowed=allowed, data_allowed=bool(data_allowed))
         else:
-            prose.append(cleaned_line if allowed else "\x00")
-    for line in (html.prose() if html is not None else "\n".join(prose)).splitlines():
+            yield from _line_regions(cleaned_line if allowed else "\x00")
+    if html is not None:
+        yield from _line_regions(html.prose())
+
+
+def _line_regions(prose: str) -> Iterator[str]:
+    """Stream visible lines to tokenization without rebuilding the document."""
+    for line in prose.splitlines():
         # Link syntax has already been resolved inside its actual inline block.
         line = re.sub(r"\[\[([^]|\n]+)\|([^]\n]+)\]\]", r"\2", line)
         line = re.sub(r"\[\[([^]\n]+)\]\]", r"\1", line)
         visible = unicodedata.normalize("NFKC", line)
-        # Sentence/semicolon boundaries are not phrases. Removed regions and
-        # line boundaries also interrupt them, including inline-code gaps.
+        # Sentence/semicolon boundaries and removed regions interrupt phrases.
         yield from re.split(r"[.!?;]+|\x00|\ufffd", _REMOVED.sub("\x00", visible))
 
 
@@ -323,7 +347,12 @@ def _words(region: str) -> list[_Word]:
 
 
 def extract_terms(
-    content: str, *, ngram_max: int = 1, include_quotes: bool = False
+    content: str,
+    *,
+    ngram_max: int = 1,
+    include_quotes: bool = False,
+    parsed: ParsedMarkdown | None = None,
+    parser: MarkdownIt | None = None,
 ) -> Counter[str]:
     """Exact words and 1–3 word phrases within visible sentence/line regions.
 
@@ -335,7 +364,7 @@ def extract_terms(
     if not isinstance(include_quotes, bool):
         raise ValueError("include_quotes must be boolean")
     counts: Counter[str] = Counter()
-    for region in _prose_regions(content, include_quotes):
+    for region in _prose_regions(content, include_quotes, parsed=parsed, parser=parser):
         words = [word.text for word in _words(region)]
         for size in range(1, ngram_max + 1):
             counts.update(" ".join(words[i : i + size]) for i in range(len(words) - size + 1))
@@ -383,6 +412,7 @@ class LexicalIndex:
     _capture: bool = field(default=False, init=False, repr=False)
     _policy: str = field(default="", init=False, repr=False)
     _restore: bool = field(default=False, init=False, repr=False)
+    _parser: MarkdownIt = field(default_factory=_prose_parser, init=False, repr=False)
 
     def _presence(self, terms: Collection[str]) -> bytes:
         if self._presence_writer is None:
@@ -478,6 +508,7 @@ class LexicalIndex:
             )
             for path in paths
         )
+        parsed = note.source or ParsedMarkdown.parse(note.content)
         counts = (
             Counter()
             if excluded
@@ -485,6 +516,8 @@ class LexicalIndex:
                 note.content,
                 ngram_max=self.options.ngram_max,
                 include_quotes=self.options.include_quotes,
+                parsed=parsed,
+                parser=self._parser,
             )
         )
         self.extracted += not excluded
@@ -493,7 +526,9 @@ class LexicalIndex:
         cohort, provenance = None, "filesystem_estimate"
         if note.entry_date:
             cohort, provenance = note.entry_date.isoformat(), "entry_heading"
-        elif (declared := declared_creation_day(note.path, note.content)) is not None:
+        elif (
+            declared := declared_creation_day(note.path, note.content, parsed=parsed)
+        ) is not None:
             cohort, provenance = declared.isoformat(), "declared_date"
         watermark = self.db.execute(
             "SELECT value FROM lexical_meta WHERE key = 'last_sync_at'"

@@ -26,8 +26,9 @@ from .embeddings import Session
 from .evidence_identity import evidence_was_seen
 from .execution_timeout import GeistTimeoutError, execution_deadline, is_execution_timeout
 from .lexical_index import lexical_excerpt
-from .markdown_parser import parse_frontmatter
+from .metadata_system import MetadataLoader
 from .models import Link, Note, NoteLinkIndex
+from .note_graph import NoteGraph
 from .semantic_vectors import decode_meaning_vector
 from .session_time import session_seed
 from .source_eligibility import SourceEligibility
@@ -317,7 +318,7 @@ class VaultContext:
         self._notes_cache: list[Note] | None = None
         self._link_index: NoteLinkIndex | None = None
         self._full_link_index: NoteLinkIndex | None = None
-        self._link_graph_ready = False
+        self._link_graph: NoteGraph | None = None
 
         # Cache for metadata
         self._metadata_cache: dict[str, dict[str, Any]] = {}
@@ -332,12 +333,6 @@ class VaultContext:
         # One largest ranked prefix per query, shared by both return formats.
         # Missing note slots remain in rank order so smaller requests agree.
         self._neighbours_cache: dict[str, tuple[int, list[tuple[Note | None, float]]]] = {}
-
-        # Cache for backlinks (performance optimisation - keyed by note_path)
-        self._backlinks_cache: dict[str, list[Note]] = {}
-
-        # Cache for outgoing_links (performance optimisation - keyed by note_path)
-        self._outgoing_links_cache: dict[str, list[Note]] = {}
 
         # Cache for graph_neighbours (performance optimisation - keyed by note_path)
         self._graph_neighbours_cache: dict[str, list[Note]] = {}
@@ -878,18 +873,17 @@ class VaultContext:
 
     def _ensure_link_graph(self) -> None:
         """Resolve each edge once, sharing the result in both graph directions."""
-        if self._link_graph_ready:
+        if self._link_graph is not None:
             return
         # Only user notes are sources or targets: journal suggestions link to
         # the notes they mention, and counting those as backlinks would turn
         # every suggested note into a hub. link_index() holds user notes only,
         # so a link to a journal note simply does not resolve here.
         notes = self.notes()
-        by_path = {note.path: note for note in notes}
+        ids = {note.path: i for i, note in enumerate(notes)}
         index = self.link_index()
-        self._backlinks_cache = {note.path: [] for note in notes}
-        self._outgoing_links_cache = {note.path: [] for note in notes}
-        for note in notes:
+        outgoing: list[list[int]] = [[] for _ in notes]
+        for source, note in enumerate(notes):
             # One edge per target. A link back to the note itself ("[[#Section]]",
             # "[[Own title]]") is navigation within the note, not a connection:
             # counted, it made the note its own backlink and therefore a "hub".
@@ -902,16 +896,20 @@ class VaultContext:
                 path = index.resolve(link.target, note.path)
                 if path is not None and path not in seen:
                     seen.add(path)
-                    self._outgoing_links_cache[note.path].append(by_path[path])
-                    self._backlinks_cache[path].append(note)
-        self._link_graph_ready = True
+                    outgoing[source].append(ids[path])
+        self._link_graph = NoteGraph.build(notes, outgoing)
+
+    def resolved_graph(self) -> NoteGraph:
+        """The canonical eligible graph; resolve strings only at its boundary."""
+        self._ensure_link_graph()
+        assert self._link_graph is not None
+        return self._link_graph
 
     def backlinks(self, note: Note) -> list[Note]:
-        """Find notes that link to this note (cached).
+        """Find notes that link to this note through the canonical session graph.
 
-        Uses session-scoped caching for performance. Many geists query backlinks
-        for the same notes (e.g., hub notes, recently modified notes), so caching
-        eliminates redundant database queries across all geists in a session.
+        Link resolution happens once while building the flat graph; callers
+        receive a list in the original source-note order.
 
         Args:
             note: Target note
@@ -919,18 +917,22 @@ class VaultContext:
         Returns:
             List of notes with links to target
         """
-        self._ensure_link_graph()
-        return self._backlinks_cache.get(note.path, [])
+        graph = self.resolved_graph()
+        row = graph.ids.get(note.path)
+        if row is None:
+            return []
+        start, stop = graph.incoming_offsets[row], graph.incoming_offsets[row + 1]
+        if start == stop:
+            return []
+        return [graph.notes[i] for i in graph.incoming[start:stop]]
 
     def outgoing_links(self, note: Note) -> list[Note]:
-        """Find notes that this note links to (cached outgoing links).
+        """Find notes that this note links to through the canonical session graph.
 
         Symmetric counterpart to backlinks(). Returns resolved Note objects
         for all outgoing links from this note.
 
-        Uses session-scoped caching for performance. Link resolution requires
-        multiple database queries per link, and many geists traverse the graph
-        repeatedly, so caching eliminates redundant resolution work.
+        The flat graph resolves each edge once and retains link traversal order.
 
         Args:
             note: Source note
@@ -938,8 +940,14 @@ class VaultContext:
         Returns:
             List of notes that this note links to
         """
-        self._ensure_link_graph()
-        return self._outgoing_links_cache.get(note.path, [])
+        graph = self.resolved_graph()
+        row = graph.ids.get(note.path)
+        if row is None:
+            return []
+        start, stop = graph.outgoing_offsets[row], graph.outgoing_offsets[row + 1]
+        if start == stop:
+            return []
+        return [graph.notes[i] for i in graph.outgoing[start:stop]]
 
     def orphans(self, count: int | None = None) -> list[Note]:
         """Find notes with no outgoing or incoming links.
@@ -955,7 +963,7 @@ class VaultContext:
         Returns:
             List of orphan notes, most recently modified first
         """
-        self._ensure_link_graph()
+        graph = self.resolved_graph()
         full_index = self._all_notes_link_index()
 
         def has_outgoing(note: Note) -> bool:
@@ -982,7 +990,9 @@ class VaultContext:
         result = [
             note
             for note in sorted(self.notes(), key=lambda n: (-n.modified.timestamp(), n.path))
-            if not has_outgoing(note) and not self._backlinks_cache[note.path]
+            if not has_outgoing(note)
+            and graph.incoming_offsets[graph.ids[note.path]]
+            == graph.incoming_offsets[graph.ids[note.path] + 1]
         ]
         return result if count is None else result[:count]
 
@@ -996,10 +1006,14 @@ class VaultContext:
             Notes with at least one backlink, sorted by backlink count
             descending
         """
-        self._ensure_link_graph()
-        linked = [note for note in self.notes() if self._backlinks_cache[note.path]]
-        linked.sort(key=lambda n: (-len(self._backlinks_cache[n.path]), n.path))
-        return linked[:count]
+        graph = self.resolved_graph()
+        ranked = [
+            (graph.incoming_offsets[i + 1] - graph.incoming_offsets[i], note)
+            for i, note in enumerate(graph.notes)
+            if graph.incoming_offsets[i + 1] != graph.incoming_offsets[i]
+        ]
+        ranked.sort(key=lambda pair: (-pair[0], pair[1].path))
+        return [note for _, note in ranked[:count]]
 
     def notes_grouped_by_creation_date(
         self, min_per_day: int = 1, exclude_journal: bool = True
@@ -1487,10 +1501,12 @@ class VaultContext:
 
         valid_notes = [note for note in notes if note.path in self._embeddings]
         prepared = self._prepared_paths([note.path for note in valid_notes])
+        graph = self.resolved_graph()
+        graph_ids = [graph.ids[note.path] for note in valid_notes]
         candidates = (
             (valid_notes[i], valid_notes[j], score)
             for i, j, score in prepared.scored_matching_pairs(0.5, inclusive=False)
-            if not self.links_between(valid_notes[i], valid_notes[j])
+            if not graph.connected(graph_ids[i], graph_ids[j])
         )
         # nlargest is stable for equal keys, preserving input pair order while
         # retaining only the requested result count rather than every match.
@@ -1538,7 +1554,19 @@ class VaultContext:
         Returns:
             True if notes are linked, False otherwise
         """
-        return len(self.links_between(a, b)) > 0
+        if a.path == b.path:
+            return bool(self.links_between(a, b))
+        graph = self.resolved_graph()
+        left, right = graph.ids.get(a.path), graph.ids.get(b.path)
+        if (
+            left is None
+            or right is None
+            or a.links != graph.notes[left].links
+            or b.links != graph.notes[right].links
+        ):
+            # Ad-hoc Note values can describe links outside the synced snapshot.
+            return bool(self.links_between(a, b))
+        return graph.connected(left, right)
 
     def graph_neighbours(self, note: Note) -> list[Note]:
         """Get all notes connected to this note by links (cached, bidirectional).
@@ -1776,6 +1804,24 @@ class VaultContext:
 
     # Metadata access
 
+    def word_count(self, note: Note) -> int:
+        """Count body words without computing unrelated linguistic metadata.
+
+        Existing metadata and user inference providers retain their precedence.
+        Providers can override word_count, so their full inference path is kept.
+        The built-in-only path needs no metadata or voice analysis cache.
+        """
+        loader = self._metadata_loader
+        # The CLI also supplies a loader for an empty inference directory.
+        # Only the concrete empty loader is known to do no inference; custom
+        # providers/subclasses may override infer_all without populating modules.
+        has_inference = loader is not None and not (
+            type(loader) is MetadataLoader and not loader.modules
+        )
+        if note.path in self._metadata_cache or has_inference:
+            return int(self.metadata(note).get("word_count", 0))
+        return len(note.body.split())
+
     def metadata(self, note: Note) -> dict[str, Any]:
         """Retrieve all inferred metadata for a note.
 
@@ -1793,7 +1839,7 @@ class VaultContext:
         session_now = self.session.date
         # Count the note body: YAML frontmatter (tags, aliases, dates) is not
         # writing, and counting it made metadata-only notes look substantial.
-        words = parse_frontmatter(note.content)[1].split()
+        words = note.body.split()
         word_count = len(words)
         days_since_modified = max(0, (session_now.date() - note.modified.date()).days)
         task_count = len(_TASK_PATTERN.findall(note.content))
